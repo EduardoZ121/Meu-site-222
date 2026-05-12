@@ -3,8 +3,10 @@ import { Link, useNavigate, useLocation } from "react-router-dom";
 import { motion } from "framer-motion";
 import { useAuth } from "../lib/auth";
 import { toast } from "sonner";
+import useTitle from "../lib/useTitle";
 
 export default function Login() {
+  useTitle("Sign in");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);

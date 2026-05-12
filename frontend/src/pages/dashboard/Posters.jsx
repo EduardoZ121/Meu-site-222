@@ -4,8 +4,10 @@ import { api } from "../../lib/api";
 import { useAuth } from "../../lib/auth";
 import { toast } from "sonner";
 import ResultPanel from "../../components/ResultPanel";
+import useTitle from "../../lib/useTitle";
 
 export default function Posters() {
+  useTitle("Posters");
   const { refresh, user } = useAuth();
   const [templates, setTemplates] = useState([]);
   const [category, setCategory] = useState("music");

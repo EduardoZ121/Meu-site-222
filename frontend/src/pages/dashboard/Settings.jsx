@@ -2,8 +2,10 @@ import { useEffect, useState } from "react";
 import { api } from "../../lib/api";
 import { useI18n } from "../../lib/i18n";
 import { toast } from "sonner";
+import useTitle from "../../lib/useTitle";
 
 export default function Settings() {
+  useTitle("Settings");
   const { lang, switchLang, langs } = useI18n();
   const [settings, setSettings] = useState(null);
   const [saving, setSaving] = useState(false);

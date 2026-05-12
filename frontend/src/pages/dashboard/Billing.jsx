@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { api } from "../../lib/api";
 import { toast } from "sonner";
+import useTitle from "../../lib/useTitle";
 
 const labels = {
   starter: "Starter",
@@ -9,6 +10,7 @@ const labels = {
 };
 
 export default function Billing() {
+  useTitle("Billing");
   const [pkgs, setPkgs] = useState([]);
   const [txs, setTxs] = useState([]);
   const [loadingTx, setLoadingTx] = useState(true);

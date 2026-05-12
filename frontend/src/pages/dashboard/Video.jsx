@@ -5,8 +5,10 @@ import { useAuth } from "../../lib/auth";
 import { toast } from "sonner";
 import PhotoUpload from "../../components/PhotoUpload";
 import ResultPanel from "../../components/ResultPanel";
+import useTitle from "../../lib/useTitle";
 
 export default function Video() {
+  useTitle("Video");
   const { refresh, user } = useAuth();
   const [prompt, setPrompt] = useState("");
   const [aspect, setAspect] = useState("16:9");

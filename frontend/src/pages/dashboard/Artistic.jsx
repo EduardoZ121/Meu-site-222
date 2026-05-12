@@ -5,8 +5,10 @@ import { useAuth } from "../../lib/auth";
 import { toast } from "sonner";
 import PhotoUpload from "../../components/PhotoUpload";
 import ResultPanel from "../../components/ResultPanel";
+import useTitle from "../../lib/useTitle";
 
 export default function Artistic() {
+  useTitle("Artistic");
   const { refresh, user } = useAuth();
   const [styles, setStyles] = useState([]);
   const [style, setStyle] = useState("oil_paint");

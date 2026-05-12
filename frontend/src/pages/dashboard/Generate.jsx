@@ -5,6 +5,7 @@ import { useSearchParams } from "react-router-dom";
 import { api } from "../../lib/api";
 import { useAuth } from "../../lib/auth";
 import { toast } from "sonner";
+import useTitle from "../../lib/useTitle";
 
 const ASPECT_RATIOS = [
   { value: "1:1", label: "Square" },
@@ -15,6 +16,7 @@ const ASPECT_RATIOS = [
 ];
 
 export default function Generate() {
+  useTitle("Generate");
   const { refresh, user } = useAuth();
   const [searchParams] = useSearchParams();
   const [mode, setMode] = useState("advanced"); // fast | advanced

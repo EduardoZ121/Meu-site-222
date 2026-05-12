@@ -5,8 +5,10 @@ import { useAuth } from "../../lib/auth";
 import { toast } from "sonner";
 import PhotoUpload from "../../components/PhotoUpload";
 import ResultPanel from "../../components/ResultPanel";
+import useTitle from "../../lib/useTitle";
 
 export default function Pro() {
+  useTitle("Pro");
   const { refresh, user } = useAuth();
   const [presets, setPresets] = useState([]);
   const [category, setCategory] = useState("realism");

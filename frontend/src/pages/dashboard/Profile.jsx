@@ -1,6 +1,8 @@
 import { useAuth } from "../../lib/auth";
+import useTitle from "../../lib/useTitle";
 
 export default function Profile() {
+  useTitle("Profile");
   const { user } = useAuth();
   if (!user) return null;
   return (

@@ -471,12 +471,15 @@ async def generate_poster_route(payload: PosterIn, current=Depends(get_current_u
     tpl = get_poster(payload.template_id)
     if not tpl:
         raise HTTPException(status_code=400, detail="Unknown template")
+    # Validate every required placeholder is filled with non-empty text
+    missing = [p for p in tpl["placeholders"] if not (payload.placeholders.get(p) or "").strip()]
+    if missing:
+        raise HTTPException(status_code=422, detail=f"Missing placeholders: {', '.join(missing)}")
     cost = COSTS["poster"]
-    await _pre_generate_checks(current["sub"], current.get("role", "user"), None, cost)
-    try:
-        prompt = tpl["prompt"].format(**{k: (payload.placeholders.get(k) or f"({k})") for k in tpl["placeholders"]})
-    except KeyError as e:
-        raise HTTPException(status_code=400, detail=f"Missing placeholder: {e}")
+    # Run NSFW rewrite over the composed prompt (including user placeholder text)
+    raw_prompt = tpl["prompt"].format(**{k: payload.placeholders[k] for k in tpl["placeholders"]})
+    user, safe_prompt, _ = await _pre_generate_checks(current["sub"], current.get("role", "user"), raw_prompt, cost)
+    prompt = safe_prompt or raw_prompt
     new_balance = await _spend_credits(current["sub"], cost, f"Poster ({payload.template_id})")
     try:
         url = await generate_poster_image(prompt)

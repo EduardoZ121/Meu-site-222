@@ -3,8 +3,10 @@ import { Wand2, Loader2, ArrowRight, Sparkles } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { api } from "../../lib/api";
 import { toast } from "sonner";
+import useTitle from "../../lib/useTitle";
 
 export default function Wizard() {
+  useTitle("Wizard");
   const navigate = useNavigate();
   const [steps, setSteps] = useState([]);
   const [step, setStep] = useState(0);

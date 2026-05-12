@@ -1,8 +1,10 @@
 import { useAuth } from "../../lib/auth";
 import { toast } from "sonner";
 import { Copy } from "lucide-react";
+import useTitle from "../../lib/useTitle";
 
 export default function Referrals() {
+  useTitle("Referrals");
   const { user } = useAuth();
   if (!user) return null;
   const link = `${window.location.origin}/register?ref=${user.referral_code}`;

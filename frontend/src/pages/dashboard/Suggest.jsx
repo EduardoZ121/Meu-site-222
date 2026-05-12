@@ -4,6 +4,7 @@ import { useNavigate } from "react-router-dom";
 import { api } from "../../lib/api";
 import { useI18n } from "../../lib/i18n";
 import { toast } from "sonner";
+import useTitle from "../../lib/useTitle";
 
 const PRESETS = [
   "Cinematic portrait",
@@ -15,6 +16,7 @@ const PRESETS = [
 ];
 
 export default function Suggest() {
+  useTitle("Suggest");
   const navigate = useNavigate();
   const { lang } = useI18n();
   const [theme, setTheme] = useState("");

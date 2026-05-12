@@ -1,8 +1,10 @@
 import { useEffect, useState } from "react";
 import { api } from "../../lib/api";
 import { toast } from "sonner";
+import useTitle from "../../lib/useTitle";
 
 export default function Admin() {
+  useTitle("Admin");
   const [stats, setStats] = useState(null);
   const [users, setUsers] = useState([]);
   const [txs, setTxs] = useState([]);

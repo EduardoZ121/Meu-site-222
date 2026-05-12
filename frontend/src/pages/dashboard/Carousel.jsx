@@ -3,10 +3,12 @@ import { Layers, Plus, Trash2, Loader2 } from "lucide-react";
 import { api } from "../../lib/api";
 import { useAuth } from "../../lib/auth";
 import { toast } from "sonner";
+import useTitle from "../../lib/useTitle";
 
 const COST_PER_SLIDE = 8;
 
 export default function Carousel() {
+  useTitle("Carousel");
   const { refresh, user } = useAuth();
   const [slides, setSlides] = useState(["", ""]);
   const [styleSuffix, setStyleSuffix] = useState("editorial magazine photography, cinematic light");

@@ -2,8 +2,10 @@ import { useEffect, useState } from "react";
 import { Heart, Trash2, Download } from "lucide-react";
 import { api } from "../../lib/api";
 import { toast } from "sonner";
+import useTitle from "../../lib/useTitle";
 
 export default function Gallery({ favoritesOnly = false }) {
+  useTitle("Gallery");
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
 

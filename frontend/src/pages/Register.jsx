@@ -3,8 +3,10 @@ import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { motion } from "framer-motion";
 import { useAuth } from "../lib/auth";
 import { toast } from "sonner";
+import useTitle from "../lib/useTitle";
 
 export default function Register() {
+  useTitle("Sign up");
   const [params] = useSearchParams();
   const [form, setForm] = useState({
     name: "",

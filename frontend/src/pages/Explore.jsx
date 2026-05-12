@@ -2,8 +2,10 @@ import { useEffect, useState } from "react";
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
 import { api } from "../lib/api";
+import useTitle from "../lib/useTitle";
 
 export default function Explore() {
+  useTitle("Explore");
   const [items, setItems] = useState([]);
   const [active, setActive] = useState(null);
 

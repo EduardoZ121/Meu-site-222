@@ -67,6 +67,68 @@ Migrating "Remake Pixel" — a Telegram bot for AI image generation (Instagram @
 
 ---
 
+---
+
+## Implemented — Phase 3 / bot.py parity (2026-05-12)
+### Backend (P0)
+- **Registration bonus 30 credits** (bot.py parity, no longer 50)
+- **6 aspect ratios** incl. `21:9` ultrawide (catálogo `aspect_ratios.py`)
+- **NSFW filter disabled by default** (`NSFW_ENABLED=False` in `services/nsfw.py`) — replica do bot que deixa o provider decidir; admin pode reactivar
+- **Rate limit separado**: `enforce_image()` 5/min + `enforce_message()` 30/min (admin bypass) em `services/rate_limit.py`
+- **`_pre_generate_checks` helper** adicionado em `server.py` (estava em falta — várias rotas estavam quebradas)
+- **POST `/api/generate/easy`** — Modo Fácil com `PADRAO_STYLES` (96 estilos reais do bot, prompts originais com `[subject]` substituível). Suporta `style_id`, `subject`, `aspect_ratio`, `extra_prompt`, `photo`.
+- **POST `/api/wizard/compose`** agora aceita opções numéricas (q1/q2/q3 = 1..8) e mapeia via `_WIZ_MAP` → semantic keys (ex.: q1='4' → 'character (anime/realistic/cartoon)'). Retorna `prompt` + `answers_resolved`.
+- **Endpoints públicos** já expunham `padrao-styles`, `pro-presets`, `poster-templates`, `wizard-questions`, `aspect-ratios`, `personalities`, `visual-styles`.
+- **Style premium lock**: estilos com `locked=True` pedem 1 compra prévia (config no preset; check no `/generate/easy`).
+
+### Frontend (P0)
+- **`/app/generate` reescrito**: 3 tabs **Fácil / Avançado / Pôster** (substitui o antigo fast/advanced de texto livre)
+  - **Fácil**: photo upload + subject (Homem/Mulher/Pessoa) + 8 categorias do bot + 96 styles do `PADRAO_STYLES`
+  - **Avançado**: photo upload + 3 sub-tabs Realismo/Estilo&Humor/Enhancements com os 20 `PRO_PRESETS`
+  - **Pôster**: templates com placeholders editáveis
+  - 6 aspect ratios incl. 21:9
+- **`/app/wizard` reescrito**: 5 passos, q1/q2/q3 como botões numéricos (1..8 / 1..8 / 1..5), q4 textarea, q5 input texto. Auto-avança ao selecionar. Voltar/Próximo/Compor.
+- **`/app/pro`**: corrige `p.nome` (estava `p.label` quebrado) e adiciona aspect ratio 21:9
+
+### Testing — Phase 3
+- `/app/backend/tests/test_remake_pixel.py` — 12/12 backend tests pass (registration bonus, aspect ratios, padrao categories, pro presets shape, wizard numeric mapping, generate/easy validation, generate/pro validation, rate limit)
+- Frontend smoke: 3 tabs render, 30 credits badge, 8 categorias, wizard botões numéricos (iteration_3.json)
+
+---
+
+## Backlog (Phase 3 in-progress → Phase 4)
+
+### P1 — Estilos & artistic
+- Importar `ESTILOS_ARTISTICOS` originais do bot (em vez dos 33 inventados em `artistic_styles.py`)
+- Sistema completo de premium/sensual lock (`grant_premium_access`, `has_premium_access`, `is_style_locked` — atualmente apenas check simples por compra prévia)
+
+### P1 — Fase C: Conversational chat & onboarding
+- Chat conversacional `/app/chat` com 4 personalidades (Criativo/Técnico/Casual/Profissional) usando `AI_PERSONALITIES`
+- Detecção de intenção de gerar imagem no meio do chat (`detect_image_intent`)
+- Carousel conversacional (escolher N slides → estilo → descrever cada slide)
+- Onboarding: "Já usaste? Sim/Não", tutorial, aceitar termos
+
+### P1 — Fase D: Galeria pública & Instagram
+- `/explore` enriquecido com "Ver Prompt" / "Prompt Premium"
+- Admin Instagram autoposter queue
+- `share_creation` com share_id partilhável + view stats
+
+### P1 — Fase E: Admin god mode
+- `system_config` toggles (maintenance_mode, generation_disabled, safe_mode, nsfw_enabled override)
+- User flags completas (banned, shadowbanned, muted_until, tags VIP, nsfw_allowed, reports_count)
+- Reports queue + System logs viewer
+- Admins secundários + premium block toggle
+- eBook waitlist
+- Notificações instantâneas a admin (novo user, NSFW, erro)
+- Style previews cache
+
+### P2 — Fase F: Landing growth
+- Free demo na landing (1 imagem/IP/24h via Replicate)
+- Lead capture form / waitlist email
+- Stats públicas dinâmicas
+
+
+
 ## Backlog (Phase 3)
 **P1**
 - Pro mode sub-tabs: separate routes for Realism / Mood / Enhance (currently one toggle)

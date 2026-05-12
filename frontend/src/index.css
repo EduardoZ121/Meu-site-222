@@ -1,115 +1,158 @@
+@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;0,700;1,300;1,400;1,500;1,600;1,700&family=Manrope:wght@200;300;400;500;600;700;800&family=JetBrains+Mono:wght@300;400;500;600&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-body {
-    margin: 0;
-    font-family:
-        -apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto", "Oxygen",
-        "Ubuntu", "Cantarell", "Fira Sans", "Droid Sans", "Helvetica Neue",
-        sans-serif;
-    -webkit-font-smoothing: antialiased;
-    -moz-osx-font-smoothing: grayscale;
-}
-
-code {
-    font-family:
-        source-code-pro, Menlo, Monaco, Consolas, "Courier New", monospace;
+@layer base {
+  :root {
+    --background: 240 17% 5%;             /* #0A0A0F */
+    --foreground: 42 41% 93%;             /* #F4F1EA */
+    --card: 240 12% 9%;                   /* #121217 */
+    --card-foreground: 42 41% 93%;
+    --popover: 240 12% 9%;
+    --popover-foreground: 42 41% 93%;
+    --primary: 262 84% 58%;               /* #7C3AED */
+    --primary-foreground: 42 41% 93%;
+    --secondary: 252 100% 85%;            /* #C4B5FD */
+    --secondary-foreground: 240 17% 5%;
+    --muted: 240 12% 11%;
+    --muted-foreground: 240 5% 58%;       /* #8F8F99 */
+    --accent: 240 12% 14%;
+    --accent-foreground: 42 41% 93%;
+    --destructive: 0 50% 40%;
+    --destructive-foreground: 42 41% 93%;
+    --border: 42 41% 93%;                 /* used with /5 alpha */
+    --input: 240 12% 14%;
+    --ring: 262 84% 58%;
+    --radius: 0.125rem;
+  }
 }
 
 @layer base {
-    :root {
-        --background: 0 0% 100%;
-        --foreground: 0 0% 3.9%;
-        --card: 0 0% 100%;
-        --card-foreground: 0 0% 3.9%;
-        --popover: 0 0% 100%;
-        --popover-foreground: 0 0% 3.9%;
-        --primary: 0 0% 9%;
-        --primary-foreground: 0 0% 98%;
-        --secondary: 0 0% 96.1%;
-        --secondary-foreground: 0 0% 9%;
-        --muted: 0 0% 96.1%;
-        --muted-foreground: 0 0% 45.1%;
-        --accent: 0 0% 96.1%;
-        --accent-foreground: 0 0% 9%;
-        --destructive: 0 84.2% 60.2%;
-        --destructive-foreground: 0 0% 98%;
-        --border: 0 0% 89.8%;
-        --input: 0 0% 89.8%;
-        --ring: 0 0% 3.9%;
-        --chart-1: 12 76% 61%;
-        --chart-2: 173 58% 39%;
-        --chart-3: 197 37% 24%;
-        --chart-4: 43 74% 66%;
-        --chart-5: 27 87% 67%;
-        --radius: 0.5rem;
-    }
-    .dark {
-        --background: 0 0% 3.9%;
-        --foreground: 0 0% 98%;
-        --card: 0 0% 3.9%;
-        --card-foreground: 0 0% 98%;
-        --popover: 0 0% 3.9%;
-        --popover-foreground: 0 0% 98%;
-        --primary: 0 0% 98%;
-        --primary-foreground: 0 0% 9%;
-        --secondary: 0 0% 14.9%;
-        --secondary-foreground: 0 0% 98%;
-        --muted: 0 0% 14.9%;
-        --muted-foreground: 0 0% 63.9%;
-        --accent: 0 0% 14.9%;
-        --accent-foreground: 0 0% 98%;
-        --destructive: 0 62.8% 30.6%;
-        --destructive-foreground: 0 0% 98%;
-        --border: 0 0% 14.9%;
-        --input: 0 0% 14.9%;
-        --ring: 0 0% 83.1%;
-        --chart-1: 220 70% 50%;
-        --chart-2: 160 60% 45%;
-        --chart-3: 30 80% 55%;
-        --chart-4: 280 65% 60%;
-        --chart-5: 340 75% 55%;
-    }
+  * { border-color: rgba(244, 241, 234, 0.08); }
+  html { scroll-behavior: smooth; -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; }
+  body {
+    @apply bg-rp-bg text-rp-text font-body antialiased;
+    font-feature-settings: 'ss01', 'cv11';
+    overflow-x: hidden;
+  }
+  ::selection { background: rgba(124, 58, 237, 0.35); color: #F4F1EA; }
+  :focus-visible { outline: 1px solid #7C3AED; outline-offset: 2px; }
+  h1, h2, h3, h4 { font-family: 'Cormorant Garamond', serif; }
+}
+
+@layer components {
+  .container-rp { @apply max-w-[1200px] mx-auto px-6 sm:px-10 lg:px-14; }
+
+  .eyebrow {
+    font-family: 'JetBrains Mono', monospace;
+    @apply text-[10px] font-medium uppercase tracking-[0.25em] text-rp-lavender;
+  }
+
+  .heading-display {
+    font-family: 'Cormorant Garamond', serif;
+    @apply text-[clamp(48px,8vw,128px)] font-light leading-[0.95] tracking-[-0.02em] text-rp-text;
+  }
+  .heading-xl {
+    font-family: 'Cormorant Garamond', serif;
+    @apply text-[clamp(34px,5vw,72px)] font-light leading-[1.05] tracking-[-0.015em] text-rp-text;
+  }
+  .heading-lg {
+    font-family: 'Cormorant Garamond', serif;
+    @apply text-[clamp(26px,3.5vw,48px)] font-light leading-[1.1] tracking-[-0.01em] text-rp-text;
+  }
+
+  .body-text { @apply text-base text-rp-mute leading-[1.7] font-light; }
+
+  .btn-primary {
+    @apply inline-flex items-center justify-center gap-2 px-7 py-3.5;
+    background: #7C3AED;
+    color: #F4F1EA;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    transition: all 0.4s cubic-bezier(0.16,1,0.3,1);
+    border-radius: 2px;
+  }
+  .btn-primary:hover { background: #6D28D9; transform: translateY(-1px); }
+
+  .btn-secondary {
+    @apply inline-flex items-center justify-center gap-2 px-7 py-3.5;
+    background: transparent;
+    color: #F4F1EA;
+    border: 1px solid rgba(244,241,234,0.12);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    font-weight: 400;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    transition: all 0.4s cubic-bezier(0.16,1,0.3,1);
+    border-radius: 2px;
+  }
+  .btn-secondary:hover { border-color: rgba(244,241,234,0.32); background: rgba(244,241,234,0.03); }
+
+  .btn-ghost {
+    @apply inline-flex items-center gap-2 text-rp-mute hover:text-rp-text;
+    font-size: 13px;
+    border-bottom: 1px solid transparent;
+    transition: all 0.3s cubic-bezier(0.16,1,0.3,1);
+    padding-bottom: 1px;
+  }
+  .btn-ghost:hover { border-bottom-color: #7C3AED; }
+
+  .card-rp {
+    background: #121217;
+    border: 1px solid rgba(244,241,234,0.06);
+    border-radius: 2px;
+    transition: all 0.5s cubic-bezier(0.16,1,0.3,1);
+  }
+  .card-rp:hover { border-color: rgba(124,58,237,0.4); transform: translateY(-2px); }
+
+  .tag-pill {
+    display: inline-flex;
+    align-items: center;
+    padding: 4px 12px;
+    background: rgba(244,241,234,0.04);
+    border: 1px solid rgba(244,241,234,0.08);
+    border-radius: 2px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    color: #8F8F99;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  .field-input {
+    @apply w-full bg-transparent border border-rp-border px-4 py-3 text-rp-text placeholder:text-rp-mute2 transition-colors;
+    border-radius: 2px;
+    font-family: 'Manrope', sans-serif;
+  }
+  .field-input:focus { outline: none; border-color: #7C3AED; }
+
+  .divider-rp { height: 1px; background: rgba(244,241,234,0.08); width: 100%; }
+
+  .film-grain {
+    position: fixed; inset: 0; pointer-events: none; z-index: 9999; opacity: 0.06;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+    mix-blend-mode: overlay;
+  }
+
+  .sidebar-link {
+    @apply flex items-center gap-3 px-4 py-3 text-sm text-rp-mute transition-colors border-l-2 border-transparent;
+    font-family: 'Manrope', sans-serif;
+    letter-spacing: 0.01em;
+  }
+  .sidebar-link:hover { color: #F4F1EA; }
+  .sidebar-link.active {
+    color: #C4B5FD;
+    border-left-color: #7C3AED;
+    background: linear-gradient(to right, rgba(124,58,237,0.08), transparent);
+  }
 }
 
 @layer base {
-    * {
-        @apply border-border;
-    }
-    body {
-        @apply bg-background text-foreground;
-    }
-}
-
-@layer base {
-    [data-debug-wrapper="true"] {
-        display: contents !important;
-    }
-
-    [data-debug-wrapper="true"] > * {
-        margin-left: inherit;
-        margin-right: inherit;
-        margin-top: inherit;
-        margin-bottom: inherit;
-        padding-left: inherit;
-        padding-right: inherit;
-        padding-top: inherit;
-        padding-bottom: inherit;
-        column-gap: inherit;
-        row-gap: inherit;
-        gap: inherit;
-        border-left-width: inherit;
-        border-right-width: inherit;
-        border-top-width: inherit;
-        border-bottom-width: inherit;
-        border-left-style: inherit;
-        border-right-style: inherit;
-        border-top-style: inherit;
-        border-bottom-style: inherit;
-        border-left-color: inherit;
-        border-right-color: inherit;
-        border-top-color: inherit;
-        border-bottom-color: inherit;
-    }
+  [data-debug-wrapper="true"] { display: contents !important; }
 }

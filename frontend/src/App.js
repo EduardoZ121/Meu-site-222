@@ -1,52 +1,57 @@
-import { useEffect } from "react";
-import "@/App.css";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
-import axios from "axios";
+import "./App.css";
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
+import { Toaster } from "sonner";
+import { AuthProvider, useAuth } from "./lib/auth";
+import { I18nProvider } from "./lib/i18n";
 
-const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
-const API = `${BACKEND_URL}/api`;
+import Landing from "./pages/Landing";
+import Login from "./pages/Login";
+import Register from "./pages/Register";
+import DashboardLayout from "./pages/dashboard/Layout";
+import Generate from "./pages/dashboard/Generate";
+import Gallery from "./pages/dashboard/Gallery";
+import Billing from "./pages/dashboard/Billing";
+import Profile from "./pages/dashboard/Profile";
+import Referrals from "./pages/dashboard/Referrals";
+import Admin from "./pages/dashboard/Admin";
 
-const Home = () => {
-  const helloWorldApi = async () => {
-    try {
-      const response = await axios.get(`${API}/`);
-      console.log(response.data.message);
-    } catch (e) {
-      console.error(e, `errored out requesting / api`);
-    }
-  };
-
-  useEffect(() => {
-    helloWorldApi();
-  }, []);
-
-  return (
-    <div>
-      <header className="App-header">
-        <a
-          className="App-link"
-          href="https://emergent.sh"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <img src="https://avatars.githubusercontent.com/in/1201222?s=120&u=2686cf91179bbafbc7a71bfbc43004cf9ae1acea&v=4" />
-        </a>
-        <p className="mt-5">Building something incredible ~!</p>
-      </header>
-    </div>
-  );
-};
+function RequireAuth({ children, adminOnly = false }) {
+  const { user, loading } = useAuth();
+  const loc = useLocation();
+  if (loading) return <div className="min-h-screen bg-rp-bg" />;
+  if (!user) return <Navigate to="/login" state={{ from: loc.pathname }} replace />;
+  if (adminOnly && user.role !== "admin") return <Navigate to="/app/generate" replace />;
+  return children;
+}
 
 function App() {
   return (
     <div className="App">
-      <BrowserRouter>
-        <Routes>
-          <Route path="/" element={<Home />}>
-            <Route index element={<Home />} />
-          </Route>
-        </Routes>
-      </BrowserRouter>
+      <I18nProvider>
+        <AuthProvider>
+          <BrowserRouter>
+            <Toaster position="top-center" theme="dark" toastOptions={{ style: { background: "#121217", color: "#F4F1EA", border: "1px solid rgba(244,241,234,0.08)" } }} />
+            <Routes>
+              <Route path="/" element={<Landing />} />
+              <Route path="/login" element={<Login />} />
+              <Route path="/register" element={<Register />} />
+
+              <Route path="/app" element={<RequireAuth><DashboardLayout /></RequireAuth>}>
+                <Route index element={<Navigate to="/app/generate" replace />} />
+                <Route path="generate" element={<Generate />} />
+                <Route path="gallery" element={<Gallery />} />
+                <Route path="favorites" element={<Gallery favoritesOnly />} />
+                <Route path="billing" element={<Billing />} />
+                <Route path="profile" element={<Profile />} />
+                <Route path="referrals" element={<Referrals />} />
+                <Route path="admin" element={<RequireAuth adminOnly><Admin /></RequireAuth>} />
+              </Route>
+
+              <Route path="*" element={<Navigate to="/" replace />} />
+            </Routes>
+          </BrowserRouter>
+        </AuthProvider>
+      </I18nProvider>
     </div>
   );
 }

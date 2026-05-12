@@ -36,6 +36,11 @@ from fast_styles import FAST_STYLES, get_style  # noqa: E402
 from artistic_styles import ARTISTIC_STYLES, get_artistic  # noqa: E402
 from pro_presets import PRO_PRESETS, get_pro_preset  # noqa: E402
 from poster_templates import POSTER_TEMPLATES, get_poster  # noqa: E402
+from padrao_styles import PADRAO_STYLES, GROUP_LABELS, list_categories, get_padrao  # noqa: E402
+from visual_styles import VISUAL_STYLES, get_visual_style  # noqa: E402
+from aspect_ratios import ASPECT_RATIOS  # noqa: E402
+from wizard_questions import WIZARD_QUESTIONS as WIZARD_Q_BOT  # noqa: E402
+from personalities import AI_PERSONALITIES  # noqa: E402
 from services.stripe_service import create_checkout_session, verify_webhook, PACKAGES  # noqa: E402
 
 # ============== App setup ==============
@@ -148,6 +153,35 @@ async def public_wizard_steps():
     return {"steps": WIZARD_STEPS}
 
 
+@api.get("/public/padrao-styles")
+async def public_padrao_styles():
+    """65+ estilos reais do bot (Modelo Padrão / modo Fácil)."""
+    items = [{"id": k, **v} for k, v in PADRAO_STYLES.items()]
+    return {"styles": items, "groups": GROUP_LABELS, "categories": list(list_categories().keys())}
+
+
+@api.get("/public/visual-styles")
+async def public_visual_styles():
+    """34 visual styles (Modo Avançado e Artistic)."""
+    return {"styles": [{"id": k, **v} for k, v in VISUAL_STYLES.items()]}
+
+
+@api.get("/public/aspect-ratios")
+async def public_aspect_ratios():
+    return {"ratios": [{"id": k, **v} for k, v in ASPECT_RATIOS.items()]}
+
+
+@api.get("/public/wizard-questions")
+async def public_wizard_questions():
+    """5 perguntas com opções 1-8 (real do bot)."""
+    return {"questions": WIZARD_Q_BOT}
+
+
+@api.get("/public/personalities")
+async def public_personalities():
+    return {"personalities": [{"id": k, **v} for k, v in AI_PERSONALITIES.items()]}
+
+
 @api.get("/explore")
 async def explore(limit: int = 24):
     """Public gallery — recent public creations."""
@@ -186,7 +220,7 @@ async def register(payload: RegisterIn):
         "password_hash": hash_password(payload.password),
         "role": role,
         "lang": "pt",
-        "credits": 50,  # signup bonus
+        "credits": 30,  # signup bonus (igual ao bot)
         "referral_code": referral_code,
         "referred_by": None,
         "banned": False,
@@ -204,7 +238,7 @@ async def register(payload: RegisterIn):
 
     await db.users.insert_one(user_doc)
     await db.credit_transactions.insert_one(CreditTransaction(
-        user_id=user_id, amount=50, type="free", description="Signup bonus",
+        user_id=user_id, amount=30, type="free", description="Signup bonus",
     ).model_dump())
 
     token = create_token(user_id, role)
@@ -334,22 +368,6 @@ async def delete_creation(creation_id: str, current=Depends(get_current_user)):
     if res.deleted_count == 0:
         raise HTTPException(status_code=404, detail="Creation not found")
     return {"ok": True}
-
-
-# ============== Phase 2: Pro / Artistic / Video / Poster / Carousel ==============
-async def _pre_generate_checks(user_id: str, role: str, prompt: str | None, cost: int):
-    """Common pre-checks: rate limit + nsfw + balance."""
-    rate_limit.enforce(user_id, role)
-    user = await _user_doc(user_id)
-    if not user or user.get("banned"):
-        raise HTTPException(status_code=403, detail="Not allowed")
-    if prompt:
-        keyword = nsfw.detect(prompt)
-        if keyword and not user.get("nsfw_allowed"):
-            # Rewrite to safe prompt automatically (transparent fallback)
-            new_prompt = await rewrite_safe(prompt)
-            return user, new_prompt, True
-    return user, prompt, False
 
 
 @api.post("/generate/pro")

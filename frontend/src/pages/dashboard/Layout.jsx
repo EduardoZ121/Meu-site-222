@@ -1,14 +1,22 @@
 import { Outlet, NavLink, Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../../lib/auth";
 import { useI18n } from "../../lib/i18n";
-import { Sparkles, Images, Heart, CreditCard, User, Users, ShieldCheck, LogOut, Globe } from "lucide-react";
+import { Sparkles, Images, Heart, CreditCard, User, Users, ShieldCheck, LogOut, Globe, Camera, Palette, Film, FileText, Layers, Wand2, Lightbulb, SlidersHorizontal } from "lucide-react";
 import { useEffect, useState } from "react";
 
 const links = [
   { to: "/app/generate", icon: Sparkles, key: "sidebar_generate" },
+  { to: "/app/pro", icon: Camera, key: "sidebar_pro" },
+  { to: "/app/artistic", icon: Palette, key: "sidebar_artistic" },
+  { to: "/app/video", icon: Film, key: "sidebar_video" },
+  { to: "/app/posters", icon: FileText, key: "sidebar_posters" },
+  { to: "/app/carousel", icon: Layers, key: "sidebar_carousel" },
+  { to: "/app/wizard", icon: Wand2, key: "sidebar_wizard" },
+  { to: "/app/suggest", icon: Lightbulb, key: "sidebar_suggest" },
   { to: "/app/gallery", icon: Images, key: "sidebar_gallery" },
   { to: "/app/favorites", icon: Heart, key: "sidebar_favorites" },
   { to: "/app/billing", icon: CreditCard, key: "sidebar_billing" },
+  { to: "/app/settings", icon: SlidersHorizontal, key: "sidebar_settings" },
   { to: "/app/profile", icon: User, key: "sidebar_profile" },
   { to: "/app/referrals", icon: Users, key: "sidebar_referrals" },
 ];
@@ -33,13 +41,13 @@ export default function DashboardLayout() {
       <div className="film-grain" />
 
       {/* Sidebar */}
-      <aside className="w-[260px] hidden md:flex flex-col border-r border-rp-border sticky top-0 h-screen">
-        <Link to="/" className="flex items-center gap-2.5 px-6 h-[64px] border-b border-rp-border">
+      <aside className="w-[260px] hidden md:flex flex-col border-r border-rp-border sticky top-0 h-screen overflow-y-auto">
+        <Link to="/" className="flex items-center gap-2.5 px-6 h-[64px] border-b border-rp-border flex-shrink-0 sticky top-0 bg-rp-bg z-10">
           <span className="font-heading italic text-[22px] text-rp-text">Remake</span>
           <span className="w-[3px] h-[3px] bg-rp-purple rounded-full" />
           <span className="font-mono text-[10px] uppercase tracking-[0.25em] text-rp-mute">Pixel</span>
         </Link>
-        <nav className="flex-1 py-6">
+        <nav className="flex-1 py-4">
           {links.map((l) => (
             <NavLink
               key={l.to}

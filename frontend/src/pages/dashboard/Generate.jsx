@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Sparkles, Wand2, Zap, Download, Heart, X, Loader2 } from "lucide-react";
+import { useSearchParams } from "react-router-dom";
 import { api } from "../../lib/api";
 import { useAuth } from "../../lib/auth";
 import { toast } from "sonner";
@@ -15,8 +16,9 @@ const ASPECT_RATIOS = [
 
 export default function Generate() {
   const { refresh, user } = useAuth();
+  const [searchParams] = useSearchParams();
   const [mode, setMode] = useState("advanced"); // fast | advanced
-  const [prompt, setPrompt] = useState("");
+  const [prompt, setPrompt] = useState(searchParams.get("prompt") || "");
   const [aspect, setAspect] = useState("1:1");
   const [num, setNum] = useState(1);
   const [styleKey, setStyleKey] = useState(null);

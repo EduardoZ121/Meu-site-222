@@ -6,10 +6,11 @@ from datetime import datetime, timezone
 from typing import Optional, List
 from pathlib import Path
 
-from fastapi import FastAPI, APIRouter, HTTPException, Depends, Request, Header
+from fastapi import FastAPI, APIRouter, HTTPException, Depends, Request, Header, UploadFile, File, Form
 from fastapi.responses import JSONResponse
 from starlette.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
+from pydantic import BaseModel
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / ".env")
@@ -24,10 +25,18 @@ from models import (  # noqa: E402
     GenerateImageIn, CheckoutIn, Creation, CreditTransaction,
     AdminCreditAdjustIn, AdminUserPatch,
 )
-from services.replicate_service import generate_image, MODELS, COSTS  # noqa: E402
-from services.openai_service import improve_prompt as ai_improve_prompt  # noqa: E402
-from services.stripe_service import create_checkout_session, verify_webhook, PACKAGES  # noqa: E402
+from services.replicate_service import generate_image, generate_video, MODELS, COSTS  # noqa: E402
+from services.openai_service import (  # noqa: E402
+    improve_prompt as ai_improve_prompt,
+    rewrite_safe, suggest_prompts, wizard_compose, generate_poster_image, WIZARD_STEPS,
+)
+from services.uploads import save_upload, cleanup  # noqa: E402
+from services import rate_limit, nsfw  # noqa: E402
 from fast_styles import FAST_STYLES, get_style  # noqa: E402
+from artistic_styles import ARTISTIC_STYLES, get_artistic  # noqa: E402
+from pro_presets import PRO_PRESETS, get_pro_preset  # noqa: E402
+from poster_templates import POSTER_TEMPLATES, get_poster  # noqa: E402
+from services.stripe_service import create_checkout_session, verify_webhook, PACKAGES  # noqa: E402
 
 # ============== App setup ==============
 app = FastAPI(title="Remake Pixel API")
@@ -117,6 +126,35 @@ async def public_stats():
 @api.get("/public/styles")
 async def public_styles():
     return {"styles": FAST_STYLES}
+
+
+@api.get("/public/artistic-styles")
+async def public_artistic():
+    return {"styles": ARTISTIC_STYLES}
+
+
+@api.get("/public/pro-presets")
+async def public_pro_presets():
+    return {"presets": [{"id": k, **v} for k, v in PRO_PRESETS.items()]}
+
+
+@api.get("/public/poster-templates")
+async def public_poster_templates():
+    return {"templates": POSTER_TEMPLATES}
+
+
+@api.get("/public/wizard-steps")
+async def public_wizard_steps():
+    return {"steps": WIZARD_STEPS}
+
+
+@api.get("/explore")
+async def explore(limit: int = 24):
+    """Public gallery — recent public creations."""
+    docs = await db.creations.find(
+        {"is_public": True}, {"_id": 0}
+    ).sort("created_at", -1).limit(limit).to_list(length=limit)
+    return {"creations": docs}
 
 
 @api.get("/public/packages")
@@ -296,6 +334,271 @@ async def delete_creation(creation_id: str, current=Depends(get_current_user)):
     if res.deleted_count == 0:
         raise HTTPException(status_code=404, detail="Creation not found")
     return {"ok": True}
+
+
+# ============== Phase 2: Pro / Artistic / Video / Poster / Carousel ==============
+async def _pre_generate_checks(user_id: str, role: str, prompt: str | None, cost: int):
+    """Common pre-checks: rate limit + nsfw + balance."""
+    rate_limit.enforce(user_id, role)
+    user = await _user_doc(user_id)
+    if not user or user.get("banned"):
+        raise HTTPException(status_code=403, detail="Not allowed")
+    if prompt:
+        keyword = nsfw.detect(prompt)
+        if keyword and not user.get("nsfw_allowed"):
+            # Rewrite to safe prompt automatically (transparent fallback)
+            new_prompt = await rewrite_safe(prompt)
+            return user, new_prompt, True
+    return user, prompt, False
+
+
+@api.post("/generate/pro")
+async def generate_pro(
+    preset_id: str = Form(...),
+    aspect_ratio: str = Form("4:5"),
+    photo: UploadFile = File(...),
+    current=Depends(get_current_user),
+):
+    preset = get_pro_preset(preset_id)
+    if not preset:
+        raise HTTPException(status_code=400, detail="Unknown preset")
+    cost = COSTS["pro"]
+    user, _, _ = await _pre_generate_checks(current["sub"], current.get("role", "user"), None, cost)
+    photo_path = await save_upload(photo)
+    new_balance = await _spend_credits(current["sub"], cost, f"Pro edit ({preset_id})")
+    try:
+        urls = await generate_image(
+            prompt=preset["prompt"], model_key="pro",
+            aspect_ratio=aspect_ratio, num_outputs=1, image_path=photo_path,
+        )
+    except Exception as e:
+        await _add_credits(current["sub"], cost, "refund", f"Refund: pro failed ({e})")
+        cleanup(photo_path)
+        raise HTTPException(status_code=502, detail=f"Generation failed: {str(e)[:200]}")
+    finally:
+        cleanup(photo_path)
+    if not urls:
+        new_balance = await _add_credits(current["sub"], cost, "refund", "Refund: empty output")
+        raise HTTPException(status_code=502, detail="Empty output")
+    creation = Creation(
+        user_id=current["sub"], type="image", model_used=MODELS["pro"],
+        prompt=preset["prompt"], style_key=preset_id, aspect_ratio=aspect_ratio,
+        result_urls=urls, credits_spent=cost,
+    )
+    await db.creations.insert_one(creation.model_dump())
+    return {"creation": creation.model_dump(), "new_balance": new_balance}
+
+
+@api.post("/generate/artistic")
+async def generate_artistic(
+    style_id: str = Form(...),
+    extra_prompt: str = Form(""),
+    aspect_ratio: str = Form("1:1"),
+    photo: UploadFile = File(...),
+    current=Depends(get_current_user),
+):
+    style = get_artistic(style_id)
+    if not style:
+        raise HTTPException(status_code=400, detail="Unknown style")
+    cost = COSTS["artistic"]
+    await _pre_generate_checks(current["sub"], current.get("role", "user"), None, cost)
+    photo_path = await save_upload(photo)
+    prompt = f"{extra_prompt + ', ' if extra_prompt else ''}{style['suffix']}"
+    new_balance = await _spend_credits(current["sub"], cost, f"Artistic ({style_id})")
+    try:
+        urls = await generate_image(
+            prompt=prompt, model_key="artistic", aspect_ratio=aspect_ratio,
+            num_outputs=1, image_path=photo_path,
+        )
+    except Exception as e:
+        await _add_credits(current["sub"], cost, "refund", f"Refund: artistic failed ({e})")
+        cleanup(photo_path)
+        raise HTTPException(status_code=502, detail=f"Generation failed: {str(e)[:200]}")
+    finally:
+        cleanup(photo_path)
+    if not urls:
+        new_balance = await _add_credits(current["sub"], cost, "refund", "Refund: empty output")
+        raise HTTPException(status_code=502, detail="Empty output")
+    creation = Creation(
+        user_id=current["sub"], type="artistic", model_used=MODELS["artistic"],
+        prompt=prompt, style_key=style_id, aspect_ratio=aspect_ratio,
+        result_urls=urls, credits_spent=cost,
+    )
+    await db.creations.insert_one(creation.model_dump())
+    return {"creation": creation.model_dump(), "new_balance": new_balance}
+
+
+@api.post("/generate/video")
+async def generate_video_route(
+    prompt: str = Form(...),
+    aspect_ratio: str = Form("16:9"),
+    photo: UploadFile | None = File(None),
+    current=Depends(get_current_user),
+):
+    if len(prompt) < 3:
+        raise HTTPException(status_code=400, detail="Prompt too short")
+    cost = COSTS["video"]
+    user, prompt, _ = await _pre_generate_checks(current["sub"], current.get("role", "user"), prompt, cost)
+    photo_path = await save_upload(photo) if photo else None
+    new_balance = await _spend_credits(current["sub"], cost, "Video generation")
+    try:
+        urls = await generate_video(prompt=prompt, image_path=photo_path, aspect_ratio=aspect_ratio)
+    except Exception as e:
+        await _add_credits(current["sub"], cost, "refund", f"Refund: video failed ({e})")
+        if photo_path: cleanup(photo_path)
+        raise HTTPException(status_code=502, detail=f"Video failed: {str(e)[:200]}")
+    finally:
+        if photo_path: cleanup(photo_path)
+    if not urls:
+        new_balance = await _add_credits(current["sub"], cost, "refund", "Refund: empty video")
+        raise HTTPException(status_code=502, detail="Empty output")
+    creation = Creation(
+        user_id=current["sub"], type="video", model_used=MODELS["video"],
+        prompt=prompt, aspect_ratio=aspect_ratio,
+        result_urls=urls, credits_spent=cost,
+    )
+    await db.creations.insert_one(creation.model_dump())
+    return {"creation": creation.model_dump(), "new_balance": new_balance}
+
+
+class PosterIn(BaseModel):
+    template_id: str
+    placeholders: dict = {}
+
+
+@api.post("/generate/poster")
+async def generate_poster_route(payload: PosterIn, current=Depends(get_current_user)):
+    tpl = get_poster(payload.template_id)
+    if not tpl:
+        raise HTTPException(status_code=400, detail="Unknown template")
+    cost = COSTS["poster"]
+    await _pre_generate_checks(current["sub"], current.get("role", "user"), None, cost)
+    try:
+        prompt = tpl["prompt"].format(**{k: (payload.placeholders.get(k) or f"({k})") for k in tpl["placeholders"]})
+    except KeyError as e:
+        raise HTTPException(status_code=400, detail=f"Missing placeholder: {e}")
+    new_balance = await _spend_credits(current["sub"], cost, f"Poster ({payload.template_id})")
+    try:
+        url = await generate_poster_image(prompt)
+        if not url:
+            raise RuntimeError("Empty image from OpenAI")
+        urls = [url]
+    except Exception as e:
+        await _add_credits(current["sub"], cost, "refund", f"Refund: poster failed ({e})")
+        raise HTTPException(status_code=502, detail=f"Poster failed: {str(e)[:200]}")
+    creation = Creation(
+        user_id=current["sub"], type="poster", model_used="openai/gpt-image-1",
+        prompt=prompt, style_key=payload.template_id, aspect_ratio="4:5",
+        result_urls=urls, credits_spent=cost,
+    )
+    await db.creations.insert_one(creation.model_dump())
+    return {"creation": creation.model_dump(), "new_balance": new_balance}
+
+
+class CarouselIn(BaseModel):
+    slides: list[str]  # list of prompts (2-5)
+    style_suffix: str = ""
+    aspect_ratio: str = "4:5"
+
+
+@api.post("/generate/carousel")
+async def generate_carousel(payload: CarouselIn, current=Depends(get_current_user)):
+    if not (2 <= len(payload.slides) <= 5):
+        raise HTTPException(status_code=400, detail="Carousel requires 2-5 slides")
+    cost = COSTS["carousel_per_slide"] * len(payload.slides)
+    await _pre_generate_checks(current["sub"], current.get("role", "user"), " ".join(payload.slides), cost)
+    new_balance = await _spend_credits(current["sub"], cost, f"Carousel ({len(payload.slides)} slides)")
+    all_urls: list[str] = []
+    try:
+        for slide_prompt in payload.slides:
+            urls = await generate_image(
+                prompt=f"{slide_prompt}, {payload.style_suffix}".strip(", "),
+                model_key="standard", aspect_ratio=payload.aspect_ratio, num_outputs=1,
+            )
+            if urls:
+                all_urls.extend(urls[:1])
+    except Exception as e:
+        await _add_credits(current["sub"], cost, "refund", f"Refund: carousel failed ({e})")
+        raise HTTPException(status_code=502, detail=f"Carousel failed: {str(e)[:200]}")
+    if not all_urls:
+        new_balance = await _add_credits(current["sub"], cost, "refund", "Refund: empty carousel")
+        raise HTTPException(status_code=502, detail="Empty output")
+    creation = Creation(
+        user_id=current["sub"], type="carousel", model_used=MODELS["standard"],
+        prompt=" | ".join(payload.slides), aspect_ratio=payload.aspect_ratio,
+        result_urls=all_urls, credits_spent=cost,
+    )
+    await db.creations.insert_one(creation.model_dump())
+    return {"creation": creation.model_dump(), "new_balance": new_balance}
+
+
+# ============== Wizard / Suggest / Settings ==============
+class WizardIn(BaseModel):
+    answers: dict
+
+
+@api.post("/wizard/compose")
+async def wizard_compose_route(payload: WizardIn, current=Depends(get_current_user)):
+    rate_limit.enforce(current["sub"], current.get("role", "user"))
+    text = await wizard_compose(payload.answers)
+    return {"prompt": text}
+
+
+class SuggestIn(BaseModel):
+    theme: str
+    lang: str = "pt"
+
+
+@api.post("/suggest")
+async def suggest_route(payload: SuggestIn, current=Depends(get_current_user)):
+    rate_limit.enforce(current["sub"], current.get("role", "user"))
+    if len(payload.theme.strip()) < 2:
+        raise HTTPException(status_code=400, detail="Theme too short")
+    items = await suggest_prompts(payload.theme.strip(), payload.lang)
+    return {"prompts": items}
+
+
+class SettingsIn(BaseModel):
+    aspect_ratio_default: str | None = None
+    visual_style_default: str | None = None
+    num_variations_default: int | None = None
+    personality: str | None = None
+    lang: str | None = None
+
+
+@api.get("/settings")
+async def get_settings(current=Depends(get_current_user)):
+    s = await db.user_settings.find_one({"user_id": current["sub"]}, {"_id": 0}) or {}
+    return {
+        "aspect_ratio_default": s.get("aspect_ratio_default", "1:1"),
+        "visual_style_default": s.get("visual_style_default", "free"),
+        "num_variations_default": s.get("num_variations_default", 1),
+        "personality": s.get("personality", "creative"),
+        "lang": s.get("lang", "pt"),
+    }
+
+
+@api.put("/settings")
+async def update_settings(payload: SettingsIn, current=Depends(get_current_user)):
+    update = {k: v for k, v in payload.model_dump().items() if v is not None}
+    update["user_id"] = current["sub"]
+    await db.user_settings.update_one(
+        {"user_id": current["sub"]}, {"$set": update}, upsert=True,
+    )
+    if "lang" in update:
+        await db.users.update_one({"id": current["sub"]}, {"$set": {"lang": update["lang"]}})
+    return {"ok": True}
+
+
+@api.post("/me/toggle-public/{creation_id}")
+async def toggle_public(creation_id: str, current=Depends(get_current_user)):
+    """Toggle a creation's visibility in /explore."""
+    doc = await db.creations.find_one({"id": creation_id, "user_id": current["sub"]}, {"_id": 0})
+    if not doc:
+        raise HTTPException(status_code=404, detail="Creation not found")
+    new_val = not doc.get("is_public", False)
+    await db.creations.update_one({"id": creation_id}, {"$set": {"is_public": new_val}})
+    return {"is_public": new_val}
 
 
 # ============== Stripe ==============

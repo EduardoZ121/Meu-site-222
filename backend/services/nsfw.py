@@ -14,8 +14,17 @@ DEFAULT_KEYWORDS = [
 ]
 
 
+# Default: NSFW filter DISABLED (igual ao bot.py — deixa o provider decidir).
+# Admin pode reactivar via SystemConfig (`nsfw_enabled=True`).
+NSFW_ENABLED = False
+
+
 def detect(prompt: str, extra_keywords: list[str] | None = None) -> str | None:
-    """Return the first matched keyword or None."""
+    """Return the first matched keyword or None.
+    Quando NSFW_ENABLED=False (default), nunca filtra — replica comportamento do bot.
+    """
+    if not NSFW_ENABLED:
+        return None
     kws = DEFAULT_KEYWORDS + (extra_keywords or [])
     p = prompt.lower()
     for kw in kws:

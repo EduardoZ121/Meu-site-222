@@ -1,0 +1,32 @@
+{
+  "summary": "Backend (12/12) and frontend smoke tests passing for Remake Pixel migration. Verified: registration awards 30 credits, /api/public/aspect-ratios returns 6 ratios with 21:9, /api/public/padrao-styles returns 96 styles across the 8 expected categories (men/women/unisex/flyer/couple/comic/stories/sensual), /api/public/pro-presets returns 20 presets in {realism,mood,enhance} with 'nome' field, wizard numeric mapping (q1='4'→character, q2='7'→cyberpunk, q3='2'→1:1) works, /generate/easy validates (422 missing photo, 400 unknown style, 401 unauth), /generate/pro validates (422 missing preset_id, 400 unknown preset), rate-limit message bucket allows >5 wizard calls. Frontend: 3 tabs (tab-easy/tab-advanced/tab-poster) present, credit badge shows 30 after register, 8 categories rendered in Fácil sidebar, Avançado shows Original/Cinematográfico presets, Pôster tab loads, Wizard renders numeric option buttons (1..8) at step 1.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "/app/generate and /app/wizard", "issues": ["Tab labels (FÁCIL/AVANÇADO/PÔSTER) and category chips are rendered uppercase via CSS — purely cosmetic. Body innerText case search for 'Fácil' returns false but the rendered text is visible. Not a bug."]}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_remake_pixel.py",
+    "/app/test_reports/pytest/iter3_results.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "padrao_styles.py is a giant single-line dict literal (>96 entries on one line) — hard to read/diff/maintain. Consider reformatting (one entry per line / category grouping).",
+    "server.py is ~930 lines; consider splitting into routers (auth/generate/wizard/admin/stripe).",
+    "_pre_generate_checks unpacks 3 values but generate_artistic discards them with `await _pre_generate_checks(...)` only — minor inconsistency (other routes capture `user, _, _`).",
+    "wizard q3 currently maps only 5 options (1-5); PT/ES wizard_questions show q3 with only 5 options but EN q3 lists 4. Inconsistent option count across languages could confuse users."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_remake_pixel.py (new)"
+  ],
+  "success_rate": {"backend": "100% (12/12)", "frontend": "100% on smoke checks (auth, 3 tabs, 30 credits, wizard steps, aspect ratios)"},
+  "test_credentials": "Registered fresh users dynamically via /api/auth/register; existing test creds in /app/memory/test_credentials.md still valid (admin@remakepix.com / Admin@2026Remake). NOTE: that file still says 'Initial credits: 50' for the test user — should be updated to 30 to match bot.py behavior.",
+  "seed_data_creation": "Each test run creates one ephemeral user test_<ts>@remakepix.com and one uitest_<ts>@remakepix.com via UI registration — no cleanup performed (low-impact).",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Reuse /app/backend/tests/test_remake_pixel.py as regression. Replicate calls intentionally skipped — only validation paths tested for /generate/easy and /generate/pro. If full generation is to be tested later, expect to wait ~30-60s per call and consume credits.",
+  "rca of the issue": "N/A — no failing tests in this iteration."
+}

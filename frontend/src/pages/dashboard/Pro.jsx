@@ -66,7 +66,7 @@ export default function Pro() {
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 mb-10">
             {filtered.map((p) => (
               <button key={p.id} onClick={() => setPreset(p.id)} className={`text-left p-4 border transition-all ${preset === p.id ? "border-rp-purple bg-rp-purple/10" : "border-rp-border hover:border-rp-mute"}`} data-testid={`preset-${p.id}`}>
-                <p className="font-heading text-base text-rp-text mb-1">{p.label}</p>
+                <p className="font-heading text-base text-rp-text mb-1">{p.nome || p.label}</p>
                 <p className="text-[10px] font-mono text-rp-mute2 uppercase tracking-[0.14em]">{t(`cat_${p.category}`)}</p>
               </button>
             ))}
@@ -74,7 +74,7 @@ export default function Pro() {
 
           <label className="block text-[11px] font-mono uppercase tracking-[0.2em] text-rp-mute2 mb-3">{t("aspect_ratio")}</label>
           <div className="flex flex-wrap gap-2 mb-10">
-            {["1:1", "4:5", "3:2", "9:16", "16:9"].map((a) => (
+            {["1:1", "4:5", "3:2", "9:16", "16:9", "21:9", "3:4"].map((a) => (
               <button key={a} onClick={() => setAspect(a)} className={`px-4 py-2 border text-[11px] font-mono uppercase tracking-[0.12em] ${aspect === a ? "border-rp-purple text-rp-lavender bg-rp-purple/10" : "border-rp-border text-rp-mute hover:text-rp-text"}`} data-testid={`pro-aspect-${a}`}>{a}</button>
             ))}
           </div>

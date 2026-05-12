@@ -115,6 +115,33 @@ def _public_user(doc: dict) -> dict:
     }
 
 
+async def _pre_generate_checks(user_id: str, role: str, prompt: Optional[str], cost: int):
+    """Common pre-generation pipeline:
+    - rate limit (image bucket: 5/min)
+    - load user (banned check)
+    - NSFW handling (only if NSFW_ENABLED — default OFF per bot.py)
+    Returns (user_doc, safe_prompt_or_none, nsfw_hit_or_none).
+    """
+    rate_limit.enforce_image(user_id, role)
+    user = await _user_doc(user_id)
+    if not user or user.get("banned"):
+        raise HTTPException(status_code=403, detail="Not allowed")
+    if user.get("credits", 0) < cost:
+        raise HTTPException(status_code=402, detail="Insufficient credits")
+
+    safe_prompt = None
+    hit = None
+    if prompt:
+        if not user.get("nsfw_allowed", False):
+            hit = nsfw.detect(prompt)
+            if hit:
+                try:
+                    safe_prompt = await rewrite_safe(prompt)
+                except Exception:
+                    safe_prompt = nsfw.sanitize(prompt)
+    return user, safe_prompt, hit
+
+
 # ============== Public ==============
 @api.get("/")
 async def health():
@@ -370,6 +397,63 @@ async def delete_creation(creation_id: str, current=Depends(get_current_user)):
     return {"ok": True}
 
 
+@api.post("/generate/easy")
+async def generate_easy(
+    style_id: str = Form(...),
+    subject: str = Form("the person"),  # "the man" | "the woman" | "the person"
+    aspect_ratio: str = Form("4:5"),
+    extra_prompt: str = Form(""),
+    photo: UploadFile = File(...),
+    current=Depends(get_current_user),
+):
+    """Modo Fácil — PADRAO_STYLES do bot (≈65 estilos com prompts escritos à mão).
+    O utilizador envia foto + escolhe estilo; o prompt do estilo é aplicado tal-qual,
+    substituindo o placeholder [subject].
+    """
+    style = get_padrao(style_id)
+    if not style:
+        raise HTTPException(status_code=400, detail="Unknown style")
+    cost = COSTS.get("fast_base", 10) + COSTS.get("fast_style_extra", 1)
+    user, _, _ = await _pre_generate_checks(current["sub"], current.get("role", "user"), None, cost)
+
+    # Locked premium styles require any past purchase
+    if style.get("locked"):
+        prev_purchase = await db.purchases.count_documents({
+            "user_id": current["sub"], "status": "completed"
+        })
+        if prev_purchase < 1 and current.get("role") != "admin":
+            raise HTTPException(status_code=402, detail="Premium style — purchase required to unlock")
+
+    subj = subject.strip() or style.get("subject") or "the person"
+    raw_prompt = style["prompt"].replace("[subject]", subj)
+    if extra_prompt.strip():
+        raw_prompt = f"{raw_prompt}\n\n{extra_prompt.strip()}"
+
+    photo_path = await save_upload(photo)
+    new_balance = await _spend_credits(current["sub"], cost, f"Easy ({style_id})")
+    try:
+        urls = await generate_image(
+            prompt=raw_prompt, model_key="pro",  # uses Flux for image-in-image fidelity
+            aspect_ratio=aspect_ratio, num_outputs=1, image_path=photo_path,
+        )
+    except Exception as e:
+        await _add_credits(current["sub"], cost, "refund", f"Refund: easy failed ({e})")
+        cleanup(photo_path)
+        raise HTTPException(status_code=502, detail=f"Generation failed: {str(e)[:200]}")
+    finally:
+        cleanup(photo_path)
+    if not urls:
+        new_balance = await _add_credits(current["sub"], cost, "refund", "Refund: empty output")
+        raise HTTPException(status_code=502, detail="Empty output")
+    creation = Creation(
+        user_id=current["sub"], type="image", model_used=MODELS["pro"],
+        prompt=raw_prompt, style_key=style_id, aspect_ratio=aspect_ratio,
+        result_urls=urls, credits_spent=cost,
+    )
+    await db.creations.insert_one(creation.model_dump())
+    return {"creation": creation.model_dump(), "new_balance": new_balance}
+
+
 @api.post("/generate/pro")
 async def generate_pro(
     preset_id: str = Form(...),
@@ -556,13 +640,58 @@ async def generate_carousel(payload: CarouselIn, current=Depends(get_current_use
 # ============== Wizard / Suggest / Settings ==============
 class WizardIn(BaseModel):
     answers: dict
+    lang: str = "pt"
+
+
+# Mapping from numeric choice → semantic key, per bot.py wizard
+_WIZ_MAP = {
+    "q1": {  # what to create
+        "1": "flyer/professional poster",
+        "2": "logo / visual identity",
+        "3": "concept art / illustration",
+        "4": "character (anime/realistic/cartoon)",
+        "5": "landscape / scenery",
+        "6": "product / mockup",
+        "7": "realistic portrait / photo",
+        "8": "other",
+    },
+    "q2": {  # visual style
+        "1": "anime / japanese manga style",
+        "2": "realistic / photographic",
+        "3": "artistic / digital painting",
+        "4": "3D render (Pixar style)",
+        "5": "sketch / hand drawn",
+        "6": "minimalist / flat design",
+        "7": "cyberpunk / futuristic",
+        "8": "vintage / retro",
+    },
+    "q3": {  # aspect ratio
+        "1": "3:4",
+        "2": "1:1",
+        "3": "16:9",
+        "4": "9:16",
+        "5": "4:5",
+    },
+}
+
+
+def _normalize_wizard_answers(raw: dict) -> dict:
+    out = {}
+    for k, v in raw.items():
+        s = str(v).strip()
+        if not s:
+            continue
+        mapped = _WIZ_MAP.get(k, {}).get(s)
+        out[k] = mapped or s
+    return out
 
 
 @api.post("/wizard/compose")
 async def wizard_compose_route(payload: WizardIn, current=Depends(get_current_user)):
-    rate_limit.enforce(current["sub"], current.get("role", "user"))
-    text = await wizard_compose(payload.answers)
-    return {"prompt": text}
+    rate_limit.enforce_message(current["sub"], current.get("role", "user"))
+    answers = _normalize_wizard_answers(payload.answers)
+    text = await wizard_compose(answers)
+    return {"prompt": text, "answers_resolved": answers}
 
 
 class SuggestIn(BaseModel):
@@ -572,7 +701,7 @@ class SuggestIn(BaseModel):
 
 @api.post("/suggest")
 async def suggest_route(payload: SuggestIn, current=Depends(get_current_user)):
-    rate_limit.enforce(current["sub"], current.get("role", "user"))
+    rate_limit.enforce_message(current["sub"], current.get("role", "user"))
     if len(payload.theme.strip()) < 2:
         raise HTTPException(status_code=400, detail="Theme too short")
     items = await suggest_prompts(payload.theme.strip(), payload.lang)

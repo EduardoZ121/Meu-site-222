@@ -1,51 +1,51 @@
 import { useEffect, useState } from "react";
 import { Heart, Trash2, Download } from "lucide-react";
 import { api } from "../../lib/api";
+import { useI18n } from "../../lib/i18n";
 import { toast } from "sonner";
 import useTitle from "../../lib/useTitle";
 
 export default function Gallery({ favoritesOnly = false }) {
-  useTitle("Gallery");
+  const { t } = useI18n();
+  useTitle(favoritesOnly ? t("sidebar_favorites") : t("sidebar_gallery"));
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  const load = () => {
+  useEffect(() => {
     api.get(`/generations/history?limit=60${favoritesOnly ? "&only_favorites=true" : ""}`)
       .then((r) => setItems(r.data.creations || []))
       .catch(() => {})
       .finally(() => setLoading(false));
-  };
-
-  useEffect(() => { load(); /* eslint-disable-next-line */ }, [favoritesOnly]);
+  }, [favoritesOnly]);
 
   const toggleFav = async (id) => {
     try {
       const { data } = await api.post(`/generations/${id}/favorite`);
       setItems((cur) => cur.map((c) => c.id === id ? { ...c, is_favorite: data.is_favorite } : c));
-    } catch { toast.error("Failed"); }
+    } catch { toast.error(t("failed")); }
   };
 
   const remove = async (id) => {
     try {
       await api.delete(`/generations/${id}`);
       setItems((cur) => cur.filter((c) => c.id !== id));
-      toast.success("Removed");
-    } catch { toast.error("Failed"); }
+      toast.success(t("remove"));
+    } catch { toast.error(t("failed")); }
   };
 
   return (
     <div className="max-w-[1200px] mx-auto" data-testid="gallery-page">
       <div className="mb-10">
-        <p className="eyebrow mb-3">{favoritesOnly ? "Favorites" : "Gallery"}</p>
-        <h1 className="heading-xl">{favoritesOnly ? "Saved frames." : "Your work."}</h1>
+        <p className="eyebrow mb-3">{favoritesOnly ? t("fav_eyebrow") : t("gal_eyebrow")}</p>
+        <h1 className="heading-xl">{favoritesOnly ? t("fav_title") : t("gal_title")}</h1>
       </div>
 
       {loading ? (
-        <p className="text-rp-mute text-sm">Loading…</p>
+        <p className="text-rp-mute text-sm">{t("loading")}</p>
       ) : items.length === 0 ? (
         <div className="border border-rp-border p-16 text-center" data-testid="gallery-empty">
-          <p className="text-rp-mute mb-2 text-sm">Nothing here yet.</p>
-          <a href="/app/generate" className="text-rp-lavender text-sm hover:underline">Begin your first frame →</a>
+          <p className="text-rp-mute mb-2 text-sm">{t("gal_empty")}</p>
+          <a href="/app/generate" className="text-rp-lavender text-sm hover:underline">{t("gal_begin")}</a>
         </div>
       ) : (
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-1" data-testid="gallery-grid">

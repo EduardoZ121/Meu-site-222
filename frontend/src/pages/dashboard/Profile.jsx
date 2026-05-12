@@ -1,21 +1,23 @@
 import { useAuth } from "../../lib/auth";
+import { useI18n } from "../../lib/i18n";
 import useTitle from "../../lib/useTitle";
 
 export default function Profile() {
-  useTitle("Profile");
+  const { t } = useI18n();
+  useTitle(t("sidebar_profile"));
   const { user } = useAuth();
   if (!user) return null;
   return (
     <div className="max-w-[700px] mx-auto" data-testid="profile-page">
-      <p className="eyebrow mb-3">Profile</p>
-      <h1 className="heading-xl mb-12">Your details.</h1>
+      <p className="eyebrow mb-3">{t("prof_eyebrow")}</p>
+      <h1 className="heading-xl mb-12">{t("prof_title")}</h1>
       <div className="space-y-7">
-        <Field label="Name" value={user.name} />
-        <Field label="Email" value={user.email} />
-        <Field label="Role" value={user.role} />
-        <Field label="Language" value={user.lang.toUpperCase()} />
-        <Field label="Balance" value={`${user.credits} credits`} />
-        <Field label="Member since" value={new Date(user.created_at).toLocaleDateString()} />
+        <Field label={t("prof_name")} value={user.name} />
+        <Field label={t("prof_email")} value={user.email} />
+        <Field label={t("prof_role")} value={user.role} />
+        <Field label={t("prof_language")} value={user.lang.toUpperCase()} />
+        <Field label={t("prof_balance")} value={`${user.credits} ${t("credits")}`} />
+        <Field label={t("prof_since")} value={new Date(user.created_at).toLocaleDateString()} />
       </div>
     </div>
   );

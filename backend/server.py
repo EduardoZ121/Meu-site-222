@@ -826,6 +826,26 @@ async def generate_video_route(
 class PosterIn(BaseModel):
     template_id: str
     placeholders: dict = {}
+    model_key: str = "grok"          # grok | flux2 | gpt_image
+    aspect_ratio: str = ""           # optional override (e.g. "1:1", "4:5", "9:16", "16:9")
+    num_outputs: int = 1             # 1..4 variations
+    mood: str = ""                   # mood / style hint
+    color_hint: str = ""             # dominant color hex
+
+
+# Poster model pricing (per image generated)
+POSTER_MODEL_COSTS = {
+    "grok":      15,
+    "flux2":     18,
+    "gpt_image": 25,
+}
+
+
+def _poster_model_to_replicate_key(model_key: str) -> str:
+    """Map UI model_key to replicate_service MODELS key."""
+    if model_key == "flux2":
+        return "pro"
+    return "standard"  # grok
 
 
 @api.post("/generate/poster")
@@ -834,8 +854,8 @@ async def generate_poster_route(
     current=Depends(get_current_user),
 ):
     """Accepts both JSON and multipart (with optional photo).
-    When photo is provided, uses Flux 2 Klein image-in-image with the poster prompt;
-    otherwise generates from scratch via GPT Image 1.
+    - With photo → uses Replicate (Grok or Flux2) image-in-image with the poster prompt.
+    - Without photo → can use OpenAI gpt-image-1 OR Replicate Grok/Flux2.
     """
     ct = (request.headers.get("content-type") or "").lower()
     photo_path = None
@@ -846,6 +866,14 @@ async def generate_poster_route(
             placeholders = json.loads(form.get("placeholders", "{}"))
         except Exception:
             placeholders = {}
+        model_key = (form.get("model_key") or "grok").strip()
+        aspect_ratio = (form.get("aspect_ratio") or "").strip()
+        try:
+            num_outputs = int(form.get("num_outputs") or 1)
+        except Exception:
+            num_outputs = 1
+        mood = (form.get("mood") or "").strip()
+        color_hint = (form.get("color_hint") or "").strip()
         upload = form.get("photo")
         if upload is not None and hasattr(upload, "filename"):
             photo_path = await save_upload(upload)
@@ -853,6 +881,16 @@ async def generate_poster_route(
         payload = await request.json()
         template_id = payload.get("template_id", "")
         placeholders = payload.get("placeholders", {}) or {}
+        model_key = (payload.get("model_key") or "grok").strip()
+        aspect_ratio = (payload.get("aspect_ratio") or "").strip()
+        try:
+            num_outputs = int(payload.get("num_outputs") or 1)
+        except Exception:
+            num_outputs = 1
+        mood = (payload.get("mood") or "").strip()
+        color_hint = (payload.get("color_hint") or "").strip()
+
+    num_outputs = max(1, min(num_outputs, 4))
 
     tpl = get_poster(template_id)
     if not tpl:
@@ -862,37 +900,84 @@ async def generate_poster_route(
     if missing:
         if photo_path: cleanup(photo_path)
         raise HTTPException(status_code=422, detail=f"Missing placeholders: {', '.join(missing)}")
-    cost = COSTS["poster"]
+
+    # Force a Replicate model when photo is provided (gpt-image-1 has no img-to-img)
+    if photo_path and model_key == "gpt_image":
+        model_key = "flux2"
+
+    if model_key not in POSTER_MODEL_COSTS:
+        if photo_path: cleanup(photo_path)
+        raise HTTPException(status_code=400, detail="Unknown model")
+
+    per_image_cost = POSTER_MODEL_COSTS[model_key]
+    total_cost = per_image_cost * num_outputs
+
     raw_prompt = tpl["prompt"].format(**{k: placeholders[k] for k in tpl["placeholders"]})
-    user, safe_prompt, _ = await _pre_generate_checks(current["sub"], current.get("role", "user"), raw_prompt, cost)
+    # Append optional mood + color guidance
+    extras = []
+    if mood:
+        extras.append(f"Visual mood: {mood}")
+    if color_hint:
+        extras.append(f"Dominant color palette anchored on {color_hint}")
+    if extras:
+        raw_prompt = f"{raw_prompt} {'. '.join(extras)}."
+
+    user, safe_prompt, _ = await _pre_generate_checks(current["sub"], current.get("role", "user"), raw_prompt, total_cost)
     prompt = safe_prompt or raw_prompt
-    new_balance = await _spend_credits(current["sub"], cost, f"Poster ({template_id})")
+    new_balance = await _spend_credits(current["sub"], total_cost, f"Poster ({template_id} · {model_key} · x{num_outputs})")
+
     try:
-        if photo_path:
-            # use Flux 2 Klein image-in-image — keeps the artist's face/product visible
-            urls = await generate_image(
-                prompt=prompt + ". Maintain the subject identity and likeness from the reference image.",
-                model_key="pro", aspect_ratio="4:5", num_outputs=1, image_path=photo_path,
-            )
-        else:
-            url = await generate_poster_image(prompt)
-            if not url:
+        urls: list[str] = []
+        if model_key == "gpt_image":
+            # OpenAI gpt-image-1 — one-shot per call; loop for variations
+            for _ in range(num_outputs):
+                url = await generate_poster_image(prompt)
+                if url:
+                    urls.append(url)
+            if not urls:
                 raise RuntimeError("Empty image from OpenAI")
-            urls = [url]
+            model_label = "openai/gpt-image-1"
+        else:
+            rk = _poster_model_to_replicate_key(model_key)
+            ar = aspect_ratio or "4:5"
+            poster_prompt = prompt
+            if photo_path:
+                poster_prompt += " Maintain the subject identity and likeness from the reference image."
+            batch = await generate_image(
+                prompt=poster_prompt,
+                model_key=rk, aspect_ratio=ar, num_outputs=num_outputs,
+                image_path=photo_path,
+            )
+            urls = batch or []
+            if not urls:
+                raise RuntimeError("Empty image from Replicate")
+            model_label = MODELS[rk]
     except Exception as e:
-        await _add_credits(current["sub"], cost, "refund", f"Refund: poster failed ({e})")
+        await _add_credits(current["sub"], total_cost, "refund", f"Refund: poster failed ({e})")
         if photo_path: cleanup(photo_path)
         raise HTTPException(status_code=502, detail=f"Poster failed: {str(e)[:200]}")
     if photo_path:
         cleanup(photo_path)
     creation = Creation(
         user_id=current["sub"], type="poster",
-        model_used=("flux-2-klein" if photo_path else "openai/gpt-image-1"),
-        prompt=prompt, style_key=template_id, aspect_ratio="4:5",
-        result_urls=urls, credits_spent=cost,
+        model_used=model_label,
+        prompt=prompt, style_key=template_id, aspect_ratio=(aspect_ratio or "4:5"),
+        result_urls=urls, credits_spent=total_cost,
     )
     await db.creations.insert_one(creation.model_dump())
     return {"creation": creation.model_dump(), "new_balance": new_balance}
+
+
+@api.get("/public/poster-models")
+async def public_poster_models():
+    """Public list of available poster generation models with their costs."""
+    return {
+        "models": [
+            {"key": "grok",      "label": "Grok Imagine",  "cost": POSTER_MODEL_COSTS["grok"],      "tier": "fast",    "supports_photo": True,  "tag": "Padrão · rápido"},
+            {"key": "flux2",     "label": "Flux 2",        "cost": POSTER_MODEL_COSTS["flux2"],     "tier": "pro",     "supports_photo": True,  "tag": "Foto-realista"},
+            {"key": "gpt_image", "label": "GPT Image 1",   "cost": POSTER_MODEL_COSTS["gpt_image"], "tier": "premium", "supports_photo": False, "tag": "Qualidade Máxima"},
+        ],
+    }
 
 
 class CarouselIn(BaseModel):

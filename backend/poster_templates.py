@@ -145,6 +145,26 @@ POSTER_TEMPLATES = [
     {"id": "promo_event_ticket", "category": "promo", "label": "Event Ticket",
      "placeholders": ["event", "date", "seat"],
      "prompt": "Stylized event ticket design. {event}, {date}, seat {seat}. Vintage ticket aesthetic, refined typography. Wide 16:9."},
+
+    # ===== SOCIAL MEDIA (6) =====
+    {"id": "sm_story", "category": "social_media", "label": "Instagram Story",
+     "placeholders": ["headline", "subtext", "cta"],
+     "prompt": "Instagram story design. Headline {headline}. Subtext {subtext}. Call to action: {cta}. Bold modern typography, vibrant gradient background, mobile-first vertical layout. Vertical 9:16."},
+    {"id": "sm_feed", "category": "social_media", "label": "Feed Post",
+     "placeholders": ["headline", "caption", "brand"],
+     "prompt": "Instagram feed post. Headline {headline}. Caption {caption}. Brand {brand}. Premium editorial layout, clean typography, scroll-stopping visual. Square 1:1."},
+    {"id": "sm_quote", "category": "social_media", "label": "Quote Post",
+     "placeholders": ["quote", "author", "brand"],
+     "prompt": "Social media quote post. Pull quote: '{quote}'. Attributed to {author}. Brand {brand}. Elegant serif typography on soft gradient. Square 1:1."},
+    {"id": "sm_announcement", "category": "social_media", "label": "Announcement",
+     "placeholders": ["headline", "date", "details"],
+     "prompt": "Social announcement post. Headline {headline}. Date {date}. Details {details}. Bold attention-grabbing typography, celebratory mood. Square 1:1."},
+    {"id": "sm_reel_cover", "category": "social_media", "label": "Reel Cover",
+     "placeholders": ["title", "hook", "episode"],
+     "prompt": "Reel/TikTok cover thumbnail. Title {title}. Hook {hook}. Episode {episode}. Eye-catching typography, vivid colors, designed to stop the scroll. Vertical 9:16."},
+    {"id": "sm_carousel_cover", "category": "social_media", "label": "Carousel Cover",
+     "placeholders": ["title", "subtitle", "swipe_text"],
+     "prompt": "Instagram carousel cover slide. Title {title}. Subtitle {subtitle}. Swipe text {swipe_text}. Editorial premium design with clear visual hierarchy. Square 1:1."},
 ]
 
 

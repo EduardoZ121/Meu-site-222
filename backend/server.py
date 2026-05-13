@@ -408,11 +408,24 @@ from services.replicate_extra import (  # noqa: E402
 
 TOOL_COSTS = {
     "bg_remove": 5,
+    "bg_remove_scene": 8,
     "upscale": 8,
     "restore": 8,
     "colorize": 6,
     "inpaint": 12,
     "clothes": 12,
+}
+
+# Background scene presets (mapped to Flux Kontext prompts)
+BG_SCENE_PROMPTS = {
+    "white":    "pure white seamless studio backdrop, soft even lighting, professional product photography clean and minimal",
+    "studio":   "neutral light grey studio backdrop with subtle vertical gradient, soft diffused photographic lighting",
+    "black":    "pure deep matte black backdrop, dramatic rim lighting on the subject, cinematic studio mood",
+    "gradient": "soft dreamy gradient background blending lavender into peach, ethereal and minimal",
+    "beach":    "sunlit tropical beach, turquoise ocean and golden sand, warm golden hour light, slight cinematic blur",
+    "neon":     "dark studio with vivid magenta and cyan neon lights, cyberpunk mood, glossy reflections",
+    "outdoor":  "soft natural outdoor light with blurred green foliage bokeh background, editorial vibe",
+    "minimal":  "minimalist beige seamless backdrop, soft diffused light, editorial premium look",
 }
 
 
@@ -443,10 +456,38 @@ async def _run_tool(tool_key: str, current: dict, runner, *args, **kwargs):
 
 
 @api.post("/tools/bg-remove")
-async def tool_bg_remove(photo: UploadFile = File(...), current=Depends(get_current_user)):
+async def tool_bg_remove(
+    photo: UploadFile = File(...),
+    bg_mode: str = Form("transparent"),   # transparent | solid | scene | custom
+    bg_prompt: str = Form(""),
+    scene_key: str = Form(""),
+    keep_shadow: bool = Form(False),
+    refine_hair: bool = Form(True),
+    current=Depends(get_current_user),
+):
     path = await save_upload(photo)
     try:
-        return await _run_tool("bg_remove", current, remove_background, path)
+        # Fast path: pure cutout (used for both transparent and solid-color modes —
+        # the solid color is composited on the client over the alpha PNG).
+        if bg_mode in ("transparent", "solid"):
+            return await _run_tool("bg_remove", current, remove_background, path)
+
+        # Scene / custom mode -> Flux Kontext re-renders the background while keeping subject.
+        if bg_mode == "scene":
+            scene_desc = BG_SCENE_PROMPTS.get(scene_key, BG_SCENE_PROMPTS["white"])
+        else:  # custom
+            scene_desc = bg_prompt.strip() or "clean professional background"
+
+        shadow_clause = " Keep a soft natural ground shadow under the subject." if keep_shadow else ""
+        hair_clause   = " Preserve fine hair strands and translucent edges with perfect cutout precision." if refine_hair else ""
+        prompt = (
+            "Replace ONLY the background while keeping the subject pixel-perfect identical "
+            "(same pose, same outfit, same face, same proportions). "
+            f"New background: {scene_desc}. "
+            "Match subject lighting and color temperature to the new scene for a photo-real composite."
+            f"{shadow_clause}{hair_clause}"
+        )
+        return await _run_tool("bg_remove_scene", current, kontext_edit, path, prompt)
     finally:
         cleanup(path)
 

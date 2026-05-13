@@ -14,8 +14,8 @@ const TOOLS = [
     name: "Estilos Artísticos", cost: 13,
     desc: "62 estilos: anime, óleo, aquarela, comic, fantasy, cyberpunk e mais." },
   { id: "pro", tier: "image", to: "/app/pro",
-    name: "Pro Mode (Retoque)", cost: 18,
-    desc: "20 presets profissionais: realismo, mood, enhancements." },
+    name: "Retoque Profissional (Pro)", cost: 18,
+    desc: "20 presets: realismo cinematográfico, mood editorial, enhancements." },
 
   // Native utility tools
   { id: "bg_remove", tier: "image", to: "/app/tools/bg-remove",

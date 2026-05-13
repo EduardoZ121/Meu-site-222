@@ -631,6 +631,8 @@ async def generate_easy(
 async def generate_pro(
     preset_id: str = Form(...),
     aspect_ratio: str = Form("4:5"),
+    extra_prompt: str = Form(""),
+    intensity: int = Form(70),  # 0..100; scales prompt emphasis
     photo: UploadFile = File(...),
     current=Depends(get_current_user),
 ):
@@ -638,12 +640,23 @@ async def generate_pro(
     if not preset:
         raise HTTPException(status_code=400, detail="Unknown preset")
     cost = COSTS["pro"]
-    user, _, _ = await _pre_generate_checks(current["sub"], current.get("role", "user"), None, cost)
+    base_prompt = preset["prompt"]
+    # Intensity: 0..33 = subtle, 34..66 = balanced, 67..100 = strong
+    if intensity < 34:
+        prompt = "Apply subtle, restrained version of: " + base_prompt
+    elif intensity > 66:
+        prompt = "Apply maximum, intense version of: " + base_prompt + " Push every parameter to the strongest tasteful level."
+    else:
+        prompt = base_prompt
+    if extra_prompt.strip():
+        prompt = prompt + " ADDITIONAL INSTRUCTIONS FROM USER: " + extra_prompt.strip()
+    user, safe_prompt, _ = await _pre_generate_checks(current["sub"], current.get("role", "user"), prompt, cost)
+    final = safe_prompt or prompt
     photo_path = await save_upload(photo)
     new_balance = await _spend_credits(current["sub"], cost, f"Pro edit ({preset_id})")
     try:
         urls = await generate_image(
-            prompt=preset["prompt"], model_key="pro",
+            prompt=final, model_key="pro",
             aspect_ratio=aspect_ratio, num_outputs=1, image_path=photo_path,
         )
     except Exception as e:
@@ -657,7 +670,7 @@ async def generate_pro(
         raise HTTPException(status_code=502, detail="Empty output")
     creation = Creation(
         user_id=current["sub"], type="image", model_used=MODELS["pro"],
-        prompt=preset["prompt"], style_key=preset_id, aspect_ratio=aspect_ratio,
+        prompt=final, style_key=preset_id, aspect_ratio=aspect_ratio,
         result_urls=urls, credits_spent=cost,
     )
     await db.creations.insert_one(creation.model_dump())

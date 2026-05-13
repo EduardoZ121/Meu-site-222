@@ -1,11 +1,20 @@
-import { useRef, useState } from "react";
+import { useRef, useState, useEffect } from "react";
 import { Upload, X, Image as ImageIcon } from "lucide-react";
 
 /** Drag/drop file input; emits File object + preview URL. */
 export default function PhotoUpload({ value, onChange, accept = "image/*", testId = "photo-upload" }) {
   const ref = useRef(null);
   const [drag, setDrag] = useState(false);
-  const preview = value ? URL.createObjectURL(value) : null;
+  const [preview, setPreview] = useState(null);
+
+  // Create the object URL ONCE per file and revoke it on cleanup/change.
+  // Doing it inline on render breaks on Android Chrome (URL revoked before <img> loads).
+  useEffect(() => {
+    if (!value) { setPreview(null); return; }
+    const url = URL.createObjectURL(value);
+    setPreview(url);
+    return () => URL.revokeObjectURL(url);
+  }, [value]);
 
   const pick = (file) => {
     if (file && file.type.startsWith("image/")) {
@@ -33,7 +42,14 @@ export default function PhotoUpload({ value, onChange, accept = "image/*", testI
         </button>
       ) : (
         <div className="relative w-full aspect-[4/5] overflow-hidden bg-rp-surface group">
-          <img src={preview} alt="" className="w-full h-full object-cover" />
+          {preview && (
+            <img
+              src={preview}
+              alt="reference"
+              className="w-full h-full object-cover"
+              data-testid={`${testId}-preview`}
+            />
+          )}
           <button onClick={() => onChange(null)} className="absolute top-3 right-3 w-8 h-8 bg-rp-bg/80 backdrop-blur-sm flex items-center justify-center text-rp-text hover:bg-rp-bg" data-testid={`${testId}-clear`}>
             <X className="w-4 h-4" />
           </button>

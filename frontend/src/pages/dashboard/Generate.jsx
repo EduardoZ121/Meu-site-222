@@ -82,35 +82,60 @@ export default function Generate() {
     try {
       let data;
       if (tab === "easy") {
-        if (!photo) { toast.error("Envia uma foto."); setBusy(false); return; }
-        if (!easyStyle) { toast.error("Escolhe um estilo."); setBusy(false); return; }
+        if (!photo) { toast.error("Envia uma foto de referência."); setBusy(false); return; }
+        if (!easyStyle) { toast.error("Escolhe um estilo da grelha."); setBusy(false); return; }
         const fd = new FormData();
         fd.append("photo", photo);
         fd.append("style_id", easyStyle);
         fd.append("subject", subject);
         fd.append("aspect_ratio", aspect);
         if (extra.trim()) fd.append("extra_prompt", extra.trim());
-        ({ data } = await api.post("/generate/easy", fd, { headers: { "Content-Type": "multipart/form-data" } }));
+        ({ data } = await api.post("/generate/easy", fd, {
+          headers: { "Content-Type": "multipart/form-data" },
+          timeout: 180000,
+        }));
       } else if (tab === "advanced") {
-        if (!photo) { toast.error("Envia uma foto."); setBusy(false); return; }
+        if (!photo) { toast.error("Envia uma foto de referência."); setBusy(false); return; }
         if (!proPreset) { toast.error("Escolhe um preset."); setBusy(false); return; }
         const fd = new FormData();
         fd.append("photo", photo);
         fd.append("preset_id", proPreset);
         fd.append("aspect_ratio", aspect);
-        ({ data } = await api.post("/generate/pro", fd, { headers: { "Content-Type": "multipart/form-data" } }));
+        ({ data } = await api.post("/generate/pro", fd, {
+          headers: { "Content-Type": "multipart/form-data" },
+          timeout: 180000,
+        }));
       } else {
         if (!posterTpl) { toast.error("Escolhe um template."); setBusy(false); return; }
         const tpl = posters.find((p) => p.id === posterTpl);
         const missing = (tpl?.placeholders || []).filter((k) => !(placeholders[k] || "").trim());
         if (missing.length) { toast.error(`Preenche: ${missing.join(", ")}`); setBusy(false); return; }
-        ({ data } = await api.post("/generate/poster", { template_id: posterTpl, placeholders }));
+        ({ data } = await api.post("/generate/poster", { template_id: posterTpl, placeholders }, { timeout: 180000 }));
       }
       setResult(data.creation);
       toast.success(`Gerado · ${data.creation.credits_spent} créditos`);
       await refresh();
     } catch (err) {
-      toast.error(err?.response?.data?.detail || "Falhou");
+      // Surface the real error so the user knows what happened
+      let msg = "Falhou a geração.";
+      if (err?.code === "ECONNABORTED" || /timeout/i.test(err?.message || "")) {
+        msg = "Tempo esgotado — a geração demorou mais de 3 min. Tenta de novo.";
+      } else if (err?.response?.status === 402) {
+        msg = "Créditos insuficientes.";
+      } else if (err?.response?.status === 401) {
+        msg = "Sessão expirada. Faz login outra vez.";
+      } else if (err?.response?.status === 429) {
+        msg = "Demasiados pedidos. Espera 1 minuto.";
+      } else if (err?.response?.data?.detail) {
+        msg = typeof err.response.data.detail === "string"
+          ? err.response.data.detail
+          : JSON.stringify(err.response.data.detail);
+      } else if (err?.message) {
+        msg = `Erro de rede: ${err.message}`;
+      }
+      toast.error(msg);
+      // eslint-disable-next-line no-console
+      console.error("Generation error:", err);
     } finally { setBusy(false); }
   };
 

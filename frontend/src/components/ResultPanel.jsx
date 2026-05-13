@@ -14,8 +14,8 @@ export default function ResultPanel({ creation, loading, onChange, emptyLabel = 
     return (
       <div className="card-rp p-10 aspect-square flex flex-col items-center justify-center" data-testid="result-loading">
         <Loader2 className="w-6 h-6 text-rp-lavender animate-spin mb-4" />
-        <p className="text-rp-mute text-sm">Crafting your frame…</p>
-        <p className="text-rp-mute2 text-[11px] font-mono uppercase mt-2 tracking-[0.18em]">This may take 30-90s</p>
+        <p className="text-rp-mute text-sm">A gerar a tua imagem…</p>
+        <p className="text-rp-mute2 text-[11px] font-mono uppercase mt-2 tracking-[0.18em]">Pode demorar 30–90 seg</p>
       </div>
     );
   }

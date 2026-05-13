@@ -6,6 +6,8 @@ import { api } from "../../lib/api";
 import { useAuth } from "../../lib/auth";
 import { toast } from "sonner";
 import ResultPanel from "../../components/ResultPanel";
+import PhotoUpload from "../../components/PhotoUpload";
+import { compressImage } from "../../lib/imageCompress";
 import useTitle from "../../lib/useTitle";
 
 const CAT_LABELS = {
@@ -53,6 +55,7 @@ export default function Posters() {
   const [values, setValues] = useState({});
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState(null);
+  const [photo, setPhoto] = useState(null);
 
   useEffect(() => {
     api.get("/public/poster-templates").then((r) => setTemplates(r.data.templates || [])).catch(() => {});
@@ -68,7 +71,17 @@ export default function Posters() {
     if (missing.length) { toast.error(`Preenche: ${missing.map(labelFor).join(", ")}`); return; }
     setBusy(true); setResult(null);
     try {
-      const { data } = await api.post("/generate/poster", { template_id: picked.id, placeholders: values }, { timeout: 180000 });
+      let data;
+      if (photo) {
+        // poster with reference photo → multipart
+        const fd = new FormData();
+        fd.append("template_id", picked.id);
+        fd.append("placeholders", JSON.stringify(values));
+        fd.append("photo", await compressImage(photo));
+        ({ data } = await api.post("/generate/poster", fd, { timeout: 180000 }));
+      } else {
+        ({ data } = await api.post("/generate/poster", { template_id: picked.id, placeholders: values }, { timeout: 180000 }));
+      }
       setResult(data.creation);
       toast.success(`Pôster pronto · ${data.creation.credits_spent} créditos`);
       await refresh();
@@ -91,6 +104,16 @@ export default function Posters() {
 
         <div className="grid grid-cols-1 xl:grid-cols-[1fr_400px] gap-10">
           <div className="space-y-5">
+            <div>
+              <p className="text-[#7C3AED] text-[10px] font-mono uppercase tracking-[0.22em] mb-2">Foto de referência (opcional)</p>
+              <p className="text-[#5A5A5E] text-[12px] mb-3">Envia uma foto do artista, produto ou evento. O pôster será gerado com essa pessoa/objeto.</p>
+              <div className="max-w-[320px]">
+                <PhotoUpload value={photo} onChange={setPhoto} testId="poster-photo" />
+              </div>
+            </div>
+
+            <div className="h-px bg-[#2E2E30] my-6" />
+
             <p className="text-[#7C3AED] text-[10px] font-mono uppercase tracking-[0.22em]">Detalhes do pôster</p>
             {picked.placeholders.map((p) => (
               <div key={p}>

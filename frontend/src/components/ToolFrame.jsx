@@ -2,9 +2,9 @@ import { useState, useEffect, useRef } from "react";
 import { ArrowLeft, Loader2, Upload, Sparkles, X, RefreshCw } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { toast } from "sonner";
 import { useAuth } from "../lib/auth";
 import { compressImage } from "../lib/imageCompress";
+import { fileToDataURL } from "../lib/fileToDataURL";
 import ResultPanel from "./ResultPanel";
 
 /**
@@ -62,10 +62,10 @@ export default function ToolFrame({
   const [photoPreview, setPhotoPreview] = useState(null);
 
   useEffect(() => {
+    let cancelled = false;
     if (!photo) { setPhotoPreview(null); return; }
-    const url = URL.createObjectURL(photo);
-    setPhotoPreview(url);
-    return () => URL.revokeObjectURL(url);
+    fileToDataURL(photo).then((url) => { if (!cancelled) setPhotoPreview(url); }).catch(() => {});
+    return () => { cancelled = true; };
   }, [photo]);
 
   const handlePickFile = async (file) => {

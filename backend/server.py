@@ -7,6 +7,7 @@ from typing import Optional, List
 from pathlib import Path
 
 from fastapi import FastAPI, APIRouter, HTTPException, Depends, Request, Header, UploadFile, File, Form
+import json
 from fastapi.responses import JSONResponse
 from starlette.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
@@ -704,31 +705,66 @@ class PosterIn(BaseModel):
 
 
 @api.post("/generate/poster")
-async def generate_poster_route(payload: PosterIn, current=Depends(get_current_user)):
-    tpl = get_poster(payload.template_id)
+async def generate_poster_route(
+    request: Request,
+    current=Depends(get_current_user),
+):
+    """Accepts both JSON and multipart (with optional photo).
+    When photo is provided, uses Flux 2 Klein image-in-image with the poster prompt;
+    otherwise generates from scratch via GPT Image 1.
+    """
+    ct = (request.headers.get("content-type") or "").lower()
+    photo_path = None
+    if "multipart/form-data" in ct:
+        form = await request.form()
+        template_id = form.get("template_id", "")
+        try:
+            placeholders = json.loads(form.get("placeholders", "{}"))
+        except Exception:
+            placeholders = {}
+        upload = form.get("photo")
+        if upload is not None and hasattr(upload, "filename"):
+            photo_path = await save_upload(upload)
+    else:
+        payload = await request.json()
+        template_id = payload.get("template_id", "")
+        placeholders = payload.get("placeholders", {}) or {}
+
+    tpl = get_poster(template_id)
     if not tpl:
+        if photo_path: cleanup(photo_path)
         raise HTTPException(status_code=400, detail="Unknown template")
-    # Validate every required placeholder is filled with non-empty text
-    missing = [p for p in tpl["placeholders"] if not (payload.placeholders.get(p) or "").strip()]
+    missing = [p for p in tpl["placeholders"] if not (placeholders.get(p) or "").strip()]
     if missing:
+        if photo_path: cleanup(photo_path)
         raise HTTPException(status_code=422, detail=f"Missing placeholders: {', '.join(missing)}")
     cost = COSTS["poster"]
-    # Run NSFW rewrite over the composed prompt (including user placeholder text)
-    raw_prompt = tpl["prompt"].format(**{k: payload.placeholders[k] for k in tpl["placeholders"]})
+    raw_prompt = tpl["prompt"].format(**{k: placeholders[k] for k in tpl["placeholders"]})
     user, safe_prompt, _ = await _pre_generate_checks(current["sub"], current.get("role", "user"), raw_prompt, cost)
     prompt = safe_prompt or raw_prompt
-    new_balance = await _spend_credits(current["sub"], cost, f"Poster ({payload.template_id})")
+    new_balance = await _spend_credits(current["sub"], cost, f"Poster ({template_id})")
     try:
-        url = await generate_poster_image(prompt)
-        if not url:
-            raise RuntimeError("Empty image from OpenAI")
-        urls = [url]
+        if photo_path:
+            # use Flux 2 Klein image-in-image — keeps the artist's face/product visible
+            urls = await generate_image(
+                prompt=prompt + ". Maintain the subject identity and likeness from the reference image.",
+                model_key="pro", aspect_ratio="4:5", num_outputs=1, image_path=photo_path,
+            )
+        else:
+            url = await generate_poster_image(prompt)
+            if not url:
+                raise RuntimeError("Empty image from OpenAI")
+            urls = [url]
     except Exception as e:
         await _add_credits(current["sub"], cost, "refund", f"Refund: poster failed ({e})")
+        if photo_path: cleanup(photo_path)
         raise HTTPException(status_code=502, detail=f"Poster failed: {str(e)[:200]}")
+    if photo_path:
+        cleanup(photo_path)
     creation = Creation(
-        user_id=current["sub"], type="poster", model_used="openai/gpt-image-1",
-        prompt=prompt, style_key=payload.template_id, aspect_ratio="4:5",
+        user_id=current["sub"], type="poster",
+        model_used=("flux-2-klein" if photo_path else "openai/gpt-image-1"),
+        prompt=prompt, style_key=template_id, aspect_ratio="4:5",
         result_urls=urls, credits_spent=cost,
     )
     await db.creations.insert_one(creation.model_dump())

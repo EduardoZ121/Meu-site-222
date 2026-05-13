@@ -1,5 +1,6 @@
 import { useRef, useState, useEffect } from "react";
 import { Upload, X, Image as ImageIcon } from "lucide-react";
+import { fileToDataURL } from "../lib/fileToDataURL";
 
 /** Drag/drop file input; emits File object + preview URL. */
 export default function PhotoUpload({ value, onChange, accept = "image/*", testId = "photo-upload" }) {
@@ -7,13 +8,12 @@ export default function PhotoUpload({ value, onChange, accept = "image/*", testI
   const [drag, setDrag] = useState(false);
   const [preview, setPreview] = useState(null);
 
-  // Create the object URL ONCE per file and revoke it on cleanup/change.
-  // Doing it inline on render breaks on Android Chrome (URL revoked before <img> loads).
+  // Use FileReader → data URL: more reliable on Android Chrome than blob: URLs
   useEffect(() => {
+    let cancelled = false;
     if (!value) { setPreview(null); return; }
-    const url = URL.createObjectURL(value);
-    setPreview(url);
-    return () => URL.revokeObjectURL(url);
+    fileToDataURL(value).then((url) => { if (!cancelled) setPreview(url); }).catch(() => {});
+    return () => { cancelled = true; };
   }, [value]);
 
   const pick = (file) => {

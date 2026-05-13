@@ -5,6 +5,7 @@ import { useAuth } from "../../../lib/auth";
 import ToolFrame from "../../../components/ToolFrame";
 import { Brush, Eraser } from "lucide-react";
 import { compressImage } from "../../../lib/imageCompress";
+import { fileToDataURL } from "../../../lib/fileToDataURL";
 
 const errMsg = (err) =>
   err?.code === "ECONNABORTED" ? "Tempo esgotado — tenta de novo." :
@@ -30,10 +31,10 @@ export default function Inpaint() {
   const cost = 12;
 
   useEffect(() => {
+    let cancelled = false;
     if (!photo) { setPhotoUrl(null); return; }
-    const u = URL.createObjectURL(photo);
-    setPhotoUrl(u);
-    return () => URL.revokeObjectURL(u);
+    fileToDataURL(photo).then((u) => { if (!cancelled) setPhotoUrl(u); }).catch(() => {});
+    return () => { cancelled = true; };
   }, [photo]);
 
   const initCanvas = () => {

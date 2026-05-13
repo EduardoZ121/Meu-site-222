@@ -69,13 +69,13 @@ export default function Tools() {
                   </span>
                 </div>
               </div>
-              <div className="p-3">
-                <h3 className="text-[#F4F1EA] text-[13px] font-medium font-['Inter_Tight'] leading-tight line-clamp-1">{tool.name}</h3>
-                {tool.desc && <p className="text-[#5A5A5E] text-[11px] leading-snug mt-1 line-clamp-2">{tool.desc}</p>}
+              <div className="p-4">
+                <h3 className="text-[#F4F1EA] text-[14px] font-medium font-['Inter_Tight'] leading-tight line-clamp-1">{tool.name}</h3>
+                {tool.desc && <p className="text-[#8A8A8E] text-[12px] leading-snug mt-1.5 line-clamp-2 min-h-[34px]">{tool.desc}</p>}
                 {tool.cost > 0 ? (
-                  <p className="text-[#7C3AED] text-[10px] font-mono uppercase tracking-wider mt-2">{tool.cost} créditos</p>
+                  <p className="text-[#7C3AED] text-[10px] font-mono uppercase tracking-wider mt-2.5">{tool.cost} créditos</p>
                 ) : (
-                  <p className="text-[#C4B5FD] text-[10px] font-mono uppercase tracking-wider mt-2">Grátis</p>
+                  <p className="text-[#C4B5FD] text-[10px] font-mono uppercase tracking-wider mt-2.5">Grátis</p>
                 )}
               </div>
             </Link>

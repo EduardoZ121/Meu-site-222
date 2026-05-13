@@ -5,8 +5,8 @@
 const TOOLS = [
   // Generation
   { id: "studio", tier: "image", to: "/app/generate",
-    name: "Estúdio (Geração)", cost: 10,
-    desc: "Texto, foto+prompt ou estilos prontos. 1 ferramenta, 3 fluxos." },
+    name: "Estúdio de Geração", cost: 10,
+    desc: "Texto, foto + prompt ou estilos prontos." },
   { id: "clothes", tier: "image", to: "/app/generate?prompt=change+clothes,+different+outfit",
     name: "Trocar Roupa (AI)", cost: 12,
     desc: "Foto + prompt = nova roupa, fundo, cenário." },

@@ -1086,9 +1086,11 @@ app.include_router(api)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=os.environ.get("CORS_ORIGINS", "*").split(","),
-    allow_credentials=True,
+    allow_credentials=False,  # We use Bearer tokens, not cookies — credentials not needed.
     allow_methods=["*"],
     allow_headers=["*"],
+    expose_headers=["*"],
+    max_age=600,
 )
 
 

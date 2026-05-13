@@ -38,8 +38,8 @@ export default function Generate() {
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState(null);
 
-  // Style picker (collapsed by default — purely optional)
-  const [showStyles, setShowStyles] = useState(false);
+  // Style picker (visible by default — Pollo-style)
+  const [showStyles, setShowStyles] = useState(true);
   const [padrao, setPadrao] = useState([]);
   const [padraoCat, setPadraoCat] = useState("men");
   const [pickedStyle, setPickedStyle] = useState(null);
@@ -191,9 +191,15 @@ export default function Generate() {
               className="flex items-center gap-2 text-[10px] font-mono uppercase tracking-[0.22em] text-[#7C3AED] mb-3 hover:text-[#9333EA]"
               data-testid="toggle-styles"
             >
-              3 · {pickedStyle ? `Estilo escolhido: ${picked?.nome || "—"}` : "Escolhe um estilo (opcional)"}
+              3 · Escolhe um Estilo <span className="text-[#5A5A5E]">(opcional)</span>
               <span className="text-[#5A5A5E]">{showStyles ? "▴" : "▾"}</span>
             </button>
+            {pickedStyle && picked && (
+              <div className="mb-3 inline-flex items-center gap-2 px-3 py-1.5 bg-[#7C3AED]/10 border border-[#7C3AED]/40 rounded-md">
+                <span className="text-[#C4B5FD] text-[11px] font-medium">{picked.nome}</span>
+                <button onClick={() => setPickedStyle(null)} className="text-[#8A8A8E] hover:text-[#F4F1EA] text-[14px] leading-none">×</button>
+              </div>
+            )}
 
             {showStyles && (
               <>
@@ -234,14 +240,19 @@ export default function Generate() {
           {/* Step 4 — aspect ratio */}
           <div className="mb-10">
             <p className="text-[10px] font-mono uppercase tracking-[0.22em] text-[#7C3AED] mb-3">4 · Formato</p>
-            <div className="flex flex-wrap gap-2" data-testid="aspect-ratios">
-              {ASPECT_RATIOS.map((a) => (
-                <button key={a} onClick={() => setAspect(a)}
-                  className={`px-4 py-2 border text-[11px] font-mono transition-colors ${aspect === a ? "border-[#7C3AED] text-[#C4B5FD] bg-[#7C3AED]/10" : "border-[#2E2E30] text-[#8A8A8E] hover:text-[#F4F1EA]"}`}
-                  data-testid={`aspect-${a}`}>
-                  {a}
-                </button>
-              ))}
+            <div className="grid grid-cols-3 sm:grid-cols-6 gap-2" data-testid="aspect-ratios">
+              {ASPECT_RATIOS.map((a) => {
+                const map = { "1:1":[14,14],"3:4":[12,16],"4:5":[13,16],"9:16":[10,18],"16:9":[18,10],"21:9":[20,9] };
+                const [w,h] = map[a] || [14,14];
+                return (
+                  <button key={a} onClick={() => setAspect(a)}
+                    className={`flex flex-col items-center justify-center gap-1.5 py-3 border-2 rounded-md text-[11px] font-medium transition-all ${aspect === a ? "border-[#7C3AED] bg-[#7C3AED]/10 text-[#C4B5FD] shadow-md shadow-[#7C3AED]/20" : "border-[#2E2E30] text-[#8A8A8E] hover:border-[#7C3AED]/40 hover:text-[#F4F1EA]"}`}
+                    data-testid={`aspect-${a}`}>
+                    <div className="border-[1.5px] border-current rounded-[1px]" style={{ width: w+"px", height: h+"px" }} />
+                    <span className="font-mono">{a}</span>
+                  </button>
+                );
+              })}
             </div>
           </div>
 
@@ -249,11 +260,17 @@ export default function Generate() {
           <button
             onClick={generate}
             disabled={busy || mode === "blocked"}
-            className="w-full bg-[#7C3AED] hover:bg-[#9333EA] disabled:bg-[#1A1A1C] disabled:text-[#5A5A5E] text-white py-4 text-[12px] font-mono uppercase tracking-[0.18em] transition-colors flex items-center justify-center gap-2"
+            className="w-full bg-gradient-to-r from-[#7C3AED] to-[#9333EA] hover:from-[#8B5CF6] hover:to-[#A855F7] disabled:bg-[#1A1A1C] disabled:from-[#1A1A1C] disabled:to-[#1A1A1C] disabled:text-[#5A5A5E] text-white py-4 text-[12px] font-medium uppercase tracking-[0.18em] rounded-md shadow-lg shadow-[#7C3AED]/30 hover:shadow-[#7C3AED]/50 hover:-translate-y-0.5 transition-all flex items-center justify-center gap-2"
             data-testid="generate-button"
           >
             {busy ? (
-              <><Loader2 className="w-4 h-4 animate-spin" /> A gerar... 30–90 seg</>
+              <>
+                <span className="relative flex items-center justify-center">
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  <span className="absolute inset-0 rounded-full bg-white/30 blur-md animate-pulse" />
+                </span>
+                A gerar... 30–90 seg
+              </>
             ) : mode === "blocked" ? (
               <><ImagePlus className="w-4 h-4" /> {ctaLabel}</>
             ) : (

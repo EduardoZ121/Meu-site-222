@@ -163,7 +163,8 @@ async def public_styles():
 
 @api.get("/public/artistic-styles")
 async def public_artistic():
-    return {"styles": ARTISTIC_STYLES}
+    from artistic_styles import CATEGORIES
+    return {"styles": ARTISTIC_STYLES, "categories": CATEGORIES}
 
 
 @api.get("/public/pro-presets")

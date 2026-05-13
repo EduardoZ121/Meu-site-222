@@ -4,8 +4,8 @@ import {
 } from "lucide-react";
 
 const ICONS = {
-  studio: Wand2, clothes: Shirt, art: Sparkles, upscale: Maximize2,
-  bg_remove: Scissors, restore: RefreshCw, colorize: Palette,
+  studio: Wand2, clothes: Shirt, art: Palette, upscale: Maximize2,
+  bg_remove: Scissors, restore: RefreshCw, colorize: Brush,
   inpaint: Eraser, posters: FileText, carousel: Layers,
   wizard: Lightbulb, video: Film, pro: Camera, default: ImageIcon,
 };

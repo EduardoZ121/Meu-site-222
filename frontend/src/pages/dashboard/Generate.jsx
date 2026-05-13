@@ -10,6 +10,18 @@ import ResultPanel from "../../components/ResultPanel";
 import { compressImage } from "../../lib/imageCompress";
 import useTitle from "../../lib/useTitle";
 
+// Per-category default thumbnails (Unsplash)
+const CAT_THUMBS = {
+  men:     "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=400&q=70&fit=crop&auto=format",
+  women:   "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=400&q=70&fit=crop&auto=format",
+  unisex:  "https://images.unsplash.com/photo-1531123897727-8f129e1688ce?w=400&q=70&fit=crop&auto=format",
+  flyer:   "https://images.unsplash.com/photo-1551582045-6ec9c11d8697?w=400&q=70&fit=crop&auto=format",
+  couple:  "https://images.unsplash.com/photo-1521146764736-56c929d59c83?w=400&q=70&fit=crop&auto=format",
+  comic:   "https://images.unsplash.com/photo-1612544448445-b8232cff3b6c?w=400&q=70&fit=crop&auto=format",
+  stories: "https://images.unsplash.com/photo-1611162616305-c69b3fa7fbe0?w=400&q=70&fit=crop&auto=format",
+  sensual: "https://images.unsplash.com/photo-1542178243-bc20204b769f?w=400&q=70&fit=crop&auto=format",
+};
+
 const ASPECT_RATIOS = ["1:1", "4:5", "3:4", "9:16", "16:9", "21:9"];
 
 const CAT_LABELS = {
@@ -223,15 +235,29 @@ export default function Generate() {
                   ))}
                 </div>
 
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 max-h-[420px] overflow-y-auto pr-1" data-testid="padrao-grid">
-                  {padraoFiltered.map((s) => (
-                    <button key={s.id} onClick={() => setPickedStyle(pickedStyle === s.id ? null : s.id)}
-                      className={`text-left p-3 border transition-all ${pickedStyle === s.id ? "border-[#7C3AED] bg-[#7C3AED]/10" : "border-[#2E2E30] hover:border-[#7C3AED]/40 bg-[#1A1A1C]"} ${s.locked ? "opacity-80" : ""}`}
-                      data-testid={`pstyle-${s.id}`}>
-                      <p className="text-[#F4F1EA] text-[13px] leading-snug mb-1 font-['Inter_Tight']">{s.nome}</p>
-                      {s.locked && <p className="text-[#C7A77A] text-[9px] font-mono uppercase tracking-wider">Premium</p>}
-                    </button>
-                  ))}
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 max-h-[460px] overflow-y-auto pr-1" data-testid="padrao-grid">
+                  {padraoFiltered.map((s) => {
+                    const thumb = CAT_THUMBS[s.cat];
+                    return (
+                      <button key={s.id} onClick={() => setPickedStyle(pickedStyle === s.id ? null : s.id)}
+                        className={`relative aspect-[3/4] overflow-hidden border-2 rounded-md text-left transition-all group ${pickedStyle === s.id ? "border-[#7C3AED] ring-2 ring-[#7C3AED]/40 shadow-lg shadow-[#7C3AED]/30" : "border-[#2E2E30] hover:border-[#7C3AED]/40"} ${s.locked ? "opacity-90" : ""}`}
+                        data-testid={`pstyle-${s.id}`}>
+                        {thumb && (
+                          <img src={thumb} alt={s.nome} className="absolute inset-0 w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" loading="lazy" />
+                        )}
+                        <div className="absolute inset-0 bg-gradient-to-t from-[#0B0B0C] via-[#0B0B0C]/40 to-transparent" />
+                        <div className="relative h-full flex flex-col justify-end p-3">
+                          <p className="text-[#F4F1EA] text-[12px] font-medium leading-tight font-['Inter_Tight'] drop-shadow-md">{s.nome}</p>
+                          {s.locked && <p className="text-[#C7A77A] text-[9px] font-mono uppercase tracking-wider mt-1">Premium</p>}
+                        </div>
+                        {pickedStyle === s.id && (
+                          <div className="absolute top-2 right-2 w-6 h-6 rounded-full bg-[#7C3AED] flex items-center justify-center shadow-lg shadow-[#7C3AED]/50 z-10">
+                            <span className="text-white text-[11px] font-bold">✓</span>
+                          </div>
+                        )}
+                      </button>
+                    );
+                  })}
                 </div>
               </>
             )}

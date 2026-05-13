@@ -8,6 +8,7 @@ import { toast } from "sonner";
 import ResultPanel from "../../components/ResultPanel";
 import { compressImage } from "../../lib/imageCompress";
 import { fileToDataURL } from "../../lib/fileToDataURL";
+import { ARTISTIC_PREVIEWS } from "../../lib/toolPreviews";
 import useTitle from "../../lib/useTitle";
 
 const ASPECT_RATIOS = ["1:1", "4:5", "3:4", "9:16", "16:9", "21:9"];
@@ -195,35 +196,42 @@ export default function Artistic() {
 
             {/* Style grid */}
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2 max-h-[520px] overflow-y-auto pr-1" data-testid="artistic-styles-grid">
-              {filtered.map((s, i) => (
-                <motion.button
-                  key={s.id}
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  transition={{ duration: 0.25, delay: Math.min(i * 0.01, 0.3) }}
-                  onClick={() => setPicked(s.id)}
-                  className={`relative aspect-[4/3] rounded-md overflow-hidden border-2 transition-all text-left p-3 flex flex-col justify-end ${
-                    picked === s.id
-                      ? "border-[#7C3AED] ring-2 ring-[#7C3AED]/40"
-                      : "border-[#2E2E30] hover:border-[#7C3AED]/40"
-                  }`}
-                  data-testid={`style-${s.id}`}
-                  style={{
-                    background: `linear-gradient(135deg,
-                      hsl(${(s.id.charCodeAt(0) * 7) % 360}, 35%, 22%) 0%,
-                      #13131A 60%,
-                      #0B0B0C 100%)`,
-                  }}
-                >
-                  <p className="relative z-10 text-[#F4F1EA] text-[12px] font-medium leading-tight font-['Inter_Tight']">{s.label}</p>
-                  <p className="relative z-10 text-[#C4B5FD]/60 text-[9px] font-mono uppercase tracking-wider mt-0.5">{cats[s.cat]?.split(" ")[0] || s.cat}</p>
-                  {picked === s.id && (
-                    <div className="absolute top-2 right-2 w-5 h-5 rounded-full bg-[#7C3AED] flex items-center justify-center">
-                      <span className="text-white text-[10px]">✓</span>
+              {filtered.map((s, i) => {
+                const img = ARTISTIC_PREVIEWS[s.id];
+                return (
+                  <motion.button
+                    key={s.id}
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ duration: 0.25, delay: Math.min(i * 0.01, 0.3) }}
+                    onClick={() => setPicked(s.id)}
+                    className={`relative aspect-[4/3] rounded-md overflow-hidden border-2 transition-all text-left flex flex-col justify-end group ${
+                      picked === s.id
+                        ? "border-[#7C3AED] ring-2 ring-[#7C3AED]/40 shadow-lg shadow-[#7C3AED]/30"
+                        : "border-[#2E2E30] hover:border-[#7C3AED]/40"
+                    }`}
+                    data-testid={`style-${s.id}`}
+                  >
+                    {img ? (
+                      <>
+                        <img src={img} alt={s.label} className="absolute inset-0 w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" loading="lazy" />
+                        <div className="absolute inset-0 bg-gradient-to-t from-[#0B0B0C] via-[#0B0B0C]/40 to-transparent" />
+                      </>
+                    ) : (
+                      <div className="absolute inset-0" style={{ background: `linear-gradient(135deg, hsl(${(s.id.charCodeAt(0)*7)%360}, 35%, 22%) 0%, #13131A 60%, #0B0B0C 100%)` }} />
+                    )}
+                    <div className="relative z-10 p-3">
+                      <p className="text-[#F4F1EA] text-[12px] font-medium leading-tight font-['Inter_Tight'] drop-shadow-md">{s.label}</p>
+                      <p className="text-[#C4B5FD]/80 text-[9px] font-mono uppercase tracking-wider mt-0.5">{cats[s.cat]?.split(" ")[0] || s.cat}</p>
                     </div>
-                  )}
-                </motion.button>
-              ))}
+                    {picked === s.id && (
+                      <div className="absolute top-2 right-2 w-6 h-6 rounded-full bg-[#7C3AED] flex items-center justify-center shadow-lg shadow-[#7C3AED]/50 z-20">
+                        <span className="text-white text-[11px] font-bold">✓</span>
+                      </div>
+                    )}
+                  </motion.button>
+                );
+              })}
               {filtered.length === 0 && (
                 <p className="col-span-full text-[#5A5A5E] text-[13px] py-10 text-center">Nenhum estilo encontrado para "{query}"</p>
               )}

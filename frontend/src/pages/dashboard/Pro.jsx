@@ -8,6 +8,7 @@ import { toast } from "sonner";
 import ResultPanel from "../../components/ResultPanel";
 import { compressImage } from "../../lib/imageCompress";
 import { fileToDataURL } from "../../lib/fileToDataURL";
+import { PRO_PREVIEWS } from "../../lib/toolPreviews";
 import useTitle from "../../lib/useTitle";
 
 const ASPECT_RATIOS = ["1:1", "4:5", "3:4", "9:16", "16:9", "21:9"];
@@ -178,30 +179,38 @@ export default function Pro() {
           <section>
             <p className="text-[10px] font-mono uppercase tracking-[0.22em] text-[#7C3AED] mb-4">3 · Escolhe um Preset {pickedPreset && <span className="text-[#C4B5FD] normal-case font-sans text-[12px] tracking-normal ml-2">· {pickedPreset.nome}</span>}</p>
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-2" data-testid="pro-presets">
-              {filtered.map((p) => (
-                <button
-                  key={p.id}
-                  onClick={() => setPreset(p.id)}
-                  className={`relative text-left p-4 border-2 rounded-md transition-all min-h-[80px] flex flex-col justify-end ${
-                    preset === p.id
-                      ? "border-[#7C3AED] bg-[#7C3AED]/10"
-                      : "border-[#2E2E30] hover:border-[#7C3AED]/40 bg-[#13131A]"
-                  }`}
-                  data-testid={`preset-${p.id}`}
-                  style={{
-                    background: preset === p.id
-                      ? "linear-gradient(135deg, rgba(124,58,237,0.12) 0%, #13131A 80%)"
-                      : `linear-gradient(135deg, hsl(${(p.id.charCodeAt(0)*9)%360}, 30%, 18%) 0%, #13131A 70%)`,
-                  }}
-                >
-                  <p className="text-[#F4F1EA] text-[13px] font-medium font-['Inter_Tight'] leading-tight">{p.nome}</p>
-                  {preset === p.id && (
-                    <div className="absolute top-2 right-2 w-5 h-5 rounded-full bg-[#7C3AED] flex items-center justify-center">
-                      <span className="text-white text-[10px]">✓</span>
+              {filtered.map((p) => {
+                const img = PRO_PREVIEWS[p.id];
+                return (
+                  <button
+                    key={p.id}
+                    onClick={() => setPreset(p.id)}
+                    className={`relative text-left rounded-md transition-all min-h-[120px] overflow-hidden border-2 group ${
+                      preset === p.id
+                        ? "border-[#7C3AED] ring-2 ring-[#7C3AED]/40 shadow-lg shadow-[#7C3AED]/30"
+                        : "border-[#2E2E30] hover:border-[#7C3AED]/40"
+                    }`}
+                    data-testid={`preset-${p.id}`}
+                  >
+                    {img ? (
+                      <>
+                        <img src={img} alt={p.nome} className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" loading="lazy" />
+                        <div className="absolute inset-0 bg-gradient-to-t from-[#0B0B0C] via-[#0B0B0C]/55 to-transparent" />
+                      </>
+                    ) : (
+                      <div className="absolute inset-0" style={{ background: `linear-gradient(135deg, hsl(${(p.id.charCodeAt(0)*9)%360}, 30%, 18%) 0%, #13131A 70%)` }} />
+                    )}
+                    <div className="relative h-full flex flex-col justify-end p-3">
+                      <p className="text-[#F4F1EA] text-[13px] font-medium font-['Inter_Tight'] leading-tight drop-shadow-md">{p.nome}</p>
                     </div>
-                  )}
-                </button>
-              ))}
+                    {preset === p.id && (
+                      <div className="absolute top-2 right-2 w-6 h-6 rounded-full bg-[#7C3AED] flex items-center justify-center shadow-lg shadow-[#7C3AED]/50 z-10">
+                        <span className="text-white text-[11px] font-bold">✓</span>
+                      </div>
+                    )}
+                  </button>
+                );
+              })}
             </div>
           </section>
 

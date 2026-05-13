@@ -7,6 +7,7 @@ import { api } from "../../../lib/api";
 import { useAuth } from "../../../lib/auth";
 import { compressImage } from "../../../lib/imageCompress";
 import { fileToDataURL } from "../../../lib/fileToDataURL";
+import { CLOTHES_PREVIEWS } from "../../../lib/toolPreviews";
 import ResultPanel from "../../../components/ResultPanel";
 import useTitle from "../../../lib/useTitle";
 
@@ -185,17 +186,28 @@ export default function ClothesChanger() {
           {!garment && (
             <section>
               <p className="text-[10px] font-mono uppercase tracking-[0.22em] text-[#7C3AED] mb-4">3 · Inspirações rápidas</p>
-              <div className="flex flex-wrap gap-2" data-testid="presets">
-                {STYLE_PRESETS.map((p) => (
-                  <button
-                    key={p.id}
-                    onClick={() => applyPreset(p)}
-                    className="px-4 py-2 border border-[#2E2E30] hover:border-[#7C3AED] text-[#8A8A8E] hover:text-[#C4B5FD] hover:bg-[#7C3AED]/5 text-[12px] font-medium rounded-full transition-all"
-                    data-testid={`preset-${p.id}`}
-                  >
-                    {p.label}
-                  </button>
-                ))}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2" data-testid="presets">
+                {STYLE_PRESETS.map((p) => {
+                  const img = CLOTHES_PREVIEWS[p.id];
+                  return (
+                    <button
+                      key={p.id}
+                      onClick={() => applyPreset(p)}
+                      className="relative aspect-[3/4] rounded-md overflow-hidden border-2 border-[#2E2E30] hover:border-[#7C3AED] transition-all group"
+                      data-testid={`preset-${p.id}`}
+                    >
+                      {img ? (
+                        <>
+                          <img src={img} alt={p.label} className="absolute inset-0 w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" loading="lazy" />
+                          <div className="absolute inset-0 bg-gradient-to-t from-[#0B0B0C] via-[#0B0B0C]/40 to-transparent" />
+                        </>
+                      ) : (
+                        <div className="absolute inset-0 bg-[#13131A]" />
+                      )}
+                      <p className="absolute bottom-2 left-2 right-2 text-[#F4F1EA] text-[12px] font-medium drop-shadow-md text-left">{p.label}</p>
+                    </button>
+                  );
+                })}
               </div>
             </section>
           )}

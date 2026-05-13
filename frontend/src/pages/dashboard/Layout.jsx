@@ -3,7 +3,7 @@ import { useAuth } from "../../lib/auth";
 import { useI18n } from "../../lib/i18n";
 import {
   Sparkles, Images, Heart, CreditCard, User, Users, ShieldCheck, LogOut,
-  Globe, Film, FileText, Layers, Menu, X, Settings,
+  Globe, Film, FileText, Layers, Menu, Settings, LayoutGrid,
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import Logo from "../../components/Logo";
@@ -12,6 +12,7 @@ const nav = [
   {
     title: "Criar",
     links: [
+      { to: "/app/tools", icon: LayoutGrid, label: "Ferramentas" },
       { to: "/app/generate", icon: Sparkles, label: "Estúdio" },
       { to: "/app/posters", icon: FileText, label: "Pôsteres" },
       { to: "/app/video", icon: Film, label: "Vídeo" },

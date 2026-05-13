@@ -1,0 +1,89 @@
+"""Extra Replicate model wrappers for utility tools (background remover, upscaler, etc.)."""
+import os
+import asyncio
+from typing import List
+import replicate
+
+REPLICATE_TOKEN = os.environ.get("REPLICATE_API_TOKEN")
+
+# Curated, production-grade model IDs (versions are pinned where useful)
+EXTRA_MODELS = {
+    "bg_remove":     "851-labs/background-remover",     # robust BG removal (alpha cutout)
+    "upscale":       "philz1337x/clarity-upscaler",     # great image upscaler
+    "restore":       "tencentarc/gfpgan",               # old photo / face restoration
+    "colorize":      "piddnad/ddcolor",                  # B&W → color
+    "inpaint":       "black-forest-labs/flux-fill-pro", # inpaint / object remove via mask
+}
+
+
+def _extract(output):
+    """Normalize Replicate output to a list of URL strings."""
+    if output is None:
+        return []
+    if isinstance(output, list):
+        out = []
+        for x in output:
+            out.append(x.url() if callable(getattr(x, "url", None)) else (x.url if hasattr(x, "url") else str(x)))
+        return [u for u in out if u and (u.startswith("http") or u.startswith("data:"))]
+    if isinstance(output, str):
+        return [output]
+    if hasattr(output, "url"):
+        u = output.url() if callable(output.url) else output.url
+        return [str(u)]
+    return [str(output)]
+
+
+async def _run_model(model_id: str, inputs: dict) -> List[str]:
+    if not REPLICATE_TOKEN:
+        raise RuntimeError("REPLICATE_API_TOKEN not configured")
+
+    def _exec():
+        client = replicate.Client(api_token=REPLICATE_TOKEN.strip())
+        try:
+            return client.run(model_id, input=inputs)
+        finally:
+            for v in inputs.values():
+                if hasattr(v, "close"):
+                    try: v.close()
+                    except Exception: pass
+
+    output = await asyncio.to_thread(_exec)
+    return _extract(output)
+
+
+async def remove_background(image_path: str) -> List[str]:
+    return await _run_model(EXTRA_MODELS["bg_remove"], {"image": open(image_path, "rb")})
+
+
+async def upscale_image(image_path: str, scale: int = 2) -> List[str]:
+    return await _run_model(EXTRA_MODELS["upscale"], {
+        "image": open(image_path, "rb"),
+        "scale_factor": scale,
+        "dynamic": 6,
+        "creativity": 0.35,
+        "resemblance": 0.6,
+    })
+
+
+async def restore_photo(image_path: str) -> List[str]:
+    return await _run_model(EXTRA_MODELS["restore"], {
+        "img": open(image_path, "rb"),
+        "version": "v1.4",
+        "scale": 2,
+    })
+
+
+async def colorize_image(image_path: str) -> List[str]:
+    return await _run_model(EXTRA_MODELS["colorize"], {
+        "image": open(image_path, "rb"),
+        "model_size": "large",
+    })
+
+
+async def inpaint_image(image_path: str, mask_path: str, prompt: str) -> List[str]:
+    return await _run_model(EXTRA_MODELS["inpaint"], {
+        "image": open(image_path, "rb"),
+        "mask": open(mask_path, "rb"),
+        "prompt": prompt,
+        "output_format": "jpg",
+    })

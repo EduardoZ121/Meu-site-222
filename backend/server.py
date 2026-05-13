@@ -396,6 +396,100 @@ async def delete_creation(creation_id: str, current=Depends(get_current_user)):
         raise HTTPException(status_code=404, detail="Creation not found")
     return {"ok": True}
 
+# ===================================================================
+# UTILITY TOOLS (Background Remove, Upscale, Restore, Colorize, Inpaint)
+# ===================================================================
+from services.replicate_extra import (  # noqa: E402
+    remove_background, upscale_image, restore_photo, colorize_image, inpaint_image,
+)
+
+TOOL_COSTS = {
+    "bg_remove": 5,
+    "upscale": 8,
+    "restore": 8,
+    "colorize": 6,
+    "inpaint": 12,
+}
+
+
+async def _run_tool(tool_key: str, current: dict, runner, *args, **kwargs):
+    cost = TOOL_COSTS[tool_key]
+    user = await _user_doc(current["sub"])
+    if not user or user.get("banned"):
+        raise HTTPException(status_code=403, detail="Not allowed")
+    if user.get("credits", 0) < cost and current.get("role") != "admin":
+        raise HTTPException(status_code=402, detail="Insufficient credits")
+    rate_limit.enforce_image(current["sub"], current.get("role", "user"))
+    new_balance = await _spend_credits(current["sub"], cost, f"Tool: {tool_key}")
+    try:
+        urls = await runner(*args, **kwargs)
+    except Exception as e:
+        logger.error(f"Tool {tool_key} failed: {e}")
+        new_balance = await _add_credits(current["sub"], cost, "refund", f"Refund: {tool_key} failed")
+        raise HTTPException(status_code=502, detail=f"Tool failed: {str(e)[:200]}")
+    if not urls:
+        new_balance = await _add_credits(current["sub"], cost, "refund", "Refund: empty output")
+        raise HTTPException(status_code=502, detail="Empty output")
+    creation = Creation(
+        user_id=current["sub"], type="image", model_used=f"tool:{tool_key}",
+        prompt=f"[{tool_key}]", result_urls=urls, credits_spent=cost,
+    )
+    await db.creations.insert_one(creation.model_dump())
+    return {"creation": creation.model_dump(), "new_balance": new_balance}
+
+
+@api.post("/tools/bg-remove")
+async def tool_bg_remove(photo: UploadFile = File(...), current=Depends(get_current_user)):
+    path = await save_upload(photo)
+    try:
+        return await _run_tool("bg_remove", current, remove_background, path)
+    finally:
+        cleanup(path)
+
+
+@api.post("/tools/upscale")
+async def tool_upscale(scale: int = Form(2), photo: UploadFile = File(...), current=Depends(get_current_user)):
+    path = await save_upload(photo)
+    try:
+        return await _run_tool("upscale", current, upscale_image, path, max(2, min(scale, 4)))
+    finally:
+        cleanup(path)
+
+
+@api.post("/tools/restore")
+async def tool_restore(photo: UploadFile = File(...), current=Depends(get_current_user)):
+    path = await save_upload(photo)
+    try:
+        return await _run_tool("restore", current, restore_photo, path)
+    finally:
+        cleanup(path)
+
+
+@api.post("/tools/colorize")
+async def tool_colorize(photo: UploadFile = File(...), current=Depends(get_current_user)):
+    path = await save_upload(photo)
+    try:
+        return await _run_tool("colorize", current, colorize_image, path)
+    finally:
+        cleanup(path)
+
+
+@api.post("/tools/inpaint")
+async def tool_inpaint(
+    prompt: str = Form(...),
+    photo: UploadFile = File(...),
+    mask: UploadFile = File(...),
+    current=Depends(get_current_user),
+):
+    p = await save_upload(photo)
+    m = await save_upload(mask)
+    try:
+        return await _run_tool("inpaint", current, inpaint_image, p, m, prompt)
+    finally:
+        cleanup(p); cleanup(m)
+
+
+
 @api.post("/generate/edit")
 async def generate_edit(
     prompt: str = Form(...),

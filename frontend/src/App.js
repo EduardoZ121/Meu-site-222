@@ -9,6 +9,7 @@ import Login from "./pages/Login";
 import Register from "./pages/Register";
 import Explore from "./pages/Explore";
 import DashboardLayout from "./pages/dashboard/Layout";
+import Tools from "./pages/dashboard/Tools";
 import Generate from "./pages/dashboard/Generate";
 import Pro from "./pages/dashboard/Pro";
 import Artistic from "./pages/dashboard/Artistic";
@@ -23,6 +24,11 @@ import Billing from "./pages/dashboard/Billing";
 import Profile from "./pages/dashboard/Profile";
 import Referrals from "./pages/dashboard/Referrals";
 import Admin from "./pages/dashboard/Admin";
+import BgRemove from "./pages/dashboard/tools/BgRemove";
+import Upscale from "./pages/dashboard/tools/Upscale";
+import Restore from "./pages/dashboard/tools/Restore";
+import Colorize from "./pages/dashboard/tools/Colorize";
+import Inpaint from "./pages/dashboard/tools/Inpaint";
 
 function RequireAuth({ children, adminOnly = false }) {
   const { user, loading } = useAuth();
@@ -47,7 +53,13 @@ function App() {
               <Route path="/explore" element={<Explore />} />
 
               <Route path="/app" element={<RequireAuth><DashboardLayout /></RequireAuth>}>
-                <Route index element={<Navigate to="/app/generate" replace />} />
+                <Route index element={<Navigate to="/app/tools" replace />} />
+                <Route path="tools" element={<Tools />} />
+                <Route path="tools/bg-remove" element={<BgRemove />} />
+                <Route path="tools/upscale" element={<Upscale />} />
+                <Route path="tools/restore" element={<Restore />} />
+                <Route path="tools/colorize" element={<Colorize />} />
+                <Route path="tools/inpaint" element={<Inpaint />} />
                 <Route path="generate" element={<Generate />} />
                 <Route path="pro" element={<Pro />} />
                 <Route path="artistic" element={<Artistic />} />

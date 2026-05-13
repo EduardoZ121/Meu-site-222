@@ -1,10 +1,10 @@
 import {
   Wand2, Image as ImageIcon, Scissors, Maximize2, Sparkles, Palette,
-  Eraser, FileText, Camera, Film, Layers, Lightbulb, Brush, RefreshCw,
+  Eraser, FileText, Camera, Film, Layers, Lightbulb, Brush, RefreshCw, Shirt,
 } from "lucide-react";
 
 const ICONS = {
-  studio: Wand2, clothes: Brush, art: Sparkles, upscale: Maximize2,
+  studio: Wand2, clothes: Shirt, art: Sparkles, upscale: Maximize2,
   bg_remove: Scissors, restore: RefreshCw, colorize: Palette,
   inpaint: Eraser, posters: FileText, carousel: Layers,
   wizard: Lightbulb, video: Film, pro: Camera, default: ImageIcon,

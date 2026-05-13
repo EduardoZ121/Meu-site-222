@@ -13,6 +13,8 @@ EXTRA_MODELS = {
     "restore":       "tencentarc/gfpgan",               # old photo / face restoration
     "colorize":      "piddnad/ddcolor",                  # B&W → color
     "inpaint":       "black-forest-labs/flux-fill-pro", # inpaint / object remove via mask
+    "virtual_tryon": "cuuupid/idm-vton",                # virtual try-on with garment ref
+    "kontext":       "black-forest-labs/flux-kontext-max", # clothes/scene edits with prompt
 }
 
 
@@ -86,4 +88,25 @@ async def inpaint_image(image_path: str, mask_path: str, prompt: str) -> List[st
         "mask": open(mask_path, "rb"),
         "prompt": prompt,
         "output_format": "jpg",
+    })
+
+
+async def virtual_tryon(person_path: str, garment_path: str, prompt: str = "") -> List[str]:
+    """Virtual try-on: dress the person with the garment from `garment_path`."""
+    return await _run_model(EXTRA_MODELS["virtual_tryon"], {
+        "human_img": open(person_path, "rb"),
+        "garm_img": open(garment_path, "rb"),
+        "garment_des": prompt or "outfit",
+        "crop": False,
+    })
+
+
+async def kontext_edit(image_path: str, prompt: str, aspect_ratio: str = "match_input_image") -> List[str]:
+    """Flux Kontext — best-in-class clothing/scene edits via natural language."""
+    return await _run_model(EXTRA_MODELS["kontext"], {
+        "input_image": open(image_path, "rb"),
+        "prompt": prompt,
+        "aspect_ratio": aspect_ratio,
+        "output_format": "jpg",
+        "safety_tolerance": 2,
     })

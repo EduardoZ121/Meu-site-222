@@ -402,6 +402,7 @@ async def delete_creation(creation_id: str, current=Depends(get_current_user)):
 # ===================================================================
 from services.replicate_extra import (  # noqa: E402
     remove_background, upscale_image, restore_photo, colorize_image, inpaint_image,
+    virtual_tryon, kontext_edit,
 )
 
 TOOL_COSTS = {
@@ -410,6 +411,7 @@ TOOL_COSTS = {
     "restore": 8,
     "colorize": 6,
     "inpaint": 12,
+    "clothes": 12,
 }
 
 
@@ -488,6 +490,40 @@ async def tool_inpaint(
         return await _run_tool("inpaint", current, inpaint_image, p, m, prompt)
     finally:
         cleanup(p); cleanup(m)
+
+
+@api.post("/tools/clothes")
+async def tool_clothes_changer(
+    prompt: str = Form(""),
+    change_type: str = Form("full"),  # full | piece | color | tryon
+    photo: UploadFile = File(...),
+    garment: UploadFile | None = File(None),
+    current=Depends(get_current_user),
+):
+    """AI Clothes Changer.
+    - With `garment` photo → IDM-VTON virtual try-on.
+    - Without garment, with prompt → Flux Kontext clothing edit.
+    """
+    p = await save_upload(photo)
+    g = await save_upload(garment) if garment else None
+    try:
+        if g:
+            tryon_prompt = prompt or "outfit"
+            return await _run_tool("clothes", current, virtual_tryon, p, g, tryon_prompt)
+        # No garment → Kontext edit
+        if not prompt.strip():
+            raise HTTPException(status_code=422, detail="Forneça uma foto de roupa OU descreva a mudança no campo de texto.")
+        prefix = {
+            "full":  "Change the outfit. Replace all clothing with: ",
+            "piece": "Add/replace this specific clothing piece: ",
+            "color": "Keep the same outfit but change the color/style to: ",
+            "tryon": "Show the person wearing: ",
+        }.get(change_type, "Change the outfit to: ")
+        full_prompt = prefix + prompt.strip() + ". Preserve identity, face, and body proportions. Photorealistic, natural lighting."
+        return await _run_tool("clothes", current, kontext_edit, p, full_prompt)
+    finally:
+        cleanup(p)
+        if g: cleanup(g)
 
 
 

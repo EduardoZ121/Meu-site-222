@@ -29,6 +29,7 @@ import Upscale from "./pages/dashboard/tools/Upscale";
 import Restore from "./pages/dashboard/tools/Restore";
 import Colorize from "./pages/dashboard/tools/Colorize";
 import Inpaint from "./pages/dashboard/tools/Inpaint";
+import ClothesChanger from "./pages/dashboard/tools/ClothesChanger";
 
 function RequireAuth({ children, adminOnly = false }) {
   const { user, loading } = useAuth();
@@ -60,6 +61,7 @@ function App() {
                 <Route path="tools/restore" element={<Restore />} />
                 <Route path="tools/colorize" element={<Colorize />} />
                 <Route path="tools/inpaint" element={<Inpaint />} />
+                <Route path="tools/clothes" element={<ClothesChanger />} />
                 <Route path="generate" element={<Generate />} />
                 <Route path="pro" element={<Pro />} />
                 <Route path="artistic" element={<Artistic />} />

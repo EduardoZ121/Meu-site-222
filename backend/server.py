@@ -512,10 +512,22 @@ async def tool_upscale(
 
 
 @api.post("/tools/restore")
-async def tool_restore(photo: UploadFile = File(...), current=Depends(get_current_user)):
+async def tool_restore(
+    photo: UploadFile = File(...),
+    level: str = Form("medio"),
+    enhance_faces: bool = Form(True),
+    recover_colors: bool = Form(True),
+    remove_noise: bool = Form(True),
+    sharpen: bool = Form(True),
+    custom_prompt: str = Form(""),
+    current=Depends(get_current_user),
+):
     path = await save_upload(photo)
     try:
-        return await _run_tool("restore", current, restore_photo, path)
+        return await _run_tool(
+            "restore", current, restore_photo, path,
+            level, enhance_faces, recover_colors, remove_noise, sharpen, custom_prompt,
+        )
     finally:
         cleanup(path)
 

@@ -71,11 +71,45 @@ async def upscale_image(image_path: str, scale: int = 2, sharpen: bool = True, d
     })
 
 
-async def restore_photo(image_path: str) -> List[str]:
-    return await _run_model(EXTRA_MODELS["restore"], {
-        "img": open(image_path, "rb"),
-        "version": "v1.4",
-        "scale": 2,
+async def restore_photo(
+    image_path: str,
+    level: str = "medio",          # leve | medio | profundo
+    enhance_faces: bool = True,
+    recover_colors: bool = True,
+    remove_noise: bool = True,
+    sharpen: bool = True,
+    custom_prompt: str = "",
+) -> List[str]:
+    """High-quality photo restoration via Flux Kontext (preserves identity, fixes damage)."""
+    intensity = {
+        "leve":     "Apply a SUBTLE restoration",
+        "medio":    "Apply a balanced professional restoration",
+        "profundo": "Apply a DEEP full restoration as if recovered by a master archivist",
+    }.get(level, "Apply a balanced professional restoration")
+
+    parts = [
+        f"{intensity} of this photograph while keeping the subject's identity, pose, expression "
+        "and composition pixel-perfect identical. Do not change faces, clothing, or background layout."
+    ]
+    if enhance_faces:
+        parts.append("Restore facial features with natural skin texture, sharp eyes, well-defined lips and eyebrows; preserve the original likeness.")
+    if recover_colors:
+        parts.append("Recover natural film-like colors with accurate skin tones; if the photo is black-and-white, gently colorize realistically without oversaturation.")
+    if remove_noise:
+        parts.append("Remove scratches, dust spots, stains, mold, creases, JPEG artifacts and grain.")
+    if sharpen:
+        parts.append("Increase overall sharpness and micro-detail clarity, especially on faces, hair and fabric textures.")
+    if custom_prompt.strip():
+        parts.append(f"Additional intent: {custom_prompt.strip()}")
+    parts.append("Output a photo-real, magazine-quality finish.")
+    prompt = " ".join(parts)
+
+    return await _run_model(EXTRA_MODELS["kontext"], {
+        "input_image": open(image_path, "rb"),
+        "prompt": prompt,
+        "aspect_ratio": "match_input_image",
+        "output_format": "jpg",
+        "safety_tolerance": 2,
     })
 
 

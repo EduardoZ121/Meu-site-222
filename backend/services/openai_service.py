@@ -112,21 +112,25 @@ WIZARD_STEPS = [
 
 
 async def wizard_compose(answers: Dict[str, str]) -> str:
-    """Compose a final prompt from 5 wizard answers."""
+    """Compose a final, richly-detailed prompt from the wizard answers."""
     def _run():
         r = _c().chat.completions.create(
             model="gpt-4o-mini",
             messages=[
                 {"role": "system", "content": (
-                    "You craft a single English image-generation prompt from structured user input. "
-                    "Be concise but vivid. Include subject, mood, style, lighting, extras. "
-                    "Respond with the prompt only."
+                    "You are a senior creative director writing world-class image-generation prompts. "
+                    "Given a JSON of structured user answers (what to create, style, format, free-form description, optional reference notes), "
+                    "produce ONE strong, vivid English prompt (90–140 words) that includes: "
+                    "1) subject + composition, 2) explicit visual style and medium, 3) lighting and atmosphere, "
+                    "4) color palette, 5) lens / framing / camera angle when applicable, 6) art direction details (texture, mood, materials), "
+                    "7) quality boosters (sharp focus, high detail, photorealistic / illustration grade as appropriate). "
+                    "Do NOT include line breaks or labels. Output the prompt only — a single paragraph, no quotes, no preamble."
                 )},
                 {"role": "user", "content": json.dumps(answers, ensure_ascii=False)},
             ],
-            max_tokens=260, temperature=0.85,
+            max_tokens=420, temperature=0.85,
         )
-        return r.choices[0].message.content.strip()
+        return r.choices[0].message.content.strip().strip('"').strip("'")
     try:
         return await asyncio.to_thread(_run)
     except Exception:

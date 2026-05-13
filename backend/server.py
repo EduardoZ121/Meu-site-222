@@ -981,36 +981,104 @@ async def public_poster_models():
 
 
 class CarouselIn(BaseModel):
-    slides: list[str]  # list of prompts (2-5)
+    slides: list[str]  # list of prompts (2-10)
     style_suffix: str = ""
     aspect_ratio: str = "4:5"
+    keep_character: bool = True
+    keep_lighting: bool = True
+    keep_palette: bool = True
+    smooth_transitions: bool = True
+
+
+def _build_continuity_clause(keep_character: bool, keep_lighting: bool, keep_palette: bool, smooth_transitions: bool, slide_idx: int, total: int) -> str:
+    parts = []
+    if keep_character:
+        parts.append("the SAME main subject/character, identical face and outfit as the rest of the series")
+    if keep_lighting:
+        parts.append("the SAME lighting setup, time of day and shadow direction")
+    if keep_palette:
+        parts.append("the SAME color palette and grading across all slides")
+    if smooth_transitions and total > 1:
+        parts.append("a smooth visual continuity from the previous slide, like a magazine editorial sequence")
+    if not parts:
+        return ""
+    return f"Preserve {', '.join(parts)}. This is slide {slide_idx + 1} of {total} in a coherent Instagram carousel series."
 
 
 @api.post("/generate/carousel")
-async def generate_carousel(payload: CarouselIn, current=Depends(get_current_user)):
-    if not (2 <= len(payload.slides) <= 5):
-        raise HTTPException(status_code=400, detail="Carousel requires 2-5 slides")
-    cost = COSTS["carousel_per_slide"] * len(payload.slides)
-    await _pre_generate_checks(current["sub"], current.get("role", "user"), " ".join(payload.slides), cost)
-    new_balance = await _spend_credits(current["sub"], cost, f"Carousel ({len(payload.slides)} slides)")
+async def generate_carousel(
+    request: Request,
+    current=Depends(get_current_user),
+):
+    """Generate a connected Instagram carousel (2–10 slides).
+    Accepts JSON or multipart (with optional reference photo for identity preservation).
+    """
+    ct = (request.headers.get("content-type") or "").lower()
+    photo_path = None
+    if "multipart/form-data" in ct:
+        form = await request.form()
+        try:
+            slides = json.loads(form.get("slides", "[]"))
+        except Exception:
+            slides = []
+        style_suffix = (form.get("style_suffix") or "").strip()
+        aspect_ratio = (form.get("aspect_ratio") or "4:5").strip()
+        keep_character = (form.get("keep_character") or "true").lower() == "true"
+        keep_lighting = (form.get("keep_lighting") or "true").lower() == "true"
+        keep_palette = (form.get("keep_palette") or "true").lower() == "true"
+        smooth_transitions = (form.get("smooth_transitions") or "true").lower() == "true"
+        upload = form.get("photo")
+        if upload is not None and hasattr(upload, "filename"):
+            photo_path = await save_upload(upload)
+    else:
+        payload = await request.json()
+        slides = payload.get("slides", []) or []
+        style_suffix = (payload.get("style_suffix") or "").strip()
+        aspect_ratio = (payload.get("aspect_ratio") or "4:5").strip()
+        keep_character = bool(payload.get("keep_character", True))
+        keep_lighting = bool(payload.get("keep_lighting", True))
+        keep_palette = bool(payload.get("keep_palette", True))
+        smooth_transitions = bool(payload.get("smooth_transitions", True))
+
+    slides = [s.strip() for s in slides if isinstance(s, str) and s.strip()]
+    if not (2 <= len(slides) <= 10):
+        if photo_path: cleanup(photo_path)
+        raise HTTPException(status_code=400, detail="Carousel requires 2 to 10 slides")
+
+    cost = COSTS["carousel_per_slide"] * len(slides)
+    await _pre_generate_checks(current["sub"], current.get("role", "user"), " ".join(slides), cost)
+    new_balance = await _spend_credits(current["sub"], cost, f"Carousel ({len(slides)} slides)")
+
+    # When a reference photo is provided, use Flux 2 Klein image-in-image for identity-preserving slides.
+    model_key = "pro" if photo_path else "standard"
+    model_label = MODELS[model_key]
     all_urls: list[str] = []
+    total = len(slides)
     try:
-        for slide_prompt in payload.slides:
+        for i, slide_prompt in enumerate(slides):
+            continuity = _build_continuity_clause(keep_character, keep_lighting, keep_palette, smooth_transitions, i, total)
+            composed = ". ".join(x for x in [slide_prompt, style_suffix, continuity] if x).strip(". ")
             urls = await generate_image(
-                prompt=f"{slide_prompt}, {payload.style_suffix}".strip(", "),
-                model_key="standard", aspect_ratio=payload.aspect_ratio, num_outputs=1,
+                prompt=composed,
+                model_key=model_key, aspect_ratio=aspect_ratio, num_outputs=1,
+                image_path=photo_path,
             )
             if urls:
                 all_urls.extend(urls[:1])
     except Exception as e:
         await _add_credits(current["sub"], cost, "refund", f"Refund: carousel failed ({e})")
+        if photo_path: cleanup(photo_path)
         raise HTTPException(status_code=502, detail=f"Carousel failed: {str(e)[:200]}")
+    finally:
+        if photo_path:
+            cleanup(photo_path)
+
     if not all_urls:
         new_balance = await _add_credits(current["sub"], cost, "refund", "Refund: empty carousel")
         raise HTTPException(status_code=502, detail="Empty output")
     creation = Creation(
-        user_id=current["sub"], type="carousel", model_used=MODELS["standard"],
-        prompt=" | ".join(payload.slides), aspect_ratio=payload.aspect_ratio,
+        user_id=current["sub"], type="carousel", model_used=model_label,
+        prompt=" | ".join(slides), aspect_ratio=aspect_ratio,
         result_urls=all_urls, credits_spent=cost,
     )
     await db.creations.insert_one(creation.model_dump())
@@ -1025,25 +1093,45 @@ class WizardIn(BaseModel):
 
 # Mapping from numeric choice → semantic key, per bot.py wizard
 _WIZ_MAP = {
-    "q1": {  # what to create
-        "1": "flyer/professional poster",
-        "2": "logo / visual identity",
-        "3": "concept art / illustration",
-        "4": "character (anime/realistic/cartoon)",
-        "5": "landscape / scenery",
-        "6": "product / mockup",
-        "7": "realistic portrait / photo",
-        "8": "other",
+    "q1": {  # what to create — EXPANDED to match richer frontend list
+        "1":  "flyer / professional poster",
+        "2":  "logo / visual identity",
+        "3":  "concept art / illustration",
+        "4":  "character (anime / realistic / cartoon)",
+        "5":  "landscape / scenery",
+        "6":  "product photography / mockup",
+        "7":  "realistic portrait / professional headshot",
+        "8":  "social media post (Instagram / TikTok)",
+        "9":  "album cover / music artwork",
+        "10": "book cover",
+        "11": "fashion editorial",
+        "12": "food / restaurant photography",
+        "13": "interior design / architecture render",
+        "14": "advertising campaign visual",
+        "15": "movie / TV show key art",
+        "16": "fantasy / sci-fi scene",
+        "17": "pet / animal portrait",
+        "18": "vehicle / automotive shot",
+        "19": "abstract / conceptual artwork",
+        "20": "other",
     },
     "q2": {  # visual style
-        "1": "anime / japanese manga style",
-        "2": "realistic / photographic",
-        "3": "artistic / digital painting",
-        "4": "3D render (Pixar style)",
-        "5": "sketch / hand drawn",
-        "6": "minimalist / flat design",
-        "7": "cyberpunk / futuristic",
-        "8": "vintage / retro",
+        "1":  "anime / japanese manga style",
+        "2":  "realistic / photographic",
+        "3":  "artistic / digital painting",
+        "4":  "3D render (Pixar / Disney style)",
+        "5":  "sketch / hand drawn",
+        "6":  "minimalist / flat design",
+        "7":  "cyberpunk / futuristic neon",
+        "8":  "vintage / retro 70s-80s",
+        "9":  "watercolor",
+        "10": "oil painting",
+        "11": "comic book / graphic novel",
+        "12": "low-poly geometric",
+        "13": "vaporwave / Y2K",
+        "14": "brutalist editorial",
+        "15": "luxury / high-fashion editorial",
+        "16": "documentary / film still",
     },
     "q3": {  # aspect ratio
         "1": "3:4",
@@ -1051,6 +1139,7 @@ _WIZ_MAP = {
         "3": "16:9",
         "4": "9:16",
         "5": "4:5",
+        "6": "21:9",
     },
 }
 

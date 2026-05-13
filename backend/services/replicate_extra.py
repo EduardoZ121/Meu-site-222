@@ -113,10 +113,47 @@ async def restore_photo(
     })
 
 
-async def colorize_image(image_path: str) -> List[str]:
-    return await _run_model(EXTRA_MODELS["colorize"], {
-        "image": open(image_path, "rb"),
-        "model_size": "large",
+async def colorize_image(
+    image_path: str,
+    style: str = "natural",        # natural | cinematic | vibrant | historic
+    preserve_skin: bool = True,
+    enhance_details: bool = True,
+    vibe: str = "moderno",         # moderno | vintage
+    custom_prompt: str = "",
+) -> List[str]:
+    """High-quality colorization via Flux Kontext with style-driven prompting."""
+    style_map = {
+        "natural":    "natural lifelike colors true to era — accurate skies, foliage, fabrics; balanced color temperature",
+        "cinematic":  "cinematic film grading with rich teal-and-orange contrast, gentle film grain, magazine cover quality",
+        "vibrant":    "bold saturated colors that pop, warm sunshine highlights, vivid greens and blues",
+        "historic":   "authentic period-correct colors for an old photograph: faithful clothing dyes, sepia-washed shadows, soft warm light",
+    }
+    vibe_map = {
+        "moderno":  "Modern, clean digital finish.",
+        "vintage":  "Subtle vintage film stock feel — slight halation, mild fade, warm midtones.",
+    }
+    parts = [
+        "Colorize this black-and-white photograph in a fully photo-real way. "
+        "Keep the subject, composition, expressions, framing and grain exactly the same. "
+        "Do not invent new objects or change the scene."
+    ]
+    parts.append(f"Color treatment: {style_map.get(style, style_map['natural'])}.")
+    if preserve_skin:
+        parts.append("Skin tones must be realistic and flattering, with natural undertones — never orange, never green.")
+    if enhance_details:
+        parts.append("Recover fine micro-detail in hair, fabric textures and eyes while keeping the colorization soft and believable.")
+    parts.append(vibe_map.get(vibe, vibe_map["moderno"]))
+    if custom_prompt.strip():
+        parts.append(f"Additional intent: {custom_prompt.strip()}")
+    parts.append("Output a photo-real, professionally graded color image.")
+    prompt = " ".join(parts)
+
+    return await _run_model(EXTRA_MODELS["kontext"], {
+        "input_image": open(image_path, "rb"),
+        "prompt": prompt,
+        "aspect_ratio": "match_input_image",
+        "output_format": "jpg",
+        "safety_tolerance": 2,
     })
 
 

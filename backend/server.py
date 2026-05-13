@@ -533,10 +533,21 @@ async def tool_restore(
 
 
 @api.post("/tools/colorize")
-async def tool_colorize(photo: UploadFile = File(...), current=Depends(get_current_user)):
+async def tool_colorize(
+    photo: UploadFile = File(...),
+    style: str = Form("natural"),
+    preserve_skin: bool = Form(True),
+    enhance_details: bool = Form(True),
+    vibe: str = Form("moderno"),
+    custom_prompt: str = Form(""),
+    current=Depends(get_current_user),
+):
     path = await save_upload(photo)
     try:
-        return await _run_tool("colorize", current, colorize_image, path)
+        return await _run_tool(
+            "colorize", current, colorize_image, path,
+            style, preserve_skin, enhance_details, vibe, custom_prompt,
+        )
     finally:
         cleanup(path)
 

@@ -493,10 +493,20 @@ async def tool_bg_remove(
 
 
 @api.post("/tools/upscale")
-async def tool_upscale(scale: int = Form(2), photo: UploadFile = File(...), current=Depends(get_current_user)):
+async def tool_upscale(
+    scale: int = Form(2),
+    sharpen: bool = Form(True),
+    denoise: bool = Form(True),
+    preserve_colors: bool = Form(True),
+    photo: UploadFile = File(...),
+    current=Depends(get_current_user),
+):
     path = await save_upload(photo)
     try:
-        return await _run_tool("upscale", current, upscale_image, path, max(2, min(scale, 4)))
+        return await _run_tool(
+            "upscale", current, upscale_image, path,
+            max(2, min(scale, 4)), sharpen, denoise, preserve_colors,
+        )
     finally:
         cleanup(path)
 

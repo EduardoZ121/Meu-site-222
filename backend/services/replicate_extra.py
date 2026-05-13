@@ -57,13 +57,17 @@ async def remove_background(image_path: str) -> List[str]:
     return await _run_model(EXTRA_MODELS["bg_remove"], {"image": open(image_path, "rb")})
 
 
-async def upscale_image(image_path: str, scale: int = 2) -> List[str]:
+async def upscale_image(image_path: str, scale: int = 2, sharpen: bool = True, denoise: bool = True, preserve_colors: bool = True) -> List[str]:
+    # Tune clarity-upscaler params based on user toggles
+    dynamic = 8 if sharpen else 5          # HDR / micro-contrast
+    creativity = 0.20 if denoise else 0.40 # lower creativity = less hallucinated noise
+    resemblance = 1.2 if preserve_colors else 0.6
     return await _run_model(EXTRA_MODELS["upscale"], {
         "image": open(image_path, "rb"),
         "scale_factor": scale,
-        "dynamic": 6,
-        "creativity": 0.35,
-        "resemblance": 0.6,
+        "dynamic": dynamic,
+        "creativity": creativity,
+        "resemblance": resemblance,
     })
 
 

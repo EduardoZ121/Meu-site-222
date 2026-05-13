@@ -396,6 +396,47 @@ async def delete_creation(creation_id: str, current=Depends(get_current_user)):
         raise HTTPException(status_code=404, detail="Creation not found")
     return {"ok": True}
 
+@api.post("/generate/edit")
+async def generate_edit(
+    prompt: str = Form(...),
+    aspect_ratio: str = Form("1:1"),
+    photo: UploadFile = File(...),
+    current=Depends(get_current_user),
+):
+    """Edit a photo with a free-text prompt (no style preset).
+    Parity with Telegram bot's "send a photo + describe what you want" flow.
+    Uses Flux 2 Klein image-in-image (same as Pro mode). Costs 12 credits.
+    """
+    cost = COSTS.get("pro_base", 12)
+    user, safe_prompt, hit = await _pre_generate_checks(current["sub"], current.get("role", "user"), prompt, cost)
+    final_prompt = (safe_prompt or prompt.strip()) + ", preserve identity, keep same face, maintain original facial structure"
+    photo_path = await save_upload(photo)
+    new_balance = await _spend_credits(current["sub"], cost, "Edit photo (free prompt)")
+    try:
+        urls = await generate_image(
+            prompt=final_prompt, model_key="pro",
+            aspect_ratio=aspect_ratio, num_outputs=1, image_path=photo_path,
+        )
+    except Exception as e:
+        logger.error(f"Edit generation failed: {e}")
+        new_balance = await _add_credits(current["sub"], cost, "refund", f"Refund: edit failed ({e})")
+        cleanup(photo_path)
+        raise HTTPException(status_code=502, detail=f"Generation failed: {str(e)[:200]}")
+    finally:
+        cleanup(photo_path)
+    if not urls:
+        new_balance = await _add_credits(current["sub"], cost, "refund", "Refund: empty output")
+        raise HTTPException(status_code=502, detail="Empty output")
+    creation = Creation(
+        user_id=current["sub"], type="image", model_used=MODELS["pro"],
+        prompt=final_prompt, aspect_ratio=aspect_ratio,
+        result_urls=urls, credits_spent=cost,
+    )
+    await db.creations.insert_one(creation.model_dump())
+    return {"creation": creation.model_dump(), "new_balance": new_balance}
+
+
+
 
 @api.post("/generate/easy")
 async def generate_easy(

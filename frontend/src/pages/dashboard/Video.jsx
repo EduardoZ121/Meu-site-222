@@ -6,6 +6,7 @@ import { useI18n } from "../../lib/i18n";
 import { toast } from "sonner";
 import PhotoUpload from "../../components/PhotoUpload";
 import ResultPanel from "../../components/ResultPanel";
+import { compressImage } from "../../lib/imageCompress";
 import useTitle from "../../lib/useTitle";
 
 export default function Video() {
@@ -27,8 +28,8 @@ export default function Video() {
       const fd = new FormData();
       fd.append("prompt", prompt);
       fd.append("aspect_ratio", aspect);
-      if (photo) fd.append("photo", photo);
-      const { data } = await api.post("/generate/video", fd, { headers: { "Content-Type": "multipart/form-data" } });
+      if (photo) fd.append("photo", await compressImage(photo));
+      const { data } = await api.post("/generate/video", fd, { timeout: 240000 });
       setResult(data.creation);
       toast.success(t("gen_done", { n: data.creation.credits_spent }));
       await refresh();

@@ -1,14 +1,12 @@
 import { Link } from "react-router-dom";
+import Logo from "../components/Logo";
 
 export default function Footer() {
   return (
     <footer className="relative bg-[#0B0B0C] border-t border-[#2E2E30]" data-testid="footer-section">
       <div className="max-w-[1200px] mx-auto px-6 lg:px-10 py-10">
         <div className="flex items-center justify-center mb-6">
-          <Link to="/" className="flex items-center gap-2">
-            <span className="text-[#F4F1EA] font-extrabold text-[16px] tracking-[-0.04em]">R<span className="text-[#7C3AED]">.</span></span>
-            <span className="text-[#F4F1EA] font-medium text-[13px]">Remake Pixel</span>
-          </Link>
+          <Logo to="/" />
         </div>
 
         <div className="flex flex-wrap items-center justify-center gap-5 mb-6">

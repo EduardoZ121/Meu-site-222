@@ -1,24 +1,21 @@
 import { useEffect, useMemo, useState } from "react";
-import { Sparkles, Zap, Image as ImgIcon, Loader2 } from "lucide-react";
-import { useSearchParams } from "react-router-dom";
+import { Loader2, Sparkles, ImagePlus, Wand2, Lightbulb } from "lucide-react";
+import { useSearchParams, useNavigate } from "react-router-dom";
 import { api } from "../../lib/api";
 import { useAuth } from "../../lib/auth";
 import { useI18n } from "../../lib/i18n";
 import { toast } from "sonner";
 import PhotoUpload from "../../components/PhotoUpload";
 import ResultPanel from "../../components/ResultPanel";
+import { compressImage } from "../../lib/imageCompress";
 import useTitle from "../../lib/useTitle";
 
-const ASPECT_RATIOS = ["1:1", "4:5", "3:4", "16:9", "9:16", "21:9"];
+const ASPECT_RATIOS = ["1:1", "4:5", "3:4", "9:16", "16:9", "21:9"];
 
 const CAT_LABELS = {
   men: "Homens", women: "Mulheres", unisex: "Unissex",
   flyer: "Flyers", couple: "Casais", comic: "Comics",
   stories: "Stories", sensual: "Sensual",
-};
-
-const PRO_CAT_LABELS = {
-  realism: "Realismo", mood: "Estilo & Humor", enhance: "Enhancements",
 };
 
 const SUBJECTS = [
@@ -31,268 +28,247 @@ export default function Generate() {
   const { t } = useI18n();
   useTitle(t("sidebar_generate"));
   const { refresh, user } = useAuth();
+  const navigate = useNavigate();
   const [searchParams] = useSearchParams();
 
-  // tab: easy | advanced | poster
-  const [tab, setTab] = useState("easy");
-  const [aspect, setAspect] = useState("4:5");
   const [photo, setPhoto] = useState(null);
-  const [extra, setExtra] = useState(searchParams.get("prompt") || "");
+  const [prompt, setPrompt] = useState(searchParams.get("prompt") || "");
+  const [improve, setImprove] = useState(false);
+  const [aspect, setAspect] = useState("4:5");
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState(null);
 
-  // Easy (PADRAO_STYLES)
+  // Style picker (collapsed by default — purely optional)
+  const [showStyles, setShowStyles] = useState(false);
   const [padrao, setPadrao] = useState([]);
   const [padraoCat, setPadraoCat] = useState("men");
-  const [easyStyle, setEasyStyle] = useState(null);
-  const [subject, setSubject] = useState("the man");
-
-  // Advanced (PRO_PRESETS)
-  const [presets, setPresets] = useState([]);
-  const [proCat, setProCat] = useState("realism");
-  const [proPreset, setProPreset] = useState(null);
-
-  // Poster
-  const [posters, setPosters] = useState([]);
-  const [posterTpl, setPosterTpl] = useState(null);
-  const [placeholders, setPlaceholders] = useState({});
+  const [pickedStyle, setPickedStyle] = useState(null);
+  const [subject, setSubject] = useState("the person");
 
   useEffect(() => {
     api.get("/public/padrao-styles").then((r) => setPadrao(r.data.styles || [])).catch(() => {});
-    api.get("/public/pro-presets").then((r) => setPresets(r.data.presets || [])).catch(() => {});
-    api.get("/public/poster-templates").then((r) => setPosters(r.data.templates || [])).catch(() => {});
   }, []);
 
   const padraoCats = useMemo(() => Array.from(new Set(padrao.map((s) => s.cat))), [padrao]);
   const padraoFiltered = padrao.filter((s) => s.cat === padraoCat);
-  const proFiltered = presets.filter((p) => p.category === proCat);
+  const picked = padrao.find((s) => s.id === pickedStyle);
 
-  useEffect(() => {
-    // pick a sensible default subject based on cat
-    if (padraoCat === "women") setSubject("the woman");
-    else if (padraoCat === "men") setSubject("the man");
-    else setSubject("the person");
-  }, [padraoCat]);
-
-  const costFor = (mode) => mode === "easy" ? 11 : mode === "advanced" ? 18 : 15;
-  const cost = costFor(tab);
+  // Smart cost calculation — surface what will actually happen
+  const { mode, cost, ctaLabel } = useMemo(() => {
+    if (photo && pickedStyle) return { mode: "easy", cost: 11, ctaLabel: `Aplicar estilo · 11 créditos` };
+    if (photo && !pickedStyle) return { mode: "edit", cost: 12, ctaLabel: `Editar com prompt · 12 créditos` };
+    if (!photo && pickedStyle) return { mode: "blocked", cost: 0, ctaLabel: `Envia uma foto para usar este estilo` };
+    return { mode: "text", cost: 10, ctaLabel: `Gerar do zero · 10 créditos` };
+  }, [photo, pickedStyle]);
 
   const generate = async () => {
+    // Validation
+    if (mode === "blocked") { toast.error("Envia uma foto para aplicar um estilo, ou remove o estilo."); return; }
+    if (mode === "text" && prompt.trim().length < 3) {
+      toast.error("Escreve o que queres criar (mínimo 3 letras).");
+      return;
+    }
+    if (mode === "edit" && prompt.trim().length < 3) {
+      toast.error("Descreve a edição que queres fazer à foto.");
+      return;
+    }
+    if ((user?.credits ?? 0) < cost) {
+      toast.error(`Precisas de ${cost} créditos. Tens ${user?.credits ?? 0}.`);
+      return;
+    }
+
     setBusy(true); setResult(null);
     try {
       let data;
-      if (tab === "easy") {
-        if (!photo) { toast.error("Envia uma foto de referência."); setBusy(false); return; }
-        if (!easyStyle) { toast.error("Escolhe um estilo da grelha."); setBusy(false); return; }
+      if (mode === "easy") {
+        const compressed = await compressImage(photo);
         const fd = new FormData();
-        fd.append("photo", photo);
-        fd.append("style_id", easyStyle);
+        fd.append("photo", compressed);
+        fd.append("style_id", pickedStyle);
         fd.append("subject", subject);
         fd.append("aspect_ratio", aspect);
-        if (extra.trim()) fd.append("extra_prompt", extra.trim());
-        ({ data } = await api.post("/generate/easy", fd, {
-          headers: { "Content-Type": "multipart/form-data" },
-          timeout: 180000,
-        }));
-      } else if (tab === "advanced") {
-        if (!photo) { toast.error("Envia uma foto de referência."); setBusy(false); return; }
-        if (!proPreset) { toast.error("Escolhe um preset."); setBusy(false); return; }
+        if (prompt.trim()) fd.append("extra_prompt", prompt.trim());
+        ({ data } = await api.post("/generate/easy", fd, { timeout: 180000 }));
+      } else if (mode === "edit") {
+        const compressed = await compressImage(photo);
         const fd = new FormData();
-        fd.append("photo", photo);
-        fd.append("preset_id", proPreset);
+        fd.append("photo", compressed);
+        fd.append("prompt", prompt.trim());
         fd.append("aspect_ratio", aspect);
-        ({ data } = await api.post("/generate/pro", fd, {
-          headers: { "Content-Type": "multipart/form-data" },
-          timeout: 180000,
-        }));
+        ({ data } = await api.post("/generate/edit", fd, { timeout: 180000 }));
       } else {
-        if (!posterTpl) { toast.error("Escolhe um template."); setBusy(false); return; }
-        const tpl = posters.find((p) => p.id === posterTpl);
-        const missing = (tpl?.placeholders || []).filter((k) => !(placeholders[k] || "").trim());
-        if (missing.length) { toast.error(`Preenche: ${missing.join(", ")}`); setBusy(false); return; }
-        ({ data } = await api.post("/generate/poster", { template_id: posterTpl, placeholders }, { timeout: 180000 }));
+        // text-to-image
+        ({ data } = await api.post("/generate/image", {
+          prompt: prompt.trim(),
+          mode: "advanced",
+          aspect_ratio: aspect,
+          num_outputs: 1,
+          improve_prompt: improve,
+        }, { timeout: 180000 }));
       }
       setResult(data.creation);
       toast.success(`Gerado · ${data.creation.credits_spent} créditos`);
       await refresh();
     } catch (err) {
-      // Surface the real error so the user knows what happened
       let msg = "Falhou a geração.";
-      if (err?.code === "ECONNABORTED" || /timeout/i.test(err?.message || "")) {
-        msg = "Tempo esgotado — a geração demorou mais de 3 min. Tenta de novo.";
-      } else if (err?.response?.status === 402) {
-        msg = "Créditos insuficientes.";
-      } else if (err?.response?.status === 401) {
-        msg = "Sessão expirada. Faz login outra vez.";
-      } else if (err?.response?.status === 429) {
-        msg = "Demasiados pedidos. Espera 1 minuto.";
-      } else if (err?.response?.data?.detail) {
-        msg = typeof err.response.data.detail === "string"
-          ? err.response.data.detail
-          : JSON.stringify(err.response.data.detail);
-      } else if (err?.message) {
-        msg = `Erro de rede: ${err.message}`;
-      }
-      toast.error(msg);
+      if (err?.code === "ECONNABORTED" || /timeout/i.test(err?.message || "")) msg = "Tempo esgotado — tenta de novo.";
+      else if (err?.response?.status === 402) msg = "Créditos insuficientes.";
+      else if (err?.response?.status === 401) msg = "Sessão expirada.";
+      else if (err?.response?.status === 429) msg = "Demasiados pedidos. Espera 1 minuto.";
+      else if (err?.response?.data?.detail) msg = typeof err.response.data.detail === "string" ? err.response.data.detail : "Erro inesperado.";
+      else if (err?.message) msg = `Erro de rede: ${err.message}`;
+      toast.error(msg, { duration: 8000 });
       // eslint-disable-next-line no-console
       console.error("Generation error:", err);
     } finally { setBusy(false); }
   };
 
-  const TabBtn = ({ id, icon: Icon, label }) => (
-    <button onClick={() => { setTab(id); setResult(null); }}
-      className={`flex items-center gap-2.5 px-6 py-4 border-b-2 transition-colors text-[12px] font-mono uppercase tracking-[0.18em] ${tab === id ? "border-rp-purple text-rp-lavender" : "border-transparent text-rp-mute hover:text-rp-text"}`}
-      data-testid={`tab-${id}`}>
-      <Icon className="w-4 h-4" strokeWidth={1.5} /> {label}
-    </button>
-  );
-
-  const currentTpl = posters.find((p) => p.id === posterTpl);
-
   return (
     <div className="max-w-[1200px] mx-auto" data-testid="generate-page">
-      <div className="mb-10">
+      <header className="mb-10">
         <p className="eyebrow mb-3">Estúdio</p>
-        <h1 className="heading-xl">Cria a tua imagem.</h1>
-      </div>
+        <h1 className="text-[#F4F1EA] font-light leading-[1.05] tracking-[-0.02em] text-[42px] md:text-[56px]">
+          Cria, edita ou personaliza.
+        </h1>
+        <p className="text-[#8A8A8E] text-[15px] mt-3 max-w-[560px]">
+          Envia uma foto, descreve o que queres, ou escolhe um estilo pronto. Combina como quiseres — só prompt, só estilo, ou as duas coisas.
+        </p>
+      </header>
 
-      <div className="flex items-center border-b border-rp-border mb-10" data-testid="mode-tabs">
-        <TabBtn id="easy" icon={Zap} label="Fácil" />
-        <TabBtn id="advanced" icon={Sparkles} label="Avançado" />
-        <TabBtn id="poster" icon={ImgIcon} label="Pôster" />
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-[1fr_360px] gap-10">
+      <div className="grid grid-cols-1 lg:grid-cols-[1fr_380px] gap-10">
+        {/* ── LEFT: studio inputs ────────────────────────────── */}
         <div>
-          {/* Photo upload (easy + advanced) */}
-          {(tab === "easy" || tab === "advanced") && (
-            <>
-              <label className="block text-[11px] font-mono uppercase tracking-[0.2em] text-rp-mute2 mb-3">Foto de referência</label>
-              <div className="max-w-[420px] mb-10">
-                <PhotoUpload value={photo} onChange={setPhoto} testId="gen-photo" />
-              </div>
-            </>
-          )}
+          {/* Step 1 — photo */}
+          <div className="mb-10">
+            <div className="flex items-baseline justify-between mb-3">
+              <p className="text-[10px] font-mono uppercase tracking-[0.22em] text-[#7C3AED]">1 · Foto (opcional)</p>
+              {photo && (
+                <button onClick={() => setPhoto(null)} className="text-[10px] font-mono uppercase tracking-[0.15em] text-[#5A5A5E] hover:text-[#F4F1EA]">Remover</button>
+              )}
+            </div>
+            <div className="max-w-[420px]">
+              <PhotoUpload value={photo} onChange={setPhoto} testId="gen-photo" />
+            </div>
+          </div>
 
-          {/* EASY tab */}
-          {tab === "easy" && (
-            <>
-              <label className="block text-[11px] font-mono uppercase tracking-[0.2em] text-rp-mute2 mb-3">Sujeito</label>
-              <div className="flex flex-wrap gap-2 mb-8" data-testid="subject-bar">
-                {SUBJECTS.map((s) => (
-                  <button key={s.value} onClick={() => setSubject(s.value)}
-                    className={`px-4 py-2 border text-[11px] font-mono uppercase tracking-[0.12em] ${subject === s.value ? "border-rp-purple text-rp-lavender bg-rp-purple/10" : "border-rp-border text-rp-mute hover:text-rp-text"}`}
-                    data-testid={`subj-${s.value.replace(/\s/g, "-")}`}>{s.label}</button>
-                ))}
-              </div>
+          {/* Step 2 — prompt */}
+          <div className="mb-10">
+            <p className="text-[10px] font-mono uppercase tracking-[0.22em] text-[#7C3AED] mb-3">
+              2 · {photo ? "O que queres mudar?" : "Descreve o que queres criar"}
+            </p>
+            <textarea
+              value={prompt}
+              onChange={(e) => setPrompt(e.target.value)}
+              rows={4}
+              maxLength={800}
+              placeholder={photo
+                ? 'Ex: "muda o fundo para uma praia ao pôr do sol", "fato preto elegante"...'
+                : 'Ex: "cidade futurista ao pôr do sol, neon azul e rosa"...'}
+              className="w-full bg-transparent border border-[#2E2E30] text-[#F4F1EA] px-4 py-3 text-[15px] leading-relaxed placeholder:text-[#5A5A5E] focus:outline-none focus:border-[#7C3AED] transition-colors rounded-sm font-['Inter_Tight'] resize-none"
+              data-testid="prompt-input"
+            />
+            <div className="flex items-center justify-between mt-2">
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input type="checkbox" checked={improve} onChange={(e) => setImprove(e.target.checked)} className="accent-[#7C3AED]" data-testid="improve-toggle" />
+                <span className="text-[#8A8A8E] text-[12px]">Melhorar prompt com IA (+0 créditos)</span>
+              </label>
+              <span className="text-[#5A5A5E] text-[10px] font-mono">{prompt.length}/800</span>
+            </div>
+            <div className="flex flex-wrap gap-2 mt-3">
+              <button onClick={() => navigate("/app/wizard")} className="flex items-center gap-2 px-3 py-2 border border-[#2E2E30] text-[#8A8A8E] hover:text-[#F4F1EA] hover:border-[#7C3AED]/40 text-[11px] font-mono uppercase tracking-[0.12em] transition-colors" data-testid="open-wizard">
+                <Wand2 className="w-3 h-3" /> Assistente
+              </button>
+              <button onClick={() => navigate("/app/suggest")} className="flex items-center gap-2 px-3 py-2 border border-[#2E2E30] text-[#8A8A8E] hover:text-[#F4F1EA] hover:border-[#7C3AED]/40 text-[11px] font-mono uppercase tracking-[0.12em] transition-colors" data-testid="open-suggest">
+                <Lightbulb className="w-3 h-3" /> Sugestões
+              </button>
+            </div>
+          </div>
 
-              <label className="block text-[11px] font-mono uppercase tracking-[0.2em] text-rp-mute2 mb-3">Categoria</label>
-              <div className="flex flex-wrap gap-2 mb-5" data-testid="padrao-cats">
-                {padraoCats.map((c) => (
-                  <button key={c} onClick={() => { setPadraoCat(c); setEasyStyle(null); }}
-                    className={`px-3 py-1.5 text-[10px] font-mono uppercase tracking-[0.16em] border ${padraoCat === c ? "border-rp-purple text-rp-lavender" : "border-rp-border text-rp-mute hover:text-rp-text"}`}
-                    data-testid={`pcat-${c}`}>{CAT_LABELS[c] || c}</button>
-                ))}
-              </div>
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 mb-10 max-h-[460px] overflow-y-auto pr-2" data-testid="padrao-grid">
-                {padraoFiltered.map((s) => (
-                  <button key={s.id} onClick={() => setEasyStyle(s.id)}
-                    className={`text-left p-4 border transition-all ${easyStyle === s.id ? "border-rp-purple bg-rp-purple/10" : "border-rp-border hover:border-rp-mute"} ${s.locked ? "opacity-80" : ""}`}
-                    data-testid={`pstyle-${s.id}`}>
-                    <p className="font-heading text-base text-rp-text mb-1 leading-tight">{s.nome}</p>
-                    <p className="text-[10px] font-mono text-rp-mute2 uppercase tracking-[0.14em]">
-                      {s.grp || s.cat}{s.locked ? " · Premium" : ""}
-                    </p>
-                  </button>
-                ))}
-              </div>
-            </>
-          )}
+          {/* Step 3 — optional style */}
+          <div className="mb-10">
+            <button
+              onClick={() => setShowStyles(!showStyles)}
+              className="flex items-center gap-2 text-[10px] font-mono uppercase tracking-[0.22em] text-[#7C3AED] mb-3 hover:text-[#9333EA]"
+              data-testid="toggle-styles"
+            >
+              3 · {pickedStyle ? `Estilo escolhido: ${picked?.nome || "—"}` : "Escolhe um estilo (opcional)"}
+              <span className="text-[#5A5A5E]">{showStyles ? "▴" : "▾"}</span>
+            </button>
 
-          {/* ADVANCED tab */}
-          {tab === "advanced" && (
-            <>
-              <label className="block text-[11px] font-mono uppercase tracking-[0.2em] text-rp-mute2 mb-3">Direção</label>
-              <div className="flex flex-wrap gap-2 mb-5" data-testid="pro-cats">
-                {["realism", "mood", "enhance"].map((c) => (
-                  <button key={c} onClick={() => { setProCat(c); setProPreset(null); }}
-                    className={`px-4 py-2 border text-[11px] font-mono uppercase tracking-[0.16em] ${proCat === c ? "border-rp-purple text-rp-lavender" : "border-rp-border text-rp-mute hover:text-rp-text"}`}
-                    data-testid={`procat-${c}`}>{PRO_CAT_LABELS[c]}</button>
-                ))}
-              </div>
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 mb-10" data-testid="pro-grid">
-                {proFiltered.map((p) => (
-                  <button key={p.id} onClick={() => setProPreset(p.id)}
-                    className={`text-left p-4 border transition-all ${proPreset === p.id ? "border-rp-purple bg-rp-purple/10" : "border-rp-border hover:border-rp-mute"}`}
-                    data-testid={`preset-${p.id}`}>
-                    <p className="font-heading text-base text-rp-text mb-1 leading-tight">{p.nome}</p>
-                    <p className="text-[10px] font-mono text-rp-mute2 uppercase tracking-[0.14em]">{PRO_CAT_LABELS[p.category]}</p>
-                  </button>
-                ))}
-              </div>
-            </>
-          )}
-
-          {/* POSTER tab */}
-          {tab === "poster" && (
-            <>
-              <label className="block text-[11px] font-mono uppercase tracking-[0.2em] text-rp-mute2 mb-3">Template</label>
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 mb-8 max-h-[420px] overflow-y-auto pr-2" data-testid="poster-grid">
-                {posters.map((p) => (
-                  <button key={p.id} onClick={() => { setPosterTpl(p.id); setPlaceholders({}); }}
-                    className={`text-left p-4 border transition-all ${posterTpl === p.id ? "border-rp-purple bg-rp-purple/10" : "border-rp-border hover:border-rp-mute"}`}
-                    data-testid={`ptpl-${p.id}`}>
-                    <p className="font-heading text-base text-rp-text mb-1 leading-tight">{p.label || p.nome || p.id}</p>
-                    <p className="text-[10px] font-mono text-rp-mute2 uppercase tracking-[0.14em]">{p.category}</p>
-                  </button>
-                ))}
-              </div>
-              {currentTpl && (
-                <div className="space-y-3 mb-10" data-testid="poster-fields">
-                  {(currentTpl.placeholders || []).map((field) => (
-                    <div key={field}>
-                      <label className="block text-[11px] font-mono uppercase tracking-[0.18em] text-rp-mute2 mb-2">{field}</label>
-                      <input value={placeholders[field] || ""}
-                        onChange={(e) => setPlaceholders({ ...placeholders, [field]: e.target.value })}
-                        className="field-input" data-testid={`pl-${field}`} />
-                    </div>
+            {showStyles && (
+              <>
+                <div className="flex flex-wrap gap-2 mb-4" data-testid="subject-bar">
+                  {SUBJECTS.map((s) => (
+                    <button key={s.value} onClick={() => setSubject(s.value)}
+                      className={`px-3 py-1.5 border text-[10px] font-mono uppercase tracking-[0.1em] transition-colors ${subject === s.value ? "border-[#7C3AED] text-[#C4B5FD] bg-[#7C3AED]/10" : "border-[#2E2E30] text-[#8A8A8E] hover:text-[#F4F1EA]"}`}
+                      data-testid={`subj-${s.value.replace(/\s/g, "-")}`}>
+                      {s.label}
+                    </button>
                   ))}
                 </div>
-              )}
-            </>
-          )}
 
-          {/* Aspect ratio + extra prompt (easy + advanced) */}
-          {tab !== "poster" && (
-            <>
-              <label className="block text-[11px] font-mono uppercase tracking-[0.2em] text-rp-mute2 mb-3">Formato</label>
-              <div className="flex flex-wrap gap-2 mb-8" data-testid="aspect-ratios">
-                {ASPECT_RATIOS.map((a) => (
-                  <button key={a} onClick={() => setAspect(a)}
-                    className={`px-4 py-2 border text-[11px] font-mono uppercase tracking-[0.12em] ${aspect === a ? "border-rp-purple text-rp-lavender bg-rp-purple/10" : "border-rp-border text-rp-mute hover:text-rp-text"}`}
-                    data-testid={`aspect-${a}`}>{a}</button>
-                ))}
-              </div>
-            </>
-          )}
+                <div className="flex flex-wrap gap-2 mb-4" data-testid="padrao-cats">
+                  {padraoCats.map((c) => (
+                    <button key={c} onClick={() => { setPadraoCat(c); setPickedStyle(null); }}
+                      className={`px-3 py-1.5 text-[10px] font-mono uppercase tracking-[0.12em] border transition-colors ${padraoCat === c ? "border-[#7C3AED] text-[#C4B5FD]" : "border-[#2E2E30] text-[#8A8A8E] hover:text-[#F4F1EA]"}`}
+                      data-testid={`pcat-${c}`}>
+                      {CAT_LABELS[c] || c}
+                    </button>
+                  ))}
+                </div>
 
-          {tab === "easy" && (
-            <>
-              <label className="block text-[11px] font-mono uppercase tracking-[0.2em] text-rp-mute2 mb-3">Detalhes extra (opcional)</label>
-              <textarea value={extra} onChange={(e) => setExtra(e.target.value)} rows={3} placeholder="Adiciona instruções específicas..." className="field-input resize-none mb-8" data-testid="extra-prompt" />
-            </>
-          )}
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 max-h-[420px] overflow-y-auto pr-1" data-testid="padrao-grid">
+                  {padraoFiltered.map((s) => (
+                    <button key={s.id} onClick={() => setPickedStyle(pickedStyle === s.id ? null : s.id)}
+                      className={`text-left p-3 border transition-all ${pickedStyle === s.id ? "border-[#7C3AED] bg-[#7C3AED]/10" : "border-[#2E2E30] hover:border-[#7C3AED]/40 bg-[#1A1A1C]"} ${s.locked ? "opacity-80" : ""}`}
+                      data-testid={`pstyle-${s.id}`}>
+                      <p className="text-[#F4F1EA] text-[13px] leading-snug mb-1 font-['Inter_Tight']">{s.nome}</p>
+                      {s.locked && <p className="text-[#C7A77A] text-[9px] font-mono uppercase tracking-wider">Premium</p>}
+                    </button>
+                  ))}
+                </div>
+              </>
+            )}
+          </div>
 
-          <button onClick={generate} disabled={busy || (user?.credits ?? 0) < cost}
-            className="btn-primary w-full disabled:opacity-50 disabled:cursor-not-allowed"
-            data-testid="generate-button">
-            {busy ? (<><Loader2 className="w-4 h-4 animate-spin" /> A gerar...</>) : (`Gerar · ${cost} créditos`)}
+          {/* Step 4 — aspect ratio */}
+          <div className="mb-10">
+            <p className="text-[10px] font-mono uppercase tracking-[0.22em] text-[#7C3AED] mb-3">4 · Formato</p>
+            <div className="flex flex-wrap gap-2" data-testid="aspect-ratios">
+              {ASPECT_RATIOS.map((a) => (
+                <button key={a} onClick={() => setAspect(a)}
+                  className={`px-4 py-2 border text-[11px] font-mono transition-colors ${aspect === a ? "border-[#7C3AED] text-[#C4B5FD] bg-[#7C3AED]/10" : "border-[#2E2E30] text-[#8A8A8E] hover:text-[#F4F1EA]"}`}
+                  data-testid={`aspect-${a}`}>
+                  {a}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* CTA */}
+          <button
+            onClick={generate}
+            disabled={busy || mode === "blocked"}
+            className="w-full bg-[#7C3AED] hover:bg-[#9333EA] disabled:bg-[#1A1A1C] disabled:text-[#5A5A5E] text-white py-4 text-[12px] font-mono uppercase tracking-[0.18em] transition-colors flex items-center justify-center gap-2"
+            data-testid="generate-button"
+          >
+            {busy ? (
+              <><Loader2 className="w-4 h-4 animate-spin" /> A gerar... 30–90 seg</>
+            ) : mode === "blocked" ? (
+              <><ImagePlus className="w-4 h-4" /> {ctaLabel}</>
+            ) : (
+              <><Sparkles className="w-4 h-4" /> {ctaLabel}</>
+            )}
           </button>
+          <p className="text-[#5A5A5E] text-[11px] mt-3 text-center font-['Inter_Tight']">
+            Saldo: <span className="text-[#C4B5FD]">{user?.credits ?? 0} créditos</span>
+          </p>
         </div>
 
+        {/* ── RIGHT: live result ─────────────────────────────── */}
         <aside className="lg:sticky lg:top-[88px] self-start">
           <p className="eyebrow mb-4">Último resultado</p>
-          <ResultPanel creation={result} loading={busy} onChange={setResult} emptyLabel="Sem resultado ainda." />
+          <ResultPanel creation={result} loading={busy} onChange={setResult} emptyLabel="A tua próxima imagem aparece aqui." />
         </aside>
       </div>
     </div>

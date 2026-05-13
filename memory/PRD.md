@@ -1,3 +1,45 @@
+# Changelog — 2026-05-13 (Mobile bug fixes + UX overhaul)
+
+## Critical fixes
+- **Replicate 422 on `4:5` / `21:9`**: Grok-Imagine only accepts a specific ratio whitelist. Added `normalize_aspect_ratio()` in `services/replicate_service.py` that maps any UI ratio → nearest supported by the upstream model. This was the root cause of "Network Error" / silent generation failures on mobile.
+- **Logo inconsistency**: Created single `<Logo />` component in `/components/Logo.jsx` used in landing Navbar, dashboard sidebar, dashboard header (mobile), Footer, and Logo lockup. No more 3 different logo styles.
+- **Mobile image upload fails on 4G**: Added client-side compression `lib/imageCompress.js` (resize to ≤1280px, JPEG q85) before all FormData uploads (Generate/Pro/Video/Artistic). Reduces 5–10 MB phone photos to ~200 KB.
+- **PhotoUpload preview broken on Android Chrome**: Reworked `URL.createObjectURL` into `useEffect` with cleanup via `URL.revokeObjectURL`.
+- **Axios timeout**: Set to 180s globally + 240s for video.
+
+## New: Unified studio (matches bot.py flow)
+- `/app/generate` rewritten as a single intelligent studio:
+  - Photo upload **optional**
+  - Prompt textarea (3–800 chars)
+  - Style picker **optional** (collapsible)
+  - Aspect ratio (6 options)
+  - Smart CTA decides the route:
+    - prompt only → `POST /generate/image` (10 cr)
+    - photo + prompt → `POST /generate/edit` (12 cr, NEW)
+    - photo + style → `POST /generate/easy` (11 cr)
+    - photo + style + prompt extra → `POST /generate/easy` with `extra_prompt` (11 cr)
+- New endpoint `POST /api/generate/edit` for photo edit with free-text prompt (no preset).
+
+## Dashboard visual identity (matches landing now)
+- Background `#0B0B0C`, Inter Tight font, `#7C3AED` accents, mono labels in JetBrains
+- Sidebar simplified: Criar (Estúdio · Pôsteres · Vídeo · Carrossel) · Biblioteca · Conta · Admin
+- Removed sidebar entries for Pro / Artístico / Wizard / Sugestões — kept as routes (still accessible), but Wizard + Sugestões are now reached via buttons inside the unified studio (matches the bot UX).
+- Header: hamburger (mobile) + Logo + Credits badge + Avatar
+
+## Detailed error toasts (8s duration)
+- 402 → "Créditos insuficientes."
+- 401 → "Sessão expirada."
+- 429 → "Demasiados pedidos. Espera 1 minuto."
+- Timeout → "Tempo esgotado — tenta de novo."
+- Other → shows backend `detail` verbatim
+
+## Verified via curl
+- `/generate/image` (prompt only, 4:5) → HTTP 200, 10 cr
+- `/generate/edit` (photo + free prompt, 4:5) → HTTP 200, 12 cr
+- `/generate/easy` (photo + style) → HTTP 200, 11 cr (already worked)
+- Backend normalization: `4:5` → `3:4` for Grok, kept for Flux; `21:9` → `2:1` for Grok, kept for Flux
+
+
 # Remake Pixel — PRD
 
 ## Original Problem

@@ -6,6 +6,7 @@ import { useI18n } from "../../lib/i18n";
 import { toast } from "sonner";
 import PhotoUpload from "../../components/PhotoUpload";
 import ResultPanel from "../../components/ResultPanel";
+import { compressImage } from "../../lib/imageCompress";
 import useTitle from "../../lib/useTitle";
 
 export default function Artistic() {
@@ -31,11 +32,11 @@ export default function Artistic() {
     setBusy(true); setResult(null);
     try {
       const fd = new FormData();
-      fd.append("photo", photo);
+      fd.append("photo", await compressImage(photo));
       fd.append("style_id", style);
       fd.append("aspect_ratio", aspect);
       fd.append("extra_prompt", extra);
-      const { data } = await api.post("/generate/artistic", fd, { headers: { "Content-Type": "multipart/form-data" } });
+      const { data } = await api.post("/generate/artistic", fd, { timeout: 180000 });
       setResult(data.creation);
       toast.success(t("gen_done", { n: data.creation.credits_spent }));
       await refresh();

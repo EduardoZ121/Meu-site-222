@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Menu, X, Globe } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useI18n } from "../lib/i18n";
+import Logo from "./Logo";
 
 const navLinks = [
   { label: "Generate", href: "#features" },
@@ -36,12 +37,7 @@ export default function Navbar() {
         data-testid="navbar"
       >
         <nav className="max-w-[1400px] mx-auto px-6 lg:px-10 h-[56px] flex items-center justify-between">
-          <Link to="/" className="flex items-center gap-2 group" data-testid="logo-link">
-            <span className="text-[#F4F1EA] font-extrabold text-[18px] tracking-[-0.04em] font-['Inter_Tight']">
-              R<span className="text-[#7C3AED]">.</span>
-            </span>
-            <span className="text-[#F4F1EA] font-medium text-[13px] tracking-[-0.01em]">Remake Pixel</span>
-          </Link>
+          <Logo to="/" />
 
           <div className="hidden md:flex items-center gap-8">
             {navLinks.map((l) =>

@@ -16,6 +16,39 @@ MODELS = {
     "video": "xai/grok-imagine-video",
 }
 
+# Aspect-ratio whitelists per upstream model — Replicate rejects unknown values with 422.
+# Each maps to the **nearest supported ratio** for graceful fallback.
+_GROK_SUPPORTED = {"1:1", "16:9", "9:16", "4:3", "3:4", "3:2", "2:3", "2:1", "1:2"}
+_FLUX_SUPPORTED = {"1:1", "16:9", "9:16", "4:3", "3:4", "3:2", "2:3", "21:9", "9:21"}
+
+# Map any ratio the UI exposes → nearest supported by Grok
+_GROK_FALLBACK = {
+    "4:5": "3:4",
+    "5:4": "4:3",
+    "21:9": "2:1",
+    "9:21": "1:2",
+}
+# Map any ratio the UI exposes → nearest supported by Flux
+_FLUX_FALLBACK = {
+    "4:5": "3:4",
+    "5:4": "4:3",
+    "2:1": "21:9",
+    "1:2": "9:21",
+}
+
+
+def normalize_aspect_ratio(ratio: str, model_key: str) -> str:
+    """Return a ratio guaranteed to be accepted by the upstream model."""
+    if model_key in ("standard", "video"):
+        if ratio in _GROK_SUPPORTED:
+            return ratio
+        return _GROK_FALLBACK.get(ratio, "1:1")
+    if model_key in ("pro", "artistic", "kontext"):
+        if ratio in _FLUX_SUPPORTED:
+            return ratio
+        return _FLUX_FALLBACK.get(ratio, "1:1")
+    return ratio
+
 COSTS = {
     "standard": 10,
     "pro": 18,
@@ -66,7 +99,7 @@ async def generate_image(
     model_id = MODELS.get(model_key, MODELS["standard"])
     payload: dict = {
         "prompt": prompt,
-        "aspect_ratio": aspect_ratio,
+        "aspect_ratio": normalize_aspect_ratio(aspect_ratio, model_key),
         "num_outputs": num_outputs,
     }
     if image_path and model_key in ("pro", "artistic", "kontext"):
@@ -91,7 +124,7 @@ async def generate_video(prompt: str, image_path: Optional[str] = None, aspect_r
     if not REPLICATE_TOKEN:
         raise RuntimeError("REPLICATE_API_TOKEN not configured")
 
-    payload: dict = {"prompt": prompt, "aspect_ratio": aspect_ratio}
+    payload: dict = {"prompt": prompt, "aspect_ratio": normalize_aspect_ratio(aspect_ratio, "video")}
     if image_path:
         payload["image"] = open(image_path, "rb")
 

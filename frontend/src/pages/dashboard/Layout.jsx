@@ -1,128 +1,168 @@
-import { Outlet, NavLink, Link, useNavigate } from "react-router-dom";
+import { Outlet, NavLink, useNavigate, Link } from "react-router-dom";
 import { useAuth } from "../../lib/auth";
 import { useI18n } from "../../lib/i18n";
-import { Sparkles, Images, Heart, CreditCard, User, Users, ShieldCheck, LogOut, Globe, Camera, Palette, Film, FileText, Layers, Wand2, Lightbulb, SlidersHorizontal } from "lucide-react";
+import {
+  Sparkles, Images, Heart, CreditCard, User, Users, ShieldCheck, LogOut,
+  Globe, Film, FileText, Layers, Menu, X, Settings,
+} from "lucide-react";
 import { useEffect, useState } from "react";
+import Logo from "../../components/Logo";
 
-const sections = [
+const nav = [
   {
-    title: "Create",
+    title: "Criar",
     links: [
-      { to: "/app/generate", icon: Sparkles, key: "sidebar_generate" },
-      { to: "/app/pro", icon: Camera, key: "sidebar_pro" },
-      { to: "/app/artistic", icon: Palette, key: "sidebar_artistic" },
-      { to: "/app/video", icon: Film, key: "sidebar_video" },
-      { to: "/app/posters", icon: FileText, key: "sidebar_posters" },
-      { to: "/app/carousel", icon: Layers, key: "sidebar_carousel" },
+      { to: "/app/generate", icon: Sparkles, label: "Estúdio" },
+      { to: "/app/posters", icon: FileText, label: "Pôsteres" },
+      { to: "/app/video", icon: Film, label: "Vídeo" },
+      { to: "/app/carousel", icon: Layers, label: "Carrossel" },
     ],
   },
   {
-    title: "Ideas",
+    title: "Biblioteca",
     links: [
-      { to: "/app/wizard", icon: Wand2, key: "sidebar_wizard" },
-      { to: "/app/suggest", icon: Lightbulb, key: "sidebar_suggest" },
+      { to: "/app/gallery", icon: Images, label: "Galeria" },
+      { to: "/app/favorites", icon: Heart, label: "Favoritos" },
     ],
   },
   {
-    title: "Library",
+    title: "Conta",
     links: [
-      { to: "/app/gallery", icon: Images, key: "sidebar_gallery" },
-      { to: "/app/favorites", icon: Heart, key: "sidebar_favorites" },
-    ],
-  },
-  {
-    title: "Account",
-    links: [
-      { to: "/app/billing", icon: CreditCard, key: "sidebar_billing" },
-      { to: "/app/settings", icon: SlidersHorizontal, key: "sidebar_settings" },
-      { to: "/app/profile", icon: User, key: "sidebar_profile" },
-      { to: "/app/referrals", icon: Users, key: "sidebar_referrals" },
+      { to: "/app/billing", icon: CreditCard, label: "Faturação" },
+      { to: "/app/referrals", icon: Users, label: "Referrals" },
+      { to: "/app/profile", icon: User, label: "Perfil" },
+      { to: "/app/settings", icon: Settings, label: "Definições" },
     ],
   },
 ];
 
 export default function DashboardLayout() {
   const { user, refresh, logout } = useAuth();
-  const { t, lang, switchLang } = useI18n();
+  const { lang, switchLang } = useI18n();
   const navigate = useNavigate();
-  const [, setTick] = useState(0);
+  const [mobileOpen, setMobileOpen] = useState(false);
 
   useEffect(() => {
     refresh().catch(() => {});
-    const interval = setInterval(() => refresh().catch(() => {}).then(() => setTick((x) => x + 1)), 30000);
+    const interval = setInterval(() => refresh().catch(() => {}), 30000);
     return () => clearInterval(interval);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   if (!user) return null;
 
-  return (
-    <div className="min-h-screen bg-rp-bg flex" data-testid="dashboard-layout">
-      <div className="film-grain" />
-
-      {/* Sidebar */}
-      <aside className="w-[260px] hidden md:flex flex-col border-r border-rp-border sticky top-0 h-screen overflow-y-auto">
-        <Link to="/" className="flex items-center gap-2.5 px-6 h-[64px] border-b border-rp-border flex-shrink-0 sticky top-0 bg-rp-bg z-10">
-          <span className="font-heading italic text-[22px] text-rp-text">Remake</span>
-          <span className="w-[3px] h-[3px] bg-rp-purple rounded-full" />
-          <span className="font-mono text-[10px] uppercase tracking-[0.25em] text-rp-mute">Pixel</span>
-        </Link>
-        <nav className="flex-1 py-4">
-          {sections.map((sec) => (
-            <div key={sec.title} className="mb-4">
-              <p className="px-6 mb-2 text-[9px] font-mono uppercase tracking-[0.22em] text-rp-mute2">{sec.title}</p>
-              {sec.links.map((l) => (
-                <NavLink
-                  key={l.to}
-                  to={l.to}
-                  className={({ isActive }) => `sidebar-link ${isActive ? "active" : ""}`}
-                  data-testid={`nav-${l.key.replace('sidebar_', '')}`}
-                >
-                  <l.icon className="w-4 h-4" strokeWidth={1.5} />
-                  <span className="font-mono text-[11px] uppercase tracking-[0.16em]">{t(l.key)}</span>
-                </NavLink>
-              ))}
-            </div>
-          ))}
-          {user.role === "admin" && (
-            <div className="mb-4">
-              <p className="px-6 mb-2 text-[9px] font-mono uppercase tracking-[0.22em] text-rp-mute2">Admin</p>
-              <NavLink to="/app/admin" className={({ isActive }) => `sidebar-link ${isActive ? "active" : ""}`} data-testid="nav-admin">
-                <ShieldCheck className="w-4 h-4" strokeWidth={1.5} />
-                <span className="font-mono text-[11px] uppercase tracking-[0.16em]">{t("sidebar_admin")}</span>
+  const SidebarContent = ({ onClick }) => (
+    <>
+      <div className="px-6 h-[64px] flex items-center flex-shrink-0 sticky top-0 bg-[#0B0B0C] z-10 border-b border-[#2E2E30]">
+        <Logo to="/" />
+      </div>
+      <nav className="flex-1 py-6 overflow-y-auto">
+        {nav.map((sec) => (
+          <div key={sec.title} className="mb-6">
+            <p className="px-6 mb-2 text-[9px] font-mono uppercase tracking-[0.22em] text-[#5A5A5E]">{sec.title}</p>
+            {sec.links.map((l) => (
+              <NavLink
+                key={l.to}
+                to={l.to}
+                onClick={onClick}
+                className={({ isActive }) =>
+                  `flex items-center gap-3 px-6 py-2.5 transition-colors border-l-2 ${
+                    isActive
+                      ? "border-[#7C3AED] bg-gradient-to-r from-[#7C3AED]/8 to-transparent text-[#C4B5FD]"
+                      : "border-transparent text-[#8A8A8E] hover:text-[#F4F1EA]"
+                  }`
+                }
+                data-testid={`nav-${l.to.split("/").pop()}`}
+              >
+                <l.icon className="w-4 h-4" strokeWidth={1.5} />
+                <span className="text-[12px] font-medium font-['Inter_Tight']">{l.label}</span>
               </NavLink>
-            </div>
-          )}
-        </nav>
-        <button onClick={() => { logout(); navigate("/"); }} className="sidebar-link border-t border-rp-border" data-testid="sidebar-logout">
-          <LogOut className="w-4 h-4" strokeWidth={1.5} />
-          <span className="font-mono text-[11px] uppercase tracking-[0.16em]">{t("btn_logout")}</span>
-        </button>
+            ))}
+          </div>
+        ))}
+        {user.role === "admin" && (
+          <div className="mb-6">
+            <p className="px-6 mb-2 text-[9px] font-mono uppercase tracking-[0.22em] text-[#5A5A5E]">Admin</p>
+            <NavLink to="/app/admin" onClick={onClick} className={({ isActive }) =>
+              `flex items-center gap-3 px-6 py-2.5 transition-colors border-l-2 ${
+                isActive ? "border-[#7C3AED] bg-[#7C3AED]/8 text-[#C4B5FD]" : "border-transparent text-[#8A8A8E] hover:text-[#F4F1EA]"
+              }`} data-testid="nav-admin">
+              <ShieldCheck className="w-4 h-4" strokeWidth={1.5} />
+              <span className="text-[12px] font-medium">God Mode</span>
+            </NavLink>
+          </div>
+        )}
+      </nav>
+      <button
+        onClick={() => { logout(); navigate("/"); }}
+        className="flex items-center gap-3 px-6 py-4 text-[#8A8A8E] hover:text-[#F4F1EA] border-t border-[#2E2E30] text-[12px] font-medium"
+        data-testid="sidebar-logout"
+      >
+        <LogOut className="w-4 h-4" strokeWidth={1.5} /> Sair
+      </button>
+    </>
+  );
+
+  return (
+    <div className="min-h-screen bg-[#0B0B0C] flex font-['Inter_Tight'] text-[#F4F1EA]" data-testid="dashboard-layout">
+      {/* Desktop sidebar */}
+      <aside className="w-[240px] hidden md:flex flex-col border-r border-[#2E2E30] sticky top-0 h-screen bg-[#0B0B0C]">
+        <SidebarContent />
       </aside>
 
-      {/* Main area */}
+      {/* Mobile drawer */}
+      {mobileOpen && (
+        <>
+          <div onClick={() => setMobileOpen(false)} className="md:hidden fixed inset-0 bg-black/60 z-40" />
+          <aside className="md:hidden fixed left-0 top-0 bottom-0 w-[280px] bg-[#0B0B0C] border-r border-[#2E2E30] flex flex-col z-50 animate-in slide-in-from-left">
+            <SidebarContent onClick={() => setMobileOpen(false)} />
+          </aside>
+        </>
+      )}
+
       <div className="flex-1 min-w-0 flex flex-col">
-        <header className="h-[64px] border-b border-rp-border bg-rp-bg/80 backdrop-blur-xl sticky top-0 z-30 flex items-center justify-between px-6 lg:px-10">
-          <div className="md:hidden">
-            <Link to="/" className="flex items-center gap-2.5">
-              <span className="font-heading italic text-[20px] text-rp-text">Remake</span>
-              <span className="w-[3px] h-[3px] bg-rp-purple rounded-full" />
-            </Link>
-          </div>
-          <div className="ml-auto flex items-center gap-5">
-            <button onClick={() => switchLang(lang === "pt" ? "en" : "pt")} className="flex items-center gap-1.5 text-rp-mute hover:text-rp-text text-[11px] font-mono uppercase tracking-[0.18em]" data-testid="header-lang">
-              <Globe className="w-3.5 h-3.5" /> {lang.toUpperCase()}
+        {/* Header */}
+        <header className="h-[56px] border-b border-[#2E2E30] bg-[#0B0B0C]/90 backdrop-blur-xl sticky top-0 z-30 flex items-center justify-between px-4 md:px-8">
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => setMobileOpen(true)}
+              className="md:hidden text-[#8A8A8E] hover:text-[#F4F1EA] p-1"
+              data-testid="mobile-menu-btn"
+            >
+              <Menu className="w-5 h-5" />
             </button>
-            <div className="flex items-center gap-3 px-4 py-2 border border-rp-border bg-rp-surface" data-testid="credits-badge">
-              <span className="text-[10px] font-mono uppercase tracking-[0.18em] text-rp-mute">{t("credits")}</span>
-              <span className="font-heading text-xl text-rp-lavender leading-none" data-testid="credits-value">{user.credits}</span>
+            <div className="md:hidden">
+              <Logo to="/" />
             </div>
-            <Link to="/app/profile" className="w-8 h-8 rounded-full bg-rp-surface border border-rp-border flex items-center justify-center text-rp-text text-xs font-mono" data-testid="header-avatar">
+          </div>
+
+          <div className="flex items-center gap-3 md:gap-5">
+            <button
+              onClick={() => switchLang(lang === "pt" ? "en" : "pt")}
+              className="hidden sm:flex items-center gap-1.5 text-[#8A8A8E] hover:text-[#F4F1EA] text-[10px] font-mono uppercase tracking-[0.15em]"
+              data-testid="header-lang"
+            >
+              <Globe className="w-3 h-3" /> {(lang || "pt").toUpperCase()}
+            </button>
+            <Link
+              to="/app/billing"
+              className="flex items-center gap-2 px-3 py-1.5 border border-[#2E2E30] hover:border-[#7C3AED]/40 transition-colors"
+              data-testid="credits-badge"
+            >
+              <span className="text-[9px] font-mono uppercase tracking-[0.15em] text-[#8A8A8E]">Créditos</span>
+              <span className="text-[#C4B5FD] text-[15px] font-medium leading-none" data-testid="credits-value">{user.credits}</span>
+            </Link>
+            <Link
+              to="/app/profile"
+              className="w-8 h-8 rounded-full bg-[#1A1A1C] border border-[#2E2E30] hover:border-[#7C3AED] flex items-center justify-center text-[#F4F1EA] text-[11px] font-medium transition-colors"
+              data-testid="header-avatar"
+            >
               {(user.name || user.email).slice(0, 1).toUpperCase()}
             </Link>
           </div>
         </header>
-        <main className="flex-1 px-6 lg:px-10 py-10">
+
+        <main className="flex-1 px-4 sm:px-6 md:px-10 py-8 md:py-12">
           <Outlet />
         </main>
       </div>

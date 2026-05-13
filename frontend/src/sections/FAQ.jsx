@@ -1,49 +1,69 @@
 import { useRef, useState } from "react";
 import { motion, useInView, AnimatePresence } from "framer-motion";
 import { ChevronDown } from "lucide-react";
-import { useI18n } from "../lib/i18n";
+
+const faqs = [
+  { q: "What is Remake Pixel?", a: "AI image studio combining generation, editing, styles, posters, and motion under one credit-based account." },
+  { q: "How do credits work?", a: "Each generation costs a fixed amount (e.g., 10 for a standard image, 20 for a video). Buy packs of credits, use them whenever — they never expire." },
+  { q: "Do I get free credits?", a: "Yes. Every new account starts with 30 free credits. Enough for 3 standard images." },
+  { q: "What models do you use?", a: "A curated stack: Grok Imagine (Replicate), Flux 2 Klein, GPT Image 1, plus Flux Kontext for advanced edits." },
+  { q: "Can I use my own photos?", a: "Yes. Pro Mode and Easy Mode work from your uploads. Your photos are private, encrypted, and never used to train models." },
+  { q: "What aspect ratios are supported?", a: "1:1, 4:5, 3:4, 9:16, 16:9, 21:9." },
+  { q: "Can I sell what I create?", a: "Yes. Full commercial rights on every image you generate from a paid balance." },
+  { q: "What's your refund policy?", a: "Credits are non-refundable once used. Unused balances refundable within 14 days. Cancel anytime." },
+  { q: "Is there an NSFW filter?", a: "Off by default. The provider decides. Verified users can request adult-content access through the dashboard." },
+  { q: "What languages do you support?", a: "English, Português, Español, Français." },
+];
 
 const EASE = [0.16, 1, 0.3, 1];
 
-const faqs = [
-  { q: "What is Remake Pixel?", a: "An AI image studio combining generation, editing, styles, posters, and motion under one credit-based account." },
-  { q: "How do credits work?", a: "Each generation costs a fixed amount (10 for a standard image, 18 for Pro, 20 for video). Buy packs of credits, use them whenever — they never expire." },
-  { q: "Do I get free credits?", a: "Yes. Every new account starts with 50 free credits — enough for 5 standard images." },
-  { q: "What models do you use?", a: "A curated stack: Grok Imagine (Replicate), Flux 2 Klein, GPT Image 1, plus Flux Kontext for advanced edits." },
-  { q: "Can I use my own photos?", a: "Yes. Pro Mode and Artistic Mode work from your uploads. Your photos are private, encrypted, and never used to train models." },
-  { q: "Can I sell what I create?", a: "Yes. Full commercial rights on every image you generate from a paid balance." },
-  { q: "What's your refund policy?", a: "Credits are non-refundable once used. Unused balances refundable within 14 days. Cancel anytime." },
-  { q: "What languages are supported?", a: "Português, English, Español, Français." },
-];
-
 export default function FAQ() {
   const ref = useRef(null);
-  const inView = useInView(ref, { once: true, margin: "-80px" });
-  const [open, setOpen] = useState(0);
-  const { t } = useI18n();
+  const isInView = useInView(ref, { once: true, margin: "-80px" });
+  const [open, setOpen] = useState(null);
 
   return (
-    <section id="faq" ref={ref} className="relative bg-rp-bg py-32 md:py-40 border-t border-rp-border">
-      <div className="container-rp max-w-[860px]">
-        <motion.div initial={{ opacity: 0, y: 18 }} animate={inView ? { opacity: 1, y: 0 } : {}} transition={{ duration: 0.7, ease: EASE }} className="text-center mb-20">
-          <p className="eyebrow mb-5">FAQ</p>
-          <h2 className="heading-xl mb-5" data-testid="faq-title">{t("faq_title")}</h2>
-          <p className="body-text">{t("faq_subtitle")}</p>
+    <section id="faq" className="relative bg-[#F4F1EA] py-24 md:py-32 border-t border-[#E4E4E7]" ref={ref} data-testid="faq-section">
+      <div className="max-w-[700px] mx-auto px-6">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={isInView ? { opacity: 1, y: 0 } : {}}
+          transition={{ duration: 0.6, ease: EASE }}
+          className="text-center mb-16"
+        >
+          <h2 className="text-[#0B0B0C] text-3xl md:text-4xl font-light tracking-[-0.02em] mb-4">Got questions?</h2>
+          <p className="text-[#8A8A8E] text-lg">We've got answers.</p>
         </motion.div>
 
-        <div className="divide-y divide-rp-border border-y border-rp-border" data-testid="faq-list">
+        <div className="space-y-2">
           {faqs.map((f, i) => (
-            <motion.div key={i} initial={{ opacity: 0 }} animate={inView ? { opacity: 1 } : {}} transition={{ duration: 0.4, delay: i * 0.04 }}>
-              <button onClick={() => setOpen(open === i ? -1 : i)} className="w-full flex items-center justify-between py-6 text-left group" data-testid={`faq-question-${i}`}>
-                <span className="font-heading text-xl md:text-2xl text-rp-text group-hover:text-rp-lavender transition-colors pr-6">{f.q}</span>
-                <motion.div animate={{ rotate: open === i ? 180 : 0 }} transition={{ duration: 0.3 }}>
-                  <ChevronDown className="w-4 h-4 text-rp-mute" />
+            <motion.div
+              key={i}
+              initial={{ opacity: 0, y: 10 }}
+              animate={isInView ? { opacity: 1, y: 0 } : {}}
+              transition={{ duration: 0.4, delay: i * 0.02, ease: EASE }}
+              className="bg-white rounded-sm border border-[#E4E4E7] overflow-hidden"
+            >
+              <button
+                onClick={() => setOpen(open === i ? null : i)}
+                className="w-full flex items-center justify-between p-4 text-left hover:bg-[#FAFAF7] transition-colors"
+                data-testid={`faq-q-${i}`}
+              >
+                <span className="text-[#0B0B0C] text-[13px] font-medium pr-4">{f.q}</span>
+                <motion.div animate={{ rotate: open === i ? 180 : 0 }} transition={{ duration: 0.3 }} className="flex-shrink-0">
+                  <ChevronDown className="w-4 h-4 text-[#8A8A8E]" />
                 </motion.div>
               </button>
               <AnimatePresence>
                 {open === i && (
-                  <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }} transition={{ duration: 0.35, ease: EASE }} className="overflow-hidden">
-                    <p className="text-rp-mute pb-6 leading-relaxed text-[15px]">{f.a}</p>
+                  <motion.div
+                    initial={{ height: 0, opacity: 0 }}
+                    animate={{ height: "auto", opacity: 1 }}
+                    exit={{ height: 0, opacity: 0 }}
+                    transition={{ duration: 0.3, ease: EASE }}
+                    className="overflow-hidden"
+                  >
+                    <p className="px-4 pb-4 text-[#52525B] text-[13px] leading-[1.7]">{f.a}</p>
                   </motion.div>
                 )}
               </AnimatePresence>

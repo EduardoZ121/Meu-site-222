@@ -1,30 +1,60 @@
 import { useRef } from "react";
 import { motion, useInView } from "framer-motion";
-import { Link } from "react-router-dom";
 
 const EASE = [0.16, 1, 0.3, 1];
 
+const stats = [
+  { label: "15K+", sub: "Images Generated" },
+  { label: "58", sub: "Followers" },
+  { label: "4", sub: "Languages" },
+  { label: "3", sub: "Modes" },
+];
+
 export default function Founder() {
   const ref = useRef(null);
-  const inView = useInView(ref, { once: true, margin: "-80px" });
+  const isInView = useInView(ref, { once: true, margin: "-80px" });
+
   return (
-    <section ref={ref} className="relative bg-rp-bg py-32 md:py-40 border-t border-rp-border">
-      <div className="container-rp grid grid-cols-1 md:grid-cols-2 gap-16 md:gap-24 items-center">
-        <motion.div initial={{ opacity: 0, x: -24 }} animate={inView ? { opacity: 1, x: 0 } : {}} transition={{ duration: 0.9, ease: EASE }} className="relative aspect-[3/4] overflow-hidden">
-          <img src="https://images.unsplash.com/photo-1770896687186-895de50a4123?crop=entropy&cs=srgb&fm=jpg&q=85&w=900" alt="" className="w-full h-full object-cover grayscale" />
-          <div className="absolute inset-0 bg-rp-bg/20" />
-        </motion.div>
-        <motion.div initial={{ opacity: 0, x: 24 }} animate={inView ? { opacity: 1, x: 0 } : {}} transition={{ duration: 0.9, delay: 0.15, ease: EASE }}>
-          <p className="eyebrow mb-5">A word from the studio</p>
-          <h2 className="heading-xl mb-8">Built by people who <span className="italic text-rp-lavender">make things</span>.</h2>
-          <p className="body-text mb-5">
-            We started Remake Pixel because every other AI image tool felt like a spreadsheet. We wanted a studio: a place where a thought becomes a frame, where Tuesday's idea is Wednesday's poster.
-          </p>
-          <p className="body-text mb-10">
-            Every model we ship has been hand-picked, every preset hand-tuned. No telemetry, no training on your work — just tools that respect the craft.
-          </p>
-          <Link to="/register" className="btn-secondary" data-testid="founder-cta">Begin your first frame</Link>
-        </motion.div>
+    <section id="instructor" className="relative bg-[#0B0B0C] py-24 md:py-32 border-t border-[#2E2E30]" ref={ref} data-testid="founder-section">
+      <div className="max-w-[1200px] mx-auto px-6 lg:px-10">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-16 items-center">
+          <motion.div
+            initial={{ opacity: 0, x: -30 }}
+            animate={isInView ? { opacity: 1, x: 0 } : {}}
+            transition={{ duration: 0.8, ease: EASE }}
+          >
+            <div className="aspect-[3/4] rounded-sm overflow-hidden max-w-[380px] border border-[#2E2E30]">
+              <img src="/images/founder.jpg" alt="Founder" className="w-full h-full object-cover" loading="lazy" />
+            </div>
+            <div className="flex flex-wrap gap-2 mt-6">
+              {["Brand 1", "Brand 2", "Brand 3", "Brand 4"].map((b) => (
+                <span key={b} className="px-3 py-1.5 rounded-sm bg-white/[0.03] border border-[#2E2E30] text-[#5A5A5E] text-[10px] font-mono tracking-wider">{b}</span>
+              ))}
+            </div>
+          </motion.div>
+
+          <motion.div
+            initial={{ opacity: 0, x: 30 }}
+            animate={isInView ? { opacity: 1, x: 0 } : {}}
+            transition={{ duration: 0.8, delay: 0.1, ease: EASE }}
+          >
+            <p className="eyebrow mb-4">Founder</p>
+            <h2 className="heading-lg mb-1">[Founder Name]</h2>
+            <p className="text-[#5A5A5E] text-[10px] font-mono uppercase tracking-[0.15em] mb-8">Founder, Remake Pixel</p>
+            <div className="space-y-4 mb-10">
+              <p className="body-text">I spent years editing photos by hand — dodging, burning, retouching, color grading. Then AI rewrote the rules.</p>
+              <p className="body-text">So I built Remake Pixel: not to replace the craft, but to give it back to anyone who has an idea and no time. Welcome in.</p>
+            </div>
+            <div className="grid grid-cols-4 gap-4">
+              {stats.map((s) => (
+                <div key={s.label} className="border-t border-[#2E2E30] pt-4">
+                  <p className="text-[#F4F1EA] text-lg font-light">{s.label}</p>
+                  <p className="text-[#5A5A5E] text-[9px] font-mono uppercase tracking-wider mt-0.5">{s.sub}</p>
+                </div>
+              ))}
+            </div>
+          </motion.div>
+        </div>
       </div>
     </section>
   );

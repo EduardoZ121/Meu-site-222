@@ -1,22 +1,39 @@
-import { motion } from "framer-motion";
+import { useRef } from "react";
+import { motion, useInView } from "framer-motion";
 import { Link } from "react-router-dom";
 
+const EASE = [0.16, 1, 0.3, 1];
+
 export default function CTAFinal() {
+  const ref = useRef(null);
+  const isInView = useInView(ref, { once: true, margin: "-80px" });
+
   return (
-    <section className="relative bg-rp-bg py-32 md:py-40 overflow-hidden border-t border-rp-border">
-      <div className="absolute inset-0 z-0 opacity-40">
-        <img src="https://images.unsplash.com/photo-1773257607064-7c6a4cbb71f1?crop=entropy&cs=srgb&fm=jpg&q=85&w=1600" alt="" className="w-full h-full object-cover" />
-        <div className="absolute inset-0 bg-gradient-to-b from-rp-bg/70 via-rp-bg/85 to-rp-bg" />
+    <section className="relative bg-[#0B0B0C] py-24 md:py-32 overflow-hidden" ref={ref} data-testid="cta-section">
+      <div className="absolute inset-0 z-0">
+        <img src="/images/cta-bg.jpg" alt="" className="w-full h-full object-cover opacity-40" draggable={false} />
+        <div className="absolute inset-0 bg-gradient-to-r from-[#0B0B0C] via-[#0B0B0C]/70 to-transparent" />
       </div>
-      <div className="container-rp relative z-10 text-center max-w-[900px]">
-        <motion.p initial={{ opacity: 0 }} whileInView={{ opacity: 1 }} viewport={{ once: true }} className="eyebrow mb-8">Begin</motion.p>
-        <motion.h2 initial={{ opacity: 0, y: 24 }} whileInView={{ opacity: 1, y: 0 }} transition={{ duration: 0.9 }} viewport={{ once: true }} className="heading-display mb-12" data-testid="cta-final-title">
-          The next frame is <span className="italic text-rp-lavender">yours</span>.
-        </motion.h2>
-        <motion.div initial={{ opacity: 0 }} whileInView={{ opacity: 1 }} transition={{ delay: 0.2 }} viewport={{ once: true }} className="flex flex-col sm:flex-row items-center justify-center gap-4">
-          <Link to="/register" className="btn-primary" data-testid="cta-final-primary">Begin free — 50 credits</Link>
-          <Link to="/login" className="btn-ghost">I have an account</Link>
-        </motion.div>
+
+      <div className="relative z-10 max-w-[1200px] mx-auto px-6 lg:px-10">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
+          <motion.div
+            initial={{ opacity: 0, y: 30 }}
+            animate={isInView ? { opacity: 1, y: 0 } : {}}
+            transition={{ duration: 0.8, ease: EASE }}
+          >
+            <p className="eyebrow mb-4">Remake Pixel</p>
+            <h2 className="heading-xl mb-6">
+              Stop waiting for inspiration.
+              <br />
+              <span className="italic font-light">Make it.</span>
+            </h2>
+            <div className="flex flex-wrap gap-3">
+              <Link to="/register" className="btn-primary" data-testid="cta-primary">Start Free — 30 Credits</Link>
+              <Link to="/register" className="btn-secondary" data-testid="cta-secondary">Buy Starter — €5</Link>
+            </div>
+          </motion.div>
+        </div>
       </div>
     </section>
   );

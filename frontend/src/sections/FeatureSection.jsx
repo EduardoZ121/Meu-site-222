@@ -1,36 +1,102 @@
 import { useRef } from "react";
 import { motion, useInView } from "framer-motion";
-import { Camera, Wand2, Film, Layers } from "lucide-react";
 
 const EASE = [0.16, 1, 0.3, 1];
 
 const features = [
-  { Icon: Camera, title: "Pro Edit", body: "Upload a photo. Refine expression, lighting, mood with Flux 2 Klein. Photorealism that survives a magazine print." },
-  { Icon: Wand2, title: "Artistic", body: "33 hand-tuned styles — from anime to ukiyo-e — applied without breaking the subject's identity." },
-  { Icon: Film, title: "Motion", body: "Turn an idea — or a still — into 6 seconds of cinema with Grok Imagine Video." },
-  { Icon: Layers, title: "Posters", body: "44 templates in five families: music, events, before-after, editorial, promo. Fill the placeholders, print." },
+  {
+    eyebrow: "Generate",
+    title: "From a sentence to a masterpiece.",
+    body: "Type what you imagine. Choose the look — cinematic, editorial, painted, anime, hyperreal. We render it in seconds, in any aspect ratio.",
+    tags: ["Grok Imagine", "Flux 2 Klein", "GPT Image 1"],
+    image: "/images/generate.jpg",
+    imageRight: true,
+  },
+  {
+    eyebrow: "Edit",
+    title: "Your face. Studio quality.",
+    body: "Upload any photo. Choose between Realism Presets (Cinematic, iPhone, Studio, Ultra-Real), Mood & Style (Editorial, Romantic, Intense, Full Body), or Enhancements (Lighting, Skin, Wardrobe, Eyes, Maximum Detail).",
+    tags: ["Realism", "Mood & Style", "Enhancements"],
+    image: "/images/edit.jpg",
+    imageRight: false,
+  },
+  {
+    eyebrow: "Styles",
+    title: "96 looks. One photo.",
+    body: "Curated style packs across art history, contemporary cinema, and editorial photography. New styles drop every week.",
+    tags: ["96 Styles", "1 Credit/Style", "Weekly Drops"],
+    image: "/images/styles-grid.jpg",
+    imageRight: true,
+  },
+  {
+    eyebrow: "Motion",
+    title: "Stills, into stories.",
+    body: "Animate any prompt into a 6-second cinematic clip. Text-to-video or image-to-video. Powered by Grok Imagine Video.",
+    tags: ["6-Second Clips", "Text-to-Video", "Image-to-Video"],
+    image: "/images/motion.jpg",
+    imageRight: false,
+  },
+  {
+    eyebrow: "Design",
+    title: "Posters that look hired.",
+    body: "44 professional templates across music, events, and editorial. Drop your photo, fill the placeholders, ship.",
+    tags: ["44 Templates", "5 Categories", "Instant Fill"],
+    image: "/images/posters.jpg",
+    imageRight: true,
+  },
+  {
+    eyebrow: "Guided",
+    title: "Not sure where to start?",
+    body: "The Wizard asks five questions and writes the perfect prompt for you. The Suggest engine drops 20 ideas from any topic.",
+    tags: ["5-Step Wizard", "Suggest Engine", "20 Ideas"],
+    image: "/images/wizard.jpg",
+    imageRight: false,
+  },
 ];
 
 export default function FeatureSection() {
-  const ref = useRef(null);
-  const inView = useInView(ref, { once: true, margin: "-120px" });
   return (
-    <section ref={ref} id="features" className="relative bg-rp-bg py-32">
-      <div className="container-rp">
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={inView ? { opacity: 1, y: 0 } : {}} transition={{ duration: 0.7, ease: EASE }} className="max-w-2xl mb-20">
-          <p className="eyebrow mb-5">A complete studio</p>
-          <h2 className="heading-xl">Four tools.<br />One <span className="italic text-rp-lavender">canvas</span>.</h2>
-        </motion.div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-px bg-rp-border" data-testid="features-grid">
-          {features.map((f, i) => (
-            <motion.div key={f.title} initial={{ opacity: 0, y: 24 }} animate={inView ? { opacity: 1, y: 0 } : {}} transition={{ duration: 0.7, delay: 0.1 + i * 0.08, ease: EASE }} className="bg-rp-bg p-10 group" data-testid={`feature-${f.title.toLowerCase().replace(/\s/g, '-')}`}>
-              <f.Icon className="w-6 h-6 text-rp-lavender mb-8 transition-transform duration-500 group-hover:scale-110" strokeWidth={1.5} />
-              <h3 className="font-heading text-3xl text-rp-text mb-4 leading-tight">{f.title}</h3>
-              <p className="text-rp-mute text-[15px] leading-[1.7]">{f.body}</p>
-            </motion.div>
-          ))}
+    <section id="features" className="relative bg-[#0B0B0C]" data-testid="features-section">
+      {features.map((f) => <FeatureBlock key={f.eyebrow} feature={f} />)}
+    </section>
+  );
+}
+
+function FeatureBlock({ feature }) {
+  const ref = useRef(null);
+  const isInView = useInView(ref, { once: true, margin: "-100px" });
+  const imgFirst = !feature.imageRight;
+
+  return (
+    <div ref={ref} className="py-16 md:py-24 border-t border-[#2E2E30]">
+      <div className="max-w-[1200px] mx-auto px-6 lg:px-10">
+        <div className={`grid grid-cols-1 lg:grid-cols-2 gap-10 lg:gap-16 items-center ${imgFirst ? "" : "lg:[direction:rtl]"}`}>
+          <motion.div
+            initial={{ opacity: 0, y: 30 }}
+            animate={isInView ? { opacity: 1, y: 0 } : {}}
+            transition={{ duration: 0.8, delay: 0.1, ease: EASE }}
+            className={imgFirst ? "" : "lg:[direction:ltr]"}
+          >
+            <div className="rounded-sm overflow-hidden">
+              <img src={feature.image} alt={feature.eyebrow} className="w-full h-full object-cover" loading="lazy" />
+            </div>
+          </motion.div>
+
+          <motion.div
+            initial={{ opacity: 0, y: 30 }}
+            animate={isInView ? { opacity: 1, y: 0 } : {}}
+            transition={{ duration: 0.8, delay: 0.2, ease: EASE }}
+            className={imgFirst ? "" : "lg:[direction:ltr]"}
+          >
+            <p className="eyebrow mb-4">{feature.eyebrow}</p>
+            <h2 className="heading-lg mb-5">{feature.title}</h2>
+            <p className="body-text mb-6">{feature.body}</p>
+            <div className="flex flex-wrap gap-2">
+              {feature.tags.map((t) => <span key={t} className="tag-pill">{t}</span>)}
+            </div>
+          </motion.div>
         </div>
       </div>
-    </section>
+    </div>
   );
 }

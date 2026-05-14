@@ -6,6 +6,7 @@ import os
 import uuid
 from pathlib import Path
 from fastapi import UploadFile, HTTPException
+from PIL import Image
 
 UPLOAD_DIR = Path("/tmp/remakepix_uploads")
 UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
@@ -34,3 +35,25 @@ def cleanup(path: str) -> None:
         os.remove(path)
     except Exception:
         pass
+
+
+def compose_side_by_side(left_path: str, right_path: str, target_h: int = 1024) -> str:
+    """Stack two images side-by-side on a single canvas. Returns new file path.
+    Used to feed image-edit models that only accept ONE input image (e.g. Grok)
+    when the user wants to combine a subject photo with a garment reference.
+    """
+    li = Image.open(left_path).convert("RGB")
+    ri = Image.open(right_path).convert("RGB")
+    # Resize each to target height while preserving aspect ratio
+    def resize(im):
+        w, h = im.size
+        nw = max(1, int(w * (target_h / max(1, h))))
+        return im.resize((nw, target_h), Image.LANCZOS)
+    li = resize(li); ri = resize(ri)
+    gap = 24
+    canvas = Image.new("RGB", (li.width + gap + ri.width, target_h), (15, 15, 15))
+    canvas.paste(li, (0, 0))
+    canvas.paste(ri, (li.width + gap, 0))
+    out = UPLOAD_DIR / f"compose_{uuid.uuid4().hex}.jpg"
+    canvas.save(out, "JPEG", quality=92)
+    return str(out)

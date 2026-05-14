@@ -31,7 +31,7 @@ from services.openai_service import (  # noqa: E402
     improve_prompt as ai_improve_prompt,
     rewrite_safe, suggest_prompts, wizard_compose, generate_poster_image, WIZARD_STEPS,
 )
-from services.uploads import save_upload, cleanup  # noqa: E402
+from services.uploads import save_upload, cleanup, compose_side_by_side  # noqa: E402
 from services import rate_limit, nsfw  # noqa: E402
 from fast_styles import FAST_STYLES, get_style  # noqa: E402
 from artistic_styles import ARTISTIC_STYLES, get_artistic  # noqa: E402
@@ -573,32 +573,85 @@ async def tool_clothes_changer(
     change_type: str = Form("full"),  # full | piece | color | tryon
     photo: UploadFile = File(...),
     garment: UploadFile | None = File(None),
+    aspect_ratio: str = Form("match"),
     current=Depends(get_current_user),
 ):
-    """AI Clothes Changer.
-    - With `garment` photo → IDM-VTON virtual try-on.
-    - Without garment, with prompt → Flux Kontext clothing edit.
+    """AI Clothes Changer — powered by Grok Imagine.
+
+    - Photo only + prompt → Grok image-edit with detailed clothing instruction.
+    - Photo + garment reference → photos are composed side-by-side and sent to Grok
+      with an explicit instruction to dress the person on the left with the outfit on the right.
     """
     p = await save_upload(photo)
     g = await save_upload(garment) if garment else None
+    composed_path = None
+    cost = TOOL_COSTS["clothes"]
     try:
+        user = await _user_doc(current["sub"])
+        if not user or user.get("banned"):
+            raise HTTPException(status_code=403, detail="Not allowed")
+        if user.get("credits", 0) < cost and current.get("role") != "admin":
+            raise HTTPException(status_code=402, detail="Insufficient credits")
+        rate_limit.enforce_image(current["sub"], current.get("role", "user"))
+
         if g:
-            tryon_prompt = prompt or "outfit"
-            return await _run_tool("clothes", current, virtual_tryon, p, g, tryon_prompt)
-        # No garment → Kontext edit
-        if not prompt.strip():
-            raise HTTPException(status_code=422, detail="Forneça uma foto de roupa OU descreva a mudança no campo de texto.")
-        prefix = {
-            "full":  "Change the outfit. Replace all clothing with: ",
-            "piece": "Add/replace this specific clothing piece: ",
-            "color": "Keep the same outfit but change the color/style to: ",
-            "tryon": "Show the person wearing: ",
-        }.get(change_type, "Change the outfit to: ")
-        full_prompt = prefix + prompt.strip() + ". Preserve identity, face, and body proportions. Photorealistic, natural lighting."
-        return await _run_tool("clothes", current, kontext_edit, p, full_prompt)
+            composed_path = compose_side_by_side(p, g)
+            edit_prompt = (
+                "The image shows TWO photos side by side: a person on the LEFT and a clothing/outfit reference on the RIGHT. "
+                "Output a single photo of ONLY the person from the LEFT, now wearing the outfit shown on the RIGHT. "
+                "Preserve the person's identity, face, hair, body proportions and pose. "
+                "Match the clothing's style, color, fabric and details precisely. "
+                "Discard the garment-side panel and any background from the right photo. "
+                "Photorealistic, natural lighting, clean background."
+            )
+            if prompt.strip():
+                edit_prompt += f" Additional notes: {prompt.strip()}."
+            run_path = composed_path
+        else:
+            if not prompt.strip():
+                raise HTTPException(status_code=422, detail="Forneça uma foto de roupa OU descreva a mudança no campo de texto.")
+            prefix = {
+                "full":  "Change the outfit. Replace all clothing with: ",
+                "piece": "Add/replace this specific clothing piece: ",
+                "color": "Keep the same outfit but change the color/style to: ",
+                "tryon": "Show the person wearing: ",
+            }.get(change_type, "Change the outfit to: ")
+            edit_prompt = (
+                prefix + prompt.strip()
+                + ". Preserve identity, face, body proportions and pose. Photorealistic, natural lighting."
+            )
+            run_path = p
+
+        new_balance = await _spend_credits(current["sub"], cost, "Tool: clothes")
+        try:
+            urls = await generate_image(
+                prompt=edit_prompt,
+                model_key="standard",          # Grok Imagine
+                aspect_ratio=aspect_ratio,
+                num_outputs=1,
+                image_path=run_path,
+            )
+        except Exception as e:
+            logger.error(f"Clothes changer failed: {e}")
+            new_balance = await _add_credits(current["sub"], cost, "refund", f"Refund: clothes failed ({e})")
+            raise HTTPException(status_code=502, detail=f"Tool failed: {str(e)[:200]}")
+        if not urls:
+            new_balance = await _add_credits(current["sub"], cost, "refund", "Refund: empty output")
+            raise HTTPException(status_code=502, detail="Empty output")
+
+        creation = Creation(
+            user_id=current["sub"], type="image",
+            model_used=MODELS["standard"],
+            prompt=edit_prompt,
+            aspect_ratio=aspect_ratio,
+            result_urls=urls, credits_spent=cost,
+        )
+        await db.creations.insert_one(creation.model_dump())
+        return {"creation": creation.model_dump(), "new_balance": new_balance}
     finally:
         cleanup(p)
         if g: cleanup(g)
+        if composed_path: cleanup(composed_path)
 
 
 

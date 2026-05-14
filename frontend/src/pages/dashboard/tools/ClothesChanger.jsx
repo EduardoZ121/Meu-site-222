@@ -25,7 +25,6 @@ const CHANGE_TYPES = [
   { id: "full",  label: "Trocar roupa toda",     hint: "Substitui o outfit completo" },
   { id: "piece", label: "Adicionar peça",         hint: "Jaqueta, calças, sapatos, acessório" },
   { id: "color", label: "Mudar cor/estilo",       hint: "Mantém a roupa, muda só cor ou padrão" },
-  { id: "tryon", label: "Virtual Try-On",         hint: "Veste a pessoa com a roupa de referência" },
 ];
 
 const errMsg = (err) =>
@@ -98,10 +97,8 @@ export default function ClothesChanger() {
     setPrompt(preset.desc);
   };
 
-  // Auto-switch to "tryon" when garment is uploaded
-  useEffect(() => {
-    if (garment && changeType !== "tryon") setChangeType("tryon");
-  }, [garment]); // eslint-disable-line react-hooks/exhaustive-deps
+  // Auto-switch is no longer needed — backend automatically uses Grok side-by-side
+  // composition when a garment is uploaded, regardless of change_type.
 
   const run = async () => {
     if (!photo) { toast.error("Envia uma foto da pessoa."); return; }
@@ -155,7 +152,7 @@ export default function ClothesChanger() {
             <p className="text-[10px] font-mono uppercase tracking-[0.22em] text-[#7C3AED] mb-4">1 · Fotos</p>
             <div className="grid grid-cols-2 gap-3 max-w-[600px]">
               <PhotoBox photo={photo} onChange={setPhoto} label="Pessoa *" helper="Foto frontal nítida" testId="clothes-photo" />
-              <PhotoBox photo={garment} onChange={setGarment} label="Roupa de referência (opcional)" helper="Para virtual try-on" testId="clothes-garment" />
+              <PhotoBox photo={garment} onChange={setGarment} label="Roupa de referência (opcional)" helper="Foto da peça para vestir" testId="clothes-garment" />
             </div>
           </section>
 
@@ -171,11 +168,11 @@ export default function ClothesChanger() {
                     changeType === t.id
                       ? "border-[#7C3AED] bg-[#7C3AED]/10 shadow-md shadow-[#7C3AED]/20"
                       : "border-[#2E2E30] hover:border-[#7C3AED]/40 bg-[#13131A]"
-                  } ${t.id === "tryon" && !garment ? "opacity-60" : ""}`}
+                  }`}
                   data-testid={`change-type-${t.id}`}
                 >
                   <p className={`text-[14px] font-medium font-['Inter_Tight'] mb-1 ${changeType === t.id ? "text-[#C4B5FD]" : "text-[#F4F1EA]"}`}>{t.label}</p>
-                  <p className="text-[#8A8A8E] text-[11px]">{t.hint}{t.id === "tryon" && !garment ? " · precisa de foto de roupa" : ""}</p>
+                  <p className="text-[#8A8A8E] text-[11px]">{t.hint}</p>
                 </button>
               ))}
             </div>

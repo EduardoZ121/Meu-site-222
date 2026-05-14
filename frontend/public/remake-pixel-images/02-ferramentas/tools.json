@@ -1,0 +1,122 @@
+{
+  "total": 12,
+  "image_specs": {
+    "aspect_ratio": "16:10 (landscape) — same as Pollo.ai cards",
+    "recommended_size": "800x500 px (or 1280x800 for high-DPI)",
+    "format": "JPEG (preferred) or PNG with transparent edges",
+    "naming": "Use the `filename` field. Each tool → ONE image.",
+    "directory": "02-ferramentas/images/"
+  },
+  "style_direction": {
+    "vibe": "Dark, premium, editorial — match the Remake Pixel identity",
+    "background": "Deep #0B0B0C with subtle purple glows (#7C3AED / #9333EA)",
+    "feel": "Cinematic close-up product shots that hint at what the tool does",
+    "avoid": "Generic stock photos · Pollo.ai duplicates · text overlays · busy backgrounds"
+  },
+  "tools": [
+    {
+      "id": "studio",
+      "filename": "studio.jpg",
+      "name_pt": "Estúdio de Geração",
+      "description": "Multi-modal AI generation hub — text-to-image + photo-to-image + style presets",
+      "visual_brief": "Cinematic portrait of a young person mid-transformation, half realistic / half stylized neon-edged version. Hint of magic / sparks. Purple ambient light.",
+      "credits": 10
+    },
+    {
+      "id": "clothes",
+      "filename": "clothes.jpg",
+      "name_pt": "Trocar Roupa (AI)",
+      "description": "Outfit swap on any person photo using reference clothing or text",
+      "visual_brief": "Close-up of a person turning, outfit changing mid-spin (motion blur). Wardrobe-rack silhouette in background. Editorial fashion mood.",
+      "credits": 12
+    },
+    {
+      "id": "art",
+      "filename": "art.jpg",
+      "name_pt": "Estilos Artísticos",
+      "description": "33 artistic style transformations — anime, oil paint, watercolor, comic, cyberpunk, etc.",
+      "visual_brief": "A single face split into 4 artistic styles vertically: anime · oil paint · watercolor · cyberpunk. Frame-collage edits, brush strokes visible.",
+      "credits": 13
+    },
+    {
+      "id": "pro",
+      "filename": "pro.jpg",
+      "name_pt": "Retoque Profissional (Pro)",
+      "description": "20 cinematic realism + mood presets. Editorial enhancement.",
+      "visual_brief": "Hyper-detailed magazine-cover portrait, soft beauty light, golden-hour skin tones. Camera lens flare in corner. Vogue cover energy.",
+      "credits": 18
+    },
+    {
+      "id": "bg_remove",
+      "filename": "bg_remove.jpg",
+      "name_pt": "Remover Fundo",
+      "description": "Clean background removal — transparent cutouts for logos, products, faces",
+      "visual_brief": "A person/object floating in checkered transparency pattern, sharp edge highlighted. Half background dissolving into pixels.",
+      "credits": 5
+    },
+    {
+      "id": "upscale",
+      "filename": "upscale.jpg",
+      "name_pt": "Aumentar Resolução",
+      "description": "2× or 4× upscaling with detail recovery from blurry photos",
+      "visual_brief": "Side-by-side: blurry pixelated half ↔ ultra-sharp half, with a vertical zoom-arrow seam in the middle. Tech grid overlay.",
+      "credits": 8
+    },
+    {
+      "id": "restore",
+      "filename": "restore.jpg",
+      "name_pt": "Restaurar Fotos",
+      "description": "Old / damaged photos → crisp restored versions. Reduces noise, enhances faces.",
+      "visual_brief": "Aged sepia photo with scratches transforming into a vibrant restored portrait. Dust particles, vintage paper texture.",
+      "credits": 8
+    },
+    {
+      "id": "colorize",
+      "filename": "colorize.jpg",
+      "name_pt": "Colorir P&B",
+      "description": "Black & white photo → realistic color",
+      "visual_brief": "Vintage B&W photo of a couple, colors pouring in like watercolor from one corner. Warm skin tones bleeding into the grayscale.",
+      "credits": 6
+    },
+    {
+      "id": "inpaint",
+      "filename": "inpaint.jpg",
+      "name_pt": "Inpaint / Apagar Objetos",
+      "description": "Paint a zone, describe replacement. Remove people, text, objects from photos.",
+      "visual_brief": "A photo with a magenta mask highlighting an area where a tourist used to be, now empty beach. Subtle 'before/after' overlay.",
+      "credits": 12
+    },
+    {
+      "id": "posters",
+      "filename": "posters.jpg",
+      "name_pt": "Pôsteres Profissionais",
+      "description": "20 templates — flyers, editorial, epic, sci-fi, hero, music phone — accepts user photo",
+      "visual_brief": "Stack of 3 high-end magazine/poster mockups fanned out: bold typography, dramatic portraits. Editorial flatlay vibe.",
+      "credits": 15
+    },
+    {
+      "id": "carousel",
+      "filename": "carousel.jpg",
+      "name_pt": "Carrossel Instagram",
+      "description": "Multi-slide Instagram carousels with consistent visual style",
+      "visual_brief": "Phone mockup showing 3 Instagram slides side-by-side with cohesive purple-toned visuals. Swipe indicator. Soft hand holding the device.",
+      "credits": 8
+    },
+    {
+      "id": "wizard",
+      "filename": "wizard.jpg",
+      "name_pt": "Assistente (5 perguntas)",
+      "description": "Interactive 5-question wizard that builds a perfect prompt for users",
+      "visual_brief": "Floating Q&A bubbles arranged in a conversation flow, with a glowing crystal-ball-like AI orb. Lightbulb iconography. Friendly chat vibe.",
+      "credits": 0
+    },
+    {
+      "id": "video",
+      "filename": "video.jpg",
+      "name_pt": "Texto / Foto → Vídeo",
+      "description": "Cinematic 6-second AI video clips from text or photo input",
+      "visual_brief": "Film strip with frames of a portrait coming to life, cinematic 21:9 letterbox, neon timeline scrubber. Hollywood preview vibe.",
+      "credits": 20
+    }
+  ]
+}

@@ -17,24 +17,24 @@ import useTitle from "../../lib/useTitle";
 /* ------------------------------------------------------------------ */
 
 const CAT_LABELS = {
-  music:         "Música",
-  events:        "Eventos",
-  editorial:     "Editorial",
-  promo:         "Promo",
-  social_media:  "Social Media",
-  before_after:  "Antes / Depois",
+  flyer:     "Flyers",
+  editorial: "Editorial",
+  epic:      "Epic",
+  scifi:     "Sci-Fi",
+  hero:      "Hero",
+  phone:     "Music Phone",
 };
 
-const CAT_ORDER = ["music", "events", "editorial", "promo", "social_media", "before_after"];
+const CAT_ORDER = ["flyer", "editorial", "epic", "scifi", "hero", "phone"];
 
 // Gradient backgrounds per category — gives visual hierarchy to template cards
 const CAT_GRADIENTS = {
-  music:        "linear-gradient(135deg,#1B1340 0%,#7C3AED 50%,#EC4899 100%)",
-  events:       "linear-gradient(135deg,#1A1A1C 0%,#A78A5C 60%,#F4B989 100%)",
-  editorial:    "linear-gradient(135deg,#0F1419 0%,#2D3748 50%,#F4F1EA 100%)",
-  promo:        "linear-gradient(135deg,#7C3AED 0%,#EC4899 60%,#FACC15 100%)",
-  social_media: "linear-gradient(135deg,#06B6D4 0%,#7C3AED 50%,#EC4899 100%)",
-  before_after: "linear-gradient(135deg,#3B82F6 0%,#22C55E 50%,#FACC15 100%)",
+  flyer:     "linear-gradient(135deg,#1A1A1C 0%,#EF4444 55%,#FACC15 100%)",
+  editorial: "linear-gradient(135deg,#0F1419 0%,#2D3748 50%,#F4F1EA 100%)",
+  epic:      "linear-gradient(135deg,#0B0B0C 0%,#7C3AED 50%,#FACC15 100%)",
+  scifi:     "linear-gradient(135deg,#06122B 0%,#1E3A8A 55%,#06B6D4 100%)",
+  hero:      "linear-gradient(135deg,#220505 0%,#7F1D1D 55%,#EF4444 100%)",
+  phone:     "linear-gradient(135deg,#1B1340 0%,#7C3AED 50%,#EC4899 100%)",
 };
 
 const FIELD_LABELS = {
@@ -173,7 +173,7 @@ export default function Posters() {
 
   const [templates, setTemplates] = useState([]);
   const [models, setModels] = useState([]);
-  const [category, setCategory] = useState("music");
+  const [category, setCategory] = useState("flyer");
   const [picked, setPicked] = useState(null);
 
   // Editor state
@@ -311,9 +311,9 @@ export default function Posters() {
           Pôsteres que parecem contratados.
         </h1>
         <p className="text-[#8A8A8E] text-[15px] max-w-[680px]">
-          {templates.length || 50}+ templates profissionais em 6 categorias. Música, eventos,
-          editorial, promo, social media e antes/depois — gerados em alta resolução com Grok,
-          Flux 2 ou GPT Image 1.
+          {templates.length || 20} templates reais extraídos do bot original — flyers de recrutamento,
+          editorial, posters épicos, sci-fi, hero cinemático e music phone. Aplica a tua foto e
+          gera em alta resolução com Grok, Flux 2 ou GPT Image 1.
         </p>
       </header>
 
@@ -385,7 +385,7 @@ function TemplateCard({ tpl, index, onClick }) {
           </div>
           <div className="flex items-end justify-between">
             <span className="text-white/80 text-[9px] font-mono uppercase tracking-[0.18em]">
-              {tpl.placeholders.length} campos
+              {tpl.placeholders?.length ? `${tpl.placeholders.length} campos` : "Pronto a usar"}
             </span>
             <span className="text-white/70 text-[9px] font-mono">REMAKE · PIXEL</span>
           </div>
@@ -468,8 +468,9 @@ function Editor(props) {
             {picked.label || picked.id}
           </h1>
           <p className="text-[#8A8A8E] text-[14px] max-w-[640px] leading-relaxed">
-            Preenche os detalhes abaixo. Podes anexar uma foto de referência, escolher o modelo
-            de IA, definir o mood e a paleta. Geramos em alta resolução pronto a partilhar.
+            {picked.placeholders && picked.placeholders.length > 0
+              ? "Preenche os detalhes abaixo. Podes anexar uma foto de referência, escolher o modelo de IA, definir o mood e a paleta. Geramos em alta resolução pronto a partilhar."
+              : "Template pronto a usar — anexa uma foto de referência (opcional), escolhe o modelo de IA, define o mood e a paleta. O prompt já está afinado para te dar o melhor resultado possível."}
           </p>
         </div>
       </div>
@@ -528,7 +529,8 @@ function Editor(props) {
             />
           </section>
 
-          {/* 2 · Detalhes do pôster */}
+          {/* 2 · Detalhes do pôster (escondido quando template não tem campos) */}
+          {picked.placeholders && picked.placeholders.length > 0 && (
           <section>
             <label className="block text-[#F4F1EA] text-[13px] font-medium mb-4 uppercase tracking-[0.16em] font-['Inter_Tight']">
               02 · Detalhes do Pôster
@@ -561,6 +563,7 @@ function Editor(props) {
               ))}
             </div>
           </section>
+          )}
 
           {/* 3 · Mood + cor */}
           <section>

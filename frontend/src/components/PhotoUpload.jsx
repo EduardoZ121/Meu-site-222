@@ -1,23 +1,26 @@
-import { useId, useState, useEffect } from "react";
+import { useId, useState, useEffect, useRef } from "react";
 import { Upload, X, Image as ImageIcon } from "lucide-react";
 import { fileToDataURL } from "../lib/fileToDataURL";
+
+const IMAGE_EXTENSIONS = /\.(jpe?g|png|webp|gif|bmp|heic|heif|avif)$/i;
 
 /** Drag/drop file input; emits File object + preview URL.
  *
  * Mobile-safe pattern:
  *  - Uses native <label htmlFor={inputId}> wrapping the trigger area so a single
- *    tap on Android Chrome / iOS Safari always opens the file picker. The
- *    previous `ref.current.click()` workaround required 2-3 taps because some
- *    Android Chrome builds drop the programmatic click when the receiving
- *    button's pointerdown handler is competing with the page's touch listeners.
- *  - The hidden <input> stays mounted; React resets it via key when value=null
- *    so reselecting the same image still fires onChange.
+ *    tap on Android Chrome / iOS Safari always opens the file picker.
+ *  - The hidden <input> is reset to "" after every selection so the SAME file
+ *    can be picked again immediately (Android Chrome quirk where onChange
+ *    doesn't fire for identical filenames).
+ *  - File acceptance is checked by extension OR MIME — Android camera apps
+ *    sometimes return `application/octet-stream` which would otherwise be
+ *    silently dropped.
  */
 export default function PhotoUpload({ value, onChange, accept = "image/*", testId = "photo-upload" }) {
   const inputId = useId();
+  const inputRef = useRef(null);
   const [drag, setDrag] = useState(false);
   const [preview, setPreview] = useState(null);
-  const [nonce, setNonce] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
@@ -26,10 +29,24 @@ export default function PhotoUpload({ value, onChange, accept = "image/*", testI
     return () => { cancelled = true; };
   }, [value]);
 
-  const pick = (file) => {
-    if (file && file.type.startsWith("image/")) onChange(file);
+  const looksLikeImage = (file) => {
+    if (!file) return false;
+    if (file.type?.startsWith("image/")) return true;
+    if (IMAGE_EXTENSIONS.test(file.name || "")) return true;
+    return false;
   };
-  const clear = () => { onChange(null); setNonce((n) => n + 1); };
+
+  const pick = (file) => {
+    // Always clear the input value so the same file can be picked again later.
+    if (inputRef.current) inputRef.current.value = "";
+    if (!file) return;
+    if (!looksLikeImage(file)) return;
+    onChange(file);
+  };
+  const clear = () => {
+    if (inputRef.current) inputRef.current.value = "";
+    onChange(null);
+  };
 
   return (
     <div className="w-full" data-testid={testId}>
@@ -39,7 +56,7 @@ export default function PhotoUpload({ value, onChange, accept = "image/*", testI
           onDragOver={(e) => { e.preventDefault(); setDrag(true); }}
           onDragLeave={() => setDrag(false)}
           onDrop={(e) => { e.preventDefault(); setDrag(false); pick(e.dataTransfer.files?.[0]); }}
-          className={`w-full aspect-[4/5] border border-dashed flex flex-col items-center justify-center gap-3 transition-all cursor-pointer ${
+          className={`block w-full aspect-[4/5] border border-dashed flex flex-col items-center justify-center gap-3 transition-all cursor-pointer ${
             drag ? "border-rp-purple bg-rp-purple/5" : "border-rp-border hover:border-rp-mute"
           }`}
           data-testid={`${testId}-trigger`}
@@ -62,7 +79,7 @@ export default function PhotoUpload({ value, onChange, accept = "image/*", testI
         </div>
       )}
       <input
-        key={nonce}
+        ref={inputRef}
         id={inputId}
         type="file"
         accept={accept}

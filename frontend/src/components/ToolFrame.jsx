@@ -5,6 +5,7 @@ import { motion } from "framer-motion";
 import { useAuth } from "../lib/auth";
 import { compressImage } from "../lib/imageCompress";
 import { fileToDataURL } from "../lib/fileToDataURL";
+import { toast } from "sonner";
 import ResultPanel from "./ResultPanel";
 
 /**
@@ -69,9 +70,16 @@ export default function ToolFrame({
   }, [photo]);
 
   const handlePickFile = async (file) => {
-    if (!file || !file.type?.startsWith("image/")) return;
-    const compressed = await compressImage(file);
-    onPhotoChange(compressed);
+    if (!file) return;
+    // Accept by MIME OR extension — Android camera can return application/octet-stream.
+    const isImg = file.type?.startsWith("image/") || /\.(jpe?g|png|webp|gif|bmp|heic|heif|avif)$/i.test(file.name || "");
+    if (!isImg) { toast.error("Ficheiro tem de ser uma imagem (JPEG/PNG/WEBP)."); return; }
+    try {
+      const compressed = await compressImage(file);
+      onPhotoChange(compressed);
+    } catch (e) {
+      toast.error(e.message || "Não consegui ler esta imagem.");
+    }
   };
 
   const visibleModels = models ? (viewAllModels ? models : models.slice(0, 8)) : [];

@@ -83,9 +83,15 @@ export default function CarouselPage() {
   }, [photo]);
 
   const handlePick = async (file) => {
-    if (!file || !file.type?.startsWith("image/")) return;
-    const compressed = await compressImage(file);
-    setPhoto(compressed);
+    if (!file) return;
+    const isImg = file.type?.startsWith("image/") || /\.(jpe?g|png|webp|gif|bmp|heic|heif|avif)$/i.test(file.name || "");
+    if (!isImg) { toast.error("Ficheiro tem de ser uma imagem."); return; }
+    try {
+      const compressed = await compressImage(file);
+      setPhoto(compressed);
+    } catch (e) {
+      toast.error(e.message || "Não consegui ler esta imagem.");
+    }
   };
 
   const addSlide = () => slides.length < MAX_SLIDES && setSlides([...slides, ""]);

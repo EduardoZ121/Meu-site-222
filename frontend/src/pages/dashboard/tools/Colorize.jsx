@@ -78,10 +78,16 @@ export default function Colorize() {
   }, [photo]);
 
   const handlePick = async (file) => {
-    if (!file || !file.type?.startsWith("image/")) return;
+    if (!file) return;
+    const isImg = file.type?.startsWith("image/") || /\.(jpe?g|png|webp|gif|bmp|heic|heif|avif)$/i.test(file.name || "");
+    if (!isImg) { toast.error("Ficheiro tem de ser uma imagem."); return; }
     setResult(null);
-    const compressed = await compressImage(file);
-    setPhoto(compressed);
+    try {
+      const compressed = await compressImage(file);
+      setPhoto(compressed);
+    } catch (e) {
+      toast.error(e.message || "Não consegui ler esta imagem.");
+    }
   };
   const reset = () => { setPhoto(null); setPhotoPreview(null); setResult(null); };
 

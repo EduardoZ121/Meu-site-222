@@ -30,8 +30,11 @@ function PhotoBox({ photo, onChange, testId }) {
   }, [photo]);
 
   const pick = async (file) => {
-    if (!file?.type?.startsWith("image/")) return;
-    onChange(await compressImage(file));
+    if (!file) return;
+    const isImg = file.type?.startsWith("image/") || /\.(jpe?g|png|webp|gif|bmp|heic|heif|avif)$/i.test(file.name || "");
+    if (!isImg) { toast.error("Ficheiro tem de ser uma imagem."); return; }
+    try { onChange(await compressImage(file)); }
+    catch (e) { toast.error(e.message || "Não consegui ler esta imagem."); }
   };
 
   return (

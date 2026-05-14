@@ -12,7 +12,7 @@ const TOOLS = [
     desc: "Troca o outfit de qualquer pessoa. Usa foto da roupa ou descreve em texto." },
   { id: "art", tier: "image", to: "/app/artistic",
     name: "Estilos Artísticos", cost: 13,
-    desc: "62 estilos: anime, óleo, aquarela, comic, fantasy, cyberpunk e mais." },
+    desc: "33 estilos: anime, óleo, aquarela, comic, fantasy, cyberpunk e mais." },
   { id: "pro", tier: "image", to: "/app/pro",
     name: "Retoque Profissional (Pro)", cost: 18,
     desc: "20 presets: realismo cinematográfico, mood editorial, enhancements." },
@@ -37,7 +37,7 @@ const TOOLS = [
   // Native creative tools
   { id: "posters", tier: "image", to: "/app/posters",
     name: "Pôsteres Profissionais", cost: 15,
-    desc: "44 templates: música, eventos, editorial. Aceita foto." },
+    desc: "20 templates: flyers, editorial, epic, sci-fi, hero, music phone. Aceita foto." },
   { id: "carousel", tier: "image", to: "/app/carousel",
     name: "Carrossel Instagram", cost: 8,
     desc: "Multi-slide com estilo consistente." },

@@ -965,8 +965,7 @@ async def generate_poster_route(
     per_image_cost = POSTER_MODEL_COSTS[model_key]
     total_cost = per_image_cost * num_outputs
 
-    raw_prompt = tpl["prompt"].format(**{k: placeholders[k] for k in tpl["placeholders"]})
-    # Build extras: expand mood UI choice to a rich visual descriptor; add color hint.
+    raw_prompt = tpl["prompt"].format(**{k: placeholders[k] for k in tpl["placeholders"]})    # Build extras: expand mood UI choice to a rich visual descriptor; add color hint.
     extras = []
     if mood:
         mood_desc = MOOD_EXPANSIONS.get(mood, f"Visual mood: {mood}.")

@@ -192,3 +192,43 @@ Migrating "Remake Pixel" — a Telegram bot for AI image generation (Instagram @
 - Admin role is granted at registration if email is in `ADMIN_EMAILS`. To promote later, set role directly in MongoDB.
 - Test credentials: `/app/memory/test_credentials.md`.
 - Rate limit and NSFW filter are configurable via `services/rate_limit.py` and `services/nsfw.py` constants (or migrate to `system_config` Mongo collection in Phase 3).
+
+
+
+# Changelog — 2026-02-14 (P0: Bot.py source-of-truth migration)
+
+## Critical: replaced hallucinated prompt dictionaries with real bot data
+Previous fork agents had fabricated prompts in 4 backend files. User uploaded
+`/tmp/bot.py` (9838 lines) as the authoritative source. AST-parsed and verified
+byte-by-byte against the bot.
+
+### Files regenerated
+- `backend/padrao_styles.py` → 93 styles (was 96 with 3 phantom keys: `shadows`, `polaroid`, `journey`). 100% byte-exact with bot `PADRAO_STYLES`.
+- `backend/artistic_styles.py` → 33 styles (was 62 fabricated entries). 100% prompt-exact with bot `ESTILOS_ARTISTICOS`.
+- `backend/pro_presets.py` → 20 presets (no change needed; already faithful — merge of `PRO_PRESETS`+`PRO_REALISM_EXTRA`+`PRO_STYLE_MOOD`+`PRO_ENHANCEMENTS`).
+- `backend/poster_templates.py` → 20 templates (was 50 fully invented `music_*` / `sports_*` etc.). Now derived from bot: 6 flyers + 2 editorial + 5 epic + 2 sci-fi + 1 hero + 4 phone. `POSTER_DIRECTOR` and `MOOD_EXPANSIONS` infrastructure preserved.
+
+### Tooling
+- New `backend/scripts/extract_bot_dicts.py` — AST-based, runnable any time the bot evolves: `python3 scripts/extract_bot_dicts.py /tmp/bot.py`.
+- Snapshot at `backend/scripts/.bot_dicts.pkl` for regression tests.
+
+### Verification (zero Replicate calls — no credits spent)
+```
+PADRAO_STYLES:     93/93 byte-exact, 0 extras
+PRO_PRESETS:       20/20 prompt-exact
+ARTISTIC_STYLES:   33/33 prompt-exact
+POSTER_TEMPLATES:  20/20 prompt-exact (with [subject]→the person)
+```
+All 4 public endpoints (`/api/public/padrao-styles`, `/artistic-styles`, `/pro-presets`, `/poster-templates`) return the correct counts after backend restart.
+
+### Backend API impact
+- `POSTER_TEMPLATES` items now have `placeholders: []` (bot prompts are fixed, no user variables). Server `.format(**{})` is a no-op on these.
+- Frontend Posters UI may still render placeholder input fields — they'll just be empty/hidden. Cosmetic refactor pending.
+
+## Pending after P0
+- Frontend Posters page: hide placeholder fields when template `placeholders.length === 0`; show category tabs (Flyer / Editorial / Epic / Sci-Fi / Hero / Phone) instead of fake `music_*`.
+- Frontend Artistic page: 33-style grid (was 62), respect new categories from `/api/public/artistic-styles`.
+- Phase C — Conversational Chat IA with 4 personalities + onboarding (data already extracted: `AI_PERSONALITIES` 4 keys).
+- Phase D — Public gallery, "Ver Prompt", Admin Instagram queue.
+- Phase E — Admin god mode.
+- Refactor: split `backend/server.py` (~1480 lines) into routers.

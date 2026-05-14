@@ -36,13 +36,30 @@ def _extract(output):
 
 
 async def _run_model(model_id: str, inputs: dict) -> List[str]:
+    """Run a Replicate model.
+
+    For OFFICIAL models (e.g. `black-forest-labs/*`, `xai/*`) we can hit
+    /v1/models/{owner}/{name}/predictions directly.
+    For COMMUNITY models that endpoint returns 404 — we MUST resolve the
+    latest version hash and run a versioned prediction.
+    """
     if not REPLICATE_TOKEN:
         raise RuntimeError("REPLICATE_API_TOKEN not configured")
+
+    OFFICIAL_OWNERS = {"black-forest-labs", "xai", "openai", "google-deepmind", "ideogram-ai", "meta", "stability-ai"}
 
     def _exec():
         client = replicate.Client(api_token=REPLICATE_TOKEN.strip())
         try:
-            return client.run(model_id, input=inputs)
+            owner = model_id.split("/", 1)[0] if "/" in model_id else ""
+            # If model_id has explicit ":version" or is from an official owner → use client.run as-is.
+            if ":" in model_id or owner in OFFICIAL_OWNERS:
+                return client.run(model_id, input=inputs)
+
+            # Community model — resolve latest version hash and run versioned prediction.
+            model = client.models.get(model_id)
+            version_id = model.latest_version.id
+            return client.run(f"{model_id}:{version_id}", input=inputs)
         finally:
             for v in inputs.values():
                 if hasattr(v, "close"):

@@ -232,3 +232,71 @@ All 4 public endpoints (`/api/public/padrao-styles`, `/artistic-styles`, `/pro-p
 - Phase D — Public gallery, "Ver Prompt", Admin Instagram queue.
 - Phase E — Admin god mode.
 - Refactor: split `backend/server.py` (~1480 lines) into routers.
+
+
+
+# Changelog — 2026-02-14 (P0 fixes)
+
+## 1. Network Error fix — async predictions with polling
+**Root cause (proven from DB):** the user's `men_underwater` generation at
+02:02:58 spent 11 credits but never produced a creation. The `client.run()`
+SDK call from Replicate blocks 30–120s while polling; K8s ingress drops idle
+connections at 60s → user sees "Network Error", uvicorn cancels the request,
+the `except`-block refund never executes, credits are LOST.
+
+**Fix (commit summary):**
+- New `backend/services/predictions.py` with `create_image_prediction()` and
+  `get_prediction_status()` — uses Replicate's lower-level predictions API
+  (`predictions.create` + `predictions.get`) so the create call returns in
+  ~1-2s.
+- New `pending_predictions` MongoDB collection — durable handoff between
+  the submit request and the polling endpoint.
+- New `GET /api/predictions/{id}` route — clients poll every 2.5s, response
+  is `{status: processing|succeeded|failed, elapsed_seconds, creation?, error?}`.
+- Refactored 3 routes to use the new pattern:
+  - `POST /api/generate/image`  (text-to-image)
+  - `POST /api/generate/edit`   (photo + free prompt)
+  - `POST /api/generate/easy`   (photo + PADRAO_STYLES)
+- Refund logic: explicit failures and `PredictionNotFound` (Replicate 404)
+  trigger immediate refund; network blips keep polling for up to 4 min
+  before forcing a refund. Verified end-to-end with a fake invalid id —
+  balance was restored from 51 → 61 automatically.
+- Frontend: new `pollPrediction(id, {onTick})` helper in `lib/api.js`,
+  Generate.jsx updated to submit then poll. Generate button now shows
+  "A gerar... 12s" with real elapsed counter.
+- Verified with real Replicate calls (text-to-image: 4s · edit with photo:
+  9s). Submit always completes in ≤2s — well below ingress timeout.
+
+## 2. Mobile upload reliability
+- `compressImage()` rewritten with 2-tier fallback (`createImageBitmap` →
+  `<img>` tag) + HEIC detection + clear error messages.
+- `PhotoUpload` component rewritten to use `<label htmlFor>` (one-tap on
+  mobile), resets the input's value after every selection (so same file
+  can be picked twice consecutively — Android Chrome quirk fix), and
+  validates by extension OR MIME (Android camera octet-stream fix).
+- All 9 upload picker handlers (Estúdio, Pôsteres, Carrossel, Pro,
+  Artistic, BgRemove, Upscale, Restore, Colorize, ClothesChanger) now
+  show `toast.error()` instead of failing silently.
+
+## 3. Compensation
+- 11 credits refunded to `eduardozola121998@gmail.com` for the
+  `men_underwater` loss at 02:02:58 (logged in `credit_transactions`).
+
+## 4. Artifact: images package for Kimi
+- Created `/app/frontend/public/remake-pixel-images.zip` (33 KB, 16 files)
+  containing source code + `styles.json` (93 styles) + `tools.json` (12
+  tools) + brand guidelines for the user to plug into Kimi for image gen.
+- URL: `https://imagine-pixel.preview.emergentagent.com/remake-pixel-images.zip`.
+
+## Pending after these fixes
+- When user returns with Kimi-generated images, integrate them: swap
+  `CAT_THUMBS` (Generate.jsx) for per-style map; swap `ToolThumb` CSS
+  gradients for `<img>` real assets.
+- Apply same async-polling pattern to remaining Replicate routes
+  (`/generate/pro`, `/generate/artistic`, `/generate/carousel`,
+  `/generate/poster`, `/tools/*`, `/generate/video`). They currently
+  still use the blocking `client.run()` path — same 60s timeout risk.
+- Phase C — Conversational Chat IA with 4 personalities + onboarding.
+- Phase D — Public gallery, "Ver Prompt", Admin Instagram queue.
+- Phase E — Admin god mode.
+- Refactor `server.py` (~1500 lines) into routers.

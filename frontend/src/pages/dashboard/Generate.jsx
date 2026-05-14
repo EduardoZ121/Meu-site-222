@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Loader2, Sparkles, ImagePlus, Wand2, Lightbulb } from "lucide-react";
 import { useSearchParams, useNavigate } from "react-router-dom";
-import { api } from "../../lib/api";
+import { api, pollPrediction } from "../../lib/api";
 import { useAuth } from "../../lib/auth";
 import { useI18n } from "../../lib/i18n";
 import { toast } from "sonner";
@@ -50,6 +50,7 @@ export default function Generate() {
   const [aspect, setAspect] = useState("4:5");
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState(null);
+  const [progress, setProgress] = useState(0); // elapsed seconds during polling
 
   // Style picker (visible by default — Pollo-style)
   const [showStyles, setShowStyles] = useState(true);
@@ -98,9 +99,10 @@ export default function Generate() {
       return;
     }
 
-    setBusy(true); setResult(null);
+    setBusy(true); setResult(null); setProgress(0);
     try {
-      let data;
+      // Phase 1 — submit request and get prediction_id quickly (~1-2s)
+      let submitData;
       if (mode === "easy") {
         const compressed = await compressImage(photo);
         const fd = new FormData();
@@ -109,24 +111,32 @@ export default function Generate() {
         fd.append("subject", subject);
         fd.append("aspect_ratio", aspect);
         if (prompt.trim()) fd.append("extra_prompt", prompt.trim());
-        ({ data } = await api.post("/generate/easy", fd, { timeout: 180000 }));
+        ({ data: submitData } = await api.post("/generate/easy", fd, { timeout: 60000 }));
       } else if (mode === "edit") {
         const compressed = await compressImage(photo);
         const fd = new FormData();
         fd.append("photo", compressed);
         fd.append("prompt", prompt.trim());
         fd.append("aspect_ratio", aspect);
-        ({ data } = await api.post("/generate/edit", fd, { timeout: 180000 }));
+        ({ data: submitData } = await api.post("/generate/edit", fd, { timeout: 60000 }));
       } else {
         // text-to-image
-        ({ data } = await api.post("/generate/image", {
+        ({ data: submitData } = await api.post("/generate/image", {
           prompt: prompt.trim(),
           mode: "advanced",
           aspect_ratio: aspect,
           num_outputs: 1,
           improve_prompt: improve,
-        }, { timeout: 180000 }));
+        }, { timeout: 60000 }));
       }
+
+      // Phase 2 — poll for completion. Backend has already deducted credits.
+      // If we hit a network error during polling we keep retrying — the
+      // prediction is durable on Replicate's side and the backend will
+      // finalize it the next time we successfully poll.
+      const data = await pollPrediction(submitData.prediction_id, {
+        onTick: (sec) => setProgress(sec),
+      });
       setResult(data.creation);
       toast.success(`Gerado · ${data.creation.credits_spent} créditos`);
       await refresh();
@@ -137,11 +147,13 @@ export default function Generate() {
       else if (err?.response?.status === 401) msg = "Sessão expirada.";
       else if (err?.response?.status === 429) msg = "Demasiados pedidos. Espera 1 minuto.";
       else if (err?.response?.data?.detail) msg = typeof err.response.data.detail === "string" ? err.response.data.detail : "Erro inesperado.";
-      else if (err?.message) msg = `Erro de rede: ${err.message}`;
+      else if (err?.message) msg = err.message;
       toast.error(msg, { duration: 8000 });
       // eslint-disable-next-line no-console
       console.error("Generation error:", err);
-    } finally { setBusy(false); }
+      // Even on error, balance may have changed (refund) — refresh
+      try { await refresh(); } catch { /* ignore */ }
+    } finally { setBusy(false); setProgress(0); }
   };
 
   return (
@@ -291,7 +303,7 @@ export default function Generate() {
                   <Loader2 className="w-4 h-4 animate-spin" />
                   <span className="absolute inset-0 rounded-full bg-white/30 blur-md animate-pulse" />
                 </span>
-                A gerar... 30–90 seg
+                {progress > 0 ? `A gerar... ${progress}s` : "A enviar..."}
               </>
             ) : mode === "blocked" ? (
               <><ImagePlus className="w-4 h-4" /> {ctaLabel}</>

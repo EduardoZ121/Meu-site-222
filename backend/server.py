@@ -27,6 +27,7 @@ from models import (  # noqa: E402
     AdminCreditAdjustIn, AdminUserPatch,
 )
 from services.replicate_service import generate_image, generate_video, MODELS, COSTS  # noqa: E402
+from services.predictions import create_image_prediction, get_prediction_status, PredictionNotFound  # noqa: E402
 from services.openai_service import (  # noqa: E402
     improve_prompt as ai_improve_prompt,
     rewrite_safe, suggest_prompts, wizard_compose, generate_poster_image, WIZARD_STEPS,
@@ -141,6 +142,210 @@ async def _pre_generate_checks(user_id: str, role: str, prompt: Optional[str], c
                 except Exception:
                     safe_prompt = nsfw.sanitize(prompt)
     return user, safe_prompt, hit
+
+
+# ============== Async predictions (non-blocking) ==============
+# Pattern: spend credits → create Replicate prediction (returns id in ~1s) →
+# store metadata in `pending_predictions` → return prediction_id to client.
+# Client polls GET /api/predictions/{id} every 2-3s.
+# The polling endpoint finalizes: saves Creation on success, refunds on failure.
+import uuid as _uuid  # noqa: E402
+
+async def _create_pending(
+    *,
+    user_id: str,
+    cost: int,
+    type_: str,
+    prompt: str,
+    model_key: str,
+    aspect_ratio: str,
+    num_outputs: int = 1,
+    image_path: Optional[str] = None,
+    style_key: Optional[str] = None,
+    prompt_improved: Optional[str] = None,
+    extra_meta: Optional[dict] = None,
+    spend_description: str = "Generation",
+) -> dict:
+    """Spend credits, submit prediction, persist pending doc. Returns the doc.
+
+    On Replicate submit failure: refunds credits and re-raises. The caller
+    must wrap photo cleanup itself.
+    """
+    new_balance = await _spend_credits(user_id, cost, spend_description)
+    try:
+        rep_id = await create_image_prediction(
+            prompt=prompt_improved or prompt,
+            model_key=model_key,
+            aspect_ratio=aspect_ratio,
+            num_outputs=num_outputs,
+            image_path=image_path,
+        )
+    except Exception as e:
+        logger.error(f"Replicate submit failed: {e}")
+        await _add_credits(user_id, cost, "refund", f"Refund: submit failed ({e})")
+        raise HTTPException(status_code=502, detail=f"Generation submit failed: {str(e)[:200]}")
+
+    doc = {
+        "id": str(_uuid.uuid4()),
+        "user_id": user_id,
+        "replicate_prediction_id": rep_id,
+        "type": type_,
+        "prompt": prompt,
+        "prompt_improved": prompt_improved,
+        "model_key": model_key,
+        "model_used": MODELS.get(model_key, model_key),
+        "aspect_ratio": aspect_ratio,
+        "num_outputs": num_outputs,
+        "style_key": style_key,
+        "credits_spent": cost,
+        "status": "starting",
+        "result_urls": [],
+        "error": None,
+        "extra_meta": extra_meta or {},
+        "polled_count": 0,
+        "balance_after_spend": new_balance,
+        "created_at": _now(),
+        "completed_at": None,
+    }
+    await db.pending_predictions.insert_one(doc)
+    # _id added by motor; strip before returning
+    doc.pop("_id", None)
+    return doc
+
+
+async def _finalize_pending(pending: dict, status_info: dict) -> dict:
+    """Move a pending prediction to terminal state: save Creation on success,
+    refund on failure. Returns the response body for the client.
+    """
+    user_id = pending["user_id"]
+    cost = pending["credits_spent"]
+    pid = pending["id"]
+    now = _now()
+
+    if status_info["status"] == "succeeded":
+        urls = status_info.get("output_urls") or []
+        if not urls:
+            # Replicate marked succeeded but no URLs — treat as failure
+            new_balance = await _add_credits(user_id, cost, "refund", "Refund: empty output")
+            await db.pending_predictions.update_one(
+                {"id": pid},
+                {"$set": {"status": "refunded", "error": "empty output", "completed_at": now}},
+            )
+            return {"status": "failed", "error": "Empty output", "new_balance": new_balance, "prediction_id": pid}
+
+        creation = Creation(
+            user_id=user_id,
+            type=pending["type"] if pending["type"] in ("image", "video") else "image",
+            model_used=pending["model_used"],
+            prompt=pending["prompt"],
+            prompt_improved=pending.get("prompt_improved"),
+            style_key=pending.get("style_key"),
+            aspect_ratio=pending["aspect_ratio"],
+            result_urls=urls,
+            credits_spent=cost,
+        )
+        await db.creations.insert_one(creation.model_dump())
+        await db.pending_predictions.update_one(
+            {"id": pid},
+            {"$set": {"status": "completed", "result_urls": urls, "completed_at": now}},
+        )
+        user = await _user_doc(user_id)
+        return {
+            "status": "succeeded",
+            "creation": creation.model_dump(),
+            "new_balance": (user or {}).get("credits", 0),
+            "prediction_id": pid,
+        }
+
+    # status in ("failed", "canceled")
+    err = status_info.get("error") or "Generation failed"
+    new_balance = await _add_credits(user_id, cost, "refund", f"Refund: {err[:120]}")
+    await db.pending_predictions.update_one(
+        {"id": pid},
+        {"$set": {"status": "refunded", "error": str(err)[:300], "completed_at": now}},
+    )
+    return {"status": "failed", "error": str(err)[:200], "new_balance": new_balance, "prediction_id": pid}
+
+
+@api.get("/predictions/{prediction_id}")
+async def poll_prediction(prediction_id: str, current=Depends(get_current_user)):
+    """Client polls this every 2-3s after starting a generation.
+    Returns:
+      - {status: "processing", elapsed_seconds: 12} → keep polling
+      - {status: "succeeded", creation: {...}, new_balance: 567} → done
+      - {status: "failed", error: "...", new_balance: 567} → refunded
+    """
+    pending = await db.pending_predictions.find_one({"id": prediction_id}, {"_id": 0})
+    if not pending:
+        raise HTTPException(status_code=404, detail="Prediction not found")
+    if pending["user_id"] != current["sub"] and current.get("role") != "admin":
+        raise HTTPException(status_code=403, detail="Not your prediction")
+
+    # Already terminal — return cached response
+    if pending["status"] == "completed":
+        # Reload creation by prompt match (simplest) — or store creation_id in pending doc
+        # For correctness we just return the cached URLs
+        user = await _user_doc(pending["user_id"])
+        return {
+            "status": "succeeded",
+            "creation": {
+                "result_urls": pending["result_urls"],
+                "type": pending["type"],
+                "model_used": pending["model_used"],
+                "prompt": pending["prompt"],
+                "aspect_ratio": pending["aspect_ratio"],
+                "credits_spent": pending["credits_spent"],
+            },
+            "new_balance": (user or {}).get("credits", 0),
+            "prediction_id": prediction_id,
+        }
+    if pending["status"] == "refunded":
+        user = await _user_doc(pending["user_id"])
+        return {
+            "status": "failed",
+            "error": pending.get("error") or "Generation failed",
+            "new_balance": (user or {}).get("credits", 0),
+            "prediction_id": prediction_id,
+        }
+
+    # Poll Replicate
+    try:
+        info = await get_prediction_status(pending["replicate_prediction_id"])
+    except PredictionNotFound as e:
+        # Replicate says this prediction is gone → treat as failed + refund
+        logger.warning(f"Prediction {prediction_id} not found on Replicate: {e}")
+        return await _finalize_pending(pending, {"status": "failed", "error": "Prediction expired or not found on provider"})
+    except Exception as e:
+        # If we've been polling for > 4 min and still get errors → give up + refund
+        elapsed = _elapsed(pending)
+        if elapsed > 240:
+            logger.error(f"Prediction {prediction_id} timed out after {elapsed}s: {e}")
+            return await _finalize_pending(pending, {"status": "failed", "error": f"Timeout after {elapsed}s polling Replicate"})
+        logger.warning(f"Replicate poll failed for {prediction_id} (will retry): {e}")
+        # Soft fail — let the client retry the poll
+        return {"status": "processing", "elapsed_seconds": elapsed, "prediction_id": prediction_id}
+
+    await db.pending_predictions.update_one(
+        {"id": prediction_id},
+        {"$inc": {"polled_count": 1}, "$set": {"status": info["status"]}},
+    )
+
+    if info["status"] in ("succeeded", "failed", "canceled"):
+        return await _finalize_pending(pending, info)
+
+    return {
+        "status": "processing",
+        "elapsed_seconds": _elapsed(pending),
+        "prediction_id": prediction_id,
+    }
+
+
+def _elapsed(pending: dict) -> int:
+    try:
+        started = datetime.fromisoformat(pending["created_at"])
+        return int((datetime.now(timezone.utc) - started).total_seconds())
+    except Exception:
+        return 0
 
 
 # ============== Public ==============
@@ -323,7 +528,6 @@ async def generate(payload: GenerateImageIn, current=Depends(get_current_user)):
 
     # Resolve model + cost
     if payload.mode == "fast":
-        # Fast: photo + style preset, but we still allow text-only fast
         style = get_style(payload.style_key) if payload.style_key else None
         if style:
             prompt = f"{prompt}, {style['suffix']}"
@@ -336,40 +540,28 @@ async def generate(payload: GenerateImageIn, current=Depends(get_current_user)):
         model_key = "standard"
         cost = COSTS["standard"] * max(1, payload.num_outputs)
 
-    # Optionally improve prompt with gpt-4o-mini
     prompt_improved = None
     if payload.improve_prompt:
         prompt_improved = await ai_improve_prompt(prompt)
 
-    # Spend credits BEFORE generation; refund on failure
-    new_balance = await _spend_credits(current["sub"], cost, f"Generate image ({model_key})")
-
-    try:
-        urls = await generate_image(
-            prompt=prompt_improved or prompt,
-            model_key=model_key,
-            aspect_ratio=payload.aspect_ratio,
-            num_outputs=payload.num_outputs,
-        )
-    except Exception as e:
-        # Refund on failure
-        logger.error(f"Generation failed: {e}")
-        new_balance = await _add_credits(current["sub"], cost, "refund", f"Refund: generation failed ({e})")
-        raise HTTPException(status_code=502, detail=f"Generation failed: {str(e)[:200]}")
-
-    if not urls:
-        new_balance = await _add_credits(current["sub"], cost, "refund", "Refund: empty output")
-        raise HTTPException(status_code=502, detail="Generation returned no images")
-
-    creation = Creation(
-        user_id=current["sub"], type="image", model_used=MODELS[model_key],
-        prompt=prompt, prompt_improved=prompt_improved,
-        style_key=payload.style_key, aspect_ratio=payload.aspect_ratio,
-        result_urls=urls, credits_spent=cost,
+    # Async pattern: spend credits + submit + return prediction_id (no waiting)
+    pending = await _create_pending(
+        user_id=current["sub"],
+        cost=cost,
+        type_="image",
+        prompt=prompt,
+        prompt_improved=prompt_improved,
+        model_key=model_key,
+        aspect_ratio=payload.aspect_ratio,
+        num_outputs=payload.num_outputs,
+        style_key=payload.style_key,
+        spend_description=f"Generate image ({model_key})",
     )
-    await db.creations.insert_one(creation.model_dump())
-
-    return {"creation": creation.model_dump(), "new_balance": new_balance}
+    return {
+        "prediction_id": pending["id"],
+        "status": "processing",
+        "new_balance": pending["balance_after_spend"],
+    }
 
 
 @api.get("/generations/history")
@@ -662,37 +854,26 @@ async def generate_edit(
     photo: UploadFile = File(...),
     current=Depends(get_current_user),
 ):
-    """Edit a photo with a free-text prompt (no style preset).
-    Parity with Telegram bot's "send a photo + describe what you want" flow.
-    Uses Grok Imagine image-in-image. Costs 12 credits.
-    """
+    """Edit a photo with a free-text prompt (no style preset). Returns
+    `prediction_id` immediately; client polls /api/predictions/{id}."""
     cost = COSTS.get("pro_base", 12)
     user, safe_prompt, hit = await _pre_generate_checks(current["sub"], current.get("role", "user"), prompt, cost)
     final_prompt = (safe_prompt or prompt.strip()) + ", preserve identity, keep same face, maintain original facial structure"
     photo_path = await save_upload(photo)
-    new_balance = await _spend_credits(current["sub"], cost, "Edit photo (free prompt)")
     try:
-        urls = await generate_image(
+        pending = await _create_pending(
+            user_id=current["sub"], cost=cost, type_="image",
             prompt=final_prompt, model_key="standard",
             aspect_ratio=aspect_ratio, num_outputs=1, image_path=photo_path,
+            spend_description="Edit photo (free prompt)",
         )
-    except Exception as e:
-        logger.error(f"Edit generation failed: {e}")
-        new_balance = await _add_credits(current["sub"], cost, "refund", f"Refund: edit failed ({e})")
-        cleanup(photo_path)
-        raise HTTPException(status_code=502, detail=f"Generation failed: {str(e)[:200]}")
     finally:
         cleanup(photo_path)
-    if not urls:
-        new_balance = await _add_credits(current["sub"], cost, "refund", "Refund: empty output")
-        raise HTTPException(status_code=502, detail="Empty output")
-    creation = Creation(
-        user_id=current["sub"], type="image", model_used=MODELS["standard"],
-        prompt=final_prompt, aspect_ratio=aspect_ratio,
-        result_urls=urls, credits_spent=cost,
-    )
-    await db.creations.insert_one(creation.model_dump())
-    return {"creation": creation.model_dump(), "new_balance": new_balance}
+    return {
+        "prediction_id": pending["id"],
+        "status": "processing",
+        "new_balance": pending["balance_after_spend"],
+    }
 
 
 
@@ -700,15 +881,14 @@ async def generate_edit(
 @api.post("/generate/easy")
 async def generate_easy(
     style_id: str = Form(...),
-    subject: str = Form("the person"),  # "the man" | "the woman" | "the person"
+    subject: str = Form("the person"),
     aspect_ratio: str = Form("4:5"),
     extra_prompt: str = Form(""),
     photo: UploadFile = File(...),
     current=Depends(get_current_user),
 ):
-    """Modo Fácil — PADRAO_STYLES do bot (≈65 estilos com prompts escritos à mão).
-    O utilizador envia foto + escolhe estilo; o prompt do estilo é aplicado tal-qual,
-    substituindo o placeholder [subject].
+    """Modo Fácil — PADRAO_STYLES (93 estilos do bot). Returns prediction_id;
+    client polls /api/predictions/{id}.
     """
     style = get_padrao(style_id)
     if not style:
@@ -716,7 +896,6 @@ async def generate_easy(
     cost = COSTS.get("fast_base", 10) + COSTS.get("fast_style_extra", 1)
     user, _, _ = await _pre_generate_checks(current["sub"], current.get("role", "user"), None, cost)
 
-    # Locked premium styles require any past purchase
     if style.get("locked"):
         prev_purchase = await db.purchases.count_documents({
             "user_id": current["sub"], "status": "completed"
@@ -730,28 +909,20 @@ async def generate_easy(
         raw_prompt = f"{raw_prompt}\n\n{extra_prompt.strip()}"
 
     photo_path = await save_upload(photo)
-    new_balance = await _spend_credits(current["sub"], cost, f"Easy ({style_id})")
     try:
-        urls = await generate_image(
-            prompt=raw_prompt, model_key="standard",  # Grok Imagine — Estúdio uses Grok only
+        pending = await _create_pending(
+            user_id=current["sub"], cost=cost, type_="image",
+            prompt=raw_prompt, model_key="standard",
             aspect_ratio=aspect_ratio, num_outputs=1, image_path=photo_path,
+            style_key=style_id, spend_description=f"Easy ({style_id})",
         )
-    except Exception as e:
-        await _add_credits(current["sub"], cost, "refund", f"Refund: easy failed ({e})")
-        cleanup(photo_path)
-        raise HTTPException(status_code=502, detail=f"Generation failed: {str(e)[:200]}")
     finally:
         cleanup(photo_path)
-    if not urls:
-        new_balance = await _add_credits(current["sub"], cost, "refund", "Refund: empty output")
-        raise HTTPException(status_code=502, detail="Empty output")
-    creation = Creation(
-        user_id=current["sub"], type="image", model_used=MODELS["standard"],
-        prompt=raw_prompt, style_key=style_id, aspect_ratio=aspect_ratio,
-        result_urls=urls, credits_spent=cost,
-    )
-    await db.creations.insert_one(creation.model_dump())
-    return {"creation": creation.model_dump(), "new_balance": new_balance}
+    return {
+        "prediction_id": pending["id"],
+        "status": "processing",
+        "new_balance": pending["balance_after_spend"],
+    }
 
 
 @api.post("/generate/pro")

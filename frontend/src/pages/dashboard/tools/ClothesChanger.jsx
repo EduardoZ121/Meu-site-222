@@ -8,6 +8,7 @@ import { useAuth } from "../../../lib/auth";
 import { compressImage } from "../../../lib/imageCompress";
 import { fileToDataURL } from "../../../lib/fileToDataURL";
 import ResultPanel from "../../../components/ResultPanel";
+import DropArea from "../../../components/DropArea";
 import useTitle from "../../../lib/useTitle";
 
 const STYLE_PRESETS = [
@@ -34,7 +35,6 @@ const errMsg = (err) =>
   err?.response?.data?.detail || err?.message || "Falhou.";
 
 function PhotoBox({ photo, onChange, label, helper, testId }) {
-  const ref = useRef(null);
   const [preview, setPreview] = useState(null);
 
   useEffect(() => {
@@ -52,31 +52,37 @@ function PhotoBox({ photo, onChange, label, helper, testId }) {
   return (
     <div className="w-full">
       <label className="block text-[#F4F1EA] text-[13px] font-medium mb-2 font-['Inter_Tight']">{label}</label>
-      <div
-        onClick={() => ref.current?.click()}
-        onDragOver={(e) => e.preventDefault()}
-        onDrop={(e) => { e.preventDefault(); pick(e.dataTransfer.files?.[0]); }}
-        className="relative aspect-square border-2 border-dashed border-[#2E2E30] hover:border-[#7C3AED]/60 bg-[#13131A]/50 rounded-md cursor-pointer transition-all flex items-center justify-center group overflow-hidden"
-        data-testid={testId}
-      >
-        {preview ? (
-          <>
-            <img src={preview} alt="" className="absolute inset-0 w-full h-full object-contain p-2" />
-            <button onClick={(e) => { e.stopPropagation(); onChange(null); }} className="absolute top-2 right-2 w-8 h-8 bg-black/70 backdrop-blur-sm rounded-full flex items-center justify-center text-white z-10">
-              <X className="w-4 h-4" />
-            </button>
-          </>
-        ) : (
-          <div className="flex flex-col items-center gap-2 text-center px-3">
+      {preview ? (
+        <div
+          className="relative aspect-square border-2 border-dashed border-[#2E2E30] bg-[#13131A]/50 rounded-md overflow-hidden"
+          data-testid={testId}
+        >
+          <img src={preview} alt="" className="absolute inset-0 w-full h-full object-contain p-2" />
+          <button
+            type="button"
+            onClick={() => onChange(null)}
+            className="absolute top-2 right-2 w-8 h-8 bg-black/70 backdrop-blur-sm rounded-full flex items-center justify-center text-white z-10"
+            data-testid={`${testId}-clear`}
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+      ) : (
+        <DropArea
+          onPick={pick}
+          testId={`${testId}-input`}
+          resetKey={photo ? 1 : 0}
+          className="relative aspect-square border-2 border-dashed border-[#2E2E30] hover:border-[#7C3AED]/60 bg-[#13131A]/50 rounded-md transition-all flex items-center justify-center group overflow-hidden"
+        >
+          <div className="flex flex-col items-center gap-2 text-center px-3 pointer-events-none">
             <div className="w-12 h-12 rounded-full bg-[#7C3AED]/10 flex items-center justify-center group-hover:bg-[#7C3AED]/20 transition-colors">
               <Upload className="w-4 h-4 text-[#7C3AED]" strokeWidth={1.5} />
             </div>
             <p className="text-[#F4F1EA] text-[12px] font-medium">Clique para enviar</p>
             <p className="text-[#5A5A5E] text-[10px]">{helper}</p>
           </div>
-        )}
-      </div>
-      <input ref={ref} type="file" accept="image/*" className="hidden" onChange={(e) => pick(e.target.files?.[0])} />
+        </DropArea>
+      )}
     </div>
   );
 }

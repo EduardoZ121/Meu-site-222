@@ -150,8 +150,8 @@ export default function Colorize() {
                 </button>
               )}
             </div>
-            <div
-              onClick={() => !photoPreview && fileRef.current?.click()}
+            <label htmlFor="file-colorize"
+              
               onDragOver={(e) => e.preventDefault()}
               onDrop={(e) => { e.preventDefault(); handlePick(e.dataTransfer.files?.[0]); }}
               className={`relative ${photoPreview ? "aspect-[16/10]" : "aspect-[2/1]"} rounded-2xl border-2 border-dashed transition-all overflow-hidden ${
@@ -190,9 +190,8 @@ export default function Colorize() {
                   </p>
                 </div>
               )}
-            </div>
-            <input
-              ref={fileRef}
+            </label>
+            <input id="file-colorize" ref={fileRef}
               type="file"
               accept="image/*"
               className="hidden"

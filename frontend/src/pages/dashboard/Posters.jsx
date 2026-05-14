@@ -482,8 +482,8 @@ function Editor(props) {
             <label className="block text-[#F4F1EA] text-[13px] font-medium mb-4 uppercase tracking-[0.16em] font-['Inter_Tight']">
               01 · Foto de Referência <span className="text-[#5A5A5E] normal-case tracking-normal text-[11px] font-normal">(opcional)</span>
             </label>
-            <div
-              onClick={() => !photoPreview && fileRef.current?.click()}
+            <label htmlFor="file-posters"
+              
               onDragOver={(e) => e.preventDefault()}
               onDrop={(e) => { e.preventDefault(); handlePick(e.dataTransfer.files?.[0]); }}
               className={`relative aspect-[16/8] rounded-2xl border-2 border-dashed transition-all overflow-hidden ${
@@ -518,9 +518,8 @@ function Editor(props) {
                   </p>
                 </div>
               )}
-            </div>
-            <input
-              ref={fileRef}
+            </label>
+            <input id="file-posters" ref={fileRef}
               type="file"
               accept="image/*"
               className="hidden"

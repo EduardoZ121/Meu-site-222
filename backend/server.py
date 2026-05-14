@@ -1065,6 +1065,7 @@ async def generate_carousel(
 ):
     """Generate a connected Instagram carousel (2–10 slides).
     Accepts JSON or multipart (with optional reference photo for identity preservation).
+    Models: grok (Grok Imagine, default) or gpt_image (OpenAI gpt-image-1, no photo support).
     """
     ct = (request.headers.get("content-type") or "").lower()
     photo_path = None
@@ -1080,6 +1081,7 @@ async def generate_carousel(
         keep_lighting = (form.get("keep_lighting") or "true").lower() == "true"
         keep_palette = (form.get("keep_palette") or "true").lower() == "true"
         smooth_transitions = (form.get("smooth_transitions") or "true").lower() == "true"
+        model_key = (form.get("model_key") or "grok").strip()
         upload = form.get("photo")
         if upload is not None and hasattr(upload, "filename"):
             photo_path = await save_upload(upload)
@@ -1092,32 +1094,46 @@ async def generate_carousel(
         keep_lighting = bool(payload.get("keep_lighting", True))
         keep_palette = bool(payload.get("keep_palette", True))
         smooth_transitions = bool(payload.get("smooth_transitions", True))
+        model_key = (payload.get("model_key") or "grok").strip()
 
     slides = [s.strip() for s in slides if isinstance(s, str) and s.strip()]
     if not (2 <= len(slides) <= 10):
         if photo_path: cleanup(photo_path)
         raise HTTPException(status_code=400, detail="Carousel requires 2 to 10 slides")
 
-    cost = COSTS["carousel_per_slide"] * len(slides)
-    await _pre_generate_checks(current["sub"], current.get("role", "user"), " ".join(slides), cost)
-    new_balance = await _spend_credits(current["sub"], cost, f"Carousel ({len(slides)} slides)")
+    # gpt_image has no img-to-img: auto-fallback to grok if photo provided
+    if photo_path and model_key == "gpt_image":
+        model_key = "grok"
 
-    # When a reference photo is provided, use Flux 2 Klein image-in-image for identity-preserving slides.
-    model_key = "pro" if photo_path else "standard"
-    model_label = MODELS[model_key]
+    CAROUSEL_COSTS = {"grok": 8, "gpt_image": 18}
+    if model_key not in CAROUSEL_COSTS:
+        if photo_path: cleanup(photo_path)
+        raise HTTPException(status_code=400, detail="Unknown model")
+    cost_per_slide = CAROUSEL_COSTS[model_key]
+    cost = cost_per_slide * len(slides)
+    await _pre_generate_checks(current["sub"], current.get("role", "user"), " ".join(slides), cost)
+    new_balance = await _spend_credits(current["sub"], cost, f"Carousel ({len(slides)} slides · {model_key})")
+
+    model_label = "openai/gpt-image-1" if model_key == "gpt_image" else MODELS["standard"]
     all_urls: list[str] = []
     total = len(slides)
     try:
         for i, slide_prompt in enumerate(slides):
             continuity = _build_continuity_clause(keep_character, keep_lighting, keep_palette, smooth_transitions, i, total)
             composed = ". ".join(x for x in [slide_prompt, style_suffix, continuity] if x).strip(". ")
-            urls = await generate_image(
-                prompt=composed,
-                model_key=model_key, aspect_ratio=aspect_ratio, num_outputs=1,
-                image_path=photo_path,
-            )
-            if urls:
-                all_urls.extend(urls[:1])
+            if model_key == "gpt_image":
+                url = await generate_poster_image(composed)
+                if url:
+                    all_urls.append(url)
+            else:
+                # Grok — single img2img or text-only
+                urls = await generate_image(
+                    prompt=composed,
+                    model_key="standard", aspect_ratio=aspect_ratio, num_outputs=1,
+                    image_path=photo_path,
+                )
+                if urls:
+                    all_urls.extend(urls[:1])
     except Exception as e:
         await _add_credits(current["sub"], cost, "refund", f"Refund: carousel failed ({e})")
         if photo_path: cleanup(photo_path)

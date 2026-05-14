@@ -34,6 +34,11 @@ const ASPECTS = [
   { key: "3:4",  label: "3:4 · Vertical" },
 ];
 
+const MODELS = [
+  { key: "grok",      label: "Grok",         cost: 8,  hint: "Rápido · default" },
+  { key: "gpt_image", label: "GPT Image 1",  cost: 18, hint: "Qualidade Premium (sem foto ref)" },
+];
+
 const errMsg = (err) =>
   err?.code === "ECONNABORTED" ? "Tempo esgotado — tenta de novo." :
   err?.response?.status === 402 ? "Créditos insuficientes." :
@@ -64,9 +69,11 @@ export default function CarouselPage() {
   const [busy, setBusy] = useState(false);
   const [progress, setProgress] = useState(0); // optimistic progress while waiting
   const [result, setResult] = useState(null);
+  const [modelKey, setModelKey] = useState("grok");
 
   const fileRef = useRef(null);
-  const totalCost = slides.length * COST_PER_SLIDE;
+  const perSlide = MODELS.find((m) => m.key === modelKey)?.cost || 8;
+  const totalCost = slides.length * perSlide;
 
   useEffect(() => {
     let cancelled = false;
@@ -111,6 +118,12 @@ export default function CarouselPage() {
       setProgress(Math.min(95, Math.round((elapsed / totalMs) * 100)));
     }, 500);
     try {
+      // GPT Image 1 has no image-to-image — if photo present, auto-switch to grok and notify.
+      let effectiveModel = modelKey;
+      if (photo && modelKey === "gpt_image") {
+        effectiveModel = "grok";
+        toast.info("GPT Image 1 não suporta foto de referência — a usar Grok.");
+      }
       let data;
       if (photo) {
         const fd = new FormData();
@@ -121,6 +134,7 @@ export default function CarouselPage() {
         fd.append("keep_lighting", keepLighting ? "true" : "false");
         fd.append("keep_palette", keepPalette ? "true" : "false");
         fd.append("smooth_transitions", smoothTransitions ? "true" : "false");
+        fd.append("model_key", effectiveModel);
         fd.append("photo", photo);
         ({ data } = await api.post("/generate/carousel", fd, { timeout: 600000 }));
       } else {
@@ -132,6 +146,7 @@ export default function CarouselPage() {
           keep_lighting: keepLighting,
           keep_palette: keepPalette,
           smooth_transitions: smoothTransitions,
+          model_key: effectiveModel,
         }, { timeout: 600000 }));
       }
       setProgress(100);
@@ -177,8 +192,8 @@ export default function CarouselPage() {
             <label className="block text-[#F4F1EA] text-[13px] font-medium mb-4 uppercase tracking-[0.16em] font-['Inter_Tight']">
               01 · Personagem / Produto de Referência <span className="text-[#5A5A5E] normal-case tracking-normal text-[11px] font-normal">(opcional, mas recomendado)</span>
             </label>
-            <div
-              onClick={() => !photoPreview && fileRef.current?.click()}
+            <label htmlFor="file-carousel"
+              
               onDragOver={(e) => e.preventDefault()}
               onDrop={(e) => { e.preventDefault(); handlePick(e.dataTransfer.files?.[0]); }}
               className={`relative aspect-[16/8] rounded-2xl border-2 border-dashed transition-all overflow-hidden ${
@@ -213,9 +228,8 @@ export default function CarouselPage() {
                   </p>
                 </div>
               )}
-            </div>
-            <input
-              ref={fileRef}
+            </label>
+            <input id="file-carousel" ref={fileRef}
               type="file"
               accept="image/*"
               className="hidden"
@@ -358,6 +372,47 @@ export default function CarouselPage() {
               ))}
             </div>
           </section>
+          {/* 4.5 · Model toggle (Grok vs GPT Image 1) */}
+          <section>
+            <label className="block text-[#F4F1EA] text-[13px] font-medium mb-4 uppercase tracking-[0.16em] font-['Inter_Tight']">
+              Modelo de IA
+            </label>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3" data-testid="carousel-model-toggle">
+              {MODELS.map((m) => {
+                const disabled = m.key === "gpt_image" && !!photo;
+                const active = modelKey === m.key;
+                return (
+                  <button
+                    key={m.key}
+                    onClick={() => !disabled && setModelKey(m.key)}
+                    disabled={disabled}
+                    data-testid={`carousel-model-${m.key}`}
+                    className={`relative text-left p-4 rounded-xl border-2 transition-all overflow-hidden ${
+                      disabled
+                        ? "border-[#1F1F22] bg-[#0E0E12]/40 opacity-50 cursor-not-allowed"
+                        : active
+                          ? "border-[#7C3AED] bg-[#7C3AED]/10"
+                          : "border-[#2E2E30] bg-[#13131A]/50 hover:border-[#7C3AED]/40"
+                    }`}
+                  >
+                    {active && (
+                      <div className="absolute -top-10 -right-10 w-32 h-32 bg-[#7C3AED]/20 blur-3xl pointer-events-none" />
+                    )}
+                    <p className={`relative text-[15px] font-light tracking-[-0.01em] mb-1 font-['Inter_Tight'] ${active ? "text-[#F4F1EA]" : "text-[#F4F1EA]/85"}`}>
+                      {m.label}
+                    </p>
+                    <p className="relative text-[#8A8A8E] text-[11px] mb-1.5">{m.hint}</p>
+                    <p className="relative text-[#C4B5FD] text-[12px] font-mono">{m.cost} créditos / slide</p>
+                    {disabled && (
+                      <p className="absolute bottom-2 right-3 text-[9px] font-mono uppercase text-[#5A5A5E]">requer sem foto</p>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          </section>
+
+
 
           {/* 5 · Aspect */}
           <section>

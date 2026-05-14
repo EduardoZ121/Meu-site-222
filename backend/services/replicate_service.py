@@ -1,8 +1,23 @@
 """Replicate API service for image + video generation."""
 import os
+import base64
+import mimetypes
 import asyncio
 from typing import List, Optional
 import replicate
+
+
+def _file_to_data_uri(path: str) -> str:
+    """Encode a local image as a data: URI so models that read the extension
+    from the URL (e.g. xai/grok-imagine-image) can detect the format reliably.
+    """
+    mime, _ = mimetypes.guess_type(path)
+    if not mime:
+        mime = "image/jpeg"
+    with open(path, "rb") as f:
+        b64 = base64.b64encode(f.read()).decode("ascii")
+    return f"data:{mime};base64,{b64}"
+
 
 REPLICATE_TOKEN = os.environ.get("REPLICATE_API_TOKEN")
 if REPLICATE_TOKEN:
@@ -134,14 +149,16 @@ async def generate_image(
 
     file_handles: list = []
     if image_path:
-        fh = open(image_path, "rb")
-        file_handles.append(fh)
-        if model_key in ("pro", "artistic"):
-            payload["images"] = [fh]            # Flux 2 Klein
-        elif model_key == "kontext":
-            payload["input_image"] = fh         # Flux Kontext
-        elif model_key == "standard":
-            payload["image"] = fh               # Grok Imagine
+        if model_key == "standard":
+            # Grok needs a URL with a recognizable extension; data URIs work reliably.
+            payload["image"] = _file_to_data_uri(image_path)
+        else:
+            fh = open(image_path, "rb")
+            file_handles.append(fh)
+            if model_key in ("pro", "artistic"):
+                payload["images"] = [fh]            # Flux 2 Klein
+            elif model_key == "kontext":
+                payload["input_image"] = fh         # Flux Kontext
 
     def _run():
         client = replicate.Client(api_token=REPLICATE_TOKEN.strip())

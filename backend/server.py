@@ -611,7 +611,7 @@ async def generate_edit(
 ):
     """Edit a photo with a free-text prompt (no style preset).
     Parity with Telegram bot's "send a photo + describe what you want" flow.
-    Uses Flux 2 Klein image-in-image (same as Pro mode). Costs 12 credits.
+    Uses Grok Imagine image-in-image. Costs 12 credits.
     """
     cost = COSTS.get("pro_base", 12)
     user, safe_prompt, hit = await _pre_generate_checks(current["sub"], current.get("role", "user"), prompt, cost)
@@ -620,7 +620,7 @@ async def generate_edit(
     new_balance = await _spend_credits(current["sub"], cost, "Edit photo (free prompt)")
     try:
         urls = await generate_image(
-            prompt=final_prompt, model_key="pro",
+            prompt=final_prompt, model_key="standard",
             aspect_ratio=aspect_ratio, num_outputs=1, image_path=photo_path,
         )
     except Exception as e:
@@ -634,7 +634,7 @@ async def generate_edit(
         new_balance = await _add_credits(current["sub"], cost, "refund", "Refund: empty output")
         raise HTTPException(status_code=502, detail="Empty output")
     creation = Creation(
-        user_id=current["sub"], type="image", model_used=MODELS["pro"],
+        user_id=current["sub"], type="image", model_used=MODELS["standard"],
         prompt=final_prompt, aspect_ratio=aspect_ratio,
         result_urls=urls, credits_spent=cost,
     )
@@ -680,7 +680,7 @@ async def generate_easy(
     new_balance = await _spend_credits(current["sub"], cost, f"Easy ({style_id})")
     try:
         urls = await generate_image(
-            prompt=raw_prompt, model_key="pro",  # uses Flux for image-in-image fidelity
+            prompt=raw_prompt, model_key="standard",  # Grok Imagine — Estúdio uses Grok only
             aspect_ratio=aspect_ratio, num_outputs=1, image_path=photo_path,
         )
     except Exception as e:
@@ -693,7 +693,7 @@ async def generate_easy(
         new_balance = await _add_credits(current["sub"], cost, "refund", "Refund: empty output")
         raise HTTPException(status_code=502, detail="Empty output")
     creation = Creation(
-        user_id=current["sub"], type="image", model_used=MODELS["pro"],
+        user_id=current["sub"], type="image", model_used=MODELS["standard"],
         prompt=raw_prompt, style_key=style_id, aspect_ratio=aspect_ratio,
         result_urls=urls, credits_spent=cost,
     )

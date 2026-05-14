@@ -1452,6 +1452,9 @@ class SettingsIn(BaseModel):
     num_variations_default: int | None = None
     personality: str | None = None
     lang: str | None = None
+    quality: str | None = None         # "fast" | "balanced" | "high"
+    generation_mode: str | None = None # "creative" | "balanced" | "realistic"
+    notifications: bool | None = None
 
 
 @api.get("/settings")
@@ -1463,6 +1466,9 @@ async def get_settings(current=Depends(get_current_user)):
         "num_variations_default": s.get("num_variations_default", 1),
         "personality": s.get("personality", "creative"),
         "lang": s.get("lang", "pt"),
+        "quality": s.get("quality", "balanced"),
+        "generation_mode": s.get("generation_mode", "balanced"),
+        "notifications": s.get("notifications", True),
     }
 
 
@@ -1476,6 +1482,26 @@ async def update_settings(payload: SettingsIn, current=Depends(get_current_user)
     if "lang" in update:
         await db.users.update_one({"id": current["sub"]}, {"$set": {"lang": update["lang"]}})
     return {"ok": True}
+
+
+@api.get("/me/referrals/stats")
+async def referral_stats(current=Depends(get_current_user)):
+    """Stats for the referral / sharing page."""
+    user = await _user_doc(current["sub"])
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    referred_count = await db.users.count_documents({"referred_by": user["id"]})
+    earned = await db.credit_transactions.aggregate([
+        {"$match": {"user_id": user["id"], "type": "referral"}},
+        {"$group": {"_id": None, "total": {"$sum": "$amount"}}},
+    ]).to_list(1)
+    total_earned = (earned[0]["total"] if earned else 0)
+    return {
+        "code": user.get("referral_code"),
+        "referred_count": referred_count,
+        "credits_earned": total_earned,
+        "reward_per_referral": 30,
+    }
 
 
 @api.post("/me/toggle-public/{creation_id}")

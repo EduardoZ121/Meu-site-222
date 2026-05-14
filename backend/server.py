@@ -36,7 +36,7 @@ from services import rate_limit, nsfw  # noqa: E402
 from fast_styles import FAST_STYLES, get_style  # noqa: E402
 from artistic_styles import ARTISTIC_STYLES, get_artistic  # noqa: E402
 from pro_presets import PRO_PRESETS, get_pro_preset  # noqa: E402
-from poster_templates import POSTER_TEMPLATES, get_poster  # noqa: E402
+from poster_templates import POSTER_TEMPLATES, get_poster, POSTER_DIRECTOR, MOOD_EXPANSIONS  # noqa: E402
 from padrao_styles import PADRAO_STYLES, GROUP_LABELS, list_categories, get_padrao  # noqa: E402
 from visual_styles import VISUAL_STYLES, get_visual_style  # noqa: E402
 from aspect_ratios import ASPECT_RATIOS  # noqa: E402
@@ -966,14 +966,20 @@ async def generate_poster_route(
     total_cost = per_image_cost * num_outputs
 
     raw_prompt = tpl["prompt"].format(**{k: placeholders[k] for k in tpl["placeholders"]})
-    # Append optional mood + color guidance
+    # Build extras: expand mood UI choice to a rich visual descriptor; add color hint.
     extras = []
     if mood:
-        extras.append(f"Visual mood: {mood}")
+        mood_desc = MOOD_EXPANSIONS.get(mood, f"Visual mood: {mood}.")
+        extras.append(mood_desc)
     if color_hint:
-        extras.append(f"Dominant color palette anchored on {color_hint}")
+        extras.append(
+            f"Anchor the dominant color palette around {color_hint} — use it as the primary "
+            "accent hue across backgrounds, typographic highlights and graphic blocks."
+        )
+    # Universal art-direction prefix first, then the template prompt, then the user extras.
+    raw_prompt = POSTER_DIRECTOR + raw_prompt
     if extras:
-        raw_prompt = f"{raw_prompt} {'. '.join(extras)}."
+        raw_prompt = f"{raw_prompt} {' '.join(extras)}"
 
     user, safe_prompt, _ = await _pre_generate_checks(current["sub"], current.get("role", "user"), raw_prompt, total_cost)
     prompt = safe_prompt or raw_prompt

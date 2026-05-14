@@ -92,27 +92,54 @@ async def generate_image(
     num_outputs: int = 1,
     image_path: Optional[str] = None,
 ) -> List[str]:
-    """Generate image(s) via Replicate."""
+    """Generate image(s) via Replicate.
+
+    Image-to-image parameter names differ per model:
+      - flux-2-klein-9b (pro/artistic): `images` (array, max 5)
+      - flux-kontext-max (kontext):     `input_image` (string)
+      - grok-imagine-image (standard):  `image` (string)
+    When a reference photo is provided we MUST pass it under the correct key
+    or the upstream silently falls back to text-only generation.
+    """
     if not REPLICATE_TOKEN:
         raise RuntimeError("REPLICATE_API_TOKEN not configured")
 
     model_id = MODELS.get(model_key, MODELS["standard"])
-    payload: dict = {
-        "prompt": prompt,
-        "aspect_ratio": normalize_aspect_ratio(aspect_ratio, model_key),
-        "num_outputs": num_outputs,
-    }
-    if image_path and model_key in ("pro", "artistic", "kontext"):
-        payload["image"] = open(image_path, "rb")
+    payload: dict = {"prompt": prompt}
+
+    # aspect ratio handling
+    if image_path:
+        # When editing an existing image: match input ratio (Flux family supports the keyword;
+        # Grok ignores aspect_ratio while editing, so any value is harmless).
+        if model_key in ("pro", "artistic", "kontext"):
+            payload["aspect_ratio"] = "match_input_image"
+        else:
+            payload["aspect_ratio"] = normalize_aspect_ratio(aspect_ratio, model_key)
+    else:
+        payload["aspect_ratio"] = normalize_aspect_ratio(aspect_ratio, model_key)
+
+    # num_outputs is supported by Grok and Flux 2 Klein; Flux Kontext returns 1.
+    if model_key in ("standard", "pro", "artistic"):
+        payload["num_outputs"] = num_outputs
+
+    file_handles: list = []
+    if image_path:
+        fh = open(image_path, "rb")
+        file_handles.append(fh)
+        if model_key in ("pro", "artistic"):
+            payload["images"] = [fh]            # Flux 2 Klein
+        elif model_key == "kontext":
+            payload["input_image"] = fh         # Flux Kontext
+        elif model_key == "standard":
+            payload["image"] = fh               # Grok Imagine
 
     def _run():
         client = replicate.Client(api_token=REPLICATE_TOKEN.strip())
         try:
             return client.run(model_id, input=payload)
         finally:
-            # close file if we opened one
-            if "image" in payload and hasattr(payload["image"], "close"):
-                try: payload["image"].close()
+            for h in file_handles:
+                try: h.close()
                 except Exception: pass
 
     output = await asyncio.to_thread(_run)

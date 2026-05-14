@@ -6,6 +6,7 @@ import { useAuth } from "../../lib/auth";
 import { useI18n } from "../../lib/i18n";
 import { toast } from "sonner";
 import PhotoUpload from "../../components/PhotoUpload";
+import AspectPicker from "../../components/AspectPicker";
 import ResultPanel from "../../components/ResultPanel";
 import { compressImage } from "../../lib/imageCompress";
 import useTitle from "../../lib/useTitle";
@@ -60,6 +61,14 @@ export default function Generate() {
   useEffect(() => {
     api.get("/public/padrao-styles").then((r) => setPadrao(r.data.styles || [])).catch(() => {});
   }, []);
+
+  // When a photo is uploaded, default to "Original" aspect ratio (match the photo's dimensions).
+  // When the photo is removed, fall back to 4:5.
+  useEffect(() => {
+    if (photo) setAspect("match");
+    else if (aspect === "match") setAspect("4:5");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [photo]);
 
   const padraoCats = useMemo(() => Array.from(new Set(padrao.map((s) => s.cat))), [padrao]);
   const padraoFiltered = padrao.filter((s) => s.cat === padraoCat);
@@ -266,20 +275,7 @@ export default function Generate() {
           {/* Step 4 — aspect ratio */}
           <div className="mb-10">
             <p className="text-[10px] font-mono uppercase tracking-[0.22em] text-[#7C3AED] mb-3">4 · Formato</p>
-            <div className="grid grid-cols-3 sm:grid-cols-6 gap-2" data-testid="aspect-ratios">
-              {ASPECT_RATIOS.map((a) => {
-                const map = { "1:1":[14,14],"3:4":[12,16],"4:5":[13,16],"9:16":[10,18],"16:9":[18,10],"21:9":[20,9] };
-                const [w,h] = map[a] || [14,14];
-                return (
-                  <button key={a} onClick={() => setAspect(a)}
-                    className={`flex flex-col items-center justify-center gap-1.5 py-3 border-2 rounded-md text-[11px] font-medium transition-all ${aspect === a ? "border-[#7C3AED] bg-[#7C3AED]/10 text-[#C4B5FD] shadow-md shadow-[#7C3AED]/20" : "border-[#2E2E30] text-[#8A8A8E] hover:border-[#7C3AED]/40 hover:text-[#F4F1EA]"}`}
-                    data-testid={`aspect-${a}`}>
-                    <div className="border-[1.5px] border-current rounded-[1px]" style={{ width: w+"px", height: h+"px" }} />
-                    <span className="font-mono">{a}</span>
-                  </button>
-                );
-              })}
-            </div>
+            <AspectPicker value={aspect} onChange={setAspect} hasPhoto={!!photo} testIdPrefix="aspect" />
           </div>
 
           {/* CTA */}

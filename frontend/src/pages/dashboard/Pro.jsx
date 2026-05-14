@@ -6,6 +6,7 @@ import { api } from "../../lib/api";
 import { useAuth } from "../../lib/auth";
 import { toast } from "sonner";
 import ResultPanel from "../../components/ResultPanel";
+import AspectPicker from "../../components/AspectPicker";
 import { compressImage } from "../../lib/imageCompress";
 import { fileToDataURL } from "../../lib/fileToDataURL";
 import useTitle from "../../lib/useTitle";
@@ -83,13 +84,19 @@ export default function Pro() {
   const [presets, setPresets] = useState([]);
   const [category, setCategory] = useState("realism");
   const [preset, setPreset] = useState("ultra_real");
-  const [aspect, setAspect] = useState("4:5");
+  const [aspect, setAspect] = useState("match");
   const [photo, setPhoto] = useState(null);
   const [intensity, setIntensity] = useState(70);
   const [customPrompt, setCustomPrompt] = useState("");
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState(null);
   const cost = 18;
+
+  // Snap back to a real ratio if photo is removed
+  useEffect(() => {
+    if (!photo && aspect === "match") setAspect("4:5");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [photo]);
 
   useEffect(() => {
     api.get("/public/pro-presets").then((r) => setPresets(r.data.presets || []));
@@ -248,18 +255,7 @@ export default function Pro() {
           {/* Step 6 — Aspect ratio */}
           <section>
             <p className="text-[10px] font-mono uppercase tracking-[0.22em] text-[#7C3AED] mb-3">6 · Formato</p>
-            <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
-              {ASPECT_RATIOS.map((a) => {
-                const map = { "1:1":[14,14],"3:4":[12,16],"4:5":[13,16],"9:16":[10,18],"16:9":[18,10],"21:9":[20,9] };
-                const [w,h] = map[a];
-                return (
-                  <button key={a} onClick={() => setAspect(a)} className={`flex flex-col items-center justify-center gap-1.5 py-3 border-2 rounded-md text-[11px] font-medium transition-all ${aspect === a ? "border-[#7C3AED] bg-[#7C3AED]/10 text-[#C4B5FD] shadow-md shadow-[#7C3AED]/20" : "border-[#2E2E30] text-[#8A8A8E] hover:border-[#7C3AED]/40 hover:text-[#F4F1EA]"}`} data-testid={`pro-aspect-${a}`}>
-                    <div className="border-[1.5px] border-current rounded-[1px]" style={{ width: w+"px", height: h+"px" }} />
-                    <span className="font-mono">{a}</span>
-                  </button>
-                );
-              })}
-            </div>
+            <AspectPicker value={aspect} onChange={setAspect} hasPhoto={!!photo} testIdPrefix="pro-aspect" />
           </section>
         </div>
 

@@ -108,15 +108,25 @@ async def generate_image(
     payload: dict = {"prompt": prompt}
 
     # aspect ratio handling
+    AR_MATCH = ("", "match", "match_input_image", "original")
     if image_path:
-        # When editing an existing image: match input ratio (Flux family supports the keyword;
-        # Grok ignores aspect_ratio while editing, so any value is harmless).
-        if model_key in ("pro", "artistic", "kontext"):
-            payload["aspect_ratio"] = "match_input_image"
+        # When editing an existing image: match input ratio if the caller asked for it (or didn't specify)
+        if aspect_ratio in AR_MATCH:
+            if model_key in ("pro", "artistic", "kontext"):
+                payload["aspect_ratio"] = "match_input_image"
+            else:  # standard (Grok) ignores aspect when editing — keep something valid
+                payload["aspect_ratio"] = "1:1"
+        else:
+            if model_key in ("pro", "artistic", "kontext"):
+                payload["aspect_ratio"] = normalize_aspect_ratio(aspect_ratio, model_key)
+            else:
+                payload["aspect_ratio"] = normalize_aspect_ratio(aspect_ratio, model_key)
+    else:
+        # No reference image
+        if aspect_ratio in AR_MATCH:
+            payload["aspect_ratio"] = "1:1"
         else:
             payload["aspect_ratio"] = normalize_aspect_ratio(aspect_ratio, model_key)
-    else:
-        payload["aspect_ratio"] = normalize_aspect_ratio(aspect_ratio, model_key)
 
     # num_outputs is supported by Grok and Flux 2 Klein; Flux Kontext returns 1.
     if model_key in ("standard", "pro", "artistic"):

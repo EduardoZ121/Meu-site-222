@@ -47,7 +47,7 @@ MOOD_EXPANSIONS = {
 POSTER_TEMPLATES = [ { 'id': 'fl_general',
     'category': 'flyer',
     'label': "💼 Flyer Geral 'WE WANT YOU'",
-    'placeholders': [],
+    'placeholders': ['headline', 'subtitle', 'positions', 'contact_email'],
     'prompt': 'Edit this image into a creative recruitment poster featuring the person positioned on the right side, arms crossed, smiling '
               'naturally while facing slightly to the left. Radiating confidence and warmth, wearing a stylish red blazer over a white '
               'blouse. Maintain a red, black, and white geometric background, with circular and linear design elements framing the figure. '
@@ -57,11 +57,16 @@ POSTER_TEMPLATES = [ { 'id': 'fl_general',
               'professional, inviting design. preserve identity, keep same face, keep facial structure, keep skin tone, maintain original '
               'identity, do not change person, realistic face consistency, preserve original facial expression, keep same emotion, keep '
               'same eye expression, keep same pose',
-    'aspect': '4:5'},
+    'aspect': '4:5',
+    'replacements': { 'headline': 'WE WANT YOU!',
+                      'subtitle': 'Join Our Professionals Team.',
+                      'positions': 'Graphic Designer, Marketing Staff, Finance Accountant, Operational Staff',
+                      'contact_email': 'company@gmail.com'},
+    'optional': ['headline', 'subtitle', 'positions', 'contact_email']},
   { 'id': 'fl_tech',
     'category': 'flyer',
     'label': '💻 Flyer Tech Futurista',
-    'placeholders': [],
+    'placeholders': ['headline', 'subtitle', 'positions', 'contact_email'],
     'prompt': 'Edit this image into a modern tech recruitment poster featuring the person standing confidently slightly to the left side, '
               'holding a tablet, with a focused and professional expression. Wearing a smart casual outfit (dark blazer over a neutral '
               'shirt). Background with futuristic blue and purple gradient, subtle grid lines and glowing UI elements. Headline on the '
@@ -70,11 +75,16 @@ POSTER_TEMPLATES = [ { 'id': 'fl_general',
               'Lighting slightly neon, high contrast, modern startup aesthetic. preserve identity, keep same face, keep facial structure, '
               'keep skin tone, maintain original identity, do not change person, realistic face consistency, preserve original facial '
               'expression, keep same emotion, keep same eye expression, keep same pose',
-    'aspect': '4:5'},
+    'aspect': '4:5',
+    'replacements': { 'headline': 'JOIN OUR TEAM',
+                      'subtitle': 'Build the Future With Us.',
+                      'positions': 'Software Engineer - UI/UX Designer - Data Analyst - Product Manager',
+                      'contact_email': 'careers@techvision.com'},
+    'optional': ['headline', 'subtitle', 'positions', 'contact_email']},
   { 'id': 'fl_corporate',
     'category': 'flyer',
     'label': '🏢 Flyer Corporativo Limpo',
-    'placeholders': [],
+    'placeholders': ['headline', 'subtitle', 'positions', 'contact_email'],
     'prompt': 'Edit this image into a corporate recruitment flyer featuring the person seated at a desk, hands gently crossed, calm and '
               'confident expression. Wearing formal attire (blazer or suit). Background clean white with subtle grey lines and minimal '
               "design. Headline: 'WE ARE HIRING'. Subtext: 'Join Our Professional Team'. Open roles: Administrative Assistant, HR Manager, "
@@ -82,11 +92,16 @@ POSTER_TEMPLATES = [ { 'id': 'fl_general',
               'layout, professional and trustworthy feel. preserve identity, keep same face, keep facial structure, keep skin tone, '
               'maintain original identity, do not change person, realistic face consistency, preserve original facial expression, keep '
               'same emotion, keep same eye expression, keep same pose',
-    'aspect': '4:5'},
+    'aspect': '4:5',
+    'replacements': { 'headline': 'WE ARE HIRING',
+                      'subtitle': 'Join Our Professional Team',
+                      'positions': 'Administrative Assistant, HR Manager, Accountant, Office Coordinator',
+                      'contact_email': 'hr@companygroup.com'},
+    'optional': ['headline', 'subtitle', 'positions', 'contact_email']},
   { 'id': 'fl_fitness',
     'category': 'flyer',
     'label': '💪 Flyer Fitness Power',
-    'placeholders': [],
+    'placeholders': ['headline', 'subtitle', 'positions', 'contact_email'],
     'prompt': 'Edit this image into a fitness recruitment poster featuring the person in a strong confident pose, arms slightly flexed or '
               'hands on hips, energetic expression. Wearing athletic outfit (gym wear). Background dark with red and black tones, smoke '
               "effects and light streaks. Headline: 'WE'RE BUILDING CHAMPIONS'. Subtext: 'Join Our Fitness Team'. Hiring: Personal "
@@ -94,11 +109,16 @@ POSTER_TEMPLATES = [ { 'id': 'fl_general',
               'contrast lighting, dramatic shadows, intense gym vibe. preserve identity, keep same face, keep facial structure, keep skin '
               'tone, maintain original identity, do not change person, realistic face consistency, preserve original facial expression, '
               'keep same emotion, keep same eye expression, keep same pose',
-    'aspect': '4:5'},
+    'aspect': '4:5',
+    'replacements': { 'headline': "WE'RE BUILDING CHAMPIONS",
+                      'subtitle': 'Join Our Fitness Team',
+                      'positions': 'Personal Trainer, Fitness Coach, Nutrition Specialist, Gym Assistant',
+                      'contact_email': 'fitness@powergym.com'},
+    'optional': ['headline', 'subtitle', 'positions', 'contact_email']},
   { 'id': 'fl_restaurant',
     'category': 'flyer',
     'label': '🍷 Flyer Restaurante Acolhedor',
-    'placeholders': [],
+    'placeholders': ['headline', 'subtitle', 'positions', 'contact_email'],
     'prompt': 'Edit this image into a restaurant hiring flyer featuring the person standing slightly sideways holding a tray or menu, '
               'friendly and welcoming smile. Wearing hospitality uniform or elegant outfit. Warm background with golden lighting, '
               "restaurant ambiance blur. Headline: 'JOIN OUR TEAM'. Subtext: 'We're Hiring Passionate People'. Positions: Waiter / "
@@ -106,11 +126,16 @@ POSTER_TEMPLATES = [ { 'id': 'fl_general',
               'inviting atmosphere, soft glow. preserve identity, keep same face, keep facial structure, keep skin tone, maintain original '
               'identity, do not change person, realistic face consistency, preserve original facial expression, keep same emotion, keep '
               'same eye expression, keep same pose',
-    'aspect': '4:5'},
+    'aspect': '4:5',
+    'replacements': { 'headline': 'JOIN OUR TEAM',
+                      'subtitle': "We're Hiring Passionate People",
+                      'positions': 'Waiter / Waitress, Chef Assistant, Bartender, Kitchen Staff',
+                      'contact_email': 'jobs@finebistro.com'},
+    'optional': ['headline', 'subtitle', 'positions', 'contact_email']},
   { 'id': 'fl_creative',
     'category': 'flyer',
     'label': '🎨 Flyer Agência Criativa',
-    'placeholders': [],
+    'placeholders': ['headline', 'subtitle', 'positions', 'contact_email'],
     'prompt': 'Edit this image into a creative agency recruitment poster featuring the person in a relaxed artistic pose, slightly '
               'leaning, confident and creative expression. Wearing stylish modern outfit. Background with abstract shapes, colorful '
               "gradients (purple, orange, blue), paint strokes and design elements. Headline: 'CREATIVITY WANTED'. Subtext: 'Join Our "
@@ -118,31 +143,40 @@ POSTER_TEMPLATES = [ { 'id': 'fl_general',
               'button. Contact: hello@creativelab.com. Vibrant colors, artistic layout, modern design style. preserve identity, keep same '
               'face, keep facial structure, keep skin tone, maintain original identity, do not change person, realistic face consistency, '
               'preserve original facial expression, keep same emotion, keep same eye expression, keep same pose',
-    'aspect': '4:5'},
+    'aspect': '4:5',
+    'replacements': { 'headline': 'CREATIVITY WANTED',
+                      'subtitle': 'Join Our Creative Studio',
+                      'positions': 'Graphic Designer, Video Editor, Social Media Manager, Content Creator',
+                      'contact_email': 'hello@creativelab.com'},
+    'optional': ['headline', 'subtitle', 'positions', 'contact_email']},
   { 'id': 'u_ed_future',
     'category': 'editorial',
     'label': '🌸 Future Vision Pôster',
-    'placeholders': [],
+    'placeholders': ['extra_text'],
     'prompt': 'Fashion editorial poster featuring the person in modern Japanese streetwear, standing against a minimal gradient '
               "background. Oversized typography at the top spells 'FUTURE VISION' in English, with smaller Japanese katakana characters "
               'beneath. Monochrome palette in neon pink. Ultra-modern, high-fashion poster design. preserve identity, keep same face, keep '
               'facial structure, keep skin tone, maintain original identity, do not change person, realistic face consistency, preserve '
               'original facial expression, keep same emotion, keep same eye expression, keep same pose',
-    'aspect': '4:5'},
+    'aspect': '4:5',
+    'optional': ['extra_text'],
+    'appends': 'extra_text'},
   { 'id': 'u_ed_modern',
     'category': 'editorial',
     'label': '🌷 Modern Edge Pôster',
-    'placeholders': [],
+    'placeholders': ['extra_text'],
     'prompt': 'Fashion editorial poster featuring the person in modern streetwear with a luxury minimalist approach, standing against a '
               "soft neutral gradient background. Clean oversized typography reading 'MODERN EDGE' with subtle Japanese characters. Soft "
               'monochrome tones with light pink accents. Clean and elegant composition. preserve identity, keep same face, keep facial '
               'structure, keep skin tone, maintain original identity, do not change person, realistic face consistency, preserve original '
               'facial expression, keep same emotion, keep same eye expression, keep same pose',
-    'aspect': '4:5'},
+    'aspect': '4:5',
+    'optional': ['extra_text'],
+    'appends': 'extra_text'},
   { 'id': 'u_ep_sorcerer',
     'category': 'epic',
     'label': '🔮 Fantasy Sorcerer Poster',
-    'placeholders': [],
+    'placeholders': ['extra_text'],
     'prompt': 'Hyper-realistic cinematic movie poster of the person as a powerful sorcerer bursting through a cracked Queen of Spades '
               'playing card. The card explodes outward with stone fragments, dust, and debris frozen mid-air. Wearing an ornate royal '
               'maroon and gold embroidered medieval fantasy jacket, rich fabric textures, intricate detailing, regal and mystical. The '
@@ -153,11 +187,13 @@ POSTER_TEMPLATES = [ { 'id': 'fl_general',
               'keep skin tone, maintain original identity, do not change person, realistic face consistency, preserve original facial '
               'expression, keep same emotion, keep same eye expression, keep same pose',
     'aspect': '4:5',
-    'locked': True},
+    'locked': True,
+    'optional': ['extra_text'],
+    'appends': 'extra_text'},
   { 'id': 'u_ep_grid_classic',
     'category': 'epic',
     'label': '🎬 Editorial Grid — Classic',
-    'placeholders': [],
+    'placeholders': ['extra_text'],
     'prompt': 'Professional studio fashion photoshoot in a 2×2 grid collage showing four poses of the person wearing black sunglasses. '
               'Outfit: deep emerald green tailored blazer, cream/off-white dress shirt, black slim trousers, burgundy tie, silver watch. '
               'Blazer appears differently across frames (worn, draped over shoulder, partially removed, held). Background: clean '
@@ -168,44 +204,52 @@ POSTER_TEMPLATES = [ { 'id': 'fl_general',
               'facial structure, keep skin tone, maintain original identity, do not change person, realistic face consistency, preserve '
               'original facial expression, keep same emotion, keep same eye expression, keep same pose',
     'aspect': '4:5',
-    'locked': True},
+    'locked': True,
+    'optional': ['extra_text'],
+    'appends': 'extra_text'},
   { 'id': 'u_ep_grid_dark',
     'category': 'epic',
     'label': '🎬 Editorial Grid — Dark Mode',
-    'placeholders': [],
+    'placeholders': ['extra_text'],
     'prompt': 'Same 2×2 grid editorial of the person with sunglasses, identical outfit and poses, but darker teal gradient with subtle '
               'vignette, stronger contrast, deeper shadows, cinematic moody tone. Editorial high contrast, 4K, 2×2 grid. preserve '
               'identity, keep same face, keep facial structure, keep skin tone, maintain original identity, do not change person, '
               'realistic face consistency, preserve original facial expression, keep same emotion, keep same eye expression, keep same '
               'pose',
     'aspect': '4:5',
-    'locked': True},
+    'locked': True,
+    'optional': ['extra_text'],
+    'appends': 'extra_text'},
   { 'id': 'u_ep_grid_lux',
     'category': 'epic',
     'label': '🎬 Editorial Grid — Soft Luxury',
-    'placeholders': [],
+    'placeholders': ['extra_text'],
     'prompt': 'Same 2×2 grid editorial of the person with sunglasses, identical outfit and poses, but soft pastel teal gradient cleaner '
               'luxury look, softer diffusion, more even highlights, luxury fashion tone. Clean Vogue-style, 4K, 2×2 grid. preserve '
               'identity, keep same face, keep facial structure, keep skin tone, maintain original identity, do not change person, '
               'realistic face consistency, preserve original facial expression, keep same emotion, keep same eye expression, keep same '
               'pose',
     'aspect': '4:5',
-    'locked': True},
+    'locked': True,
+    'optional': ['extra_text'],
+    'appends': 'extra_text'},
   { 'id': 'u_ep_grid_street',
     'category': 'epic',
     'label': '🎬 Editorial Grid — Street Edge',
-    'placeholders': [],
+    'placeholders': ['extra_text'],
     'prompt': 'Same 2×2 grid editorial of the person with sunglasses, identical outfit and poses, but teal gradient with subtle texture, '
               'slightly harsher lighting, sharper shadows, street-fashion tone. Edgy editorial sharper contrast, 4K, 2×2 grid. preserve '
               'identity, keep same face, keep facial structure, keep skin tone, maintain original identity, do not change person, '
               'realistic face consistency, preserve original facial expression, keep same emotion, keep same eye expression, keep same '
               'pose',
     'aspect': '4:5',
-    'locked': True},
+    'locked': True,
+    'optional': ['extra_text'],
+    'appends': 'extra_text'},
   { 'id': 'u_sf_cyber',
     'category': 'scifi',
     'label': '🔬 Cyber Science Portrait',
-    'placeholders': [],
+    'placeholders': ['extra_text'],
     'prompt': 'Cinematic close-up portrait of the person in side profile, wet hair strands on the skin, intense reflective eyes, '
               'mathematical formulas and scientific equations projected across the face and neck, glowing white handwritten symbols, '
               'physics diagrams and abstract calculations overlay, futuristic holographic projection, dark moody background, dramatic '
@@ -214,11 +258,13 @@ POSTER_TEMPLATES = [ { 'id': 'fl_general',
               'tone, maintain original identity, do not change person, realistic face consistency, preserve original facial expression, '
               'keep same emotion, keep same eye expression, keep same pose',
     'aspect': '4:5',
-    'locked': True},
+    'locked': True,
+    'optional': ['extra_text'],
+    'appends': 'extra_text'},
   { 'id': 'u_sf_cybergoth',
     'category': 'scifi',
     'label': '💜 Cybergoth Neon Portrait',
-    'placeholders': [],
+    'placeholders': ['extra_text'],
     'prompt': 'Cyberpunk portrait of the person with pale synthetic complexion, dark metallic lipstick, intense gaze directed at viewer. '
               'Vivid holographic glow with magenta and cyan edge lighting. Captured on a mirrorless 85mm f/1.2, deep atmospheric bokeh. '
               'Cyberpunk portraiture, techno-goth aesthetic, high-contrast digital realism, ultra high resolution, hyper-detailed '
@@ -226,59 +272,71 @@ POSTER_TEMPLATES = [ { 'id': 'fl_general',
               'original identity, do not change person, realistic face consistency, preserve original facial expression, keep same '
               'emotion, keep same eye expression, keep same pose',
     'aspect': '4:5',
-    'locked': True},
+    'locked': True,
+    'optional': ['extra_text'],
+    'appends': 'extra_text'},
   { 'id': 'u_he_cine',
     'category': 'hero',
     'label': '🎥 Frame Cinematográfico Herói',
-    'placeholders': [],
+    'placeholders': ['extra_text'],
     'prompt': 'Retrato editorial cinematográfico em 8K apresentando the person com estética de super-herói moderno. Fundo vermelho com luz '
               'difusa e partículas leves. Iluminação suave porém dramática com highlights no rosto e traje. Pose firme com braços cruzados '
               'e expressão determinada. Estilo realista próximo de filme. preserve identity, keep same face, keep facial structure, keep '
               'skin tone, maintain original identity, do not change person, realistic face consistency, preserve original facial '
               'expression, keep same emotion, keep same eye expression, keep same pose',
-    'aspect': '4:5'},
+    'aspect': '4:5',
+    'optional': ['extra_text'],
+    'appends': 'extra_text'},
   { 'id': 'u_phone_spotify',
     'category': 'phone',
     'label': '🎧 Spotify Gigante',
-    'placeholders': [],
+    'placeholders': ['extra_text'],
     'prompt': 'Create a stylish, modern photo in vertical 9:16 format using the reference image, featuring the person standing confidently '
               "on the giant screen of an iPhone 16 lying on the floor. The screen displays a Spotify playlist with the song 'Enter Sandman "
               "- Metallica.' Wearing AirPods Max, an oversized white hoodie, black pants, and crisp white Air Jordans. The scene is shot "
               'from a high angle, top-down, to emphasize the scale of the phone. Minimalist, stylish, futuristic vibe. preserve identity, '
               'keep same face, keep facial structure, keep skin tone, maintain original identity, do not change person, realistic face '
               'consistency, preserve original facial expression, keep same emotion, keep same eye expression, keep same pose',
-    'aspect': '9:16'},
+    'aspect': '9:16',
+    'optional': ['extra_text'],
+    'appends': 'extra_text'},
   { 'id': 'u_phone_neon',
     'category': 'phone',
     'label': '🟣 Neon Music World',
-    'placeholders': [],
+    'placeholders': ['extra_text'],
     'prompt': 'Create a futuristic neon-style scene in vertical 9:16 format featuring the person standing on a giant smartphone screen '
               'displaying a music interface. The environment glows with purple and blue neon lights. Wearing headphones, oversized hoodie, '
               'and streetwear outfit. High-angle top-down shot emphasizing scale. Cyberpunk aesthetic with glowing reflections. preserve '
               'identity, keep same face, keep facial structure, keep skin tone, maintain original identity, do not change person, '
               'realistic face consistency, preserve original facial expression, keep same emotion, keep same eye expression, keep same '
               'pose',
-    'aspect': '9:16'},
+    'aspect': '9:16',
+    'optional': ['extra_text'],
+    'appends': 'extra_text'},
   { 'id': 'u_phone_apple',
     'category': 'phone',
     'label': '🍏 Apple Minimal Luxo',
-    'placeholders': [],
+    'placeholders': ['extra_text'],
     'prompt': 'Create a clean luxury Apple-style photo in vertical 9:16 featuring the person standing on a giant smartphone screen in a '
               'minimalist white environment. The interface is sleek and modern with music playing. Wearing premium streetwear with a '
               'refined aesthetic. Shot from a high top-down angle with soft shadows and clean lighting. preserve identity, keep same face, '
               'keep facial structure, keep skin tone, maintain original identity, do not change person, realistic face consistency, '
               'preserve original facial expression, keep same emotion, keep same eye expression, keep same pose',
-    'aspect': '9:16'},
+    'aspect': '9:16',
+    'optional': ['extra_text'],
+    'appends': 'extra_text'},
   { 'id': 'u_phone_street',
     'category': 'phone',
     'label': '🏙️ Street Music Energy',
-    'placeholders': [],
+    'placeholders': ['extra_text'],
     'prompt': 'Create a street-style scene in vertical 9:16 featuring the person standing on a giant phone screen placed on an urban '
               'ground surface. The screen shows a music player interface. Background includes subtle street textures like concrete and '
               'graffiti. Outfit is casual streetwear with strong attitude. Shot from top-down angle. preserve identity, keep same face, '
               'keep facial structure, keep skin tone, maintain original identity, do not change person, realistic face consistency, '
               'preserve original facial expression, keep same emotion, keep same eye expression, keep same pose',
-    'aspect': '9:16'}]
+    'aspect': '9:16',
+    'optional': ['extra_text'],
+    'appends': 'extra_text'}]
 
 
 def get_poster(template_id: str):

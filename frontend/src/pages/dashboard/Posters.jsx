@@ -38,6 +38,13 @@ const CAT_GRADIENTS = {
 };
 
 const FIELD_LABELS = {
+  // === Bot poster fields (PT-PT) ===
+  headline: "Headline / Manchete",
+  subtitle: "Subtítulo",
+  positions: "Cargos / Lista de vagas",
+  contact_email: "Email de contacto",
+  extra_text: "Texto extra (opcional)",
+  // === Legacy generic fields (mantidos por compatibilidade) ===
   artist_name: "Nome do artista",
   tour_name: "Nome da tour",
   album_name: "Nome do álbum",
@@ -135,7 +142,7 @@ const FIELD_LABELS = {
 };
 
 const labelFor = (k) => FIELD_LABELS[k] || k.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
-const isLong = (k) => /text|description|tagline|story|notes|additional|caption|quote|details|deck|subhead/i.test(k);
+const isLong = (k) => /text|description|tagline|story|notes|additional|caption|quote|details|deck|subhead|positions|extra_text/i.test(k);
 
 const MOODS = [
   "Cinematográfico", "Neon", "Minimal", "Vintage",
@@ -205,7 +212,11 @@ export default function Posters() {
   const selectedModel = models.find((m) => m.key === modelKey) || { cost: 15 };
   const totalCost = selectedModel.cost * numOutputs;
 
-  const missing = picked ? picked.placeholders.filter((p) => !(values[p] || "").trim()) : [];
+  const missing = picked
+    ? (picked.placeholders || []).filter(
+        (p) => !(picked.optional || []).includes(p) && !(values[p] || "").trim()
+      )
+    : [];
 
   const openTemplate = (tpl) => {
     setPicked(tpl);
@@ -529,24 +540,38 @@ function Editor(props) {
             />
           </section>
 
-          {/* 2 · Detalhes do pôster (escondido quando template não tem campos) */}
+          {/* 2 · Detalhes do pôster — campos editáveis derivados do bot original */}
           {picked.placeholders && picked.placeholders.length > 0 && (
           <section>
-            <label className="block text-[#F4F1EA] text-[13px] font-medium mb-4 uppercase tracking-[0.16em] font-['Inter_Tight']">
+            <label className="block text-[#F4F1EA] text-[13px] font-medium mb-1.5 uppercase tracking-[0.16em] font-['Inter_Tight']">
               02 · Detalhes do Pôster
+              {picked.optional && picked.optional.length === picked.placeholders.length && (
+                <span className="text-[#5A5A5E] normal-case tracking-normal text-[11px] font-normal ml-2">(opcional)</span>
+              )}
             </label>
+            <p className="text-[#8A8A8E] text-[12px] mb-4">
+              {picked.category === "flyer"
+                ? "Personaliza o texto que aparece no pôster. Os valores que deixares em branco usam os do template original do bot."
+                : "Adiciona texto extra ao prompt (ex: nome do produto, slogan, frase). Se deixares vazio, usa-se o prompt estético original."}
+            </p>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              {picked.placeholders.map((p) => (
+              {picked.placeholders.map((p) => {
+                const isOptional = (picked.optional || []).includes(p);
+                const originalText = (picked.replacements || {})[p] || "";
+                return (
                 <div key={p} className={isLong(p) ? "sm:col-span-2" : ""}>
                   <label className="block text-[#F4F1EA] text-[12.5px] font-medium mb-1.5 font-['Inter_Tight']">
-                    {labelFor(p)} <span className="text-[#7C3AED]">*</span>
+                    {labelFor(p)}{" "}
+                    {isOptional
+                      ? <span className="text-[#5A5A5E] text-[11px] font-normal">(opcional)</span>
+                      : <span className="text-[#7C3AED]">*</span>}
                   </label>
                   {isLong(p) ? (
                     <textarea
-                      rows={3}
+                      rows={2}
                       value={values[p] || ""}
                       onChange={(e) => setValues({ ...values, [p]: e.target.value })}
-                      placeholder={`ex: ${labelFor(p).toLowerCase()}...`}
+                      placeholder={originalText || `ex: ${labelFor(p).toLowerCase()}...`}
                       className="w-full bg-[#13131A] border border-[#2E2E30] focus:border-[#7C3AED] text-[#F4F1EA] text-[14px] placeholder:text-[#5A5A5E] px-4 py-3 rounded-lg focus:outline-none resize-none font-['Inter_Tight']"
                       data-testid={`field-${p}`}
                     />
@@ -554,13 +579,13 @@ function Editor(props) {
                     <input
                       value={values[p] || ""}
                       onChange={(e) => setValues({ ...values, [p]: e.target.value })}
-                      placeholder={`ex: ${labelFor(p).toLowerCase()}...`}
+                      placeholder={originalText || `ex: ${labelFor(p).toLowerCase()}...`}
                       className="w-full bg-[#13131A] border border-[#2E2E30] focus:border-[#7C3AED] text-[#F4F1EA] text-[14px] placeholder:text-[#5A5A5E] px-4 py-3 rounded-lg focus:outline-none font-['Inter_Tight']"
                       data-testid={`field-${p}`}
                     />
                   )}
                 </div>
-              ))}
+              );})}
             </div>
           </section>
           )}

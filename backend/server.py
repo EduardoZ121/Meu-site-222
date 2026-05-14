@@ -949,7 +949,11 @@ async def generate_poster_route(
     if not tpl:
         if photo_path: cleanup(photo_path)
         raise HTTPException(status_code=400, detail="Unknown template")
-    missing = [p for p in tpl["placeholders"] if not (placeholders.get(p) or "").strip()]
+    missing = [
+        p for p in tpl["placeholders"]
+        if p not in (tpl.get("optional") or [])
+        and not (placeholders.get(p) or "").strip()
+    ]
     if missing:
         if photo_path: cleanup(photo_path)
         raise HTTPException(status_code=422, detail=f"Missing placeholders: {', '.join(missing)}")
@@ -965,7 +969,26 @@ async def generate_poster_route(
     per_image_cost = POSTER_MODEL_COSTS[model_key]
     total_cost = per_image_cost * num_outputs
 
-    raw_prompt = tpl["prompt"].format(**{k: placeholders[k] for k in tpl["placeholders"]})    # Build extras: expand mood UI choice to a rich visual descriptor; add color hint.
+    # Build prompt:
+    #  1) Start with the bot prompt verbatim
+    #  2) Apply replacements (flyer fields override hard-coded strings)
+    #  3) Append optional extra_text for aesthetic templates
+    #  4) Last resort: legacy {placeholder} .format() — no-op when no braces
+    raw_prompt = tpl["prompt"]
+    for field, original in (tpl.get("replacements") or {}).items():
+        user_value = (placeholders.get(field) or "").strip()
+        if user_value:
+            raw_prompt = raw_prompt.replace(original, user_value)
+    appends_field = tpl.get("appends")
+    if appends_field:
+        appended = (placeholders.get(appends_field) or "").strip()
+        if appended:
+            raw_prompt = f"{raw_prompt} {appended}"
+    if "{" in raw_prompt and "}" in raw_prompt:
+        try:
+            raw_prompt = raw_prompt.format(**{k: placeholders.get(k, "") for k in tpl["placeholders"]})
+        except KeyError:
+            pass    # Build extras: expand mood UI choice to a rich visual descriptor; add color hint.
     extras = []
     if mood:
         mood_desc = MOOD_EXPANSIONS.get(mood, f"Visual mood: {mood}.")

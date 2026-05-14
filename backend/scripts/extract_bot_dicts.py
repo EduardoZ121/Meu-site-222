@@ -188,6 +188,61 @@ def write_poster_templates(out: Path, data: dict):
         "POSTER_DIRECTOR = ''\n"
         "MOOD_EXPANSIONS = {}\n\n"
     )
+
+    # Flyer customization: user-editable text replaces hard-coded strings in bot prompts.
+    # Each entry maps placeholder_id -> exact substring in the bot prompt to replace.
+    flyer_replacements = {
+        "fl_general": {
+            "headline":      "WE WANT YOU!",
+            "subtitle":      "Join Our Professionals Team.",
+            "positions":     "Graphic Designer, Marketing Staff, Finance Accountant, Operational Staff",
+            "contact_email": "company@gmail.com",
+        },
+        "fl_tech": {
+            "headline":      "JOIN OUR TEAM",
+            "subtitle":      "Build the Future With Us.",
+            "positions":     "Software Engineer - UI/UX Designer - Data Analyst - Product Manager",
+            "contact_email": "careers@techvision.com",
+        },
+        "fl_corporate": {
+            "headline":      "WE ARE HIRING",
+            "subtitle":      "Join Our Professional Team",
+            "positions":     "Administrative Assistant, HR Manager, Accountant, Office Coordinator",
+            "contact_email": "hr@companygroup.com",
+        },
+        "fl_fitness": {
+            "headline":      "WE'RE BUILDING CHAMPIONS",
+            "subtitle":      "Join Our Fitness Team",
+            "positions":     "Personal Trainer, Fitness Coach, Nutrition Specialist, Gym Assistant",
+            "contact_email": "fitness@powergym.com",
+        },
+        "fl_restaurant": {
+            "headline":      "JOIN OUR TEAM",
+            "subtitle":      "We're Hiring Passionate People",
+            "positions":     "Waiter / Waitress, Chef Assistant, Bartender, Kitchen Staff",
+            "contact_email": "jobs@finebistro.com",
+        },
+        "fl_creative": {
+            "headline":      "CREATIVITY WANTED",
+            "subtitle":      "Join Our Creative Studio",
+            "positions":     "Graphic Designer, Video Editor, Social Media Manager, Content Creator",
+            "contact_email": "hello@creativelab.com",
+        },
+    }
+    flyer_field_order = ["headline", "subtitle", "positions", "contact_email"]
+
+    # Re-enrich templates with placeholders + replacements
+    for tpl in templates:
+        if tpl["category"] == "flyer":
+            tpl["placeholders"] = flyer_field_order
+            tpl["replacements"] = flyer_replacements[tpl["id"]]
+            # All flyer fields are OPTIONAL — empty values keep the bot original.
+            tpl["optional"] = list(flyer_field_order)
+        else:
+            # Aesthetic templates: optional extra text that gets appended to the prompt
+            tpl["placeholders"] = ["extra_text"]
+            tpl["optional"] = ["extra_text"]
+            tpl["appends"] = "extra_text"
     body = (
         header
         + "POSTER_TEMPLATES = "

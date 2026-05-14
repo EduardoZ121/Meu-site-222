@@ -977,6 +977,7 @@ async def generate_poster_route(
 
     user, safe_prompt, _ = await _pre_generate_checks(current["sub"], current.get("role", "user"), raw_prompt, total_cost)
     prompt = safe_prompt or raw_prompt
+    logger.info(f"[POSTER] template={template_id} model={model_key} num={num_outputs} final_prompt={prompt!r}")
     new_balance = await _spend_credits(current["sub"], total_cost, f"Poster ({template_id} · {model_key} · x{num_outputs})")
 
     try:

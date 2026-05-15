@@ -1,0 +1,7 @@
+{
+  "version": 2,
+  "buildCommand": "yarn build",
+  "outputDirectory": "build",
+  "framework": "create-react-app",
+  "rewrites": [{ "source": "/(.*)", "destination": "/index.html" }]
+}

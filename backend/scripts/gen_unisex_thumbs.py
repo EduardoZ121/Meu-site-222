@@ -68,30 +68,47 @@ def crop_to_3_4(img: Image.Image) -> Image.Image:
     return img.resize(TARGET_SIZE, Image.LANCZOS)
 
 
-def make_unisex_prompt(style_prompt: str) -> str:
-    """Convert the bot's [subject] prompt into a thumbnail-friendly version
-    for AI generation. The bot prompt is designed for a single user photo
-    input; for thumbnails we want a generic representative result."""
-    # Replace the placeholder with the most natural subject for Unisex
-    base = style_prompt.replace("[subject]", "the man and the woman together")
-    return (
-        "Use the two attached reference photos (a woman with dark wavy hair "
-        "and gold hoop earrings; a man with dark hair). Apply the following "
-        "style to BOTH subjects in the same image. Maintain their identities "
-        "(same faces, same skin tones). Output ONE single 3:4 portrait image, "
-        "high quality, no watermark, no text, no logos.\n\n"
+def make_thumb_prompt(style_prompt: str, sex: str) -> tuple[str, list[str]]:
+    """Builds the AI prompt + reference list per gender assignment.
+
+    sex='F' → use ONLY the woman reference, prompt about the woman
+    sex='M' → use ONLY the man reference, prompt about the man
+    """
+    if sex == "F":
+        subject_word = "the woman"
+        ident = (
+            "Use the attached reference photo of the woman (dark wavy hair, "
+            "gold hoop earrings). Preserve her identity, face, skin tone and "
+            "facial features."
+        )
+        ref_paths = [WOMAN_REF]
+    else:
+        subject_word = "the man"
+        ident = (
+            "Use the attached reference photo of the man (dark hair). "
+            "Preserve his identity, face, skin tone and facial features."
+        )
+        ref_paths = [MAN_REF]
+
+    base = style_prompt.replace("[subject]", subject_word)
+    full = (
+        f"{ident}\n\n"
+        "Apply the following style. Output ONE 3:4 portrait image, high quality, "
+        "no watermark, no text, no logos.\n\n"
         f"STYLE:\n{base}"
     )
+    return full, ref_paths
 
 
-async def generate_one(sid: str, style: dict, refs_b64: list[str]) -> bool:
+async def generate_one(sid: str, style: dict, sex: str) -> bool:
     out_path = OUT_DIR / f"{sid}.jpg"
     if out_path.exists():
         print(f"  [skip] {sid} already exists")
         return True
 
-    prompt = make_unisex_prompt(style["prompt"])
-    file_contents = [ImageContent(b) for b in refs_b64]
+    prompt, ref_paths = make_thumb_prompt(style["prompt"], sex)
+    file_contents = [ImageContent(load_ref_b64(p)) for p in ref_paths]
+    label = "👩" if sex == "F" else "👨"
 
     for attempt in range(3):
         try:
@@ -114,7 +131,7 @@ async def generate_one(sid: str, style: dict, refs_b64: list[str]) -> bool:
             img = crop_to_3_4(img)
             img.save(out_path, "JPEG", quality=85, optimize=True)
             kb = out_path.stat().st_size // 1024
-            print(f"  ✓ {sid}: {style['nome'][:45]} → {out_path.name} ({kb} KB, size={img.size})")
+            print(f"  {label} {sid}: {style['nome'][:45]} → {out_path.name} ({kb} KB)")
             return True
         except Exception as e:
             print(f"  [err-{attempt}] {sid}: {type(e).__name__}: {str(e)[:200]}")
@@ -129,9 +146,13 @@ async def main():
     parser.add_argument("--concurrency", type=int, default=3, help="Parallel requests")
     args = parser.parse_args()
 
-    print(f"Loading refs from {REF_DIR}...")
-    refs_b64 = [load_ref_b64(WOMAN_REF), load_ref_b64(MAN_REF)]
-    print(f"  Loaded {len(refs_b64)} reference images")
+    # Load sex assignment map produced by inspect step
+    import json
+    sex_map_path = Path("/tmp/unisex_sex_assignment.json")
+    if not sex_map_path.exists():
+        print("ERROR: /tmp/unisex_sex_assignment.json missing — run the inspect step first")
+        sys.exit(1)
+    sex_map = json.loads(sex_map_path.read_text())
 
     targets = [(k, v) for k, v in PADRAO_STYLES.items() if v.get("cat") == "unisex"]
     if args.ids:
@@ -148,7 +169,8 @@ async def main():
 
     async def run(sid: str, style: dict):
         async with sem:
-            ok = await generate_one(sid, style, refs_b64)
+            sex = sex_map.get(sid, "M")
+            ok = await generate_one(sid, style, sex)
             done["ok" if ok else "fail"] += 1
 
     await asyncio.gather(*[run(sid, st) for sid, st in targets])

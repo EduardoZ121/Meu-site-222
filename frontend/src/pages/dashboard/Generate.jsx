@@ -48,6 +48,7 @@ export default function Generate() {
   const [prompt, setPrompt] = useState(searchParams.get("prompt") || "");
   const [improve, setImprove] = useState(false);
   const [aspect, setAspect] = useState("4:5");
+  const [engine, setEngine] = useState("grok"); // "grok" | "aurora"
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState(null);
   const [progress, setProgress] = useState(0); // elapsed seconds during polling
@@ -110,6 +111,7 @@ export default function Generate() {
         fd.append("style_id", pickedStyle);
         fd.append("subject", subject);
         fd.append("aspect_ratio", aspect);
+        fd.append("engine", engine);
         if (prompt.trim()) fd.append("extra_prompt", prompt.trim());
         ({ data: submitData } = await api.post("/generate/easy", fd, { timeout: 60000 }));
       } else if (mode === "edit") {
@@ -118,9 +120,10 @@ export default function Generate() {
         fd.append("photo", compressed);
         fd.append("prompt", prompt.trim());
         fd.append("aspect_ratio", aspect);
+        fd.append("engine", engine);
         ({ data: submitData } = await api.post("/generate/edit", fd, { timeout: 60000 }));
       } else {
-        // text-to-image
+        // text-to-image (text-only doesn't use engine selector — Grok-only)
         ({ data: submitData } = await api.post("/generate/image", {
           prompt: prompt.trim(),
           mode: "advanced",
@@ -130,13 +133,13 @@ export default function Generate() {
         }, { timeout: 60000 }));
       }
 
-      // Phase 2 — poll for completion. Backend has already deducted credits.
-      // If we hit a network error during polling we keep retrying — the
-      // prediction is durable on Replicate's side and the backend will
-      // finalize it the next time we successfully poll.
-      const data = await pollPrediction(submitData.prediction_id, {
-        onTick: (sec) => setProgress(sec),
-      });
+      // Aurora returns the finished creation directly (no polling)
+      let data = submitData;
+      if (submitData.prediction_id) {
+        data = await pollPrediction(submitData.prediction_id, {
+          onTick: (sec) => setProgress(sec),
+        });
+      }
       setResult(data.creation);
       toast.success(`Gerado · ${data.creation.credits_spent} créditos`);
       await refresh();
@@ -298,10 +301,42 @@ export default function Generate() {
           </div>
 
           {/* Step 4 — aspect ratio */}
-          <div className="mb-10">
+          <div className="mb-6">
             <p className="text-[10px] font-mono uppercase tracking-[0.22em] text-[#7C3AED] mb-3">4 · Formato</p>
             <AspectPicker value={aspect} onChange={setAspect} hasPhoto={!!photo} testIdPrefix="aspect" />
           </div>
+
+          {/* Step 5 — engine selector (only shows for modes that use a photo) */}
+          {mode !== "create" && (
+            <div className="mb-10">
+              <p className="text-[10px] font-mono uppercase tracking-[0.22em] text-[#7C3AED] mb-3">5 · Motor de IA</p>
+              <div className="grid grid-cols-2 gap-2.5">
+                <button onClick={() => setEngine("grok")} data-testid="engine-grok"
+                  className={`text-left px-4 py-3.5 rounded-lg border transition-all
+                    ${engine === "grok"
+                      ? "border-[#7C3AED] bg-gradient-to-br from-[#7C3AED]/15 to-[#7C3AED]/5 shadow-[0_0_28px_-10px_rgba(124,58,237,0.6)]"
+                      : "border-[#2E2E30] bg-[#0F0F12] hover:border-[#5A5A5E]"}`}>
+                  <div className="flex items-baseline justify-between">
+                    <p className="text-[#F4F1EA] text-[14px] font-medium">Grok Imagine</p>
+                    <span className="text-[#C4B5FD] text-[11px] font-mono">{mode === "easy" ? "11" : "12"} cr</span>
+                  </div>
+                  <p className="text-[#8A8A8E] text-[11px] mt-1">Rápido · fidelidade alta · pré-definido</p>
+                </button>
+                <button onClick={() => setEngine("aurora")} data-testid="engine-aurora"
+                  className={`text-left px-4 py-3.5 rounded-lg border transition-all relative
+                    ${engine === "aurora"
+                      ? "border-[#7C3AED] bg-gradient-to-br from-[#7C3AED]/15 to-[#7C3AED]/5 shadow-[0_0_28px_-10px_rgba(124,58,237,0.6)]"
+                      : "border-[#2E2E30] bg-[#0F0F12] hover:border-[#5A5A5E]"}`}>
+                  <span className="absolute -top-2 -right-2 px-2 py-0.5 rounded-full bg-gradient-to-r from-[#7C3AED] to-[#EC4899] text-white text-[9px] font-mono uppercase tracking-[0.14em]">Novo</span>
+                  <div className="flex items-baseline justify-between">
+                    <p className="text-[#F4F1EA] text-[14px] font-medium">Aurora</p>
+                    <span className="text-[#C4B5FD] text-[11px] font-mono">15 cr</span>
+                  </div>
+                  <p className="text-[#8A8A8E] text-[11px] mt-1">Foto-realista · IA neural · sem espera</p>
+                </button>
+              </div>
+            </div>
+          )}
 
           {/* CTA */}
           <button

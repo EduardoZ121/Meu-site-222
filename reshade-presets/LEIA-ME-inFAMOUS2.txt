@@ -1,0 +1,44 @@
+inFAMOUS 2 (RPCS3) — Presets ReShade "Heavy"
+============================================
+
+Ficheiros:
+  • inFAMOUS2_RPCS3_Heavy.ini      — visual pesado (AO + bloom forte + grão)
+  • inFAMOUS2_RPCS3_Heavy_Lite.ini — mesma direção artística, menos GPU
+
+Instalação (Windows, ReShade já no rpcs3.exe)
+---------------------------------------------
+1. Copia o .ini para a pasta de presets do ReShade, por exemplo:
+   %LOCALAPPDATA%\ReShade\Presets\
+   ou a pasta "Presets" que o instalador criou junto ao rpcs3.exe.
+
+2. No RPCS3: inicia o jogo (BCES01143).
+
+3. Tecla Home → dropdown de presets → escolhe inFAMOUS2_RPCS3_Heavy.
+
+4. Se MXAO / bloom parecerem "mortos" ou a tela ficar estranha:
+   Reinstala ReShade no rpcs3.exe e marca opções de DEPTH / COPY DEPTH
+   (buffer de profundidade). Sem depth, desativa só "MXAO" no menu Home.
+
+5. Se faltar algum shader (.fx), o ReShade pede download — aceita o pacote
+   padrão (qMXAO, MagicBloom, etc.).
+
+Ajuste no emulador (recomendado com preset pesado)
+--------------------------------------------------
+  Resolution scale: 150–200% (4K só se a GPU aguentar com este preset)
+  Async Texture Streaming: ON
+  Anisotropic: 16x
+
+Performance
+-----------
+  Heavy: espera -15 a -40% FPS vs sem ReShade (MXAO full + 6 iterações bloom).
+  Se tremer: usa Heavy_Lite ou no Home desliga MXAO e FilmGrain.
+
+Linux / Proton
+--------------
+  ReShade no RPCS3 via Linux é mais chato (Wine/Proton + caminhos diferentes).
+  Estes .ini funcionam igual se o teu ReShade já abre com Home no jogo.
+
+Perfil visual
+-------------
+  Cidade mais contrastada, azuis/elétrico reforçados, bloom nas luzes e poderes,
+  AO marcado, grão de filme leve — estilo "remaster" agressivo, não fiel ao PS3.

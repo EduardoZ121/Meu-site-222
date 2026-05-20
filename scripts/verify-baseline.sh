@@ -52,8 +52,20 @@ if [[ -f "$FRONT/.vercel/project.json" ]]; then
   grep -q '"projectName":"remakepix"' "$FRONT/.vercel/project.json" || fail "Vercel project deve ser remakepix"
 fi
 
+# Build output must not ship Emergent UI
+if [[ -d "$FRONT/build" ]]; then
+  if rg -qi 'emergent-main|Emergent \| Fullstack|assets\.emergent\.sh' "$FRONT/build/index.html" 2>/dev/null; then
+    fail "build/index.html contém Emergent — correr build limpo a partir de frontend/public/index.html"
+  fi
+  if ls "$FRONT/build/static/js"/main.*.js 1>/dev/null 2>&1; then
+    if rg -qi 'emergent-main|assets\.emergent\.sh|Emergent \| Fullstack' "$FRONT/build/static/js"/main.*.js 2>/dev/null; then
+      fail "bundle JS contém Emergent"
+    fi
+  fi
+fi
+
 if [[ "$ERR" -ne 0 ]]; then
   exit 1
 fi
 
-echo "verify-baseline: OK — único projeto em frontend/, baseline intacta"
+echo "verify-baseline: OK — único projeto em frontend/, baseline intacta, sem Emergent no build"

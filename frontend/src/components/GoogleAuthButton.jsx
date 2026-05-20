@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
-import { useI18n } from "../lib/i18n";
 
 const GOOGLE_CLIENT_ID = process.env.REACT_APP_GOOGLE_CLIENT_ID || "";
 
@@ -27,9 +26,7 @@ function loadGoogleScript() {
   });
 }
 
-export default function GoogleAuthButton({ onCredential, label }) {
-  const { t } = useI18n();
-  const resolvedLabel = label ?? t("login_google");
+export default function GoogleAuthButton({ onCredential, label = "Continuar com Google" }) {
   const buttonRef = useRef(null);
   const [ready, setReady] = useState(false);
 
@@ -44,7 +41,7 @@ export default function GoogleAuthButton({ onCredential, label }) {
           client_id: GOOGLE_CLIENT_ID,
           callback: (response) => {
             if (response?.credential) onCredential(response.credential);
-            else toast.error(t("login_google_fail"));
+            else toast.error("Não foi possível validar a conta Google.");
           },
         });
         google.accounts.id.renderButton(buttonRef.current, {
@@ -57,10 +54,10 @@ export default function GoogleAuthButton({ onCredential, label }) {
         });
         setReady(true);
       })
-      .catch(() => toast.error(t("login_google_fail")));
+      .catch(() => toast.error("Falhou a carregar Google Login."));
 
     return () => { cancelled = true; };
-  }, [onCredential, t]);
+  }, [onCredential]);
 
   if (!GOOGLE_CLIENT_ID) {
     return (
@@ -69,21 +66,21 @@ export default function GoogleAuthButton({ onCredential, label }) {
         disabled
         className="w-full border border-rp-border px-4 py-3 text-rp-mute2 text-[11px] font-mono uppercase tracking-[0.14em] opacity-70"
       >
-        Google Login · missing Client ID
+        Google Login · falta Client ID
       </button>
     );
   }
 
   return (
     <div className="w-full">
-      <div ref={buttonRef} className="min-h-[44px] w-full overflow-hidden" aria-label={resolvedLabel} />
+      <div ref={buttonRef} className="min-h-[44px] w-full overflow-hidden" aria-label={label} />
       {!ready && (
         <button
           type="button"
           disabled
           className="w-full border border-rp-border px-4 py-3 text-rp-mute2 text-[11px] font-mono uppercase tracking-[0.14em] opacity-70"
         >
-          {t("loading")}
+          A carregar Google...
         </button>
       )}
     </div>

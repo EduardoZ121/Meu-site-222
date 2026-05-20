@@ -12,7 +12,7 @@ import {
 } from "lucide-react";
 import { useAuth } from "../../lib/auth";
 import { useI18n } from "../../lib/i18n";
-import { LANG_LABELS, LANG_ORDER } from "../../i18n/languages";
+import { LANG_LABELS, LANG_ORDER } from "../../lib/localeStrings";
 import { readUserSettings, writeUserSettings } from "../../lib/userSettings";
 import { setLanguageAndReload } from "../../lib/remakepixLanguage";
 import useTitle from "../../lib/useTitle";

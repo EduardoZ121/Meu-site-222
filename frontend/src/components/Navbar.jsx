@@ -127,14 +127,14 @@ export default function Navbar() {
                 onClick={() => setMobileOpen(false)}
                 className="text-[#8A8A8E] text-lg font-light hover:text-[#7C3AED] transition-colors"
               >
-                {t("nav_login")}
+                Entrar
               </Link>
               <Link
                 to="/register"
                 onClick={() => setMobileOpen(false)}
                 className="btn-primary mt-4"
               >
-                {t("hero_cta_primary")}
+                Começar grátis — 50 créditos
               </Link>
             </div>
           </motion.div>

@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Globe, Check } from "lucide-react";
 import { useI18n } from "../lib/i18n";
-import { LANG_LABELS, LANG_ORDER } from "../i18n/languages";
+import { LANG_LABELS, LANG_ORDER } from "../lib/localeStrings";
 import { setLanguageAndReload } from "../lib/remakepixLanguage";
 
 /**

@@ -1,12 +1,29 @@
 /**
- * Curated preview images — Unsplash (free for commercial use, no attribution required).
- * Each URL points to a real photographer's CDN, cropped to 600px wide for fast load.
- * Source: https://unsplash.com/license
- *
- * Lookup is case-insensitive. Falls back to gradient ToolThumb if id missing.
+ * Curated preview images served from /public/images.
+ * Keeping these local avoids third-party CDN failures that can make grids look empty.
  */
 
-const U = (id, w = 600) => `https://images.unsplash.com/${id}?w=${w}&q=70&fit=crop&auto=format`;
+const LOCAL_PREVIEWS = [
+  "/images/tools/studio.jpg",
+  "/images/tools/pro.jpg",
+  "/images/tools/art.jpg",
+  "/images/tools/posters.jpg",
+  "/images/tools/carousel.jpg",
+  "/images/tools/clothes.jpg",
+  "/images/tools/bg_remove.jpg",
+  "/images/tools/upscale.jpg",
+  "/images/tools/restore.jpg",
+  "/images/tools/colorize.jpg",
+  "/images/styles-grid.jpg",
+  "/images/edit.jpg",
+  "/images/generate.jpg",
+  "/images/motion.jpg",
+];
+
+const U = (id) => {
+  const hash = Array.from(id).reduce((sum, ch) => sum + ch.charCodeAt(0), 0);
+  return LOCAL_PREVIEWS[hash % LOCAL_PREVIEWS.length];
+};
 
 // === TOOLS (12 main cards on /app/tools) ===
 export const TOOL_PREVIEWS = {

@@ -1,12 +1,10 @@
 import { useRef } from "react";
 import { motion, useInView } from "framer-motion";
 import { Link } from "react-router-dom";
-import { useI18n } from "../lib/i18n";
 
 const EASE = [0.16, 1, 0.3, 1];
 
 export default function CTAFinal() {
-  const { t } = useI18n();
   const ref = useRef(null);
   const isInView = useInView(ref, { once: true, margin: "-80px" });
 
@@ -26,13 +24,13 @@ export default function CTAFinal() {
           >
             <p className="eyebrow mb-3 md:mb-4">Remake Pixel</p>
             <h2 className="heading-xl mb-5 md:mb-6">
-              {t("cta_title_a")}
+              Não esperes pela imagem perfeita.
               <br />
-              <span className="italic font-light">{t("cta_title_b")}</span>
+              <span className="italic font-light">Cria-a.</span>
             </h2>
             <div className="flex flex-col sm:flex-row flex-wrap gap-3">
-              <Link to="/register" className="btn-primary" data-testid="cta-primary">{t("hero_cta_primary")}</Link>
-              <a href="#pricing" className="btn-secondary" data-testid="cta-secondary">{t("nav_pricing")}</a>
+              <Link to="/register" className="btn-primary" data-testid="cta-primary">Começar grátis — 50 créditos</Link>
+              <a href="#pricing" className="btn-secondary" data-testid="cta-secondary">Ver pacotes</a>
             </div>
           </motion.div>
         </div>

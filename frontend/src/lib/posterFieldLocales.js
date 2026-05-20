@@ -200,17 +200,10 @@ const FIELD_LABELS_EN = {
   artist: "Artist",
 };
 
-const FIELD_BY_LANG = {
-  en: FIELD_LABELS_EN,
-  pt: FIELD_LABELS_PT,
-  es: FIELD_LABELS_EN,
-  fr: FIELD_LABELS_EN,
-};
-
 export function posterFieldLabel(key, lang) {
-  const code = FIELD_BY_LANG[lang] ? lang : "en";
-  const map = FIELD_BY_LANG[code] || FIELD_LABELS_EN;
-  return map[key] || key.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+  const code = lang === "pt" ? "pt" : "en";
+  const map = code === "pt" ? FIELD_LABELS_PT : FIELD_LABELS_EN;
+  return map[key] || map[key] || key.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
 export const POSTER_CAT_KEYS = {

@@ -64,6 +64,37 @@ def _gen_referral_code() -> str:
     return secrets.token_urlsafe(6).replace("_", "").replace("-", "")[:8].upper()
 
 
+def _client_ip(request: Request) -> str:
+    xff = request.headers.get("x-forwarded-for") or request.headers.get("X-Forwarded-For")
+    if xff:
+        return xff.split(",")[0].strip()
+    if request.client:
+        return request.client.host or ""
+    return ""
+
+
+def _client_country(request: Request) -> str:
+    cc = (
+        request.headers.get("x-vercel-ip-country")
+        or request.headers.get("cf-ipcountry")
+        or ""
+    )
+    return str(cc).strip().upper()[:2]
+
+
+async def _log_ip_event(user_id: str, ip: str, country: str, action: str):
+    if not ip:
+        return
+    await db.ip_events.insert_one({
+        "id": f"ipe_{secrets.token_hex(6)}",
+        "user_id": user_id,
+        "ip": ip,
+        "country": country or None,
+        "action": action,
+        "created_at": _now(),
+    })
+
+
 async def _user_doc(user_id: str) -> Optional[dict]:
     return await db.users.find_one({"id": user_id}, {"_id": 0, "password_hash": 0})
 
@@ -437,8 +468,10 @@ async def public_packages():
 
 # ============== Auth ==============
 @api.post("/auth/register", response_model=AuthResponse)
-async def register(payload: RegisterIn):
+async def register(payload: RegisterIn, request: Request):
     email = payload.email.lower()
+    ip = _client_ip(request)
+    country = _client_country(request)
     if await db.users.find_one({"email": email}):
         raise HTTPException(status_code=400, detail="Email already registered")
 
@@ -462,6 +495,10 @@ async def register(payload: RegisterIn):
         "nsfw_allowed": False,
         "created_at": _now(),
         "last_activity": _now(),
+        "signup_ip": ip or None,
+        "signup_country": country or None,
+        "last_ip": ip or None,
+        "last_country": country or None,
     }
 
     # Referral handling
@@ -471,6 +508,7 @@ async def register(payload: RegisterIn):
             user_doc["referred_by"] = ref["id"]
 
     await db.users.insert_one(user_doc)
+    await _log_ip_event(user_id, ip, country, "signup")
     await db.credit_transactions.insert_one(CreditTransaction(
         user_id=user_id, amount=30, type="free", description="Signup bonus",
     ).model_dump())
@@ -480,23 +518,39 @@ async def register(payload: RegisterIn):
 
 
 @api.post("/auth/login", response_model=AuthResponse)
-async def login(payload: LoginIn):
+async def login(payload: LoginIn, request: Request):
     email = payload.email.lower()
     user = await db.users.find_one({"email": email})
     if not user or not verify_password(payload.password, user["password_hash"]):
         raise HTTPException(status_code=401, detail="Invalid credentials")
     if user.get("banned"):
         raise HTTPException(status_code=403, detail="Account banned")
-    await db.users.update_one({"id": user["id"]}, {"$set": {"last_activity": _now()}})
+    ip = _client_ip(request)
+    country = _client_country(request)
+    await db.users.update_one({"id": user["id"]}, {"$set": {
+        "last_activity": _now(),
+        "last_ip": ip or user.get("last_ip"),
+        "last_country": country or user.get("last_country"),
+    }})
+    await _log_ip_event(user["id"], ip, country, "login")
     token = create_token(user["id"], user.get("role", "user"))
     return {"token": token, "user": _public_user(user)}
 
 
 @api.get("/auth/me", response_model=UserPublic)
-async def me(current=Depends(get_current_user)):
+async def me(request: Request, current=Depends(get_current_user)):
     doc = await _user_doc(current["sub"])
     if not doc:
         raise HTTPException(status_code=404, detail="User not found")
+    ip = _client_ip(request)
+    country = _client_country(request)
+    if ip:
+        await db.users.update_one({"id": current["sub"]}, {"$set": {
+            "last_activity": _now(),
+            "last_ip": ip,
+            "last_country": country or doc.get("last_country"),
+        }})
+        await _log_ip_event(current["sub"], ip, country, "me")
     return _public_user(doc)
 
 
@@ -1629,14 +1683,36 @@ async def admin_stats(_=Depends(require_admin)):
     ]
     rev = await db.purchases.aggregate(pipeline).to_list(length=1)
     revenue = rev[0]["total"] if rev else 0.0
+    rev_usd_pipe = [
+        {"$match": {"status": "completed"}},
+        {"$group": {"_id": None, "total": {"$sum": {"$ifNull": ["$amount_usd", 0]}}}},
+    ]
+    rev_usd = await db.purchases.aggregate(rev_usd_pipe).to_list(length=1)
+    revenue_usd = rev_usd[0]["total"] if rev_usd else 0.0
     # circulation
     cred_pipeline = [{"$group": {"_id": None, "total": {"$sum": "$credits"}}}]
     cred = await db.users.aggregate(cred_pipeline).to_list(length=1)
     credits_in_circulation = cred[0]["total"] if cred else 0
+    day_start = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0).isoformat()
+    signups_today = await db.users.count_documents({"created_at": {"$gte": day_start}})
+    week_start = (datetime.now(timezone.utc).timestamp() - 7 * 86400)
+    signups_week = await db.users.count_documents({
+        "created_at": {"$gte": datetime.fromtimestamp(week_start, tz=timezone.utc).isoformat()},
+    })
+    multi_ip = await db.users.aggregate([
+        {"$match": {"signup_ip": {"$exists": True, "$nin": [None, ""]}}},
+        {"$group": {"_id": "$signup_ip", "count": {"$sum": 1}}},
+        {"$match": {"count": {"$gte": 2}}},
+        {"$count": "n"},
+    ]).to_list(length=1)
     return {
         "users": users, "creations": creations,
         "purchases": purchases_done, "revenue_eur": revenue,
+        "revenue_usd": revenue_usd,
         "credits_in_circulation": credits_in_circulation,
+        "signups_today": signups_today,
+        "signups_week": signups_week,
+        "risky_ips": multi_ip[0]["n"] if multi_ip else 0,
     }
 
 
@@ -1673,6 +1749,69 @@ async def admin_tx(limit: int = 100, _=Depends(require_admin)):
     return {"transactions": docs}
 
 
+@api.get("/admin/purchases")
+async def admin_purchases(limit: int = 50, _=Depends(require_admin)):
+    docs = await db.purchases.find({}, {"_id": 0}).sort("created_at", -1).limit(limit).to_list(length=limit)
+    return {"purchases": docs}
+
+
+@api.get("/admin/finance")
+async def admin_finance_endpoint(_=Depends(require_admin)):
+    """Resumo financeiro + reserva Replicate (paridade com API Vercel)."""
+    from services.finance_model import aggregate_finance  # local helper if exists
+    try:
+        settings = await db["platform_settings"].find_one({"_id": "finance"}) or {}
+        balance = settings.get("replicate_balance_usd")
+        return await aggregate_finance(db, replicate_balance_usd=balance)
+    except ImportError:
+        # fallback inline mínimo
+        cred = await db.users.aggregate([
+            {"$match": {"is_unlimited": {"$ne": True}, "credits": {"$lt": 500000}}},
+            {"$group": {"_id": None, "total": {"$sum": "$credits"}}},
+        ]).to_list(length=1)
+        circulation = cred[0]["total"] if cred else 0
+        per = float(os.environ.get("REPLICATE_USD_PER_CREDIT", "0.02"))
+        buyers = await db.purchases.distinct("user_id", {"status": "completed"})
+        return {
+            "unique_buyers": len([b for b in buyers if b]),
+            "credits_in_circulation": circulation,
+            "replicate_reserve_needed_usd": round(circulation * per, 2),
+            "replicate_usd_per_credit": per,
+        }
+
+
+@api.get("/admin/ip-groups")
+async def admin_ip_groups(_=Depends(require_admin)):
+    groups = await db.users.aggregate([
+        {"$match": {"$or": [
+            {"signup_ip": {"$exists": True, "$nin": [None, ""]}},
+            {"last_ip": {"$exists": True, "$nin": [None, ""]}},
+        ]}},
+        {"$project": {
+            "ip": {"$ifNull": ["$signup_ip", "$last_ip"]},
+            "id": 1, "email": 1, "name": 1, "credits": 1, "banned": 1, "created_at": 1,
+        }},
+        {"$match": {"ip": {"$nin": [None, ""]}}},
+        {"$group": {
+            "_id": "$ip",
+            "count": {"$sum": 1},
+            "users": {"$push": {
+                "id": "$id", "email": "$email", "name": "$name",
+                "credits": "$credits", "banned": "$banned", "created_at": "$created_at",
+            }},
+        }},
+        {"$match": {"count": {"$gte": 2}}},
+        {"$sort": {"count": -1}},
+        {"$limit": 150},
+    ]).to_list(length=150)
+    return {
+        "groups": [
+            {"ip": g["_id"], "count": g["count"], "risk": "high" if g["count"] >= 2 else "low", "users": g["users"]}
+            for g in groups
+        ],
+    }
+
+
 # Mount router
 app.include_router(api)
 
@@ -1693,6 +1832,9 @@ async def startup():
     await db.users.create_index("email", unique=True)
     await db.users.create_index("id", unique=True)
     await db.users.create_index("referral_code")
+    await db.users.create_index("signup_ip")
+    await db.users.create_index("last_ip")
+    await db.ip_events.create_index([("ip", 1), ("created_at", -1)])
     await db.creations.create_index([("user_id", 1), ("created_at", -1)])
     await db.credit_transactions.create_index([("user_id", 1), ("created_at", -1)])
     await db.purchases.create_index("stripe_session_id", unique=True)

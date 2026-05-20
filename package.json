@@ -1,0 +1,25 @@
+{
+  "name": "remake-pixel-monorepo",
+  "private": true,
+  "description": "Root package so Vercel can bundle /api serverless deps (formidable, stripe).",
+  "scripts": {
+    "verify:production": "node scripts/verify-production-baseline.mjs",
+    "marketing:preview": "node scripts/record-marketing-preview.mjs",
+    "marketing:tutorial": "RECORD_LOCAL=1 node scripts/record-marketing-tutorial.mjs",
+    "marketing:demo": "RECORD_LOCAL=1 node scripts/record-demo-login-dashboard.mjs",
+    "marketing:demo-mobile": "DEMO_MOBILE=1 RECORD_LOCAL=1 BASE_URL=http://127.0.0.1:3001 node scripts/record-demo-login-dashboard.mjs",
+    "marketing:logo-outro": "node scripts/render-logo-outro.mjs",
+    "marketing:ig-ads": "node scripts/build-instagram-ads.mjs"
+  },
+  "devDependencies": {
+    "playwright": "1.60.0",
+    "sharp": "^0.34.2"
+  },
+  "dependencies": {
+    "@upstash/redis": "^1.34.9",
+    "@vercel/blob": "^0.27.0",
+    "formidable": "3.5.4",
+    "mongodb": "^6.16.0",
+    "stripe": "22.1.1"
+  }
+}

@@ -1,14 +1,10 @@
-export function fileToDataURL(file) {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(reader.result);
-    reader.onerror = reject;
-    reader.readAsDataURL(file);
-  });
-}
+export {
+  readFileAsDataURL,
+  revokeFilePreviewUrl,
+} from "./previewDataUrl";
 
-export function revokeFilePreviewUrl(url) {
-  if (url && typeof url === "string" && url.startsWith("blob:")) {
-    URL.revokeObjectURL(url);
-  }
-}
+/** @deprecated use readFileAsDataURL */
+export { readFileAsDataURL as createPreviewDataUrl } from "./previewDataUrl";
+
+/** @deprecated use readFileAsDataURL */
+export { readFileAsDataURL as fileToDataURL } from "./previewDataUrl";

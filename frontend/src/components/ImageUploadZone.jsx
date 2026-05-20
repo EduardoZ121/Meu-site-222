@@ -108,14 +108,14 @@ export default function ImageUploadZone({
       if (rid !== runIdRef.current) return;
       setPersistState("error");
       notifyStatus("error");
-      toast.error(t("upload_save_error"), { duration: 6000 });
+      toast.error("Erro ao guardar. Podes continuar a editar.", { duration: 6000 });
       console.warn("[ImageUploadZone] persist", err);
     }
-  }, [compressOptions, enableRemotePersist, onChange, notifyStatus, t]);
+  }, [compressOptions, enableRemotePersist, onChange, notifyStatus]);
 
   const ingestFile = useCallback((file) => {
     if (!file || !looksLikeImageFile(file)) {
-      toast.error(t("upload_invalid_type"));
+      toast.error("Ficheiro tem de ser uma imagem suportada.");
       return;
     }
     runIdRef.current += 1;
@@ -125,7 +125,7 @@ export default function ImageUploadZone({
     notifyStatus("saving");
     onChange(file);
     void runBackground(file, rid);
-  }, [runBackground, onChange, notifyStatus, t]);
+  }, [runBackground, onChange, notifyStatus]);
 
   const clear = useCallback(() => {
     runIdRef.current += 1;
@@ -159,9 +159,9 @@ export default function ImageUploadZone({
       if (rid !== runIdRef.current) return;
       setPersistState("error");
       notifyStatus("error");
-      toast.error(formatHttpError(err, t("upload_save_error")), { duration: 6000 });
+      toast.error(formatHttpError(err, "Erro ao guardar. Podes continuar a editar."), { duration: 6000 });
     }
-  }, [value, enableRemotePersist, notifyStatus, t]);
+  }, [value, enableRemotePersist, notifyStatus]);
 
   const onPick = (e) => {
     const f = e.target.files?.[0];

@@ -1,8 +1,9 @@
 /**
- * App translation hook — react-i18next (see src/i18n/index.js).
+ * Compatibility layer — app uses react-i18next (see src/i18n/index.js).
+ * Existing components keep importing useI18n() from here.
  */
 import { useTranslation } from "react-i18next";
-import { LANG_LABELS, LANG_ORDER } from "../i18n/languages";
+import { LANG_LABELS, LANG_ORDER } from "./localeStrings";
 import { setLanguageAndReload } from "./remakepixLanguage";
 
 function format(str, vars) {
@@ -12,6 +13,7 @@ function format(str, vars) {
 
 export function useI18n() {
   const { t: i18nT, i18n } = useTranslation();
+
   const lang = (i18n.language || "en").split("-")[0];
 
   const t = (key, vars) => {
@@ -34,6 +36,7 @@ export function useI18n() {
   };
 }
 
+/** No-op — i18n is initialized in src/index.js */
 export function I18nProvider({ children }) {
   return children;
 }

@@ -1,67 +1,23 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
-  Download, Heart, Loader2, RefreshCw, Share2, Trash2, X,
+  Heart, Trash2, Download, X, Loader2, Eye, RefreshCw,
 } from "lucide-react";
-import { Link } from "react-router-dom";
 import { api, formatApiError } from "../../lib/api";
 import { useI18n } from "../../lib/i18n";
 import { toast } from "sonner";
 import useTitle from "../../lib/useTitle";
-import GalleryThumbnail from "../../components/gallery/GalleryThumbnail";
-import {
-  downloadCreation,
-  fetchCreationBlob,
-  isVideoCreation,
-  primaryResultUrl,
-  shareCreation,
-  thumbnailCandidates,
-} from "../../lib/galleryActions";
+import GalleryMedia from "../../components/GalleryMedia";
+import { isVideoCreation, primaryResultUrl } from "../../lib/creationUrls";
+import { useCreationMedia } from "../../lib/useCreationMedia";
 
 function GalleryLightbox({ item, onClose, t }) {
-  const [src, setSrc] = useState("");
-  const [loading, setLoading] = useState(true);
-  const [broken, setBroken] = useState(false);
-  const video = item && isVideoCreation(item);
-
-  useEffect(() => {
-    if (!item) return undefined;
-    let objectUrl = null;
-    let cancelled = false;
-    setLoading(true);
-    setBroken(false);
-    setSrc("");
-
-    const direct = thumbnailCandidates(item)[0];
-    if (direct) {
-      setSrc(direct);
-      setLoading(false);
-      return () => {};
-    }
-
-    fetchCreationBlob(item)
-      .then((blob) => {
-        if (cancelled) return;
-        objectUrl = URL.createObjectURL(blob);
-        setSrc(objectUrl);
-      })
-      .catch(() => {
-        if (!cancelled) setBroken(true);
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false);
-      });
-
-    return () => {
-      cancelled = true;
-      if (objectUrl) URL.revokeObjectURL(objectUrl);
-    };
-  }, [item]);
+  const { src, broken, loading, isVideo } = useCreationMedia(item);
 
   if (!item) return null;
 
   return (
     <div
-      className="fixed inset-0 z-[100] bg-black/92 backdrop-blur-sm flex items-center justify-center p-4"
+      className="fixed inset-0 z-[100] bg-black/90 backdrop-blur-sm flex items-center justify-center p-4"
       onClick={onClose}
       role="dialog"
       aria-modal="true"
@@ -79,281 +35,204 @@ function GalleryLightbox({ item, onClose, t }) {
         className="relative max-w-5xl max-h-[90vh] w-full flex flex-col items-center"
         onClick={(e) => e.stopPropagation()}
       >
-        {loading && <Loader2 className="w-8 h-8 text-white animate-spin" />}
-        {!loading && src && !broken && (
-          video ? (
+        {loading && (
+          <Loader2 className="w-8 h-8 text-white animate-spin" />
+        )}
+        {!loading && src && !broken ? (
+          isVideo ? (
             <video src={src} controls autoPlay className="max-h-[80vh] max-w-full rounded-lg" />
           ) : (
             <img src={src} alt="" className="max-h-[80vh] max-w-full object-contain rounded-lg" />
           )
-        )}
-        {!loading && broken && (
+        ) : !loading ? (
           <p className="text-white/70 text-sm">{t("gal_file_unavailable")}</p>
-        )}
-        {item.prompt ? (
-          <p className="mt-4 text-white/80 text-sm text-center max-w-xl line-clamp-4 px-4">
-            {item.prompt}
-          </p>
         ) : null}
+        <p className="mt-4 text-white/80 text-sm text-center max-w-xl line-clamp-4">{item.prompt}</p>
       </div>
     </div>
-  );
-}
-
-function GalleryCard({
-  item,
-  busy,
-  t,
-  onOpen,
-  onDownload,
-  onShare,
-  onToggleFav,
-  onDelete,
-}) {
-  const hasMedia = Boolean(primaryResultUrl(item) || item?.id);
-
-  return (
-    <article
-      className="flex flex-col border border-rp-border bg-rp-surface overflow-hidden rounded-lg"
-      data-testid={`gallery-item-${item.id}`}
-    >
-      <div className="relative aspect-square overflow-hidden bg-rp-bg">
-        <GalleryThumbnail
-          creation={item}
-          className="w-full h-full object-cover"
-          onOpen={onOpen}
-        />
-      </div>
-
-      {item.prompt ? (
-        <p className="px-2.5 pt-2 text-rp-mute text-[11px] line-clamp-2 min-h-[2.25rem] leading-snug">
-          {item.prompt}
-        </p>
-      ) : (
-        <div className="min-h-[2.25rem]" />
-      )}
-
-      <div className="grid grid-cols-4 gap-1 p-2 border-t border-rp-border">
-        <button
-          type="button"
-          disabled={busy || !hasMedia}
-          onClick={() => onDownload(item)}
-          className="min-h-10 flex flex-col items-center justify-center gap-0.5 rounded-md border border-rp-border text-rp-mute hover:text-rp-lavender hover:border-rp-lavender disabled:opacity-40 text-[9px] uppercase tracking-wide"
-          title={t("gal_download")}
-        >
-          <Download className="w-3.5 h-3.5" />
-          <span className="hidden sm:inline truncate max-w-full px-0.5">{t("gal_download")}</span>
-        </button>
-        <button
-          type="button"
-          disabled={busy || !hasMedia}
-          onClick={() => onShare(item)}
-          className="min-h-10 flex flex-col items-center justify-center gap-0.5 rounded-md border border-rp-border text-rp-mute hover:text-rp-lavender hover:border-rp-lavender disabled:opacity-40 text-[9px] uppercase tracking-wide"
-          title={t("gal_share")}
-        >
-          <Share2 className="w-3.5 h-3.5" />
-          <span className="hidden sm:inline truncate max-w-full px-0.5">{t("gal_share")}</span>
-        </button>
-        <button
-          type="button"
-          disabled={busy}
-          onClick={() => onToggleFav(item.id)}
-          className={`min-h-10 flex flex-col items-center justify-center gap-0.5 rounded-md border disabled:opacity-40 text-[9px] uppercase tracking-wide ${
-            item.is_favorite
-              ? "border-rp-purple text-rp-lavender"
-              : "border-rp-border text-rp-mute hover:text-rp-lavender hover:border-rp-lavender"
-          }`}
-          title={t("gal_favorite")}
-        >
-          <Heart className="w-3.5 h-3.5" fill={item.is_favorite ? "currentColor" : "none"} />
-          <span className="hidden sm:inline">{t("gal_favorite")}</span>
-        </button>
-        <button
-          type="button"
-          disabled={busy}
-          onClick={() => onDelete(item.id)}
-          className="min-h-10 flex flex-col items-center justify-center gap-0.5 rounded-md border border-rp-border text-rp-mute hover:text-red-400 hover:border-red-400 disabled:opacity-40 text-[9px] uppercase tracking-wide"
-          title={t("gal_delete")}
-        >
-          {busy ? (
-            <Loader2 className="w-3.5 h-3.5 animate-spin" />
-          ) : (
-            <Trash2 className="w-3.5 h-3.5" />
-          )}
-          <span className="hidden sm:inline">{t("gal_delete")}</span>
-        </button>
-      </div>
-    </article>
   );
 }
 
 export default function Gallery({ favoritesOnly = false }) {
   const { t } = useI18n();
   useTitle(favoritesOnly ? t("sidebar_favorites") : t("sidebar_gallery"));
-
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
   const [busyId, setBusyId] = useState(null);
-  const [clearing, setClearing] = useState(false);
   const [viewItem, setViewItem] = useState(null);
 
-  const historyPath = favoritesOnly
-    ? "/generations/history?limit=60&only_favorites=true"
-    : "/generations/history?limit=60";
-
-  const loadFailRef = useRef(t("gal_load_fail"));
-  loadFailRef.current = t("gal_load_fail");
-
-  const fetchItems = useCallback((isManualRefresh = false) => {
-    if (isManualRefresh) setRefreshing(true);
-    else setLoading(true);
-
+  const load = useCallback(() => {
+    setLoading(true);
     return api
-      .get(historyPath)
+      .get(`/generations/history?limit=60${favoritesOnly ? "&only_favorites=true" : ""}`)
       .then((r) => setItems(r.data.creations || []))
       .catch((err) => {
-        toast.error(formatApiError(err, loadFailRef.current));
+        toast.error(formatApiError(err, t("gal_load_fail")));
         setItems([]);
       })
-      .finally(() => {
-        if (isManualRefresh) setRefreshing(false);
-        else setLoading(false);
-      });
-  }, [historyPath]);
+      .finally(() => setLoading(false));
+  }, [favoritesOnly, t]);
 
   useEffect(() => {
-    fetchItems(false);
-  }, [fetchItems]);
+    load();
+  }, [load]);
 
-  const runBusy = async (id, fn) => {
+  const toggleFav = async (id) => {
     setBusyId(id);
     try {
-      await fn();
+      const { data } = await api.post(`/generations/${encodeURIComponent(id)}/favorite`);
+      setItems((cur) => cur.map((c) => (c.id === id ? { ...c, is_favorite: data.is_favorite } : c)));
+    } catch (err) {
+      toast.error(formatApiError(err, t("failed")));
     } finally {
       setBusyId(null);
     }
   };
 
-  const toggleFav = (id) => {
-    runBusy(id, async () => {
-      const { data } = await api.post(`/generations/${encodeURIComponent(id)}/favorite`);
-      setItems((cur) => {
-        const next = cur.map((c) => (c.id === id ? { ...c, is_favorite: data.is_favorite } : c));
-        return favoritesOnly && !data.is_favorite ? next.filter((c) => c.id !== id) : next;
-      });
-    }).catch((err) => toast.error(formatApiError(err, t("failed"))));
-  };
-
-  const removeOne = (id) => {
+  const remove = async (id) => {
     if (!window.confirm(t("gal_confirm_delete"))) return;
-    runBusy(id, async () => {
+    setBusyId(id);
+    try {
       await api.delete(`/generations/${encodeURIComponent(id)}`);
       setItems((cur) => cur.filter((c) => c.id !== id));
       if (viewItem?.id === id) setViewItem(null);
       toast.success(t("remove"));
-    }).catch((err) => toast.error(formatApiError(err, t("gal_delete_fail"))));
+    } catch (err) {
+      toast.error(formatApiError(err, t("gal_delete_fail")));
+    } finally {
+      setBusyId(null);
+    }
   };
 
-  const clearAll = () => {
-    if (!items.length) return;
-    if (!window.confirm(t("gal_clear_all_confirm"))) return;
-    setClearing(true);
-    const qs = favoritesOnly ? "?only_favorites=true" : "";
-    api
-      .delete(`/generations/history${qs}`)
-      .then((r) => {
-        const n = r.data?.deleted ?? items.length;
-        setItems([]);
-        setViewItem(null);
-        toast.success(t("gal_cleared", { n }));
-      })
-      .catch((err) => toast.error(formatApiError(err, t("gal_delete_fail"))))
-      .finally(() => setClearing(false));
-  };
-
-  const handleDownload = (item) => {
-    runBusy(item.id, async () => {
-      await downloadCreation(item);
-      toast.success(t("gal_download_started"));
-    }).catch((err) => toast.error(formatApiError(err, t("gal_download_fail"))));
-  };
-
-  const handleShare = (item) => {
-    runBusy(item.id, async () => {
-      const result = await shareCreation(item);
-      if (result === "copied") toast.success(t("gal_share_copied"));
-      else if (result === "shared") toast.success(t("gal_share"));
-    }).catch((err) => toast.error(formatApiError(err, t("gal_share_fail"))));
+  const handleDownload = async (item) => {
+    if (!item?.id) {
+      toast.error(t("gal_file_unavailable"));
+      return;
+    }
+    setBusyId(item.id);
+    try {
+      const ext = isVideoCreation(item) ? "mp4" : "jpg";
+      const { data } = await api.get(`/generations/${encodeURIComponent(item.id)}/media`, {
+        responseType: "blob",
+        timeout: 120000,
+      });
+      const objectUrl = URL.createObjectURL(data);
+      const a = document.createElement("a");
+      a.href = objectUrl;
+      a.download = `remake-pixel-${item.id.slice(0, 8)}.${ext}`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(objectUrl), 2000);
+      toast.success("Download iniciado.");
+    } catch (err) {
+      toast.error(formatApiError(err, t("gal_download_fail")));
+    } finally {
+      setBusyId(null);
+    }
   };
 
   return (
-    <div className="max-w-[1280px] mx-auto pb-12" data-testid="gallery-page">
-      <header className="mb-8 flex flex-wrap items-end justify-between gap-4">
+    <div className="max-w-[1200px] mx-auto" data-testid="gallery-page">
+      <div className="mb-10 flex flex-wrap items-end justify-between gap-4">
         <div>
-          <p className="eyebrow mb-2">{favoritesOnly ? t("fav_eyebrow") : t("gal_eyebrow")}</p>
+          <p className="eyebrow mb-3">{favoritesOnly ? t("fav_eyebrow") : t("gal_eyebrow")}</p>
           <h1 className="heading-xl">{favoritesOnly ? t("fav_title") : t("gal_title")}</h1>
-          {!loading && items.length > 0 && (
-            <p className="text-rp-mute text-sm mt-2">{t("gal_item_count", { n: items.length })}</p>
-          )}
         </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <button
-            type="button"
-            onClick={() => fetchItems(true)}
-            disabled={loading || refreshing || clearing}
-            className="btn-secondary !py-2 !px-3 text-xs flex items-center gap-2"
-            data-testid="gallery-refresh"
-          >
-            <RefreshCw className={`w-3.5 h-3.5 ${refreshing ? "animate-spin" : ""}`} />
-            {t("gal_refresh")}
-          </button>
-          {items.length > 0 && (
-            <button
-              type="button"
-              onClick={clearAll}
-              disabled={loading || clearing}
-              className="btn-secondary !py-2 !px-3 text-xs flex items-center gap-2 text-red-300 border-red-400/30 hover:border-red-400/60"
-              data-testid="gallery-clear-all"
-            >
-              {clearing ? (
-                <Loader2 className="w-3.5 h-3.5 animate-spin" />
-              ) : (
-                <Trash2 className="w-3.5 h-3.5" />
-              )}
-              {t("gal_clear_all")}
-            </button>
-          )}
-        </div>
-      </header>
+        <button
+          type="button"
+          onClick={() => load()}
+          disabled={loading}
+          className="btn-secondary !py-2 !px-3 text-xs flex items-center gap-2"
+        >
+          <RefreshCw className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} />
+          Atualizar
+        </button>
+      </div>
 
       {loading ? (
-        <div className="flex items-center justify-center gap-2 text-rp-mute text-sm py-16">
-          <Loader2 className="w-5 h-5 animate-spin text-rp-lavender" />
+        <div className="flex items-center gap-2 text-rp-mute text-sm py-12">
+          <Loader2 className="w-4 h-4 animate-spin" />
           {t("loading")}
         </div>
       ) : items.length === 0 ? (
-        <div className="border border-rp-border rounded-lg p-16 text-center" data-testid="gallery-empty">
-          <p className="text-rp-mute mb-3 text-sm">{t("gal_empty")}</p>
-          <Link to="/app/generate" className="text-rp-lavender text-sm hover:underline">
+        <div className="border border-rp-border p-16 text-center" data-testid="gallery-empty">
+          <p className="text-rp-mute mb-2 text-sm">{t("gal_empty")}</p>
+          <a href="/app/generate" className="text-rp-lavender text-sm hover:underline">
             {t("gal_begin")}
-          </Link>
+          </a>
         </div>
       ) : (
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3" data-testid="gallery-grid">
-          {items.map((item) => (
-            <GalleryCard
-              key={item.id}
-              item={item}
-              busy={busyId === item.id || clearing}
-              t={t}
-              onOpen={setViewItem}
-              onDownload={handleDownload}
-              onShare={handleShare}
-              onToggleFav={toggleFav}
-              onDelete={removeOne}
-            />
-          ))}
+          {items.map((c) => {
+            const busy = busyId === c.id;
+            const hasMedia = Boolean(primaryResultUrl(c));
+            return (
+              <article
+                key={c.id}
+                className="flex flex-col border border-rp-border bg-rp-surface overflow-hidden rounded-sm"
+                data-testid={`gallery-item-${c.id}`}
+              >
+                <div className="relative aspect-square overflow-hidden bg-rp-bg">
+                  <GalleryMedia
+                    creation={c}
+                    className="w-full h-full object-cover"
+                    onClick={() => hasMedia && setViewItem(c)}
+                  />
+                </div>
+
+                <p className="px-2 pt-2 text-rp-mute text-[11px] line-clamp-2 min-h-[2.5rem]">{c.prompt}</p>
+
+                <div className="flex items-center gap-1 p-2 border-t border-rp-border">
+                  <button
+                    type="button"
+                    disabled={busy || !hasMedia}
+                    onClick={() => setViewItem(c)}
+                    className="flex-1 min-h-10 flex items-center justify-center gap-1 rounded border border-rp-border text-rp-text hover:border-rp-lavender hover:text-rp-lavender text-[10px] uppercase tracking-wider disabled:opacity-40"
+                    title="Ver"
+                  >
+                    <Eye className="w-3.5 h-3.5" />
+                    <span className="hidden sm:inline">Ver</span>
+                  </button>
+                  <button
+                    type="button"
+                    disabled={busy || !hasMedia}
+                    onClick={() => handleDownload(c)}
+                    className="min-h-10 min-w-10 flex items-center justify-center rounded border border-rp-border text-rp-text hover:border-rp-lavender hover:text-rp-lavender disabled:opacity-40"
+                    title="Descarregar"
+                  >
+                    <Download className="w-3.5 h-3.5" />
+                  </button>
+                  <button
+                    type="button"
+                    disabled={busy}
+                    onClick={() => toggleFav(c.id)}
+                    className={`min-h-10 min-w-10 flex items-center justify-center rounded border ${
+                      c.is_favorite
+                        ? "border-rp-purple text-rp-lavender"
+                        : "border-rp-border text-rp-text hover:border-rp-lavender"
+                    } disabled:opacity-40`}
+                    title="Favorito"
+                  >
+                    <Heart className="w-3.5 h-3.5" fill={c.is_favorite ? "currentColor" : "none"} />
+                  </button>
+                  <button
+                    type="button"
+                    disabled={busy}
+                    onClick={() => remove(c.id)}
+                    className="min-h-10 min-w-10 flex items-center justify-center rounded border border-rp-border text-rp-text hover:border-red-400 hover:text-red-400 disabled:opacity-40"
+                    title="Apagar"
+                  >
+                    {busy ? (
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    ) : (
+                      <Trash2 className="w-3.5 h-3.5" />
+                    )}
+                  </button>
+                </div>
+              </article>
+            );
+          })}
         </div>
       )}
 

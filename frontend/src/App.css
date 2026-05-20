@@ -1,2 +1,6 @@
 /* Removed CRA defaults — main styling is in index.css */
-.App { min-height: 100vh; }
+.App {
+  min-height: 100vh;
+  touch-action: manipulation;
+  overflow-x: hidden;
+}

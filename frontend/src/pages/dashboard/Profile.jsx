@@ -202,14 +202,14 @@ export default function Profile() {
                         ) : (
                           <AlertCircle className="w-3.5 h-3.5" />
                         )}
-                        {emailVerified ? t("prof_email_verified") : t("prof_email_pending")}
+                        {emailVerified ? "Email verificado" : "Email por verificar"}
                       </span>
                     </div>
 
                     {editing ? (
                       <div className="space-y-3">
                         <label className="block text-[11px] font-mono uppercase tracking-[0.16em] text-rp-mute">
-                          {t("prof_public_name")}
+                          Nome público
                         </label>
                         <div className="flex flex-col sm:flex-row gap-2">
                           <input
@@ -217,7 +217,7 @@ export default function Profile() {
                             value={name}
                             onChange={(e) => setName(e.target.value)}
                             className="field-input flex-1 !py-2.5"
-                            placeholder={t("prof_name_placeholder")}
+                            placeholder="O teu nome ou marca"
                             maxLength={80}
                           />
                           <div className="flex gap-2">
@@ -227,7 +227,7 @@ export default function Profile() {
                               disabled={saving}
                               className="btn-primary !py-2.5 !px-5 shrink-0"
                             >
-                              {saving ? "…" : t("prof_save")}
+                              {saving ? "…" : "Guardar"}
                             </button>
                             <button
                               type="button"
@@ -235,7 +235,7 @@ export default function Profile() {
                               disabled={saving}
                               className="px-4 py-2.5 rounded-lg border border-rp-border text-rp-mute text-[13px] hover:text-rp-text hover:border-[#3f3f42] transition-colors"
                             >
-                              {t("prof_cancel")}
+                              Cancelar
                             </button>
                           </div>
                         </div>
@@ -424,13 +424,13 @@ export default function Profile() {
 
           <section className="rounded-2xl border border-dashed border-rp-border bg-rp-bg/50 px-5 py-4">
             <p className="text-[12px] text-rp-mute leading-relaxed">
-              {t("prof_prefs_hint")}{" "}
+              Palavra-passe e preferências de geração estão em{" "}
               <Link to="/app/settings" className="text-[#C4B5FD] hover:underline">
                 {t("prof_settings")}
               </Link>
-              .{" "}
+              . Recuperação de acesso:{" "}
               <Link to="/forgot-password" className="text-[#C4B5FD] hover:underline">
-                {t("prof_recovery")}
+                Esqueci a palavra-passe
               </Link>
               .
             </p>

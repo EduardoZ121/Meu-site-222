@@ -740,7 +740,7 @@ function PosterResult({ busy, result, setResult, aspect }) {
       document.body.appendChild(a); a.click(); a.remove();
       setTimeout(() => URL.revokeObjectURL(u), 1000);
     } catch {
-      toast.error(t("gal_download_fail"));
+      toast.error("Falha ao baixar.");
     }
   };
 

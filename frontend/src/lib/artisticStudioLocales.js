@@ -4,7 +4,7 @@ import {
   ARTISTIC_STYLE_CATEGORIES,
   ARTISTIC_STUDIO_STYLES,
   ARTISTIC_EFFECT_SECTIONS,
-} from "./artisticStudioData.js";
+} from "./artisticStudioData";
 
 export const ARTISTIC_LABELS = {
   en: {

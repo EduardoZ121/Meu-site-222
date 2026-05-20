@@ -1,0 +1,40 @@
+# Dependencies & build
+node_modules/
+frontend/node_modules/
+frontend/build/
+__pycache__/
+.pytest_cache/
+*.pyc
+
+# Secrets
+.env
+.env.*
+backend/.env
+backend/.env.*
+frontend/.env
+frontend/.env.*
+
+# Old site / duplicates (never commit again)
+/components/
+/images/
+/hero-bg.jpg
+/index.html
+/craco.config.js
+/jsconfig.json
+/postcss.config.js
+/tailwind.config.js
+/components.json
+/frontend-completo.zip
+/api.symlink.txt
+_archive-meu-telegram-bot/
+
+# Large marketing renders (optional local only)
+/marketing/
+
+# OS / IDE
+.DS_Store
+.motd_shown
+.cursor/
+
+# Vercel local
+.vercel/

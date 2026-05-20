@@ -1,0 +1,17 @@
+---
+name: remake-pixel-single-source
+description: Remake Pixel — único projeto em frontend/; proíbe Emergent, duplicados na raiz e regressões de texto/ícones/hero.
+alwaysApply: true
+---
+
+# Remake Pixel — fonte única
+
+- **Único frontend:** `Meu-site-222/frontend/`. Nunca criar CRA/React na raiz do repo.
+- **Textos:** usar `useI18n()` e `frontend/src/i18n/*.json`. Não hardcodar copy em inglês no JSX.
+- **Ícones:** manter `lucide-react`; não mudar biblioteca nem ícones sem pedido explícito.
+- **Hero:** `frontend/public/images/hero-bg.jpg` + `Hero.jsx` com `<img src="/images/hero-bg.jpg">`, `useI18n`, sem `<video>`.
+- **HTML:** só `frontend/public/index.html` — título `Remake Pixel — Estúdio AI`, sem scripts `emergent.sh`.
+- **Proibido:** Emergent UI, `hero-cover`/`hero-new`, rollback Vercel, zip `frontend-completo`, pastas `components/` ou `images/` na raiz.
+- **Deploy:** `frontend/` → Vercel `remakepix`. Antes de concluir: `./scripts/verify-baseline.sh` e `cd frontend && yarn build`.
+
+Ver também `REPO_BASELINE.md` e `AGENTS.md`.

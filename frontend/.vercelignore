@@ -1,6 +1,3 @@
 .env
-.env.local
-.env.development
-.env.development.local
-build
-node_modules
+.env.*
+!.env.example

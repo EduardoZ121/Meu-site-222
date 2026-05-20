@@ -1,0 +1,38 @@
+{
+  "fl_general": {
+    "headline": "WE WANT YOU!",
+    "subtitle": "Join Our Professionals Team.",
+    "positions": "Graphic Designer, Marketing Staff, Finance Accountant, Operational Staff",
+    "contact_email": "company@gmail.com"
+  },
+  "fl_tech": {
+    "headline": "JOIN OUR TEAM",
+    "subtitle": "Build the Future With Us.",
+    "positions": "Software Engineer - UI/UX Designer - Data Analyst - Product Manager",
+    "contact_email": "careers@techvision.com"
+  },
+  "fl_corporate": {
+    "headline": "WE ARE HIRING",
+    "subtitle": "Join Our Professional Team",
+    "positions": "Administrative Assistant, HR Manager, Accountant, Office Coordinator",
+    "contact_email": "hr@companygroup.com"
+  },
+  "fl_fitness": {
+    "headline": "WE'RE BUILDING CHAMPIONS",
+    "subtitle": "Join Our Fitness Team",
+    "positions": "Personal Trainer, Fitness Coach, Nutrition Specialist, Gym Assistant",
+    "contact_email": "fitness@powergym.com"
+  },
+  "fl_restaurant": {
+    "headline": "JOIN OUR TEAM",
+    "subtitle": "We're Hiring Passionate People",
+    "positions": "Waiter / Waitress, Chef Assistant, Bartender, Kitchen Staff",
+    "contact_email": "jobs@finebistro.com"
+  },
+  "fl_creative": {
+    "headline": "CREATIVITY WANTED",
+    "subtitle": "Join Our Creative Studio",
+    "positions": "Graphic Designer, Video Editor, Social Media Manager, Content Creator",
+    "contact_email": "hello@creativelab.com"
+  }
+}

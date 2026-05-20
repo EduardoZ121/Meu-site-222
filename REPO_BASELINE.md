@@ -38,6 +38,7 @@ Não deve existir na raiz: `index.html`, `package.json`, `components/`, `images/
 ## Proibido
 
 - Emergent: `emergent-main.js`, `@emergentbase/visual-edits`, badge Emergent.
+- **Nunca** fazer alias para deploy `dpl_HDt8CqC3` — esse build antigo ainda carrega `emergent-main.js` no HTML.
 - Segunda app na raiz do repo ou zip `frontend-completo.zip`.
 - Hero em vídeo, `hero-cover.jpg`, `hero-new.jpg`, rollback de deploy antigo.
 - Alias Vercel para builds antigos sem pedido explícito do utilizador.

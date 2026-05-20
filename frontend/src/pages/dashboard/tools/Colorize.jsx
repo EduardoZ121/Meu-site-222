@@ -1,64 +1,61 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
 import {
-  ArrowLeft, Loader2, Upload, Palette, Download, X, Sparkles,
+  ArrowLeft, Loader2, Palette, Download, Sparkles,
   Check, Move, RotateCcw,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { api } from "../../../lib/api";
+import { formatApiError, uploadPost } from "../../../lib/api";
 import { useAuth } from "../../../lib/auth";
-import { compressImage } from "../../../lib/imageCompress";
-import { fileToDataURL } from "../../../lib/fileToDataURL";
+import { usePricing } from "../../../lib/PricingContext";
+import { readFileAsDataURL } from "../../../lib/previewDataUrl";
+import ImageUploadZone from "../../../components/ImageUploadZone";
+import CollapsibleSection from "../../../components/CollapsibleSection";
+import StudioResultAnchor from "../../../components/StudioResultAnchor";
+import { useI18n } from "../../../lib/i18n";
+import { useStudioI18n } from "../../../lib/useStudioI18n";
+import { COLORIZE_STYLE_KEYS } from "../../../lib/toolPagesLocales";
 
-const errMsg = (err) => {
-  if (err?.code === "ECONNABORTED") return "Tempo esgotado — tenta de novo.";
-  if (err?.response?.status === 402) return "Créditos insuficientes.";
-  if (err?.response?.status === 429) return "Demasiados pedidos. Espera 1 minuto.";
-  if (err?.response?.data?.detail)
-    return typeof err.response.data.detail === "string"
-      ? err.response.data.detail
-      : "Erro inesperado.";
-  return err?.message || "Falhou.";
+const COLORIZE_SWATCHES = {
+  natural: ["#D9C2A8", "#A8C8E5", "#7BA17F", "#C97F5E"],
+  cinematic: ["#1F4E5F", "#E8845C", "#0E2A35", "#F4B989"],
+  vibrant: ["#EF4444", "#22C55E", "#3B82F6", "#FACC15"],
+  historic: ["#A78A5C", "#6B5B47", "#C7A87C", "#3E3528"],
 };
 
-const STYLES = [
-  {
-    key: "natural", label: "Natural",
-    hint: "Cores fiéis à realidade · uso geral",
-    swatch: ["#D9C2A8", "#A8C8E5", "#7BA17F", "#C97F5E"], // skin / sky / foliage / brick
-  },
-  {
-    key: "cinematic", label: "Cinematográfico",
-    hint: "Teal & orange · grading editorial",
-    swatch: ["#1F4E5F", "#E8845C", "#0E2A35", "#F4B989"],
-  },
-  {
-    key: "vibrant", label: "Vibrante",
-    hint: "Saturadas e ensolaradas · POP",
-    swatch: ["#EF4444", "#22C55E", "#3B82F6", "#FACC15"],
-  },
-  {
-    key: "historic", label: "Histórico",
-    hint: "Fotos antigas · cores de época",
-    swatch: ["#A78A5C", "#6B5B47", "#C7A87C", "#3E3528"],
-  },
-];
+const COLORIZE_PROMPT_KEYS = [1, 2, 3, 4];
 
-const PROMPT_IDEAS = [
-  "colorir foto antiga de 1950 com cores naturais e realistas",
-  "fotografia de casamento dos anos 60, tons quentes",
-  "retrato de soldado dos anos 40 com farda em verde-oliva",
-  "praia dos anos 70 com céu azul e areia dourada",
+const VIBE_OPTIONS = [
+  { value: "moderno", labelKey: "colorize_vibe_modern" },
+  { value: "vintage", labelKey: "colorize_vibe_vintage" },
 ];
 
 export default function Colorize() {
+  const { t } = useStudioI18n();
+  const { t: tCat } = useI18n();
+  const errMsg = (err) => formatApiError(err, t("common_fail"));
   const navigate = useNavigate();
   const { user, refresh } = useAuth();
-  const fileRef = useRef(null);
+  const { costs } = usePricing();
+
+  const styles = useMemo(
+    () => COLORIZE_STYLE_KEYS.map((key) => ({
+      key,
+      label: t(`colorize_style_${key}_label`),
+      hint: t(`colorize_style_${key}_hint`),
+      swatch: COLORIZE_SWATCHES[key],
+    })),
+    [t],
+  );
+
+  const promptIdeas = useMemo(
+    () => COLORIZE_PROMPT_KEYS.map((n) => t(`colorize_prompt_${n}`)),
+    [t],
+  );
 
   const [photo, setPhoto] = useState(null);
-  const [photoPreview, setPhotoPreview] = useState(null);
+  const [resultOriginalUrl, setResultOriginalUrl] = useState(null);
   const [style, setStyle] = useState("natural");
   const [preserveSkin, setPreserveSkin] = useState(true);
   const [enhanceDetails, setEnhanceDetails] = useState(true);
@@ -68,31 +65,29 @@ export default function Colorize() {
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState(null);
 
-  const cost = 6;
+  const cost = costs.colorize;
 
   useEffect(() => {
     let cancelled = false;
-    if (!photo) { setPhotoPreview(null); return; }
-    fileToDataURL(photo).then((u) => { if (!cancelled) setPhotoPreview(u); }).catch(() => {});
+    if (!photo) {
+      setResultOriginalUrl(null);
+      return undefined;
+    }
+    readFileAsDataURL(photo).then((u) => {
+      if (!cancelled) setResultOriginalUrl(u);
+    }).catch(() => {
+      if (!cancelled) setResultOriginalUrl(null);
+    });
     return () => { cancelled = true; };
   }, [photo]);
 
-  const handlePick = async (file) => {
-    if (!file) return;
-    const isImg = file.type?.startsWith("image/") || /\.(jpe?g|png|webp|gif|bmp|heic|heif|avif)$/i.test(file.name || "");
-    if (!isImg) { toast.error("Ficheiro tem de ser uma imagem."); return; }
+  const reset = () => {
+    setPhoto(null);
     setResult(null);
-    try {
-      const compressed = await compressImage(file);
-      setPhoto(compressed);
-    } catch (e) {
-      toast.error(e.message || "Não consegui ler esta imagem.");
-    }
   };
-  const reset = () => { setPhoto(null); setPhotoPreview(null); setResult(null); };
 
   const run = async () => {
-    if (!photo) { toast.error("Envia a foto preto-e-branco primeiro."); return; }
+    if (!photo) { toast.error(t("colorize_err_upload")); return; }
     setBusy(true); setResult(null);
     try {
       const fd = new FormData();
@@ -102,11 +97,12 @@ export default function Colorize() {
       fd.append("enhance_details", enhanceDetails ? "true" : "false");
       fd.append("vibe", vibe);
       fd.append("custom_prompt", customPrompt);
-      const { data } = await api.post("/tools/colorize", fd, { timeout: 240000 });
-      const url = data.creation?.result_urls?.[0];
-      if (!url) throw new Error("Sem resultado");
-      setResult({ url, id: data.creation.id, style });
-      toast.success(`Foto colorida · ${data.creation.credits_spent} créditos`);
+      const { data } = await uploadPost("/tools/colorize", fd, { timeout: 240000 });
+      const creation = data?.creation;
+      const url = creation?.result_urls?.[0];
+      if (!url) throw new Error(t("common_no_result"));
+      setResult({ url, id: creation?.id || null, style });
+      toast.success(t("colorize_success", { n: creation?.credits_spent ?? cost }));
       await refresh();
     } catch (err) {
       toast.error(errMsg(err), { duration: 8000 });
@@ -117,10 +113,10 @@ export default function Colorize() {
     <div className="max-w-[1400px] mx-auto pb-32" data-testid="colorize-frame">
       <button
         onClick={() => navigate("/app/tools")}
-        className="inline-flex items-center gap-2 text-[#8A8A8E] hover:text-[#F4F1EA] mb-6 text-[12px] font-medium transition-colors"
+        className="rp-studio-back"
         data-testid="colorize-back"
       >
-        <ArrowLeft className="w-4 h-4" /> Voltar às ferramentas
+        <ArrowLeft className="w-4 h-4" /> {t("back_to_tools")}
       </button>
 
       <div className="mb-12 flex items-start gap-5">
@@ -129,90 +125,43 @@ export default function Colorize() {
         </div>
         <div>
           <h1 className="text-[#F4F1EA] text-[32px] md:text-[44px] font-light tracking-[-0.02em] leading-[1.05] mb-2 font-['Inter_Tight']">
-            Colorize B&W
+            {tCat("tool_colorize_name")}
           </h1>
           <p className="text-[#8A8A8E] text-[15px] max-w-[640px] leading-relaxed">
-            Transforma fotografias a preto-e-branco em imagens a cores realistas e naturais.
-            Funciona com retratos, paisagens e fotos de família.
+            {t("colorize_desc_long")}
           </p>
         </div>
       </div>
 
       <div className="grid grid-cols-1 xl:grid-cols-[1fr_440px] gap-10">
-        <div className="space-y-10">
+        <div className="space-y-5">
           {/* 1) UPLOAD */}
-          <section>
+          <CollapsibleSection title={t("colorize_section_photo")} defaultOpen testId="colorize-section-photo">
             <div className="flex items-baseline justify-between mb-4">
-              <label className="text-[#F4F1EA] text-[13px] font-medium uppercase tracking-[0.16em] font-['Inter_Tight']">
-                01 · Imagem em P&B
-              </label>
               {photo && (
                 <button
                   onClick={reset}
                   className="text-[#5A5A5E] hover:text-[#7C3AED] text-[12px] inline-flex items-center gap-1.5 transition-colors"
                   data-testid="colorize-reset"
                 >
-                  <RotateCcw className="w-3.5 h-3.5" /> Trocar foto
+                  <RotateCcw className="w-3.5 h-3.5" /> {t("common_swap_photo")}
                 </button>
               )}
             </div>
-            <label htmlFor="file-colorize"
-              
-              onDragOver={(e) => e.preventDefault()}
-              onDrop={(e) => { e.preventDefault(); handlePick(e.dataTransfer.files?.[0]); }}
-              className={`relative block w-full ${photoPreview ? "aspect-[16/10]" : "aspect-[2/1]"} rounded-2xl border-2 border-dashed transition-all overflow-hidden ${
-                photoPreview
-                  ? "border-[#2E2E30] bg-[#0E0E12]"
-                  : "border-[#2E2E30] hover:border-[#7C3AED]/70 bg-gradient-to-br from-[#13131A] via-[#0E0E12] to-[#0B0B0C] cursor-pointer group"
-              }`}
-              data-testid="colorize-upload-area"
-            >
-              {photoPreview ? (
-                <>
-                  {/* render preview already in B&W tint regardless of source — shows user the input clearly */}
-                  <img src={photoPreview} alt="" className="absolute inset-0 w-full h-full object-contain p-4" style={{ filter: "grayscale(1) contrast(1.05)" }} />
-                  <button
-                    onClick={(e) => { e.stopPropagation(); reset(); }}
-                    className="absolute top-4 right-4 w-9 h-9 bg-black/70 backdrop-blur-md rounded-full flex items-center justify-center text-white hover:bg-black z-10"
-                    data-testid="colorize-clear"
-                  >
-                    <X className="w-4 h-4" />
-                  </button>
-                </>
-              ) : (
-                <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 text-center px-6">
-                  <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,rgba(124,58,237,0.10),transparent_60%)] pointer-events-none" />
-                  <div className="relative w-20 h-20 rounded-full bg-[#7C3AED]/10 border border-[#7C3AED]/25 flex items-center justify-center group-hover:bg-[#7C3AED]/20 group-hover:border-[#7C3AED]/50 transition-all">
-                    <Upload className="w-8 h-8 text-[#C4B5FD]" strokeWidth={1.5} />
-                  </div>
-                  <p className="relative text-[#F4F1EA] text-[20px] font-light tracking-[-0.01em] font-['Inter_Tight']">
-                    Click to upload an image
-                  </p>
-                  <p className="relative text-[#8A8A8E] text-[13px]">
-                    Funciona com retratos, paisagens e fotos antigas
-                  </p>
-                  <p className="relative text-[#5A5A5E] text-[11px] font-mono uppercase tracking-[0.18em]">
-                    JPEG · PNG · WEBP · até 15 MB
-                  </p>
-                </div>
-              )}
-            </label>
-            <input id="file-colorize" ref={fileRef}
-              type="file"
-              accept="image/*"
-              className="hidden"
-              onChange={(e) => handlePick(e.target.files?.[0])}
-              data-testid="colorize-upload-input"
+            <ImageUploadZone
+              value={photo}
+              onChange={(f) => { setPhoto(f); setResult(null); }}
+              layout="wide"
+              testId="colorize-photo"
+              previewImgStyle={{ filter: "grayscale(1) contrast(1.05)" }}
+              emptyLabel={t("common_upload_click")}
+              emptyHint={t("common_upload_hint_drag")}
             />
-          </section>
+          </CollapsibleSection>
 
-          {/* 2) COLOR STYLE */}
-          <section>
-            <label className="block text-[#F4F1EA] text-[13px] font-medium mb-4 uppercase tracking-[0.16em] font-['Inter_Tight']">
-              02 · Nível de Colorização
-            </label>
+          <CollapsibleSection title={t("colorize_section_level")} testId="colorize-section-style">
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-3" data-testid="colorize-styles">
-              {STYLES.map(({ key, label, hint, swatch }) => (
+              {styles.map(({ key, label, hint, swatch }) => (
                 <button
                   key={key}
                   onClick={() => setStyle(key)}
@@ -244,27 +193,23 @@ export default function Colorize() {
                 </button>
               ))}
             </div>
-          </section>
+          </CollapsibleSection>
 
-          {/* 3) TOGGLES + VIBE SEGMENT */}
-          <section>
-            <label className="block text-[#F4F1EA] text-[13px] font-medium mb-4 uppercase tracking-[0.16em] font-['Inter_Tight']">
-              03 · Ajustes de Cor
-            </label>
+          <CollapsibleSection title={t("colorize_section_tuning")} testId="colorize-section-tuning">
             <div className="space-y-3">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                 <Toggle
                   active={preserveSkin}
                   onClick={() => setPreserveSkin(!preserveSkin)}
-                  label="Preservar tons de pele realistas"
-                  hint="Evita pele alaranjada, esverdeada ou plástica."
+                  label={t("colorize_toggle_skin")}
+                  hint={t("colorize_toggle_skin_hint")}
                   testId="colorize-toggle-skin"
                 />
                 <Toggle
                   active={enhanceDetails}
                   onClick={() => setEnhanceDetails(!enhanceDetails)}
-                  label="Melhorar detalhes e nitidez"
-                  hint="Realça texturas em cabelo, tecidos e olhos."
+                  label={t("colorize_toggle_details")}
+                  hint={t("colorize_toggle_details_hint")}
                   testId="colorize-toggle-details"
                 />
               </div>
@@ -272,47 +217,43 @@ export default function Colorize() {
               {/* Vibe segment */}
               <div className="rounded-xl border border-[#2E2E30] bg-[#13131A]/50 p-3.5 flex flex-col sm:flex-row sm:items-center gap-3" data-testid="colorize-vibe">
                 <div className="flex-1 min-w-0">
-                  <p className="text-[#F4F1EA] text-[13px] font-medium font-['Inter_Tight']">Acabamento</p>
+                  <p className="text-[#F4F1EA] text-[13px] font-medium font-['Inter_Tight']">{t("colorize_finish_label")}</p>
                   <p className="text-[#8A8A8E] text-[11.5px] leading-snug mt-0.5">
-                    Escolhe o feel final — limpo digital ou com pegada analógica.
+                    {t("colorize_feel")}
                   </p>
                 </div>
                 <div className="inline-flex rounded-lg border border-[#2E2E30] p-0.5 bg-[#0B0B0C]">
-                  {["moderno", "vintage"].map((v) => (
+                  {VIBE_OPTIONS.map(({ value, labelKey }) => (
                     <button
-                      key={v}
-                      onClick={() => setVibe(v)}
-                      data-testid={`colorize-vibe-${v}`}
-                      className={`px-4 py-1.5 text-[12px] rounded-md transition-all capitalize font-['Inter_Tight'] ${
-                        vibe === v
+                      key={value}
+                      onClick={() => setVibe(value)}
+                      data-testid={`colorize-vibe-${value}`}
+                      className={`px-4 py-1.5 text-[12px] rounded-md transition-all font-['Inter_Tight'] ${
+                        vibe === value
                           ? "bg-[#7C3AED] text-white shadow-sm shadow-[#7C3AED]/30"
                           : "text-[#8A8A8E] hover:text-[#F4F1EA]"
                       }`}
                     >
-                      {v}
+                      {t(labelKey)}
                     </button>
                   ))}
                 </div>
               </div>
             </div>
-          </section>
+          </CollapsibleSection>
 
-          {/* 4) OPTIONAL PROMPT */}
-          <section>
-            <label className="block text-[#F4F1EA] text-[13px] font-medium mb-3 uppercase tracking-[0.16em] font-['Inter_Tight']">
-              04 · Pista de Cor <span className="text-[#5A5A5E] normal-case tracking-normal text-[11px] font-normal">(opcional)</span>
-            </label>
+          <CollapsibleSection title={t("colorize_section_hint")} optional testId="colorize-section-prompt">
             <textarea
               value={customPrompt}
               onChange={(e) => setCustomPrompt(e.target.value)}
               rows={3}
               maxLength={280}
-              placeholder="ex: colorir foto antiga de 1950 com cores naturais e realistas"
+              placeholder={t("colorize_prompt_ph")}
               className="w-full bg-[#13131A] border border-[#2E2E30] focus:border-[#7C3AED] text-[#F4F1EA] text-[14px] placeholder:text-[#5A5A5E] px-4 py-3 rounded-lg focus:outline-none resize-none font-['Inter_Tight'] transition-colors"
               data-testid="colorize-custom-prompt"
             />
             <div className="flex flex-wrap gap-2 mt-2.5">
-              {PROMPT_IDEAS.map((s) => (
+              {promptIdeas.map((s) => (
                 <button
                   key={s}
                   onClick={() => setCustomPrompt(s)}
@@ -322,13 +263,13 @@ export default function Colorize() {
                 </button>
               ))}
             </div>
-          </section>
+          </CollapsibleSection>
         </div>
 
-        <aside className="xl:sticky xl:top-[80px] self-start">
-          <p className="text-[#5A5A5E] text-[10px] font-mono uppercase tracking-[0.2em] mb-3">Output</p>
-          <ResultArea busy={busy} result={result} originalPreview={photoPreview} style={style} />
-        </aside>
+        <StudioResultAnchor busy={busy} ready={Boolean(result?.url)} className="xl:sticky xl:top-[80px] self-start">
+          <p className="text-[#5A5A5E] text-[10px] font-mono uppercase tracking-[0.2em] mb-3">{t("common_output")}</p>
+          <ResultArea busy={busy} result={result} originalPreview={resultOriginalUrl} style={style} />
+        </StudioResultAnchor>
       </div>
 
       <motion.div
@@ -339,12 +280,12 @@ export default function Colorize() {
       >
         <div className="max-w-[1400px] mx-auto flex items-center justify-between gap-4">
           <div className="hidden sm:flex items-center gap-3 text-[12px]">
-            <span className="text-[#8A8A8E]">Custo:</span>
+            <span className="text-[#8A8A8E]">{t("common_cost")}</span>
             <span className="text-[#C4B5FD] font-medium text-[16px]">
-              {cost} <span className="text-[10px] font-mono uppercase tracking-wider">Créditos</span>
+              {cost} <span className="text-[10px] font-mono uppercase tracking-wider">{t("common_credits_label")}</span>
             </span>
             <span className="text-[#5A5A5E] mx-2">·</span>
-            <span className="text-[#8A8A8E]">Saldo:</span>
+            <span className="text-[#8A8A8E]">{t("common_balance")}</span>
             <span className="text-[#F4F1EA] font-medium">{user?.credits ?? 0}</span>
           </div>
           <button
@@ -354,9 +295,9 @@ export default function Colorize() {
             data-testid="colorize-create-btn"
           >
             {busy ? (
-              <><Loader2 className="w-4 h-4 animate-spin" /> A colorir…</>
+              <><Loader2 className="w-4 h-4 animate-spin" /> {t("colorize_processing")}</>
             ) : (
-              <><Sparkles className="w-4 h-4" /> Colorir Foto · {cost} créditos</>
+              <><Sparkles className="w-4 h-4" /> {t("colorize_btn", { n: cost })}</>
             )}
           </button>
         </div>
@@ -396,14 +337,16 @@ function Toggle({ active, onClick, label, hint, testId }) {
 /* ------------------------------------------------------------------ */
 
 function ResultArea({ busy, result, originalPreview, style }) {
+  const { t } = useStudioI18n();
+  const styleLabel = t(`colorize_style_${style}_label`);
   if (busy) {
     return (
       <div className="rounded-2xl bg-[#0E0E12] border border-[#2E2E30] aspect-square flex flex-col items-center justify-center p-10 relative overflow-hidden" data-testid="colorize-loading">
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,rgba(124,58,237,0.18),transparent_65%)] animate-pulse pointer-events-none" />
         <div className="relative w-14 h-14 rounded-full border-2 border-[#7C3AED]/30 border-t-[#C4B5FD] animate-spin mb-5" />
-        <p className="relative text-[#F4F1EA] text-[14px] font-medium font-['Inter_Tight']">A pintar a fotografia…</p>
+        <p className="relative text-[#F4F1EA] text-[14px] font-medium font-['Inter_Tight']">{t("colorize_loading")}</p>
         <p className="relative text-[#5A5A5E] text-[11px] font-mono uppercase mt-2 tracking-[0.18em]">
-          30–90 seg · estilo {style}
+          {t("colorize_loading_sub", { style: styleLabel })}
         </p>
       </div>
     );
@@ -414,8 +357,8 @@ function ResultArea({ busy, result, originalPreview, style }) {
         <div className="w-12 h-12 rounded-full bg-[#7C3AED]/10 flex items-center justify-center mb-4">
           <Palette className="w-5 h-5 text-[#C4B5FD]" strokeWidth={1.5} />
         </div>
-        <p className="text-[#8A8A8E] text-[13px] text-center">A tua foto colorida aparece aqui.</p>
-        <p className="text-[#5A5A5E] text-[11px] text-center mt-1.5">Antes / Depois disponíveis com slider.</p>
+        <p className="text-[#8A8A8E] text-[13px] text-center">{t("colorize_result_empty")}</p>
+        <p className="text-[#5A5A5E] text-[11px] text-center mt-1.5">{t("colorize_result_compare")}</p>
       </div>
     );
   }
@@ -423,8 +366,10 @@ function ResultArea({ busy, result, originalPreview, style }) {
 }
 
 function ResultViewer({ result, originalPreview }) {
+  const { t } = useStudioI18n();
   const [pos, setPos] = useState(50); // slider position 0..100
   const wrapRef = useRef(null);
+  const styleLabel = t(`colorize_style_${result.style}_label`);
 
   const onMove = (clientX) => {
     const r = wrapRef.current?.getBoundingClientRect();
@@ -445,7 +390,7 @@ function ResultViewer({ result, originalPreview }) {
       setTimeout(() => URL.revokeObjectURL(url), 1000);
     } catch (e) {
       console.error(e);
-      toast.error("Falha ao preparar download.");
+      toast.error(t("common_download_fail"));
     }
   };
 
@@ -462,7 +407,7 @@ function ResultViewer({ result, originalPreview }) {
         {/* Colorized (full) */}
         <img
           src={result.url}
-          alt="Colorized"
+          alt={t("colorize_alt_colorized")}
           className="absolute inset-0 w-full h-full object-contain"
           data-testid="colorize-result-image"
           crossOrigin="anonymous"
@@ -476,7 +421,7 @@ function ResultViewer({ result, originalPreview }) {
           >
             <img
               src={originalPreview}
-              alt="Original"
+              alt={t("common_before")}
               className="w-full h-full object-contain"
               style={{ filter: "grayscale(1) contrast(1.05)" }}
               draggable={false}
@@ -494,10 +439,10 @@ function ResultViewer({ result, originalPreview }) {
               <Move className="w-4 h-4 text-white" strokeWidth={2.5} />
             </div>
             <div className="absolute top-3 left-3 text-[10px] font-mono uppercase tracking-[0.2em] text-white bg-black/70 px-2 py-1 rounded">
-              Antes
+              {t("common_before")}
             </div>
             <div className="absolute top-3 right-3 text-[10px] font-mono uppercase tracking-[0.2em] text-white bg-[#7C3AED] px-2 py-1 rounded">
-              Depois · {result.style}
+              {t("colorize_result_badge", { label: styleLabel })}
             </div>
           </>
         )}
@@ -509,7 +454,7 @@ function ResultViewer({ result, originalPreview }) {
           data-testid="colorize-download"
         >
           <Download className="w-4 h-4" />
-          Baixar Colorida
+          {t("colorize_download")}
         </button>
         <a
           href={result.url}
@@ -518,7 +463,7 @@ function ResultViewer({ result, originalPreview }) {
           className="px-4 py-3 border border-[#2E2E30] hover:border-[#7C3AED]/50 text-[#8A8A8E] hover:text-[#F4F1EA] rounded-lg text-[12.5px] transition-colors flex items-center"
           data-testid="colorize-open"
         >
-          Abrir
+          {t("common_open")}
         </a>
       </div>
     </div>

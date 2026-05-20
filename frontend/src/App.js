@@ -2,11 +2,13 @@ import "./App.css";
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { Toaster } from "sonner";
 import { AuthProvider, useAuth } from "./lib/auth";
-import { I18nProvider } from "./lib/i18n";
+import { PricingProvider } from "./lib/PricingContext";
 
 import Landing from "./pages/Landing";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
+import ForgotPassword from "./pages/ForgotPassword";
+import ResetPassword from "./pages/ResetPassword";
 import Explore from "./pages/Explore";
 import DashboardLayout from "./pages/dashboard/Layout";
 import Tools from "./pages/dashboard/Tools";
@@ -15,7 +17,7 @@ import Pro from "./pages/dashboard/Pro";
 import Artistic from "./pages/dashboard/Artistic";
 import Video from "./pages/dashboard/Video";
 import Posters from "./pages/dashboard/Posters";
-import CarouselPage from "./pages/dashboard/Carousel";
+import MangaStudio from "./pages/dashboard/MangaStudio";
 import Wizard from "./pages/dashboard/Wizard";
 import Suggest from "./pages/dashboard/Suggest";
 import SettingsPage from "./pages/dashboard/Settings";
@@ -42,16 +44,19 @@ function RequireAuth({ children, adminOnly = false }) {
 
 function App() {
   return (
-    <div className="App">
-      <I18nProvider>
-        <AuthProvider>
+    <div className="App touch-manipulation min-h-screen overflow-x-hidden">
+      <AuthProvider>
+          <PricingProvider>
           <BrowserRouter>
             <Toaster position="top-center" theme="dark" toastOptions={{ style: { background: "#121217", color: "#F4F1EA", border: "1px solid rgba(244,241,234,0.08)" } }} />
             <Routes>
               <Route path="/" element={<Landing />} />
               <Route path="/login" element={<Login />} />
               <Route path="/register" element={<Register />} />
+              <Route path="/forgot-password" element={<ForgotPassword />} />
+              <Route path="/reset-password" element={<ResetPassword />} />
               <Route path="/explore" element={<Explore />} />
+              <Route path="/studio" element={<Navigate to="/app/studio" replace />} />
 
               <Route path="/app" element={<RequireAuth><DashboardLayout /></RequireAuth>}>
                 <Route index element={<Navigate to="/app/tools" replace />} />
@@ -63,11 +68,13 @@ function App() {
                 <Route path="tools/inpaint" element={<Inpaint />} />
                 <Route path="tools/clothes" element={<ClothesChanger />} />
                 <Route path="generate" element={<Generate />} />
+                <Route path="studio" element={<Generate />} />
                 <Route path="pro" element={<Pro />} />
                 <Route path="artistic" element={<Artistic />} />
                 <Route path="video" element={<Video />} />
                 <Route path="posters" element={<Posters />} />
-                <Route path="carousel" element={<CarouselPage />} />
+                <Route path="manga-studio" element={<MangaStudio />} />
+                <Route path="carousel" element={<Navigate to="/app/manga-studio" replace />} />
                 <Route path="wizard" element={<Wizard />} />
                 <Route path="suggest" element={<Suggest />} />
                 <Route path="settings" element={<SettingsPage />} />
@@ -82,8 +89,8 @@ function App() {
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
           </BrowserRouter>
+          </PricingProvider>
         </AuthProvider>
-      </I18nProvider>
     </div>
   );
 }

@@ -1,88 +1,89 @@
-/** Client-side image compression with mobile-safe fallbacks.
- *
- * Mobile photos can be 5–10 MB → fails on 4G via Cloudflare timeout.
- * We resize to max 1280px on the longest side and re-encode as JPEG @ 0.85.
- *
- * Pipeline:
- *  1. Try `createImageBitmap` (fast, works on modern browsers)
- *  2. Fallback to `<img>` + FileReader (works for HEIC on Safari 17+ and as a
- *     general fallback)
- *  3. If both fail and the file is HEIC, throw — backend can't process it
- *  4. If the file is already < 500 KB, skip compression
- *
- * Throws an Error on irrecoverable failures (the caller MUST catch and show
- * a user-friendly toast). Returning the original file silently is what made
- * mobile uploads "fail randomly" — the backend rejected unprocessable files.
- */
+import { toast } from "sonner";
+import { isIOS } from "./device";
+import { compressImageNeverFail } from "./canvasCompress";
 
 const HEIC_EXTENSIONS = /\.(heic|heif)$/i;
+export const IMAGE_EXTENSIONS = /\.(jpe?g|png|webp|gif|bmp|heic|heif|avif)$/i;
+export const IMAGE_ACCEPT =
+  "image/*,image/jpeg,image/png,image/webp,image/gif,image/bmp,image/avif,.jpg,.jpeg,.png,.webp,.gif,.bmp,.avif,.heic,.heif";
 
-function loadImageViaTag(file) {
-  return new Promise((resolve, reject) => {
-    const img = new Image();
-    const url = URL.createObjectURL(file);
-    img.onload = () => { URL.revokeObjectURL(url); resolve(img); };
-    img.onerror = (e) => { URL.revokeObjectURL(url); reject(e); };
-    img.src = url;
-  });
+export function looksLikeImageFile(file) {
+  if (!file) return false;
+  const t = file.type || "";
+  if (t.startsWith("image/")) return true;
+  if (/^application\/octet-stream$/i.test(t) && IMAGE_EXTENSIONS.test(file.name || "")) return true;
+  return IMAGE_EXTENSIONS.test(file.name || "");
 }
 
-export async function compressImage(file, { maxSize = 1280, quality = 0.85 } = {}) {
+function mimeFromName(name = "") {
+  if (/\.jpe?g$/i.test(name)) return "image/jpeg";
+  if (/\.png$/i.test(name)) return "image/png";
+  if (/\.webp$/i.test(name)) return "image/webp";
+  if (/\.gif$/i.test(name)) return "image/gif";
+  if (/\.bmp$/i.test(name)) return "image/bmp";
+  if (/\.avif$/i.test(name)) return "image/avif";
+  return "";
+}
+
+export function normalizeImageFile(file) {
+  if (!file) return file;
+  const t = file.type || "";
+  if (t && t !== "application/octet-stream") return file;
+  const inferred = mimeFromName(file.name);
+  if (!inferred) return file;
+  return new File([file], file.name, { type: inferred, lastModified: file.lastModified || Date.now() });
+}
+
+function formatSize(n) {
+  if (n < 1024) return `${n} B`;
+  if (n < 1024 * 1024) return `${(n / 1024).toFixed(1)} KB`;
+  return `${(n / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+/**
+ * Compressão com canvas (nunca bloqueia: em último caso devolve o original).
+ * @param {File} file
+ * @param {object} [opts]
+ * @param {number} [opts.maxSize] — lado máximo (px)
+ * @param {number} [opts.maxBytes] — teto bytes (desktop)
+ * @param {number} [opts.maxBytesIOS] — teto bytes iOS
+ * @param {boolean} [opts.force] — não saltar ficheiros pequenos
+ */
+export async function compressImage(file, opts = {}) {
   if (!file) throw new Error("Nenhum ficheiro selecionado.");
-  // Skip compression for already-small images
-  if (file.size < 500 * 1024) return file;
-
-  // Detect HEIC up front — both decoders below typically fail on it.
-  const isHeic = HEIC_EXTENSIONS.test(file.name) || /heic|heif/i.test(file.type || "");
-
-  // ---- Path 1: createImageBitmap (modern browsers) ----
-  let width = 0, height = 0, source = null;
-  try {
-    source = await createImageBitmap(file);
-    width = source.width; height = source.height;
-  } catch {
-    source = null;
+  if (!looksLikeImageFile(file)) {
+    throw new Error("Ficheiro tem de ser uma imagem: JPEG, PNG, WEBP, AVIF, BMP ou GIF.");
   }
 
-  // ---- Path 2: HTMLImageElement fallback (Safari, older Android) ----
-  if (!source) {
-    try {
-      const img = await loadImageViaTag(file);
-      source = img;
-      width = img.naturalWidth; height = img.naturalHeight;
-    } catch {
-      source = null;
-    }
+  let work = normalizeImageFile(file);
+  if (HEIC_EXTENSIONS.test(work.name) && !/^image\//i.test(work.type || "")) {
+    work = new File([work], work.name, { type: "image/heic", lastModified: work.lastModified || Date.now() });
   }
 
-  if (!source || !width || !height) {
-    if (isHeic) {
-      throw new Error(
-        "Formato HEIC não suportado no telemóvel. Vai a Definições → Câmara → Formatos e muda para 'Mais Compatível' (JPEG)."
-      );
-    }
-    throw new Error("Não consegui ler esta imagem. Tenta outra foto ou em formato JPEG/PNG.");
+  const before = work.size;
+  const ios = isIOS();
+  const maxMB = opts.maxSizeMB != null ? Number(opts.maxSizeMB) : ios ? 1.5 : 2;
+  const maxBytes = opts.maxBytes != null ? Number(opts.maxBytes) : maxMB * 1024 * 1024;
+  const maxBytesIOS = opts.maxBytesIOS != null ? Number(opts.maxBytesIOS) : 1.5 * 1024 * 1024;
+  const maxDim = Math.min(Number(opts.maxSize) || 2048, 2048);
+
+  if (!opts.force && before < 48 * 1024 && /^image\/(jpeg|png|webp)$/i.test(work.type || "")) {
+    return work;
   }
 
-  const longest = Math.max(width, height);
-  const scale = longest > maxSize ? maxSize / longest : 1;
-  const w = Math.round(width * scale);
-  const h = Math.round(height * scale);
-
-  const canvas = document.createElement("canvas");
-  canvas.width = w; canvas.height = h;
-  const ctx = canvas.getContext("2d");
-  ctx.drawImage(source, 0, 0, w, h);
-  if (source.close) source.close();
-
-  const blob = await new Promise((resolve) =>
-    canvas.toBlob(resolve, "image/jpeg", quality)
-  );
-  if (!blob) throw new Error("Falha ao processar a imagem.");
-
-  const baseName = (file.name || "photo").replace(/\.[^.]+$/, "");
-  return new File([blob], `${baseName}.jpg`, {
-    type: "image/jpeg",
-    lastModified: Date.now(),
+  const tid = toast.loading(`A otimizar… ${formatSize(before)}`);
+  const out = await compressImageNeverFail(work, {
+    maxSize: maxDim,
+    maxBytes,
+    maxBytesIOS,
   });
+  if (HEIC_EXTENSIONS.test(work.name || "") && out === work) {
+    toast.warning(
+      "HEIC pode não abrir neste browser. Se falhar, exporta JPEG no iPhone (Câmara → Formatos → Mais compatível).",
+      { id: tid, duration: 6000 },
+    );
+    return out;
+  }
+  toast.success(`A otimizar… ${formatSize(before)} → ${formatSize(out.size)}`, { id: tid, duration: 4000 });
+  return out;
 }

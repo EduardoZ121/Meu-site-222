@@ -1,23 +1,21 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Menu, X, Globe } from "lucide-react";
+import { Menu, X } from "lucide-react";
 import { Link } from "react-router-dom";
-import { useI18n } from "../lib/i18n";
 import Logo from "./Logo";
-
-const navLinks = [
-  { label: "Generate", href: "#features" },
-  { label: "Edit", href: "#features" },
-  { label: "Pricing", href: "#pricing" },
-  { label: "Gallery", href: "/explore" },
-];
-
-const languages = ["EN", "PT", "ES", "FR"];
+import LanguageSwitcher from "./LanguageSwitcher";
+import { useI18n } from "../lib/i18n";
 
 export default function Navbar() {
+  const { t } = useI18n();
+  const navLinks = [
+    { label: t("nav_tools"), href: "#features" },
+    { label: t("nav_pricing"), href: "#pricing" },
+    { label: t("faq_title"), href: "#faq" },
+    { label: t("nav_gallery"), href: "/explore" },
+  ];
   const [scrolled, setScrolled] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
-  const { lang, switchLang } = useI18n();
 
   useEffect(() => {
     const h = () => setScrolled(window.scrollY > 40);
@@ -62,31 +60,16 @@ export default function Navbar() {
           </div>
 
           <div className="hidden md:flex items-center gap-3">
-            <div className="flex items-center gap-1 text-[#5A5A5E]">
-              <Globe className="w-3 h-3" />
-              {languages.map((l, i) => (
-                <button
-                  key={l}
-                  onClick={() => switchLang(l.toLowerCase())}
-                  className={`text-[10px] font-mono tracking-wider px-1 transition-colors ${
-                    (lang || "pt").toUpperCase() === l ? "text-[#7C3AED]" : "hover:text-[#8A8A8E]"
-                  }`}
-                  data-testid={`lang-${l}`}
-                >
-                  {l}
-                  {i < languages.length - 1 && <span className="ml-1 text-[#2E2E30]">·</span>}
-                </button>
-              ))}
-            </div>
+            <LanguageSwitcher testId="landing-header-lang" />
             <Link
               to="/login"
               className="text-[#8A8A8E] text-[11px] font-medium uppercase tracking-[0.1em] hover:text-[#F4F1EA] transition-colors px-3 py-1.5"
               data-testid="nav-login"
             >
-              Login
+              {t("nav_login")}
             </Link>
             <Link to="/register" className="btn-primary !px-4 !py-1.5 !text-[10px]" data-testid="nav-signup">
-              Start Free
+              {t("nav_signup")}
             </Link>
           </div>
 
@@ -139,25 +122,19 @@ export default function Navbar() {
                   </motion.a>
                 )
               )}
-              <div className="flex gap-2 mt-4">
-                {languages.map((l) => (
-                  <button
-                    key={l}
-                    onClick={() => switchLang(l.toLowerCase())}
-                    className={`px-3 py-1 text-[10px] font-mono border border-[#2E2E30] ${
-                      (lang || "pt").toUpperCase() === l ? "text-[#7C3AED] border-[#7C3AED]/30" : "text-[#5A5A5E]"
-                    }`}
-                  >
-                    {l}
-                  </button>
-                ))}
-              </div>
+              <Link
+                to="/login"
+                onClick={() => setMobileOpen(false)}
+                className="text-[#8A8A8E] text-lg font-light hover:text-[#7C3AED] transition-colors"
+              >
+                {t("nav_login")}
+              </Link>
               <Link
                 to="/register"
                 onClick={() => setMobileOpen(false)}
                 className="btn-primary mt-4"
               >
-                Start Free — 30 Credits
+                {t("hero_cta_primary")}
               </Link>
             </div>
           </motion.div>

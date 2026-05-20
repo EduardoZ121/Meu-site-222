@@ -1,34 +1,30 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { readFileAsDataURL } from "../../../lib/previewDataUrl";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
 import {
-  ArrowLeft, Loader2, Upload, ArrowUp, Download, X, Sparkles,
+  ArrowLeft, Loader2, ArrowUp, Download, Sparkles,
   Check, Move, RotateCcw, ZoomIn,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { api } from "../../../lib/api";
+import { formatApiError, uploadPost } from "../../../lib/api";
 import { useAuth } from "../../../lib/auth";
-import { compressImage } from "../../../lib/imageCompress";
-import { fileToDataURL } from "../../../lib/fileToDataURL";
-
-const errMsg = (err) => {
-  if (err?.code === "ECONNABORTED") return "Tempo esgotado — tenta de novo.";
-  if (err?.response?.status === 402) return "Créditos insuficientes.";
-  if (err?.response?.status === 429) return "Demasiados pedidos. Espera 1 minuto.";
-  if (err?.response?.data?.detail)
-    return typeof err.response.data.detail === "string"
-      ? err.response.data.detail
-      : "Erro inesperado.";
-  return err?.message || "Falhou.";
-};
+import { usePricing } from "../../../lib/PricingContext";
+import ImageUploadZone from "../../../components/ImageUploadZone";
+import CollapsibleSection from "../../../components/CollapsibleSection";
+import StudioResultAnchor from "../../../components/StudioResultAnchor";
+import { useI18n } from "../../../lib/i18n";
+import { useStudioI18n } from "../../../lib/useStudioI18n";
 
 export default function Upscale() {
+  const { t } = useStudioI18n();
+  const { t: tCat } = useI18n();
+  const errMsg = (err) => formatApiError(err, t("common_fail"));
   const navigate = useNavigate();
   const { user, refresh } = useAuth();
-  const fileRef = useRef(null);
+  const { costs } = usePricing();
 
   const [photo, setPhoto] = useState(null);
-  const [photoPreview, setPhotoPreview] = useState(null);
   const [scale, setScale] = useState(2);
   const [sharpen, setSharpen] = useState(true);
   const [denoise, setDenoise] = useState(true);
@@ -36,33 +32,39 @@ export default function Upscale() {
 
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState(null);
+  const [photoPreview, setPhotoPreview] = useState(null);
 
-  const cost = 8;
+  const cost = costs.upscale;
+
+  const scaleOptions = useMemo(
+    () => [
+      { s: 2, label: t("upscale_scale_2_label"), hint: t("upscale_scale_2_hint") },
+      { s: 4, label: t("upscale_scale_4_label"), hint: t("upscale_scale_4_hint") },
+    ],
+    [t],
+  );
 
   useEffect(() => {
     let cancelled = false;
-    if (!photo) { setPhotoPreview(null); return; }
-    fileToDataURL(photo).then((u) => { if (!cancelled) setPhotoPreview(u); }).catch(() => {});
+    if (!photo) {
+      setPhotoPreview(null);
+      return undefined;
+    }
+    readFileAsDataURL(photo).then((u) => {
+      if (!cancelled) setPhotoPreview(u);
+    }).catch(() => {
+      if (!cancelled) setPhotoPreview(null);
+    });
     return () => { cancelled = true; };
   }, [photo]);
 
-  const handlePick = async (file) => {
-    if (!file) return;
-    const isImg = file.type?.startsWith("image/") || /\.(jpe?g|png|webp|gif|bmp|heic|heif|avif)$/i.test(file.name || "");
-    if (!isImg) { toast.error("Ficheiro tem de ser uma imagem."); return; }
+  const reset = () => {
+    setPhoto(null);
     setResult(null);
-    try {
-      const compressed = await compressImage(file);
-      setPhoto(compressed);
-    } catch (e) {
-      toast.error(e.message || "Não consegui ler esta imagem.");
-    }
   };
 
-  const reset = () => { setPhoto(null); setPhotoPreview(null); setResult(null); };
-
   const run = async () => {
-    if (!photo) { toast.error("Envia uma foto primeiro."); return; }
+    if (!photo) { toast.error(t("common_upload_first")); return; }
     setBusy(true); setResult(null);
     try {
       const fd = new FormData();
@@ -71,11 +73,12 @@ export default function Upscale() {
       fd.append("sharpen", sharpen ? "true" : "false");
       fd.append("denoise", denoise ? "true" : "false");
       fd.append("preserve_colors", preserveColors ? "true" : "false");
-      const { data } = await api.post("/tools/upscale", fd, { timeout: 240000 });
-      const url = data.creation?.result_urls?.[0];
-      if (!url) throw new Error("Sem resultado");
-      setResult({ url, id: data.creation.id, scale });
-      toast.success(`Upscaled ${scale}× · ${data.creation.credits_spent} créditos`);
+      const { data } = await uploadPost("/tools/upscale", fd, { timeout: 240000 });
+      const creation = data?.creation;
+      const url = creation?.result_urls?.[0];
+      if (!url) throw new Error(t("common_no_result"));
+      setResult({ url, id: creation?.id || null, scale });
+      toast.success(t("upscale_success", { scale, n: creation?.credits_spent ?? cost }));
       await refresh();
     } catch (err) {
       toast.error(errMsg(err), { duration: 8000 });
@@ -87,10 +90,10 @@ export default function Upscale() {
       {/* Back link */}
       <button
         onClick={() => navigate("/app/tools")}
-        className="inline-flex items-center gap-2 text-[#8A8A8E] hover:text-[#F4F1EA] mb-6 text-[12px] font-medium transition-colors"
+        className="rp-studio-back"
         data-testid="upscale-back"
       >
-        <ArrowLeft className="w-4 h-4" /> Voltar às ferramentas
+        <ArrowLeft className="w-4 h-4" /> {t("back_to_tools")}
       </button>
 
       {/* Hero header */}
@@ -100,98 +103,45 @@ export default function Upscale() {
         </div>
         <div>
           <h1 className="text-[#F4F1EA] text-[32px] md:text-[44px] font-light tracking-[-0.02em] leading-[1.05] mb-2 font-['Inter_Tight']">
-            AI Image Upscaler
+            {tCat("tool_upscale_name")}
           </h1>
           <p className="text-[#8A8A8E] text-[15px] max-w-[640px] leading-relaxed">
-            Aumenta a resolução até 4× preservando detalhes finos. Ideal para fotos desfocadas,
-            prints antigos e exportações para impressão.
+            {t("upscale_desc_long")}
           </p>
         </div>
       </div>
 
       <div className="grid grid-cols-1 xl:grid-cols-[1fr_440px] gap-10">
         {/* ====== LEFT: controls ====== */}
-        <div className="space-y-10">
+        <div className="space-y-5">
           {/* 1) UPLOAD */}
-          <section>
+          <CollapsibleSection title={t("common_section_upload_image")} defaultOpen testId="upscale-section-photo">
             <div className="flex items-baseline justify-between mb-4">
-              <label className="text-[#F4F1EA] text-[13px] font-medium uppercase tracking-[0.16em] font-['Inter_Tight']">
-                01 · Upload Image
-              </label>
               {photo && (
                 <button
                   onClick={reset}
                   className="text-[#5A5A5E] hover:text-[#7C3AED] text-[12px] inline-flex items-center gap-1.5 transition-colors"
                   data-testid="upscale-reset"
                 >
-                  <RotateCcw className="w-3.5 h-3.5" /> Trocar foto
+                  <RotateCcw className="w-3.5 h-3.5" /> {t("common_swap_photo")}
                 </button>
               )}
             </div>
 
-            <label htmlFor="file-upscale"
-              
-              onDragOver={(e) => e.preventDefault()}
-              onDrop={(e) => { e.preventDefault(); handlePick(e.dataTransfer.files?.[0]); }}
-              className={`relative block w-full ${photoPreview ? "aspect-[16/10]" : "aspect-[2/1]"} rounded-2xl border-2 border-dashed transition-all overflow-hidden ${
-                photoPreview
-                  ? "border-[#2E2E30] bg-[#0E0E12]"
-                  : "border-[#2E2E30] hover:border-[#7C3AED]/70 bg-gradient-to-br from-[#13131A] via-[#0E0E12] to-[#0B0B0C] cursor-pointer group"
-              }`}
-              data-testid="upscale-upload-area"
-            >
-              {photoPreview ? (
-                <>
-                  <img
-                    src={photoPreview}
-                    alt=""
-                    className="absolute inset-0 w-full h-full object-contain p-4"
-                  />
-                  <button
-                    onClick={(e) => { e.stopPropagation(); reset(); }}
-                    className="absolute top-4 right-4 w-9 h-9 bg-black/70 backdrop-blur-md rounded-full flex items-center justify-center text-white hover:bg-black z-10"
-                    data-testid="upscale-clear"
-                  >
-                    <X className="w-4 h-4" />
-                  </button>
-                </>
-              ) : (
-                <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 text-center px-6">
-                  <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,rgba(124,58,237,0.10),transparent_60%)] pointer-events-none" />
-                  <div className="relative w-20 h-20 rounded-full bg-[#7C3AED]/10 border border-[#7C3AED]/25 flex items-center justify-center group-hover:bg-[#7C3AED]/20 group-hover:border-[#7C3AED]/50 transition-all">
-                    <Upload className="w-8 h-8 text-[#C4B5FD]" strokeWidth={1.5} />
-                  </div>
-                  <p className="relative text-[#F4F1EA] text-[20px] font-light tracking-[-0.01em] font-['Inter_Tight']">
-                    Click to upload an image
-                  </p>
-                  <p className="relative text-[#8A8A8E] text-[13px]">
-                    Arrasta a foto aqui ou clica para escolher
-                  </p>
-                  <p className="relative text-[#5A5A5E] text-[11px] font-mono uppercase tracking-[0.18em]">
-                    JPEG · PNG · WEBP · até 15 MB
-                  </p>
-                </div>
-              )}
-            </label>
-            <input id="file-upscale" ref={fileRef}
-              type="file"
-              accept="image/*"
-              className="hidden"
-              onChange={(e) => handlePick(e.target.files?.[0])}
-              data-testid="upscale-upload-input"
+            <ImageUploadZone
+              value={photo}
+              onChange={(f) => { setPhoto(f); setResult(null); }}
+              layout="wide"
+              testId="upscale-photo"
+              compressOptions={{ maxSize: 880 }}
+              emptyLabel={t("common_upload_click")}
+              emptyHint={t("common_upload_hint_drag")}
             />
-          </section>
+          </CollapsibleSection>
 
-          {/* 2) SCALE FACTOR */}
-          <section>
-            <label className="block text-[#F4F1EA] text-[13px] font-medium mb-4 uppercase tracking-[0.16em] font-['Inter_Tight']">
-              02 · Scale Factor
-            </label>
+          <CollapsibleSection title={t("upscale_section_scale")} hint={t("upscale_section_scale_hint")} testId="upscale-section-scale">
             <div className="grid grid-cols-2 gap-3" data-testid="upscale-scale-options">
-              {[
-                { s: 2, label: "2x Resolution", hint: "Rápido · ideal para web" },
-                { s: 4, label: "4x Resolution", hint: "Máxima qualidade · impressão" },
-              ].map(({ s, label, hint }) => (
+              {scaleOptions.map(({ s, label, hint }) => (
                 <button
                   key={s}
                   onClick={() => setScale(s)}
@@ -222,44 +172,39 @@ export default function Upscale() {
                 </button>
               ))}
             </div>
-          </section>
+          </CollapsibleSection>
 
-          {/* 3) FINE TUNING */}
-          <section>
-            <label className="block text-[#F4F1EA] text-[13px] font-medium mb-4 uppercase tracking-[0.16em] font-['Inter_Tight']">
-              03 · Ajustes Finos
-            </label>
+          <CollapsibleSection title={t("common_section_tuning")} optional testId="upscale-section-tuning">
             <div className="space-y-2.5">
               <Toggle
                 active={sharpen}
                 onClick={() => setSharpen(!sharpen)}
-                label="Melhorar nitidez e detalhes"
-                hint="Aumenta micro-contraste e definição em texturas, olhos e bordas."
+                label={t("upscale_toggle_sharpen")}
+                hint={t("upscale_toggle_sharpen_hint")}
                 testId="upscale-toggle-sharpen"
               />
               <Toggle
                 active={denoise}
                 onClick={() => setDenoise(!denoise)}
-                label="Reduzir ruído"
-                hint="Suaviza grão, JPEG-artefactos e ruído em zonas escuras."
+                label={t("upscale_toggle_denoise")}
+                hint={t("upscale_toggle_denoise_hint")}
                 testId="upscale-toggle-denoise"
               />
               <Toggle
                 active={preserveColors}
                 onClick={() => setPreserveColors(!preserveColors)}
-                label="Preservar cores originais"
-                hint="Mantém os tons exatos da foto. Desativa se quiseres deixar a IA reinterpretar."
+                label={t("upscale_toggle_colors")}
+                hint={t("upscale_toggle_colors_hint")}
                 testId="upscale-toggle-colors"
               />
             </div>
-          </section>
+          </CollapsibleSection>
         </div>
 
-        {/* ====== RIGHT: result panel ====== */}
-        <aside className="xl:sticky xl:top-[80px] self-start">
-          <p className="text-[#5A5A5E] text-[10px] font-mono uppercase tracking-[0.2em] mb-3">Output</p>
+        <StudioResultAnchor busy={busy} ready={Boolean(result?.url)} className="xl:sticky xl:top-[80px] self-start">
+          <p className="text-[#5A5A5E] text-[10px] font-mono uppercase tracking-[0.2em] mb-3">{t("common_output")}</p>
           <ResultArea busy={busy} result={result} originalPreview={photoPreview} scale={scale} />
-        </aside>
+        </StudioResultAnchor>
       </div>
 
       {/* Sticky CTA */}
@@ -271,12 +216,12 @@ export default function Upscale() {
       >
         <div className="max-w-[1400px] mx-auto flex items-center justify-between gap-4">
           <div className="hidden sm:flex items-center gap-3 text-[12px]">
-            <span className="text-[#8A8A8E]">Custo:</span>
+            <span className="text-[#8A8A8E]">{t("common_cost")}</span>
             <span className="text-[#C4B5FD] font-medium text-[16px]">
-              {cost} <span className="text-[10px] font-mono uppercase tracking-wider">Créditos</span>
+              {cost} <span className="text-[10px] font-mono uppercase tracking-wider">{t("common_credits_label")}</span>
             </span>
             <span className="text-[#5A5A5E] mx-2">·</span>
-            <span className="text-[#8A8A8E]">Saldo:</span>
+            <span className="text-[#8A8A8E]">{t("common_balance")}</span>
             <span className="text-[#F4F1EA] font-medium">{user?.credits ?? 0}</span>
           </div>
           <button
@@ -286,9 +231,9 @@ export default function Upscale() {
             data-testid="upscale-create-btn"
           >
             {busy ? (
-              <><Loader2 className="w-4 h-4 animate-spin" /> A processar…</>
+              <><Loader2 className="w-4 h-4 animate-spin" /> {t("common_processing")}</>
             ) : (
-              <><Sparkles className="w-4 h-4" /> Aumentar Resolução · {cost} créditos</>
+              <><Sparkles className="w-4 h-4" /> {t("upscale_btn", { n: cost })}</>
             )}
           </button>
         </div>
@@ -326,14 +271,15 @@ function Toggle({ active, onClick, label, hint, testId }) {
 }
 
 function ResultArea({ busy, result, originalPreview, scale }) {
+  const { t } = useStudioI18n();
   if (busy) {
     return (
       <div className="rounded-2xl bg-[#0E0E12] border border-[#2E2E30] aspect-square flex flex-col items-center justify-center p-10 relative overflow-hidden" data-testid="upscale-loading">
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,rgba(124,58,237,0.18),transparent_65%)] animate-pulse pointer-events-none" />
         <div className="relative w-14 h-14 rounded-full border-2 border-[#7C3AED]/30 border-t-[#C4B5FD] animate-spin mb-5" />
-        <p className="relative text-[#F4F1EA] text-[14px] font-medium font-['Inter_Tight']">A aumentar resolução {scale}×…</p>
+        <p className="relative text-[#F4F1EA] text-[14px] font-medium font-['Inter_Tight']">{t("upscale_loading", { scale })}</p>
         <p className="relative text-[#5A5A5E] text-[11px] font-mono uppercase mt-2 tracking-[0.18em]">
-          30–90 seg · IA reconstruindo pixels
+          {t("upscale_loading_sub")}
         </p>
       </div>
     );
@@ -345,8 +291,8 @@ function ResultArea({ busy, result, originalPreview, scale }) {
         <div className="w-12 h-12 rounded-full bg-[#7C3AED]/10 flex items-center justify-center mb-4">
           <ArrowUp className="w-5 h-5 text-[#C4B5FD]" strokeWidth={1.5} />
         </div>
-        <p className="text-[#8A8A8E] text-[13px] text-center">O teu resultado aparece aqui.</p>
-        <p className="text-[#5A5A5E] text-[11px] text-center mt-1.5">Imagem em alta resolução, pronta a baixar.</p>
+        <p className="text-[#8A8A8E] text-[13px] text-center">{t("common_result_here")}</p>
+        <p className="text-[#5A5A5E] text-[11px] text-center mt-1.5">{t("common_result_ready")}</p>
       </div>
     );
   }
@@ -355,6 +301,7 @@ function ResultArea({ busy, result, originalPreview, scale }) {
 }
 
 function ResultViewer({ result, originalPreview }) {
+  const { t } = useStudioI18n();
   const [showCompare, setShowCompare] = useState(false);
 
   const handleDownload = async () => {
@@ -369,7 +316,7 @@ function ResultViewer({ result, originalPreview }) {
       setTimeout(() => URL.revokeObjectURL(url), 1000);
     } catch (e) {
       console.error(e);
-      toast.error("Falha ao preparar download.");
+      toast.error(t("common_download_fail"));
     }
   };
 
@@ -387,13 +334,13 @@ function ResultViewer({ result, originalPreview }) {
           <div className="absolute inset-0">
             <img src={originalPreview} alt="" className="w-full h-full object-contain" />
             <div className="absolute top-3 left-3 text-[10px] font-mono uppercase tracking-[0.2em] text-white bg-black/60 px-2 py-1 rounded">
-              Antes
+              {t("common_before")}
             </div>
           </div>
         )}
         {/* Scale badge */}
         <div className="absolute top-3 left-3 text-[11px] font-mono uppercase tracking-[0.18em] bg-[#7C3AED] text-white px-2.5 py-1 rounded">
-          {result.scale}× upscaled
+          {t("upscale_badge", { scale: result.scale })}
         </div>
         {originalPreview && (
           <button
@@ -406,7 +353,7 @@ function ResultViewer({ result, originalPreview }) {
             data-testid="upscale-compare"
           >
             <Move className="w-3.5 h-3.5" />
-            Segurar para ver antes
+            {t("common_hold_before")}
           </button>
         )}
       </div>
@@ -417,7 +364,7 @@ function ResultViewer({ result, originalPreview }) {
           data-testid="upscale-download"
         >
           <Download className="w-4 h-4" />
-          Baixar Alta Resolução
+          {t("upscale_download")}
         </button>
         <a
           href={result.url}
@@ -426,7 +373,7 @@ function ResultViewer({ result, originalPreview }) {
           className="px-4 py-3 border border-[#2E2E30] hover:border-[#7C3AED]/50 text-[#8A8A8E] hover:text-[#F4F1EA] rounded-lg text-[12.5px] transition-colors flex items-center"
           data-testid="upscale-open"
         >
-          Abrir
+          {t("common_open")}
         </a>
       </div>
     </div>

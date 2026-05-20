@@ -15,7 +15,7 @@ import Footer from "../sections/Footer";
 import useTitle from "../lib/useTitle";
 
 export default function Landing() {
-  useTitle("Remake Pixel — Turn ideas into art in seconds");
+  useTitle("Remake Pixel — Transforma ideias em arte com IA");
 
   return (
     <div className="relative min-h-screen bg-[#0B0B0C]" data-testid="landing-page">

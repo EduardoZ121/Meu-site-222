@@ -5,7 +5,8 @@ import { Check } from "lucide-react";
  *
  * The "match" option (sentinel value) means "keep the original photo dimensions"
  * and is only enabled when `hasPhoto` is true. The backend interprets it as
- * Flux's `match_input_image` so the upload's proportions are preserved.
+ * The backend maps `match` to the best supported model value so the upload's
+ * proportions are preserved.
  *
  * Props:
  *   value     – string, current aspect ("match" | "1:1" | "4:5" | "3:4" | "9:16" | "16:9" | "21:9")
@@ -26,19 +27,20 @@ export default function AspectPicker({
     : options.map((k) => ({ key: k, label: k }));
 
   return (
-    <div className="grid grid-cols-3 sm:grid-cols-4 gap-2" data-testid={`${testIdPrefix}-row`}>
+    <div className="grid grid-cols-3 sm:grid-cols-4 gap-2.5" data-testid={`${testIdPrefix}-row`}>
       {items.map(({ key, label, hint }) => {
         const active = value === key;
         const isMatch = key === "match";
         return (
           <button
+            type="button"
             key={key}
             onClick={() => onChange(key)}
             data-testid={`${testIdPrefix}-${key}`}
-            className={`relative flex flex-col items-center justify-center gap-1 py-3 border-2 rounded-md text-[11px] font-medium transition-all overflow-hidden ${
+            className={`relative flex flex-col items-center justify-center gap-1 py-3 rounded-xl text-[11px] font-medium font-['Inter_Tight'] transition-all overflow-hidden border ${
               active
-                ? "border-[#7C3AED] bg-[#7C3AED]/10 text-[#C4B5FD] shadow-md shadow-[#7C3AED]/20"
-                : "border-[#2E2E30] text-[#8A8A8E] hover:border-[#7C3AED]/40 hover:text-[#F4F1EA]"
+                ? "border-[#7C3AED] bg-[rgba(124,58,237,0.1)] text-[#E9E4DC] shadow-[inset_0_0_0_1px_rgba(124,58,237,0.12)]"
+                : "border-[rgba(244,241,234,0.08)] text-[#8A8A8E] hover:border-[rgba(124,58,237,0.35)] hover:text-[#F4F1EA]"
             }`}
           >
             {isMatch ? (
@@ -49,8 +51,8 @@ export default function AspectPicker({
             <span className="font-['Inter_Tight']">{label}</span>
             {hint && <span className="text-[9px] text-[#5A5A5E] leading-none">{hint}</span>}
             {active && (
-              <span className="absolute top-1 right-1 w-3.5 h-3.5 rounded-full bg-[#7C3AED] flex items-center justify-center">
-                <Check className="w-2 h-2 text-white" strokeWidth={3} />
+              <span className="absolute top-1.5 right-1.5 w-4 h-4 rounded-full bg-[#7C3AED] flex items-center justify-center border border-white/15 shadow-sm">
+                <Check className="w-2.5 h-2.5 text-white" strokeWidth={2.5} />
               </span>
             )}
           </button>

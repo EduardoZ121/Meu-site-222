@@ -5,9 +5,9 @@ import { Zap, Wand2, Palette } from "lucide-react";
 const EASE = [0.16, 1, 0.3, 1];
 
 const courses = [
-  { icon: Zap, color: "text-[#C7A77A]", bg: "bg-[#C7A77A]/10", label: "Available Now", title: "Quick Edit", desc: "96 styles. One tap.", meta: ["96 styles", "Photo upload", "1 credit/style"] },
-  { icon: Wand2, color: "text-[#7C3AED]", bg: "bg-[#7C3AED]/10", label: "Available Now", title: "Pro Mode", desc: "Studio-grade portrait realism.", meta: ["Realism presets", "Mood & style", "Enhancements"] },
-  { icon: Palette, color: "text-[#8A8A8E]", bg: "bg-[#8A8A8E]/10", label: "Available Now", title: "Posters Pro", desc: "Professional templates, instant fill.", meta: ["44 templates", "5 categories", "15 credits"] },
+  { icon: Zap, color: "text-[#C7A77A]", bg: "bg-[#C7A77A]/10", label: "Disponível", title: "Edição rápida", desc: "96 estilos aplicados à tua foto em poucos segundos.", meta: ["96 estilos", "Upload de foto", "1 crédito/estilo"] },
+  { icon: Wand2, color: "text-[#7C3AED]", bg: "bg-[#7C3AED]/10", label: "Disponível", title: "Modo Pro", desc: "Retratos com realismo e acabamento de estúdio.", meta: ["Presets realistas", "Mood & estilo", "Melhorias"] },
+  { icon: Palette, color: "text-[#8A8A8E]", bg: "bg-[#8A8A8E]/10", label: "Disponível", title: "Pôsteres Pro", desc: "44 templates do bot prontos a editar.", meta: ["44 templates", "5 categorias", "desde 24 créditos"] },
 ];
 
 export default function AvailableNow() {
@@ -15,16 +15,16 @@ export default function AvailableNow() {
   const isInView = useInView(ref, { once: true, margin: "-80px" });
 
   return (
-    <section className="relative bg-[#0B0B0C] py-24 md:py-32" ref={ref} data-testid="available-section">
+    <section className="relative bg-[#0B0B0C] py-16 md:py-28" ref={ref} data-testid="available-section">
       <div className="max-w-[1200px] mx-auto px-6 lg:px-10">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={isInView ? { opacity: 1, y: 0 } : {}}
           transition={{ duration: 0.6, ease: EASE }}
-          className="mb-16"
+          className="mb-10 md:mb-16"
         >
-          <p className="eyebrow mb-4">Available Now</p>
-          <h2 className="heading-lg">Ready when you are.</h2>
+          <p className="eyebrow mb-4">Disponível agora</p>
+          <h2 className="heading-lg">Pronto quando a ideia aparece.</h2>
         </motion.div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -55,11 +55,11 @@ export default function AvailableNow() {
           initial={{ opacity: 0, y: 16 }}
           animate={isInView ? { opacity: 1, y: 0 } : {}}
           transition={{ duration: 0.6, delay: 0.5, ease: EASE }}
-          className="mt-16 text-center"
+          className="mt-10 md:mt-16 text-center"
         >
-          <p className="eyebrow mb-3">Coming Soon</p>
-          <h3 className="text-[#F4F1EA] text-2xl font-light mb-2">The roadmap is alive.</h3>
-          <p className="text-[#8A8A8E] text-[15px] max-w-[400px] mx-auto">Future features are shaped by where the community goes. Vote inside your dashboard.</p>
+          <p className="eyebrow mb-3">Em evolução</p>
+          <h3 className="text-[#F4F1EA] text-2xl font-light mb-2">O roadmap acompanha os criadores.</h3>
+          <p className="text-[#8A8A8E] text-[15px] max-w-[400px] mx-auto">As próximas ferramentas são guiadas pelo que a comunidade mais usa e pede.</p>
         </motion.div>
       </div>
     </section>

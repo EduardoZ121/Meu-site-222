@@ -1,12 +1,13 @@
-import { useState, useEffect, useRef } from "react";
-import { ArrowLeft, Loader2, Upload, Sparkles, X, RefreshCw } from "lucide-react";
+import { useState } from "react";
+import { ArrowLeft, Loader2, Sparkles, RefreshCw } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { useAuth } from "../lib/auth";
-import { compressImage } from "../lib/imageCompress";
-import { fileToDataURL } from "../lib/fileToDataURL";
-import { toast } from "sonner";
+import { useI18n } from "../lib/i18n";
+import ImageUploadZone from "./ImageUploadZone";
 import ResultPanel from "./ResultPanel";
+import CollapsibleSection from "./CollapsibleSection";
+import StudioResultAnchor from "./StudioResultAnchor";
 
 /**
  * Unified studio frame — Pollo-style.
@@ -38,7 +39,8 @@ export default function ToolFrame({
   showPhoto = true,
   photo,
   onPhotoChange,
-  acceptedFormats = "JPEG, PNG or WEBP up to 15 MB",
+  photoCompressOptions = {},
+  acceptedFormats,
   extraFields,
   promptLabel = "Prompt",
   prompt,
@@ -57,116 +59,79 @@ export default function ToolFrame({
   testId = "tool",
 }) {
   const { user } = useAuth();
+  const { t } = useI18n();
   const navigate = useNavigate();
+  const formatsLabel = acceptedFormats ?? t("tool_accept_formats");
   const [viewAllModels, setViewAllModels] = useState(false);
-  const fileRef = useRef(null);
-  const [photoPreview, setPhotoPreview] = useState(null);
-
-  useEffect(() => {
-    let cancelled = false;
-    if (!photo) { setPhotoPreview(null); return; }
-    fileToDataURL(photo).then((url) => { if (!cancelled) setPhotoPreview(url); }).catch(() => {});
-    return () => { cancelled = true; };
-  }, [photo]);
-
-  const handlePickFile = async (file) => {
-    if (!file) return;
-    // Accept by MIME OR extension — Android camera can return application/octet-stream.
-    const isImg = file.type?.startsWith("image/") || /\.(jpe?g|png|webp|gif|bmp|heic|heif|avif)$/i.test(file.name || "");
-    if (!isImg) { toast.error("Ficheiro tem de ser uma imagem (JPEG/PNG/WEBP)."); return; }
-    try {
-      const compressed = await compressImage(file);
-      onPhotoChange(compressed);
-    } catch (e) {
-      toast.error(e.message || "Não consegui ler esta imagem.");
-    }
-  };
 
   const visibleModels = models ? (viewAllModels ? models : models.slice(0, 8)) : [];
+  const resultReady = Boolean(result?.result_urls?.length);
 
   return (
-    <div className="max-w-[1400px] mx-auto pb-32" data-testid={`${testId}-frame`}>
-      {/* Header */}
+    <div className="rp-studio-shell max-w-[1400px] mx-auto pb-32" data-testid={`${testId}-frame`}>
       <button
+        type="button"
         onClick={() => navigate("/app/tools")}
-        className="inline-flex items-center gap-2 text-[#8A8A8E] hover:text-[#F4F1EA] mb-6 text-[12px] font-medium transition-colors"
+        className="rp-studio-back"
         data-testid={`${testId}-back`}
       >
-        <ArrowLeft className="w-4 h-4" /> Voltar às ferramentas
+        <ArrowLeft className="w-4 h-4" strokeWidth={1.5} /> {t("back_to_tools")}
       </button>
 
-      <div className="mb-10">
-        <h1 className="text-[#F4F1EA] text-[32px] md:text-[40px] font-light tracking-[-0.02em] leading-[1.1] mb-3 font-['Inter_Tight']">
-          {title}
-        </h1>
-        {subtitle && <p className="text-[#8A8A8E] text-[15px] max-w-[620px]">{subtitle}</p>}
-      </div>
+      <header className="mb-10 pb-8 border-b border-[rgba(244,241,234,0.06)]">
+        <p className="rp-editor-section-cap mb-2">{t("tool_cap")}</p>
+        <h1 className="rp-studio-page-title mb-3 font-['Inter_Tight']">{title}</h1>
+        {subtitle && <p className="rp-studio-page-desc">{subtitle}</p>}
+      </header>
 
-      <div className="grid grid-cols-1 xl:grid-cols-[1fr_400px] gap-10">
-        {/* LEFT: inputs */}
-        <div className="space-y-8">
-          {/* Photo upload */}
+      <div className="grid grid-cols-1 xl:grid-cols-[1fr_400px] gap-8 xl:gap-10">
+        <div className="rp-editor-panel overflow-hidden">
+          <div className="rp-editor-panel-accent" />
+          <div className="p-6 sm:p-8 space-y-0">
           {showPhoto && (
-            <section>
-              <label className="block text-[#F4F1EA] text-[14px] font-medium mb-3 font-['Inter_Tight']">
-                Upload Image <span className="text-[#7C3AED]">*</span>
-              </label>
-              <div
-                onClick={() => fileRef.current?.click()}
-                onDragOver={(e) => e.preventDefault()}
-                onDrop={(e) => { e.preventDefault(); handlePickFile(e.dataTransfer.files?.[0]); }}
-                className="relative aspect-[16/9] sm:aspect-[2/1] border-2 border-dashed border-[#2E2E30] hover:border-[#7C3AED]/50 bg-[#13131A]/50 rounded-md cursor-pointer transition-all flex items-center justify-center group overflow-hidden"
-                data-testid={`${testId}-upload-area`}
-              >
-                {photoPreview ? (
-                  <>
-                    <img src={photoPreview} alt="" className="absolute inset-0 w-full h-full object-contain p-2" />
-                    <button
-                      onClick={(e) => { e.stopPropagation(); onPhotoChange(null); }}
-                      className="absolute top-3 right-3 w-9 h-9 bg-black/70 backdrop-blur-sm rounded-full flex items-center justify-center text-white hover:bg-black z-10"
-                      data-testid={`${testId}-clear`}
-                    >
-                      <X className="w-4 h-4" />
-                    </button>
-                  </>
-                ) : (
-                  <div className="flex flex-col items-center gap-3 text-center px-6">
-                    <div className="w-14 h-14 rounded-full bg-[#7C3AED]/10 flex items-center justify-center group-hover:bg-[#7C3AED]/20 transition-colors">
-                      <Upload className="w-5 h-5 text-[#7C3AED]" strokeWidth={1.5} />
-                    </div>
-                    <p className="text-[#F4F1EA] text-[15px] font-medium">Click to upload an image</p>
-                    <p className="text-[#5A5A5E] text-[12px]">{acceptedFormats}</p>
-                  </div>
-                )}
-              </div>
-              <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={(e) => handlePickFile(e.target.files?.[0])} data-testid={`${testId}-upload-input`} />
-            </section>
+            <CollapsibleSection
+              title={t("tool_ref_image")}
+              hint={formatsLabel}
+              defaultOpen
+              variant="inset"
+              testId={`${testId}-section-photo`}
+            >
+              <ImageUploadZone
+                value={photo}
+                onChange={onPhotoChange}
+                layout="wide"
+                testId={`${testId}-photo`}
+                compressOptions={photoCompressOptions}
+                emptyLabel={t("upload_drop")}
+                emptyHint={formatsLabel}
+              />
+            </CollapsibleSection>
           )}
 
-          {/* Models grid */}
           {models && models.length > 0 && (
-            <section>
-              <div className="flex items-baseline justify-between mb-3">
-                <label className="text-[#F4F1EA] text-[14px] font-medium font-['Inter_Tight']">Model</label>
-                {models.length > 8 && (
+            <CollapsibleSection title={t("tool_model")} variant="inset" testId={`${testId}-section-models`}>
+              {models.length > 8 && (
+                <div className="flex justify-end mb-3">
                   <button
+                    type="button"
                     onClick={() => setViewAllModels(!viewAllModels)}
-                    className="text-[#8A8A8E] hover:text-[#7C3AED] text-[12px] font-medium transition-colors"
+                    className="text-[11px] font-mono uppercase tracking-[0.12em] text-[#8A8A8E] hover:text-[#C4B5FD] transition-colors"
                     data-testid={`${testId}-view-all`}
                   >
-                    {viewAllModels ? "Ver menos" : `Ver todos (${models.length})`}
+                    {viewAllModels ? t("tool_view_less") : t("tool_view_all", { n: models.length })}
                   </button>
-                )}
-              </div>
-              <div className="grid grid-cols-4 gap-2" data-testid={`${testId}-models`}>
+                </div>
+              )}
+              <div className="grid grid-cols-4 gap-2.5" data-testid={`${testId}-models`}>
                 {visibleModels.map((m) => (
                   <button
+                    type="button"
                     key={m.id}
                     onClick={() => onModelChange(m.id)}
-                    className={`relative aspect-[3/4] rounded-md overflow-hidden border-2 transition-all ${
+                    className={`relative aspect-[3/4] rounded-xl overflow-hidden border transition-all ${
                       selectedModel === m.id
-                        ? "border-[#7C3AED] ring-2 ring-[#7C3AED]/40"
-                        : "border-[#2E2E30] hover:border-[#7C3AED]/40"
+                        ? "border-[#7C3AED] ring-1 ring-[#7C3AED]/35 shadow-[inset_0_0_0_1px_rgba(124,58,237,0.15)]"
+                        : "border-[rgba(244,241,234,0.08)] hover:border-[rgba(124,58,237,0.35)]"
                     }`}
                     data-testid={`${testId}-model-${m.id}`}
                   >
@@ -180,7 +145,7 @@ export default function ToolFrame({
                   </button>
                 ))}
               </div>
-            </section>
+            </CollapsibleSection>
           )}
 
           {/* Extra custom fields (e.g., poster fields, scale slider) */}
@@ -188,56 +153,55 @@ export default function ToolFrame({
 
           {/* Prompt */}
           {promptLabel && (
-            <section>
-              <label className="block text-[#F4F1EA] text-[14px] font-medium mb-3 font-['Inter_Tight']">{promptLabel}</label>
+            <CollapsibleSection title={promptLabel} variant="inset" testId={`${testId}-section-prompt`}>
               <div className="relative">
                 <textarea
                   value={prompt}
                   onChange={(e) => onPromptChange(e.target.value)}
                   rows={5}
                   maxLength={promptMax}
-                  placeholder={ideas?.[0] ? `For example: ${ideas[0]}` : "Describe what you want..."}
-                  className="w-full bg-[#13131A] border border-[#2E2E30] focus:border-[#7C3AED] text-[#F4F1EA] text-[15px] placeholder:text-[#5A5A5E] px-4 py-3.5 rounded-md focus:outline-none resize-none font-['Inter_Tight'] transition-colors"
+                  placeholder={ideas?.[0] ? t("tool_example", { text: ideas[0] }) : t("tool_prompt_ph")}
+                  className="rp-editor-textarea min-h-[140px] pr-16"
                   data-testid={`${testId}-prompt`}
                 />
-                <span className="absolute bottom-3 right-3 text-[#5A5A5E] text-[11px] font-mono">{prompt.length} / {promptMax}</span>
+                <span className="absolute bottom-3 right-3 text-[#5A5A5E] text-[10px] font-mono tracking-wide">{prompt.length} / {promptMax}</span>
               </div>
               {ideas && ideas.length > 0 && (
                 <div className="flex items-start gap-2 mt-3 flex-wrap">
-                  <span className="text-[#5A5A5E] text-[12px] font-medium shrink-0 mt-1">Ideas:</span>
+                  <span className="text-[#6b6b70] text-[10px] font-mono uppercase tracking-[0.14em] shrink-0 mt-2">{t("tool_suggestions")}</span>
                   {ideas.map((idea) => (
                     <button
+                      type="button"
                       key={idea}
                       onClick={() => onPromptChange(idea)}
-                      className="text-[#C4B5FD] hover:text-[#F4F1EA] text-[12px] underline decoration-[#5A5A5E] decoration-dashed underline-offset-4 hover:decoration-[#7C3AED] transition-colors"
+                      className="rp-pill max-w-full text-left !justify-start !normal-case !tracking-normal !font-['Inter_Tight'] !text-[12px] !font-normal leading-snug line-clamp-2 hover:!text-[#F4F1EA]"
                       data-testid={`${testId}-idea-${idea.slice(0, 12)}`}
                     >
                       {idea}
                     </button>
                   ))}
                   {onShuffleIdeas && (
-                    <button onClick={onShuffleIdeas} className="text-[#5A5A5E] hover:text-[#7C3AED] mt-0.5">
+                    <button type="button" onClick={onShuffleIdeas} className="rp-btn-surface mt-0.5 !p-2" aria-label={t("tool_shuffle")}>
                       <RefreshCw className="w-3.5 h-3.5" />
                     </button>
                   )}
                 </div>
               )}
-            </section>
+            </CollapsibleSection>
           )}
 
-          {/* Aspect ratio */}
           {aspectRatios && aspectRatios.length > 0 && onAspectChange && (
-            <section>
-              <label className="block text-[#F4F1EA] text-[14px] font-medium mb-3 font-['Inter_Tight']">Aspect Ratio</label>
+            <CollapsibleSection title={t("tool_output_format")} variant="inset" testId={`${testId}-section-aspect`}>
               <div className="grid grid-cols-3 sm:grid-cols-6 gap-2" data-testid={`${testId}-aspect-ratios`}>
                 {aspectRatios.map((a) => (
                   <button
+                    type="button"
                     key={a}
                     onClick={() => onAspectChange(a)}
-                    className={`py-3 border-2 rounded-md text-[12px] font-medium transition-all flex flex-col items-center gap-1 ${
+                    className={`py-3 rounded-xl text-[12px] font-medium transition-all flex flex-col items-center gap-1 border ${
                       aspect === a
-                        ? "border-[#7C3AED] bg-[#7C3AED]/10 text-[#C4B5FD]"
-                        : "border-[#2E2E30] text-[#8A8A8E] hover:border-[#7C3AED]/40 hover:text-[#F4F1EA]"
+                        ? "border-[#7C3AED] bg-[rgba(124,58,237,0.1)] text-[#E9E4DC] shadow-[inset_0_0_0_1px_rgba(124,58,237,0.12)]"
+                        : "border-[rgba(244,241,234,0.08)] text-[#8A8A8E] hover:border-[rgba(124,58,237,0.35)] hover:text-[#F4F1EA]"
                     }`}
                     data-testid={`${testId}-aspect-${a}`}
                   >
@@ -246,46 +210,54 @@ export default function ToolFrame({
                   </button>
                 ))}
               </div>
-            </section>
+            </CollapsibleSection>
           )}
+          </div>
         </div>
 
-        {/* RIGHT: result panel */}
-        <aside className="xl:sticky xl:top-[80px] self-start">
-          <p className="text-[#5A5A5E] text-[10px] font-mono uppercase tracking-[0.2em] mb-3">Output</p>
-          <ResultPanel creation={result} loading={busy} onChange={onResultChange} emptyLabel="O teu resultado aparece aqui." />
-        </aside>
+        <StudioResultAnchor
+          busy={busy}
+          ready={resultReady}
+          className="xl:sticky xl:top-[80px] self-start space-y-3"
+        >
+          <p className="rp-editor-section-cap !text-[#6b6b70]">{t("tool_preview")}</p>
+          <div className="rp-editor-panel overflow-hidden p-4 sm:p-5" data-testid={`${testId}-result-panel`}>
+            <ResultPanel creation={result} loading={busy} onChange={onResultChange} emptyLabel={t("tool_result_empty")} />
+          </div>
+        </StudioResultAnchor>
       </div>
 
-      {/* Sticky bottom CTA */}
-      <motion.div
-        initial={{ y: 100 }}
-        animate={{ y: 0 }}
-        className="fixed bottom-0 left-0 right-0 md:left-[240px] bg-gradient-to-t from-[#0B0B0C] via-[#0B0B0C] to-[#0B0B0C]/95 backdrop-blur-xl border-t border-[#2E2E30] z-30 px-4 sm:px-6 md:px-10 py-4"
+      <div
+        initial={{ y: 24, opacity: 0.96 }}
+        animate={{ y: 0, opacity: 1 }}
+        transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
+        className="rp-sticky-cta rp-sticky-cta--sidebar"
         data-testid={`${testId}-cta-bar`}
       >
-        <div className="max-w-[1400px] mx-auto flex items-center justify-between gap-4">
-          <div className="hidden sm:flex items-center gap-3 text-[12px]">
-            <span className="text-[#8A8A8E]">Credits required:</span>
-            <span className="text-[#C4B5FD] font-medium text-[16px]">{cost} <span className="text-[10px] font-mono uppercase tracking-wider">Credits</span></span>
-            <span className="text-[#5A5A5E] mx-2">·</span>
-            <span className="text-[#8A8A8E]">Saldo:</span>
-            <span className="text-[#F4F1EA] font-medium">{user?.credits ?? 0}</span>
+        <div className="rp-studio-shell max-w-[1400px] mx-auto flex items-center justify-between gap-4 px-2 sm:px-4">
+          <div className="hidden sm:flex items-center gap-4 text-[12px] font-['Inter_Tight']">
+            <span className="text-[#8A8A8E]">{t("tool_cost_label")}</span>
+            <span className="text-[#C4B5FD] font-semibold tabular-nums">{cost}</span>
+            <span className="text-[#5A5A5E] font-mono text-[10px] uppercase tracking-wider">{t("label_credits")}</span>
+            <span className="w-px h-4 bg-[#2E2E30]" />
+            <span className="text-[#8A8A8E]">{t("tool_balance_label")}</span>
+            <span className="text-[#F4F1EA] font-medium tabular-nums">{user?.is_unlimited ? "∞" : (user?.credits ?? 0)}</span>
           </div>
           <button
+            type="button"
             onClick={onCreate}
             disabled={busy}
-            className="flex-1 sm:flex-initial sm:min-w-[220px] bg-[#7C3AED] hover:bg-[#9333EA] disabled:bg-[#2E2E30] disabled:text-[#5A5A5E] text-white py-3.5 rounded-md text-[13px] font-medium tracking-wide transition-all flex items-center justify-center gap-2 shadow-lg shadow-[#7C3AED]/20"
+            className="rp-action-primary flex-1 sm:flex-initial sm:min-w-[240px] sm:ml-auto !w-auto sm:!w-auto"
             data-testid={`${testId}-create-btn`}
           >
             {busy ? (
-              <><Loader2 className="w-4 h-4 animate-spin" /> A gerar...</>
+              <><Loader2 className="w-4 h-4 animate-spin" strokeWidth={2} /> {t("tool_generating")}</>
             ) : (
-              <><Sparkles className="w-4 h-4" /> Create · {cost} créditos</>
+              <><Sparkles className="w-4 h-4" strokeWidth={1.5} /> {t("tool_generate_credits", { n: cost })}</>
             )}
           </button>
         </div>
-      </motion.div>
+      </div>
     </div>
   );
 }

@@ -1,34 +1,40 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
-  Loader2, Sparkles, ArrowLeft, Upload, X, Check, Image as ImageIcon,
-  Layers, Crown, Zap, Aperture,
+  Loader2, Sparkles, ArrowLeft, Check, Layers, Crown, Zap, Aperture,
+  Image as ImageIcon,
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
-import { api } from "../../lib/api";
+import { api, formatApiError, uploadPost } from "../../lib/api";
 import { useAuth } from "../../lib/auth";
+import { usePricing } from "../../lib/PricingContext";
+import { posterModelCosts } from "../../lib/pricingRegions";
 import { toast } from "sonner";
-import { compressImage } from "../../lib/imageCompress";
-import { fileToDataURL } from "../../lib/fileToDataURL";
+import StyleCover from "../../components/StyleCover";
+import ImageUploadZone from "../../components/ImageUploadZone";
 import useTitle from "../../lib/useTitle";
+import { FALLBACK_POSTER_MODELS, FALLBACK_POSTER_TEMPLATES } from "../../lib/posterFallbacks";
+import { POSTER_TEMPLATE_COVER_BY_ID } from "../../lib/posterTemplateCovers";
+import { buildPosterPrompt, POSTER_MOOD_IDS } from "../../lib/posterPrompt";
+import { PosterSection, CustomTextLayersEditor } from "../../components/poster/PosterEditorParts";
+import StudioResultAnchor from "../../components/StudioResultAnchor";
+import { useI18n } from "../../lib/i18n";
+import { useStudioI18n } from "../../lib/useStudioI18n";
+import { posterFieldLabel, POSTER_CAT_KEYS } from "../../lib/posterFieldLocales";
 
 /* ------------------------------------------------------------------ */
 /*  Constants                                                          */
 /* ------------------------------------------------------------------ */
 
-const CAT_LABELS = {
-  flyer:     "Flyers",
-  editorial: "Editorial",
-  epic:      "Epic",
-  scifi:     "Sci-Fi",
-  hero:      "Hero",
-  phone:     "Music Phone",
-};
-
-const CAT_ORDER = ["flyer", "editorial", "epic", "scifi", "hero", "phone"];
+const CAT_ORDER = ["music", "food", "fitness", "motivational", "flyers"];
 
 // Gradient backgrounds per category — gives visual hierarchy to template cards
 const CAT_GRADIENTS = {
+  music:     "linear-gradient(135deg,#0B0B0C 0%,#7C3AED 48%,#EC4899 100%)",
+  food:      "linear-gradient(135deg,#1F1308 0%,#B45309 55%,#FACC15 100%)",
+  fitness:   "linear-gradient(135deg,#020617 0%,#16A34A 52%,#BEF264 100%)",
+  motivational: "linear-gradient(135deg,#111827 0%,#F59E0B 52%,#F4F1EA 100%)",
+  flyers:    "linear-gradient(135deg,#1A1A1C 0%,#EF4444 55%,#FACC15 100%)",
   flyer:     "linear-gradient(135deg,#1A1A1C 0%,#EF4444 55%,#FACC15 100%)",
   editorial: "linear-gradient(135deg,#0F1419 0%,#2D3748 50%,#F4F1EA 100%)",
   epic:      "linear-gradient(135deg,#0B0B0C 0%,#7C3AED 50%,#FACC15 100%)",
@@ -37,118 +43,7 @@ const CAT_GRADIENTS = {
   phone:     "linear-gradient(135deg,#1B1340 0%,#7C3AED 50%,#EC4899 100%)",
 };
 
-const FIELD_LABELS = {
-  // === Bot poster fields (PT-PT) ===
-  headline: "Headline / Manchete",
-  subtitle: "Subtítulo",
-  positions: "Cargos / Lista de vagas",
-  contact_email: "Email de contacto",
-  extra_text: "Texto extra (opcional)",
-  // === Legacy generic fields (mantidos por compatibilidade) ===
-  artist_name: "Nome do artista",
-  tour_name: "Nome da tour",
-  album_name: "Nome do álbum",
-  event_name: "Nome do evento",
-  event_date: "Data do evento",
-  venue: "Venue / Local",
-  city: "Cidade / País",
-  date: "Data",
-  date_range: "Período",
-  dates: "Datas e horários",
-  brand_name: "Marca",
-  product: "Produto",
-  campaign: "Campanha",
-  title: "Título",
-  subtitle: "Subtítulo",
-  tagline: "Slogan / Texto",
-  topic: "Tema",
-  category: "Categoria",
-  additional_text: "Texto adicional",
-  before_label: "Texto 'antes'",
-  after_label: "Texto 'depois'",
-  headline: "Manchete",
-  caption: "Legenda",
-  brand: "Marca",
-  cta: "Call to action",
-  subtext: "Subtexto",
-  details: "Detalhes",
-  quote: "Citação",
-  author: "Autor",
-  hook: "Gancho",
-  episode: "Episódio",
-  swipe_text: "Texto do swipe",
-  headliners: "Artistas principais",
-  lineup: "Line-up",
-  ticket_price: "Preço do bilhete",
-  release_date: "Data de lançamento",
-  release_title: "Título do lançamento",
-  single: "Single",
-  band: "Banda",
-  performer: "Performer",
-  conductor: "Maestro",
-  piece: "Obra",
-  orchestra: "Orquestra",
-  dj_name: "DJ",
-  club: "Clube",
-  festival_name: "Nome do festival",
-  couple_names: "Nomes do casal",
-  age: "Idade",
-  company: "Empresa",
-  workshop_title: "Workshop",
-  instructor: "Instrutor",
-  exhibition_title: "Exposição",
-  gallery: "Galeria",
-  film: "Filme",
-  organization: "Organização",
-  conference_name: "Conferência",
-  speakers: "Oradores",
-  location: "Localização",
-  business_name: "Negócio",
-  address: "Morada",
-  agent: "Agente",
-  service: "Serviço",
-  offer: "Oferta",
-  event: "Evento",
-  seat: "Lugar",
-  tag_before: "Etiqueta 'antes'",
-  tag_after: "Etiqueta 'depois'",
-  duration: "Duração",
-  stylist: "Estilista",
-  salon: "Salão",
-  model: "Modelo",
-  year: "Ano",
-  room: "Divisão",
-  designer: "Designer",
-  dish: "Prato",
-  chef: "Chef",
-  magazine_name: "Revista",
-  issue: "Edição",
-  deck: "Subtítulo",
-  publication: "Publicação",
-  rating: "Avaliação",
-  book_title: "Título do livro",
-  subhead: "Subtítulo",
-  name: "Nome",
-  years: "Anos",
-  discount: "Desconto",
-  deadline: "Prazo",
-  launch_date: "Lançamento",
-  app_name: "Aplicação",
-  restaurant: "Restaurante",
-  price: "Preço",
-  collection: "Coleção",
-  season: "Época",
-  artist: "Artista",
-};
-
-const labelFor = (k) => FIELD_LABELS[k] || k.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 const isLong = (k) => /text|description|tagline|story|notes|additional|caption|quote|details|deck|subhead|positions|extra_text/i.test(k);
-
-const MOODS = [
-  "Cinematográfico", "Neon", "Minimal", "Vintage",
-  "Bold", "Luxury", "Editorial", "Brutalist",
-  "Pastel", "Y2K", "Mono", "Sun-warm",
-];
 
 const QUICK_COLORS = [
   "#7C3AED", "#EC4899", "#06B6D4", "#22C55E",
@@ -165,7 +60,7 @@ const FORMATS = [
 
 const MODEL_ICONS = {
   grok: Zap,
-  aurora: Aperture,
+  flux2: Aperture,
   gpt_image: Crown,
 };
 
@@ -174,9 +69,14 @@ const MODEL_ICONS = {
 /* ------------------------------------------------------------------ */
 
 export default function Posters() {
-  useTitle("Pôsteres");
+  const { t } = useStudioI18n();
+  const { lang } = useI18n();
+  const labelFor = (k) => posterFieldLabel(k, lang);
+  const catLabel = (c) => (POSTER_CAT_KEYS[c] ? t(POSTER_CAT_KEYS[c]) : c);
+  useTitle(t("sidebar_posters"));
   const navigate = useNavigate();
   const { refresh, user } = useAuth();
+  const { region } = usePricing();
 
   const [templates, setTemplates] = useState([]);
   const [models, setModels] = useState([]);
@@ -192,14 +92,27 @@ export default function Posters() {
   const [mood, setMood] = useState("");
   const [colorHint, setColorHint] = useState("");
   const [showColorPicker, setShowColorPicker] = useState(false);
+  const [customBlocks, setCustomBlocks] = useState([]);
 
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState(null);
 
   useEffect(() => {
-    api.get("/public/poster-templates").then((r) => setTemplates(r.data.templates || [])).catch(() => {});
-    api.get("/public/poster-models").then((r) => setModels(r.data.models || [])).catch(() => {});
+    api.get("/public/poster-templates")
+      .then((r) => setTemplates(r.data.templates?.length ? r.data.templates : FALLBACK_POSTER_TEMPLATES))
+      .catch(() => setTemplates(FALLBACK_POSTER_TEMPLATES));
+    api.get("/public/poster-models")
+      .then((r) => setModels(r.data.models?.length ? r.data.models : FALLBACK_POSTER_MODELS))
+      .catch(() => setModels(FALLBACK_POSTER_MODELS));
   }, []);
+
+  useEffect(() => {
+    const pc = posterModelCosts(region);
+    setModels((prev) => {
+      const base = prev.length ? prev : FALLBACK_POSTER_MODELS;
+      return base.map((m) => ({ ...m, cost: pc[m.key] ?? m.cost }));
+    });
+  }, [region]);
 
   const filtered = useMemo(() => templates.filter((t) => t.category === category), [templates, category]);
 
@@ -209,7 +122,7 @@ export default function Posters() {
     return m;
   }, [templates]);
 
-  const selectedModel = models.find((m) => m.key === modelKey) || { cost: 15 };
+  const selectedModel = models.find((m) => m.key === modelKey) || { cost: 24 };
   const totalCost = selectedModel.cost * numOutputs;
 
   const missing = picked
@@ -223,6 +136,7 @@ export default function Posters() {
     setValues({});
     setPhoto(null);
     setResult(null);
+    setCustomBlocks([]);
     setNumOutputs(1);
     // Default aspect ratio from prompt text (Vertical 4:5 / Square 1:1 etc.)
     const p = (tpl.prompt || "").toLowerCase();
@@ -233,47 +147,61 @@ export default function Posters() {
   };
 
   const generate = async () => {
-    if (!picked) { toast.error("Escolhe um template."); return; }
+    if (!picked) { toast.error(t("post_pick_template")); return; }
     if (missing.length) {
-      toast.error(`Preenche: ${missing.map(labelFor).join(", ")}`);
+      toast.error(`${t("post_fill")}: ${missing.map(labelFor).join(", ")}`);
+      return;
+    }
+    if ((user?.credits ?? 0) < totalCost && !user?.is_unlimited && user?.role !== "admin") {
+      toast.error(t("common_need_credits", { need: totalCost, have: user?.credits ?? 0 }));
       return;
     }
     setBusy(true); setResult(null);
     try {
-      // Auto-switch model if photo provided + GPT Image picked
-      const effectiveModel = (photo && modelKey === "gpt_image") ? "aurora" : modelKey;
+      // Premium text-only mode has no image-to-image — if photo is present, auto-switch.
+      const effectiveModel = (photo && modelKey === "gpt_image") ? "flux2" : modelKey;
       if (photo && modelKey === "gpt_image") {
-        toast.info("GPT Image 1 não suporta foto de referência — a usar Aurora.");
+        toast.info(t("post_premium_fallback"));
       }
+
+      const promptFinal = buildPosterPrompt(picked, values, {
+        mood, colorHint, customBlocks,
+      });
 
       let data;
       if (photo) {
         const fd = new FormData();
         fd.append("template_id", picked.id);
+        fd.append("prompt_final", promptFinal);
         fd.append("placeholders", JSON.stringify(values));
-        fd.append("photo", await compressImage(photo));
+        fd.append("custom_blocks", JSON.stringify(customBlocks));
+        fd.append("photo", photo);
         fd.append("model_key", effectiveModel);
-        fd.append("aspect_ratio", aspect);
+        fd.append("aspect_ratio", aspect || picked.aspect || "4:5");
         fd.append("num_outputs", String(numOutputs));
         fd.append("mood", mood);
         fd.append("color_hint", colorHint);
-        ({ data } = await api.post("/generate/poster", fd, { timeout: 240000 }));
+        ({ data } = await uploadPost("/generate/poster", fd, { timeout: 240000 }));
       } else {
         ({ data } = await api.post("/generate/poster", {
           template_id: picked.id,
+          prompt_final: promptFinal,
           placeholders: values,
+          custom_blocks: customBlocks,
           model_key: effectiveModel,
-          aspect_ratio: aspect,
+          aspect_ratio: aspect || picked.aspect || "4:5",
           num_outputs: numOutputs,
-          mood, color_hint: colorHint,
+          mood,
+          color_hint: colorHint,
         }, { timeout: 240000 }));
       }
-      setResult(data.creation);
-      toast.success(`Pôster pronto · ${data.creation.credits_spent} créditos`);
+      const creation = data?.creation;
+      if (!creation?.result_urls?.length) throw new Error(t("common_no_result"));
+      setResult(creation);
+      toast.success(t("post_success", { n: creation?.credits_spent ?? totalCost }));
       await refresh();
     } catch (err) {
-      const m = err?.response?.data?.detail || err?.message || "Falhou.";
-      toast.error(typeof m === "string" ? m : "Falhou.");
+      toast.error(formatApiError(err, t("post_fail")), { duration: 9000 });
     } finally { setBusy(false); }
   };
 
@@ -294,11 +222,15 @@ export default function Posters() {
         mood={mood} setMood={setMood}
         colorHint={colorHint} setColorHint={setColorHint}
         showColorPicker={showColorPicker} setShowColorPicker={setShowColorPicker}
+        customBlocks={customBlocks} setCustomBlocks={setCustomBlocks}
         totalCost={totalCost} perImageCost={selectedModel.cost}
         busy={busy} result={result} setResult={setResult}
         missing={missing}
         onGenerate={generate}
         user={user}
+        t={t}
+        labelFor={labelFor}
+        catLabel={catLabel}
       />
     );
   }
@@ -310,21 +242,19 @@ export default function Posters() {
     <div className="max-w-[1400px] mx-auto" data-testid="posters-page">
       <button
         onClick={() => navigate("/app/tools")}
-        className="inline-flex items-center gap-2 text-[#8A8A8E] hover:text-[#F4F1EA] mb-6 text-[12px] font-medium"
+        className="rp-studio-back"
         data-testid="posters-back"
       >
-        <ArrowLeft className="w-4 h-4" /> Voltar às ferramentas
+        <ArrowLeft className="w-4 h-4" /> {t("back_to_tools")}
       </button>
 
       <header className="mb-10">
-        <p className="text-[#7C3AED] text-[10px] font-mono uppercase tracking-[0.22em] mb-3">Pôsteres</p>
+        <p className="text-[#7C3AED] text-[10px] font-mono uppercase tracking-[0.22em] mb-3">{t("sidebar_posters")}</p>
         <h1 className="text-[#F4F1EA] text-[36px] md:text-[52px] font-light tracking-[-0.02em] leading-[1.02] mb-3 font-['Inter_Tight']">
-          Pôsteres que parecem contratados.
+          {t("post_grid_title")}
         </h1>
         <p className="text-[#8A8A8E] text-[15px] max-w-[680px]">
-          {templates.length || 20} templates reais extraídos do bot original — flyers de recrutamento,
-          editorial, posters épicos, sci-fi, hero cinemático e music phone. Aplica a tua foto e
-          gera em alta resolução com Grok, Aurora ou GPT Image 1.
+          {t("post_grid_desc", { n: templates.length || 44 })}
         </p>
       </header>
 
@@ -341,7 +271,7 @@ export default function Posters() {
             }`}
             data-testid={`postercat-${c}`}
           >
-            {CAT_LABELS[c]}
+            {catLabel(c)}
             <span className={`text-[10px] font-mono ${category === c ? "text-white/70" : "text-[#5A5A5E]"}`}>
               {counts[c] ?? "—"}
             </span>
@@ -352,7 +282,7 @@ export default function Posters() {
       {/* Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4" data-testid="poster-templates-grid">
         {filtered.map((tpl, i) => (
-          <TemplateCard key={tpl.id} tpl={tpl} index={i} onClick={() => openTemplate(tpl)} />
+          <TemplateCard key={tpl.id} tpl={tpl} index={i} onClick={() => openTemplate(tpl)} catLabel={catLabel} />
         ))}
       </div>
     </div>
@@ -363,7 +293,7 @@ export default function Posters() {
 /*  Template card                                                      */
 /* ------------------------------------------------------------------ */
 
-function TemplateCard({ tpl, index, onClick }) {
+function TemplateCard({ tpl, index, onClick, catLabel }) {
   const gradient = CAT_GRADIENTS[tpl.category] || CAT_GRADIENTS.editorial;
   return (
     <motion.button
@@ -374,30 +304,25 @@ function TemplateCard({ tpl, index, onClick }) {
       className="group relative bg-[#13131A] border border-[#2E2E30] hover:border-[#7C3AED]/60 rounded-xl overflow-hidden text-left transition-all hover:-translate-y-1 hover:shadow-[0_10px_40px_-10px_rgba(124,58,237,0.45)]"
       data-testid={`tpl-${tpl.id}`}
     >
-      {/* Visual preview area */}
       <div className="relative aspect-[3/4] overflow-hidden" style={{ background: gradient }}>
-        {/* Real poster preview generated by Aurora (Nano Banana) — falls back
-            to the procedural gradient + typography if the image isn't there. */}
-        <PosterThumb id={tpl.id} aspect={tpl.aspect} />
-        {/* grain overlay (sits on top of img to keep editorial mood) */}
-        <div
-          className="absolute inset-0 opacity-25 mix-blend-overlay pointer-events-none"
-          style={{
-            backgroundImage:
-              "radial-gradient(circle at 20% 30%, rgba(255,255,255,0.18) 0%, transparent 50%), radial-gradient(circle at 80% 70%, rgba(0,0,0,0.25) 0%, transparent 50%)",
-          }}
+        <StyleCover
+          id={tpl.id}
+          title={tpl.label || tpl.id}
+          prompt={tpl.prompt}
+          category={tpl.category}
+          eyebrow={catLabel(tpl.category)}
+          compact
+          coverSrc={POSTER_TEMPLATE_COVER_BY_ID[tpl.id] || ""}
         />
-        {/* Bottom info strip (visible) */}
-        <div className="absolute inset-x-0 bottom-0 p-4 flex items-end justify-between bg-gradient-to-t from-[#0B0B0C]/80 via-[#0B0B0C]/30 to-transparent pointer-events-none">
-          <span className="text-white/85 text-[9px] font-mono uppercase tracking-[0.18em]">
-            {CAT_LABELS[tpl.category]}
-          </span>
-          <span className="text-white/70 text-[9px] font-mono uppercase tracking-[0.14em]">
-            {tpl.placeholders?.length ? `${tpl.placeholders.length} campos` : "Pronto"}
-          </span>
+        {tpl.subtag && (
+          <div className="absolute left-3 top-14 rounded-full border border-white/20 bg-black/25 px-2 py-1 font-['JetBrains_Mono'] text-[8px] uppercase tracking-[0.14em] text-white/70 backdrop-blur-sm">
+            {tpl.subtag}
+          </div>
+        )}
+        <div className="absolute bottom-3 right-3 font-['JetBrains_Mono'] text-[9px] uppercase tracking-[0.18em] text-white/70">
+          {tpl.placeholders?.length ? `${tpl.placeholders.length} campos` : "Pronto"}
         </div>
 
-        {/* Hover overlay */}
         <div className="absolute inset-0 flex items-center justify-center bg-[#7C3AED]/85 backdrop-blur-md opacity-0 group-hover:opacity-100 transition-opacity">
           <span className="text-white text-[12px] font-medium uppercase tracking-[0.15em] px-5 py-2.5 border border-white/50 rounded-full">
             Abrir editor →
@@ -414,21 +339,6 @@ function TemplateCard({ tpl, index, onClick }) {
   );
 }
 
-/** Real poster thumbnail with onError fallback to the procedural design. */
-function PosterThumb({ id }) {
-  const [errored, setErrored] = useState(false);
-  if (errored) return null;
-  return (
-    <img
-      src={`/images/posters/${id}.jpg`}
-      alt=""
-      loading="lazy"
-      onError={() => setErrored(true)}
-      className="absolute inset-0 w-full h-full object-cover"
-    />
-  );
-}
-
 /* ------------------------------------------------------------------ */
 /*  Editor                                                             */
 /* ------------------------------------------------------------------ */
@@ -440,41 +350,26 @@ function Editor(props) {
     aspect, setAspect, numOutputs, setNumOutputs,
     mood, setMood, colorHint, setColorHint,
     showColorPicker, setShowColorPicker,
+    customBlocks, setCustomBlocks,
     totalCost, perImageCost,
     busy, result, setResult,
     missing, onGenerate, user,
+    t, labelFor, catLabel,
   } = props;
 
-  const fileRef = useRef(null);
-  const [photoPreview, setPhotoPreview] = useState(null);
-
-  useEffect(() => {
-    let cancelled = false;
-    if (!photo) { setPhotoPreview(null); return; }
-    fileToDataURL(photo).then((u) => { if (!cancelled) setPhotoPreview(u); }).catch(() => {});
-    return () => { cancelled = true; };
-  }, [photo]);
-
-  const handlePick = async (file) => {
-    if (!file) return;
-    const isImg = file.type?.startsWith("image/") || /\.(jpe?g|png|webp|gif|bmp|heic|heif|avif)$/i.test(file.name || "");
-    if (!isImg) { toast.error("Ficheiro tem de ser uma imagem."); return; }
-    try {
-      const compressed = await compressImage(file);
-      setPhoto(compressed);
-    } catch (e) {
-      toast.error(e.message || "Não consegui ler esta imagem.");
-    }
-  };
+  const promptPreview = useMemo(
+    () => buildPosterPrompt(picked, values, { mood, colorHint, customBlocks }),
+    [picked, values, mood, colorHint, customBlocks],
+  );
 
   return (
     <div className="max-w-[1400px] mx-auto pb-32" data-testid="posters-editor">
       <button
         onClick={onBack}
-        className="inline-flex items-center gap-2 text-[#8A8A8E] hover:text-[#F4F1EA] mb-6 text-[12px] font-medium"
+        className="rp-studio-back"
         data-testid="posters-back-to-grid"
       >
-        <ArrowLeft className="w-4 h-4" /> Voltar aos templates
+        <ArrowLeft className="w-4 h-4" /> {t("post_back_templates")}
       </button>
 
       {/* Header */}
@@ -484,92 +379,47 @@ function Editor(props) {
           style={{ background: CAT_GRADIENTS[picked.category] }}
         >
           <div className="absolute inset-0 flex items-center justify-center text-white text-[10px] font-mono uppercase tracking-[0.18em] px-2 text-center">
-            {CAT_LABELS[picked.category]}
+            {catLabel(picked.category)}
           </div>
         </div>
         <div className="flex-1 min-w-0">
           <p className="text-[#7C3AED] text-[10px] font-mono uppercase tracking-[0.22em] mb-2">
-            {CAT_LABELS[picked.category]}
+            {catLabel(picked.category)}
           </p>
           <h1 className="text-[#F4F1EA] text-[28px] md:text-[36px] font-light tracking-[-0.02em] mb-2 font-['Inter_Tight']">
             {picked.label || picked.id}
           </h1>
           <p className="text-[#8A8A8E] text-[14px] max-w-[640px] leading-relaxed">
-            {picked.placeholders && picked.placeholders.length > 0
-              ? "Preenche os detalhes abaixo. Podes anexar uma foto de referência, escolher o modelo de IA, definir o mood e a paleta. Geramos em alta resolução pronto a partilhar."
-              : "Template pronto a usar — anexa uma foto de referência (opcional), escolhe o modelo de IA, define o mood e a paleta. O prompt já está afinado para te dar o melhor resultado possível."}
+            {t("post_template_ready")}
           </p>
         </div>
       </div>
 
       <div className="grid grid-cols-1 xl:grid-cols-[1fr_440px] gap-10">
         {/* ====== LEFT: form ====== */}
-        <div className="space-y-10">
-          {/* 1 · Reference photo */}
-          <section>
-            <label className="block text-[#F4F1EA] text-[13px] font-medium mb-4 uppercase tracking-[0.16em] font-['Inter_Tight']">
-              01 · Foto de Referência <span className="text-[#5A5A5E] normal-case tracking-normal text-[11px] font-normal">(opcional)</span>
-            </label>
-            <label htmlFor="file-posters"
-              
-              onDragOver={(e) => e.preventDefault()}
-              onDrop={(e) => { e.preventDefault(); handlePick(e.dataTransfer.files?.[0]); }}
-              className={`relative block w-full aspect-[16/8] rounded-2xl border-2 border-dashed transition-all overflow-hidden ${
-                photoPreview
-                  ? "border-[#2E2E30] bg-[#0E0E12]"
-                  : "border-[#2E2E30] hover:border-[#7C3AED]/70 bg-gradient-to-br from-[#13131A] via-[#0E0E12] to-[#0B0B0C] cursor-pointer group"
-              }`}
-              data-testid="poster-photo-area"
-            >
-              {photoPreview ? (
-                <>
-                  <img src={photoPreview} alt="" className="absolute inset-0 w-full h-full object-contain p-3" />
-                  <button
-                    onClick={(e) => { e.stopPropagation(); setPhoto(null); }}
-                    className="absolute top-3 right-3 w-9 h-9 bg-black/70 backdrop-blur-md rounded-full flex items-center justify-center text-white hover:bg-black z-10"
-                    data-testid="poster-photo-clear"
-                  >
-                    <X className="w-4 h-4" />
-                  </button>
-                </>
-              ) : (
-                <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 text-center px-6">
-                  <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,rgba(124,58,237,0.10),transparent_60%)] pointer-events-none" />
-                  <div className="relative w-14 h-14 rounded-full bg-[#7C3AED]/10 border border-[#7C3AED]/25 flex items-center justify-center group-hover:bg-[#7C3AED]/20 group-hover:border-[#7C3AED]/50 transition-all">
-                    <Upload className="w-6 h-6 text-[#C4B5FD]" strokeWidth={1.5} />
-                  </div>
-                  <p className="relative text-[#F4F1EA] text-[15px] font-medium font-['Inter_Tight']">
-                    Anexar foto do artista, produto ou evento
-                  </p>
-                  <p className="relative text-[#5A5A5E] text-[11px] font-mono uppercase tracking-[0.18em]">
-                    Usado para preservar o rosto / objeto · JPEG, PNG, WEBP
-                  </p>
-                </div>
-              )}
-            </label>
-            <input id="file-posters" ref={fileRef}
-              type="file"
-              accept="image/*"
-              className="hidden"
-              onChange={(e) => handlePick(e.target.files?.[0])}
-              data-testid="poster-photo-input"
+        <motion.div className="space-y-5">
+          <PosterSection
+            title={t("post_sec_ref")}
+            optional
+            defaultOpen
+            hint={t("post_sec_ref_hint")}
+          >
+            <ImageUploadZone
+              value={photo}
+              onChange={setPhoto}
+              layout="carousel"
+              testId="poster-photo"
+              emptyLabel={t("post_upload_label")}
+              emptyHint={t("post_upload_hint")}
             />
-          </section>
+          </PosterSection>
 
-          {/* 2 · Detalhes do pôster — campos editáveis derivados do bot original */}
           {picked.placeholders && picked.placeholders.length > 0 && (
-          <section>
-            <label className="block text-[#F4F1EA] text-[13px] font-medium mb-1.5 uppercase tracking-[0.16em] font-['Inter_Tight']">
-              02 · Detalhes do Pôster
-              {picked.optional && picked.optional.length === picked.placeholders.length && (
-                <span className="text-[#5A5A5E] normal-case tracking-normal text-[11px] font-normal ml-2">(opcional)</span>
-              )}
-            </label>
-            <p className="text-[#8A8A8E] text-[12px] mb-4">
-              {picked.category === "flyer"
-                ? "Personaliza o texto que aparece no pôster. Os valores que deixares em branco usam os do template original do bot."
-                : "Adiciona texto extra ao prompt (ex: nome do produto, slogan, frase). Se deixares vazio, usa-se o prompt estético original."}
-            </p>
+          <PosterSection
+            title={t("post_sec_details")}
+            optional={picked.optional?.length === picked.placeholders.length}
+            hint={picked.category === "flyer" ? t("post_hint_flyer") : t("post_hint_default")}
+          >
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               {picked.placeholders.map((p) => {
                 const isOptional = (picked.optional || []).includes(p);
@@ -579,7 +429,7 @@ function Editor(props) {
                   <label className="block text-[#F4F1EA] text-[12.5px] font-medium mb-1.5 font-['Inter_Tight']">
                     {labelFor(p)}{" "}
                     {isOptional
-                      ? <span className="text-[#5A5A5E] text-[11px] font-normal">(opcional)</span>
+                      ? <span className="text-[#5A5A5E] text-[11px] font-normal">{t("post_optional")}</span>
                       : <span className="text-[#7C3AED]">*</span>}
                   </label>
                   {isLong(p) ? (
@@ -603,33 +453,41 @@ function Editor(props) {
                 </div>
               );})}
             </div>
-          </section>
+          </PosterSection>
           )}
 
-          {/* 3 · Mood + cor */}
-          <section>
-            <label className="block text-[#F4F1EA] text-[13px] font-medium mb-4 uppercase tracking-[0.16em] font-['Inter_Tight']">
-              03 · Mood & Paleta <span className="text-[#5A5A5E] normal-case tracking-normal text-[11px] font-normal">(opcional)</span>
-            </label>
+          <PosterSection
+            title={t("post_sec_layers")}
+            optional
+            hint={t("post_sec_layers_hint")}
+          >
+            <CustomTextLayersEditor blocks={customBlocks} onChange={setCustomBlocks} />
+          </PosterSection>
+
+          <PosterSection
+            title={t("post_sec_mood")}
+            optional
+            hint={t("post_visual_hint")}
+          >
             <div className="flex flex-wrap gap-2 mb-4" data-testid="poster-moods">
-              {MOODS.map((m) => (
+              {POSTER_MOOD_IDS.map((id) => (
                 <button
-                  key={m}
-                  onClick={() => setMood(mood === m ? "" : m)}
-                  data-testid={`mood-${m}`}
+                  key={id}
+                  onClick={() => setMood(mood === id ? "" : id)}
+                  data-testid={`mood-${id}`}
                   className={`px-3 py-1.5 rounded-full text-[11.5px] font-medium transition-all border ${
-                    mood === m
+                    mood === id
                       ? "bg-[#7C3AED] border-[#7C3AED] text-white shadow-sm shadow-[#7C3AED]/30"
                       : "bg-[#13131A] border-[#2E2E30] text-[#8A8A8E] hover:text-[#F4F1EA] hover:border-[#7C3AED]/40"
                   }`}
                 >
-                  {m}
+                  {t(`post_mood_${id}`)}
                 </button>
               ))}
             </div>
 
             <div className="flex flex-wrap items-center gap-2">
-              <span className="text-[#8A8A8E] text-[11.5px] mr-1">Cor dominante:</span>
+              <span className="text-[#8A8A8E] text-[11.5px] mr-1">{t("post_dominant_color")}</span>
               {QUICK_COLORS.map((c) => (
                 <button
                   key={c}
@@ -661,13 +519,12 @@ function Editor(props) {
                 <span className="text-[10px] font-mono text-[#C4B5FD]">{colorHint.toUpperCase()}</span>
               )}
             </div>
-          </section>
+          </PosterSection>
 
-          {/* 4 · Modelo IA */}
-          <section>
-            <label className="block text-[#F4F1EA] text-[13px] font-medium mb-4 uppercase tracking-[0.16em] font-['Inter_Tight']">
-              04 · Escolha o Modelo de IA
-            </label>
+          <PosterSection
+            title={t("post_sec_engine")}
+            hint={t("post_sec_engine_hint")}
+          >
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3" data-testid="poster-models">
               {models.map((m) => {
                 const Icon = MODEL_ICONS[m.key] || Zap;
@@ -707,21 +564,19 @@ function Editor(props) {
                       active ? "text-[#F4F1EA]" : "text-[#F4F1EA]/85"
                     }`}>{m.label}</p>
                     <p className="relative text-[#8A8A8E] text-[11px] mb-2.5">{m.tag}</p>
-                    <p className="relative text-[#C4B5FD] text-[12px] font-mono">{m.cost} créditos</p>
-                    {disabled && (
-                      <p className="absolute bottom-2 right-3 text-[9px] font-mono uppercase text-[#5A5A5E]">sem foto</p>
-                    )}
+                    <p className="relative text-[#C4B5FD] text-[12px] font-mono">
+                      {t("bill_credits_count", { n: m.cost })}
+                    </p>
                   </button>
                 );
               })}
             </div>
-          </section>
+          </PosterSection>
 
-          {/* 5 · Formato + variações */}
-          <section>
-            <label className="block text-[#F4F1EA] text-[13px] font-medium mb-4 uppercase tracking-[0.16em] font-['Inter_Tight']">
-              05 · Formato & Variações
-            </label>
+          <PosterSection
+            title={t("post_sec_format")}
+            hint={t("post_sec_format_hint")}
+          >
             <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 mb-5" data-testid="poster-formats">
               {FORMATS.map(({ key, label, hint }) => (
                 <button
@@ -743,9 +598,9 @@ function Editor(props) {
 
             <div className="flex items-center justify-between p-4 rounded-xl border border-[#2E2E30] bg-[#13131A]/50">
               <div>
-                <p className="text-[#F4F1EA] text-[13px] font-medium font-['Inter_Tight']">Gerar variações</p>
+                <p className="text-[#F4F1EA] text-[13px] font-medium font-['Inter_Tight']">{t("post_gen_variations")}</p>
                 <p className="text-[#8A8A8E] text-[11.5px] mt-0.5">
-                  Cada variação custa {perImageCost} créditos.
+                  {t("post_variations_hint", { n: perImageCost })}
                 </p>
               </div>
               <div className="inline-flex rounded-lg border border-[#2E2E30] p-0.5 bg-[#0B0B0C]" data-testid="poster-variations">
@@ -765,14 +620,27 @@ function Editor(props) {
                 ))}
               </div>
             </div>
-          </section>
-        </div>
+          </PosterSection>
+
+          <PosterSection
+            title={t("post_sec_prompt")}
+            optional
+            hint={t("post_sec_prompt_hint")}
+          >
+            <p
+              className="text-[#8A8A8E] text-[11px] leading-relaxed font-mono max-h-40 overflow-y-auto whitespace-pre-wrap break-words"
+              data-testid="poster-prompt-preview"
+            >
+              {promptPreview}
+            </p>
+          </PosterSection>
+        </motion.div>
 
         {/* ====== RIGHT: result panel ====== */}
-        <aside className="xl:sticky xl:top-[80px] self-start">
+        <StudioResultAnchor busy={busy} ready={Boolean(result?.result_urls?.length)} className="xl:sticky xl:top-[80px] self-start">
           <p className="text-[#5A5A5E] text-[10px] font-mono uppercase tracking-[0.2em] mb-3">Preview</p>
           <PosterResult busy={busy} result={result} setResult={setResult} aspect={aspect} />
-        </aside>
+        </StudioResultAnchor>
       </div>
 
       {/* Sticky CTA */}
@@ -783,14 +651,14 @@ function Editor(props) {
       >
         <div className="max-w-[1400px] mx-auto flex items-center justify-between gap-4">
           <div className="hidden sm:flex items-center gap-3 text-[12px]">
-            <span className="text-[#8A8A8E]">Custo total:</span>
+            <span className="text-[#8A8A8E]">{t("post_total_cost")}</span>
             <span className="text-[#C4B5FD] font-medium text-[16px]">
-              {totalCost} <span className="text-[10px] font-mono uppercase tracking-wider">Créditos</span>
+              {totalCost} <span className="text-[10px] font-mono uppercase tracking-wider">{t("common_credits_label")}</span>
             </span>
             <span className="text-[#5A5A5E]">·</span>
             <span className="text-[#8A8A8E]">{numOutputs}× {perImageCost}</span>
             <span className="text-[#5A5A5E] mx-2">·</span>
-            <span className="text-[#8A8A8E]">Saldo:</span>
+            <span className="text-[#8A8A8E]">{t("common_balance")}</span>
             <span className="text-[#F4F1EA] font-medium">{user?.credits ?? 0}</span>
           </div>
           <button
@@ -800,14 +668,21 @@ function Editor(props) {
             data-testid="poster-generate"
           >
             {busy
-              ? <><Loader2 className="w-4 h-4 animate-spin" /> A gerar {numOutputs > 1 ? `${numOutputs} variações` : "pôster"}…</>
-              : <><Sparkles className="w-4 h-4" /> Gerar Pôster · {totalCost} créditos</>
+              ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  {numOutputs > 1
+                    ? t("post_generating_variations", { n: numOutputs })
+                    : t("post_generating_poster")}
+                </>
+              )
+              : <><Sparkles className="w-4 h-4" /> {t("post_gen_btn", { n: totalCost })}</>
             }
           </button>
         </div>
         {missing.length > 0 && !busy && (
           <p className="max-w-[1400px] mx-auto text-[#EF4444] text-[11px] mt-2 text-right">
-            Preenche: {missing.map(labelFor).join(", ")}
+            {t("post_fill")}: {missing.map(labelFor).join(", ")}
           </p>
         )}
       </motion.div>
@@ -820,6 +695,7 @@ function Editor(props) {
 /* ------------------------------------------------------------------ */
 
 function PosterResult({ busy, result, setResult, aspect }) {
+  const { t } = useStudioI18n();
   const aspectClass = {
     "1:1":  "aspect-square",
     "4:5":  "aspect-[4/5]",
@@ -833,7 +709,7 @@ function PosterResult({ busy, result, setResult, aspect }) {
       <div className={`rounded-2xl bg-[#0E0E12] border border-[#2E2E30] ${aspectClass} flex flex-col items-center justify-center p-10 relative overflow-hidden`} data-testid="poster-loading">
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,rgba(124,58,237,0.18),transparent_65%)] animate-pulse pointer-events-none" />
         <div className="relative w-14 h-14 rounded-full border-2 border-[#7C3AED]/30 border-t-[#C4B5FD] animate-spin mb-5" />
-        <p className="relative text-[#F4F1EA] text-[14px] font-medium font-['Inter_Tight']">A compor o pôster…</p>
+        <p className="relative text-[#F4F1EA] text-[14px] font-medium font-['Inter_Tight']">{t("post_composing")}</p>
         <p className="relative text-[#5A5A5E] text-[11px] font-mono uppercase mt-2 tracking-[0.18em]">30–120 seg</p>
       </div>
     );
@@ -844,8 +720,8 @@ function PosterResult({ busy, result, setResult, aspect }) {
         <div className="w-12 h-12 rounded-full bg-[#7C3AED]/10 flex items-center justify-center mb-4">
           <ImageIcon className="w-5 h-5 text-[#C4B5FD]" strokeWidth={1.5} />
         </div>
-        <p className="text-[#8A8A8E] text-[13px] text-center">O pôster aparece aqui.</p>
-        <p className="text-[#5A5A5E] text-[11px] text-center mt-1.5">Preenche os campos e toca em Gerar.</p>
+        <p className="text-[#8A8A8E] text-[13px] text-center">{t("post_empty_here")}</p>
+        <p className="text-[#5A5A5E] text-[11px] text-center mt-1.5">{t("post_fill_cta")}</p>
       </div>
     );
   }
@@ -864,7 +740,7 @@ function PosterResult({ busy, result, setResult, aspect }) {
       document.body.appendChild(a); a.click(); a.remove();
       setTimeout(() => URL.revokeObjectURL(u), 1000);
     } catch {
-      toast.error("Falha ao baixar.");
+      toast.error(t("gal_download_fail"));
     }
   };
 

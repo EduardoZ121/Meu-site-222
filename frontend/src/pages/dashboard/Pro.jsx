@@ -1,89 +1,38 @@
-import { useEffect, useMemo, useState, useRef } from "react";
-import { ArrowLeft, Loader2, Sparkles, Camera, Upload, X, Sliders } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { ArrowLeft, Loader2, Sparkles, Camera, Sliders } from "lucide-react";
 import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
-import { api } from "../../lib/api";
+import { api, formatApiError, uploadPost } from "../../lib/api";
 import { useAuth } from "../../lib/auth";
+import { usePricing } from "../../lib/PricingContext";
 import { toast } from "sonner";
 import ResultPanel from "../../components/ResultPanel";
+import StudioResultAnchor from "../../components/StudioResultAnchor";
 import AspectPicker from "../../components/AspectPicker";
-import { compressImage } from "../../lib/imageCompress";
-import { fileToDataURL } from "../../lib/fileToDataURL";
+import StyleCover from "../../components/StyleCover";
+import ImageUploadZone from "../../components/ImageUploadZone";
+import { FALLBACK_PRO_PRESETS } from "../../lib/publicFallbacks";
 import useTitle from "../../lib/useTitle";
-
-const ASPECT_RATIOS = ["1:1", "4:5", "3:4", "9:16", "16:9", "21:9"];
-
-const CAT_LABELS = {
-  realism: "Realism Presets",
-  mood:    "Mood & Style",
-  enhance: "Enhancements",
-};
-
-const CAT_DESC = {
-  realism: "Estética fotográfica — cinema, iPhone, studio, ultra-real",
-  mood:    "Atmosfera e emoção — sedutor, intenso, romântico, divertido",
-  enhance: "Refinamentos cirúrgicos — iluminação, pele, olhos, roupa, cor",
-};
-
-const errMsg = (err) =>
-  err?.code === "ECONNABORTED" ? "Tempo esgotado — tenta de novo." :
-  err?.response?.status === 402 ? "Créditos insuficientes." :
-  err?.response?.status === 429 ? "Demasiados pedidos. Espera 1 minuto." :
-  err?.response?.data?.detail || err?.message || "Falhou.";
-
-function PhotoBox({ photo, onChange, testId }) {
-  const ref = useRef(null);
-  const [preview, setPreview] = useState(null);
-  useEffect(() => {
-    let c = false;
-    if (!photo) { setPreview(null); return; }
-    fileToDataURL(photo).then((u) => { if (!c) setPreview(u); }).catch(() => {});
-    return () => { c = true; };
-  }, [photo]);
-
-  const pick = async (file) => {
-    if (!file) return;
-    const isImg = file.type?.startsWith("image/") || /\.(jpe?g|png|webp|gif|bmp|heic|heif|avif)$/i.test(file.name || "");
-    if (!isImg) { toast.error("Ficheiro tem de ser uma imagem."); return; }
-    try { onChange(await compressImage(file)); }
-    catch (e) { toast.error(e.message || "Não consegui ler esta imagem."); }
-  };
-
-  return (
-    <div className="w-full">
-      <div
-        onClick={() => ref.current?.click()}
-        onDragOver={(e) => e.preventDefault()}
-        onDrop={(e) => { e.preventDefault(); pick(e.dataTransfer.files?.[0]); }}
-        className="relative aspect-[16/10] border-2 border-dashed border-[#2E2E30] hover:border-[#7C3AED]/60 bg-[#13131A]/50 rounded-md cursor-pointer transition-all flex items-center justify-center group overflow-hidden"
-        data-testid={testId}
-      >
-        {preview ? (
-          <>
-            <img src={preview} alt="" className="absolute inset-0 w-full h-full object-contain p-2" />
-            <button onClick={(e) => { e.stopPropagation(); onChange(null); }} className="absolute top-2 right-2 w-8 h-8 bg-black/70 backdrop-blur-sm rounded-full flex items-center justify-center text-white z-10">
-              <X className="w-4 h-4" />
-            </button>
-          </>
-        ) : (
-          <div className="flex flex-col items-center gap-2 text-center px-3">
-            <div className="w-12 h-12 rounded-full bg-[#7C3AED]/10 flex items-center justify-center group-hover:bg-[#7C3AED]/20 transition-colors">
-              <Upload className="w-4 h-4 text-[#7C3AED]" strokeWidth={1.5} />
-            </div>
-            <p className="text-[#F4F1EA] text-[12px] font-medium">Drop a photo</p>
-            <p className="text-[#5A5A5E] text-[10px]">JPEG, PNG ou WEBP</p>
-          </div>
-        )}
-      </div>
-      <input ref={ref} type="file" accept="image/*" className="hidden" onChange={(e) => pick(e.target.files?.[0])} />
-    </div>
-  );
-}
+import { useI18n } from "../../lib/i18n";
 
 export default function Pro() {
-  useTitle("Pro Mode · Retoque");
+  const { t } = useI18n();
+  const errMsg = (err) => formatApiError(err, t("common_fail"));
+  useTitle(t("pro_page_title"));
   const { refresh, user } = useAuth();
+  const { costs } = usePricing();
   const navigate = useNavigate();
+
+  const CAT_LABELS = {
+    realism: t("pro_cat_realism"),
+    mood: t("pro_cat_mood"),
+    enhance: t("pro_cat_enhance"),
+  };
+  const CAT_DESC = {
+    realism: t("pro_cat_realism_desc"),
+    mood: t("pro_cat_mood_desc"),
+    enhance: t("pro_cat_enhance_desc"),
+  };
   const [presets, setPresets] = useState([]);
   const [category, setCategory] = useState("realism");
   const [preset, setPreset] = useState("ultra_real");
@@ -93,7 +42,7 @@ export default function Pro() {
   const [customPrompt, setCustomPrompt] = useState("");
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState(null);
-  const cost = 18;
+  const cost = costs.pro;
 
   // Snap back to a real ratio if photo is removed
   useEffect(() => {
@@ -102,30 +51,37 @@ export default function Pro() {
   }, [photo]);
 
   useEffect(() => {
-    api.get("/public/pro-presets").then((r) => setPresets(r.data.presets || []));
+    api.get("/public/pro-presets")
+      .then((r) => setPresets(r.data.presets?.length ? r.data.presets : FALLBACK_PRO_PRESETS))
+      .catch(() => setPresets(FALLBACK_PRO_PRESETS));
   }, []);
 
   const cats = ["realism", "mood", "enhance"];
   const filtered = useMemo(() => presets.filter((p) => p.category === category), [presets, category]);
   const pickedPreset = presets.find((p) => p.id === preset);
 
-  const intensityLabel = intensity < 34 ? "Subtil" : intensity > 66 ? "Intenso" : "Balanceado";
+  const intensityLabel = intensity < 34
+    ? t("pro_intensity_subtle")
+    : intensity > 66
+      ? t("pro_intensity_intense")
+      : t("pro_intensity_balanced");
 
   const generate = async () => {
-    if (!photo) { toast.error("Envia uma foto."); return; }
-    if (!preset) { toast.error("Escolhe um preset."); return; }
+    if (!photo) { toast.error(t("pro_upload_photo")); return; }
+    if (!preset) { toast.error(t("pro_pick_preset")); return; }
     setBusy(true); setResult(null);
     try {
-      const compressed = await compressImage(photo);
       const fd = new FormData();
-      fd.append("photo", compressed);
+      fd.append("photo", photo);
       fd.append("preset_id", preset);
       fd.append("aspect_ratio", aspect);
       fd.append("extra_prompt", customPrompt.trim());
       fd.append("intensity", String(intensity));
-      const { data } = await api.post("/generate/pro", fd, { timeout: 180000 });
-      setResult(data.creation);
-      toast.success(`Retoque aplicado · ${data.creation.credits_spent} créditos`);
+      const { data } = await uploadPost("/generate/pro", fd, { timeout: 180000 });
+      const creation = data?.creation;
+      if (!creation?.result_urls?.length) throw new Error(t("pro_no_result"));
+      setResult(creation);
+      toast.success(t("pro_success", { n: creation?.credits_spent ?? cost }));
       await refresh();
     } catch (err) {
       toast.error(errMsg(err), { duration: 8000 });
@@ -133,52 +89,59 @@ export default function Pro() {
   };
 
   return (
-    <div className="max-w-[1400px] mx-auto pb-32" data-testid="pro-page">
-      <button onClick={() => navigate("/app/tools")} className="inline-flex items-center gap-2 text-[#8A8A8E] hover:text-[#F4F1EA] mb-6 text-[12px] font-medium">
-        <ArrowLeft className="w-4 h-4" /> Voltar às ferramentas
+    <div className="rp-studio-shell max-w-[1400px] mx-auto pb-32" data-testid="pro-page">
+      <button type="button" onClick={() => navigate("/app/tools")} className="rp-studio-back">
+        <ArrowLeft className="w-4 h-4" strokeWidth={1.5} /> {t("back_to_tools")}
       </button>
 
-      <header className="mb-10">
+      <header className="mb-10 pb-8 border-b border-[rgba(244,241,234,0.06)]">
         <div className="flex items-center gap-3 mb-3">
-          <div className="w-9 h-9 rounded-full bg-[#7C3AED]/15 flex items-center justify-center">
+          <div className="w-10 h-10 rounded-xl bg-[rgba(124,58,237,0.12)] border border-[rgba(124,58,237,0.22)] flex items-center justify-center">
             <Camera className="w-4 h-4 text-[#C4B5FD]" strokeWidth={1.5} />
           </div>
-          <p className="text-[#7C3AED] text-[10px] font-mono uppercase tracking-[0.22em]">Pro Mode · Retoque Profissional</p>
+          <p className="rp-editor-section-cap !text-[#a89bc9]">{t("pro_cap")}</p>
         </div>
-        <h1 className="text-[#F4F1EA] text-[32px] md:text-[44px] font-light tracking-[-0.02em] leading-[1.1] mb-3 font-['Inter_Tight']">
-          Estúdio fotográfico, <span className="italic">no telemóvel</span>.
+        <h1 className="rp-studio-page-title mb-3 font-['Inter_Tight']">
+          {t("pro_title_a")} <span className="italic text-[#d4c4f7]">{t("pro_title_b")}</span>{t("pro_title_dot")}
         </h1>
-        <p className="text-[#8A8A8E] text-[15px] max-w-[640px]">20 presets profissionais agrupados em 3 famílias. Controla a intensidade do retoque e adiciona instruções específicas.</p>
+        <p className="rp-studio-page-desc">{t("pro_empty")}</p>
       </header>
 
-      <div className="grid grid-cols-1 xl:grid-cols-[1fr_400px] gap-10">
-        <div className="space-y-10">
+      <div className="grid grid-cols-1 xl:grid-cols-[1fr_400px] gap-8 xl:gap-10">
+        <div className="rp-editor-panel overflow-hidden">
+          <div className="rp-editor-panel-accent" />
+          <div className="p-6 sm:p-8 space-y-10">
           {/* Step 1 — Photo */}
           <section>
-            <p className="text-[10px] font-mono uppercase tracking-[0.22em] text-[#7C3AED] mb-3">1 · Foto</p>
+            <p className="rp-editor-section-cap !mb-3 !text-[#a89bc9]">{t("pro_step_photo")}</p>
             <div className="max-w-[560px]">
-              <PhotoBox photo={photo} onChange={setPhoto} testId="pro-photo" />
+              <ImageUploadZone
+                value={photo}
+                onChange={setPhoto}
+                layout="wide"
+                testId="pro-photo"
+                compressOptions={{ maxSize: 2048 }}
+                emptyLabel={t("pro_upload_label")}
+                emptyHint={t("pro_upload_hint")}
+              />
             </div>
           </section>
 
           {/* Step 2 — Category */}
           <section>
-            <p className="text-[10px] font-mono uppercase tracking-[0.22em] text-[#7C3AED] mb-4">2 · Família de Preset</p>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2" data-testid="pro-cats">
+            <p className="rp-editor-section-cap !mb-4 !text-[#a89bc9]">{t("pro_step_family")}</p>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3" data-testid="pro-cats">
               {cats.map((c) => (
                 <button
+                  type="button"
                   key={c}
                   onClick={() => setCategory(c)}
-                  className={`text-left p-4 border-2 rounded-md transition-all ${
-                    category === c
-                      ? "border-[#7C3AED] bg-[#7C3AED]/10 shadow-md shadow-[#7C3AED]/20"
-                      : "border-[#2E2E30] hover:border-[#7C3AED]/40 bg-[#13131A]"
-                  }`}
+                  className={`rp-select-card text-left p-4 ${category === c ? "rp-select-card-active" : ""}`}
                   data-testid={`procat-${c}`}
                 >
                   <p className={`text-[13px] font-medium font-['Inter_Tight'] mb-1 ${category === c ? "text-[#C4B5FD]" : "text-[#F4F1EA]"}`}>{CAT_LABELS[c]}</p>
                   <p className="text-[#8A8A8E] text-[11px] leading-snug">{CAT_DESC[c]}</p>
-                  <p className="text-[#5A5A5E] text-[10px] font-mono uppercase tracking-wider mt-2">{presets.filter((p) => p.category === c).length} presets</p>
+                  <p className="text-[#5A5A5E] text-[10px] font-mono uppercase tracking-wider mt-2">{t("pro_presets_count", { n: presets.filter((p) => p.category === c).length })}</p>
                 </button>
               ))}
             </div>
@@ -186,30 +149,32 @@ export default function Pro() {
 
           {/* Step 3 — Preset picker */}
           <section>
-            <p className="text-[10px] font-mono uppercase tracking-[0.22em] text-[#7C3AED] mb-4">3 · Escolhe um Preset {pickedPreset && <span className="text-[#C4B5FD] normal-case font-sans text-[12px] tracking-normal ml-2">· {pickedPreset.nome}</span>}</p>
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2" data-testid="pro-presets">
+            <p className="rp-editor-section-cap !mb-4 !text-[#a89bc9]">
+              {t("pro_step_preset")}
+              {pickedPreset && <span className="text-[#C4B5FD] normal-case font-['Inter_Tight'] text-[13px] tracking-normal font-medium ml-2">· {pickedPreset.nome}</span>}
+            </p>
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5" data-testid="pro-presets">
               {filtered.map((p) => (
                 <button
+                  type="button"
                   key={p.id}
                   onClick={() => setPreset(p.id)}
-                  className={`relative text-left p-4 border-2 rounded-md transition-all min-h-[80px] flex flex-col justify-end ${
+                  className={`relative text-left rounded-xl transition-all min-h-[112px] overflow-hidden border ${
                     preset === p.id
-                      ? "border-[#7C3AED] bg-[#7C3AED]/10"
-                      : "border-[#2E2E30] hover:border-[#7C3AED]/40 bg-[#13131A]"
+                      ? "border-[#7C3AED] ring-1 ring-[#7C3AED]/30 bg-[rgba(124,58,237,0.06)]"
+                      : "border-[rgba(244,241,234,0.08)] hover:border-[rgba(124,58,237,0.35)] bg-[#0B0B0C]/80"
                   }`}
                   data-testid={`preset-${p.id}`}
-                  style={{
-                    background: preset === p.id
-                      ? "linear-gradient(135deg, rgba(124,58,237,0.12) 0%, #13131A 80%)"
-                      : `linear-gradient(135deg, hsl(${(p.id.charCodeAt(0)*9)%360}, 30%, 18%) 0%, #13131A 70%)`,
-                  }}
                 >
-                  <p className="text-[#F4F1EA] text-[13px] font-medium font-['Inter_Tight'] leading-tight">{p.nome}</p>
-                  {preset === p.id && (
-                    <div className="absolute top-2 right-2 w-5 h-5 rounded-full bg-[#7C3AED] flex items-center justify-center">
-                      <span className="text-white text-[10px]">✓</span>
-                    </div>
-                  )}
+                  <StyleCover
+                    id={p.id}
+                    title={p.nome}
+                    prompt={p.prompt}
+                    category={p.category}
+                    eyebrow={CAT_LABELS[p.category] || p.category}
+                    selected={preset === p.id}
+                    compact
+                  />
                 </button>
               ))}
             </div>
@@ -218,10 +183,10 @@ export default function Pro() {
           {/* Step 4 — Intensity slider */}
           <section>
             <div className="flex items-center justify-between mb-3">
-              <p className="text-[10px] font-mono uppercase tracking-[0.22em] text-[#7C3AED]">4 · Intensidade do Retoque</p>
-              <span className="text-[#C4B5FD] text-[12px] font-medium">{intensityLabel} · {intensity}%</span>
+              <p className="rp-editor-section-cap !text-[#a89bc9]">{t("pro_step_intensity")}</p>
+              <span className="text-[#C4B5FD] text-[12px] font-medium font-['Inter_Tight'] tabular-nums">{intensityLabel} · {intensity}%</span>
             </div>
-            <div className="flex items-center gap-3 px-4 py-3 bg-[#13131A] border border-[#2E2E30] rounded-md">
+            <div className="flex items-center gap-3 px-4 py-3.5 rounded-xl border border-[rgba(244,241,234,0.08)] bg-[rgba(8,8,10,0.55)]">
               <Sliders className="w-3.5 h-3.5 text-[#5A5A5E]" />
               <input
                 type="range"
@@ -235,60 +200,62 @@ export default function Pro() {
               <span className="text-[#5A5A5E] text-[11px] font-mono w-10 text-right">{intensity}%</span>
             </div>
             <div className="flex justify-between text-[10px] text-[#5A5A5E] mt-1.5 px-1 font-mono">
-              <span>Subtil</span>
-              <span>Balanceado</span>
-              <span>Intenso</span>
+              <span>{t("pro_intensity_subtle")}</span>
+              <span>{t("pro_intensity_balanced")}</span>
+              <span>{t("pro_intensity_intense")}</span>
             </div>
           </section>
 
           {/* Step 5 — Custom prompt */}
           <section>
-            <p className="text-[10px] font-mono uppercase tracking-[0.22em] text-[#7C3AED] mb-3">5 · Instruções Extra (opcional)</p>
+            <p className="rp-editor-section-cap !mb-3 !text-[#a89bc9]">{t("pro_step_extra")} <span className="text-[#5A5A5E] normal-case tracking-normal font-['Inter_Tight'] text-[11px]">({t("studio_styles_optional")})</span></p>
             <textarea
               value={customPrompt}
               onChange={(e) => setCustomPrompt(e.target.value)}
               rows={3}
               maxLength={300}
-              placeholder='Ex: "smoother skin, brighter eyes, change background to studio gray"'
-              className="w-full bg-[#13131A] border border-[#2E2E30] focus:border-[#7C3AED] text-[#F4F1EA] text-[14px] placeholder:text-[#5A5A5E] px-4 py-3 rounded-md focus:outline-none resize-none transition-colors"
+              placeholder={t("pro_extra_ph")}
+              className="rp-editor-textarea min-h-[100px] text-[14px]"
               data-testid="pro-custom"
             />
           </section>
 
           {/* Step 6 — Aspect ratio */}
           <section>
-            <p className="text-[10px] font-mono uppercase tracking-[0.22em] text-[#7C3AED] mb-3">6 · Formato</p>
+            <p className="rp-editor-section-cap !mb-3 !text-[#a89bc9]">{t("pro_step_format")}</p>
             <AspectPicker value={aspect} onChange={setAspect} hasPhoto={!!photo} testIdPrefix="pro-aspect" />
           </section>
+          </div>
         </div>
 
-        {/* RIGHT */}
-        <aside className="xl:sticky xl:top-[80px] self-start">
-          <p className="text-[#5A5A5E] text-[10px] font-mono uppercase tracking-[0.2em] mb-3">Resultado</p>
-          <ResultPanel creation={result} loading={busy} onChange={setResult} emptyLabel="A versão Pro aparece aqui." />
-        </aside>
+        <StudioResultAnchor busy={busy} ready={Boolean(result?.result_urls?.length)} className="xl:sticky xl:top-[80px] self-start space-y-3">
+          <p className="rp-editor-section-cap !text-[#6b6b70]">Resultado</p>
+          <div className="rp-editor-panel overflow-hidden p-4 sm:p-5">
+            <ResultPanel creation={result} loading={busy} onChange={setResult} emptyLabel={t("pro_empty_result")} />
+          </div>
+        </StudioResultAnchor>
       </div>
 
-      {/* Sticky CTA */}
-      <motion.div initial={{ y: 100 }} animate={{ y: 0 }} className="fixed bottom-0 left-0 right-0 md:left-[240px] bg-gradient-to-t from-[#0B0B0C] via-[#0B0B0C] to-[#0B0B0C]/95 backdrop-blur-xl border-t border-[#2E2E30] z-30 px-4 sm:px-6 md:px-10 py-4">
-        <div className="max-w-[1400px] mx-auto flex items-center justify-between gap-4">
-          <div className="hidden sm:flex items-center gap-3 text-[12px]">
-            <span className="text-[#8A8A8E]">Credits required:</span>
-            <span className="text-[#C4B5FD] font-medium text-[16px]">{cost}</span>
-            <span className="text-[#5A5A5E] mx-2">·</span>
-            <span className="text-[#8A8A8E]">Saldo:</span>
-            <span className="text-[#F4F1EA] font-medium">{user?.credits ?? 0}</span>
+      <motion.div initial={{ y: 24, opacity: 0.96 }} animate={{ y: 0, opacity: 1 }} transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }} className="rp-sticky-cta rp-sticky-cta--sidebar">
+        <div className="rp-studio-shell max-w-[1400px] mx-auto flex items-center justify-between gap-4 px-2 sm:px-4">
+          <div className="hidden sm:flex items-center gap-4 text-[12px] font-['Inter_Tight']">
+            <span className="text-[#8A8A8E]">{t("tool_cost_label")}</span>
+            <span className="text-[#C4B5FD] font-semibold tabular-nums">{cost}</span>
+            <span className="w-px h-4 bg-[#2E2E30]" />
+            <span className="text-[#8A8A8E]">{t("tool_balance_label")}</span>
+            <span className="text-[#F4F1EA] font-medium tabular-nums">{user?.is_unlimited ? "∞" : (user?.credits ?? 0)}</span>
           </div>
           <button
+            type="button"
             onClick={generate}
             disabled={busy}
-            className="flex-1 sm:flex-initial sm:min-w-[280px] bg-gradient-to-r from-[#7C3AED] to-[#9333EA] hover:from-[#8B5CF6] hover:to-[#A855F7] disabled:from-[#1A1A1C] disabled:to-[#1A1A1C] disabled:text-[#5A5A5E] text-white py-3.5 rounded-md text-[13px] font-medium tracking-wide transition-all flex items-center justify-center gap-2 shadow-lg shadow-[#7C3AED]/30 hover:shadow-[#7C3AED]/50"
+            className="rp-action-primary flex-1 sm:flex-initial sm:min-w-[280px] sm:ml-auto !w-auto sm:!w-auto"
             data-testid="pro-create"
           >
             {busy ? (
-              <><Loader2 className="w-4 h-4 animate-spin" /> A retocar...</>
+              <><Loader2 className="w-4 h-4 animate-spin" strokeWidth={2} /> {t("pro_loading")}</>
             ) : (
-              <><Sparkles className="w-4 h-4" /> Aplicar Retoque · {cost} créditos</>
+              <><Sparkles className="w-4 h-4" strokeWidth={1.5} /> {t("pro_button")} · {cost} {t("label_credits")}</>
             )}
           </button>
         </div>

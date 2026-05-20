@@ -11,7 +11,7 @@ export default function Hero() {
   return (
     <section className="relative min-h-[100dvh] flex flex-col items-center justify-center overflow-hidden" data-testid="hero-section">
       <motion.div className="absolute inset-0 z-0">
-        <img src="/images/hero-bg.jpg" alt="" className="w-full h-full object-cover opacity-50" draggable={false} />
+        <img src="/images/hero-bg.jpg?v=8" alt="" className="w-full h-full object-cover opacity-50" draggable={false} />
         <div className="absolute inset-0 bg-gradient-to-b from-[#0B0B0C]/70 via-[#0B0B0C]/40 to-[#0B0B0C]" />
       </motion.div>
 

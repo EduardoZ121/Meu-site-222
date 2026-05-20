@@ -50,3 +50,8 @@ cd frontend && yarn build
 ```
 
 Antes de cada push, correr sempre `./scripts/verify-baseline.sh` (também via `cd frontend && yarn verify:baseline`).
+
+## Enviar capa nova (anexo no chat **não chega** ao agente cloud)
+
+1. No GitHub: substituir `frontend/public/images/hero-bg.jpg` pelo teu JPG (upload no browser).
+2. Escrever no chat: **「capa no GitHub, deploy」** — o agente só faz deploy, **sem** inventar imagem do histórico.

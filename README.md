@@ -1,6 +1,12 @@
+# Remake Pixel (Meu-site-222)
+
+**Fonte do site:** pasta `frontend/` — ver [REPO_BASELINE.md](./REPO_BASELINE.md) antes de editar hero, HTML ou deploy.
+
+---
+
 # Getting Started with Create React App
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+O app React vive em `frontend/`. Este README descreve scripts CRA genéricos.
 
 ## Available Scripts
 

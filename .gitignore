@@ -1,1 +1,20 @@
 .env
+.env.*
+!.env.example
+backend/.env
+frontend/.env
+frontend/.env.local
+node_modules/
+frontend/node_modules/
+backend/__pycache__/
+*.pyc
+.DS_Store
+.vercel/
+frontend/build/
+frontend/.vercel/
+
+# Cópias locais / deploy — não versionar
+remakepix-*/
+remake-pix-site/
+frontend-completo.zip
+*.zip

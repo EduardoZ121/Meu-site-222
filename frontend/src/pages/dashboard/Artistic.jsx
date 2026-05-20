@@ -15,6 +15,8 @@ import {
 } from "lucide-react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { api, formatApiError, uploadPost } from "../../lib/api";
+import { normalizeCreation, primaryResultUrl } from "../../lib/creationUrls";
+import CreationResultMedia from "../../components/CreationResultMedia";
 import { useAuth } from "../../lib/auth";
 import { useI18n } from "../../lib/i18n";
 import { usePricing } from "../../lib/PricingContext";
@@ -169,8 +171,8 @@ export default function Artistic() {
         }));
       }
 
-      const creation = data?.creation || data;
-      if (!creation?.result_urls?.length) {
+      const creation = normalizeCreation(data?.creation || data);
+      if (!primaryResultUrl(creation)) {
         throw new Error(t("common_no_result"));
       }
       setResult(creation);
@@ -203,7 +205,7 @@ export default function Artistic() {
     errMsg,
   ]);
 
-  const downloadUrl = result?.result_urls?.[0];
+  const downloadUrl = primaryResultUrl(result);
 
   return (
     <div className="min-h-screen pb-28" style={{ background: "#0A0A0F" }} data-testid="artistic-studio-page">
@@ -453,10 +455,11 @@ export default function Artistic() {
             )}
             {!busy && downloadUrl && (
               <div className="rounded-xl overflow-hidden border border-[rgba(147,51,234,0.3)] animate-in fade-in">
-                <img
-                  src={downloadUrl}
-                  alt={t("art_result_alt")}
-                  className="w-full object-contain max-h-[420px] bg-black"
+                <CreationResultMedia
+                  creation={result}
+                  className="w-full object-contain max-h-[420px]"
+                  containerClassName="min-h-[200px] bg-[#0A0A0F] flex items-center justify-center"
+                  testId="artistic-result-image"
                 />
                 {meta && (
                   <div className="p-3 bg-[#0A0A0F] border-t border-[rgba(147,51,234,0.15)] text-[10px] text-[#9CA3AF] space-y-1">

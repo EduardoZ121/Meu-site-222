@@ -3,6 +3,7 @@ import { ArrowLeft, Loader2, Sparkles, Camera, Sliders } from "lucide-react";
 import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import { api, formatApiError, uploadPost } from "../../lib/api";
+import { normalizeCreation, primaryResultUrl } from "../../lib/creationUrls";
 import { useAuth } from "../../lib/auth";
 import { usePricing } from "../../lib/PricingContext";
 import { toast } from "sonner";
@@ -78,8 +79,8 @@ export default function Pro() {
       fd.append("extra_prompt", customPrompt.trim());
       fd.append("intensity", String(intensity));
       const { data } = await uploadPost("/generate/pro", fd, { timeout: 180000 });
-      const creation = data?.creation;
-      if (!creation?.result_urls?.length) throw new Error(t("pro_no_result"));
+      const creation = normalizeCreation(data?.creation);
+      if (!primaryResultUrl(creation)) throw new Error(t("pro_no_result"));
       setResult(creation);
       toast.success(t("pro_success", { n: creation?.credits_spent ?? cost }));
       await refresh();
@@ -228,7 +229,7 @@ export default function Pro() {
           </div>
         </div>
 
-        <StudioResultAnchor busy={busy} ready={Boolean(result?.result_urls?.length)} className="xl:sticky xl:top-[80px] self-start space-y-3">
+        <StudioResultAnchor busy={busy} ready={Boolean(primaryResultUrl(result))} className="xl:sticky xl:top-[80px] self-start space-y-3">
           <p className="rp-editor-section-cap !text-[#6b6b70]">Resultado</p>
           <div className="rp-editor-panel overflow-hidden p-4 sm:p-5">
             <ResultPanel creation={result} loading={busy} onChange={setResult} emptyLabel={t("pro_empty_result")} />

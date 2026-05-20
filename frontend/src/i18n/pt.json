@@ -985,6 +985,7 @@
     "res_unsaved": "Removido",
     "res_published": "Publicado em Explorar",
     "res_unpublished": "Voltou a ser privado",
+    "res_preview_failed": "Pré-visualização indisponível — abre o ficheiro ou tenta de novo.",
     "upload_drop": "Solta aqui",
     "upload_browse": "ou clica para escolher",
     "login_welcome": "Bem-vindo de volta",

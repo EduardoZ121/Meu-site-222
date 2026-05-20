@@ -3,6 +3,8 @@ import { useState } from "react";
 import { api } from "../lib/api";
 import { toast } from "sonner";
 import { useI18n } from "../lib/i18n";
+import { normalizeCreation, normalizeResultUrls, primaryResultUrl, proxiedMediaUrl } from "../lib/creationUrls";
+import CreationResultMedia from "./CreationResultMedia";
 
 /**
  * Renders the last generated creation with download/favorite/public-toggle actions.
@@ -30,14 +32,15 @@ export default function ResultPanel({ creation, loading, onChange, emptyLabel })
     );
   }
 
-  const isVideo = creation.type === "video";
-  const main = creation.result_urls?.[0];
+  const normalized = normalizeCreation(creation);
+  const urls = normalizeResultUrls(normalized.result_urls);
+  const main = primaryResultUrl(normalized);
 
   const toggleFavorite = async () => {
     setBusy(true);
     try {
-      const { data } = await api.post(`/generations/${creation.id}/favorite`);
-      onChange?.({ ...creation, is_favorite: data.is_favorite });
+      const { data } = await api.post(`/generations/${normalized.id}/favorite`);
+      onChange?.({ ...normalized, is_favorite: data.is_favorite });
       toast.success(data.is_favorite ? t("res_saved") : t("res_unsaved"));
     } catch {
       toast.error(t("common_fail"));
@@ -48,8 +51,8 @@ export default function ResultPanel({ creation, loading, onChange, emptyLabel })
   const togglePublic = async () => {
     setBusy(true);
     try {
-      const { data } = await api.post(`/me/toggle-public/${creation.id}`);
-      onChange?.({ ...creation, is_public: data.is_public });
+      const { data } = await api.post(`/me/toggle-public/${normalized.id}`);
+      onChange?.({ ...normalized, is_public: data.is_public });
       toast.success(data.is_public ? t("res_published") : t("res_unpublished"));
     } catch {
       toast.error(t("common_fail"));
@@ -58,35 +61,46 @@ export default function ResultPanel({ creation, loading, onChange, emptyLabel })
     }
   };
 
+  const downloadHref = main || urls[0] || "#";
+
   return (
     <div className="card-rp p-3" data-testid="result-panel">
-      <div className="min-h-[280px] bg-rp-bg overflow-hidden mb-3 flex items-center justify-center">
-        {isVideo ? (
-          <video src={main} controls className="max-h-[520px] w-full object-contain" data-testid="result-video" />
-        ) : (
-          <img src={main} alt="" className="max-h-[520px] w-full object-contain" data-testid="result-image" />
-        )}
+      <div className="mb-3">
+        <CreationResultMedia creation={normalized} />
       </div>
-      {creation.result_urls.length > 1 && (
+      {urls.length > 1 && (
         <div className="grid grid-cols-4 gap-1 mb-3">
-          {creation.result_urls.slice(1).map((u, i) => (
+          {urls.slice(1).map((u, i) => (
             <a key={i} href={u} target="_blank" rel="noreferrer" className="aspect-square overflow-hidden block">
-              <img src={u} alt="" className="w-full h-full object-cover" />
+              <img src={u} alt="" className="w-full h-full object-cover" referrerPolicy="no-referrer" onError={(e) => {
+                const proxy = proxiedMediaUrl(u);
+                if (proxy && e.currentTarget.src !== proxy) e.currentTarget.src = proxy;
+              }} />
             </a>
           ))}
         </div>
       )}
-      <p className="text-rp-mute text-[12px] mb-3 line-clamp-2">{creation.prompt}</p>
+      <p className="text-rp-mute text-[12px] mb-3 line-clamp-2">{normalized.prompt}</p>
       <div className="flex gap-2">
-        <a href={main} target="_blank" rel="noreferrer" className="btn-secondary flex-1 !py-2.5" data-testid="result-download">
+        <a
+          href={downloadHref}
+          target="_blank"
+          rel="noreferrer"
+          className="btn-secondary flex-1 !py-2.5"
+          data-testid="result-download"
+        >
           <Download className="w-3.5 h-3.5" /> {t("open")}
         </a>
-        <button onClick={toggleFavorite} disabled={busy} className={`btn-secondary !py-2.5 !px-4 ${creation.is_favorite ? "!border-rp-purple !text-rp-lavender" : ""}`} data-testid="result-favorite">
-          <Heart className="w-3.5 h-3.5" fill={creation.is_favorite ? "currentColor" : "none"} />
-        </button>
-        <button onClick={togglePublic} disabled={busy} className={`btn-secondary !py-2.5 !px-4 ${creation.is_public ? "!border-rp-purple !text-rp-lavender" : ""}`} data-testid="result-public">
-          <Share2 className="w-3.5 h-3.5" />
-        </button>
+        {normalized.id && (
+          <>
+            <button onClick={toggleFavorite} disabled={busy} className={`btn-secondary !py-2.5 !px-4 ${normalized.is_favorite ? "!border-rp-purple !text-rp-lavender" : ""}`} data-testid="result-favorite">
+              <Heart className="w-3.5 h-3.5" fill={normalized.is_favorite ? "currentColor" : "none"} />
+            </button>
+            <button onClick={togglePublic} disabled={busy} className={`btn-secondary !py-2.5 !px-4 ${normalized.is_public ? "!border-rp-purple !text-rp-lavender" : ""}`} data-testid="result-public">
+              <Share2 className="w-3.5 h-3.5" />
+            </button>
+          </>
+        )}
       </div>
     </div>
   );

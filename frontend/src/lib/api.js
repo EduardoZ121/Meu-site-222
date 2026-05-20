@@ -1,6 +1,7 @@
 import axios from "axios";
 
 import { formatHttpError } from "./uploadErrors";
+import { normalizeCreation } from "./creationUrls";
 
 /** Evita mixed content: página em https + backend em http → o browser bloqueia e parece "Network Error". */
 function resolveBaseUrl() {
@@ -356,8 +357,15 @@ export async function pollPrediction(predictionId, opts = {}) {
         window.dispatchEvent(new CustomEvent("rp:credits-sync", { detail: { credits: data.new_balance } }));
       }
       if (data.creation) {
+        data.creation = normalizeCreation(data.creation);
         data.creation.server_billing = data.server_billing || data.creation.server_billing;
         if (data.new_balance != null) data.creation.new_balance = data.new_balance;
+        if (!data.creation.result_urls?.length) {
+          const err = new Error("Geração concluída sem ficheiro de resultado.");
+          err.refunded = data.refunded;
+          err.new_balance = data.new_balance;
+          throw err;
+        }
       }
       notifyCreationSucceeded(data.creation);
       return data;
@@ -410,10 +418,11 @@ async function maybeAwaitMultipartCreation(data, skipPollHeader, config = {}) {
     intervalMs: config.pollIntervalMs,
   });
 
+  const creation = polled.creation ? normalizeCreation(polled.creation) : polled.creation;
   return {
     ...data,
     ...polled,
-    creation: polled.creation,
+    creation,
     prediction_id: pid,
   };
 }

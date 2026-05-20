@@ -4,6 +4,7 @@ import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
 import { formatApiError, uploadPost } from "../../../lib/api";
+import { normalizeCreation, primaryResultUrl } from "../../../lib/creationUrls";
 import { useAuth } from "../../../lib/auth";
 import { usePricing } from "../../../lib/PricingContext";
 import ResultPanel from "../../../components/ResultPanel";
@@ -186,8 +187,8 @@ export default function ClothesChanger() {
       }
 
       const { data } = await uploadPost("/tools/clothes", fd, { timeout: 240000 });
-      const creation = data?.creation;
-      if (!creation?.result_urls?.length) throw new Error(t("common_no_result"));
+      const creation = normalizeCreation(data?.creation);
+      if (!primaryResultUrl(creation)) throw new Error(t("common_no_result"));
       setResult(creation);
       toast.success(t("clothes_success", { n: creation?.credits_spent ?? cost }));
       await refresh();
@@ -297,7 +298,7 @@ export default function ClothesChanger() {
         </div>
 
         {/* RIGHT */}
-        <StudioResultAnchor busy={busy} ready={Boolean(result?.result_urls?.length)} className="xl:sticky xl:top-[80px] self-start">
+        <StudioResultAnchor busy={busy} ready={Boolean(primaryResultUrl(result))} className="xl:sticky xl:top-[80px] self-start">
           <p className="text-[#5A5A5E] text-[10px] font-mono uppercase tracking-[0.2em] mb-3">{t("clothes_result_label")}</p>
           <ResultPanel creation={result} loading={busy} onChange={setResult} emptyLabel={t("clothes_result_empty")} />
         </StudioResultAnchor>

@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { Film, Loader2, Sparkles, Wand2 } from "lucide-react";
 import { formatApiError, uploadPost } from "../../lib/api";
+import { normalizeCreation, primaryResultUrl } from "../../lib/creationUrls";
 import { useAuth } from "../../lib/auth";
 import { usePricing } from "../../lib/PricingContext";
 import { useI18n } from "../../lib/i18n";
@@ -59,8 +60,8 @@ export default function Video() {
       fd.append("aspect_ratio", aspect);
       if (photo) fd.append("photo", photo);
       const { data } = await uploadPost("/generate/video", fd, { timeout: 300000 });
-      const creation = data?.creation;
-      if (!creation?.result_urls?.length) throw new Error(t("vid_no_result"));
+      const creation = normalizeCreation(data?.creation);
+      if (!primaryResultUrl(creation)) throw new Error(t("vid_no_result"));
       setResult(creation);
       toast.success(t("vid_success", { n: creation?.credits_spent ?? cost }));
       await refresh();
@@ -183,7 +184,7 @@ export default function Video() {
         </div>
 
         {/* === Right: preview / result === */}
-        <StudioResultAnchor busy={busy} ready={Boolean(result?.result_urls?.length)} className="lg:sticky lg:top-[88px] self-start">
+        <StudioResultAnchor busy={busy} ready={Boolean(primaryResultUrl(result))} className="lg:sticky lg:top-[88px] self-start">
           <p className="text-[10px] font-mono uppercase tracking-[0.22em] text-[#7C3AED] mb-4">{t("last_result")}</p>
           {result ? (
             <ResultPanel creation={result} loading={busy} onChange={setResult} emptyLabel={t("vid_loading")} />

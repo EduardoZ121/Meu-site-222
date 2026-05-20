@@ -6,6 +6,7 @@ import {
 import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import { api, formatApiError, uploadPost } from "../../lib/api";
+import { normalizeCreation, primaryResultUrl } from "../../lib/creationUrls";
 import { useAuth } from "../../lib/auth";
 import { usePricing } from "../../lib/PricingContext";
 import { posterModelCosts } from "../../lib/pricingRegions";
@@ -196,8 +197,9 @@ export default function Posters() {
         }, { timeout: 240000 }));
       }
       const creation = data?.creation;
-      if (!creation?.result_urls?.length) throw new Error(t("common_no_result"));
-      setResult(creation);
+      const normalized = normalizeCreation(creation);
+      if (!primaryResultUrl(normalized)) throw new Error(t("common_no_result"));
+      setResult(normalized);
       toast.success(t("post_success", { n: creation?.credits_spent ?? totalCost }));
       await refresh();
     } catch (err) {
@@ -637,7 +639,7 @@ function Editor(props) {
         </motion.div>
 
         {/* ====== RIGHT: result panel ====== */}
-        <StudioResultAnchor busy={busy} ready={Boolean(result?.result_urls?.length)} className="xl:sticky xl:top-[80px] self-start">
+        <StudioResultAnchor busy={busy} ready={Boolean(primaryResultUrl(result))} className="xl:sticky xl:top-[80px] self-start">
           <p className="text-[#5A5A5E] text-[10px] font-mono uppercase tracking-[0.2em] mb-3">Preview</p>
           <PosterResult busy={busy} result={result} setResult={setResult} aspect={aspect} />
         </StudioResultAnchor>

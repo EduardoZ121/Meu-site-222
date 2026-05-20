@@ -957,6 +957,7 @@
     "res_unsaved": "Unsaved",
     "res_published": "Published to Explore",
     "res_unpublished": "Made private",
+    "res_preview_failed": "Preview unavailable — open the file or try again.",
     "upload_drop": "Drop here",
     "upload_browse": "or click to browse",
     "login_welcome": "Welcome back",

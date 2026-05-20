@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Loader2, Sparkles, ImagePlus, Wand2, Lightbulb } from "lucide-react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { api, formatApiError, pollPrediction, uploadPost } from "../../lib/api";
+import { normalizeCreation, primaryResultUrl } from "../../lib/creationUrls";
 import { useAuth } from "../../lib/auth";
 import { usePricing } from "../../lib/PricingContext";
 import { useI18n } from "../../lib/i18n";
@@ -121,8 +122,8 @@ export default function Generate() {
         credits_spent: submitData.credits_spent || cost,
         type: "image",
       });
-      const creation = data?.creation;
-      if (!creation?.result_urls?.length) throw new Error("No result");
+      const creation = normalizeCreation(data?.creation);
+      if (!primaryResultUrl(creation)) throw new Error(t("common_no_result"));
       setResult(creation);
       toast.success(t("studio_success", { n: creation?.credits_spent ?? cost }));
       await refresh();
@@ -248,7 +249,7 @@ export default function Generate() {
           </StudioAccordionSection>
         </div>
 
-        <StudioResultAnchor busy={busy} ready={Boolean(result?.result_urls?.length)} className="lg:sticky lg:top-[88px] self-start space-y-3">
+        <StudioResultAnchor busy={busy} ready={Boolean(primaryResultUrl(result))} className="lg:sticky lg:top-[88px] self-start space-y-3">
           <p className="rp-editor-section-cap !text-[#6b6b70]">{t("last_result")}</p>
           <div className="rp-editor-panel overflow-hidden p-4 sm:p-5">
             <ResultPanel creation={result} loading={busy} onChange={setResult} emptyLabel={t("studio_result_next")} />

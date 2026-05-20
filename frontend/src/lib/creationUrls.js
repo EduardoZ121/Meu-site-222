@@ -40,6 +40,16 @@ export function primaryResultUrl(creation) {
   return normalizeResultUrls(creation?.result_urls)[0] || "";
 }
 
+/** Garante result_urls como array de URLs válidas (evita preview preto / crashes). */
+export function normalizeCreation(creation) {
+  if (!creation || typeof creation !== "object") return creation;
+  const urls = normalizeResultUrls(creation.result_urls);
+  if (urls.length === 0 && typeof creation.url === "string" && creation.url.startsWith("http")) {
+    return { ...creation, result_urls: [creation.url.trim()] };
+  }
+  return urls.length ? { ...creation, result_urls: urls } : creation;
+}
+
 export function isVideoCreation(creation, url) {
   if (creation?.type === "video") return true;
   const u = url || primaryResultUrl(creation);

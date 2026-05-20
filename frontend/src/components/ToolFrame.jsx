@@ -8,6 +8,7 @@ import ImageUploadZone from "./ImageUploadZone";
 import ResultPanel from "./ResultPanel";
 import CollapsibleSection from "./CollapsibleSection";
 import StudioResultAnchor from "./StudioResultAnchor";
+import { primaryResultUrl } from "../lib/creationUrls";
 
 /**
  * Unified studio frame — Pollo-style.
@@ -65,7 +66,7 @@ export default function ToolFrame({
   const [viewAllModels, setViewAllModels] = useState(false);
 
   const visibleModels = models ? (viewAllModels ? models : models.slice(0, 8)) : [];
-  const resultReady = Boolean(result?.result_urls?.length);
+  const resultReady = Boolean(primaryResultUrl(result));
 
   return (
     <div className="rp-studio-shell max-w-[1400px] mx-auto pb-32" data-testid={`${testId}-frame`}>

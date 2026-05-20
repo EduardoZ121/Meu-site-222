@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import { toast } from "sonner";
 import { formatApiError, uploadPost } from "../../../lib/api";
+import { normalizeCreation, primaryResultUrl } from "../../../lib/creationUrls";
 import { useAuth } from "../../../lib/auth";
 import { usePricing } from "../../../lib/PricingContext";
 import ToolFrame from "../../../components/ToolFrame";
@@ -100,8 +101,8 @@ export default function Inpaint() {
       fd.append("mask", new File([maskBlob], "mask.png", { type: "image/png" }));
       fd.append("prompt", prompt.trim());
       const { data } = await uploadPost("/tools/inpaint", fd, { timeout: 240000 });
-      const creation = data?.creation;
-      if (!creation?.result_urls?.length) throw new Error(t("pro_no_result"));
+      const creation = normalizeCreation(data?.creation);
+      if (!primaryResultUrl(creation)) throw new Error(t("pro_no_result"));
       setResult(creation);
       toast.success(t("studio_success", { n: creation?.credits_spent ?? 28 }));
       await refresh();

@@ -4,6 +4,7 @@ import { motion } from "framer-motion";
 import { toast } from "sonner";
 import { useAuth } from "../lib/auth";
 import useTitle from "../lib/useTitle";
+import Logo from "../components/Logo";
 
 export default function ResetPassword() {
   useTitle("Nova palavra-passe");
@@ -41,11 +42,7 @@ export default function ResetPassword() {
     <div className="min-h-screen bg-rp-bg flex flex-col" data-testid="reset-page">
       <div className="film-grain" />
       <header className="container-rp h-[64px] flex items-center">
-        <Link to="/" className="flex items-center gap-2.5">
-          <span className="font-heading italic text-[22px] text-rp-text">Remake</span>
-          <span className="w-[3px] h-[3px] bg-rp-purple rounded-full" />
-          <span className="font-mono text-[10px] uppercase tracking-[0.25em] text-rp-mute">Pixel</span>
-        </Link>
+        <Logo to="/" size="lg" />
       </header>
 
       <div className="flex-1 flex items-center justify-center px-6 py-16">

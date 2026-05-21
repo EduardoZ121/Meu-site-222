@@ -5,6 +5,7 @@ import { useAuth } from "../lib/auth";
 import { toast } from "sonner";
 import useTitle from "../lib/useTitle";
 import GoogleAuthButton from "../components/GoogleAuthButton";
+import Logo from "../components/Logo";
 
 export default function Register() {
   useTitle("Criar conta");
@@ -52,11 +53,7 @@ export default function Register() {
     <div className="min-h-screen bg-rp-bg flex flex-col" data-testid="register-page">
       <div className="film-grain" />
       <header className="container-rp h-[64px] flex items-center">
-        <Link to="/" className="flex items-center gap-2.5">
-          <span className="font-heading italic text-[22px] text-rp-text">Remake</span>
-          <span className="w-[3px] h-[3px] bg-rp-purple rounded-full" />
-          <span className="font-mono text-[10px] uppercase tracking-[0.25em] text-rp-mute">Pixel</span>
-        </Link>
+        <Logo to="/" size="lg" />
       </header>
       <div className="flex-1 flex items-center justify-center px-6 py-16">
         <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.7 }} className="w-full max-w-[440px]">

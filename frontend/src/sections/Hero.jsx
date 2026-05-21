@@ -30,7 +30,7 @@ export default function Hero() {
         >
           Transforma ideias em
           <br />
-          <span className="italic font-light text-rp-lavender">96</span> em segundos.
+          <span className="italic font-light text-rp-lavender">arte</span> em segundos.
         </motion.h1>
 
         <motion.div

@@ -1476,6 +1476,7 @@
     "manga_hand_crossed": "Crossed",
     "manga_sfx_upload_hint": "PNG/JPG graphic element.",
     "manga_style_preset": "Global style",
+    "manga_skip_wizard": "Enter editor without setup",
     "manga_tree_char_links": "Linked to panels: {panels}",
     "manga_delete_confirm": "Delete {name}?",
     "manga_copy_suffix": " (copy)",

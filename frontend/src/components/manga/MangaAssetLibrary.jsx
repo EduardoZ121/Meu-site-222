@@ -141,11 +141,19 @@ function CharCard({ c, t, expanded, onToggle, onCommit, onDelete, onDuplicate })
                 <div className="manga-sheet-img">
                   {draft.sheets?.[key] ? <img src={draft.sheets[key]} alt="" /> : null}
                 </div>
-                <MangaUploadZone
-                  compact
-                  className="!p-1 !mt-1 border-0 bg-transparent"
-                  onFile={({ file }) => patchSheet(key, file)}
-                />
+                <label className="manga-sheet-upload block mt-1 cursor-pointer text-[12px] text-[#8B5CF6]">
+                  ⬆️
+                  <input
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={(e) => {
+                      const f = e.target.files?.[0];
+                      if (f) patchSheet(key, f);
+                      e.target.value = "";
+                    }}
+                  />
+                </label>
               </div>
             ))}
           </div>

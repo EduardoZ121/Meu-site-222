@@ -6,11 +6,15 @@
   width: 100%;
   max-width: 1400px;
   margin: 0 auto;
-  padding: 0 0.75rem 0;
+  padding: 0 0.75rem 1rem;
   background: #0a0a0f;
-  /* Altura mínima visível dentro do dashboard (evita área 1fr = 0px) */
-  min-height: min(720px, calc(100dvh - 11rem));
+  color: #e2e8f0;
+  min-height: 480px;
   box-sizing: border-box;
+}
+
+.manga-quick-escape {
+  flex-shrink: 0;
 }
 
 .manga-shell-subheader {
@@ -66,10 +70,17 @@
 }
 
 .manga-desktop-layout {
+  display: none;
   grid-template-columns: minmax(240px, 280px) minmax(0, 1fr) minmax(280px, 360px);
   grid-template-rows: minmax(0, 1fr) auto;
   gap: 1rem;
-  min-height: min(70vh, 720px);
+  min-height: 520px;
+}
+
+@media (min-width: 1024px) {
+  .manga-desktop-layout {
+    display: grid;
+  }
 }
 
 .manga-desktop-col {

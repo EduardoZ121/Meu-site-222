@@ -4,6 +4,7 @@
   "description": "Root package so Vercel can bundle /api serverless deps (formidable, stripe).",
   "scripts": {
     "verify:production": "node scripts/verify-production-baseline.mjs",
+    "verify:site": "node scripts/verify-single-site.mjs",
     "marketing:preview": "node scripts/record-marketing-preview.mjs",
     "marketing:tutorial": "RECORD_LOCAL=1 node scripts/record-marketing-tutorial.mjs",
     "marketing:demo": "RECORD_LOCAL=1 node scripts/record-demo-login-dashboard.mjs",

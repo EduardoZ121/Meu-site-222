@@ -21,11 +21,14 @@ import MangaPageCanvas from "../../components/manga/MangaPageCanvas";
 import MangaPanelEditor from "../../components/manga/MangaPanelEditor";
 import StoryNavigator from "../../components/manga/StoryNavigator";
 import CoherenceCheckPanel from "../../components/manga/CoherenceCheckPanel";
-import MangaStudioTour, { isTourDone } from "../../components/manga/MangaStudioTour";
+import MangaStudioTour from "../../components/manga/MangaStudioTour";
 import MangaStudioHeader from "../../components/manga/MangaStudioHeader";
 import MangaStudioMobileNav from "../../components/manga/MangaStudioMobileNav";
 import MangaProjectWizard, { promptNewCharacter } from "../../components/manga/MangaProjectWizard";
+import MangaStudioErrorBoundary from "../../components/manga/MangaStudioErrorBoundary";
 import { Save, RefreshCw } from "lucide-react";
+import { emptyPanel } from "../../lib/mangaStudioData";
+import { sanitizeMangaProject } from "../../lib/mangaStudioStorage";
 
 const CREDIT_DEFAULTS = { mangaPanel: 15, mangaPage: 40, mangaChapter: 150 };
 
@@ -47,15 +50,13 @@ export default function MangaStudio() {
     [costs],
   );
 
-  const [project, setProject] = useState(() => {
-    const p = loadActiveProject();
-    if (!p?.panels?.length) {
-      const fresh = createNewProject(p?.name || "Project 1");
-      return { ...fresh, setupComplete: p?.setupComplete };
-    }
-    return p;
+  const [boot] = useState(() => {
+    const p = sanitizeMangaProject(loadActiveProject());
+    const showWizard = !p.setupComplete && !(p.characters?.length > 0);
+    return { project: p, showWizard };
   });
-  const [activePanelId, setActivePanelId] = useState(null);
+  const [project, setProject] = useState(boot.project);
+  const [activePanelId, setActivePanelId] = useState(boot.project.panels?.[0]?.id ?? null);
   const [mobileTab, setMobileTab] = useState("editor");
   const [busy, setBusy] = useState(false);
   const [statusLine, setStatusLine] = useState("");
@@ -66,9 +67,7 @@ export default function MangaStudio() {
   const [coherenceOpen, setCoherenceOpen] = useState(false);
   const [coherenceResult, setCoherenceResult] = useState({ score: null, warnings: [] });
   const [coherenceLoading, setCoherenceLoading] = useState(false);
-  const [showWizard, setShowWizard] = useState(
-    () => !loadActiveProject().setupComplete && !(loadActiveProject().characters?.length > 0),
-  );
+  const [showWizard, setShowWizard] = useState(boot.showWizard);
   const saveSkipRef = useRef(true);
 
   const sortedPanels = useMemo(
@@ -80,14 +79,6 @@ export default function MangaStudio() {
     () => sortedPanels.findIndex((p) => p.id === activePanelId),
     [sortedPanels, activePanelId],
   );
-
-  useEffect(() => {
-    if (!isTourDone() && !project.tourCompleted && !showWizard) {
-      const timer = setTimeout(() => setTourOpen(true), 1200);
-      return () => clearTimeout(timer);
-    }
-    return undefined;
-  }, [project.tourCompleted, showWizard]);
 
   useEffect(() => {
     if (!activePanelId && sortedPanels.length) {
@@ -127,16 +118,28 @@ export default function MangaStudio() {
   const patchCharacter = useCallback((charId, patch) => {
     setProject((prev) => ({
       ...prev,
-      characters: prev.characters.map((c) => (c.id === charId ? { ...c, ...patch } : c)),
+      characters: (prev.characters || []).map((c) => (c.id === charId ? { ...c, ...patch } : c)),
     }));
   }, []);
 
   const patchScenario = useCallback((scenarioId, patch) => {
     setProject((prev) => ({
       ...prev,
-      scenarios: prev.scenarios.map((s) => (s.id === scenarioId ? { ...s, ...patch } : s)),
+      scenarios: (prev.scenarios || []).map((s) => (s.id === scenarioId ? { ...s, ...patch } : s)),
     }));
   }, []);
+
+  const skipWizard = () => {
+    const next = { ...project, setupComplete: true };
+    if (!next.panels?.length) {
+      next.panels = [emptyPanel(0)];
+    }
+    setProject(next);
+    saveProject(next);
+    setShowWizard(false);
+    setMobileTab("editor");
+    setActivePanelId(next.panels[0]?.id);
+  };
 
   const applyResultToPanel = (panelId, url) => {
     setProject((prev) => ({
@@ -427,7 +430,7 @@ export default function MangaStudio() {
 
   const onEditCharacter = (charId) => {
     setMobileTab("library");
-    const c = project.characters.find((x) => x.id === charId);
+    const c = (project.characters || []).find((x) => x.id === charId);
     if (!c) return;
     const tag = window.prompt(t("manga_prompt_char_tag"), c.tag || c.description || "");
     if (tag === null) return;
@@ -439,7 +442,7 @@ export default function MangaStudio() {
   };
 
   const onPreviewCharacter = (charId) => {
-    const c = project.characters.find((x) => x.id === charId);
+    const c = (project.characters || []).find((x) => x.id === charId);
     const url = c?.thumb || c?.sheets?.front;
     if (url) window.open(url, "_blank", "noopener,noreferrer");
     else toast.message(t("manga_no_image"));
@@ -504,6 +507,7 @@ export default function MangaStudio() {
   };
 
   return (
+    <MangaStudioErrorBoundary>
     <div className="manga-studio-page" data-testid="manga-studio-page">
       <MangaStudioTour
         open={tourOpen}
@@ -541,6 +545,17 @@ export default function MangaStudio() {
         )}
       </div>
 
+      {showWizard && (
+        <div className="manga-quick-escape flex flex-wrap gap-2 mb-3">
+          <button type="button" className="manga-secondary-cta min-h-[44px] flex-1" onClick={handleLoadDemo}>
+            {t("manga_load_demo")}
+          </button>
+          <button type="button" className="manga-chip-btn min-h-[44px] flex-1 justify-center" onClick={skipWizard}>
+            {t("manga_skip_wizard")}
+          </button>
+        </div>
+      )}
+
       <main className="manga-shell-main">
         {showWizard ? (
           <MangaProjectWizard
@@ -559,7 +574,7 @@ export default function MangaStudio() {
           />
         ) : (
           <>
-            <div className="manga-desktop-layout hidden lg:grid">
+            <div className="manga-desktop-layout">
               <aside className="manga-desktop-col">
                 <MangaAssetLibrary project={project} onChange={updateProject} />
               </aside>
@@ -641,5 +656,6 @@ export default function MangaStudio() {
         />
       )}
     </div>
+    </MangaStudioErrorBoundary>
   );
 }

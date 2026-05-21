@@ -1504,6 +1504,7 @@
     "manga_hand_crossed": "Cruzadas",
     "manga_sfx_upload_hint": "PNG/JPG do elemento gráfico.",
     "manga_style_preset": "Estilo global",
+    "manga_skip_wizard": "Entrar no editor sem configurar",
     "manga_tree_char_links": "Ligado aos painéis: {panels}",
     "manga_delete_confirm": "Apagar {name}?",
     "manga_copy_suffix": " (cópia)",

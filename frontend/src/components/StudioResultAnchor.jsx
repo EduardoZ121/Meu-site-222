@@ -4,7 +4,11 @@ import { useScrollToResultOnComplete } from "../lib/useScrollToResultOnComplete"
 export default function StudioResultAnchor({ busy, ready, children, className = "" }) {
   const ref = useScrollToResultOnComplete(ready, busy);
   return (
-    <div ref={ref} className={className}>
+    <div
+      ref={ref}
+      className={`scroll-mt-28 studio-result-anchor ${className}`.trim()}
+      data-testid="studio-result-anchor"
+    >
       {children}
     </div>
   );

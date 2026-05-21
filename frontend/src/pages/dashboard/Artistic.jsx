@@ -17,6 +17,7 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { api, formatApiError, uploadPost } from "../../lib/api";
 import { normalizeCreation, primaryResultUrl } from "../../lib/creationUrls";
 import CreationResultMedia from "../../components/CreationResultMedia";
+import StudioResultAnchor from "../../components/StudioResultAnchor";
 import { useAuth } from "../../lib/auth";
 import { useI18n } from "../../lib/i18n";
 import { usePricing } from "../../lib/PricingContext";
@@ -440,7 +441,11 @@ export default function Artistic() {
           </button>
 
           {/* Preview resultado */}
-          <div className="mt-6 flex-1">
+          <StudioResultAnchor
+            busy={busy}
+            ready={Boolean(downloadUrl)}
+            className="mt-6 flex-1"
+          >
             <p className="text-[#9CA3AF] text-[10px] font-mono uppercase tracking-wider mb-2">{t("art_result_label")}</p>
             {busy && (
               <div className="aspect-[3/4] rounded-xl bg-[#0A0A0F] border border-[rgba(147,51,234,0.2)] animate-pulse flex flex-col items-center justify-center gap-3">
@@ -504,7 +509,7 @@ export default function Artistic() {
                 {t("art_result_empty")}
               </div>
             )}
-          </div>
+          </StudioResultAnchor>
         </section>
       </div>
 

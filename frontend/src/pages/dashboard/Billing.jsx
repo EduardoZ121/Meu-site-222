@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { api } from "../../lib/api";
 import { useAuth } from "../../lib/auth";
+import { emitNotification } from "../../lib/notifyUser";
 import { useI18n } from "../../lib/i18n";
 import { toast } from "sonner";
 import useTitle from "../../lib/useTitle";
@@ -76,6 +77,14 @@ export default function Billing() {
       .then((r) => {
         if (!r.data?.paid || !r.data?.credits) throw new Error(t("bill_payment_pending"));
         addCredits(r.data.credits, t("bill_purchase_desc", { pkg: r.data.package || "" }).trim());
+        emitNotification({
+          type: "credits_purchase",
+          titleKey: "notif_purchase_title",
+          bodyKey: "notif_purchase_body",
+          credits: r.data.credits,
+          balance: r.data.new_balance,
+          href: "/app/billing",
+        });
         if (r.data.pricing_region) setStoredPricingRegion(r.data.pricing_region, { lock: true });
         void refreshPricing();
         localStorage.setItem(claimedKey, "1");

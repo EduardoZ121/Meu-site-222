@@ -2,6 +2,7 @@ import axios from "axios";
 
 import { formatHttpError } from "./uploadErrors";
 import { normalizeCreation } from "./creationUrls";
+import { notifyCreditsUpdate, notifyGenerationComplete } from "./notifyUser";
 
 /** Evita mixed content: página em https + backend em http → o browser bloqueia e parece "Network Error". */
 function resolveBaseUrl() {
@@ -311,6 +312,7 @@ api.interceptors.response.use(
 function notifyCreationSucceeded(creation) {
   if (typeof window === "undefined" || !creation) return;
   window.dispatchEvent(new CustomEvent("rp:creation-succeeded", { detail: creation }));
+  notifyGenerationComplete(creation);
 }
 
 /**
@@ -375,6 +377,13 @@ export async function pollPrediction(predictionId, opts = {}) {
         window.dispatchEvent(new CustomEvent("rp:credits-sync", {
           detail: { credits: data.new_balance, refunded: data.refunded },
         }));
+      }
+      if (data.refunded) {
+        notifyCreditsUpdate({
+          balance: data.new_balance,
+          refunded: true,
+          spent: opts.credits_spent,
+        });
       }
       const err = new Error(data.error || "Geração falhou.");
       err.new_balance = data.new_balance;

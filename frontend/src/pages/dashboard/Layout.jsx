@@ -10,6 +10,8 @@ import { useEffect, useMemo, useState, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import Logo from "../../components/Logo";
 import DashboardHeaderMenu from "../../components/DashboardHeaderMenu";
+import NotificationBell from "../../components/NotificationBell";
+import { NotificationProvider } from "../../lib/NotificationContext";
 
 const navSpring = { type: "spring", stiffness: 380, damping: 32 };
 
@@ -224,6 +226,7 @@ export default function DashboardLayout() {
   );
 
   return (
+    <NotificationProvider>
     <motion.div
       className="min-h-screen bg-rp-bg flex font-['Inter_Tight'] text-rp-text touch-manipulation"
       data-testid="dashboard-layout"
@@ -286,6 +289,7 @@ export default function DashboardLayout() {
           </div>
 
           <div className="flex items-center gap-3 md:gap-5">
+            <NotificationBell />
             <LanguageSwitcher />
             <Link
               to="/app/billing"
@@ -318,5 +322,6 @@ export default function DashboardLayout() {
         </main>
       </motion.div>
     </motion.div>
+    </NotificationProvider>
   );
 }

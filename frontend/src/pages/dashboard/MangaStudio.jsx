@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowLeft, BookOpen, FolderOpen, Loader2, Plus, AlertCircle, Sparkles,
+  GraduationCap, Sparkle,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { api, formatApiError, pollPrediction, uploadPost } from "../../lib/api";
@@ -15,11 +16,16 @@ import {
   listProjects,
   saveProject,
 } from "../../lib/mangaStudioStorage";
+import { createDemoMangaProject } from "../../lib/comic-engine/mockData";
+import { fetchCoherenceCheck } from "../../lib/comic-engine/coherenceCheck";
 import useTitle from "../../lib/useTitle";
 import { toast } from "sonner";
 import MangaLibrarySidebar from "../../components/manga/MangaLibrarySidebar";
 import MangaPageCanvas from "../../components/manga/MangaPageCanvas";
-import MangaPanelConfig from "../../components/manga/MangaPanelConfig";
+import MangaPanelEditor from "../../components/manga/MangaPanelEditor";
+import StoryNavigator from "../../components/manga/StoryNavigator";
+import CoherenceCheckPanel from "../../components/manga/CoherenceCheckPanel";
+import MangaStudioTour, { isTourDone } from "../../components/manga/MangaStudioTour";
 
 const CREDIT_DEFAULTS = { mangaPanel: 15, mangaPage: 40, mangaChapter: 150 };
 
@@ -50,7 +56,19 @@ export default function MangaStudio() {
   const [modelKey, setModelKey] = useState("grok");
   const [useGptCompose, setUseGptCompose] = useState(false);
   const [lastPromptPreview, setLastPromptPreview] = useState("");
+  const [tourOpen, setTourOpen] = useState(false);
+  const [coherenceOpen, setCoherenceOpen] = useState(false);
+  const [coherenceResult, setCoherenceResult] = useState({ score: null, warnings: [] });
+  const [coherenceLoading, setCoherenceLoading] = useState(false);
   const saveSkipRef = useRef(true);
+
+  useEffect(() => {
+    if (!isTourDone() && !project.tourCompleted) {
+      const timer = setTimeout(() => setTourOpen(true), 600);
+      return () => clearTimeout(timer);
+    }
+    return undefined;
+  }, [project.tourCompleted]);
 
   useEffect(() => {
     if (!activePanelId && project.panels?.length) {
@@ -90,7 +108,8 @@ export default function MangaStudio() {
   const applyResultToPanel = (panelId, url) => {
     setProject((prev) => ({
       ...prev,
-      panels: prev.panels.map((p) => (p.id === panelId ? { ...p, resultUrl: url } : p)),
+      panels: prev.panels.map((p) =>
+        p.id === panelId ? { ...p, resultUrl: url, status: "completed" } : p),
     }));
   };
 
@@ -208,6 +227,10 @@ export default function MangaStudio() {
     const scene = (project.scenarios || []).find((s) => s.id === panel?.scenarioId);
     const panels = panelsOverride || [...(project.panels || [])].sort((a, b) => a.order - b.order);
 
+    if (activePanelId && mode === "panel") {
+      patchPanel({ status: "generating" });
+    }
+
     setBusy(true);
     setStatusLine(useGptCompose ? t("manga_status_compose_gpt") : t("manga_status_compose"));
 
@@ -243,7 +266,7 @@ export default function MangaStudio() {
       if (mode === "panel" && panel) {
         applyResultToPanel(panel.id, res.url);
         toast.success(t("manga_success_panel", { n: res.spent }));
-        setMobileTab("editor");
+        setMobileTab("config");
       } else if (mode === "page") {
         panels.forEach((p, i) => {
           if (i === 0 || p.id === activePanelId) applyResultToPanel(p.id, res.url);
@@ -255,6 +278,7 @@ export default function MangaStudio() {
     } catch (e) {
       const msg = errMsg(e);
       setStatusLine(msg);
+      if (activePanelId) patchPanel({ status: "error" });
       toast.error(msg, { duration: 9000 });
     } finally {
       setBusy(false);
@@ -285,6 +309,22 @@ export default function MangaStudio() {
       aspect: "9:16",
     });
 
+  const runCoherence = async () => {
+    setCoherenceLoading(true);
+    try {
+      const result = await fetchCoherenceCheck(project);
+      setCoherenceResult(result);
+      setCoherenceOpen(true);
+      if (result.score >= 80) {
+        toast.success(t("manga_coherence_good", { score: result.score }));
+      } else {
+        toast.message(t("manga_coherence_issues", { n: result.warnings.length }));
+      }
+    } finally {
+      setCoherenceLoading(false);
+    }
+  };
+
   const handleNewProject = () => {
     const name = window.prompt(t("manga_project_name"), t("manga_new_project_default"));
     if (name === null) return;
@@ -294,6 +334,15 @@ export default function MangaStudio() {
     setActivePanelId(p.panels[0]?.id);
     setStatusLine("");
     toast.message(t("manga_project_created"));
+  };
+
+  const handleLoadDemo = () => {
+    const demo = createDemoMangaProject(t);
+    saveSkipRef.current = true;
+    saveProject(demo);
+    setProject(demo);
+    setActivePanelId(demo.panels[0]?.id);
+    toast.success(t("manga_demo_loaded"));
   };
 
   const handleOpenProject = () => {
@@ -341,6 +390,23 @@ export default function MangaStudio() {
         <ArrowLeft className="w-4 h-4" /> {t("back_to_tools")}
       </button>
 
+      <MangaStudioTour
+        open={tourOpen}
+        onClose={() => setTourOpen(false)}
+        onFinish={() => updateProject({ ...project, tourCompleted: true })}
+      />
+
+      <CoherenceCheckPanel
+        open={coherenceOpen}
+        onClose={() => setCoherenceOpen(false)}
+        score={coherenceResult.score}
+        warnings={coherenceResult.warnings}
+        onJumpToPanel={(id) => {
+          setActivePanelId(id);
+          setMobileTab("config");
+        }}
+      />
+
       {(statusLine || busy) && (
         <div
           className={`mb-4 flex items-start gap-2 text-sm px-3 py-2.5 rounded-lg border ${
@@ -367,8 +433,8 @@ export default function MangaStudio() {
             </div>
             <p className="text-[#A855F7] text-[10px] font-mono uppercase tracking-[0.22em] flex items-center gap-2 flex-wrap">
               <span>Remake Pixel · {t("manga_title")}</span>
-              <span className="px-2 py-0.5 rounded-full text-[9px] tracking-wider bg-amber-500/20 text-amber-100 border border-amber-400/35">
-                {t("badge_beta")}
+              <span className="px-2 py-0.5 rounded-full text-[9px] tracking-wider bg-emerald-500/20 text-emerald-100 border border-emerald-400/35">
+                v2
               </span>
             </p>
           </div>
@@ -376,9 +442,15 @@ export default function MangaStudio() {
             {t("manga_subtitle")}{" "}
             <span className="italic text-[#C4B5FD]">{t("manga_subtitle_accent")}</span>
           </h1>
-          <p className="text-[#9CA3AF] text-[14px] mt-2 max-w-2xl">{t("manga_desc")}</p>
+          <p className="text-[#9CA3AF] text-[14px] mt-2 max-w-2xl">{t("manga_desc_v2")}</p>
         </div>
         <div className="flex gap-2 shrink-0 flex-wrap">
+          <button type="button" onClick={() => setTourOpen(true)} className="manga-header-btn manga-header-btn-outline">
+            <GraduationCap className="w-4 h-4" /> {t("manga_tutorial")}
+          </button>
+          <button type="button" onClick={handleLoadDemo} className="manga-header-btn manga-header-btn-outline">
+            <Sparkle className="w-4 h-4" /> {t("manga_load_demo")}
+          </button>
           <button type="button" onClick={handleNewProject} className="manga-header-btn">
             <Plus className="w-4 h-4" /> {t("manga_new_project")}
           </button>
@@ -387,6 +459,24 @@ export default function MangaStudio() {
           </button>
         </div>
       </header>
+
+      <div className="mb-4 flex flex-wrap gap-3 items-center p-3 rounded-xl border border-[#2E2E30] bg-[#111118]/80">
+        <span className="text-[10px] uppercase tracking-wider text-[#A855F7]">{t("manga_style_preset")}</span>
+        {catalog.stylePresets.map((s) => (
+          <button
+            key={s.id}
+            type="button"
+            onClick={() => updateProject({ ...project, stylePreset: s.id })}
+            className={`px-2.5 py-1 rounded-md text-[10px] border transition-colors ${
+              (project.stylePreset || "manga-classic") === s.id
+                ? "border-[#A855F7] bg-[#9333EA]/25 text-white"
+                : "border-[#2E2E30] text-[#9CA3AF]"
+            }`}
+          >
+            {s.label}
+          </button>
+        ))}
+      </div>
 
       <div className="mb-4 flex flex-wrap gap-3 items-center p-3 rounded-xl border border-[#2E2E30] bg-[#111118]/80">
         <span className="text-[10px] uppercase tracking-wider text-[#A855F7]">{t("manga_model_engine")}</span>
@@ -422,13 +512,13 @@ export default function MangaStudio() {
         <p className="text-[#5A5A5E] text-xs mb-3">{t("manga_loading_prices")}</p>
       )}
 
-      <div className="flex lg:hidden gap-1 mb-4 p-1 rounded-lg bg-[#111118] border border-[rgba(147,51,234,0.2)]">
+      <div className="flex lg:hidden gap-1 mb-4 p-1 rounded-lg bg-[#111118] border border-[rgba(147,51,234,0.2)] overflow-x-auto">
         {catalog.mobileTabs.map((tab) => (
           <button
             key={tab.id}
             type="button"
             onClick={() => setMobileTab(tab.id)}
-            className={`flex-1 py-2 text-[11px] font-medium rounded-md transition-colors ${
+            className={`flex-1 min-w-[72px] py-2 text-[10px] font-medium rounded-md transition-colors whitespace-nowrap px-1 ${
               mobileTab === tab.id ? "bg-[#9333EA] text-white" : "text-[#9CA3AF]"
             }`}
           >
@@ -436,6 +526,22 @@ export default function MangaStudio() {
           </button>
         ))}
       </div>
+
+      {mobileTab === "story" && (
+        <div className="lg:hidden mb-4">
+          <StoryNavigator
+            project={project}
+            activePanelId={activePanelId}
+            onSelectPanel={(id) => {
+              setActivePanelId(id);
+              setMobileTab("config");
+            }}
+            onCoherenceCheck={runCoherence}
+            coherenceScore={coherenceResult.score}
+            coherenceLoading={coherenceLoading}
+          />
+        </div>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 lg:gap-5">
         <div className={`lg:col-span-3 ${mobileTab !== "library" ? "hidden lg:block" : ""}`}>
@@ -459,8 +565,8 @@ export default function MangaStudio() {
           />
         </div>
 
-        <div className={`lg:col-span-4 ${mobileTab !== "config" ? "hidden lg:block" : ""}`}>
-          <MangaPanelConfig
+        <div className={`lg:col-span-4 ${mobileTab !== "config" ? "hidden lg:block" : ""} ${mobileTab === "story" ? "hidden" : ""}`}>
+          <MangaPanelEditor
             project={project}
             panel={activePanel}
             onPatchPanel={patchPanel}
@@ -472,6 +578,7 @@ export default function MangaStudio() {
             onGeneratePanel={generatePanel}
             onGeneratePage={generatePage}
             onGenerateChapter={generateChapter}
+            onBackToStory={() => setMobileTab("story")}
           />
           {lastPromptPreview && (
             <details className="mt-3 rounded-lg border border-[#2E2E30] bg-[#0B0B0C]/80 p-2">
@@ -484,6 +591,17 @@ export default function MangaStudio() {
             </details>
           )}
         </div>
+      </div>
+
+      <div className="hidden lg:block mt-4">
+        <StoryNavigator
+          project={project}
+          activePanelId={activePanelId}
+          onSelectPanel={setActivePanelId}
+          onCoherenceCheck={runCoherence}
+          coherenceScore={coherenceResult.score}
+          coherenceLoading={coherenceLoading}
+        />
       </div>
     </div>
   );

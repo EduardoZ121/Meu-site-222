@@ -8,6 +8,7 @@ import { useI18n } from "../../lib/i18n";
 import { getMangaStudioCatalog } from "../../lib/mangaStudioCatalog";
 import CollapsibleSection from "../CollapsibleSection";
 import { emptyCharacter, emptyScenario } from "../../lib/mangaStudioData";
+import { characterConsistencyScore } from "../../lib/comic-engine/characterLock";
 
 function ThumbBox({ src, label }) {
   return (
@@ -137,6 +138,44 @@ export default function MangaLibrarySidebar({ project, onChange }) {
                 patch({ characters: project.characters.filter((x) => x.id !== c.id) });
               }}
             >
+              <div className="flex items-center justify-between gap-2 mb-1">
+                <p className="text-[10px] text-[#5A5A5E]">{t("manga_consistency_score")}</p>
+                <span className="text-[10px] text-[#A855F7] font-mono">{characterConsistencyScore(c)}%</span>
+              </div>
+              <div className="h-1 rounded-full bg-[#2E2E30] mb-2 overflow-hidden">
+                <div
+                  className="h-full bg-[#9333EA] transition-all"
+                  style={{ width: `${characterConsistencyScore(c)}%` }}
+                />
+              </div>
+              <label className="text-[10px] text-[#9CA3AF] block mb-1">{t("manga_body_type")}</label>
+              <select
+                className="field-input w-full text-[11px] mb-2"
+                value={c.bodyType || "slim"}
+                onChange={(e) => {
+                  patch({
+                    characters: project.characters.map((x) =>
+                      x.id === c.id ? { ...x, bodyType: e.target.value } : x),
+                  });
+                }}
+              >
+                {catalog.bodyTypes.map((b) => (
+                  <option key={b.id} value={b.id}>{b.label}</option>
+                ))}
+              </select>
+              <label className="flex items-center gap-2 text-[10px] text-[#9CA3AF] mb-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={c.consistencyLock !== false}
+                  onChange={(e) => {
+                    patch({
+                      characters: project.characters.map((x) =>
+                        x.id === c.id ? { ...x, consistencyLock: e.target.checked } : x),
+                    });
+                  }}
+                />
+                {t("manga_consistency_lock")} 🔒
+              </label>
               <p className="text-[10px] text-[#5A5A5E]">{t("manga_ref_sheet")}</p>
               <div className="grid grid-cols-4 gap-1">
                 {["front", "profile", "back"].map((k) => (

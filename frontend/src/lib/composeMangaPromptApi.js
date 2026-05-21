@@ -33,6 +33,7 @@ export function buildLocalMangaPrompt({
     character,
     scenario,
     pageLayout: project?.pageLayout,
+    stylePreset: project?.stylePreset,
   });
 }
 

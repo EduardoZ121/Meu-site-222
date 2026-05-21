@@ -197,7 +197,17 @@ async function handlePromptAssistRoute(path, req, res, { verifySessionToken, jso
     && path !== "suggest"
     && path !== "prompt/improve"
     && path !== "prompt/manga-compose"
+    && path !== "coherence/manga-check"
   ) return false;
+
+  const body = await readJsonRequestBody(req);
+
+  if (path === "coherence/manga-check") {
+    const { runCoherenceCheck } = require("./mangaCoherence.cjs");
+    const result = runCoherenceCheck(body);
+    json(res, 200, result);
+    return true;
+  }
 
   const auth = req.headers.authorization || "";
   const tm = auth.match(/^Bearer\s+(.+)$/i);
@@ -215,8 +225,6 @@ async function handlePromptAssistRoute(path, req, res, { verifySessionToken, jso
     json(res, 401, { detail: "Sessão inválida ou expirada." });
     return true;
   }
-
-  const body = await readJsonRequestBody(req);
 
   if (path === "prompt/improve") {
     const raw = String(body.prompt || "").trim();

@@ -77,6 +77,7 @@ export const useFlowStore = create((set, get) => ({
   },
   tutorialStep: initial.tutorialDone ? -1 : 0,
   status: "",
+  viewportZoom: 1,
 
   setStatus: (status) => set({ status }),
 
@@ -241,6 +242,17 @@ export const useFlowStore = create((set, get) => ({
   selectEdge: (selectedEdgeId) => set({ selectedEdgeId, selectedNodeId: null }),
 
   setPanMode: (panMode) => set({ panMode }),
+
+  setViewportZoom: (viewportZoom) => set({ viewportZoom }),
+
+  setEdgesGenerating: (generating) => {
+    set((s) => ({
+      edges: s.edges.map((e) => ({
+        ...e,
+        data: { ...e.data, generating: !!generating },
+      })),
+    }));
+  },
 
   addNode: (type, position) => {
     const id = uid("node");

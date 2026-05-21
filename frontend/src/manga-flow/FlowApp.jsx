@@ -11,11 +11,9 @@ import { composeMangaPromptApi } from "../lib/composeMangaPromptApi";
 import { calcGenerationCost } from "./types";
 import { buildFlowPrompt } from "./buildFlowPrompt";
 import { useFlowStore } from "./useFlowStore";
-import FlowCanvas from "./FlowCanvas";
-import NodeEditor from "./NodeEditor";
 import PromptEnhancement from "./PromptEnhancement";
 import StoryTab from "./StoryTab";
-import { NODE_ICONS, NODE_LABELS } from "./types";
+import FlowTab from "./FlowTab";
 
 const TABS = [
   { id: "assets", icon: BookOpen, label: "Assets" },
@@ -24,8 +22,6 @@ const TABS = [
   { id: "flow", icon: Workflow, label: "Flow" },
   { id: "story", icon: GitBranch, label: "História" },
 ];
-
-const ADD_TYPES = ["personagem", "cenario", "objeto", "acao", "dialogo", "efeito", "transicao"];
 
 function FlowTutorial() {
   const step = useFlowStore((s) => s.tutorialStep);
@@ -81,7 +77,6 @@ export default function FlowApp() {
   useTitle("Manga Flow");
 
   const [tab, setTab] = useState("flow");
-  const [addOpen, setAddOpen] = useState(false);
   const [busy, setBusy] = useState(false);
 
   const projectName = useFlowStore((s) => s.projectName);
@@ -90,7 +85,6 @@ export default function FlowApp() {
   const globalSettings = useFlowStore((s) => s.globalSettings);
   const status = useFlowStore((s) => s.status);
   const setGlobalSettings = useFlowStore((s) => s.setGlobalSettings);
-  const addNode = useFlowStore((s) => s.addNode);
   const newProject = useFlowStore((s) => s.newProject);
   const getResolvedOutputMode = useFlowStore((s) => s.getResolvedOutputMode);
   const setStatus = useFlowStore((s) => s.setStatus);
@@ -183,21 +177,12 @@ export default function FlowApp() {
   const renderTab = () => {
     if (tab === "flow") {
       return (
-        <div className="mf-layout-desktop">
-          <div className="flex-1 min-h-0 flex flex-col">
-            <FlowCanvas
-              onAddMenu={() => setAddOpen(true)}
-            />
-            <div className="mf-canvas-toolbar">
-              <span className="text-[0.75rem] text-[#9ca3af]">
-                Zoom · Fit · {nodes.length} caixas · {getResolvedOutputMode()} · {genCost} cr
-              </span>
-            </div>
-          </div>
-          <aside className="mf-slide mf-slide--desktop hidden lg:block">
-            <NodeEditor />
-          </aside>
-        </div>
+        <FlowTab
+          busy={busy}
+          genCost={genCost}
+          onGenerate={generate}
+          getResolvedOutputMode={getResolvedOutputMode}
+        />
       );
     }
     if (tab === "assets") {
@@ -218,7 +203,6 @@ export default function FlowApp() {
   return (
     <div className="mf-root" data-testid="manga-flow-page">
       <FlowTutorial />
-      <PromptEnhancement />
 
       <header className="mf-header">
         <div className="mf-header-row">
@@ -234,56 +218,35 @@ export default function FlowApp() {
           </button>
         </div>
 
-        <div className="mf-chips mt-2">
-          <Chip
-            label="Manga"
-            active={globalSettings.style === "manga"}
-            onClick={() => setGlobalSettings({ style: "manga" })}
-          />
-          <Chip label="Comic" active={globalSettings.style === "comic"} onClick={() => setGlobalSettings({ style: "comic" })} />
-          <Chip label="Webtoon" active={globalSettings.style === "webtoon"} onClick={() => setGlobalSettings({ style: "webtoon" })} />
-          <Chip label="Grok" active={globalSettings.engine === "grok"} onClick={() => setGlobalSettings({ engine: "grok" })} />
-          <Chip label="GPT" active={globalSettings.engine === "gpt_image"} onClick={() => setGlobalSettings({ engine: "gpt_image" })} />
-        </div>
-        <label className="flex items-center gap-2 text-[0.8rem] text-[#c4b5fd] mt-2 min-h-[44px]">
-          <input
-            type="checkbox"
-            checked={globalSettings.gptCompose}
-            onChange={(e) => setGlobalSettings({ gptCompose: e.target.checked })}
-          />
-          GPT compõe prompt
-        </label>
-        <div className="mf-chips mt-2">
-          <Chip
-            label="Auto"
-            active={globalSettings.outputMode === "auto"}
-            onClick={() => setGlobalSettings({ outputMode: "auto" })}
-          />
-          <Chip
-            label="Painel"
-            active={globalSettings.outputMode === "panel"}
-            onClick={() => setGlobalSettings({ outputMode: "panel" })}
-          />
-          <Chip
-            label="Página"
-            active={globalSettings.outputMode === "page"}
-            onClick={() => setGlobalSettings({ outputMode: "page" })}
-          />
-          <Chip
-            label="Capítulo"
-            active={globalSettings.outputMode === "chapter"}
-            onClick={() => setGlobalSettings({ outputMode: "chapter" })}
-          />
-        </div>
-        <div className="flex flex-wrap gap-2 mt-2">
-          <button type="button" className="mf-btn" onClick={newProject}>
-            Novo projeto
-          </button>
-          <button type="button" className="mf-btn mf-btn--primary" disabled={busy || !nodes.length} onClick={generate}>
-            {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
-            🔄 Gerar · {genCost} cr
-          </button>
-        </div>
+        {tab !== "flow" && (
+          <>
+            <div className="mf-chips mt-2">
+              <Chip
+                label="Manga"
+                active={globalSettings.style === "manga"}
+                onClick={() => setGlobalSettings({ style: "manga" })}
+              />
+              <Chip label="Comic" active={globalSettings.style === "comic"} onClick={() => setGlobalSettings({ style: "comic" })} />
+              <Chip label="Webtoon" active={globalSettings.style === "webtoon"} onClick={() => setGlobalSettings({ style: "webtoon" })} />
+            </div>
+            <div className="flex flex-wrap gap-2 mt-2">
+              <button type="button" className="mf-btn" onClick={newProject}>
+                Novo projeto
+              </button>
+              <button type="button" className="mf-btn mf-btn--primary" disabled={busy || !nodes.length} onClick={generate}>
+                {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
+                🔄 Gerar · {genCost} cr
+              </button>
+            </div>
+          </>
+        )}
+        {tab === "flow" && (
+          <div className="flex flex-wrap gap-2 mt-2">
+            <button type="button" className="mf-btn" onClick={newProject}>
+              Novo projeto
+            </button>
+          </div>
+        )}
         {status && <div className="text-[0.75rem] text-[#c4b5fd] mt-2">{status}</div>}
       </header>
 
@@ -303,12 +266,6 @@ export default function FlowApp() {
 
       <div className="mf-body mf-body--scroll">{renderTab()}</div>
 
-      {tab === "flow" && selectedNodeId && (
-        <div className="mf-slide lg:hidden">
-          <NodeEditor />
-        </div>
-      )}
-
       <nav className="mf-nav lg:hidden">
         {TABS.map(({ id, icon: Icon, label }) => (
           <button
@@ -323,28 +280,6 @@ export default function FlowApp() {
         ))}
       </nav>
 
-      {addOpen && (
-        <div className="mf-modal-bg" onClick={() => setAddOpen(false)}>
-          <div className="mf-modal" onClick={(e) => e.stopPropagation()}>
-            <h3 className="text-white font-semibold mb-2">Adicionar caixa</h3>
-            {ADD_TYPES.map((type) => (
-              <button
-                key={type}
-                type="button"
-                className="mf-dropdown block w-full text-left mb-1"
-                style={{ position: "static", boxShadow: "none" }}
-                onClick={() => {
-                  addNode(type, { x: 100 + Math.random() * 200, y: 80 + Math.random() * 120 });
-                  setAddOpen(false);
-                  setTab("flow");
-                }}
-              >
-                {NODE_ICONS[type]} {NODE_LABELS[type]}
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
     </div>
   );
 }

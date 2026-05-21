@@ -1,3 +1,4 @@
+import { toast } from "sonner";
 import { useFlowStore } from "./useFlowStore";
 import { NODE_ICONS, NODE_LABELS } from "./types";
 import UploadField, { readImageFile } from "./UploadField";
@@ -89,11 +90,42 @@ function PersonagemForm({ data, onChange }) {
       <p className="text-[0.75rem] text-[#9ca3af]">👕 Outfits</p>
       <div className="mf-chips flex-wrap">
         {(data.outfits || []).map((o) => (
-          <span key={o.id} className="mf-chip mf-chip--on text-[0.75rem]">
+          <button
+            key={o.id}
+            type="button"
+            className={`mf-chip ${o.isDefault ? "mf-chip--on" : ""}`}
+            onClick={() =>
+              set({
+                outfits: data.outfits.map((x) => ({ ...x, isDefault: x.id === o.id })),
+              })
+            }
+          >
             {o.name}
-          </span>
+          </button>
         ))}
+        <button
+          type="button"
+          className="mf-chip"
+          onClick={() => {
+            const id = `outfit_${Date.now()}`;
+            set({
+              outfits: [...(data.outfits || []), { id, name: "Novo", thumb: null, isDefault: false }],
+            });
+          }}
+        >
+          + Adicionar
+        </button>
       </div>
+      <UploadField
+        label="Upload outfit ativo"
+        onFile={({ url }) => {
+          const active = (data.outfits || []).find((o) => o.isDefault) || data.outfits?.[0];
+          if (!active) return;
+          set({
+            outfits: data.outfits.map((o) => (o.id === active.id ? { ...o, thumb: url } : o)),
+          });
+        }}
+      />
       <div className="mf-consistency mt-2">
         <span className="text-[0.75rem] text-[#9ca3af]">🔒 Consistency: {score}%</span>
         <div className="mf-consistency-bar">
@@ -162,6 +194,42 @@ function CenarioForm({ data, onChange }) {
           { id: "dramatic", label: "Dramatic" },
         ]}
       />
+      <p className="text-[0.75rem] text-[#9ca3af]">
+        Direção da luz: {data.lightingDirection ?? 120}°
+      </p>
+      <input
+        type="range"
+        min={0}
+        max={360}
+        value={data.lightingDirection ?? 120}
+        onChange={(e) => onChange({ lightingDirection: Number(e.target.value) })}
+        className="w-full"
+      />
+      <p className="text-[0.75rem] text-[#9ca3af] mt-2">Variantes</p>
+      <label className="flex items-center gap-2 text-[0.8rem]">
+        <input
+          type="checkbox"
+          checked={data.variants?.day !== false}
+          onChange={(e) => onChange({ variants: { ...data.variants, day: e.target.checked } })}
+        />
+        Dia
+      </label>
+      <label className="flex items-center gap-2 text-[0.8rem]">
+        <input
+          type="checkbox"
+          checked={data.variants?.night !== false}
+          onChange={(e) => onChange({ variants: { ...data.variants, night: e.target.checked } })}
+        />
+        Noite
+      </label>
+      <label className="flex items-center gap-2 text-[0.8rem]">
+        <input
+          type="checkbox"
+          checked={!!data.variants?.rain}
+          onChange={(e) => onChange({ variants: { ...data.variants, rain: e.target.checked } })}
+        />
+        Chuva
+      </label>
     </>
   );
 }
@@ -278,6 +346,16 @@ function DialogoForm({ data, onChange }) {
           { id: "webtoon", label: "Webtoon" },
         ]}
       />
+      <ChipRow
+        value={data.position}
+        onChange={(v) => onChange({ position: v })}
+        options={[
+          { id: "top", label: "Topo" },
+          { id: "left", label: "Esquerda" },
+          { id: "right", label: "Direita" },
+          { id: "bottom", label: "Baixo" },
+        ]}
+      />
     </>
   );
 }
@@ -298,6 +376,18 @@ function EfeitoForm({ data, onChange }) {
           { id: "chibi", label: "Chibi" },
         ]}
       />
+      <p className="text-[0.75rem] text-[#9ca3af]">
+        Intensidade: {Math.round((data.intensity ?? 0.4) * 100)}%
+      </p>
+      <input
+        type="range"
+        min={0}
+        max={100}
+        value={Math.round((data.intensity ?? 0.4) * 100)}
+        onChange={(e) => onChange({ intensity: Number(e.target.value) / 100 })}
+        className="w-full"
+      />
+      <p className="text-[0.75rem] text-[#9ca3af]">Direção: {data.direction ?? 45}°</p>
       <input
         type="range"
         min={0}
@@ -305,6 +395,15 @@ function EfeitoForm({ data, onChange }) {
         value={data.direction ?? 45}
         onChange={(e) => onChange({ direction: Number(e.target.value) })}
         className="w-full"
+      />
+      <ChipRow
+        value={data.position}
+        onChange={(v) => onChange({ position: v })}
+        options={[
+          { id: "center", label: "Centro" },
+          { id: "character", label: "Personagem" },
+          { id: "background", label: "Background" },
+        ]}
       />
     </>
   );
@@ -333,6 +432,16 @@ function TransicaoForm({ data, onChange }) {
           { id: "0.5s", label: "0.5s" },
           { id: "1s", label: "1s" },
           { id: "2s", label: "2s" },
+        ]}
+      />
+      <ChipRow
+        value={data.direction}
+        onChange={(v) => onChange({ direction: v })}
+        options={[
+          { id: "left-to-right", label: "← →" },
+          { id: "right-to-left", label: "→ ←" },
+          { id: "top-to-bottom", label: "↑ ↓" },
+          { id: "bottom-to-top", label: "↓ ↑" },
         ]}
       />
     </>
@@ -372,7 +481,11 @@ export default function NodeEditor() {
       </h3>
       <Form data={node.data} onChange={patch} />
       <div className="flex gap-2 mt-3">
-        <button type="button" className="mf-btn mf-btn--primary flex-1">
+        <button
+          type="button"
+          className="mf-btn mf-btn--primary flex-1"
+          onClick={() => toast.success("Caixa guardada no projeto")}
+        >
           💾 Salvar
         </button>
         <button type="button" className="mf-btn flex-1" onClick={() => deleteNode(node.id)}>

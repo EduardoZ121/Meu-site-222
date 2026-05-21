@@ -94,6 +94,7 @@ export function defaultNodeData(type) {
     case "dialogo":
       return {
         ...base,
+        name: "Diálogo",
         text: "",
         speechType: "speech",
         balloonShape: "normal",

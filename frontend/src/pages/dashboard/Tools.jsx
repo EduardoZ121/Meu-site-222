@@ -29,7 +29,7 @@ export default function Tools() {
         <p className="text-[#7C3AED] text-[10px] font-mono uppercase tracking-[0.22em] mb-3">
           {t("tools_grid.page_eyebrow")}
         </p>
-        <h1 className="text-[#F4F1EA] text-[40px] md:text-[56px] font-light tracking-[-0.02em] leading-[1.05] mb-4 font-['Inter_Tight']">
+        <h1 className="font-impact text-[#F4F1EA] text-[40px] md:text-[56px] leading-[1.05] mb-4 normal-case md:uppercase tracking-[0.02em]">
           {t("tools_grid.page_title")}
         </h1>
         <p className="text-[#8A8A8E] text-[16px] max-w-[600px]">

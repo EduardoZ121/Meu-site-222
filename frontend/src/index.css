@@ -149,11 +149,12 @@
   .reveal-text {
     position: relative;
     max-width: 980px;
-    font-family: 'Inter Tight', system-ui, sans-serif;
+    font-family: Impact, Haettenschweiler, "Franklin Gothic Bold", "Arial Narrow Bold", sans-serif;
     font-size: clamp(2.35rem, 6.2vw, 5.15rem);
     line-height: 1.03;
-    font-weight: 260;
-    letter-spacing: -0.052em;
+    font-weight: 400;
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
   }
 
   .reveal-text span {
@@ -282,6 +283,15 @@
     font-size: 10px;
     font-weight: 500;
     letter-spacing: 0.2em;
+    text-transform: uppercase;
+  }
+
+  /* Impact — títulos de destaque (capa / ferramentas) */
+  .font-impact {
+    font-family: Impact, Haettenschweiler, "Franklin Gothic Bold", "Arial Narrow Bold", sans-serif;
+    font-weight: 400;
+    font-style: normal;
+    letter-spacing: 0.02em;
     text-transform: uppercase;
   }
 

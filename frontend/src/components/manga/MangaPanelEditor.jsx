@@ -84,6 +84,8 @@ export default function MangaPanelEditor({
   panelIndex = 0,
   panelTotal = 1,
   onPatchPanel,
+  onPatchCharacter,
+  onPatchScenario,
   costs,
   busy,
   activeCharacterId,
@@ -95,6 +97,7 @@ export default function MangaPanelEditor({
   onBackToEditor,
   onSaveDraft,
   hideGenerateActions = false,
+  splitLayout = false,
 }) {
   const { t } = useI18n();
   const catalog = useMemo(() => getMangaStudioCatalog(t), [t]);
@@ -142,8 +145,20 @@ export default function MangaPanelEditor({
     tip: t("manga_tip_shot_tip"),
   };
 
+  const balloonPosClass =
+    panel.balloonPos === "bottom"
+      ? "manga-balloon-pos-bottom"
+      : panel.balloonPos === "left"
+        ? "manga-balloon-pos-left"
+        : panel.balloonPos === "right"
+          ? "manga-balloon-pos-right"
+          : "manga-balloon-pos-top";
+
   return (
-    <div className="manga-panel-editor-v21" data-testid="manga-panel-editor">
+    <div
+      className={cn("manga-panel-editor-v21", splitLayout && "manga-panel-editor-v21--split")}
+      data-testid="manga-panel-editor"
+    >
       {onBackToEditor && (
         <button type="button" className="manga-back-link min-h-[44px]" onClick={onBackToEditor}>
           <ChevronLeft className="w-4 h-4" />
@@ -155,7 +170,7 @@ export default function MangaPanelEditor({
         {t("manga_panel_of", { current: panelIndex + 1, total: panelTotal })}
       </p>
 
-      {/* Preview */}
+      <div className="manga-panel-editor-preview-col">
       <div className="manga-panel-preview-card">
         <div className="manga-panel-preview-frame">
           {panel.resultUrl ? (
@@ -170,10 +185,7 @@ export default function MangaPanelEditor({
             <div
               className={cn(
                 balloonPreviewClass(panel.balloonType, panel.balloonShape),
-                panel.balloonPos === "top" && "top-3",
-                panel.balloonPos === "bottom" && "bottom-3",
-                panel.balloonPos === "left" && "left-3 top-1/2 -translate-y-1/2",
-                panel.balloonPos === "right" && "right-3 top-1/2 -translate-y-1/2",
+                balloonPosClass,
               )}
             >
               {panel.balloonText}
@@ -188,6 +200,7 @@ export default function MangaPanelEditor({
         <p className="manga-panel-preview-meta">
           {t("manga_pose_current")}: {currentPose?.emoji} {currentPose?.label}
         </p>
+      </div>
       </div>
 
       <div className="manga-panel-sections">
@@ -337,11 +350,14 @@ export default function MangaPanelEditor({
           <MangaUploadZone
             label={t("manga_outfit_upload_label")}
             hint={t("manga_outfit_upload_hint")}
-            onFile={async ({ url, file }) => {
-              if (!char) {
-                return;
-              }
-              /* parent should patch character - emit via onEditCharacter for now */
+            onFile={async ({ url }) => {
+              if (!char || !onPatchCharacter) return;
+              const activeOutfit = panel.outfitId || outfits.find((o) => o.isDefault)?.id;
+              onPatchCharacter(char.id, {
+                outfitSlots: outfits.map((o) =>
+                  o.id === activeOutfit ? { ...o, thumb: url } : o),
+              });
+              toast.success(t("manga_outfit_upload_ok"));
             }}
           />
           <ChipBtn
@@ -407,7 +423,19 @@ export default function MangaPanelEditor({
             onChange={(e) => onPatchPanel({ balloonText: e.target.value })}
           />
           <p className="manga-field-label">{t("manga_field_type")}</p>
-          <ChipBtn options={catalog.balloonTypes} value={panel.balloonType} onChange={(v) => onPatchPanel({ balloonType: v })} size="sm" />
+          <div className="manga-balloon-radio">
+            {catalog.balloonTypes.map((bt) => (
+              <label key={bt.id}>
+                <input
+                  type="radio"
+                  name="balloonType"
+                  checked={panel.balloonType === bt.id}
+                  onChange={() => onPatchPanel({ balloonType: bt.id })}
+                />
+                <span>{bt.label}</span>
+              </label>
+            ))}
+          </div>
           <p className="manga-field-label">{t("manga_field_position")}</p>
           <ChipBtn options={catalog.balloonPos} value={panel.balloonPos} onChange={(v) => onPatchPanel({ balloonPos: v })} size="sm" />
           <p className="manga-field-label">{t("manga_field_letter")}</p>
@@ -445,10 +473,26 @@ export default function MangaPanelEditor({
             ))}
           </select>
           {scenarios.find((s) => s.id === panel.scenarioId) && (
-            <MangaUploadZone compact label={t("manga_scene_upload_label")} hint={t("manga_scene_upload_hint")} />
+            <MangaUploadZone
+              compact
+              label={t("manga_scene_upload_label")}
+              hint={t("manga_scene_upload_hint")}
+              onFile={({ url }) => {
+                const sid = panel.scenarioId;
+                if (!sid || !onPatchScenario) return;
+                onPatchScenario(sid, { thumb: url });
+              }}
+            />
           )}
           {panel.inheritSceneLighting === false && (
             <>
+              <p className="manga-field-label">{t("manga_tod_label")}</p>
+              <ChipBtn
+                options={catalog.timeOfDay}
+                value={panel.timeOfDayOverride || "afternoon"}
+                onChange={(v) => onPatchPanel({ timeOfDayOverride: v })}
+                size="sm"
+              />
               <p className="manga-field-label">{t("manga_field_lighting")}</p>
               <ChipBtn options={catalog.lighting} value={panel.lighting} onChange={(v) => onPatchPanel({ lighting: v })} size="sm" />
               <p className="manga-field-label mt-2">{t("manga_light_direction")}: {panel.lightingDirection ?? 120}°</p>

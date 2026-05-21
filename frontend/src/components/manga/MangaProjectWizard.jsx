@@ -1,6 +1,7 @@
-import { Plus, Sparkles } from "lucide-react";
+import { Plus, Sparkles, FolderOpen } from "lucide-react";
 import { cn } from "../../lib/utils";
 import { emptyCharacter } from "../../lib/mangaStudioData";
+import { listProjects } from "../../lib/mangaStudioStorage";
 
 const STYLE_HINTS = {
   webtoon: "Webtoon: scroll vertical, cores vibrantes, linhas limpas",
@@ -21,9 +22,31 @@ export default function MangaProjectWizard({
   onModelChange,
   onGptComposeChange,
   onAddCharacter,
+  onImportCharacter,
   onStart,
 }) {
   const canStart = characters.length > 0;
+
+  const useExisting = () => {
+    const saved = listProjects();
+    const pool = [];
+    saved.forEach((p) => {
+      (p.characters || []).forEach((c) => {
+        pool.push({ ...c, _projectName: p.name });
+      });
+    });
+    if (!pool.length) {
+      window.alert(t("manga_no_saved_chars"));
+      return;
+    }
+    const names = pool.map((c, i) => `${i + 1}. ${c.name} (${c._projectName})`).join("\n");
+    const pick = window.prompt(t("manga_pick_existing_char", { names }), "1");
+    const idx = Number(pick) - 1;
+    if (Number.isNaN(idx) || idx < 0 || idx >= pool.length) return;
+    const chosen = pool[idx];
+    const { _projectName, ...char } = chosen;
+    onImportCharacter?.({ ...char, id: `char_${Date.now()}` });
+  };
 
   return (
     <div className="manga-wizard" data-testid="manga-wizard">
@@ -43,7 +66,13 @@ export default function MangaProjectWizard({
             </button>
           ))}
         </div>
-        <p className="manga-card-desc">{STYLE_HINTS[stylePreset] || STYLE_HINTS["manga-classic"]}</p>
+        {catalog.stylePresets.map((s) =>
+          stylePreset === s.id ? (
+            <p key={s.id} className="manga-card-desc mt-2">
+              {STYLE_HINTS[s.id] || STYLE_HINTS["manga-classic"]}
+            </p>
+          ) : null,
+        )}
       </section>
 
       <section className="manga-card">
@@ -79,14 +108,19 @@ export default function MangaProjectWizard({
         <h3 className="manga-card-title">👤 {t("manga_wizard_character_title")}</h3>
         <p className="manga-card-desc">{t("manga_wizard_character_desc")}</p>
         {characters.length > 0 && (
-          <ul className="manga-wizard-char-list">
+          <ul className="manga-wizard-char-list mb-3">
             {characters.map((c) => (
               <li key={c.id}>{c.name}</li>
             ))}
           </ul>
         )}
-        <button type="button" className="manga-primary-btn w-full min-h-[48px]" onClick={onAddCharacter}>
+        <button type="button" className="manga-primary-btn w-full min-h-[48px] mb-2" onClick={onAddCharacter}>
           <Plus className="w-4 h-4" /> {t("manga_create_character")}
+        </button>
+        <p className="text-center text-[12px] text-[#5A5A5E] my-2">{t("manga_or")}</p>
+        <button type="button" className="manga-secondary-cta w-full min-h-[48px]" onClick={useExisting}>
+          <FolderOpen className="w-4 h-4 inline mr-1" />
+          {t("manga_use_existing_char")}
         </button>
       </section>
 

@@ -1,9 +1,13 @@
-import { useMemo, useState } from "react";
-import { Plus, Pencil, Trash2, Copy, Sparkles } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { cn } from "../../lib/utils";
 import { useI18n } from "../../lib/i18n";
 import { getMangaStudioCatalog } from "../../lib/mangaStudioCatalog";
-import { emptyCharacter, emptyScenario } from "../../lib/mangaStudioData";
+import {
+  emptyCharacter,
+  emptyScenario,
+  EXPRESSION_KEYS,
+  DEFAULT_OUTFIT_SLOTS,
+} from "../../lib/mangaStudioData";
 import { characterConsistencyScore } from "../../lib/comic-engine/characterLock";
 import MangaUploadZone, { readFileAsDataUrl } from "./MangaUploadZone";
 
@@ -16,16 +20,104 @@ const SHEET_KEYS = [
   { key: "back", label: "BACK" },
 ];
 
-function CharCard({ c, t, expanded, onToggle, onPatch, onDelete, onDuplicate }) {
-  const score = characterConsistencyScore(c);
+const EXPR_EMOJI = {
+  normal: "😐",
+  happy: "😊",
+  sad: "😢",
+  angry: "😠",
+  fear: "😲",
+};
+
+function normalizeCharacter(c) {
+  return {
+    ...c,
+    sheets: {
+      front: null,
+      profile: null,
+      threeQuarter: null,
+      back: null,
+      expressions: {},
+      ...(c.sheets || {}),
+      expressions: { ...(c.sheets?.expressions || {}) },
+    },
+    outfitSlots: c.outfitSlots?.length
+      ? c.outfitSlots
+      : DEFAULT_OUTFIT_SLOTS.map((o) => ({ ...o })),
+  };
+}
+
+function CharCard({ c, t, expanded, onToggle, onCommit, onDelete, onDuplicate }) {
+  const [draft, setDraft] = useState(() => normalizeCharacter(c));
+  const snapshotRef = useRef(null);
+
+  useEffect(() => {
+    if (expanded) setDraft(normalizeCharacter(c));
+  }, [expanded, c]);
+
+  const score = characterConsistencyScore(draft);
   const missing = [];
-  if (!c.sheets?.front) missing.push("frente");
-  if (!c.sheets?.profile) missing.push("perfil");
-  if (!c.sheets?.back) missing.push("costas");
+  if (!draft.sheets?.front) missing.push(t("manga_ref_front"));
+  if (!draft.sheets?.profile) missing.push(t("manga_ref_profile"));
+  if (!draft.sheets?.back) missing.push(t("manga_ref_back"));
+  EXPRESSION_KEYS.forEach((k) => {
+    if (!draft.sheets?.expressions?.[k]) missing.push(EXPR_EMOJI[k]);
+  });
+
+  const openExpand = () => {
+    snapshotRef.current = JSON.stringify(normalizeCharacter(c));
+    setDraft(normalizeCharacter(c));
+    onToggle();
+  };
+
+  const handleToggle = () => {
+    if (expanded) {
+      onToggle();
+      return;
+    }
+    openExpand();
+  };
+
+  const save = () => {
+    onCommit(draft);
+    onToggle();
+  };
+
+  const cancel = () => {
+    if (snapshotRef.current) {
+      try {
+        setDraft(JSON.parse(snapshotRef.current));
+      } catch {
+        setDraft(normalizeCharacter(c));
+      }
+    }
+    onToggle();
+  };
+
+  const patchDraft = (partial) => setDraft((prev) => ({ ...prev, ...partial }));
+
+  const patchSheet = async (key, file) => {
+    const url = await readFileAsDataUrl(file);
+    patchDraft({
+      thumb: key === "front" ? url : draft.thumb,
+      _refFile: key === "front" ? file : draft._refFile,
+      sheets: { ...draft.sheets, [key]: url },
+    });
+  };
+
+  const addOutfit = () => {
+    const name = window.prompt(t("manga_outfit_name_prompt"), t("manga_outfit_new"));
+    if (!name?.trim()) return;
+    patchDraft({
+      outfitSlots: [
+        ...draft.outfitSlots,
+        { id: `outfit_${Date.now()}`, name: name.trim(), category: "custom", thumb: null },
+      ],
+    });
+  };
 
   return (
     <article className={cn("manga-asset-card", expanded && "manga-asset-card--open")}>
-      <button type="button" className="manga-asset-card-head" onClick={onToggle}>
+      <button type="button" className="manga-asset-card-head" onClick={handleToggle}>
         <div className="manga-asset-thumb">
           {c.thumb || c.sheets?.front ? (
             <img src={c.thumb || c.sheets?.front} alt="" />
@@ -47,9 +139,28 @@ function CharCard({ c, t, expanded, onToggle, onPatch, onDelete, onDuplicate }) 
               <div key={key} className="manga-sheet-slot">
                 <span className="manga-sheet-label">{label}</span>
                 <div className="manga-sheet-img">
-                  {c.sheets?.[key] ? <img src={c.sheets[key]} alt="" /> : null}
+                  {draft.sheets?.[key] ? <img src={draft.sheets[key]} alt="" /> : null}
                 </div>
-                <label className="manga-sheet-upload">
+                <MangaUploadZone
+                  compact
+                  className="!p-1 !mt-1 border-0 bg-transparent"
+                  onFile={({ file }) => patchSheet(key, file)}
+                />
+              </div>
+            ))}
+          </div>
+
+          <p className="text-[12px] text-[#A855F7] mt-3 mb-1">{t("manga_expressions_section")}</p>
+          <div className="manga-expr-row">
+            {EXPRESSION_KEYS.map((key) => (
+              <div key={key} className="manga-expr-chip">
+                <span className="text-lg">{EXPR_EMOJI[key]}</span>
+                <div className="manga-sheet-img w-12 h-12 mx-auto">
+                  {draft.sheets?.expressions?.[key] ? (
+                    <img src={draft.sheets.expressions[key]} alt="" />
+                  ) : null}
+                </div>
+                <label className="text-[10px] text-[#8B5CF6] cursor-pointer">
                   📷
                   <input
                     type="file"
@@ -59,11 +170,11 @@ function CharCard({ c, t, expanded, onToggle, onPatch, onDelete, onDuplicate }) 
                       const f = e.target.files?.[0];
                       if (!f) return;
                       const url = await readFileAsDataUrl(f);
-                      onPatch({
-                        ...c,
-                        thumb: key === "front" ? url : c.thumb,
-                        _refFile: key === "front" ? f : c._refFile,
-                        sheets: { ...c.sheets, [key]: url },
+                      patchDraft({
+                        sheets: {
+                          ...draft.sheets,
+                          expressions: { ...draft.sheets.expressions, [key]: url },
+                        },
                       });
                     }}
                   />
@@ -71,6 +182,32 @@ function CharCard({ c, t, expanded, onToggle, onPatch, onDelete, onDuplicate }) 
               </div>
             ))}
           </div>
+
+          <p className="text-[12px] text-[#A855F7] mt-3 mb-1">👕 {t("manga_outfits_section")}</p>
+          <div className="manga-outfit-slot-grid">
+            {draft.outfitSlots.map((slot) => (
+              <div key={slot.id} className="manga-outfit-slot">
+                <p className="text-[11px] text-white font-medium truncate">{slot.name}</p>
+                <div className="manga-sheet-img mt-1">
+                  {slot.thumb ? <img src={slot.thumb} alt="" /> : null}
+                </div>
+                <MangaUploadZone
+                  compact
+                  className="!p-0 !mt-1 border-0 bg-transparent"
+                  onFile={({ url }) => {
+                    patchDraft({
+                      outfitSlots: draft.outfitSlots.map((o) =>
+                        o.id === slot.id ? { ...o, thumb: url } : o),
+                    });
+                  }}
+                />
+              </div>
+            ))}
+          </div>
+          <button type="button" className="manga-primary-btn w-full mt-2 min-h-[44px]" onClick={addOutfit}>
+            <Plus className="w-4 h-4" /> {t("manga_add_outfit")}
+          </button>
+
           <div className="mt-3">
             <p className="text-[12px] text-[#A855F7] mb-1">{t("manga_consistency_score")}</p>
             <div className="manga-score-bar">
@@ -82,7 +219,14 @@ function CharCard({ c, t, expanded, onToggle, onPatch, onDelete, onDuplicate }) 
               </p>
             )}
           </div>
+
           <div className="flex flex-wrap gap-2 mt-3">
+            <button type="button" className="manga-cta-btn flex-1 min-h-[44px] !py-2" onClick={save}>
+              💾 {t("manga_save")}
+            </button>
+            <button type="button" className="manga-secondary-cta flex-1 min-h-[44px]" onClick={cancel}>
+              {t("manga_cancel")}
+            </button>
             <button type="button" className="manga-chip-btn min-h-[44px]" onClick={onDuplicate}>
               <Copy className="w-3 h-3" /> {t("manga_duplicate")}
             </button>
@@ -90,6 +234,16 @@ function CharCard({ c, t, expanded, onToggle, onPatch, onDelete, onDuplicate }) 
               <Trash2 className="w-3 h-3 text-red-400" />
             </button>
           </div>
+        </div>
+      )}
+      {!expanded && (
+        <div className="flex gap-2 px-3 pb-2">
+          <button type="button" className="manga-chip-btn min-h-[40px] flex-1 justify-center" onClick={onDuplicate}>
+            <Copy className="w-3 h-3" /> {t("manga_duplicate")}
+          </button>
+          <button type="button" className="manga-chip-btn min-h-[40px]" onClick={onDelete}>
+            <Trash2 className="w-3 h-3 text-red-400" />
+          </button>
         </div>
       )}
     </article>
@@ -146,7 +300,7 @@ export default function MangaAssetLibrary({ project, onChange }) {
               t={t}
               expanded={expandedId === c.id}
               onToggle={() => setExpandedId(expandedId === c.id ? null : c.id)}
-              onPatch={(next) => {
+              onCommit={(next) => {
                 patch({
                   characters: project.characters.map((x) => (x.id === c.id ? next : x)),
                 });
@@ -162,6 +316,7 @@ export default function MangaAssetLibrary({ project, onChange }) {
               onDelete={() => {
                 if (!window.confirm(t("manga_delete_confirm", { name: c.name }))) return;
                 patch({ characters: project.characters.filter((x) => x.id !== c.id) });
+                if (expandedId === c.id) setExpandedId(null);
               }}
             />
           ))}
@@ -185,6 +340,7 @@ export default function MangaAssetLibrary({ project, onChange }) {
                 <MangaUploadZone
                   compact
                   label={t("manga_scene_upload_label")}
+                  hint={t("manga_scene_upload_hint")}
                   onFile={async ({ url }) => {
                     patch({
                       scenarios: project.scenarios.map((x) =>
@@ -203,7 +359,7 @@ export default function MangaAssetLibrary({ project, onChange }) {
 
       {tab === "poses" && (
         <div className="space-y-3">
-          <div className="manga-pose-grid manga-pose-grid--lib">
+          <div className="manga-pose-grid">
             {catalog.poses.map((p) => (
               <div key={p.id} className="manga-pose-tile manga-pose-tile--static">
                 <span className="text-xl">{p.emoji}</span>
@@ -211,18 +367,23 @@ export default function MangaAssetLibrary({ project, onChange }) {
               </div>
             ))}
           </div>
-          <MangaUploadZone label={t("manga_upload_pose")} hint={t("manga_pose_upload_hint")} />
+          <MangaUploadZone
+            label={t("manga_upload_pose")}
+            hint={t("manga_pose_upload_hint")}
+            onFile={() => {}}
+          />
         </div>
       )}
 
       {tab === "sfx" && (
-        <div className="space-y-2 text-[14px] text-[#9CA3AF]">
+        <div className="space-y-2">
           {catalog.effects.map((fx) => (
-            <p key={fx.id} className="px-2 py-2 rounded-lg bg-[#1a1a2e] border border-[#2E2E30]">
-              {fx.label}
-            </p>
+            <div key={fx.id} className="manga-card !mb-2">
+              <p className="text-[14px] text-[#E9D5FF]">{fx.label}</p>
+              <MangaUploadZone compact hint={t("manga_sfx_upload_hint")} onFile={() => {}} />
+            </div>
           ))}
-          <p className="text-[12px] italic">{t("manga_sfx_hint")}</p>
+          <p className="text-[12px] italic text-[#5A5A5E]">{t("manga_sfx_hint")}</p>
         </div>
       )}
     </div>

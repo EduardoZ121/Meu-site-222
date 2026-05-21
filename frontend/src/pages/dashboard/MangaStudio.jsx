@@ -117,6 +117,20 @@ export default function MangaStudio() {
     }));
   }, [activePanelId]);
 
+  const patchCharacter = useCallback((charId, patch) => {
+    setProject((prev) => ({
+      ...prev,
+      characters: prev.characters.map((c) => (c.id === charId ? { ...c, ...patch } : c)),
+    }));
+  }, []);
+
+  const patchScenario = useCallback((scenarioId, patch) => {
+    setProject((prev) => ({
+      ...prev,
+      scenarios: prev.scenarios.map((s) => (s.id === scenarioId ? { ...s, ...patch } : s)),
+    }));
+  }, []);
+
   const applyResultToPanel = (panelId, url) => {
     setProject((prev) => ({
       ...prev,
@@ -366,6 +380,11 @@ export default function MangaStudio() {
     updateProject({ ...project, characters: [...(project.characters || []), c] });
   };
 
+  const handleWizardImportChar = (char) => {
+    updateProject({ ...project, characters: [...(project.characters || []), char] });
+    toast.success(t("manga_char_imported", { name: char.name }));
+  };
+
   const finishWizard = () => {
     const next = { ...project, setupComplete: true };
     setProject(next);
@@ -435,6 +454,9 @@ export default function MangaStudio() {
           activePanelId={activePanelId}
           onSelectPanel={selectPanel}
           onChange={updateProject}
+          onGeneratePage={generatePage}
+          pageGenCost={creditCosts.mangaPage}
+          busy={busy}
         />
       );
     }
@@ -446,6 +468,8 @@ export default function MangaStudio() {
           panelIndex={activePanelIndex >= 0 ? activePanelIndex : 0}
           panelTotal={sortedPanels.length}
           onPatchPanel={patchPanel}
+          onPatchCharacter={patchCharacter}
+          onPatchScenario={patchScenario}
           costs={creditCosts}
           busy={busy}
           activeCharacterId={activePanel?.characterId}
@@ -523,6 +547,7 @@ export default function MangaStudio() {
             onModelChange={setModelKey}
             onGptComposeChange={setUseGptCompose}
             onAddCharacter={handleWizardAddChar}
+            onImportCharacter={handleWizardImportChar}
             onStart={finishWizard}
           />
         ) : (
@@ -537,6 +562,9 @@ export default function MangaStudio() {
                   activePanelId={activePanelId}
                   onSelectPanel={selectPanel}
                   onChange={updateProject}
+                  onGeneratePage={generatePage}
+                  pageGenCost={creditCosts.mangaPage}
+                  busy={busy}
                 />
               </section>
               <section className="manga-desktop-col manga-desktop-col--panel">
@@ -546,6 +574,9 @@ export default function MangaStudio() {
                   panelIndex={activePanelIndex >= 0 ? activePanelIndex : 0}
                   panelTotal={sortedPanels.length}
                   onPatchPanel={patchPanel}
+                  onPatchCharacter={patchCharacter}
+                  onPatchScenario={patchScenario}
+                  splitLayout
                   costs={creditCosts}
                   busy={busy}
                   activeCharacterId={activePanel?.characterId}

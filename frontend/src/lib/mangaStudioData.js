@@ -29,6 +29,14 @@ export function emptyPanel(order = 0) {
   };
 }
 
+export const DEFAULT_OUTFIT_SLOTS = [
+  { id: "casual", name: "Casual", category: "casual", thumb: null, isDefault: true },
+  { id: "battle", name: "Batalha", category: "battle", thumb: null, isDefault: false },
+  { id: "formal", name: "Formal", category: "formal", thumb: null, isDefault: false },
+];
+
+export const EXPRESSION_KEYS = ["normal", "happy", "sad", "angry", "fear"];
+
 export function emptyCharacter(name = "") {
   return {
     id: uid("char"),
@@ -36,7 +44,14 @@ export function emptyCharacter(name = "") {
     tag: "",
     thumb: null,
     description: "",
-    sheets: { front: null, profile: null, back: null, expressions: [] },
+    sheets: {
+      front: null,
+      profile: null,
+      threeQuarter: null,
+      back: null,
+      expressions: {},
+    },
+    outfitSlots: DEFAULT_OUTFIT_SLOTS.map((o) => ({ ...o })),
   };
 }
 

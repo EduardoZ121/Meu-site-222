@@ -107,9 +107,18 @@ export function getMangaStudioCatalog(t) {
       { id: "pointing", label: t("manga_hand_pointing") },
       { id: "holding", label: t("manga_hand_holding") },
       { id: "peace", label: t("manga_hand_peace") },
+      { id: "crossed", label: t("manga_hand_crossed") },
       { id: "waving", label: t("manga_hand_waving") },
       { id: "hidden", label: t("manga_hand_hidden") },
       { id: "in_pockets", label: t("manga_hand_pockets") },
+    ],
+    timeOfDay: [
+      { id: "dawn", label: t("manga_tod_dawn") },
+      { id: "morning", label: t("manga_tod_morning") },
+      { id: "noon", label: t("manga_tod_noon") },
+      { id: "afternoon", label: t("manga_tod_afternoon") },
+      { id: "sunset", label: t("manga_tod_sunset") },
+      { id: "night", label: t("manga_tod_night") },
     ],
     screenDirections: [
       { id: "left-to-right", label: t("manga_screen_ltr") },

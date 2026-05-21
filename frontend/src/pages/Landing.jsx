@@ -13,9 +13,16 @@ import Marquee from "../sections/Marquee";
 import CTAFinal from "../sections/CTAFinal";
 import Footer from "../sections/Footer";
 import useTitle from "../lib/useTitle";
+import { useSocialMeta } from "../lib/useSocialMeta";
+import { DEFAULT_OG } from "../lib/siteMeta";
 
 export default function Landing() {
-  useTitle("Remake Pixel — Transforma ideias em arte com IA");
+  useTitle("Transforma ideias em arte com IA");
+  useSocialMeta({
+    title: DEFAULT_OG.title,
+    description: DEFAULT_OG.description,
+    path: "/",
+  });
 
   return (
     <div className="relative min-h-screen bg-[#0B0B0C]" data-testid="landing-page">

@@ -30,7 +30,7 @@ export default function Hero() {
         >
           Transforma ideias em
           <br />
-          <span className="font-impact text-rp-lavender text-[1.15em] leading-none">96</span>
+          <span className="italic text-rp-lavender">96</span>
           <br />
           em segundos.
         </motion.h1>

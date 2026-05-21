@@ -1,31 +1,27 @@
 /* Manga Studio v2.1 — grid shell, sem overlap */
 
 .manga-studio-page {
-  --manga-header-offset: 0px;
-  --manga-shell-top: 110px;
-  --manga-shell-bottom: 60px;
-  display: grid;
-  grid-template-rows: auto 1fr auto 60px;
-  grid-template-columns: 1fr;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
   max-width: 1400px;
   margin: 0 auto;
   padding: 0 0.75rem 0;
   background: #0a0a0f;
-  min-height: calc(100dvh - var(--manga-shell-top) - var(--manga-shell-bottom) - 4rem);
-  max-height: calc(100dvh - 5rem);
+  /* Altura mínima visível dentro do dashboard (evita área 1fr = 0px) */
+  min-height: min(720px, calc(100dvh - 11rem));
   box-sizing: border-box;
 }
 
 .manga-shell-subheader {
-  grid-row: 1;
   flex-shrink: 0;
   padding-top: 0.25rem;
   padding-bottom: 0.5rem;
 }
 
 .manga-shell-main {
-  grid-row: 2;
-  min-height: 0;
+  flex: 1 1 auto;
+  min-height: 360px;
   overflow-y: auto;
   overflow-x: hidden;
   -webkit-overflow-scrolling: touch;
@@ -33,7 +29,7 @@
 }
 
 .manga-shell-actions {
-  grid-row: 3;
+  flex-shrink: 0;
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
@@ -44,10 +40,11 @@
 
 .manga-shell-nav,
 .manga-mobile-nav {
-  grid-row: 4;
+  flex-shrink: 0;
   display: grid;
   grid-template-columns: repeat(4, 1fr);
   height: 60px;
+  min-height: 60px;
   align-items: stretch;
   border-top: 1px solid rgba(139, 92, 246, 0.35);
   background: #0a0a0f;
@@ -64,7 +61,8 @@
 }
 
 .manga-mobile-pane {
-  min-height: 0;
+  min-height: 320px;
+  width: 100%;
 }
 
 .manga-desktop-layout {
@@ -124,6 +122,11 @@
   font-size: 13px;
   color: #9ca3af;
   line-height: 1.5;
+}
+
+.manga-wizard {
+  min-height: 280px;
+  padding-bottom: 1rem;
 }
 
 .manga-wizard-lead {
@@ -861,14 +864,15 @@
 
 @media (min-width: 1024px) {
   .manga-studio-page {
-    grid-template-rows: auto 1fr;
-    grid-template-columns: 1fr;
-    max-height: none;
-    min-height: calc(100vh - 8rem);
+    min-height: calc(100vh - 9rem);
     padding-bottom: 1rem;
   }
 
   .manga-shell-actions {
     display: none;
+  }
+
+  .manga-shell-main {
+    min-height: 480px;
   }
 }

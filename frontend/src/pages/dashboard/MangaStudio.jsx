@@ -47,7 +47,14 @@ export default function MangaStudio() {
     [costs],
   );
 
-  const [project, setProject] = useState(() => loadActiveProject());
+  const [project, setProject] = useState(() => {
+    const p = loadActiveProject();
+    if (!p?.panels?.length) {
+      const fresh = createNewProject(p?.name || "Project 1");
+      return { ...fresh, setupComplete: p?.setupComplete };
+    }
+    return p;
+  });
   const [activePanelId, setActivePanelId] = useState(null);
   const [mobileTab, setMobileTab] = useState("editor");
   const [busy, setBusy] = useState(false);
@@ -75,12 +82,12 @@ export default function MangaStudio() {
   );
 
   useEffect(() => {
-    if (!isTourDone() && !project.tourCompleted) {
-      const timer = setTimeout(() => setTourOpen(true), 600);
+    if (!isTourDone() && !project.tourCompleted && !showWizard) {
+      const timer = setTimeout(() => setTourOpen(true), 1200);
       return () => clearTimeout(timer);
     }
     return undefined;
-  }, [project.tourCompleted]);
+  }, [project.tourCompleted, showWizard]);
 
   useEffect(() => {
     if (!activePanelId && sortedPanels.length) {

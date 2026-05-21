@@ -47,7 +47,7 @@ export default function MangaStudioTour({ open, onClose, onFinish }) {
   const s = steps[step];
 
   return (
-    <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/80">
+    <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
       <div className="max-w-md w-full rounded-2xl border border-[#A855F7]/50 bg-[#111118] p-6 shadow-[0_0_40px_rgba(147,51,234,0.25)]">
         <div className="flex justify-between items-start mb-4">
           <span className="text-[10px] font-mono text-[#A855F7] uppercase tracking-widest">

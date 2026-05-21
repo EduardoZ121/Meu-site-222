@@ -14,6 +14,7 @@ import { useFlowStore } from "./useFlowStore";
 import FlowCanvas from "./FlowCanvas";
 import NodeEditor from "./NodeEditor";
 import PromptEnhancement from "./PromptEnhancement";
+import StoryTab from "./StoryTab";
 import { NODE_ICONS, NODE_LABELS } from "./types";
 
 const TABS = [
@@ -64,10 +65,10 @@ function FlowTutorial() {
 
 function PlaceholderTab({ title, hint }) {
   return (
-    <div className="mf-card p-4">
+    <div className="mf-card mf-card--pad">
       <h2 className="text-white font-semibold">{title}</h2>
       <p className="text-[#9ca3af] text-[0.85rem] mt-2">{hint}</p>
-      <p className="text-[#8b5cf6] text-[0.8rem] mt-3">Usa o tab <strong>Flow</strong> para construir a história visualmente.</p>
+      <p className="text-[#8b5cf6] text-[0.8rem] mt-3">Em breve — diz <strong>próximo</strong> para trabalharmos nesta aba.</p>
     </div>
   );
 }
@@ -94,6 +95,7 @@ export default function FlowApp() {
   const getResolvedOutputMode = useFlowStore((s) => s.getResolvedOutputMode);
   const setStatus = useFlowStore((s) => s.setStatus);
   const selectedNodeId = useFlowStore((s) => s.selectedNodeId);
+  const story = useFlowStore((s) => s.story);
 
   const genCost = useMemo(() => {
     const mode = getResolvedOutputMode();
@@ -106,7 +108,10 @@ export default function FlowApp() {
   }, [nodes.length, costs, getResolvedOutputMode]);
 
   const generate = async () => {
-    const prompt = buildFlowPrompt(nodes, edges, globalSettings);
+    const prompt = buildFlowPrompt(nodes, edges, {
+      ...globalSettings,
+      storySynopsis: [story.logline, story.synopsis].filter(Boolean).join(" — "),
+    });
     if (prompt.length < 12) {
       toast.error(t("manga_err_prompt_short"));
       return;
@@ -204,7 +209,10 @@ export default function FlowApp() {
     if (tab === "panel") {
       return <PlaceholderTab title="🖼️ Painel ativo" hint="Seleciona uma caixa no Flow para editar no painel lateral." />;
     }
-    return <PlaceholderTab title="🗺️ Navegador de história" hint="O fluxo visual no canvas é a tua história." />;
+    if (tab === "story") {
+      return <StoryTab onGoToFlow={() => setTab("flow")} />;
+    }
+    return null;
   };
 
   return (
@@ -279,7 +287,21 @@ export default function FlowApp() {
         {status && <div className="text-[0.75rem] text-[#c4b5fd] mt-2">{status}</div>}
       </header>
 
-      <div className="mf-body">{renderTab()}</div>
+      <nav className="mf-tabs-bar" aria-label="Secções Manga Flow">
+        {TABS.map(({ id, icon: Icon, label }) => (
+          <button
+            key={id}
+            type="button"
+            className={`mf-tab-pill ${tab === id ? "mf-tab-pill--on" : ""}`}
+            onClick={() => setTab(id)}
+          >
+            <Icon className="w-4 h-4" />
+            <span>{label}</span>
+          </button>
+        ))}
+      </nav>
+
+      <div className="mf-body mf-body--scroll">{renderTab()}</div>
 
       {tab === "flow" && selectedNodeId && (
         <div className="mf-slide lg:hidden">

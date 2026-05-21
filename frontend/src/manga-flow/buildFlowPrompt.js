@@ -71,6 +71,9 @@ export function orderNodesByFlow(nodes, edges) {
 
 export function buildFlowPrompt(nodes, edges, globalSettings = {}) {
   const ordered = orderNodesByFlow(nodes, edges);
+  const prefix = globalSettings.storySynopsis?.trim()
+    ? `Story synopsis: ${globalSettings.storySynopsis.trim()}. `
+    : "";
   const edgeByTarget = new Map(edges.map((e) => [e.target, e]));
   const style = globalSettings.style || "manga";
 
@@ -86,7 +89,8 @@ export function buildFlowPrompt(nodes, edges, globalSettings = {}) {
     return `[${i + 1}] ${base}${enhancement ? `. ${enhancement}` : ""}`;
   });
 
-  return segments.join(". ").trim();
+  const body = segments.join(". ").trim();
+  return prefix ? `${prefix}${body}` : body;
 }
 
 export function calcConsistencyScore(data) {

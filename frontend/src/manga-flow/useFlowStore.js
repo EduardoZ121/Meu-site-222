@@ -1,6 +1,8 @@
 import { create } from "zustand";
 import { addEdge, applyNodeChanges, applyEdgeChanges } from "@xyflow/react";
 import { defaultNodeData, autoOutputMode } from "./types";
+import { orderNodesByFlow } from "./buildFlowPrompt";
+import { DEFAULT_STORY, DEMO_STORY, getStorySequence } from "./storyAnalysis";
 
 const STORAGE_KEY = "rp_manga_flow_project";
 
@@ -29,6 +31,7 @@ function loadProject() {
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
     tutorialDone: false,
+    story: { ...DEFAULT_STORY },
   };
 }
 
@@ -43,6 +46,7 @@ function persist(state) {
       createdAt: state.createdAt,
       updatedAt: new Date().toISOString(),
       tutorialDone: state.tutorialDone,
+      story: state.story,
     };
     localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
   } catch {
@@ -60,6 +64,7 @@ export const useFlowStore = create((set, get) => ({
   globalSettings: initial.globalSettings,
   createdAt: initial.createdAt,
   tutorialDone: initial.tutorialDone || false,
+  story: initial.story ? { ...DEFAULT_STORY, ...initial.story } : { ...DEFAULT_STORY },
   selectedNodeId: null,
   selectedEdgeId: null,
   panMode: false,
@@ -85,6 +90,134 @@ export const useFlowStore = create((set, get) => ({
 
   setProjectName: (projectName) => {
     set({ projectName });
+    persist(get());
+  },
+
+  setStory: (patch) => {
+    set((s) => ({ story: { ...s.story, ...patch } }));
+    persist(get());
+  },
+
+  setSceneNote: (nodeId, note) => {
+    set((s) => ({
+      story: {
+        ...s.story,
+        sceneNotes: { ...s.story.sceneNotes, [nodeId]: note },
+      },
+    }));
+    persist(get());
+  },
+
+  setManualSequence: (manualSequence) => {
+    set((s) => ({ story: { ...s.story, manualSequence } }));
+    persist(get());
+  },
+
+  autoOrganizeSequence: () => {
+    const ids = orderNodesByFlow(get().nodes, get().edges).map((n) => n.id);
+    set((s) => ({ story: { ...s.story, manualSequence: ids } }));
+    persist(get());
+  },
+
+  moveStoryStep: (nodeId, delta) => {
+    const seq = getStorySequence(get().nodes, get().edges, get().story.manualSequence).map(
+      (n) => n.id,
+    );
+    const i = seq.indexOf(nodeId);
+    if (i < 0) return;
+    const j = i + delta;
+    if (j < 0 || j >= seq.length) return;
+    const next = [...seq];
+    [next[i], next[j]] = [next[j], next[i]];
+    set((s) => ({ story: { ...s.story, manualSequence: next } }));
+    persist(get());
+  },
+
+  addStoryBeat: (beat) => {
+    const id = uid("beat");
+    set((s) => ({
+      story: {
+        ...s.story,
+        beats: [...(s.story.beats || []), { id, title: "Novo beat", summary: "", ...beat }],
+      },
+    }));
+    persist(get());
+  },
+
+  updateStoryBeat: (beatId, patch) => {
+    set((s) => ({
+      story: {
+        ...s.story,
+        beats: (s.story.beats || []).map((b) => (b.id === beatId ? { ...b, ...patch } : b)),
+      },
+    }));
+    persist(get());
+  },
+
+  removeStoryBeat: (beatId) => {
+    set((s) => ({
+      story: {
+        ...s.story,
+        beats: (s.story.beats || []).filter((b) => b.id !== beatId),
+      },
+    }));
+    persist(get());
+  },
+
+  loadDemoStory: () => {
+    const { nodes } = get();
+    if (nodes.length > 0) {
+      set((s) => ({ story: { ...s.story, ...DEMO_STORY } }));
+      persist(get());
+      return;
+    }
+    const positions = [
+      { x: 80, y: 100 },
+      { x: 380, y: 80 },
+      { x: 680, y: 120 },
+      { x: 380, y: 280 },
+      { x: 680, y: 320 },
+    ];
+    const types = ["cenario", "personagem", "dialogo", "acao", "dialogo"];
+    const names = ["Telhado", "Ana", "O pôr do sol…", "Aproximação", "Desde quando estás aqui?"];
+    const newNodes = types.map((type, i) => {
+      const id = uid("node");
+      const data = { flowType: type, ...defaultNodeData(type) };
+      data.name = names[i];
+      if (type === "dialogo") data.text = names[i];
+      if (type === "cenario") {
+        data.name = "Telhado ao pôr do sol";
+        data.location = "Telhado da escola";
+        data.timeOfDay = "sunset";
+      }
+      if (type === "personagem") {
+        data.name = "Ana";
+        data.bodyType = "athletic";
+      }
+      return { id, type: "flowNode", position: positions[i], data };
+    });
+    const newEdges = [];
+    for (let i = 0; i < newNodes.length - 1; i++) {
+      newEdges.push({
+        id: uid("edge"),
+        source: newNodes[i].id,
+        target: newNodes[i + 1].id,
+        type: "flowEdge",
+        data: {
+          sourceType: newNodes[i].data.flowType,
+          targetType: newNodes[i + 1].data.flowType,
+          promptEnhancement: `${names[i]} → ${names[i + 1]}`,
+          autoEnhance: true,
+          useStoryInjection: false,
+        },
+      });
+    }
+    set({
+      projectName: "Demo — Telhado ao pôr do sol",
+      nodes: newNodes,
+      edges: newEdges,
+      story: { ...DEFAULT_STORY, ...DEMO_STORY },
+    });
     persist(get());
   },
 
@@ -272,6 +405,7 @@ export const useFlowStore = create((set, get) => ({
       projectName: p.name,
       selectedNodeId: null,
       tutorialStep: 0,
+      story: { ...DEFAULT_STORY },
     });
     persist(get());
   },

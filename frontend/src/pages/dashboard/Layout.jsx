@@ -5,12 +5,10 @@ import {
   Sparkles, Images, Heart, CreditCard, User, Users, ShieldCheck, LogOut,
   Film, FileText, BookOpen, Menu, Settings, LayoutGrid, Camera, Palette, Wand2,
 } from "lucide-react";
-import LanguageSwitcher from "../../components/LanguageSwitcher";
 import { useEffect, useMemo, useState, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import Logo from "../../components/Logo";
-import DashboardHeaderMenu from "../../components/DashboardHeaderMenu";
-import NotificationBell from "../../components/NotificationBell";
+import DashboardProfileMenu from "../../components/DashboardProfileMenu";
 import { NotificationProvider } from "../../lib/NotificationContext";
 
 const navSpring = { type: "spring", stiffness: 380, damping: 32 };
@@ -288,9 +286,7 @@ export default function DashboardLayout() {
             </motion.div>
           </div>
 
-          <div className="flex items-center gap-3 md:gap-5">
-            <NotificationBell />
-            <LanguageSwitcher />
+          <div className="flex items-center gap-3 md:gap-4">
             <Link
               to="/app/billing"
               className="group flex items-center gap-2 px-3.5 py-2 rounded-full border border-[#9333EA]/25 bg-white/[0.06] backdrop-blur-md hover:border-[#A855F7]/50 hover:shadow-[0_0_28px_-8px_rgba(168,85,247,0.5)] transition-all duration-300"
@@ -306,14 +302,7 @@ export default function DashboardLayout() {
                 {user.is_unlimited ? "∞" : user.credits}
               </span>
             </Link>
-            <DashboardHeaderMenu />
-            <Link
-              to="/app/profile"
-              className="w-9 h-9 rounded-full bg-gradient-to-br from-[#1a1a24] to-[#0B0B0C] border border-[#9333EA]/35 hover:border-[#A855F7]/70 flex items-center justify-center text-white text-xs font-semibold transition-all duration-300 hover:scale-105 hover:shadow-[0_0_24px_-6px_rgba(168,85,247,0.55)]"
-              data-testid="header-avatar"
-            >
-              {(user.name || user.email).slice(0, 1).toUpperCase()}
-            </Link>
+            <DashboardProfileMenu />
           </div>
         </motion.header>
 

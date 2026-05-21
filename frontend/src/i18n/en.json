@@ -5,6 +5,10 @@
       "menu_label": "Menu",
       "back_to_tools": "Back to tools"
     },
+    "profile_menu_open": "Open account menu",
+    "profile_menu_account": "Account",
+    "profile_menu_language": "Language",
+    "profile_menu_guest": "Account",
     "sidebar": {
       "create": "Create",
       "ideas": "Ideas",

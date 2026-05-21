@@ -5,6 +5,10 @@
       "menu_label": "Menu",
       "back_to_tools": "Voltar às ferramentas"
     },
+    "profile_menu_open": "Abrir menu da conta",
+    "profile_menu_account": "Conta",
+    "profile_menu_language": "Idioma",
+    "profile_menu_guest": "Conta",
     "sidebar": {
       "create": "Criar",
       "ideas": "Ideias",
@@ -1019,10 +1023,6 @@
     "login_success": "Bem-vindo de volta.",
     "nav_tools": "Ferramentas",
     "nav_admin": "Administração",
-    "profile_menu_open": "Abrir menu da conta",
-    "profile_menu_account": "Conta",
-    "profile_menu_language": "Idioma",
-    "profile_menu_guest": "Conta",
     "header_credits": "Créditos",
     "studio_eyebrow": "Estúdio",
     "studio_title": "Cria, edita ou personaliza.",

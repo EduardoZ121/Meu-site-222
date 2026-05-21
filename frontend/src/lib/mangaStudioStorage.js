@@ -1,4 +1,4 @@
-import { defaultProject, emptyPanel } from "./mangaStudioData";
+import { defaultProject } from "./mangaStudioData";
 import { migrateMangaProject } from "./migrateMangaPanel";
 
 const KEY = "rp_manga_projects";
@@ -132,32 +132,15 @@ export function getActiveProjectId() {
   }
 }
 
-/** Garante arrays e pelo menos um painel — evita crash e tela vazia. */
-export function sanitizeMangaProject(project) {
-  if (!project) return migrateMangaProject(defaultProject());
-  const base = {
-    ...project,
-    characters: Array.isArray(project.characters) ? project.characters : [],
-    scenarios: Array.isArray(project.scenarios) ? project.scenarios : [],
-    panels:
-      Array.isArray(project.panels) && project.panels.length
-        ? project.panels
-        : [emptyPanel(0)],
-    pageThumbs:
-      project.pageThumbs && typeof project.pageThumbs === "object" ? project.pageThumbs : {},
-  };
-  return migrateMangaProject(base);
-}
-
 export function loadActiveProject() {
   const id = getActiveProjectId();
   if (id) {
     const p = loadProject(id);
-    if (p) return sanitizeMangaProject(p);
+    if (p) return p;
   }
   const fresh = defaultProject();
   saveProject(fresh);
-  return sanitizeMangaProject(fresh);
+  return fresh;
 }
 
 export function createNewProject(name) {

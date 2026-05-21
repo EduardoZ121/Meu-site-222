@@ -1,5 +1,3 @@
-import { enrichProject } from "./comic/enrichMangaPanel";
-
 /** Map legacy PT panel values to stable ids (older saved projects). */
 
 const EXPR = {
@@ -35,8 +33,8 @@ export function migrateMangaPanel(panel) {
 
 export function migrateMangaProject(project) {
   if (!project) return project;
-  return enrichProject({
+  return {
     ...project,
     panels: (project.panels || []).map(migrateMangaPanel),
-  });
+  };
 }

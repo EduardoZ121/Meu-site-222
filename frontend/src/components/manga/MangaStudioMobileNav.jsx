@@ -11,7 +11,7 @@ const TABS = [
 export default function MangaStudioMobileNav({ active, onChange, t, panelIndex, panelTotal }) {
   return (
     <nav
-      className="manga-mobile-nav lg:hidden"
+      className="manga-mobile-nav manga-shell-nav lg:hidden"
       aria-label={t("manga_mobile_nav")}
       data-testid="manga-mobile-nav"
     >

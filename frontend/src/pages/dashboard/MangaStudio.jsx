@@ -16,16 +16,16 @@ import { createDemoMangaProject } from "../../lib/comic-engine/mockData";
 import { fetchCoherenceCheck } from "../../lib/comic-engine/coherenceCheck";
 import useTitle from "../../lib/useTitle";
 import { toast } from "sonner";
-import MangaLibrarySidebar from "../../components/manga/MangaLibrarySidebar";
+import MangaAssetLibrary from "../../components/manga/MangaAssetLibrary";
 import MangaPageCanvas from "../../components/manga/MangaPageCanvas";
 import MangaPanelEditor from "../../components/manga/MangaPanelEditor";
 import StoryNavigator from "../../components/manga/StoryNavigator";
 import CoherenceCheckPanel from "../../components/manga/CoherenceCheckPanel";
 import MangaStudioTour, { isTourDone } from "../../components/manga/MangaStudioTour";
 import MangaStudioHeader from "../../components/manga/MangaStudioHeader";
-import MangaStudioSettingsPanel from "../../components/manga/MangaStudioSettingsPanel";
 import MangaStudioMobileNav from "../../components/manga/MangaStudioMobileNav";
-import MangaMobileGenerateDock from "../../components/manga/MangaMobileGenerateDock";
+import MangaProjectWizard, { promptNewCharacter } from "../../components/manga/MangaProjectWizard";
+import { Save, RefreshCw } from "lucide-react";
 
 const CREDIT_DEFAULTS = { mangaPanel: 15, mangaPage: 40, mangaChapter: 150 };
 
@@ -59,6 +59,9 @@ export default function MangaStudio() {
   const [coherenceOpen, setCoherenceOpen] = useState(false);
   const [coherenceResult, setCoherenceResult] = useState({ score: null, warnings: [] });
   const [coherenceLoading, setCoherenceLoading] = useState(false);
+  const [showWizard, setShowWizard] = useState(
+    () => !loadActiveProject().setupComplete && !(loadActiveProject().characters?.length > 0),
+  );
   const saveSkipRef = useRef(true);
 
   const sortedPanels = useMemo(
@@ -335,23 +338,46 @@ export default function MangaStudio() {
   const handleNewProject = () => {
     const name = window.prompt(t("manga_project_name"), t("manga_new_project_default"));
     if (name === null) return;
-    const p = createNewProject(name || undefined);
+    const p = { ...createNewProject(name || undefined), setupComplete: false };
     saveSkipRef.current = true;
+    saveProject(p);
     setProject(p);
     setActivePanelId(p.panels[0]?.id);
     setStatusLine("");
-    setMobileTab("editor");
+    setShowWizard(true);
+    setMobileTab("library");
     toast.message(t("manga_project_created"));
   };
 
   const handleLoadDemo = () => {
-    const demo = createDemoMangaProject(t);
+    const demo = { ...createDemoMangaProject(t), setupComplete: true };
     saveSkipRef.current = true;
     saveProject(demo);
     setProject(demo);
     setActivePanelId(demo.panels[0]?.id);
+    setShowWizard(false);
     setMobileTab("editor");
     toast.success(t("manga_demo_loaded"));
+  };
+
+  const handleWizardAddChar = () => {
+    const c = promptNewCharacter(t);
+    if (!c) return;
+    updateProject({ ...project, characters: [...(project.characters || []), c] });
+  };
+
+  const finishWizard = () => {
+    const next = { ...project, setupComplete: true };
+    setProject(next);
+    saveProject(next);
+    setShowWizard(false);
+    setMobileTab("editor");
+  };
+
+  const saveDraft = () => {
+    const { warning } = saveProject(project);
+    if (warning) setStatusLine(warning);
+    else toast.success(t("manga_save_draft_ok"));
   };
 
   const handleOpenProject = () => {
@@ -398,8 +424,56 @@ export default function MangaStudio() {
     setMobileTab("config");
   };
 
+  const renderTabContent = () => {
+    if (mobileTab === "library") {
+      return <MangaAssetLibrary project={project} onChange={updateProject} />;
+    }
+    if (mobileTab === "editor") {
+      return (
+        <MangaPageCanvas
+          project={project}
+          activePanelId={activePanelId}
+          onSelectPanel={selectPanel}
+          onChange={updateProject}
+        />
+      );
+    }
+    if (mobileTab === "config") {
+      return (
+        <MangaPanelEditor
+          project={project}
+          panel={activePanel}
+          panelIndex={activePanelIndex >= 0 ? activePanelIndex : 0}
+          panelTotal={sortedPanels.length}
+          onPatchPanel={patchPanel}
+          costs={creditCosts}
+          busy={busy}
+          activeCharacterId={activePanel?.characterId}
+          onEditCharacter={onEditCharacter}
+          onPreviewCharacter={onPreviewCharacter}
+          onGeneratePanel={generatePanel}
+          onGeneratePage={generatePage}
+          onGenerateChapter={generateChapter}
+          onBackToEditor={() => setMobileTab("editor")}
+          onSaveDraft={saveDraft}
+          hideGenerateActions
+        />
+      );
+    }
+    return (
+      <StoryNavigator
+        project={project}
+        activePanelId={activePanelId}
+        onSelectPanel={selectPanel}
+        onCoherenceCheck={runCoherence}
+        coherenceScore={coherenceResult.score}
+        coherenceLoading={coherenceLoading}
+      />
+    );
+  };
+
   return (
-    <div className="manga-studio-root manga-studio-root--mobile" data-testid="manga-studio-page">
+    <div className="manga-studio-page" data-testid="manga-studio-page">
       <MangaStudioTour
         open={tourOpen}
         onClose={() => setTourOpen(false)}
@@ -414,126 +488,120 @@ export default function MangaStudio() {
         onJumpToPanel={(id) => selectPanel(id)}
       />
 
-      <MangaStudioHeader
-        t={t}
-        projectName={project.name}
-        onTutorial={() => setTourOpen(true)}
-        onDemo={handleLoadDemo}
-        onNew={handleNewProject}
-        onOpen={handleOpenProject}
-        coherenceScore={coherenceResult.score}
-        onCoherence={runCoherence}
-      />
-
-      {(statusLine || busy) && (
-        <div
-          className={`manga-status-banner mb-3 ${
-            statusLine && !busy ? "manga-status-banner--warn" : ""
-          }`}
-          role="status"
-        >
-          {busy ? (
-            <Loader2 className="w-4 h-4 animate-spin shrink-0" />
-          ) : (
-            <AlertCircle className="w-4 h-4 shrink-0" />
-          )}
-          <span className="text-[12px] leading-snug">
-            {busy ? statusLine || t("manga_generating") : statusLine}
-          </span>
-        </div>
-      )}
-
-      <MangaStudioSettingsPanel
-        t={t}
-        catalog={catalog}
-        project={project}
-        modelKey={modelKey}
-        useGptCompose={useGptCompose}
-        onStyleChange={(id) => updateProject({ ...project, stylePreset: id })}
-        onModelChange={setModelKey}
-        onGptComposeChange={setUseGptCompose}
-      />
-
-      {!pricingReady && (
-        <p className="text-[#5A5A5E] text-xs mb-2">{t("manga_loading_prices")}</p>
-      )}
-
-      <div className="manga-workspace grid grid-cols-1 lg:grid-cols-12 gap-3 lg:gap-5">
-        <div className={`manga-pane manga-pane--library lg:col-span-3 ${mobileTab !== "library" ? "manga-pane--hidden-mobile" : ""}`}>
-          <div className="manga-pane-card manga-pane-card--library">
-            <MangaLibrarySidebar project={project} onChange={updateProject} />
+      <div className="manga-shell-subheader">
+        <MangaStudioHeader
+          t={t}
+          projectName={project.name}
+          onTutorial={() => setTourOpen(true)}
+          onDemo={handleLoadDemo}
+          onNew={handleNewProject}
+          onOpen={handleOpenProject}
+          coherenceScore={coherenceResult.score}
+          onCoherence={runCoherence}
+        />
+        {(statusLine || busy) && (
+          <div
+            className={`manga-status-banner ${statusLine && !busy ? "manga-status-banner--warn" : ""}`}
+            role="status"
+          >
+            {busy ? <Loader2 className="w-4 h-4 animate-spin shrink-0" /> : <AlertCircle className="w-4 h-4 shrink-0" />}
+            <span>{busy ? statusLine || t("manga_generating") : statusLine}</span>
           </div>
-        </div>
-
-        <div className={`manga-pane manga-pane--editor lg:col-span-5 ${mobileTab !== "editor" ? "manga-pane--hidden-mobile" : ""}`}>
-          <MangaPageCanvas
-            project={project}
-            activePanelId={activePanelId}
-            onSelectPanel={selectPanel}
-            onChange={updateProject}
-          />
-        </div>
-
-        <div className={`manga-pane manga-pane--config lg:col-span-4 ${mobileTab !== "config" ? "manga-pane--hidden-mobile" : ""}`}>
-          <MangaPanelEditor
-            project={project}
-            panel={activePanel}
-            panelIndex={activePanelIndex >= 0 ? activePanelIndex : 0}
-            panelTotal={sortedPanels.length}
-            onPatchPanel={patchPanel}
-            costs={creditCosts}
-            busy={busy}
-            activeCharacterId={activePanel?.characterId}
-            onEditCharacter={onEditCharacter}
-            onPreviewCharacter={onPreviewCharacter}
-            onGeneratePanel={generatePanel}
-            onGeneratePage={generatePage}
-            onGenerateChapter={generateChapter}
-            onBackToStory={() => setMobileTab("story")}
-            hideGenerateActions
-          />
-          {lastPromptPreview && (
-            <details className="mt-2 rounded-lg border border-[#2E2E30] bg-[#0B0B0C]/80 p-2 hidden sm:block">
-              <summary className="text-[10px] text-[#5A5A5E] cursor-pointer uppercase tracking-wider">
-                {t("manga_last_prompt")}
-              </summary>
-              <p className="text-[10px] text-[#9CA3AF] mt-2 leading-relaxed max-h-24 overflow-y-auto">
-                {lastPromptPreview}
-              </p>
-            </details>
-          )}
-        </div>
-
-        <div className={`manga-pane manga-pane--story lg:col-span-12 ${mobileTab !== "story" ? "manga-pane--hidden-mobile" : ""}`}>
-          <StoryNavigator
-            project={project}
-            activePanelId={activePanelId}
-            onSelectPanel={selectPanel}
-            onCoherenceCheck={runCoherence}
-            coherenceScore={coherenceResult.score}
-            coherenceLoading={coherenceLoading}
-          />
-        </div>
+        )}
       </div>
 
-      {mobileTab === "config" && activePanel && (
-        <MangaMobileGenerateDock
-          t={t}
-          busy={busy}
-          costs={creditCosts}
-          onGeneratePanel={generatePanel}
-          onGeneratePage={generatePage}
-          onGenerateChapter={generateChapter}
-        />
+      <main className="manga-shell-main">
+        {showWizard ? (
+          <MangaProjectWizard
+            t={t}
+            catalog={catalog}
+            stylePreset={project.stylePreset || "manga-classic"}
+            modelKey={modelKey}
+            useGptCompose={useGptCompose}
+            characters={project.characters || []}
+            onStyleChange={(id) => updateProject({ ...project, stylePreset: id })}
+            onModelChange={setModelKey}
+            onGptComposeChange={setUseGptCompose}
+            onAddCharacter={handleWizardAddChar}
+            onStart={finishWizard}
+          />
+        ) : (
+          <>
+            <div className="manga-desktop-layout hidden lg:grid">
+              <aside className="manga-desktop-col">
+                <MangaAssetLibrary project={project} onChange={updateProject} />
+              </aside>
+              <section className="manga-desktop-col">
+                <MangaPageCanvas
+                  project={project}
+                  activePanelId={activePanelId}
+                  onSelectPanel={selectPanel}
+                  onChange={updateProject}
+                />
+              </section>
+              <section className="manga-desktop-col manga-desktop-col--panel">
+                <MangaPanelEditor
+                  project={project}
+                  panel={activePanel}
+                  panelIndex={activePanelIndex >= 0 ? activePanelIndex : 0}
+                  panelTotal={sortedPanels.length}
+                  onPatchPanel={patchPanel}
+                  costs={creditCosts}
+                  busy={busy}
+                  activeCharacterId={activePanel?.characterId}
+                  onEditCharacter={onEditCharacter}
+                  onPreviewCharacter={onPreviewCharacter}
+                  onGeneratePanel={generatePanel}
+                  onGeneratePage={generatePage}
+                  onGenerateChapter={generateChapter}
+                  onSaveDraft={saveDraft}
+                />
+              </section>
+              <div className="manga-desktop-story lg:col-span-3">
+                <StoryNavigator
+                  project={project}
+                  activePanelId={activePanelId}
+                  onSelectPanel={setActivePanelId}
+                  onCoherenceCheck={runCoherence}
+                  coherenceScore={coherenceResult.score}
+                  coherenceLoading={coherenceLoading}
+                />
+              </div>
+            </div>
+            <div className="manga-mobile-pane lg:hidden">{renderTabContent()}</div>
+          </>
+        )}
+      </main>
+
+      {!showWizard && mobileTab === "config" && activePanel && (
+        <div className="manga-shell-actions lg:hidden">
+          <button type="button" disabled={busy} onClick={generatePanel} className="manga-cta-btn min-h-[56px] w-full">
+            {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
+            {t("manga_gen_panel_short", { n: creditCosts.mangaPanel })}
+          </button>
+          <div className="grid grid-cols-2 gap-2">
+            <button type="button" disabled={busy} onClick={generatePage} className="manga-secondary-cta min-h-[48px]">
+              {t("manga_gen_page_short", { n: creditCosts.mangaPage })}
+            </button>
+            <button type="button" disabled={busy} onClick={generateChapter} className="manga-secondary-cta min-h-[48px]">
+              {t("manga_gen_chapter_short", { n: creditCosts.mangaChapter })}
+            </button>
+          </div>
+          <button type="button" className="manga-chip-btn w-full min-h-[44px] justify-center" onClick={saveDraft}>
+            <Save className="w-4 h-4" /> {t("manga_save_draft")}
+          </button>
+        </div>
       )}
 
-      <MangaStudioMobileNav
-        active={mobileTab}
-        onChange={setMobileTab}
-        t={t}
-        panelIndex={activePanelIndex >= 0 ? activePanelIndex : 0}
-        panelTotal={sortedPanels.length}
-      />
+      {!showWizard && (
+        <MangaStudioMobileNav
+          active={mobileTab}
+          onChange={setMobileTab}
+          t={t}
+          panelIndex={activePanelIndex >= 0 ? activePanelIndex : 0}
+          panelTotal={sortedPanels.length}
+        />
+      )}
     </div>
   );
 }

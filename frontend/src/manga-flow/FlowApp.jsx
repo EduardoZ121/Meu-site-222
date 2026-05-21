@@ -14,6 +14,9 @@ import { useFlowStore } from "./useFlowStore";
 import PromptEnhancement from "./PromptEnhancement";
 import StoryTab from "./StoryTab";
 import FlowTab from "./FlowTab";
+import PanelTab from "./PanelTab";
+import { buildPanelPromptFromFlow, panelConfigToApiPanel } from "./panelUtils";
+import { flowNodeToCharacter, flowNodeToScenario } from "./panelDefaults";
 
 const TABS = [
   { id: "assets", icon: BookOpen, label: "Assets" },
@@ -91,6 +94,8 @@ export default function FlowApp() {
   const selectedNodeId = useFlowStore((s) => s.selectedNodeId);
   const story = useFlowStore((s) => s.story);
 
+  const panelCost = costs.mangaPanel ?? 15;
+
   const genCost = useMemo(() => {
     const mode = getResolvedOutputMode();
     const map = {
@@ -100,6 +105,79 @@ export default function FlowApp() {
     };
     return map[mode] ?? calcGenerationCost(nodes.length, mode);
   }, [nodes.length, costs, getResolvedOutputMode]);
+
+  const generatePanel = async (nodeId) => {
+    if (!nodeId) {
+      toast.error(t("manga_select_panel_toast"));
+      return;
+    }
+    const config = useFlowStore.getState().getPanelConfig(nodeId);
+    const allNodes = useFlowStore.getState().nodes;
+    let finalPrompt = buildPanelPromptFromFlow(config, allNodes, globalSettings);
+    const cost = panelCost;
+
+    if ((user?.credits ?? 0) < cost && !user?.is_unlimited) {
+      toast.error(t("manga_err_credits", { need: cost, have: user?.credits ?? 0 }));
+      return;
+    }
+
+    setBusy(true);
+    setStatus(t("manga_generating"));
+    try {
+      const charNode = allNodes.find((n) => n.id === config.characterNodeId);
+      const sceneNode = allNodes.find((n) => n.id === config.scenarioNodeId);
+      const panel = panelConfigToApiPanel(config);
+
+      if (globalSettings.gptCompose) {
+        const composed = await composeMangaPromptApi({
+          mode: "panel",
+          panel,
+          project: {
+            stylePreset: globalSettings.style,
+            pageLayout: "horizontal",
+            characters: allNodes.filter((n) => n.data.flowType === "personagem").map(flowNodeToCharacter).filter(Boolean),
+            scenarios: allNodes.filter((n) => n.data.flowType === "cenario").map(flowNodeToScenario).filter(Boolean),
+          },
+          character: flowNodeToCharacter(charNode),
+          scenario: flowNodeToScenario(sceneNode),
+          lang: lang || "pt",
+          useGpt: true,
+        });
+        finalPrompt = composed.prompt || finalPrompt;
+      }
+
+      const { data } = await api.post(
+        "/generate/manga-panel",
+        {
+          prompt_final: finalPrompt.trim(),
+          aspect_ratio: config.aspect || "4:5",
+          model_key: globalSettings.engine,
+        },
+        { timeout: 90000, headers: { "X-Skip-Auto-Poll": "1" } },
+      );
+
+      let url = data?.creation?.result_urls?.[0];
+      if (data?.prediction_id) {
+        const polled = await pollPrediction(data.prediction_id, {
+          credits_spent: data.credits_spent ?? cost,
+          type: "manga",
+          timeoutMs: 300000,
+        });
+        url = polled?.creation?.result_urls?.[0];
+      }
+      if (!url) throw new Error(t("manga_err_no_url"));
+      useFlowStore.getState().setPanelConfig(nodeId, { resultUrl: url });
+      toast.success(t("manga_success_panel", { n: cost }));
+      await refresh();
+      setStatus("");
+    } catch (e) {
+      const msg = formatApiError(e, t("manga_fail"));
+      setStatus(msg);
+      toast.error(msg);
+    } finally {
+      setBusy(false);
+    }
+  };
 
   const generate = async () => {
     const prompt = buildFlowPrompt(nodes, edges, {
@@ -192,7 +270,14 @@ export default function FlowApp() {
       return <PlaceholderTab title="📄 Editor de página" hint="A ordem das caixas no Flow define a página gerada." />;
     }
     if (tab === "panel") {
-      return <PlaceholderTab title="🖼️ Painel ativo" hint="Seleciona uma caixa no Flow para editar no painel lateral." />;
+      return (
+        <PanelTab
+          busy={busy}
+          panelCost={panelCost}
+          onGeneratePanel={generatePanel}
+          onGoToFlow={() => setTab("flow")}
+        />
+      );
     }
     if (tab === "story") {
       return <StoryTab onGoToFlow={() => setTab("flow")} />;

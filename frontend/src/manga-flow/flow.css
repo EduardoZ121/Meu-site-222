@@ -1278,6 +1278,234 @@
   }
 }
 
+/* ─── Panel tab ─── */
+.mf-panel-tab {
+  padding-bottom: 1.5rem;
+}
+
+.mf-panel-hero {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 0.75rem;
+  padding: 1rem;
+  margin-bottom: 0.75rem;
+  border-radius: 14px;
+  background: linear-gradient(135deg, rgba(34, 197, 94, 0.15), rgba(26, 26, 46, 0.95));
+  border: 1px solid rgba(34, 197, 94, 0.35);
+}
+
+.mf-panel-hero-nav {
+  display: flex;
+  gap: 0.35rem;
+}
+
+.mf-panel-strip {
+  display: flex;
+  gap: 0.35rem;
+  overflow-x: auto;
+  padding-bottom: 0.65rem;
+  margin-bottom: 0.75rem;
+  -webkit-overflow-scrolling: touch;
+}
+
+.mf-panel-thumb {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.15rem;
+  min-width: 76px;
+  padding: 0.45rem;
+  border-radius: 10px;
+  border: 2px solid #2e2e30;
+  background: #1a1a2e;
+  color: #9ca3af;
+  font-size: 0.65rem;
+  flex-shrink: 0;
+}
+
+.mf-panel-thumb--on {
+  border-color: #22c55e;
+  background: rgba(34, 197, 94, 0.12);
+  color: #fff;
+}
+
+.mf-panel-thumb-num {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #22c55e;
+  color: #0a0a0f;
+  font-weight: 700;
+  font-size: 0.65rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.mf-panel-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0.75rem;
+}
+
+@media (min-width: 900px) {
+  .mf-panel-grid {
+    grid-template-columns: 1fr 280px;
+  }
+}
+
+.mf-panel-main {
+  min-width: 0;
+}
+
+.mf-panel-side .sticky {
+  position: sticky;
+  top: 0.5rem;
+}
+
+.mf-panel-preview {
+  margin-bottom: 0.75rem;
+}
+
+.mf-panel-preview-frame {
+  position: relative;
+  aspect-ratio: 4 / 5;
+  max-height: 220px;
+  width: 100%;
+  max-width: 200px;
+  margin: 0 auto;
+  background: linear-gradient(180deg, #1a1a2e 0%, #0d0d14 100%);
+  border: 2px solid #8b5cf6;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.mf-panel-preview[data-aspect="1:1"] .mf-panel-preview-frame {
+  aspect-ratio: 1;
+}
+.mf-panel-preview[data-aspect="16:9"] .mf-panel-preview-frame {
+  aspect-ratio: 16 / 9;
+  max-width: 280px;
+}
+.mf-panel-preview[data-aspect="9:16"] .mf-panel-preview-frame {
+  aspect-ratio: 9 / 16;
+  max-height: 280px;
+}
+
+.mf-panel-preview-shot,
+.mf-panel-preview-angle {
+  position: absolute;
+  top: 6px;
+  font-size: 0.55rem;
+  padding: 0.1rem 0.35rem;
+  background: rgba(0, 0, 0, 0.6);
+  border-radius: 4px;
+  color: #c4b5fd;
+}
+
+.mf-panel-preview-angle {
+  right: 6px;
+  top: 6px;
+  left: auto;
+}
+
+.mf-panel-preview-char {
+  position: absolute;
+  bottom: 28px;
+  left: 8px;
+  font-size: 0.6rem;
+  color: #f97316;
+  display: flex;
+  align-items: center;
+  gap: 0.2rem;
+}
+
+.mf-panel-preview-scene {
+  position: absolute;
+  bottom: 8px;
+  left: 8px;
+  font-size: 0.55rem;
+  color: #60a5fa;
+}
+
+.mf-panel-preview-balloon {
+  position: absolute;
+  max-width: 75%;
+  padding: 0.35rem 0.5rem;
+  background: #fff;
+  color: #111;
+  font-size: 0.55rem;
+  border-radius: 8px;
+  border: 1px solid #333;
+}
+
+.mf-panel-preview-balloon--top {
+  top: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+}
+.mf-panel-preview-balloon--bottom {
+  bottom: 48px;
+  left: 50%;
+  transform: translateX(-50%);
+}
+.mf-panel-preview-balloon--left {
+  left: 8px;
+  top: 40%;
+}
+.mf-panel-preview-balloon--right {
+  right: 8px;
+  top: 40%;
+}
+
+.mf-panel-preview-fx {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 1.2rem;
+  opacity: 0.5;
+}
+
+.mf-panel-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin-bottom: 0.75rem;
+}
+
+.mf-panel-section {
+  background: #111118;
+  border: 1px solid #2e2e30;
+  border-radius: 12px;
+  margin-bottom: 0.5rem;
+  overflow: hidden;
+}
+
+.mf-panel-section-head {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  width: 100%;
+  padding: 0.65rem 0.75rem;
+  border: none;
+  background: rgba(139, 92, 246, 0.08);
+  color: #fff;
+  text-align: left;
+}
+
+.mf-panel-section-body {
+  padding: 0.65rem 0.75rem 0.75rem;
+}
+
+.mf-panel-result {
+  max-height: 240px;
+  width: 100%;
+  object-fit: contain;
+}
+
 @media (min-width: 1024px) {
   .mf-layout-desktop {
     display: grid;

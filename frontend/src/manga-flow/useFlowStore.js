@@ -3,6 +3,8 @@ import { addEdge, applyNodeChanges, applyEdgeChanges } from "@xyflow/react";
 import { defaultNodeData, autoOutputMode } from "./types";
 import { orderNodesByFlow } from "./buildFlowPrompt";
 import { DEFAULT_STORY, DEMO_STORY, getStorySequence } from "./storyAnalysis";
+import { DEFAULT_PANEL_CONFIG } from "./panelDefaults";
+import { ensurePanelConfigs, syncPanelFromFlowNode } from "./panelUtils";
 
 const STORAGE_KEY = "rp_manga_flow_project";
 
@@ -32,6 +34,8 @@ function loadProject() {
     updatedAt: new Date().toISOString(),
     tutorialDone: false,
     story: { ...DEFAULT_STORY },
+    panels: {},
+    activePanelId: null,
   };
 }
 
@@ -47,6 +51,8 @@ function persist(state) {
       updatedAt: new Date().toISOString(),
       tutorialDone: state.tutorialDone,
       story: state.story,
+      panels: state.panels,
+      activePanelId: state.activePanelId,
     };
     localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
   } catch {
@@ -65,6 +71,8 @@ export const useFlowStore = create((set, get) => ({
   createdAt: initial.createdAt,
   tutorialDone: initial.tutorialDone || false,
   story: initial.story ? { ...DEFAULT_STORY, ...initial.story } : { ...DEFAULT_STORY },
+  panels: initial.panels || {},
+  activePanelId: initial.activePanelId || null,
   selectedNodeId: null,
   selectedEdgeId: null,
   panMode: false,
@@ -237,7 +245,8 @@ export const useFlowStore = create((set, get) => ({
     persist(get());
   },
 
-  selectNode: (selectedNodeId) => set({ selectedNodeId, selectedEdgeId: null }),
+  selectNode: (selectedNodeId) =>
+    set({ selectedNodeId, selectedEdgeId: null, activePanelId: selectedNodeId || null }),
 
   selectEdge: (selectedEdgeId) => set({ selectedEdgeId, selectedNodeId: null }),
 
@@ -418,6 +427,8 @@ export const useFlowStore = create((set, get) => ({
       selectedNodeId: null,
       tutorialStep: 0,
       story: { ...DEFAULT_STORY },
+      panels: {},
+      activePanelId: null,
     });
     persist(get());
   },
@@ -426,5 +437,47 @@ export const useFlowStore = create((set, get) => ({
     const { globalSettings, nodes } = get();
     if (globalSettings.outputMode !== "auto") return globalSettings.outputMode;
     return autoOutputMode(nodes.length);
+  },
+
+  ensurePanelsInitialized: () => {
+    const { nodes, edges, story, panels } = get();
+    const seq = getStorySequence(nodes, edges, story.manualSequence);
+    const next = ensurePanelConfigs(seq, nodes, edges, panels);
+    let activePanelId = get().activePanelId;
+    if (!activePanelId && seq.length) activePanelId = seq[0].id;
+    set({ panels: next, activePanelId });
+    persist(get());
+  },
+
+  getPanelConfig: (nodeId) => {
+    const state = get();
+    if (state.panels[nodeId]) return { ...DEFAULT_PANEL_CONFIG, ...state.panels[nodeId] };
+    const node = state.nodes.find((n) => n.id === nodeId);
+    if (!node) return { ...DEFAULT_PANEL_CONFIG };
+    const created = ensurePanelConfigs([node], state.nodes, state.edges, {});
+    return { ...DEFAULT_PANEL_CONFIG, ...created[nodeId] };
+  },
+
+  setPanelConfig: (nodeId, patch) => {
+    set((s) => ({
+      panels: {
+        ...s.panels,
+        [nodeId]: { ...DEFAULT_PANEL_CONFIG, ...s.panels[nodeId], ...patch },
+      },
+    }));
+    persist(get());
+  },
+
+  setActivePanel: (nodeId) => {
+    set({ activePanelId: nodeId, selectedNodeId: nodeId, selectedEdgeId: null });
+    persist(get());
+  },
+
+  syncPanelFromFlow: (nodeId) => {
+    const id = nodeId || get().activePanelId;
+    if (!id) return;
+    const current = get().getPanelConfig(id);
+    const next = syncPanelFromFlowNode(id, get().nodes, get().edges, current);
+    get().setPanelConfig(id, next);
   },
 }));

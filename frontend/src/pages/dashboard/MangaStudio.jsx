@@ -1,1 +1,1 @@
-export { default } from "../../manga-flow/FlowApp";
+export { default } from "../../manga-studio/StudioApp";

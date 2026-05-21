@@ -16,6 +16,7 @@ import Artistic from "./pages/dashboard/Artistic";
 import Video from "./pages/dashboard/Video";
 import Posters from "./pages/dashboard/Posters";
 import CarouselPage from "./pages/dashboard/Carousel";
+import SceneFlow from "./pages/dashboard/SceneFlow";
 import Wizard from "./pages/dashboard/Wizard";
 import Suggest from "./pages/dashboard/Suggest";
 import SettingsPage from "./pages/dashboard/Settings";
@@ -68,6 +69,8 @@ function App() {
                 <Route path="video" element={<Video />} />
                 <Route path="posters" element={<Posters />} />
                 <Route path="carousel" element={<CarouselPage />} />
+                <Route path="scene-flow" element={<SceneFlow />} />
+                <Route path="manga-studio" element={<SceneFlow />} />
                 <Route path="wizard" element={<Wizard />} />
                 <Route path="suggest" element={<Suggest />} />
                 <Route path="settings" element={<SettingsPage />} />

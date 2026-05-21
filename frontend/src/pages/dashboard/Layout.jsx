@@ -17,6 +17,7 @@ const nav = [
       { to: "/app/posters", icon: FileText, label: "Pôsteres" },
       { to: "/app/video", icon: Film, label: "Vídeo" },
       { to: "/app/carousel", icon: Layers, label: "Carrossel" },
+      { to: "/app/scene-flow", icon: LayoutGrid, label: "Scene Flow" },
     ],
   },
   {

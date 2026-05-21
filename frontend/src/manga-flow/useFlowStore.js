@@ -5,6 +5,7 @@ import { orderNodesByFlow } from "./buildFlowPrompt";
 import { DEFAULT_STORY, DEMO_STORY, getStorySequence } from "./storyAnalysis";
 import { DEFAULT_PANEL_CONFIG } from "./panelDefaults";
 import { ensurePanelConfigs, syncPanelFromFlowNode } from "./panelUtils";
+import { buildPagesFromSequence, createEmptySlots, createPage, slotCountForLayout } from "./pageDefaults";
 
 const STORAGE_KEY = "rp_manga_flow_project";
 
@@ -36,6 +37,7 @@ function loadProject() {
     story: { ...DEFAULT_STORY },
     panels: {},
     activePanelId: null,
+    pageState: { items: [], activePageId: null, defaultLayout: "horizontal" },
   };
 }
 
@@ -53,6 +55,7 @@ function persist(state) {
       story: state.story,
       panels: state.panels,
       activePanelId: state.activePanelId,
+      pageState: state.pageState,
     };
     localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
   } catch {
@@ -73,6 +76,9 @@ export const useFlowStore = create((set, get) => ({
   story: initial.story ? { ...DEFAULT_STORY, ...initial.story } : { ...DEFAULT_STORY },
   panels: initial.panels || {},
   activePanelId: initial.activePanelId || null,
+  pageState: initial.pageState?.items
+    ? initial.pageState
+    : { items: [], activePageId: null, defaultLayout: "horizontal" },
   selectedNodeId: null,
   selectedEdgeId: null,
   panMode: false,
@@ -429,6 +435,7 @@ export const useFlowStore = create((set, get) => ({
       story: { ...DEFAULT_STORY },
       panels: {},
       activePanelId: null,
+      pageState: { items: [], activePageId: null, defaultLayout: "horizontal" },
     });
     persist(get());
   },
@@ -479,5 +486,109 @@ export const useFlowStore = create((set, get) => ({
     const current = get().getPanelConfig(id);
     const next = syncPanelFromFlowNode(id, get().nodes, get().edges, current);
     get().setPanelConfig(id, next);
+  },
+
+  ensurePagesInitialized: () => {
+    get().ensurePanelsInitialized();
+    const { nodes, edges, story, pageState } = get();
+    const seq = getStorySequence(nodes, edges, story.manualSequence);
+    let items = pageState.items || [];
+    if (!items.length) {
+      items = buildPagesFromSequence(seq, pageState.defaultLayout || "horizontal");
+    }
+    const activePageId = pageState.activePageId || items[0]?.id || null;
+    set({ pageState: { ...pageState, items, activePageId } });
+    persist(get());
+  },
+
+  setActivePage: (pageId) => {
+    set((s) => ({ pageState: { ...s.pageState, activePageId: pageId } }));
+    persist(get());
+  },
+
+  updatePage: (pageId, patch) => {
+    set((s) => ({
+      pageState: {
+        ...s.pageState,
+        items: s.pageState.items.map((p) => (p.id === pageId ? { ...p, ...patch } : p)),
+      },
+    }));
+    persist(get());
+  },
+
+  setPageLayout: (pageId, layoutId) => {
+    const page = get().pageState.items.find((p) => p.id === pageId);
+    if (!page) return;
+    const kept = (page.slotNodeIds || []).filter(Boolean);
+    get().updatePage(pageId, {
+      layout: layoutId,
+      slotNodeIds: createEmptySlots(layoutId, kept),
+    });
+    set((s) => ({
+      globalSettings: { ...s.globalSettings, pageLayout: layoutId },
+    }));
+    persist(get());
+  },
+
+  setPageSlot: (pageId, slotIndex, nodeId) => {
+    const page = get().pageState.items.find((p) => p.id === pageId);
+    if (!page) return;
+    const slots = [...(page.slotNodeIds || [])];
+    while (slots.length < slotCountForLayout(page.layout)) slots.push(null);
+    slots[slotIndex] = nodeId || null;
+    get().updatePage(pageId, { slotNodeIds: slots });
+  },
+
+  movePageSlot: (pageId, slotIndex, delta) => {
+    const page = get().pageState.items.find((p) => p.id === pageId);
+    if (!page) return;
+    const slots = [...page.slotNodeIds];
+    const j = slotIndex + delta;
+    if (j < 0 || j >= slots.length) return;
+    [slots[slotIndex], slots[j]] = [slots[j], slots[slotIndex]];
+    get().updatePage(pageId, { slotNodeIds: slots });
+  },
+
+  addPage: () => {
+    const { pageState } = get();
+    const page = createPage(pageState.items.length, pageState.defaultLayout || "horizontal");
+    set({
+      pageState: {
+        ...pageState,
+        items: [...pageState.items, page],
+        activePageId: page.id,
+      },
+    });
+    persist(get());
+  },
+
+  removePage: (pageId) => {
+    set((s) => {
+      const items = s.pageState.items.filter((p) => p.id !== pageId);
+      const activePageId =
+        s.pageState.activePageId === pageId ? items[0]?.id || null : s.pageState.activePageId;
+      return { pageState: { ...s.pageState, items, activePageId } };
+    });
+    persist(get());
+  },
+
+  autoFillPagesFromStory: () => {
+    const { nodes, edges, story, pageState } = get();
+    const seq = getStorySequence(nodes, edges, story.manualSequence);
+    const layout = pageState.defaultLayout || "horizontal";
+    const items = buildPagesFromSequence(seq, layout, pageState.items);
+    set({
+      pageState: {
+        ...pageState,
+        items,
+        activePageId: pageState.activePageId || items[0]?.id,
+      },
+    });
+    persist(get());
+  },
+
+  setDefaultPageLayout: (defaultLayout) => {
+    set((s) => ({ pageState: { ...s.pageState, defaultLayout } }));
+    persist(get());
   },
 }));

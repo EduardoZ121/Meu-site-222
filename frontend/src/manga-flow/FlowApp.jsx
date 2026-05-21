@@ -15,7 +15,9 @@ import PromptEnhancement from "./PromptEnhancement";
 import StoryTab from "./StoryTab";
 import FlowTab from "./FlowTab";
 import PanelTab from "./PanelTab";
+import PageTab from "./PageTab";
 import { buildPanelPromptFromFlow, panelConfigToApiPanel } from "./panelUtils";
+import { buildPagePromptFromFlow, getFlowProjectMeta, pageToApiPanels } from "./pageUtils";
 import { flowNodeToCharacter, flowNodeToScenario } from "./panelDefaults";
 
 const TABS = [
@@ -95,6 +97,7 @@ export default function FlowApp() {
   const story = useFlowStore((s) => s.story);
 
   const panelCost = costs.mangaPanel ?? 15;
+  const pageCost = costs.mangaPage ?? 40;
 
   const genCost = useMemo(() => {
     const mode = getResolvedOutputMode();
@@ -168,6 +171,77 @@ export default function FlowApp() {
       if (!url) throw new Error(t("manga_err_no_url"));
       useFlowStore.getState().setPanelConfig(nodeId, { resultUrl: url });
       toast.success(t("manga_success_panel", { n: cost }));
+      await refresh();
+      setStatus("");
+    } catch (e) {
+      const msg = formatApiError(e, t("manga_fail"));
+      setStatus(msg);
+      toast.error(msg);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const generatePage = async (pageId) => {
+    const page = useFlowStore.getState().pageState.items.find((p) => p.id === pageId);
+    if (!page) {
+      toast.error("Seleciona uma página");
+      return;
+    }
+    const filled = page.slotNodeIds?.filter(Boolean).length || 0;
+    if (filled < 1) {
+      toast.error("Coloca pelo menos um painel na página");
+      return;
+    }
+    const allNodes = useFlowStore.getState().nodes;
+    const getCfg = (id) => useFlowStore.getState().getPanelConfig(id);
+    let finalPrompt = buildPagePromptFromFlow(page, allNodes, globalSettings, getCfg);
+    const cost = pageCost;
+
+    if ((user?.credits ?? 0) < cost && !user?.is_unlimited) {
+      toast.error(t("manga_err_credits", { need: cost, have: user?.credits ?? 0 }));
+      return;
+    }
+
+    setBusy(true);
+    setStatus(t("manga_generating"));
+    try {
+      const apiPanels = pageToApiPanels(page, getCfg);
+      const project = { ...getFlowProjectMeta(allNodes, globalSettings), pageLayout: page.layout };
+
+      if (globalSettings.gptCompose) {
+        const composed = await composeMangaPromptApi({
+          mode: "page",
+          panels: apiPanels,
+          project,
+          lang: lang || "pt",
+          useGpt: true,
+        });
+        finalPrompt = composed.prompt || finalPrompt;
+      }
+
+      const { data } = await api.post(
+        "/generate/manga-page",
+        {
+          prompt_final: finalPrompt.trim(),
+          aspect_ratio: "4:5",
+          model_key: globalSettings.engine,
+        },
+        { timeout: 90000, headers: { "X-Skip-Auto-Poll": "1" } },
+      );
+
+      let url = data?.creation?.result_urls?.[0];
+      if (data?.prediction_id) {
+        const polled = await pollPrediction(data.prediction_id, {
+          credits_spent: data.credits_spent ?? cost,
+          type: "manga",
+          timeoutMs: 300000,
+        });
+        url = polled?.creation?.result_urls?.[0];
+      }
+      if (!url) throw new Error(t("manga_err_no_url"));
+      useFlowStore.getState().updatePage(pageId, { resultUrl: url });
+      toast.success(t("manga_success_page", { n: cost }));
       await refresh();
       setStatus("");
     } catch (e) {
@@ -267,7 +341,15 @@ export default function FlowApp() {
       return <PlaceholderTab title="📚 Biblioteca de assets" hint="Personagens e cenários são criados como caixas no Flow." />;
     }
     if (tab === "page") {
-      return <PlaceholderTab title="📄 Editor de página" hint="A ordem das caixas no Flow define a página gerada." />;
+      return (
+        <PageTab
+          busy={busy}
+          pageCost={pageCost}
+          onGeneratePage={generatePage}
+          onGoToFlow={() => setTab("flow")}
+          onGoToPanel={() => setTab("panel")}
+        />
+      );
     }
     if (tab === "panel") {
       return (

@@ -1506,6 +1506,194 @@
   object-fit: contain;
 }
 
+/* ─── Page tab ─── */
+.mf-page-tab {
+  padding-bottom: 1.5rem;
+}
+
+.mf-page-hero {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 1rem;
+  margin-bottom: 0.75rem;
+  border-radius: 14px;
+  background: linear-gradient(135deg, rgba(59, 130, 246, 0.2), rgba(26, 26, 46, 0.95));
+  border: 1px solid rgba(59, 130, 246, 0.4);
+}
+
+.mf-page-strip {
+  display: flex;
+  gap: 0.35rem;
+  overflow-x: auto;
+  padding-bottom: 0.65rem;
+  margin-bottom: 0.75rem;
+}
+
+.mf-page-toolbar {
+  margin-bottom: 0.75rem;
+}
+
+.mf-page-grid-layout {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0.75rem;
+}
+
+@media (min-width: 900px) {
+  .mf-page-grid-layout {
+    grid-template-columns: 1fr 300px;
+  }
+}
+
+.mf-page-mockup {
+  position: relative;
+  border-radius: 12px;
+  border: 2px solid #3b82f6;
+  min-height: 280px;
+  max-width: 420px;
+  margin: 0 auto;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.45);
+}
+
+.mf-page-mockup-grid {
+  display: grid;
+  min-height: 240px;
+  width: 100%;
+}
+
+.mf-page-slot {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 72px;
+  border: 2px dashed #3f3f46;
+  border-radius: 8px;
+  background: rgba(26, 26, 46, 0.85);
+  color: #9ca3af;
+  font-size: 0.7rem;
+  padding: 0.35rem;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+}
+
+.mf-page-slot--filled {
+  border-style: solid;
+  border-color: #8b5cf6;
+  background: rgba(139, 92, 246, 0.12);
+  color: #e2e8f0;
+}
+
+.mf-page-slot:hover {
+  border-color: #a78bfa;
+}
+
+.mf-page-slot-order {
+  position: absolute;
+  top: 4px;
+  left: 4px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #22c55e;
+  color: #0a0a0f;
+  font-size: 0.6rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.mf-page-slot-type {
+  font-size: 1.2rem;
+}
+
+.mf-page-slot-name {
+  text-align: center;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.65rem;
+}
+
+.mf-page-slot-img {
+  width: 100%;
+  max-height: 48px;
+  object-fit: cover;
+  border-radius: 4px;
+  margin-top: 0.25rem;
+}
+
+.mf-page-slot-empty {
+  color: #5a5a5e;
+}
+
+.mf-page-slot-clear {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  border: none;
+  background: #ef4444;
+  color: #fff;
+  font-size: 0.75rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.mf-page-result-overlay {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  border-radius: 10px;
+  background: rgba(0, 0, 0, 0.5);
+  pointer-events: none;
+}
+
+.mf-page-side {
+  min-width: 0;
+}
+
+.mf-page-story-picks {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.mf-page-story-pick {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.45rem 0.55rem;
+  border-radius: 8px;
+  border: 1px solid #2e2e30;
+  background: #0b0b0c;
+  color: #e2e8f0;
+  font-size: 0.75rem;
+  text-align: left;
+}
+
+.mf-page-story-pick:hover {
+  border-color: #8b5cf6;
+  background: rgba(139, 92, 246, 0.15);
+}
+
+.mf-color-input {
+  border-radius: 8px;
+  border: 1px solid #2e2e30;
+  cursor: pointer;
+}
+
 @media (min-width: 1024px) {
   .mf-layout-desktop {
     display: grid;

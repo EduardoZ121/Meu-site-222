@@ -49,26 +49,25 @@ export default function MangaPageCanvas({
 
   const layoutGrid =
     layout === "grid_2x2"
-      ? "grid grid-cols-2 gap-3"
+      ? "manga-panels-grid manga-panels-grid--2x2"
       : layout === "vertical"
-        ? "flex flex-col gap-3"
-        : "flex flex-row flex-wrap gap-3";
+        ? "manga-panels-strip manga-panels-strip--vertical"
+        : "manga-panels-strip manga-panels-strip--horizontal";
 
   return (
-    <section className="rounded-2xl border border-[rgba(147,51,234,0.25)] bg-[#0D0D12] p-4 min-h-[420px]" data-testid="manga-canvas">
-      <div className="flex items-center justify-between mb-4 gap-2 flex-wrap">
-        <h2 className="text-white text-[13px] font-semibold tracking-wide">{t("manga_page_editor")}</h2>
-        <div className="flex gap-1 flex-wrap">
+    <section className="manga-canvas rounded-2xl border border-[rgba(147,51,234,0.25)] bg-[#0D0D12] p-3 sm:p-4 min-h-0 lg:min-h-[420px]" data-testid="manga-canvas">
+      <div className="mb-3 sm:mb-4">
+        <h2 className="text-white text-[13px] font-semibold tracking-wide mb-2">{t("manga_page_editor")}</h2>
+        <p className="text-[10px] text-[#5A5A5E] mb-2 lg:hidden">{t("manga_page_editor_hint")}</p>
+        <div className="manga-chip-scroll">
           {catalog.pageLayouts.map((l) => (
             <button
               key={l.id}
               type="button"
               onClick={() => onChange({ ...project, pageLayout: l.id })}
               className={cn(
-                "px-2.5 py-1 rounded-md text-[10px] font-medium border transition-colors",
-                layout === l.id
-                  ? "bg-[#9333EA]/30 border-[#A855F7] text-white"
-                  : "border-[#2E2E30] text-[#9CA3AF] hover:border-[#5A5A5E]",
+                "manga-pill shrink-0",
+                layout === l.id && "manga-pill--active",
               )}
             >
               {l.label}
@@ -77,7 +76,7 @@ export default function MangaPageCanvas({
         </div>
       </div>
 
-      <div className={cn(layoutGrid, "mb-4")}>
+      <div className={cn(layoutGrid, "mb-3 sm:mb-4")}>
         {panels.map((panel, i) => {
           const active = panel.id === activePanelId;
           const char = project.characters?.find((c) => c.id === panel.characterId);
@@ -88,7 +87,7 @@ export default function MangaPageCanvas({
               type="button"
               onClick={() => onSelectPanel(panel.id)}
               className={cn(
-                "relative rounded-xl border-2 overflow-hidden text-left transition-all min-w-[120px] flex-1 max-w-[220px]",
+                "manga-panel-thumb relative rounded-xl border-2 overflow-hidden text-left transition-all",
                 aspectClass[panel.aspect] || "aspect-[4/5]",
                 active
                   ? "border-[#A855F7] shadow-[0_0_24px_-4px_rgba(168,85,247,0.45)]"
@@ -118,7 +117,7 @@ export default function MangaPageCanvas({
         })}
       </div>
 
-      <div className="flex flex-wrap gap-2 items-center border-t border-[#2E2E30] pt-3">
+      <div className="manga-canvas-toolbar flex flex-wrap gap-2 items-center border-t border-[#2E2E30] pt-3">
         <button type="button" onClick={addPanel} className="manga-chip-btn">
           <Plus className="w-3.5 h-3.5" /> {t("manga_add_panel")}
         </button>

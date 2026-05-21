@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import {
-  BookOpen, FileImage, Layers, User, MapPin, Wand2, AlertTriangle,
+  BookOpen, FileImage, Layers, User, MapPin, AlertTriangle,
 } from "lucide-react";
 import { cn } from "../../lib/utils";
 import { useI18n } from "../../lib/i18n";
@@ -53,13 +53,9 @@ export default function StoryNavigator({
     pages.push(panels.slice(i, i + pageSize));
   }
 
-  const autoLayout = () => {
-    /* visual only — order already in panels */
-  };
-
   return (
     <section
-      className="rounded-2xl border border-[rgba(147,51,234,0.25)] bg-[#0a0a0f] p-4 min-h-[420px]"
+      className="manga-story-nav rounded-2xl border border-[rgba(147,51,234,0.25)] bg-[#0a0a0f] p-3 sm:p-4 min-h-0 lg:min-h-[320px]"
       data-testid="manga-story-navigator"
       style={{
         backgroundImage:
@@ -67,31 +63,27 @@ export default function StoryNavigator({
         backgroundSize: "24px 24px",
       }}
     >
-      <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
-        <h2 className="text-white text-[13px] font-semibold flex items-center gap-2">
+      <div className="mb-3 sm:mb-4">
+        <h2 className="text-white text-[13px] font-semibold flex items-center gap-2 mb-1">
           <BookOpen className="w-4 h-4 text-[#A855F7]" />
           {t("manga_story_nav")}
         </h2>
-        <div className="flex gap-2 flex-wrap">
-          <button type="button" onClick={autoLayout} className="manga-chip-btn text-[10px]">
-            <Wand2 className="w-3 h-3" /> {t("manga_auto_layout")}
-          </button>
-          <button
-            type="button"
-            onClick={onCoherenceCheck}
-            disabled={coherenceLoading}
-            className="manga-chip-btn text-[10px] border-amber-500/40 text-amber-100"
-          >
-            <AlertTriangle className="w-3 h-3" />
-            {t("manga_coherence_btn")}
-            {coherenceScore != null && (
-              <span className="ml-1 text-[#A855F7]">{coherenceScore}%</span>
-            )}
-          </button>
-        </div>
+        <p className="text-[10px] text-[#5A5A5E] mb-3">{t("manga_story_nav_hint")}</p>
+        <button
+          type="button"
+          onClick={onCoherenceCheck}
+          disabled={coherenceLoading}
+          className="manga-coherence-btn w-full sm:w-auto"
+        >
+          <AlertTriangle className="w-4 h-4 shrink-0" />
+          <span className="flex-1 text-left">{t("manga_coherence_btn")}</span>
+          {coherenceScore != null && (
+            <span className="text-[#A855F7] font-mono text-[12px]">{coherenceScore}%</span>
+          )}
+        </button>
       </div>
 
-      <div className="flex gap-4 mb-4 overflow-x-auto pb-2">
+      <div className="manga-chip-scroll mb-3 pb-1">
         {(project.characters || []).map((c) => (
           <NodeCard
             key={c.id}
@@ -118,14 +110,14 @@ export default function StoryNavigator({
         ))}
       </div>
 
-      <div className="space-y-6 overflow-x-auto">
+      <div className="space-y-4 sm:space-y-6">
         {pages.map((pagePanels, pageIdx) => (
           <div key={`page-${pageIdx}`} className="min-w-0">
             <p className="text-[10px] text-[#A855F7] font-mono uppercase mb-2 flex items-center gap-1">
               <FileImage className="w-3 h-3" />
               {t("manga_page_n", { n: pageIdx + 1 })} · {catalog.pageLayouts.find((l) => l.id === project.pageLayout)?.label}
             </p>
-            <div className="flex items-center gap-2 flex-wrap">
+            <div className="manga-chip-scroll items-stretch py-1">
               {pagePanels.map((panel, i) => {
                 const char = project.characters?.find((c) => c.id === panel.characterId);
                 const pose = catalog.poses.find((p) => p.id === panel.poseId);

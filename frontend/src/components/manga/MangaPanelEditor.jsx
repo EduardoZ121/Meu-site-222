@@ -45,6 +45,8 @@ function ChipGroup({ options, value, onChange, multi }) {
 export default function MangaPanelEditor({
   project,
   panel,
+  panelIndex = 0,
+  panelTotal = 1,
   onPatchPanel,
   costs,
   busy,
@@ -55,6 +57,7 @@ export default function MangaPanelEditor({
   onGeneratePage,
   onGenerateChapter,
   onBackToStory,
+  hideGenerateActions = false,
 }) {
   const { t } = useI18n();
   const catalog = useMemo(() => getMangaStudioCatalog(t), [t]);
@@ -79,24 +82,28 @@ export default function MangaPanelEditor({
 
   return (
     <section
-      className="rounded-2xl border border-[rgba(147,51,234,0.25)] bg-[#111118] overflow-hidden max-h-[calc(100vh-10rem)] flex flex-col"
+      className="manga-panel-editor rounded-2xl border border-[rgba(147,51,234,0.25)] bg-[#111118] overflow-hidden flex flex-col lg:max-h-[calc(100vh-10rem)]"
       data-testid="manga-panel-editor"
     >
-      <div className="px-4 py-3 border-b border-[#2E2E30] flex items-center gap-2 shrink-0">
+      <div className="px-3 sm:px-4 py-2.5 border-b border-[#2E2E30] flex items-center gap-2 shrink-0">
         {onBackToStory && (
           <button
             type="button"
             onClick={onBackToStory}
-            className="text-[11px] text-[#A855F7] flex items-center gap-1 hover:text-white"
+            className="lg:hidden text-[11px] text-[#A855F7] flex items-center gap-1 hover:text-white shrink-0"
           >
             <ChevronLeft className="w-3.5 h-3.5" />
-            {t("manga_back_story")}
           </button>
         )}
-        <h2 className="text-white text-[13px] font-semibold ml-auto">{t("manga_active_panel")}</h2>
+        <div className="flex-1 min-w-0">
+          <h2 className="text-white text-[13px] font-semibold">{t("manga_active_panel")}</h2>
+          <p className="text-[10px] text-[#5A5A5E]">
+            {t("manga_panel_of", { current: panelIndex + 1, total: panelTotal })}
+          </p>
+        </div>
       </div>
 
-      <div className="relative shrink-0 mx-4 mt-3 rounded-xl border border-[#2E2E30] bg-[#0a0a0f] overflow-hidden aspect-[4/5] max-h-[200px]">
+      <div className="relative shrink-0 mx-3 sm:mx-4 mt-3 rounded-xl border border-[#2E2E30] bg-[#0a0a0f] overflow-hidden aspect-[16/10] sm:aspect-[4/5] max-h-[160px] sm:max-h-[200px]">
         {panel.resultUrl ? (
           <img src={panel.resultUrl} alt="" className="w-full h-full object-cover" />
         ) : (
@@ -113,11 +120,11 @@ export default function MangaPanelEditor({
         )}
       </div>
 
-      <div className="flex-1 overflow-y-auto p-3 space-y-2">
+      <div className="manga-panel-scroll flex-1 overflow-y-auto p-3 space-y-2 pb-4 lg:pb-3">
         <CollapsibleSection
           title={`👤 ${t("manga_sec_character")}`}
           hint={t("manga_sec_character_hint")}
-          defaultOpen
+          defaultOpen={panelIndex === 0}
           variant="boxed"
         >
           <div className="space-y-2">
@@ -305,18 +312,20 @@ export default function MangaPanelEditor({
         </CollapsibleSection>
       </div>
 
-      <div className="p-3 space-y-2 border-t border-[#2E2E30] shrink-0">
-        <button type="button" disabled={busy} onClick={onGeneratePanel} className="manga-generate-btn w-full" data-testid="manga-gen-panel">
-          {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
-          {t("manga_gen_panel_btn", { n: costs?.mangaPanel ?? 15 })}
-        </button>
-        <button type="button" disabled={busy} onClick={onGeneratePage} className="manga-generate-btn w-full manga-generate-secondary" data-testid="manga-gen-page">
-          {t("manga_gen_page_btn", { n: costs?.mangaPage ?? 40 })}
-        </button>
-        <button type="button" disabled={busy} onClick={onGenerateChapter} className="manga-generate-btn w-full manga-generate-secondary" data-testid="manga-gen-chapter">
-          {t("manga_gen_chapter_btn", { n: costs?.mangaChapter ?? 150 })}
-        </button>
-      </div>
+      {!hideGenerateActions && (
+        <div className="hidden lg:block p-3 space-y-2 border-t border-[#2E2E30] shrink-0">
+          <button type="button" disabled={busy} onClick={onGeneratePanel} className="manga-generate-btn w-full" data-testid="manga-gen-panel">
+            {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
+            {t("manga_gen_panel_btn", { n: costs?.mangaPanel ?? 15 })}
+          </button>
+          <button type="button" disabled={busy} onClick={onGeneratePage} className="manga-generate-btn w-full manga-generate-secondary" data-testid="manga-gen-page">
+            {t("manga_gen_page_btn", { n: costs?.mangaPage ?? 40 })}
+          </button>
+          <button type="button" disabled={busy} onClick={onGenerateChapter} className="manga-generate-btn w-full manga-generate-secondary" data-testid="manga-gen-chapter">
+            {t("manga_gen_chapter_btn", { n: costs?.mangaChapter ?? 150 })}
+          </button>
+        </div>
+      )}
     </section>
   );
 }

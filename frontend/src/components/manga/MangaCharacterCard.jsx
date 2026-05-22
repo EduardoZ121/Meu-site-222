@@ -1,7 +1,6 @@
 import { useMemo, useState } from "react";
 import {
-  Plus, Sparkles, Star, Lock, Link2, MessageCircle, Users, Zap,
-  ChevronDown, Image as ImageIcon, Trash2,
+  Plus, Sparkles, Star, Lock, Link2, Users, Zap, Trash2,
 } from "lucide-react";
 import ImageUploadZone from "../ImageUploadZone";
 import { cn } from "../../lib/utils";
@@ -10,10 +9,6 @@ import { characterHasReference } from "../../lib/mangaCharacterRef";
 import { mangaCharacterFromUpload } from "../../lib/mangaImageUpload";
 import {
   MANGA_INTERACTION_TYPES,
-  MANGA_CHAR_DISTANCES,
-  MANGA_CHAR_EMOTIONS,
-  MANGA_CHAR_FOCUS,
-  MANGA_CHAR_GAZE,
   MANGA_RELATION_TYPES,
   defaultInteractionConfig,
   emptySavedInteraction,
@@ -42,21 +37,20 @@ export default function MangaCharacterCard({
   character: c,
   characters,
   onUpdate,
+  onUsePresetInEditor,
 }) {
   const { t } = useI18n();
-  const [ixOpen, setIxOpen] = useState(true);
-  const [advOpen, setAdvOpen] = useState(false);
   const [tagInput, setTagInput] = useState("");
-  const [ixConfig, setIxConfig] = useState(() => defaultInteractionConfig());
+  const [presetPartner, setPresetPartner] = useState("");
+  const [presetType, setPresetType] = useState("talk");
 
   const others = useMemo(
     () => characters.filter((x) => x.id !== c.id),
     [characters, c.id],
   );
 
-  const partner = others.find((x) => x.id === ixConfig.partnerId) || null;
   const selfHasRef = characterHasReference(c);
-  const canSaveIxPreset = Boolean(partner && ixConfig.partnerId);
+  const canSaveIxPreset = Boolean(presetPartner && others.some((x) => x.id === presetPartner));
 
   const interactionOptions = useMemo(
     () =>
@@ -93,12 +87,13 @@ export default function MangaCharacterCard({
   };
 
   const handleSaveIxPreset = () => {
-    if (!ixConfig.partnerId || !partner) return;
+    const partner = others.find((x) => x.id === presetPartner);
+    if (!partner) return;
     const saved = emptySavedInteraction({
       partnerId: partner.id,
       partnerName: partner.name,
-      interactionType: ixConfig.interactionType,
-      config: { ...ixConfig, partnerId: partner.id },
+      interactionType: presetType,
+      config: { ...defaultInteractionConfig(partner.id), interactionType: presetType, partnerId: partner.id },
       resultThumb: null,
     });
     patch({
@@ -235,226 +230,70 @@ export default function MangaCharacterCard({
         </div>
       )}
 
-      <div className="manga-char-block manga-char-block--accent">
-        <button
-          type="button"
-          className="w-full flex items-center justify-between gap-2 text-left"
-          onClick={() => setIxOpen(!ixOpen)}
-        >
-          <span className="manga-char-block__title flex items-center gap-1.5">
-            <Users className="w-3.5 h-3.5 text-[#A855F7]" />
-            {t("manga_char_interactions")}
-          </span>
-          <ChevronDown className={cn("w-4 h-4 text-[#5A5A5E] transition-transform", ixOpen && "rotate-180")} />
-        </button>
-
-        {ixOpen && (
-          <div className="mt-2.5 space-y-2.5">
+      <div className="manga-char-block">
+        <p className="manga-char-block__title flex items-center gap-1">
+          <Users className="w-3.5 h-3.5 text-[#A855F7]" />
+          {t("manga_lib_ix_presets")}
+        </p>
+        <p className="text-[10px] text-[#5A5A5E] leading-snug mb-2">{t("manga_lib_ix_presets_hint")}</p>
+        {others.length > 0 ? (
+          <div className="space-y-2">
             <MiniSelect
               label={t("manga_ix_partner")}
-              value={ixConfig.partnerId || ""}
-              onChange={(v) => setIxConfig((prev) => ({ ...prev, partnerId: v || null }))}
+              value={presetPartner}
+              onChange={setPresetPartner}
               options={[
                 { value: "", label: t("manga_ix_pick_partner") },
                 ...others.map((o) => ({ value: o.id, label: o.name })),
               ]}
             />
-
-            {partner && (
-              <>
-                <p
-                  className={cn(
-                    "text-[10px] rounded-md px-2 py-1 border",
-                    partnerHasRef
-                      ? "text-emerald-400/90 border-emerald-500/30 bg-emerald-500/10"
-                      : "text-amber-400/90 border-amber-500/30 bg-amber-500/10",
-                  )}
-                >
-                  {partnerHasRef
-                    ? t("manga_ix_partner_ref_ok", { name: partner.name })
-                    : t("manga_ix_partner_ref_missing", { name: partner.name })}
-                </p>
-                <p className="text-[10px] text-[#7c3aed] leading-snug">{t("manga_ix_library_hint")}</p>
-                <p className="text-[10px] text-[#9CA3AF]">{t("manga_ix_type_label")}</p>
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-1">
-                  {interactionOptions.map((opt) => (
-                    <button
-                      key={opt.id}
-                      type="button"
-                      className={cn(
-                        "manga-ix-type-btn",
-                        ixConfig.interactionType === opt.id && "manga-ix-type-btn--active",
-                      )}
-                      onClick={() =>
-                        setIxConfig((prev) => ({ ...prev, interactionType: opt.id }))}
-                    >
-                      {opt.label}
-                    </button>
-                  ))}
-                </div>
-
-                <div className="grid grid-cols-2 gap-2">
-                  <MiniSelect
-                    label={t("manga_ix_position", { name: c.name })}
-                    value={ixConfig.slotA}
-                    onChange={(v) => setIxConfig((prev) => ({ ...prev, slotA: v }))}
-                    options={[
-                      { value: "left", label: t("manga_ix_left") },
-                      { value: "right", label: t("manga_ix_right") },
-                    ]}
-                  />
-                  <MiniSelect
-                    label={t("manga_ix_distance")}
-                    value={ixConfig.distance}
-                    onChange={(v) => setIxConfig((prev) => ({ ...prev, distance: v }))}
-                    options={MANGA_CHAR_DISTANCES.map((d) => ({
-                      value: d.id,
-                      label: t(`manga_ix_dist_${d.id}`),
-                    }))}
-                  />
-                  <MiniSelect
-                    label={t("manga_ix_emotion_a", { name: c.name })}
-                    value={ixConfig.emotionA}
-                    onChange={(v) => setIxConfig((prev) => ({ ...prev, emotionA: v }))}
-                    options={MANGA_CHAR_EMOTIONS.map((e) => ({
-                      value: e.id,
-                      label: t(`manga_ix_emo_${e.id}`),
-                    }))}
-                  />
-                  <MiniSelect
-                    label={t("manga_ix_emotion_b", { name: partner.name })}
-                    value={ixConfig.emotionB}
-                    onChange={(v) => setIxConfig((prev) => ({ ...prev, emotionB: v }))}
-                    options={MANGA_CHAR_EMOTIONS.map((e) => ({
-                      value: e.id,
-                      label: t(`manga_ix_emo_${e.id}`),
-                    }))}
-                  />
-                  <MiniSelect
-                    label={t("manga_ix_focus")}
-                    value={ixConfig.focus}
-                    onChange={(v) => setIxConfig((prev) => ({ ...prev, focus: v }))}
-                    options={MANGA_CHAR_FOCUS.map((f) => ({
-                      value: f.id,
-                      label: t(`manga_ix_focus_${f.id}`),
-                    }))}
-                  />
-                </div>
-
-                <button
-                  type="button"
-                  className="text-[10px] text-[#A855F7] flex items-center gap-1"
-                  onClick={() => setAdvOpen(!advOpen)}
-                >
-                  <ChevronDown className={cn("w-3 h-3 transition-transform", advOpen && "rotate-180")} />
-                  {t("manga_ix_advanced")}
-                </button>
-
-                {advOpen && (
-                  <div className="grid grid-cols-2 gap-2">
-                    <MiniSelect
-                      label={t("manga_ix_gaze_a", { name: c.name })}
-                      value={ixConfig.gazeA}
-                      onChange={(v) => setIxConfig((prev) => ({ ...prev, gazeA: v }))}
-                      options={MANGA_CHAR_GAZE.map((g) => ({
-                        value: g.id,
-                        label: t(`manga_ix_gaze_${g.id}`),
-                      }))}
-                    />
-                    <MiniSelect
-                      label={t("manga_ix_gaze_b", { name: partner.name })}
-                      value={ixConfig.gazeB}
-                      onChange={(v) => setIxConfig((prev) => ({ ...prev, gazeB: v }))}
-                      options={MANGA_CHAR_GAZE.map((g) => ({
-                        value: g.id,
-                        label: t(`manga_ix_gaze_${g.id}`),
-                      }))}
-                    />
-                  </div>
-                )}
-
-                <div className="manga-char-block manga-char-block--dialogue">
-                  <p className="manga-char-block__title flex items-center gap-1">
-                    <MessageCircle className="w-3 h-3" /> {t("manga_ix_dialogue")}
-                  </p>
-                  <input
-                    className="manga-char-input w-full"
-                    placeholder={t("manga_ix_line_a", { name: c.name })}
-                    value={ixConfig.dialogueA}
-                    onChange={(e) =>
-                      setIxConfig((prev) => ({ ...prev, dialogueA: e.target.value }))}
-                  />
-                  <input
-                    className="manga-char-input w-full"
-                    placeholder={t("manga_ix_line_b", { name: partner.name })}
-                    value={ixConfig.dialogueB}
-                    onChange={(e) =>
-                      setIxConfig((prev) => ({ ...prev, dialogueB: e.target.value }))}
-                  />
-                  <MiniSelect
-                    label={t("manga_ix_dialogue_order")}
-                    value={ixConfig.dialogueOrder}
-                    onChange={(v) => setIxConfig((prev) => ({ ...prev, dialogueOrder: v }))}
-                    options={[
-                      { value: "a_first", label: t("manga_ix_order_a_first") },
-                      { value: "b_first", label: t("manga_ix_order_b_first") },
-                    ]}
-                  />
-                </div>
-
-                <div className="flex flex-wrap gap-1.5">
-                  <button type="button" className="manga-chip-btn" onClick={addRelation}>
-                    <Link2 className="w-3 h-3" /> {t("manga_ix_save_relation")}
-                  </button>
-                  <button
-                    type="button"
-                    className="manga-chip-btn flex-1 min-w-[140px]"
-                    disabled={!canSaveIxPreset}
-                    onClick={handleSaveIxPreset}
-                  >
-                    <Zap className="w-3.5 h-3.5" />
-                    {t("manga_ix_save_preset")}
-                  </button>
-                </div>
-              </>
-            )}
-
-            {!others.length && (
-              <p className="text-[10px] text-[#5A5A5E]">{t("manga_ix_need_two")}</p>
-            )}
+            <MiniSelect
+              label={t("manga_ix_type_label")}
+              value={presetType}
+              onChange={setPresetType}
+              options={interactionOptions.map((o) => ({ value: o.id, label: o.label }))}
+            />
+            <button
+              type="button"
+              className="manga-chip-btn w-full justify-center"
+              disabled={!canSaveIxPreset}
+              onClick={handleSaveIxPreset}
+            >
+              <Zap className="w-3.5 h-3.5" />
+              {t("manga_ix_save_preset")}
+            </button>
           </div>
+        ) : (
+          <p className="text-[10px] text-[#5A5A5E]">{t("manga_ix_need_two")}</p>
         )}
       </div>
 
       {(c.savedInteractions || []).length > 0 && (
         <div className="manga-char-block">
           <p className="manga-char-block__title">{t("manga_char_saved_ix")}</p>
-          <div className="grid grid-cols-2 gap-1.5">
+          <ul className="space-y-1">
             {(c.savedInteractions || []).slice(0, 8).map((ix) => {
               const p = characters.find((x) => x.id === ix.partnerId);
               return (
-                <button
-                  key={ix.id}
-                  type="button"
-                  className="manga-char-ix-thumb"
-                  onClick={() => {
-                    if (ix.config) setIxConfig({ ...defaultInteractionConfig(), ...ix.config });
-                    if (ix.resultThumb) window.open(ix.resultThumb, "_blank", "noopener");
-                  }}
-                  title={t("manga_ix_load_preset")}
-                >
-                  {ix.resultThumb ? (
-                    <img src={ix.resultThumb} alt="" className="w-full h-full object-cover" />
-                  ) : (
-                    <ImageIcon className="w-4 h-4 text-[#5A5A5E]" />
-                  )}
-                  <span className="manga-char-ix-thumb__cap">
-                    {t(`manga_ix_type_${ix.interactionType}`)} · {p?.name || "?"}
-                  </span>
-                </button>
+                <li key={ix.id} className="flex gap-1">
+                  <button
+                    type="button"
+                    className="manga-chip-btn flex-1 justify-between min-w-0"
+                    onClick={() =>
+                      onUsePresetInEditor?.({
+                        characterId: c.id,
+                        preset: ix,
+                      })}
+                  >
+                    <span className="truncate text-left">
+                      {t(`manga_ix_type_${ix.interactionType}`)} · {p?.name || "?"}
+                    </span>
+                    <span className="text-[#A855F7] shrink-0">→ {t("manga_use_in_editor")}</span>
+                  </button>
+                </li>
               );
             })}
-          </div>
+          </ul>
         </div>
       )}
 

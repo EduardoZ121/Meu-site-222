@@ -66,6 +66,8 @@ export default function MangaLibrarySidebar({
   project,
   onChange,
   onSaveSceneComposition,
+  onUsePresetInEditor,
+  onUseCompositionInEditor,
 }) {
   const { t } = useI18n();
   const catalog = useMemo(() => getMangaStudioCatalog(t), [t]);
@@ -96,6 +98,10 @@ export default function MangaLibrarySidebar({
 
   return (
     <aside className="space-y-3" data-testid="manga-library">
+      <div className="manga-lib-intro px-2 py-2.5 rounded-lg border border-[#2E2E30]/80 bg-[#13131A]/50">
+        <p className="text-[11px] text-[#C4B5FD] font-medium">{t("manga_lib_role_title")}</p>
+        <p className="text-[10px] text-[#5A5A5E] mt-1 leading-snug">{t("manga_lib_role_desc")}</p>
+      </div>
       <CollapsibleSection
         title={t("manga_characters")}
         defaultOpen
@@ -139,6 +145,7 @@ export default function MangaLibrarySidebar({
               <MangaCharacterCard
                 character={c}
                 characters={project.characters}
+                onUsePresetInEditor={onUsePresetInEditor}
                 onUpdate={(next) => {
                   patch({
                     characters: project.characters.map((x) =>
@@ -206,6 +213,7 @@ export default function MangaLibrarySidebar({
                   });
                 }}
                 onSaveComposition={onSaveSceneComposition}
+                onUseCompositionInEditor={onUseCompositionInEditor}
               />
             </MangaScenarioRow>
           ))}

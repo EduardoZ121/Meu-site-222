@@ -1,7 +1,6 @@
 import { useMemo } from "react";
-import {
-  Eye, Pencil, Users, Link2, MessageCircle, ChevronDown, Layers, ArrowRight,
-} from "lucide-react";
+import { Eye, Users, MessageCircle, ArrowRight, Download } from "lucide-react";
+import MangaEditorSection from "./MangaEditorSection";
 import { cn } from "../../lib/utils";
 import { useI18n } from "../../lib/i18n";
 import { getMangaStudioCatalog } from "../../lib/mangaStudioCatalog";
@@ -73,10 +72,9 @@ export default function MangaSceneEditor({
   project,
   editorScene,
   onChangeEditorScene,
-  onSyncToPanel,
-  onGoToPanel,
-  onEditCharacter,
+  onConfirmAndOpenPanel,
   onPreviewCharacter,
+  syncDirty = false,
 }) {
   const { t } = useI18n();
   const catalog = useMemo(() => getMangaStudioCatalog(t), [t]);
@@ -139,20 +137,22 @@ export default function MangaSceneEditor({
 
   return (
     <section
-      className="rounded-2xl border border-[rgba(147,51,234,0.25)] bg-[#111118] p-4 space-y-4"
+      className="rounded-2xl border border-[rgba(147,51,234,0.25)] bg-[#111118] p-4 space-y-3"
       data-testid="manga-scene-editor"
     >
-      <div className="flex items-start justify-between gap-2">
+      <div className="flex items-start justify-between gap-2 pb-1 border-b border-[#2E2E30]/80">
         <div>
           <h2 className="text-white text-[13px] font-semibold">{t("manga_editor_title")}</h2>
           <p className="text-[10px] text-[#5A5A5E] mt-0.5">{t("manga_editor_desc")}</p>
         </div>
-        <span className="text-[9px] uppercase tracking-wider text-[#A855F7] px-2 py-0.5 rounded border border-[#A855F7]/30">
-          {t("manga_flow_step_editor")}
-        </span>
+        {syncDirty && (
+          <span className="text-[9px] text-amber-200/90 px-2 py-0.5 rounded border border-amber-400/30">
+            {t("manga_editor_unsaved")}
+          </span>
+        )}
       </div>
 
-      <div>
+      <MangaEditorSection title={t("manga_editor_sec_cast")} hint={t("manga_editor_sec_cast_hint")}>
         <FieldLabel>{t("manga_character")}</FieldLabel>
         <div className="flex gap-2 flex-wrap items-center">
           <select
@@ -170,22 +170,41 @@ export default function MangaSceneEditor({
             className="manga-chip-btn"
             disabled={!editorScene.characterId}
             onClick={() => editorScene.characterId && onPreviewCharacter?.(editorScene.characterId)}
+            title={t("manga_visual")}
           >
             <Eye className="w-3 h-3" />
           </button>
+        </div>
+        <FieldLabel>{t("manga_scenario")}</FieldLabel>
+        <select
+          className="field-input w-full text-[12px]"
+          value={editorScene.scenarioId || ""}
+          onChange={(e) => patch({ scenarioId: e.target.value || null })}
+        >
+          <option value="">{t("manga_choose")}</option>
+          {scenarios.map((s) => (
+            <option key={s.id} value={s.id}>{s.name}</option>
+          ))}
+        </select>
+        {editorScene.scenarioId && (
           <button
             type="button"
-            className="manga-chip-btn"
-            disabled={!editorScene.characterId}
-            onClick={() => editorScene.characterId && onEditCharacter?.(editorScene.characterId)}
+            className="manga-chip-btn w-full justify-center"
+            onClick={() => applyScenarioPreset(editorScene.scenarioId)}
           >
-            <Pencil className="w-3 h-3" />
+            <Download className="w-3 h-3" />
+            {t("manga_editor_import_scenario")}
           </button>
-        </div>
-      </div>
+        )}
+      </MangaEditorSection>
 
-      <div className="manga-char-block manga-char-block--accent">
-        <label className="flex items-center gap-2 text-[11px] text-[#9CA3AF] cursor-pointer mb-2">
+      <MangaEditorSection
+        title={t("manga_editor_sec_duo")}
+        hint={t("manga_editor_sec_duo_hint")}
+        defaultOpen={editorScene.duoMode}
+        badge={editorScene.duoMode ? "2P" : null}
+      >
+        <label className="flex items-center gap-2 text-[11px] text-[#9CA3AF] cursor-pointer">
           <input
             type="checkbox"
             checked={editorScene.duoMode}
@@ -315,24 +334,9 @@ export default function MangaSceneEditor({
             )}
           </div>
         )}
-      </div>
+      </MangaEditorSection>
 
-      <div>
-        <FieldLabel>{t("manga_scenario")}</FieldLabel>
-        <select
-          className="field-input w-full text-[12px] mb-2"
-          value={editorScene.scenarioId || ""}
-          onChange={(e) => {
-            const id = e.target.value || null;
-            patch({ scenarioId: id });
-            if (id) applyScenarioPreset(id);
-          }}
-        >
-          <option value="">{t("manga_choose")}</option>
-          {scenarios.map((s) => (
-            <option key={s.id} value={s.id}>{s.name}</option>
-          ))}
-        </select>
+      <MangaEditorSection title={t("manga_editor_sec_camera")} defaultOpen>
         <label className="text-[11px] text-[#9CA3AF] block">{t("manga_field_pose")}</label>
         <select
           className="field-input w-full text-[12px] mb-2"
@@ -373,18 +377,15 @@ export default function MangaSceneEditor({
           value={editorScene.focus}
           onChange={(v) => patch({ focus: v })}
         />
-      </div>
-
-      <div>
         <FieldLabel>{t("manga_field_framing")}</FieldLabel>
         <ChipGroup
           options={catalog.framing}
           value={editorScene.framing}
           onChange={(v) => patch({ framing: v })}
         />
-      </div>
+      </MangaEditorSection>
 
-      <div>
+      <MangaEditorSection title={t("manga_editor_sec_balloons")} defaultOpen={false}>
         <FieldLabel>{t("manga_balloon_text")}</FieldLabel>
         <textarea
           className="field-input w-full min-h-[72px] text-[12px] resize-y"
@@ -410,10 +411,9 @@ export default function MangaSceneEditor({
           value={editorScene.letterStyle}
           onChange={(v) => patch({ letterStyle: v })}
         />
-      </div>
+      </MangaEditorSection>
 
-      <div>
-        <FieldLabel>{t("manga_field_effects")}</FieldLabel>
+      <MangaEditorSection title={t("manga_editor_sec_fx")} defaultOpen={false}>
         <div className="grid grid-cols-1 gap-1.5">
           {catalog.effects.map((fx) => (
             <label
@@ -436,26 +436,17 @@ export default function MangaSceneEditor({
             </label>
           ))}
         </div>
-      </div>
+      </MangaEditorSection>
 
-      <div className="flex flex-col gap-2 pt-2 border-t border-[#2E2E30]">
-        <button
-          type="button"
-          className="manga-chip-btn w-full justify-center"
-          onClick={onSyncToPanel}
-          data-testid="manga-sync-to-panel"
-        >
-          <Layers className="w-3.5 h-3.5" /> {t("manga_editor_sync_panel")}
-        </button>
-        <button
-          type="button"
-          className="manga-generate-btn w-full"
-          onClick={onGoToPanel}
-        >
-          <ArrowRight className="w-4 h-4" /> {t("manga_editor_go_panel")}
-        </button>
-        <p className="text-[10px] text-[#5A5A5E] leading-snug">{t("manga_editor_flow_hint")}</p>
-      </div>
+      <button
+        type="button"
+        className="manga-generate-btn w-full"
+        onClick={onConfirmAndOpenPanel}
+        data-testid="manga-confirm-editor"
+      >
+        <ArrowRight className="w-4 h-4" />
+        {t("manga_editor_confirm_panel")}
+      </button>
     </section>
   );
 }

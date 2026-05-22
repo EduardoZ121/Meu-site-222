@@ -12,10 +12,6 @@ import {
   SCENE_WEATHER,
   SCENE_LIGHTING,
   SCENE_TIME,
-  SCENE_INTERACTIONS,
-  SCENE_CHAR_POSITIONS,
-  SCENE_DISTANCES,
-  SCENE_FORMATIONS,
   buildSceneEnvironmentInfluence,
   buildPanelSceneDraft,
   emptySavedComposition,
@@ -143,6 +139,7 @@ export default function MangaScenarioCard({
   characters,
   onUpdate,
   onSaveComposition,
+  onUseCompositionInEditor,
 }) {
   const { t } = useI18n();
   const [connectOpen, setConnectOpen] = useState(true);
@@ -168,13 +165,6 @@ export default function MangaScenarioCard({
       connectedCharacterIds: next,
       positioning: { ...cfg.positioning, slots },
     });
-  };
-
-  const toggleInteraction = (ixId) => {
-    const set = new Set(cfg.enabledInteractions || []);
-    if (set.has(ixId)) set.delete(ixId);
-    else set.add(ixId);
-    patchConfig({ enabledInteractions: [...set] });
   };
 
   const influencePreview = useMemo(() => buildSceneEnvironmentInfluence(s), [s]);
@@ -306,86 +296,11 @@ export default function MangaScenarioCard({
         )}
       </div>
 
-      {connectedIds.length > 0 && (
-        <>
-          <div className="manga-char-block">
-            <p className="manga-char-block__title">{t("manga_scn_ix_possible")}</p>
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-1">
-              {SCENE_INTERACTIONS.map((ixId) => (
-                <button
-                  key={ixId}
-                  type="button"
-                  className={cn(
-                    "manga-ix-type-btn text-[9px]",
-                    (cfg.enabledInteractions || []).includes(ixId) && "manga-ix-type-btn--active",
-                    cfg.activeInteraction === ixId && "ring-1 ring-[#22d3ee]",
-                  )}
-                  onClick={() => {
-                    toggleInteraction(ixId);
-                    patchConfig({ activeInteraction: ixId });
-                  }}
-                >
-                  {["train", "group", "joint_pose"].includes(ixId)
-                    ? t(`manga_scn_ix_${ixId}`)
-                    : t(`manga_ix_type_${ixId}`)}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <div className="manga-char-block">
-            <p className="manga-char-block__title">{t("manga_scn_positioning")}</p>
-            <div className="grid grid-cols-2 gap-2">
-              <MiniSelect
-                label={t("manga_ix_distance")}
-                value={cfg.positioning?.distance || "medium"}
-                onChange={(v) =>
-                  patchConfig({
-                    positioning: { ...cfg.positioning, distance: v },
-                  })}
-                options={SCENE_DISTANCES.map((x) => ({
-                  value: x.id,
-                  label: t(`manga_ix_dist_${x.id}`),
-                }))}
-              />
-              <MiniSelect
-                label={t("manga_scn_formation")}
-                value={cfg.positioning?.formation || "side_by_side"}
-                onChange={(v) =>
-                  patchConfig({
-                    positioning: { ...cfg.positioning, formation: v },
-                  })}
-                options={SCENE_FORMATIONS.map((x) => ({
-                  value: x.id,
-                  label: t(`manga_scn_form_${x.id}`),
-                }))}
-              />
-            </div>
-            {connectedIds.map((cid) => {
-              const ch = characters.find((c) => c.id === cid);
-              if (!ch) return null;
-              return (
-                <MiniSelect
-                  key={cid}
-                  label={t("manga_scn_char_pos", { name: ch.name })}
-                  value={cfg.positioning?.slots?.[cid] || "center"}
-                  onChange={(v) =>
-                    patchConfig({
-                      positioning: {
-                        ...cfg.positioning,
-                        slots: { ...(cfg.positioning?.slots || {}), [cid]: v },
-                      },
-                    })}
-                  options={SCENE_CHAR_POSITIONS.map((x) => ({
-                    value: x.id,
-                    label: t(`manga_scn_pos_${x.id}`),
-                  }))}
-                />
-              );
-            })}
-          </div>
-        </>
-      )}
+      <p className="text-[10px] text-[#5A5A5E] leading-snug">
+        {connectedIds.length > 0
+          ? t("manga_scn_linked_n", { n: connectedIds.length })
+          : t("manga_scn_link_hint")}
+      </p>
 
       <div className="flex flex-col gap-1.5">
         <button
@@ -404,11 +319,16 @@ export default function MangaScenarioCard({
           <p className="manga-char-block__title">{t("manga_scn_memory")}</p>
           <ul className="space-y-1">
             {(s.savedCompositions || []).slice(0, 6).map((comp) => (
-              <li key={comp.id} className="text-[10px] text-[#9CA3AF] flex justify-between gap-2">
-                <span className="truncate">{comp.label}</span>
-                <span className="text-[#5A5A5E] shrink-0">
-                  {comp.draft?.characterNames?.length || 0} {t("manga_scn_chars_short")}
-                </span>
+              <li key={comp.id}>
+                <button
+                  type="button"
+                  className="manga-chip-btn w-full justify-between"
+                  onClick={() =>
+                    onUseCompositionInEditor?.({ scenarioId: s.id, composition: comp })}
+                >
+                  <span className="truncate">{comp.label}</span>
+                  <span className="text-[#A855F7] shrink-0">→ {t("manga_use_in_editor")}</span>
+                </button>
               </li>
             ))}
           </ul>

@@ -1,11 +1,13 @@
 import { useMemo, useState } from "react";
 import {
-  Plus, Upload, Sparkles, Star, Lock, Link2, MessageCircle, Users, Zap,
+  Plus, Sparkles, Star, Lock, Link2, MessageCircle, Users, Zap,
   ChevronDown, Image as ImageIcon, Trash2,
 } from "lucide-react";
+import ImageUploadZone from "../ImageUploadZone";
 import { cn } from "../../lib/utils";
 import { useI18n } from "../../lib/i18n";
 import { characterHasReference } from "../../lib/mangaCharacterRef";
+import { mangaCharacterFromUpload } from "../../lib/mangaImageUpload";
 import {
   MANGA_INTERACTION_TYPES,
   MANGA_CHAR_DISTANCES,
@@ -16,15 +18,6 @@ import {
   defaultInteractionConfig,
   emptySavedInteraction,
 } from "../../lib/mangaCharacterInteractions";
-
-function readFileAsDataUrl(file) {
-  return new Promise((resolve, reject) => {
-    const r = new FileReader();
-    r.onload = () => resolve(r.result);
-    r.onerror = reject;
-    r.readAsDataURL(file);
-  });
-}
 
 function MiniSelect({ label, value, onChange, options }) {
   return (
@@ -115,24 +108,16 @@ export default function MangaCharacterCard({
 
   return (
     <div className="manga-char-detail space-y-2.5" data-testid={`manga-char-detail-${c.id}`}>
-      <p className="text-[10px] text-[#5A5A5E]">{t("manga_ref_sheet")}</p>
-      <div className="grid grid-cols-4 gap-1">
-        {["front", "profile", "back"].map((k) => (
-          <div
-            key={k}
-            className="aspect-square rounded bg-[#13131A] border border-[#2E2E30] text-[8px] text-[#5A5A5E] flex items-center justify-center uppercase overflow-hidden"
-          >
-            {c.sheets?.[k] ? (
-              <img src={c.sheets[k]} alt="" className="w-full h-full object-cover" />
-            ) : (
-              k.slice(0, 4)
-            )}
-          </div>
-        ))}
-        <div className="aspect-square rounded bg-[#13131A] border border-[#2E2E30] text-[8px] text-[#5A5A5E] flex items-center justify-center">
-          4×
-        </div>
-      </div>
+      <ImageUploadZone
+        value={c._refFile || null}
+        onChange={(file) => onUpdate(mangaCharacterFromUpload(c, file))}
+        layout="portrait"
+        testId={`manga-char-upload-${c.id}`}
+        emptyLabel={t("manga_upload_png")}
+        emptyHint={t("upload_empty_hint")}
+        enableRemotePersist={false}
+        compressOptions={{ maxSize: 1280, maxBytes: 2 * 1024 * 1024 }}
+      />
 
       <p
         className={cn(
@@ -145,42 +130,17 @@ export default function MangaCharacterCard({
         {selfHasRef ? t("manga_char_ref_ok") : t("manga_char_ref_missing")}
       </p>
 
-      <div className="flex gap-1.5 flex-wrap">
-        <label className="manga-chip-btn cursor-pointer">
-          <Upload className="w-3 h-3" /> {t("manga_upload_png")}
-          <input
-            type="file"
-            accept="image/png,image/webp,image/jpeg"
-            className="hidden"
-            onChange={async (e) => {
-              const f = e.target.files?.[0];
-              if (!f) return;
-              let url = null;
-              try {
-                url = await readFileAsDataUrl(f);
-              } catch {
-                url = null;
-              }
-              patch({
-                thumb: url,
-                _refFile: f,
-                sheets: { ...c.sheets, front: url },
-              });
-            }}
-          />
-        </label>
-        <button
-          type="button"
-          className="manga-chip-btn"
-          onClick={() => {
-            const desc = window.prompt(t("manga_char_desc_ai"), c.description || "");
-            if (desc === null) return;
-            patch({ description: desc, tag: desc.slice(0, 48) });
-          }}
-        >
-          <Sparkles className="w-3 h-3" /> {t("manga_ia_sheet")}
-        </button>
-      </div>
+      <button
+        type="button"
+        className="manga-chip-btn w-full justify-center"
+        onClick={() => {
+          const desc = window.prompt(t("manga_char_desc_ai"), c.description || "");
+          if (desc === null) return;
+          patch({ description: desc, tag: desc.slice(0, 48) });
+        }}
+      >
+        <Sparkles className="w-3 h-3" /> {t("manga_ia_sheet")}
+      </button>
 
       <div className="manga-char-block">
         <div className="flex items-center justify-between gap-2 flex-wrap">

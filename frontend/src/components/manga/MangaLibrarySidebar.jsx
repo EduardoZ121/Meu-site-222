@@ -1,11 +1,13 @@
-import { useMemo, useRef, useState } from "react";
+import { useMemo, useState } from "react";
 import {
-  Plus, Pencil, Trash2, Copy, Upload, Sparkles,
+  Plus, Pencil, Trash2, Copy, Sparkles,
   Users, MapPin, PersonStanding, Layers,
 } from "lucide-react";
+import ImageUploadZone from "../ImageUploadZone";
 import { cn } from "../../lib/utils";
 import { useI18n } from "../../lib/i18n";
 import { getMangaStudioCatalog } from "../../lib/mangaStudioCatalog";
+import { mangaRefFromFile } from "../../lib/mangaImageUpload";
 import CollapsibleSection from "../CollapsibleSection";
 import { emptyCharacter, emptyScenario } from "../../lib/mangaStudioData";
 import MangaCharacterCard from "./MangaCharacterCard";
@@ -21,15 +23,6 @@ function ThumbBox({ src, label }) {
       )}
     </div>
   );
-}
-
-function readFileAsDataUrl(file) {
-  return new Promise((resolve, reject) => {
-    const r = new FileReader();
-    r.onload = () => resolve(r.result);
-    r.onerror = reject;
-    r.readAsDataURL(file);
-  });
 }
 
 function LibraryRow({
@@ -77,7 +70,7 @@ export default function MangaLibrarySidebar({
   const { t } = useI18n();
   const catalog = useMemo(() => getMangaStudioCatalog(t), [t]);
   const [expandedId, setExpandedId] = useState(null);
-  const poseInputRef = useRef(null);
+  const [poseUploadFile, setPoseUploadFile] = useState(null);
 
   const patch = (partial) => onChange({ ...project, ...partial });
 
@@ -232,27 +225,35 @@ export default function MangaLibrarySidebar({
               <p className="text-[12px] text-[#F4F1EA] flex-1">{p.label}</p>
             </div>
           ))}
-          <label className="manga-primary-outline w-full justify-center cursor-pointer mt-2">
-            <Upload className="w-3.5 h-3.5" /> {t("manga_upload_pose")}
-            <input
-              ref={poseInputRef}
-              type="file"
-              accept="image/png,image/webp"
-              className="hidden"
-              onChange={async (e) => {
-                const f = e.target.files?.[0];
-                if (!f) return;
-                const url = await readFileAsDataUrl(f);
-                const name = f.name.replace(/\.[^.]+$/, "") || "Pose";
+          <div className="mt-2">
+            <ImageUploadZone
+              value={poseUploadFile}
+              onChange={(file) => {
+                setPoseUploadFile(file);
+                if (!file) return;
+                const { thumb } = mangaRefFromFile(file);
+                const name = file.name?.replace(/\.[^.]+$/, "") || t("manga_default_pose");
                 patch({
                   customPoses: [
                     ...(project.customPoses || []),
-                    { id: `pose_${Date.now()}`, label: name, thumb: url },
+                    {
+                      id: `pose_${Date.now()}`,
+                      label: name,
+                      thumb,
+                      _refFile: file,
+                    },
                   ],
                 });
+                setPoseUploadFile(null);
               }}
+              layout="square"
+              testId="manga-pose-upload"
+              emptyLabel={t("manga_upload_pose")}
+              emptyHint={t("upload_empty_hint")}
+              enableRemotePersist={false}
+              compressOptions={{ maxSize: 800, maxBytes: 1.5 * 1024 * 1024 }}
             />
-          </label>
+          </div>
           {(project.customPoses || []).map((p) => (
             <div key={p.id} className="flex items-center gap-2 px-2 py-1">
               <ThumbBox src={p.thumb} label={p.label} />

@@ -10,12 +10,15 @@ import { toast } from "sonner";
 import PhotoUpload from "../../components/PhotoUpload";
 import AspectPicker from "../../components/AspectPicker";
 import ResultPanel from "../../components/ResultPanel";
-import StudioResultAnchor from "../../components/StudioResultAnchor";
 import StyleCover from "../../components/StyleCover";
 import { FALLBACK_PADRAO_STYLES } from "../../lib/publicFallbacks";
 import { PADRAO_STYLE_COVER_BY_ID } from "../../lib/padraoStyleCovers";
 import useTitle from "../../lib/useTitle";
 import StudioAccordionSection from "../../components/StudioAccordionSection";
+import StudioSessionShell from "../../components/studio/StudioSessionShell";
+import StudioSplitLayout from "../../components/studio/StudioSplitLayout";
+import StudioResultColumn from "../../components/studio/StudioResultColumn";
+import StudioStickyCta, { StudioStickyMeta } from "../../components/studio/StudioStickyCta";
 import { readUserSettings } from "../../lib/userSettings";
 import { apiAspectRatio } from "../../lib/apiAspectRatio";
 
@@ -139,124 +142,145 @@ export default function Generate() {
     } finally { setBusy(false); setProgress(0); }
   };
 
+  const balance = user?.is_unlimited ? "∞" : (user?.credits ?? 0);
+  const ctaDisabled = busy || photoUploadStatus === "saving" || mode === "blocked";
+
   return (
-    <div className="rp-studio-shell max-w-[1200px] mx-auto pb-28" data-testid="generate-page">
-      <header className="mb-10 pb-8 border-b border-[rgba(244,241,234,0.06)]">
-        <p className="rp-editor-section-cap mb-2">{t("studio_eyebrow")}</p>
-        <h1 className="rp-studio-page-title mb-3 font-['Inter_Tight']">{t("studio_title")}</h1>
-        <p className="rp-studio-page-desc">{t("studio_desc")}</p>
-      </header>
-
-      <div className="grid grid-cols-1 lg:grid-cols-[1fr_380px] gap-8 lg:gap-10">
-        <div className="space-y-4">
-          <StudioAccordionSection title={t("studio_acc_photo")} defaultOpen={false} testId="studio-acc-photo">
-            <div className="flex items-baseline justify-end mb-3">
-              {photo && (
-                <button type="button" onClick={() => setPhoto(null)} className="text-[10px] font-mono uppercase tracking-[0.12em] text-[#8A8A8E] hover:text-[#F4F1EA] transition-colors">{t("remove")}</button>
-              )}
-            </div>
-            <div className="max-w-[420px]">
-              <PhotoUpload value={photo} onChange={(f) => setPhoto(f || null)} testId="gen-photo" compressOptions={{ maxSize: 768, maxBytes: 2 * 1024 * 1024, maxBytesIOS: 1.5 * 1024 * 1024 }} onStatusChange={setPhotoUploadStatus} />
-              {photoUploadStatus === "saving" && (
-                <p className="mt-2 text-[10px] font-mono uppercase tracking-[0.14em] text-[#8A8A8E]">{t("studio_preparing")}</p>
-              )}
-            </div>
-          </StudioAccordionSection>
-
-          <StudioAccordionSection title={t("studio_acc_prompt")} defaultOpen testId="studio-acc-prompt">
-            <textarea
-              value={prompt}
-              onChange={(e) => setPrompt(e.target.value)}
-              rows={4}
-              maxLength={800}
-              placeholder={photo ? t("studio_placeholder_photo") : t("studio_placeholder_text")}
-              className="rp-editor-textarea min-h-[120px]"
-              data-testid="prompt-input"
-            />
-            <div className="flex items-center justify-between mt-3 gap-3 flex-wrap">
-              <label className="flex items-center gap-2.5 cursor-pointer group">
-                <input type="checkbox" checked={improve} onChange={(e) => setImprove(e.target.checked)} className="accent-[#7C3AED] w-3.5 h-3.5 rounded border-[#2E2E30]" data-testid="improve-toggle" />
-                <span className="text-[#8A8A8E] text-[12px] font-['Inter_Tight'] group-hover:text-[#b5b5ba] transition-colors">
-                  {t("studio_improve")} <span className="text-[#5A5A5E]">{t("studio_improve_free")}</span>
-                </span>
-              </label>
-              <span className="text-[#5A5A5E] text-[10px] font-mono tabular-nums">{prompt.length}/800</span>
-            </div>
-            <div className="flex flex-wrap gap-2 mt-4">
-              <button type="button" onClick={() => navigate("/app/wizard")} className="rp-btn-surface" data-testid="open-wizard">
-                <Wand2 className="w-3.5 h-3.5" strokeWidth={1.5} /> {t("studio_wizard")}
-              </button>
-              <button type="button" onClick={() => navigate("/app/suggest")} className="rp-btn-surface" data-testid="open-suggest">
-                <Lightbulb className="w-3.5 h-3.5" strokeWidth={1.5} /> {t("studio_suggest")}
-              </button>
-            </div>
-          </StudioAccordionSection>
-
-          <StudioAccordionSection title={t("studio_acc_styles")} defaultOpen={false} testId="studio-acc-styles">
-            <button type="button" onClick={() => setShowStyles(!showStyles)} className="flex items-center gap-2 w-full text-left rp-editor-section-cap !text-[#a89bc9] hover:!text-[#c4b8e6] transition-colors mb-4" data-testid="toggle-styles">
-              {t("studio_styles_toggle")} <span className="text-[#5A5A5E] font-['Inter_Tight'] normal-case tracking-normal text-[12px] font-normal">{t("studio_styles_optional")}</span>
-              <span className="text-[#5A5A5E] ml-auto font-mono text-[11px]">{showStyles ? "−" : "+"}</span>
-            </button>
-            {pickedStyle && picked && (
-              <div className="mb-4 inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-[rgba(124,58,237,0.35)] bg-[rgba(124,58,237,0.08)]">
-                <span className="text-[#E9E4DC] text-[12px] font-medium font-['Inter_Tight']">{picked.nome}</span>
-                <button type="button" onClick={() => setPickedStyle(null)} className="text-[#8A8A8E] hover:text-[#F4F1EA] text-lg leading-none w-7 h-7 flex items-center justify-center rounded-md hover:bg-white/5" aria-label={t("studio_remove_style")}>×</button>
+    <StudioSessionShell
+      testId="generate-page"
+      description={t("studio_desc")}
+      maxWidth="1200px"
+      withStickyCta
+    >
+      <StudioSplitLayout
+        resultWidth={380}
+        breakpoint="lg"
+        editor={(
+          <div className="space-y-3">
+            <StudioAccordionSection title={t("studio_acc_photo")} defaultOpen={false} testId="studio-acc-photo">
+              <div className="flex items-baseline justify-end mb-3">
+                {photo && (
+                  <button type="button" onClick={() => setPhoto(null)} className="text-[10px] font-mono uppercase tracking-[0.12em] text-[#8A8A8E] hover:text-[#F4F1EA] transition-colors">{t("remove")}</button>
+                )}
               </div>
-            )}
-            {showStyles && (
-              <>
-                <div className="flex flex-wrap gap-2 mb-4" data-testid="subject-bar">
-                  {SUBJECT_KEYS.map((s) => (
-                    <button type="button" key={s.value} onClick={() => setSubject(s.value)} className={`rp-pill ${subject === s.value ? "rp-pill-active" : ""}`} data-testid={`subj-${s.value.replace(/\s/g, "-")}`}>
-                      {t(s.labelKey)}
-                    </button>
-                  ))}
-                </div>
-                <div className="flex flex-wrap gap-2 mb-4" data-testid="padrao-cats">
-                  {padraoCats.map((c) => (
-                    <button type="button" key={c} onClick={() => { setPadraoCat(c); setPickedStyle(null); }} className={`rp-pill ${padraoCat === c ? "rp-pill-active" : ""}`} data-testid={`pcat-${c}`}>
-                      {catLabel(c)}
-                    </button>
-                  ))}
-                </div>
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 max-h-[460px] overflow-y-auto pr-1" data-testid="padrao-grid">
-                  {padraoFiltered.map((s) => (
-                    <button type="button" key={s.id} onClick={() => setPickedStyle(pickedStyle === s.id ? null : s.id)} className={`rp-style-card-shell relative aspect-[3/4] overflow-hidden rounded-xl text-left transition-all border group ${pickedStyle === s.id ? "border-rp-purple ring-2 ring-rp-purple/35 shadow-[0_0_36px_-10px_rgba(168,85,247,0.55),inset_0_0_0_1px_rgba(255,255,255,0.06)]" : "border-rp-border hover:border-rp-purple/45 hover:shadow-[0_16px_40px_-20px_rgba(124,58,237,0.35)]"} ${s.locked ? "opacity-90" : ""}`} data-testid={`pstyle-${s.id}`}>
-                      <StyleCover id={s.id} title={s.nome} prompt={s.prompt} category={s.cat} eyebrow={catLabel(s.cat)} premium={s.locked} selected={pickedStyle === s.id} coverSrc={PADRAO_STYLE_COVER_BY_ID[s.id] || ""} />
-                    </button>
-                  ))}
-                </div>
-              </>
-            )}
-          </StudioAccordionSection>
+              <div className="max-w-[420px]">
+                <PhotoUpload value={photo} onChange={(f) => setPhoto(f || null)} testId="gen-photo" compressOptions={{ maxSize: 768, maxBytes: 2 * 1024 * 1024, maxBytesIOS: 1.5 * 1024 * 1024 }} onStatusChange={setPhotoUploadStatus} />
+                {photoUploadStatus === "saving" && (
+                  <p className="mt-2 text-[10px] font-mono uppercase tracking-[0.14em] text-[#8A8A8E]">{t("studio_preparing")}</p>
+                )}
+              </div>
+            </StudioAccordionSection>
 
-          <StudioAccordionSection title={t("studio_acc_format")} defaultOpen testId="studio-acc-format">
-            <AspectPicker value={aspect} onChange={setAspect} hasPhoto={!!photo} testIdPrefix="aspect" />
-            <button type="button" onClick={generate} disabled={busy || photoUploadStatus === "saving" || mode === "blocked"} className="rp-action-primary mt-8" data-testid="generate-button">
-              {busy ? (
-                <>
-                  <Loader2 className="w-4 h-4 animate-spin" strokeWidth={2} />
-                  {progress > 0 ? t("studio_generating", { n: progress }) : t("studio_sending")}
-                </>
-              ) : mode === "blocked" ? (
-                <><ImagePlus className="w-4 h-4" strokeWidth={1.5} /> {ctaLabel}</>
-              ) : (
-                <><Sparkles className="w-4 h-4" strokeWidth={1.5} /> {ctaLabel}</>
+            <StudioAccordionSection title={t("studio_acc_prompt")} defaultOpen testId="studio-acc-prompt">
+              <textarea
+                value={prompt}
+                onChange={(e) => setPrompt(e.target.value)}
+                rows={4}
+                maxLength={800}
+                placeholder={photo ? t("studio_placeholder_photo") : t("studio_placeholder_text")}
+                className="rp-editor-textarea min-h-[120px]"
+                data-testid="prompt-input"
+              />
+              <div className="flex items-center justify-between mt-3 gap-3 flex-wrap">
+                <label className="flex items-center gap-2.5 cursor-pointer group">
+                  <input type="checkbox" checked={improve} onChange={(e) => setImprove(e.target.checked)} className="accent-[#7C3AED] w-3.5 h-3.5 rounded border-[#2E2E30]" data-testid="improve-toggle" />
+                  <span className="text-[#8A8A8E] text-[12px] font-['Inter_Tight'] group-hover:text-[#b5b5ba] transition-colors">
+                    {t("studio_improve")} <span className="text-[#5A5A5E]">{t("studio_improve_free")}</span>
+                  </span>
+                </label>
+                <span className="text-[#5A5A5E] text-[10px] font-mono tabular-nums">{prompt.length}/800</span>
+              </div>
+              <div className="flex flex-wrap gap-2 mt-4">
+                <button type="button" onClick={() => navigate("/app/wizard")} className="rp-btn-surface" data-testid="open-wizard">
+                  <Wand2 className="w-3.5 h-3.5" strokeWidth={1.5} /> {t("studio_wizard")}
+                </button>
+                <button type="button" onClick={() => navigate("/app/suggest")} className="rp-btn-surface" data-testid="open-suggest">
+                  <Lightbulb className="w-3.5 h-3.5" strokeWidth={1.5} /> {t("studio_suggest")}
+                </button>
+              </div>
+            </StudioAccordionSection>
+
+            <StudioAccordionSection title={t("studio_acc_styles")} defaultOpen={false} testId="studio-acc-styles">
+              <button type="button" onClick={() => setShowStyles(!showStyles)} className="flex items-center gap-2 w-full text-left rp-studio-section-cap hover:text-[#e9d5ff] transition-colors mb-4" data-testid="toggle-styles">
+                {t("studio_styles_toggle")} <span className="text-[#5A5A5E] font-['Inter_Tight'] normal-case tracking-normal text-[12px] font-normal">{t("studio_styles_optional")}</span>
+                <span className="text-[#5A5A5E] ml-auto font-mono text-[11px]">{showStyles ? "−" : "+"}</span>
+              </button>
+              {pickedStyle && picked && (
+                <div className="mb-4 inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-[rgba(124,58,237,0.35)] bg-[rgba(124,58,237,0.08)]">
+                  <span className="text-[#E9E4DC] text-[12px] font-medium font-['Inter_Tight']">{picked.nome}</span>
+                  <button type="button" onClick={() => setPickedStyle(null)} className="text-[#8A8A8E] hover:text-[#F4F1EA] text-lg leading-none w-7 h-7 flex items-center justify-center rounded-md hover:bg-white/5" aria-label={t("studio_remove_style")}>×</button>
+                </div>
               )}
-            </button>
-            <p className="text-[#6b6b70] text-[11px] mt-3 text-center font-['Inter_Tight']">
-              {t("studio_balance")} <span className="text-[#C4B5FD] font-medium tabular-nums">{user?.is_unlimited ? "∞" : (user?.credits ?? 0)}</span> {t("credits")}
-            </p>
-          </StudioAccordionSection>
-        </div>
+              {showStyles && (
+                <>
+                  <div className="flex flex-wrap gap-2 mb-4" data-testid="subject-bar">
+                    {SUBJECT_KEYS.map((s) => (
+                      <button type="button" key={s.value} onClick={() => setSubject(s.value)} className={`rp-pill ${subject === s.value ? "rp-pill-active" : ""}`} data-testid={`subj-${s.value.replace(/\s/g, "-")}`}>
+                        {t(s.labelKey)}
+                      </button>
+                    ))}
+                  </div>
+                  <div className="flex flex-wrap gap-2 mb-4" data-testid="padrao-cats">
+                    {padraoCats.map((c) => (
+                      <button type="button" key={c} onClick={() => { setPadraoCat(c); setPickedStyle(null); }} className={`rp-pill ${padraoCat === c ? "rp-pill-active" : ""}`} data-testid={`pcat-${c}`}>
+                        {catLabel(c)}
+                      </button>
+                    ))}
+                  </div>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 max-h-[460px] overflow-y-auto pr-1" data-testid="padrao-grid">
+                    {padraoFiltered.map((s) => (
+                      <button type="button" key={s.id} onClick={() => setPickedStyle(pickedStyle === s.id ? null : s.id)} className={`rp-style-card-shell relative aspect-[3/4] overflow-hidden rounded-xl text-left transition-all border group ${pickedStyle === s.id ? "border-rp-purple ring-2 ring-rp-purple/35 shadow-[0_0_36px_-10px_rgba(168,85,247,0.55),inset_0_0_0_1px_rgba(255,255,255,0.06)]" : "border-rp-border hover:border-rp-purple/45 hover:shadow-[0_16px_40px_-20px_rgba(124,58,237,0.35)]"} ${s.locked ? "opacity-90" : ""}`} data-testid={`pstyle-${s.id}`}>
+                        <StyleCover id={s.id} title={s.nome} prompt={s.prompt} category={s.cat} eyebrow={catLabel(s.cat)} premium={s.locked} selected={pickedStyle === s.id} coverSrc={PADRAO_STYLE_COVER_BY_ID[s.id] || ""} />
+                      </button>
+                    ))}
+                  </div>
+                </>
+              )}
+            </StudioAccordionSection>
 
-        <StudioResultAnchor busy={busy} ready={Boolean(primaryResultUrl(result))} className="lg:sticky lg:top-[88px] self-start space-y-3">
-          <p className="rp-editor-section-cap !text-[#6b6b70]">{t("last_result")}</p>
-          <div className="rp-editor-panel overflow-hidden p-4 sm:p-5">
-            <ResultPanel creation={result} loading={busy} onChange={setResult} emptyLabel={t("studio_result_next")} />
+            <StudioAccordionSection title={t("studio_acc_format")} defaultOpen testId="studio-acc-format">
+              <AspectPicker value={aspect} onChange={setAspect} hasPhoto={!!photo} testIdPrefix="aspect" />
+            </StudioAccordionSection>
           </div>
-        </StudioResultAnchor>
-      </div>
-    </div>
+        )}
+        result={(
+          <StudioResultColumn
+            label={t("last_result")}
+            busy={busy}
+            ready={Boolean(primaryResultUrl(result))}
+            stickyTop="lg:top-[72px]"
+          >
+            <ResultPanel creation={result} loading={busy} onChange={setResult} emptyLabel={t("studio_result_next")} />
+          </StudioResultColumn>
+        )}
+      />
+
+      <StudioStickyCta testId="generate-cta-bar" maxWidth="1200px">
+        <StudioStickyMeta
+          cost={cost}
+          balance={balance}
+          costLabel={t("tool_cost_label")}
+          balanceLabel={t("tool_balance_label")}
+        />
+        <button
+          type="button"
+          onClick={generate}
+          disabled={ctaDisabled}
+          className="rp-action-primary flex-1 sm:flex-initial sm:min-w-[260px] sm:ml-auto !w-auto sm:!w-auto"
+          data-testid="generate-button"
+        >
+          {busy ? (
+            <>
+              <Loader2 className="w-4 h-4 animate-spin" strokeWidth={2} />
+              {progress > 0 ? t("studio_generating", { n: progress }) : t("studio_sending")}
+            </>
+          ) : mode === "blocked" ? (
+            <><ImagePlus className="w-4 h-4" strokeWidth={1.5} /> {ctaLabel}</>
+          ) : (
+            <><Sparkles className="w-4 h-4" strokeWidth={1.5} /> {ctaLabel}</>
+          )}
+        </button>
+      </StudioStickyCta>
+    </StudioSessionShell>
   );
 }

@@ -604,7 +604,7 @@ export default function CarouselPage() {
         </StudioResultAnchor>
       </div>
 
-      <div className="fixed bottom-0 left-0 right-0 md:left-[240px] z-30 border-t border-rp-border bg-rp-bg/90 backdrop-blur-xl px-4 sm:px-6 md:px-10 py-4">
+      <div className="rp-sticky-cta rp-sticky-cta--sidebar">
         <div className="rp-studio-shell flex items-center justify-between gap-4">
           <div className="hidden sm:flex items-center gap-3 text-[12px] text-rp-mute font-['Inter_Tight']">
             <span>{t("carousel_cost", { n: totalCost })}</span>

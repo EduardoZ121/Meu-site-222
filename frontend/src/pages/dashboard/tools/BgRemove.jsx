@@ -18,6 +18,7 @@ import { readFileAsDataURL } from "../../../lib/previewDataUrl";
 import ImageUploadZone from "../../../components/ImageUploadZone";
 import CollapsibleSection from "../../../components/CollapsibleSection";
 import StudioResultAnchor from "../../../components/StudioResultAnchor";
+import StudioStickyCta from "../../../components/studio/StudioStickyCta";
 
 /* ------------------------------------------------------------------ */
 /*  Scene presets + solid color palette                                */
@@ -344,37 +345,29 @@ export default function BgRemove() {
         </StudioResultAnchor>
       </div>
 
-      {/* Sticky CTA */}
-      <motion.div
-        initial={{ y: 100 }}
-        animate={{ y: 0 }}
-        className="fixed bottom-0 left-0 right-0 md:left-[240px] bg-gradient-to-t from-[#0B0B0C] via-[#0B0B0C] to-[#0B0B0C]/95 backdrop-blur-xl border-t border-[#2E2E30] z-30 px-4 sm:px-6 md:px-10 py-4"
-        data-testid="bg-remove-cta-bar"
-      >
-        <div className="max-w-[1400px] mx-auto flex items-center justify-between gap-4">
-          <div className="hidden sm:flex items-center gap-3 text-[12px]">
-            <span className="text-[#8A8A8E]">{t("bg_cost")}</span>
-            <span className="text-[#C4B5FD] font-medium text-[16px]">
-              {cost} <span className="text-[10px] font-mono uppercase tracking-wider">{t("bg_credits_label")}</span>
-            </span>
-            <span className="text-[#5A5A5E] mx-2">·</span>
-            <span className="text-[#8A8A8E]">{t("bg_balance")}</span>
-            <span className="text-[#F4F1EA] font-medium">{user?.credits ?? 0}</span>
-          </div>
-          <button
-            onClick={run}
-            disabled={busy || !photo}
-            className="flex-1 sm:flex-initial sm:min-w-[260px] bg-[#7C3AED] hover:bg-[#9333EA] disabled:bg-[#2E2E30] disabled:text-[#5A5A5E] text-white py-3.5 rounded-lg text-[13px] font-medium tracking-wide transition-all flex items-center justify-center gap-2 shadow-lg shadow-[#7C3AED]/25"
-            data-testid="bg-remove-create-btn"
-          >
-            {busy ? (
-              <><Loader2 className="w-4 h-4 animate-spin" /> {t("bg_processing")}</>
-            ) : (
-              <><Sparkles className="w-4 h-4" /> {t("bg_btn", { n: cost })}</>
-            )}
-          </button>
+      <StudioStickyCta testId="bg-remove-cta-bar">
+        <div className="hidden sm:flex items-center gap-3 text-[12px] font-['Inter_Tight'] shrink-0">
+          <span className="text-[#8A8A8E]">{t("bg_cost")}</span>
+          <span className="text-[#C4B5FD] font-semibold tabular-nums">{cost}</span>
+          <span className="text-[#5A5A5E] font-mono text-[10px] uppercase tracking-wider">{t("bg_credits_label")}</span>
+          <span className="w-px h-4 bg-[#2E2E30]" aria-hidden />
+          <span className="text-[#8A8A8E]">{t("bg_balance")}</span>
+          <span className="text-[#F4F1EA] font-medium tabular-nums">{user?.credits ?? 0}</span>
         </div>
-      </motion.div>
+        <button
+          type="button"
+          onClick={run}
+          disabled={busy || !photo}
+          className="rp-action-primary flex-1 sm:flex-initial sm:min-w-[260px] sm:ml-auto !w-auto sm:!w-auto"
+          data-testid="bg-remove-create-btn"
+        >
+          {busy ? (
+            <><Loader2 className="w-4 h-4 animate-spin" strokeWidth={2} /> {t("bg_processing")}</>
+          ) : (
+            <><Sparkles className="w-4 h-4" strokeWidth={1.5} /> {t("bg_btn", { n: cost })}</>
+          )}
+        </button>
+      </StudioStickyCta>
     </div>
   );
 }

@@ -1,14 +1,17 @@
 import { useEffect, useMemo, useState } from "react";
 import { Loader2, Sparkles, Camera, Sliders } from "lucide-react";
-import { motion } from "framer-motion";
 import { api, formatApiError, uploadPost } from "../../lib/api";
 import { normalizeCreation, primaryResultUrl } from "../../lib/creationUrls";
 import { useAuth } from "../../lib/auth";
 import { usePricing } from "../../lib/PricingContext";
 import { toast } from "sonner";
 import ResultPanel from "../../components/ResultPanel";
-import StudioResultAnchor from "../../components/StudioResultAnchor";
 import AspectPicker from "../../components/AspectPicker";
+import StudioSessionShell from "../../components/studio/StudioSessionShell";
+import StudioSplitLayout from "../../components/studio/StudioSplitLayout";
+import StudioSection from "../../components/studio/StudioSection";
+import StudioResultColumn from "../../components/studio/StudioResultColumn";
+import StudioStickyCta, { StudioStickyMeta } from "../../components/studio/StudioStickyCta";
 import { apiAspectRatio } from "../../lib/apiAspectRatio";
 import StyleCover from "../../components/StyleCover";
 import ImageUploadZone from "../../components/ImageUploadZone";
@@ -87,28 +90,21 @@ export default function Pro() {
     } finally { setBusy(false); }
   };
 
-  return (
-    <div className="rp-studio-shell max-w-[1400px] mx-auto pb-32" data-testid="pro-page">
-      <header className="mb-8 md:mb-10 pb-6 md:pb-8 border-b border-[rgba(244,241,234,0.06)]">
-        <div className="flex items-center gap-3 mb-3">
-          <div className="w-10 h-10 rounded-xl bg-[rgba(124,58,237,0.12)] border border-[rgba(124,58,237,0.22)] flex items-center justify-center">
-            <Camera className="w-4 h-4 text-[#C4B5FD]" strokeWidth={1.5} />
-          </div>
-          <p className="rp-editor-section-cap !text-[#a89bc9]">{t("pro_cap")}</p>
-        </div>
-        <h1 className="rp-studio-page-title mb-3 font-['Inter_Tight']">
-          {t("pro_title_a")} <span className="italic text-[#d4c4f7]">{t("pro_title_b")}</span>{t("pro_title_dot")}
-        </h1>
-        <p className="rp-studio-page-desc">{t("pro_empty")}</p>
-      </header>
+  const balance = user?.is_unlimited ? "∞" : (user?.credits ?? 0);
 
-      <div className="grid grid-cols-1 xl:grid-cols-[1fr_400px] gap-8 xl:gap-10">
-        <div className="rp-editor-panel overflow-hidden">
-          <div className="rp-editor-panel-accent" />
-          <div className="p-6 sm:p-8 space-y-10">
-          {/* Step 1 — Photo */}
-          <section>
-            <p className="rp-editor-section-cap !mb-3 !text-[#a89bc9]">{t("pro_step_photo")}</p>
+  return (
+    <StudioSessionShell
+      testId="pro-page"
+      description={t("pro_empty")}
+      icon={Camera}
+      withStickyCta
+    >
+      <StudioSplitLayout
+        editor={(
+          <div className="rp-editor-panel overflow-hidden">
+            <div className="rp-editor-panel-accent" />
+            <div className="p-6 sm:p-8 space-y-10">
+          <StudioSection title={t("pro_step_photo")}>
             <div className="max-w-[560px]">
               <ImageUploadZone
                 value={photo}
@@ -120,11 +116,9 @@ export default function Pro() {
                 emptyHint={t("pro_upload_hint")}
               />
             </div>
-          </section>
+          </StudioSection>
 
-          {/* Step 2 — Category */}
-          <section>
-            <p className="rp-editor-section-cap !mb-4 !text-[#a89bc9]">{t("pro_step_family")}</p>
+          <StudioSection title={t("pro_step_family")}>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3" data-testid="pro-cats">
               {cats.map((c) => (
                 <button
@@ -140,14 +134,12 @@ export default function Pro() {
                 </button>
               ))}
             </div>
-          </section>
+          </StudioSection>
 
-          {/* Step 3 — Preset picker */}
-          <section>
-            <p className="rp-editor-section-cap !mb-4 !text-[#a89bc9]">
-              {t("pro_step_preset")}
-              {pickedPreset && <span className="text-[#C4B5FD] normal-case font-['Inter_Tight'] text-[13px] tracking-normal font-medium ml-2">· {pickedPreset.nome}</span>}
-            </p>
+          <StudioSection
+            title={t("pro_step_preset")}
+            hint={pickedPreset ? `· ${pickedPreset.nome}` : undefined}
+          >
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5" data-testid="pro-presets">
               {filtered.map((p) => (
                 <button
@@ -173,14 +165,9 @@ export default function Pro() {
                 </button>
               ))}
             </div>
-          </section>
+          </StudioSection>
 
-          {/* Step 4 — Intensity slider */}
-          <section>
-            <div className="flex items-center justify-between mb-3">
-              <p className="rp-editor-section-cap !text-[#a89bc9]">{t("pro_step_intensity")}</p>
-              <span className="text-[#C4B5FD] text-[12px] font-medium font-['Inter_Tight'] tabular-nums">{intensityLabel} · {intensity}%</span>
-            </div>
+          <StudioSection title={t("pro_step_intensity")} hint={`${intensityLabel} · ${intensity}%`}>
             <div className="flex items-center gap-3 px-4 py-3.5 rounded-xl border border-[rgba(244,241,234,0.08)] bg-[rgba(8,8,10,0.55)]">
               <Sliders className="w-3.5 h-3.5 text-[#5A5A5E]" />
               <input
@@ -199,11 +186,9 @@ export default function Pro() {
               <span>{t("pro_intensity_balanced")}</span>
               <span>{t("pro_intensity_intense")}</span>
             </div>
-          </section>
+          </StudioSection>
 
-          {/* Step 5 — Custom prompt */}
-          <section>
-            <p className="rp-editor-section-cap !mb-3 !text-[#a89bc9]">{t("pro_step_extra")} <span className="text-[#5A5A5E] normal-case tracking-normal font-['Inter_Tight'] text-[11px]">({t("studio_styles_optional")})</span></p>
+          <StudioSection title={t("pro_step_extra")} hint={`(${t("studio_styles_optional")})`}>
             <textarea
               value={customPrompt}
               onChange={(e) => setCustomPrompt(e.target.value)}
@@ -213,48 +198,46 @@ export default function Pro() {
               className="rp-editor-textarea min-h-[100px] text-[14px]"
               data-testid="pro-custom"
             />
-          </section>
+          </StudioSection>
 
-          {/* Step 6 — Aspect ratio */}
-          <section>
-            <p className="rp-editor-section-cap !mb-3 !text-[#a89bc9]">{t("pro_step_format")}</p>
+          <StudioSection title={t("pro_step_format")}>
             <AspectPicker value={aspect} onChange={setAspect} hasPhoto={!!photo} testIdPrefix="pro-aspect" />
-          </section>
+          </StudioSection>
+            </div>
           </div>
-        </div>
-
-        <StudioResultAnchor busy={busy} ready={Boolean(primaryResultUrl(result))} className="xl:sticky xl:top-[80px] self-start space-y-3">
-          <p className="rp-editor-section-cap !text-[#6b6b70]">Resultado</p>
-          <div className="rp-editor-panel overflow-hidden p-4 sm:p-5">
-            <ResultPanel creation={result} loading={busy} onChange={setResult} emptyLabel={t("pro_empty_result")} />
-          </div>
-        </StudioResultAnchor>
-      </div>
-
-      <motion.div initial={{ y: 24, opacity: 0.96 }} animate={{ y: 0, opacity: 1 }} transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }} className="rp-sticky-cta rp-sticky-cta--sidebar">
-        <div className="rp-studio-shell max-w-[1400px] mx-auto flex items-center justify-between gap-4 px-2 sm:px-4">
-          <div className="hidden sm:flex items-center gap-4 text-[12px] font-['Inter_Tight']">
-            <span className="text-[#8A8A8E]">{t("tool_cost_label")}</span>
-            <span className="text-[#C4B5FD] font-semibold tabular-nums">{cost}</span>
-            <span className="w-px h-4 bg-[#2E2E30]" />
-            <span className="text-[#8A8A8E]">{t("tool_balance_label")}</span>
-            <span className="text-[#F4F1EA] font-medium tabular-nums">{user?.is_unlimited ? "∞" : (user?.credits ?? 0)}</span>
-          </div>
-          <button
-            type="button"
-            onClick={generate}
-            disabled={busy}
-            className="rp-action-primary flex-1 sm:flex-initial sm:min-w-[280px] sm:ml-auto !w-auto sm:!w-auto"
-            data-testid="pro-create"
+        )}
+        result={(
+          <StudioResultColumn
+            label={t("last_result")}
+            busy={busy}
+            ready={Boolean(primaryResultUrl(result))}
           >
-            {busy ? (
-              <><Loader2 className="w-4 h-4 animate-spin" strokeWidth={2} /> {t("pro_loading")}</>
-            ) : (
-              <><Sparkles className="w-4 h-4" strokeWidth={1.5} /> {t("pro_button")} · {cost} {t("label_credits")}</>
-            )}
-          </button>
-        </div>
-      </motion.div>
-    </div>
+            <ResultPanel creation={result} loading={busy} onChange={setResult} emptyLabel={t("pro_empty_result")} />
+          </StudioResultColumn>
+        )}
+      />
+
+      <StudioStickyCta testId="pro-cta-bar">
+        <StudioStickyMeta
+          cost={cost}
+          balance={balance}
+          costLabel={t("tool_cost_label")}
+          balanceLabel={t("tool_balance_label")}
+        />
+        <button
+          type="button"
+          onClick={generate}
+          disabled={busy}
+          className="rp-action-primary flex-1 sm:flex-initial sm:min-w-[280px] sm:ml-auto !w-auto sm:!w-auto"
+          data-testid="pro-create"
+        >
+          {busy ? (
+            <><Loader2 className="w-4 h-4 animate-spin" strokeWidth={2} /> {t("pro_loading")}</>
+          ) : (
+            <><Sparkles className="w-4 h-4" strokeWidth={1.5} /> {t("pro_button")} · {cost} {t("label_credits")}</>
+          )}
+        </button>
+      </StudioStickyCta>
+    </StudioSessionShell>
   );
 }

@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { ArrowLeft, Loader2, Sparkles, Shirt } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import StudioStickyCta from "../../../components/studio/StudioStickyCta";
+import { motion } from "framer-motion";
 import { toast } from "sonner";
 import { formatApiError, uploadPost } from "../../../lib/api";
 import { normalizeCreation, primaryResultUrl } from "../../../lib/creationUrls";
@@ -300,28 +300,30 @@ export default function ClothesChanger() {
         </StudioResultAnchor>
       </div>
 
-      <StudioStickyCta testId="clothes-cta-bar">
-        <div className="hidden sm:flex items-center gap-3 text-[12px] font-['Inter_Tight'] shrink-0">
-          <span className="text-[#8A8A8E]">{t("clothes_credits_needed")}</span>
-          <span className="text-[#C4B5FD] font-semibold tabular-nums">{cost}</span>
-          <span className="w-px h-4 bg-[#2E2E30]" aria-hidden />
-          <span className="text-[#8A8A8E]">{t("clothes_balance")}</span>
-          <span className="text-[#F4F1EA] font-medium tabular-nums">{user?.credits ?? 0}</span>
+      {/* Sticky CTA */}
+      <motion.div initial={{ y: 100 }} animate={{ y: 0 }} className="fixed bottom-0 left-0 right-0 md:left-[240px] bg-gradient-to-t from-[#0B0B0C] via-[#0B0B0C] to-[#0B0B0C]/95 backdrop-blur-xl border-t border-[#2E2E30] z-30 px-4 sm:px-6 md:px-10 py-4">
+        <div className="max-w-[1400px] mx-auto flex items-center justify-between gap-4">
+          <div className="hidden sm:flex items-center gap-3 text-[12px]">
+            <span className="text-[#8A8A8E]">{t("clothes_credits_needed")}</span>
+            <span className="text-[#C4B5FD] font-medium text-[16px]">{cost}</span>
+            <span className="text-[#5A5A5E] mx-2">·</span>
+            <span className="text-[#8A8A8E]">{t("clothes_balance")}</span>
+            <span className="text-[#F4F1EA] font-medium">{user?.credits ?? 0}</span>
+          </div>
+          <button
+            onClick={run}
+            disabled={busy}
+            className="flex-1 sm:flex-initial sm:min-w-[260px] bg-gradient-to-r from-[#7C3AED] to-[#9333EA] hover:from-[#8B5CF6] hover:to-[#A855F7] disabled:from-[#1A1A1C] disabled:to-[#1A1A1C] disabled:text-[#5A5A5E] text-white py-3.5 rounded-md text-[13px] font-medium tracking-wide transition-all flex items-center justify-center gap-2 shadow-lg shadow-[#7C3AED]/30 hover:shadow-[#7C3AED]/50"
+            data-testid="clothes-create"
+          >
+            {busy ? (
+              <><Loader2 className="w-4 h-4 animate-spin" /> {t("clothes_dressing")}</>
+            ) : (
+              <><Sparkles className="w-4 h-4" /> {t("clothes_btn", { n: cost })}</>
+            )}
+          </button>
         </div>
-        <button
-          type="button"
-          onClick={run}
-          disabled={busy}
-          className="rp-action-primary flex-1 sm:flex-initial sm:min-w-[260px] sm:ml-auto !w-auto sm:!w-auto"
-          data-testid="clothes-create"
-        >
-          {busy ? (
-            <><Loader2 className="w-4 h-4 animate-spin" strokeWidth={2} /> {t("clothes_dressing")}</>
-          ) : (
-            <><Sparkles className="w-4 h-4" strokeWidth={1.5} /> {t("clothes_btn", { n: cost })}</>
-          )}
-        </button>
-      </StudioStickyCta>
+      </motion.div>
     </div>
   );
 }

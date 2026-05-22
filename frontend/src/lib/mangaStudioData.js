@@ -1,5 +1,6 @@
 /** MANGA STUDIO — panel defaults (stable ids; labels via mangaStudioCatalog + t()). */
 
+import { emptyEditorScene } from "./mangaEditorSync";
 import { defaultScenarioConfig } from "./mangaScenarioStudio";
 
 export const PANEL_ASPECTS = ["4:5", "1:1", "3:4", "16:9"];
@@ -14,6 +15,9 @@ export function emptyPanel(order = 0) {
     order,
     aspect: "4:5",
     characterId: null,
+    /** Segundo personagem — montagem no Editor; render no Painel. */
+    partnerCharacterId: null,
+    interaction: null,
     poseId: "talk",
     expression: "normal",
     angle: "front",
@@ -116,7 +120,9 @@ export function createNewProject(name = "Project 1") {
     characters: [],
     scenarios: [],
     panels: [panel],
-    /** Rascunho de cena da biblioteca → consumido pelo Painel na geração. */
+    /** Montagem ativa (Editor) — sincronizada com o painel selecionado. */
+    editorScene: emptyEditorScene(),
+    /** Legado: rascunho de cenário; preferir editorScene. */
     panelSceneDraft: null,
   };
 }

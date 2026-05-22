@@ -150,7 +150,6 @@ export default function MangaScenarioCard({
   characters,
   onUpdate,
   onSaveComposition,
-  onPreparePanelDraft,
 }) {
   const { t } = useI18n();
   const [connectOpen, setConnectOpen] = useState(true);
@@ -205,16 +204,6 @@ export default function MangaScenarioCard({
       savedCompositions: [entry, ...(s.savedCompositions || [])].slice(0, 10),
     });
     onSaveComposition?.(draft, entry);
-  };
-
-  const handlePreparePanel = () => {
-    if (!canDraft) return;
-    const draft = buildPanelSceneDraft({
-      scenario: s,
-      characters,
-      characterIds: connectedIds,
-    });
-    onPreparePanelDraft?.(draft);
   };
 
   return (
@@ -421,25 +410,17 @@ export default function MangaScenarioCard({
         </>
       )}
 
-      <div className="flex flex-col gap-1.5 sm:flex-row sm:flex-wrap">
+      <div className="flex flex-col gap-1.5">
         <button
           type="button"
-          className="manga-chip-btn flex-1 justify-center min-w-0"
+          className="manga-chip-btn w-full justify-center"
           disabled={!canDraft}
           onClick={handleSaveComposition}
         >
           <Save className="w-3 h-3 shrink-0" /> {t("manga_scn_save_comp")}
         </button>
-        <button
-          type="button"
-          className="manga-generate-btn flex-1 min-w-0"
-          disabled={!canDraft || connectedIds.length < 1}
-          onClick={handlePreparePanel}
-        >
-          <Layers className="w-3.5 h-3.5 shrink-0" /> {t("manga_scn_prepare_panel")}
-        </button>
       </div>
-      <p className="text-[10px] text-[#5A5A5E] leading-snug">{t("manga_scn_panel_note")}</p>
+      <p className="text-[10px] text-[#5A5A5E] leading-snug">{t("manga_scn_library_note")}</p>
 
       {(s.savedCompositions || []).length > 0 && (
         <div className="manga-char-block">

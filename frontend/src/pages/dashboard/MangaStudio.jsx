@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
-  ArrowLeft, BookOpen, FolderOpen, Loader2, Plus, AlertCircle, Sparkles,
+  BookOpen, FolderOpen, Loader2, Plus, AlertCircle,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { api, formatApiError, pollPrediction, uploadPost } from "../../lib/api";
@@ -17,15 +17,20 @@ import {
 } from "../../lib/mangaStudioStorage";
 import useTitle from "../../lib/useTitle";
 import { toast } from "sonner";
-import { buildMangaInteractionPrompt, emptySavedInteraction } from "../../lib/mangaCharacterInteractions";
+import { buildMangaInteractionPrompt } from "../../lib/mangaCharacterInteractions";
 import {
   characterHasReference,
   getCharacterPhotoBlob,
 } from "../../lib/mangaCharacterRef";
-import { buildCompositionPromptPreview } from "../../lib/mangaScenarioStudio";
+import {
+  editorSceneToPanelPatch,
+  emptyEditorScene,
+  panelToEditorScene,
+} from "../../lib/mangaEditorSync";
 import MangaLibrarySidebar from "../../components/manga/MangaLibrarySidebar";
 import MangaPageCanvas from "../../components/manga/MangaPageCanvas";
-import MangaPanelConfig from "../../components/manga/MangaPanelConfig";
+import MangaSceneEditor from "../../components/manga/MangaSceneEditor";
+import MangaPanelRender from "../../components/manga/MangaPanelRender";
 
 const CREDIT_DEFAULTS = { mangaPanel: 15, mangaPage: 40, mangaChapter: 150 };
 
@@ -48,9 +53,17 @@ export default function MangaStudio() {
     [costs],
   );
 
-  const [project, setProject] = useState(() => loadActiveProject());
+  const [project, setProject] = useState(() => {
+    const p = loadActiveProject();
+    const first = p.panels?.[0];
+    return {
+      ...p,
+      editorScene: p.editorScene || (first ? panelToEditorScene(first) : emptyEditorScene()),
+    };
+  });
   const [activePanelId, setActivePanelId] = useState(null);
   const [mobileTab, setMobileTab] = useState("editor");
+  const lastLoadedPanelRef = useRef(null);
   const [busy, setBusy] = useState(false);
   const [statusLine, setStatusLine] = useState("");
   const [modelKey, setModelKey] = useState("grok");
@@ -81,17 +94,38 @@ export default function MangaStudio() {
     [project.panels, activePanelId],
   );
 
+  const editorScene = project.editorScene || emptyEditorScene();
+
+  useEffect(() => {
+    if (!activePanelId || !activePanel) return;
+    if (lastLoadedPanelRef.current === activePanelId) return;
+    lastLoadedPanelRef.current = activePanelId;
+    setProject((prev) => ({
+      ...prev,
+      editorScene: panelToEditorScene(activePanel),
+    }));
+  }, [activePanelId, activePanel]);
+
   const updateProject = useCallback((next) => {
     setProject(next);
   }, []);
 
-  const patchPanel = useCallback((patch) => {
-    if (!activePanelId) return;
+  const updateEditorScene = useCallback((nextScene) => {
+    setProject((prev) => ({ ...prev, editorScene: nextScene }));
+  }, []);
+
+  const syncEditorToActivePanel = useCallback(() => {
+    if (!activePanelId) {
+      toast.error(t("manga_select_panel_toast"));
+      return null;
+    }
+    const patch = editorSceneToPanelPatch(editorScene);
     setProject((prev) => ({
       ...prev,
       panels: prev.panels.map((p) => (p.id === activePanelId ? { ...p, ...patch } : p)),
     }));
-  }, [activePanelId]);
+    return { ...activePanel, ...patch };
+  }, [activePanelId, activePanel, editorScene, t]);
 
   const applyResultToPanel = (panelId, url) => {
     setProject((prev) => ({
@@ -269,83 +303,10 @@ export default function MangaStudio() {
     }
   };
 
-  const generatePanel = () =>
-    composeThenGenerate({
-      mode: "panel",
-      endpoint: "/generate/manga-panel",
-      cost: creditCosts.mangaPanel,
-      aspect: activePanel?.aspect || "4:5",
-    });
-
-  const generatePage = () =>
-    composeThenGenerate({
-      mode: "page",
-      endpoint: "/generate/manga-page",
-      cost: creditCosts.mangaPage,
-      aspect: "3:4",
-    });
-
-  const generateChapter = () =>
-    composeThenGenerate({
-      mode: "chapter",
-      endpoint: "/generate/manga-chapter",
-      cost: creditCosts.mangaChapter,
-      aspect: "9:16",
-    });
-
-  const preparePanelSceneFromScenario = useCallback(
-    (draft) => {
-      if (!draft?.scenarioId) return;
-      const primaryCharId = draft.characterIds?.[0] || null;
-      const poseFromIx = {
-        talk: "talk",
-        fight: "action",
-        walk: "walk",
-        chase: "action",
-        hug: "talk",
-        battle_anime: "action",
-        romance: "talk",
-        protect: "action",
-        attack: "action",
-        train: "action",
-        group: "talk",
-        joint_pose: "talk",
-      };
-      const lightFromScene = {
-        morning: "day",
-        afternoon: "day",
-        sunset: "sunset",
-        night: "night",
-        dawn: "day",
-      };
-      const poseId = poseFromIx[draft.interactionType] || "talk";
-      const lighting = lightFromScene[draft.timeOfDay] || "day";
-
-      setProject((prev) => ({
-        ...prev,
-        panelSceneDraft: draft,
-        panels: (prev.panels || []).map((p) =>
-          p.id === activePanelId
-            ? {
-                ...p,
-                scenarioId: draft.scenarioId,
-                characterId: primaryCharId || p.characterId,
-                poseId,
-                lighting,
-                focus: "both",
-              }
-            : p,
-        ),
-      }));
-
-      setLastPromptPreview(buildCompositionPromptPreview(draft, project.characters));
-      toast.success(t("manga_scn_panel_ready"), { duration: 6000 });
-      setMobileTab("config");
-    },
-    [activePanelId, project.characters, t],
-  );
-
-  const generateCharacterInteraction = async ({ charA, charB, config }) => {
+  const generateInteractionPanel = async (panelSnapshot) => {
+    const charA = project.characters?.find((c) => c.id === panelSnapshot?.characterId);
+    const charB = project.characters?.find((c) => c.id === panelSnapshot?.partnerCharacterId);
+    const ix = panelSnapshot?.interaction || editorScene.interaction;
     if (!charA?.id || !charB?.id) {
       toast.error(t("manga_ix_need_two"));
       return;
@@ -354,14 +315,18 @@ export default function MangaStudio() {
       toast.error(t("manga_ix_need_refs"), { duration: 9000 });
       return;
     }
+    const typeMeta = { label: t(`manga_ix_type_${ix.interactionType}`) };
+    const prompt = buildMangaInteractionPrompt({
+      charA,
+      charB,
+      config: { ...ix, interactionLabel: typeMeta.label },
+    });
     const cost = creditCosts.mangaPanel;
     if ((user?.credits ?? 0) < cost && !user?.is_unlimited) {
-      const msg = t("manga_err_credits", { need: cost, have: user?.credits ?? 0 });
-      toast.error(msg);
+      toast.error(t("manga_err_credits", { need: cost, have: user?.credits ?? 0 }));
       return;
     }
 
-    const prompt = buildMangaInteractionPrompt({ charA, charB, config });
     setBusy(true);
     setLastPromptPreview(prompt);
     setStatusLine(t("manga_ix_compose_qwen"));
@@ -372,14 +337,9 @@ export default function MangaStudio() {
         toast.error(t("manga_ix_need_refs"));
         return;
       }
-      if (blobA.size > 3_500_000 || blobB.size > 3_500_000) {
-        toast.error(t("manga_ix_ref_too_large"));
-        return;
-      }
-
       const fd = new FormData();
       fd.append("prompt_final", prompt.trim());
-      fd.append("aspect_ratio", "4:5");
+      fd.append("aspect_ratio", panelSnapshot?.aspect || "4:5");
       fd.append("photo", blobA, `${charA.name}-ref.png`);
       fd.append("photo_b", blobB, `${charB.name}-ref.png`);
 
@@ -411,49 +371,11 @@ export default function MangaStudio() {
           spent: polled?.creation?.credits_spent ?? submitData.credits_spent ?? cost,
         };
       }
-
-      if (!res?.url) return;
-
-      const saved = emptySavedInteraction({
-        partnerId: charB.id,
-        partnerName: charB.name,
-        interactionType: config.interactionType,
-        config: {
-          partnerId: charB.id,
-          interactionType: config.interactionType,
-          slotA: config.slotA,
-          distance: config.distance,
-          emotionA: config.emotionA,
-          emotionB: config.emotionB,
-          focus: config.focus,
-          dialogueA: config.dialogueA,
-          dialogueB: config.dialogueB,
-        },
-        resultThumb: res.url,
-      });
-
-      setProject((prev) => ({
-        ...prev,
-        characters: (prev.characters || []).map((c) => {
-          if (c.id !== charA.id) return c;
-          const variants = [...(c.variants || [])];
-          if (!variants.some((v) => v.label === t("manga_char_variant_ix"))) {
-            variants.push({
-              id: `var_${Date.now()}`,
-              label: t("manga_char_variant_ix"),
-              note: `${charB.name} · ${config.interactionType}`,
-              thumb: res.url,
-            });
-          }
-          return {
-            ...c,
-            savedInteractions: [saved, ...(c.savedInteractions || [])].slice(0, 12),
-            variants: variants.slice(0, 8),
-          };
-        }),
-      }));
-
-      toast.success(t("manga_ix_success", { n: res.spent }));
+      if (res?.url && panelSnapshot?.id) {
+        applyResultToPanel(panelSnapshot.id, res.url);
+        toast.success(t("manga_success_panel", { n: res.spent }));
+        setMobileTab("editor");
+      }
     } catch (e) {
       const msg = errMsg(e);
       setStatusLine(msg);
@@ -464,13 +386,50 @@ export default function MangaStudio() {
     }
   };
 
+  const generatePanel = async () => {
+    const synced = syncEditorToActivePanel();
+    if (!synced) return;
+    if (editorScene.duoMode && editorScene.partnerCharacterId) {
+      await generateInteractionPanel(synced);
+      return;
+    }
+    await composeThenGenerate({
+      mode: "panel",
+      endpoint: "/generate/manga-panel",
+      cost: creditCosts.mangaPanel,
+      aspect: synced.aspect || "4:5",
+      panelOverride: synced,
+    });
+  };
+
+  const generatePage = () =>
+    composeThenGenerate({
+      mode: "page",
+      endpoint: "/generate/manga-page",
+      cost: creditCosts.mangaPage,
+      aspect: "3:4",
+    });
+
+  const generateChapter = () =>
+    composeThenGenerate({
+      mode: "chapter",
+      endpoint: "/generate/manga-chapter",
+      cost: creditCosts.mangaChapter,
+      aspect: "9:16",
+    });
+
   const handleNewProject = () => {
     const name = window.prompt(t("manga_project_name"), t("manga_new_project_default"));
     if (name === null) return;
     const p = createNewProject(name || undefined);
+    const first = p.panels[0];
     saveSkipRef.current = true;
-    setProject(p);
-    setActivePanelId(p.panels[0]?.id);
+    setProject({
+      ...p,
+      editorScene: first ? panelToEditorScene(first) : emptyEditorScene(),
+    });
+    lastLoadedPanelRef.current = null;
+    setActivePanelId(first?.id);
     setStatusLine("");
     toast.message(t("manga_project_created"));
   };
@@ -487,8 +446,13 @@ export default function MangaStudio() {
     if (Number.isNaN(idx) || idx < 0 || idx >= list.length) return;
     const loaded = list[idx];
     saveSkipRef.current = true;
-    setProject({ ...loaded });
-    setActivePanelId(loaded.panels?.[0]?.id);
+    const first = loaded.panels?.[0];
+    lastLoadedPanelRef.current = null;
+    setProject({
+      ...loaded,
+      editorScene: loaded.editorScene || (first ? panelToEditorScene(first) : emptyEditorScene()),
+    });
+    setActivePanelId(first?.id);
     saveProject(loaded);
     setStatusLine(t("manga_project_status", { name: loaded.name }));
     toast.message(t("manga_opened", { name: loaded.name }));
@@ -563,35 +527,13 @@ export default function MangaStudio() {
         </div>
       </header>
 
-      <div className="mb-4 flex flex-wrap gap-3 items-center p-3 rounded-xl border border-[#2E2E30] bg-[#111118]/80">
-        <span className="text-[10px] uppercase tracking-wider text-[#A855F7]">{t("manga_model_engine")}</span>
-        {catalog.models.map((m) => (
-          <button
-            key={m.key}
-            type="button"
-            onClick={() => setModelKey(m.key)}
-            className={`px-3 py-1.5 rounded-lg text-[11px] border text-left transition-colors ${
-              modelKey === m.key
-                ? "border-[#A855F7] bg-[#9333EA]/25 text-white"
-                : "border-[#2E2E30] text-[#9CA3AF] hover:border-[#5A5A5E]"
-            }`}
-            data-testid={`manga-model-${m.key}`}
-          >
-            <span className="font-semibold block">{m.label}</span>
-            <span className="text-[9px] opacity-80">{m.hint}</span>
-          </button>
-        ))}
-        <label className="ml-auto flex items-center gap-2 text-[11px] text-[#9CA3AF] cursor-pointer">
-          <input
-            type="checkbox"
-            checked={useGptCompose}
-            onChange={(e) => setUseGptCompose(e.target.checked)}
-            className="rounded border-[#2E2E30]"
-          />
-          <Sparkles className="w-3.5 h-3.5 text-[#A855F7]" />
-          {t("manga_gpt_compose")}
-        </label>
-      </div>
+      <p className="text-[11px] text-[#5A5A5E] mb-4 flex flex-wrap gap-2 items-center">
+        <span className="text-[#A855F7]">{t("manga_flow_library")}</span>
+        <span>→</span>
+        <span className="text-[#A855F7]">{t("manga_flow_editor")}</span>
+        <span>→</span>
+        <span className="text-amber-200/80">{t("manga_flow_panel")}</span>
+      </p>
 
       {!pricingReady && (
         <p className="text-[#5A5A5E] text-xs mb-3">{t("manga_loading_prices")}</p>
@@ -621,36 +563,49 @@ export default function MangaStudio() {
             <MangaLibrarySidebar
               project={project}
               onChange={updateProject}
-              onGenerateInteraction={generateCharacterInteraction}
-              interactionBusy={busy}
-              onPreparePanelScene={preparePanelSceneFromScenario}
               onSaveSceneComposition={() => toast.message(t("manga_scn_comp_saved"))}
             />
           </div>
         </div>
 
-        <div className={`lg:col-span-5 ${mobileTab !== "editor" ? "hidden lg:block" : ""}`}>
+        <div className={`lg:col-span-5 space-y-4 ${mobileTab !== "editor" ? "hidden lg:block" : ""}`}>
           <MangaPageCanvas
             project={project}
             activePanelId={activePanelId}
             onSelectPanel={(id) => {
+              lastLoadedPanelRef.current = null;
               setActivePanelId(id);
-              setMobileTab("config");
+              setMobileTab("editor");
             }}
             onChange={updateProject}
+          />
+          <MangaSceneEditor
+            project={project}
+            editorScene={editorScene}
+            onChangeEditorScene={updateEditorScene}
+            onSyncToPanel={() => {
+              const synced = syncEditorToActivePanel();
+              if (synced) toast.success(t("manga_editor_synced"));
+            }}
+            onGoToPanel={() => {
+              syncEditorToActivePanel();
+              setMobileTab("config");
+            }}
+            onEditCharacter={onEditCharacter}
+            onPreviewCharacter={onPreviewCharacter}
           />
         </div>
 
         <div className={`lg:col-span-4 ${mobileTab !== "config" ? "hidden lg:block" : ""}`}>
-          <MangaPanelConfig
-            project={project}
+          <MangaPanelRender
             panel={activePanel}
-            onPatchPanel={patchPanel}
+            editorScene={editorScene}
             costs={creditCosts}
             busy={busy}
-            activeCharacterId={activePanel?.characterId}
-            onEditCharacter={onEditCharacter}
-            onPreviewCharacter={onPreviewCharacter}
+            modelKey={modelKey}
+            onModelKeyChange={setModelKey}
+            useGptCompose={useGptCompose}
+            onUseGptComposeChange={setUseGptCompose}
             onGeneratePanel={generatePanel}
             onGeneratePage={generatePage}
             onGenerateChapter={generateChapter}

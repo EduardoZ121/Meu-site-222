@@ -450,6 +450,61 @@
     box-sizing: border-box;
   }
 
+  /* AI Lab presets — Experimental (Admin) only */
+  .art-lab-card {
+    position: relative;
+    background: #0c0a12;
+  }
+
+  .art-lab-card__glow {
+    position: absolute;
+    inset: -1px;
+    border-radius: inherit;
+    background: linear-gradient(
+      135deg,
+      rgba(236, 72, 153, 0.35),
+      rgba(124, 58, 237, 0.2),
+      rgba(34, 211, 238, 0.15)
+    );
+    opacity: 0;
+    transition: opacity 0.35s var(--rp-ease);
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .art-lab-card:hover .art-lab-card__glow,
+  .art-lab-card--active .art-lab-card__glow {
+    opacity: 1;
+  }
+
+  .art-lab-card:hover {
+    transform: translateY(-2px);
+  }
+
+  .art-lab-card--active {
+    transform: translateY(-1px);
+  }
+
+  .art-lab-scroll {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(168, 85, 247, 0.45) transparent;
+  }
+
+  .art-lab-scroll::-webkit-scrollbar {
+    height: 4px;
+  }
+
+  .art-lab-scroll::-webkit-scrollbar-thumb {
+    background: rgba(168, 85, 247, 0.5);
+    border-radius: 4px;
+  }
+
+  @media (min-width: 768px) {
+    .art-lab-scroll {
+      max-height: none;
+    }
+  }
+
   .rp-studio-top-bar {
     box-sizing: border-box;
   }

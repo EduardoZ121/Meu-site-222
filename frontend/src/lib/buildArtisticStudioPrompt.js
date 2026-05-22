@@ -25,6 +25,13 @@ export function buildArtisticStudioPrompt({
   if (trimmed) parts.push(trimmed);
 
   const style = getStyleById(styleId);
+  if (style?.labPreset) {
+    parts.push(
+      imageMode
+        ? "AI Lab rapid edit mode: apply transformation while locking identity, face, and key composition."
+        : "AI Lab experimental preset: advanced diffusion-style rendering.",
+    );
+  }
   if (style?.suffix) parts.push(style.suffix);
 
   for (const section of ARTISTIC_EFFECT_SECTIONS) {

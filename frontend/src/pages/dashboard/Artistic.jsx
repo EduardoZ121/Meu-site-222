@@ -24,6 +24,7 @@ import { toast } from "sonner";
 import ImageUploadZone from "../../components/ImageUploadZone";
 import AspectPicker from "../../components/AspectPicker";
 import ArtisticStyleCard from "../../components/artistic/ArtisticStyleCard";
+import ArtisticLabStyleCard from "../../components/artistic/ArtisticLabStyleCard";
 import ArtisticEffectOption from "../../components/artistic/ArtisticEffectOption";
 import DraggableRecipeBubble from "../../components/artistic/DraggableRecipeBubble";
 import { localizeArtisticCatalog, countStylesInCategory } from "../../lib/artisticStudioLocales";
@@ -94,6 +95,16 @@ export default function Artistic() {
     [catalog.styles, styleCat],
   );
 
+  const isLabCategory = styleCat === "nsfw";
+  const labPresets = useMemo(
+    () => stylesInCat.filter((s) => s.labPreset),
+    [stylesInCat],
+  );
+  const classicExperimental = useMemo(
+    () => stylesInCat.filter((s) => !s.labPreset),
+    [stylesInCat],
+  );
+
   const recipeChips = useMemo(
     () => buildRecipeChips({ styleId, effects }),
     [styleId, effects],
@@ -119,6 +130,18 @@ export default function Artistic() {
       [sectionId]: { ...prev[sectionId], [optionId]: !prev[sectionId]?.[optionId] },
     }));
   };
+
+  const selectStyle = useCallback(
+    (id) => {
+      setStyleId(id);
+      const picked = catalog.styles.find((s) => s.id === id);
+      if (picked?.labPreset && inputMode !== "image") {
+        setInputMode("image");
+        toast.message(t("art_lab_image_hint"));
+      }
+    },
+    [catalog.styles, inputMode, t],
+  );
 
   const clearAll = () => {
     setStyleId(null);
@@ -310,16 +333,55 @@ export default function Artistic() {
           <p className="text-[#9CA3AF] text-[10px] font-mono uppercase tracking-[0.14em] mb-2">
             {catalog.categories.find((c) => c.id === styleCat)?.label}
           </p>
-          <div className="grid grid-cols-2 gap-2 w-full min-w-0 max-h-[min(calc(100dvh-14rem),640px)] lg:max-h-[min(70vh,640px)] overflow-y-auto overflow-x-hidden pr-0.5">
-            {stylesInCat.map((s) => (
-              <ArtisticStyleCard
-                key={s.id}
-                style={s}
-                selected={styleId === s.id}
-                onSelect={setStyleId}
-              />
-            ))}
-          </div>
+
+          {isLabCategory && includeNsfw && (
+            <div className="art-lab-panel mb-4 rounded-xl border border-[rgba(236,72,153,0.25)] bg-gradient-to-br from-[#1a0a1f]/80 via-[#111118] to-[#0a0a0f] p-3 md:p-4 max-h-[min(calc(100dvh-12rem),720px)] overflow-y-auto overflow-x-hidden">
+              <p className="text-[#f0abfc] text-[11px] font-semibold mb-1">{t("art_lab_title")}</p>
+              <p className="text-[#9CA3AF] text-[10px] leading-snug mb-3">{t("art_lab_desc")}</p>
+              <div className="art-lab-scroll flex gap-2.5 overflow-x-auto pb-2 w-full min-w-0 snap-x snap-mandatory [-webkit-overflow-scrolling:touch] md:grid md:grid-cols-2 md:gap-2.5 md:overflow-visible md:pb-0 lg:grid-cols-2">
+                {labPresets.map((s) => (
+                  <div key={s.id} className="snap-start shrink-0 w-[min(72vw,200px)] md:w-auto md:shrink">
+                    <ArtisticLabStyleCard
+                      style={s}
+                      selected={styleId === s.id}
+                      onSelect={selectStyle}
+                    />
+                  </div>
+                ))}
+              </div>
+              {classicExperimental.length > 0 && (
+                <>
+                  <p className="text-[#6B7280] text-[9px] font-mono uppercase tracking-[0.16em] mt-4 mb-2">
+                    {t("art_lab_classic_row")}
+                  </p>
+                  <div className="grid grid-cols-2 gap-2 w-full min-w-0">
+                    {classicExperimental.map((s) => (
+                      <ArtisticStyleCard
+                        key={s.id}
+                        style={s}
+                        selected={styleId === s.id}
+                        onSelect={selectStyle}
+                      />
+                    ))}
+                  </div>
+                </>
+              )}
+            </div>
+          )}
+
+          {!isLabCategory && (
+            <div className="grid grid-cols-2 gap-2 w-full min-w-0 max-h-[min(calc(100dvh-14rem),640px)] lg:max-h-[min(70vh,640px)] overflow-y-auto overflow-x-hidden pr-0.5">
+              {stylesInCat.map((s) => (
+                <ArtisticStyleCard
+                  key={s.id}
+                  style={s}
+                  selected={styleId === s.id}
+                  onSelect={selectStyle}
+                />
+              ))}
+            </div>
+          )}
+
         </section>
 
         {/* COL 2 — Efeitos */}

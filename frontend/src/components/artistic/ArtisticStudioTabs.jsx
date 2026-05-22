@@ -13,9 +13,9 @@ export default function ArtisticStudioTabs({ value, onChange, className = "" }) 
 
   return (
     <div
-      className={`art-studio-tabs lg:hidden ${className}`}
+      className={`art-studio-tabs art-studio-tabs--global ${className}`}
       role="tablist"
-      data-testid="artistic-mobile-tabs"
+      data-testid="artistic-studio-tabs"
     >
       {TABS.map((tab) => {
         const active = value === tab.id;

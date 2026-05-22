@@ -43,23 +43,36 @@ export default function ArtisticResultStudio({
   onVary,
   onRefine,
   onReusePrompt,
+  variant = "hero",
 }) {
   const { t } = useI18n();
   const navigate = useNavigate();
+  const isHero = variant === "hero";
 
   return (
-    <StudioResultAnchor busy={busy} ready={Boolean(downloadUrl)} className="mt-6 flex-1">
-      <p className="art-studio-sublabel mb-3">{t("art_result_label")}</p>
+    <StudioResultAnchor
+      busy={busy}
+      ready={Boolean(downloadUrl)}
+      className={isHero ? "art-result-hero flex-shrink-0" : "mt-6 flex-1"}
+    >
+      <p className={`art-studio-sublabel ${isHero ? "mb-2" : "mb-3"}`}>{t("art_result_label")}</p>
 
       {busy && <ShimmerSkeleton recipeChips={recipeChips} t={t} />}
 
       {!busy && downloadUrl && (
-        <div className="art-studio-result-card animate-in fade-in duration-500" data-testid="artistic-result-card">
+        <div
+          className={`art-studio-result-card animate-in fade-in duration-500 ${isHero ? "art-studio-result-card--hero" : ""}`}
+          data-testid="artistic-result-card"
+        >
           <div className="art-studio-result-card__media">
             <CreationResultMedia
               creation={result}
-              className="w-full object-contain max-h-[440px]"
-              containerClassName="min-h-[220px] bg-[#06060a] flex items-center justify-center"
+              className="w-full object-contain"
+              containerClassName={
+                isHero
+                  ? "min-h-[min(42vh,360px)] bg-[#06060a] flex items-center justify-center"
+                  : "min-h-[220px] bg-[#06060a] flex items-center justify-center"
+              }
               testId="artistic-result-image"
             />
           </div>
@@ -124,7 +137,10 @@ export default function ArtisticResultStudio({
       )}
 
       {!busy && !downloadUrl && (
-        <div className="art-studio-result-empty" data-testid="artistic-result-empty">
+        <div
+          className={`art-studio-result-empty ${isHero ? "art-studio-result-empty--hero" : ""}`}
+          data-testid="artistic-result-empty"
+        >
           <div className="art-studio-result-empty__icon">
             <Sparkles className="w-6 h-6 text-[#7C3AED]/80" />
           </div>

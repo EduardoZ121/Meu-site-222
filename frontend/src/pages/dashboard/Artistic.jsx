@@ -16,8 +16,8 @@ import ArtisticEffectOption from "../../components/artistic/ArtisticEffectOption
 import DraggableRecipeBubble from "../../components/artistic/DraggableRecipeBubble";
 import ArtisticStudioHeader from "../../components/artistic/ArtisticStudioHeader";
 import ArtisticStudioTabs from "../../components/artistic/ArtisticStudioTabs";
-import ArtisticCategoryRail from "../../components/artistic/ArtisticCategoryRail";
-import ArtisticStudioModule from "../../components/artistic/ArtisticStudioModule";
+import ArtisticCategorySidebar from "../../components/artistic/ArtisticCategorySidebar";
+import ArtisticPanelShell from "../../components/artistic/ArtisticPanelShell";
 import ArtisticPromptStudio from "../../components/artistic/ArtisticPromptStudio";
 import ArtisticResultStudio from "../../components/artistic/ArtisticResultStudio";
 import { pushArtisticPromptHistory } from "../../lib/artisticPromptHistory";
@@ -301,17 +301,18 @@ export default function Artistic() {
     mobileTab !== tab ? "hidden lg:block" : "";
 
   const styleGallery = (
-    <>
-      <ArtisticCategoryRail
+    <div className="art-style-layout min-h-0 flex-1">
+      <ArtisticCategorySidebar
         categories={catalog.categories}
         styles={catalog.styles}
         activeId={styleCat}
         onSelect={setStyleCat}
       />
-      <p className="text-[#9CA3AF] text-[10px] font-mono uppercase tracking-[0.14em] mb-3">
-        {catalog.categories.find((c) => c.id === styleCat)?.label}
-        {includeNsfw ? ` · ${t("art_nsfw_admin_badge")}` : ""}
-      </p>
+      <div className="art-style-layout__main min-w-0 flex flex-col">
+        <p className="text-[#9CA3AF] text-[10px] font-mono uppercase tracking-[0.14em] mb-2 px-0.5">
+          {catalog.categories.find((c) => c.id === styleCat)?.label}
+          {includeNsfw ? ` · ${t("art_nsfw_admin_badge")}` : ""}
+        </p>
       {isLabCategory && includeNsfw ? (
         <div className="art-lab-panel mb-4 rounded-xl border border-[rgba(236,72,153,0.25)] bg-gradient-to-br from-[#1a0a1f]/80 via-[#111118] to-[#0a0a0f] p-3 md:p-4 max-h-[min(calc(100dvh-12rem),720px)] overflow-y-auto overflow-x-hidden">
           <p className="text-[#f0abfc] text-[11px] font-semibold mb-1">{t("art_lab_title")}</p>
@@ -352,56 +353,53 @@ export default function Artistic() {
           )}
         </div>
       ) : (
-        <div className="art-studio-styles-grid">
+        <div className="art-studio-styles-grid art-studio-styles-grid--wide">
           {stylesInCat.map((s) => (
             <ArtisticStyleCard key={s.id} style={s} selected={styleId === s.id} onSelect={selectStyle} />
           ))}
         </div>
       )}
-    </>
+      </div>
+    </div>
   );
 
   return (
     <div
-      className="rp-artistic-page w-full min-w-0 max-w-full mx-auto px-1 sm:px-0 pb-8 md:pb-14 md:max-w-[1680px]"
+      className="rp-artistic-page art-studio-page w-full min-w-0 max-w-full mx-auto px-2 sm:px-4 pb-10 md:pb-12"
       data-testid="artistic-studio-page"
     >
       <ArtisticStudioHeader />
 
-      <p className="md:hidden text-[#9CA3AF] text-[13px] leading-relaxed mb-4 px-0.5">
-        {t("art_hero_subtitle")}
-      </p>
+      <ArtisticStudioTabs value={mobileTab} onChange={setMobileTab} className="mb-5" />
 
-      <ArtisticStudioTabs value={mobileTab} onChange={setMobileTab} />
-
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6 w-full min-w-0">
-        <ArtisticStudioModule
+      <div className="art-studio-workspace">
+        <ArtisticPanelShell
           title={t("art_sec_style")}
-          subtitle={t("art_module_style_hint")}
           icon={Palette}
           className={panelVisibility("style")}
+          bodyClassName="!p-0 flex flex-col min-h-[min(72vh,720px)] lg:min-h-[calc(100vh-220px)]"
           testId="artistic-module-style"
         >
-          <p className="text-[#6B7280] text-[10px] mb-3">
+          <p className="text-[#6B7280] text-[10px] px-4 pt-3 pb-2 border-b border-[rgba(255,255,255,0.04)]">
             {t("art_styles_count", { n: catalog.styles.length })}
           </p>
-          {styleGallery}
-        </ArtisticStudioModule>
+          <div className="flex-1 min-h-0 p-3 overflow-hidden">{styleGallery}</div>
+        </ArtisticPanelShell>
 
-        <ArtisticStudioModule
+        <ArtisticPanelShell
           title={t("art_sec_effects")}
-          subtitle={t("art_module_effects_hint")}
           icon={Sliders}
           accent="cyan"
-          className={`${panelVisibility("effects")} max-h-[min(calc(100dvh-12rem),820px)] lg:max-h-[min(88vh,820px)] overflow-y-auto`}
+          className={panelVisibility("effects")}
+          bodyClassName="overflow-y-auto max-h-[min(72vh,720px)] lg:max-h-[calc(100vh-220px)]"
           testId="artistic-module-effects"
         >
-          <div className="space-y-6">
+          <div className="space-y-5">
             {catalog.sections.map((section) => {
               const SecIcon = SECTION_ICONS[section.icon] || Sparkles;
               return (
-                <div key={section.id}>
-                  <p className="text-[#9CA3AF] text-[10px] font-mono uppercase tracking-[0.16em] mb-2.5 flex items-center gap-1.5">
+                <div key={section.id} className="art-effect-group">
+                  <p className="art-effect-group__title">
                     <SecIcon className="w-3.5 h-3.5 text-[#67e8f9]" /> {section.title}
                   </p>
                   <div className="space-y-1">
@@ -428,34 +426,17 @@ export default function Artistic() {
               );
             })}
           </div>
-        </ArtisticStudioModule>
+        </ArtisticPanelShell>
 
-        <ArtisticStudioModule
+        <ArtisticPanelShell
           title={t("art_sec_generate")}
-          subtitle={t("art_module_prompt_hint")}
           icon={Sparkles}
-          className={`${panelVisibility("generate")} flex flex-col`}
+          className={`${panelVisibility("generate")} art-panel--prompt`}
+          bodyClassName="flex flex-col gap-4 min-h-[min(72vh,720px)] lg:min-h-[calc(100vh-220px)]"
           testId="artistic-module-prompt"
         >
-          <ArtisticPromptStudio
-            inputMode={inputMode}
-            setInputMode={setInputMode}
-            isLabStyle={isLabStyle}
-            photo={photo}
-            setPhoto={setPhoto}
-            prompt={prompt}
-            setPrompt={setPrompt}
-            aspect={aspect}
-            setAspect={setAspect}
-            improve={improve}
-            setImprove={setImprove}
-            busy={busy}
-            cost={cost}
-            onGenerate={generate}
-            onImprovePrompt={improvePromptOnly}
-            improving={improving}
-          />
           <ArtisticResultStudio
+            variant="hero"
             busy={busy}
             downloadUrl={downloadUrl}
             result={result}
@@ -471,7 +452,28 @@ export default function Artistic() {
               else toast.message(t("art_result_reuse"));
             }}
           />
-        </ArtisticStudioModule>
+          <div className="flex-1 min-h-0 overflow-y-auto">
+            <ArtisticPromptStudio
+              inputMode={inputMode}
+              setInputMode={setInputMode}
+              isLabStyle={isLabStyle}
+              photo={photo}
+              setPhoto={setPhoto}
+              prompt={prompt}
+              setPrompt={setPrompt}
+              aspect={aspect}
+              setAspect={setAspect}
+              improve={improve}
+              setImprove={setImprove}
+              busy={busy}
+              cost={cost}
+              onGenerate={generate}
+              onImprovePrompt={improvePromptOnly}
+              improving={improving}
+              compact
+            />
+          </div>
+        </ArtisticPanelShell>
       </div>
 
       <DraggableRecipeBubble chips={recipeChips} onClearAll={clearAll} />

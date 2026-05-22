@@ -47,6 +47,7 @@ export default function ArtisticPromptStudio({
   onGenerate,
   onImprovePrompt,
   improving,
+  compact = false,
 }) {
   const { t } = useI18n();
   const [wizardOpen, setWizardOpen] = useState(false);
@@ -86,7 +87,10 @@ export default function ArtisticPromptStudio({
   };
 
   return (
-    <div className="art-studio-prompt" data-testid="artistic-prompt-studio">
+    <div
+      className={`art-studio-prompt ${compact ? "art-studio-prompt--compact" : ""}`}
+      data-testid="artistic-prompt-studio"
+    >
       <div className="art-studio-mode-toggle">
         <button
           type="button"

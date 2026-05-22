@@ -155,22 +155,55 @@ async function suggestPrompts(theme, lang) {
     .slice(0, 8);
 }
 
-async function improvePrompt(prompt, lang = "en") {
+function buildImproveSystemPrompt(context = {}) {
+  const tool = String(context.tool || "").trim();
+  const styleLabel = String(context.style_label || "").trim();
+  const styleSuffix = String(context.style_suffix || "").trim();
+  const imageMode = Boolean(context.image_mode);
+
+  let system =
+    "You are an expert at crafting image generation prompts. "
+    + "Take the user's prompt in any language and transform it into a single concise, "
+    + "vivid English prompt for AI image generation. Include lighting, composition, "
+    + "style cues, and quality descriptors. Keep ALL user-requested subjects, wardrobe "
+    + "(bikini, lingerie, swimwear, etc.), poses, and actions — never remove or censor them. "
+    + "Respond ONLY with the improved English prompt, no quotes, no explanations.";
+
+  if (tool === "artistic") {
+    system +=
+      " Context: Remake Pixel Artistic Studio. The chosen visual style preset is applied separately; "
+      + "your job is to sharpen the USER's intent (subject, outfit, action, environment).";
+    if (styleLabel) system += ` Active style name: ${styleLabel}.`;
+    if (styleSuffix) {
+      system += ` Align mood with this style recipe (do not repeat verbatim): ${styleSuffix.slice(0, 400)}.`;
+    }
+    if (imageMode) {
+      system +=
+        " Mode: IMAGE EDIT — describe what to change on the reference photo; preserve identity and face.";
+    } else {
+      system += " Mode: TEXT-TO-IMAGE — describe the full scene to generate.";
+    }
+  }
+  return system;
+}
+
+async function improvePrompt(prompt, lang = "en", context = {}) {
   const trimmed = String(prompt || "").trim();
   if (trimmed.length < 3) return trimmed;
+  const system = buildImproveSystemPrompt(context);
   try {
-    return await chatText({
-      system:
-        "You are an expert at crafting image generation prompts. "
-        + "Take the user's prompt in any language and transform it into a single concise, "
-        + "vivid English prompt for AI image generation. Include lighting, composition, "
-        + "style cues, and quality descriptors. Respond ONLY with the improved English prompt, "
-        + "no quotes, no explanations.",
+    const improved = await chatText({
+      system,
       user: trimmed,
-      maxTokens: 220,
+      maxTokens: 280,
       temperature: 0.8,
     });
-  } catch {
+    if (!improved || improved.length < 3) return trimmed;
+    return improved;
+  } catch (err) {
+    if (process.env.NODE_ENV !== "production") {
+      console.warn("[prompt/improve]", err?.message || err);
+    }
     return trimmed;
   }
 }
@@ -233,9 +266,17 @@ async function handlePromptAssistRoute(path, req, res, { verifySessionToken, jso
       return true;
     }
     const lang = String(body.lang || sessionUser.lang || "en").slice(0, 2);
-    const improved = await improvePrompt(raw, lang);
+    const context = {
+      tool: String(body.tool || "").trim(),
+      style_id: String(body.style_id || "").trim(),
+      style_label: String(body.style_label || "").trim(),
+      style_suffix: String(body.style_suffix || "").trim(),
+      image_mode: body.image_mode === true || body.image_mode === "true" || body.image_mode === 1,
+    };
+    const improved = await improvePrompt(raw, lang, context);
+    const changed = improved.trim() !== raw.trim();
     await touchUser(sessionUser.id, req, { action: "prompt_improve" });
-    json(res, 200, { prompt: improved });
+    json(res, 200, { prompt: improved, enhanced: changed, tool: context.tool || null });
     return true;
   }
 

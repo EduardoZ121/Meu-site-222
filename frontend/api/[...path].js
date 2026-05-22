@@ -137,24 +137,19 @@ const functionConfig = {
   },
 };
 
-/** Estilos AI Lab / experimental — motor permissivo (Flux Kontext), não Grok. */
-const ARTISTIC_EXPERIMENTAL_STYLE_IDS = new Set([
-  "lab_qwen_edit", "lab_ai_rapid", "lab_cinematic_edit", "lab_advanced_prompt",
-  "lab_experimental_ai", "lab_ultra_style", "lab_flux_edit", "lab_realistic_edit", "lab_hybrid_nsfw",
-  "nsfw_boudoir", "nsfw_pinup", "nsfw_dark", "nsfw_fantasy",
-]);
+const {
+  resolveArtisticEngine,
+  isNsfwStyleId,
+} = require("./lib/artisticStudioEngines.cjs");
 
 function isArtisticExperimentalStyleId(styleId) {
-  const id = String(styleId || "").trim();
-  if (!id) return false;
-  return ARTISTIC_EXPERIMENTAL_STYLE_IDS.has(id) || id.startsWith("lab_") || id.startsWith("nsfw_");
+  return isNsfwStyleId(styleId);
 }
 
-/** Evita a palavra "nsfw" no prompt — Grok/Replicate interpretam como bloqueio. */
+/** Só remove a palavra literal "nsfw" — não censura bikini, lingerie, etc. */
 function sanitizeProviderPrompt(prompt) {
   return String(prompt || "")
     .replace(/\bnsfw\b/gi, "mature editorial")
-    .replace(/\bstudio\s+nsfw\b/gi, "studio mature editorial")
     .replace(/\s{2,}/g, " ")
     .trim();
 }
@@ -168,15 +163,10 @@ function resolveArtisticStudioModel({ styleId, hasPhoto, userDoc }) {
     err.status = 403;
     throw err;
   }
-  if (experimental) {
-    if (!hasPhoto) {
-      const err = new Error("AI Lab exige uma foto no modo Imagem (edição rápida).");
-      err.status = 400;
-      throw err;
-    }
-    return { modelKey: "kontext", modelId: MODELS.kontext, label: "Flux Kontext Max (AI Lab)" };
-  }
-  return { modelKey: "standard", modelId: MODELS.standard, label: MODELS.standard };
+  const resolved = resolveArtisticEngine({ styleId, hasPhoto });
+  const modelKey = resolved.modelKey;
+  const modelId = MODELS[modelKey] || MODELS.standard;
+  return { modelKey, modelId, label: resolved.label };
 }
 
 const MODELS = {

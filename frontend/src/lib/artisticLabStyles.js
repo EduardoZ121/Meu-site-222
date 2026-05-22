@@ -14,10 +14,18 @@ export const ARTISTIC_LAB_STYLE_IDS = new Set([
 
 export const ARTISTIC_EXPERIMENTAL_STYLE_IDS = new Set([
   ...ARTISTIC_LAB_STYLE_IDS,
+  "nsfw_swimwear",
+  "nsfw_beach",
+  "nsfw_lingerie_soft",
+  "nsfw_fitness_glam",
   "nsfw_boudoir",
   "nsfw_pinup",
   "nsfw_dark",
   "nsfw_fantasy",
+  "nsfw_sheer",
+  "nsfw_figure_study",
+  "nsfw_explicit_art",
+  "nsfw_intimate_couple",
 ]);
 
 export function isArtisticLabStyle(styleId) {

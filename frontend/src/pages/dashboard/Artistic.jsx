@@ -30,6 +30,7 @@ import DraggableRecipeBubble from "../../components/artistic/DraggableRecipeBubb
 import { localizeArtisticCatalog, countStylesInCategory } from "../../lib/artisticStudioLocales";
 import { canAccessNsfwArtisticStyles } from "../../lib/artisticStudioData";
 import { isArtisticLabStyle } from "../../lib/artisticLabStyles";
+import { getArtisticEngineLabel } from "../../lib/artisticStudioEngines";
 import {
   buildArtisticStudioPrompt,
   buildRecipeChips,
@@ -105,6 +106,19 @@ export default function Artistic() {
     () => stylesInCat.filter((s) => !s.labPreset),
     [stylesInCat],
   );
+  const labLightStyles = useMemo(
+    () => classicExperimental.filter((s) => s.tier !== "heavy"),
+    [classicExperimental],
+  );
+  const labHeavyStyles = useMemo(
+    () => classicExperimental.filter((s) => s.tier === "heavy"),
+    [classicExperimental],
+  );
+
+  const activeEngineLabel = useMemo(
+    () => getArtisticEngineLabel(styleId, inputMode === "image" && Boolean(photo), t),
+    [styleId, inputMode, photo, t],
+  );
 
   const recipeChips = useMemo(
     () => buildRecipeChips({ styleId, effects }),
@@ -160,7 +174,7 @@ export default function Artistic() {
       toast.error(t("art_err_image_mode"));
       return;
     }
-    if (isArtisticLabStyle(styleId) && !photo) {
+    if (isArtisticLabStyle(styleId) && inputMode === "image" && !photo) {
       toast.error(t("art_lab_need_photo"));
       return;
     }
@@ -174,18 +188,29 @@ export default function Artistic() {
     try {
       let userPrompt = prompt.trim();
       if (improve && userPrompt.length >= 3) {
+        const pickedStyle = getStyleById(styleId);
         try {
           const { data: imp } = await api.post("/prompt/improve", {
             prompt: userPrompt,
             lang: lang || "en",
+            tool: "artistic",
+            style_id: styleId || "",
+            style_label: pickedStyle?.label || "",
+            style_suffix: pickedStyle?.suffix || "",
+            image_mode: inputMode === "image",
           });
-          if (imp?.prompt) {
-            userPrompt = imp.prompt;
-            setPrompt(imp.prompt);
-            toast.message(t("art_prompt_refined"));
+          if (imp?.prompt && imp.prompt.trim().length >= 3) {
+            userPrompt = imp.prompt.trim();
+            setPrompt(userPrompt);
+            if (imp.enhanced) {
+              toast.success(t("art_prompt_refined"));
+            } else {
+              toast.message(t("art_refine_unchanged"));
+            }
           }
-        } catch {
-          toast.info(t("art_refine_unavailable"));
+        } catch (impErr) {
+          const detail = impErr?.response?.data?.detail;
+          toast.error(detail || t("art_refine_unavailable"));
         }
       }
 
@@ -342,7 +367,9 @@ export default function Artistic() {
           {isLabCategory && includeNsfw && (
             <div className="art-lab-panel mb-4 rounded-xl border border-[rgba(236,72,153,0.25)] bg-gradient-to-br from-[#1a0a1f]/80 via-[#111118] to-[#0a0a0f] p-3 md:p-4 max-h-[min(calc(100dvh-12rem),720px)] overflow-y-auto overflow-x-hidden">
               <p className="text-[#f0abfc] text-[11px] font-semibold mb-1">{t("art_lab_title")}</p>
-              <p className="text-[#6B7280] text-[9px] font-mono uppercase tracking-wider mb-1">{t("art_lab_engine_note")}</p>
+              <p className="text-[#6B7280] text-[9px] font-mono uppercase tracking-wider mb-1">
+                {t("art_lab_engine_note")} · {activeEngineLabel}
+              </p>
               <p className="text-[#9CA3AF] text-[10px] leading-snug mb-3">{t("art_lab_desc")}</p>
               <div className="art-lab-scroll flex gap-2.5 overflow-x-auto pb-2 w-full min-w-0 snap-x snap-mandatory [-webkit-overflow-scrolling:touch] md:grid md:grid-cols-2 md:gap-2.5 md:overflow-visible md:pb-0 lg:grid-cols-2">
                 {labPresets.map((s) => (
@@ -355,13 +382,30 @@ export default function Artistic() {
                   </div>
                 ))}
               </div>
-              {classicExperimental.length > 0 && (
+              {labLightStyles.length > 0 && (
                 <>
                   <p className="text-[#6B7280] text-[9px] font-mono uppercase tracking-[0.16em] mt-4 mb-2">
-                    {t("art_lab_classic_row")}
+                    {t("art_lab_light_row")}
                   </p>
                   <div className="grid grid-cols-2 gap-2 w-full min-w-0">
-                    {classicExperimental.map((s) => (
+                    {labLightStyles.map((s) => (
+                      <ArtisticStyleCard
+                        key={s.id}
+                        style={s}
+                        selected={styleId === s.id}
+                        onSelect={selectStyle}
+                      />
+                    ))}
+                  </div>
+                </>
+              )}
+              {labHeavyStyles.length > 0 && (
+                <>
+                  <p className="text-[#6B7280] text-[9px] font-mono uppercase tracking-[0.16em] mt-4 mb-2">
+                    {t("art_lab_heavy_row")}
+                  </p>
+                  <div className="grid grid-cols-2 gap-2 w-full min-w-0">
+                    {labHeavyStyles.map((s) => (
                       <ArtisticStyleCard
                         key={s.id}
                         style={s}
@@ -475,9 +519,16 @@ export default function Artistic() {
             </div>
           )}
 
-          <label className="block text-[#9CA3AF] text-[10px] font-mono uppercase tracking-wider mb-1.5">
-            {inputMode === "image" ? t("art_prompt_label_image") : t("art_prompt_label")}
-          </label>
+          <div className="flex items-center justify-between gap-2 mb-1.5">
+            <label className="text-[#9CA3AF] text-[10px] font-mono uppercase tracking-wider">
+              {inputMode === "image" ? t("art_prompt_label_image") : t("art_prompt_label")}
+            </label>
+            {styleId && (
+              <span className="shrink-0 text-[9px] font-mono px-2 py-0.5 rounded-md border border-[rgba(147,51,234,0.35)] text-[#c4b5fd] bg-[#9333EA]/10">
+                {t("art_engine_active", { engine: activeEngineLabel })}
+              </span>
+            )}
+          </div>
           <textarea
             value={prompt}
             onChange={(e) => setPrompt(e.target.value.slice(0, 800))}

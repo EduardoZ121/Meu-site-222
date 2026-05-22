@@ -22,9 +22,13 @@ export function buildArtisticStudioPrompt({
     );
   }
 
-  if (trimmed) parts.push(trimmed);
-
   const style = getStyleById(styleId);
+
+  if (trimmed) {
+    parts.push(
+      `Primary scene and subject — follow the user description exactly (wardrobe, pose, action): ${trimmed}`,
+    );
+  }
   if (style?.labPreset) {
     parts.push(
       imageMode
@@ -32,7 +36,9 @@ export function buildArtisticStudioPrompt({
         : "Experimental diffusion rendering with editorial finish.",
     );
   }
-  if (style?.suffix) parts.push(style.suffix);
+  if (style?.suffix) {
+    parts.push(`Visual style preset (${style.label || style.id}): ${style.suffix}`);
+  }
 
   for (const section of ARTISTIC_EFFECT_SECTIONS) {
     const value = effects[section.id];

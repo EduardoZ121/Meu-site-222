@@ -26,13 +26,14 @@ export default function ArtisticLabStyleCard({ style, selected, onSelect }) {
       data-testid={`artistic-lab-style-${style.id}`}
     >
       <div className="art-lab-card__glow" aria-hidden />
-      <div className="relative aspect-[5/4] overflow-hidden bg-[#050508]">
+      <div className="relative aspect-[4/5] overflow-hidden bg-[#050508]">
         {showCover ? (
           <img
             src={coverSrc}
             alt=""
-            className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
+            className="absolute inset-0 w-full h-full object-cover object-[center_22%] transition-transform duration-500 group-hover:scale-[1.04]"
             loading="lazy"
+            decoding="async"
             onError={() => setCoverFailed(true)}
           />
         ) : (

@@ -73,7 +73,7 @@ export default function ArtisticStyleCard({ style, selected, onSelect }) {
       data-testid={`artistic-style-${style.id}`}
     >
       <div
-        className="relative aspect-[4/3] overflow-hidden"
+        className="relative aspect-[4/5] overflow-hidden"
         style={
           showCover
             ? { background: "#0A0A0F" }
@@ -84,8 +84,9 @@ export default function ArtisticStyleCard({ style, selected, onSelect }) {
           <img
             src={coverSrc}
             alt=""
-            className="absolute inset-0 w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+            className="absolute inset-0 w-full h-full object-cover object-[center_22%] transition-transform duration-300 group-hover:scale-[1.03]"
             loading="lazy"
+            decoding="async"
             onError={() => setCoverFailed(true)}
           />
         ) : (

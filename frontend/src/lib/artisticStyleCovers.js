@@ -4,7 +4,9 @@
  * Fotografia (6 estilos): `node scripts/generate-artistic-covers-photography.mjs` — ref mulher + prompt (Pollinations Flux)
  * Anime & Manga: `node scripts/generate-artistic-covers-anime.mjs` — ref mulher estilizada por card
  * Cartoon & 3D: `node scripts/generate-artistic-covers-cartoon.mjs` — ref mulher estilizada por card
- * Ilustração & Comic: `node scripts/generate-artistic-covers-illustration.mjs` — ref mulher estilizada por card
+ * Ilustração & Comic: `node scripts/generate-artistic-covers-illustration.mjs`
+ * Digital & Sci-Fi: `node scripts/generate-artistic-covers-digital.mjs`
+ * Capas 4:5 (640×800) — alinhadas ao aspect-[4/5] dos cards
  * Outros: `node scripts/generate-artistic-covers.mjs`
  */
 export const ARTISTIC_STYLE_COVER_BY_ID = {
@@ -80,11 +82,17 @@ export const ARTISTIC_STYLE_COVER_BY_ID = {
   ill_tattoo: "/images/artistic-covers/ill_tattoo.jpg",
   ill_sticker: "/images/artistic-covers/ill_sticker.jpg",
   ill_pop: "/images/artistic-covers/ill_pop.jpg",
+  // —— Digital & Sci-Fi ——
   dig_concept_art: "/images/artistic-covers/dig_concept_art.jpg",
   dig_pixel_art: "/images/artistic-covers/dig_pixel_art.jpg",
   dig_low_poly: "/images/artistic-covers/dig_low_poly.jpg",
   dig_vaporwave: "/images/artistic-covers/dig_vaporwave.jpg",
   dig_cyberpunk: "/images/artistic-covers/dig_cyberpunk.jpg",
+  dig_synthwave: "/images/artistic-covers/dig_synthwave.jpg",
+  dig_glitch: "/images/artistic-covers/dig_glitch.jpg",
+  dig_holographic: "/images/artistic-covers/dig_holographic.jpg",
+  dig_isometric: "/images/artistic-covers/dig_isometric.jpg",
+  dig_photoreal: "/images/artistic-covers/dig_photoreal.jpg",
   cls_oil: "/images/artistic-covers/cls_oil.jpg",
   cls_watercolor: "/images/artistic-covers/cls_watercolor.jpg",
   cls_charcoal: "/images/artistic-covers/cls_charcoal.jpg",

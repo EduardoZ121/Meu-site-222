@@ -1,4 +1,4 @@
-import { Outlet, NavLink, useNavigate, Link } from "react-router-dom";
+import { Outlet, NavLink, useNavigate, Link, useLocation } from "react-router-dom";
 import { useAuth } from "../../lib/auth";
 import { useI18n } from "../../lib/i18n";
 import {
@@ -81,6 +81,8 @@ export default function DashboardLayout() {
   const { user, refresh, logout } = useAuth();
   const { t } = useI18n();
   const navigate = useNavigate();
+  const location = useLocation();
+  const isAnimeStudio = location.pathname.includes("/manga-studio");
   const [mobileOpen, setMobileOpen] = useState(false);
   const [headerCompact, setHeaderCompact] = useState(false);
 
@@ -306,7 +308,13 @@ export default function DashboardLayout() {
           </div>
         </motion.header>
 
-        <main className="flex-1 px-4 sm:px-6 md:px-10 py-8 md:py-12 overflow-x-hidden overscroll-x-none touch-pan-y">
+        <main
+          className={
+            isAnimeStudio
+              ? "flex-1 min-h-0 p-0 overflow-hidden flex flex-col"
+              : "flex-1 px-4 sm:px-6 md:px-10 py-8 md:py-12 overflow-x-hidden overscroll-x-none touch-pan-y"
+          }
+        >
           <Outlet />
         </main>
       </motion.div>

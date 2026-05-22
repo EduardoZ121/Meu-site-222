@@ -12,7 +12,7 @@ import {
   Type,
   ImageIcon,
 } from "lucide-react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { useSearchParams } from "react-router-dom";
 import { api, formatApiError, uploadPost } from "../../lib/api";
 import { normalizeCreation, primaryResultUrl } from "../../lib/creationUrls";
 import CreationResultMedia from "../../components/CreationResultMedia";
@@ -50,7 +50,6 @@ export default function Artistic() {
   const { lang, t } = useI18n();
   const errMsg = useCallback((err) => formatApiError(err, t("common_fail")), [t]);
   useTitle(t("art_page_title"));
-  const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { refresh, user } = useAuth();
   const { costs } = usePricing();
@@ -222,8 +221,12 @@ export default function Artistic() {
   const downloadUrl = primaryResultUrl(result);
 
   return (
-    <div className="w-full max-w-[1600px] mx-auto pb-8 md:pb-12" style={{ background: "#0A0A0F" }} data-testid="artistic-studio-page">
-      <header className="mb-6 md:mb-8">
+    <div
+      className="rp-artistic-page w-full min-w-0 max-w-full mx-auto pb-6 md:pb-12 md:max-w-[1600px] bg-[#0A0A0F]"
+      data-testid="artistic-studio-page"
+    >
+      {/* Hero — só desktop; no mobile o título está no StudioTopBar */}
+      <header className="hidden md:block mb-6 md:mb-8">
         <div className="flex items-center gap-3 mb-2">
           <div className="w-10 h-10 rounded-xl bg-[#9333EA]/20 border border-[rgba(147,51,234,0.35)] flex items-center justify-center">
             <Palette className="w-5 h-5 text-[#A855F7]" />
@@ -232,16 +235,23 @@ export default function Artistic() {
             {t("art_brand")}
           </p>
         </div>
-        <h1 className="text-white text-[28px] md:text-[36px] font-light tracking-tight font-['Inter_Tight']">
+        <h2 className="text-white text-[28px] md:text-[36px] font-light tracking-tight font-['Inter_Tight']">
           {t("art_title")}
-        </h1>
+        </h2>
         <p className="text-[#9CA3AF] text-[14px] mt-2 max-w-2xl">
           {t("art_subtitle")}
         </p>
       </header>
 
+      <p className="md:hidden text-[#9CA3AF] text-[12px] leading-snug mb-3 px-0.5">
+        {t("art_subtitle")}
+      </p>
+
       {/* Mobile tabs */}
-      <div className="flex lg:hidden gap-1 mb-4 p-1 rounded-lg bg-[#111118] border border-[rgba(147,51,234,0.2)]">
+      <div
+        className="flex lg:hidden gap-1 mb-3 p-1 rounded-xl bg-[#111118] border border-[rgba(147,51,234,0.2)] w-full min-w-0"
+        role="tablist"
+      >
         {[
           { id: "style", label: t("art_tab_style") },
           { id: "effects", label: t("art_tab_effects") },
@@ -260,10 +270,10 @@ export default function Artistic() {
         ))}
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 md:gap-5 w-full min-w-0">
         {/* COL 1 — Estilos */}
         <section
-          className={`rounded-2xl border border-[rgba(147,51,234,0.2)] bg-[#111118] p-4 ${
+          className={`w-full min-w-0 rounded-xl md:rounded-2xl border border-[rgba(147,51,234,0.2)] bg-[#111118] p-3 md:p-4 ${
             mobileTab !== "style" ? "hidden lg:block" : ""
           }`}
         >
@@ -274,7 +284,7 @@ export default function Artistic() {
             {t("art_styles_count", { n: catalog.styles.length })}
             {includeNsfw ? ` · ${t("art_nsfw_admin_badge")}` : ""}
           </p>
-          <div className="flex gap-1.5 mb-3 overflow-x-auto pb-1 -mx-1 px-1 scrollbar-thin">
+          <div className="flex gap-1.5 mb-3 overflow-x-auto pb-1 w-full min-w-0 scrollbar-thin [-webkit-overflow-scrolling:touch]">
             {catalog.categories.map((c) => {
               const n = countStylesInCategory(catalog.styles, c.id);
               return (
@@ -300,7 +310,7 @@ export default function Artistic() {
           <p className="text-[#9CA3AF] text-[10px] font-mono uppercase tracking-[0.14em] mb-2">
             {catalog.categories.find((c) => c.id === styleCat)?.label}
           </p>
-          <div className="grid grid-cols-2 sm:grid-cols-2 gap-2 max-h-[min(70vh,640px)] overflow-y-auto pr-1">
+          <div className="grid grid-cols-2 gap-2 w-full min-w-0 max-h-[min(calc(100dvh-14rem),640px)] lg:max-h-[min(70vh,640px)] overflow-y-auto overflow-x-hidden pr-0.5">
             {stylesInCat.map((s) => (
               <ArtisticStyleCard
                 key={s.id}
@@ -314,7 +324,7 @@ export default function Artistic() {
 
         {/* COL 2 — Efeitos */}
         <section
-          className={`rounded-2xl border border-[rgba(147,51,234,0.2)] bg-[#111118] p-4 max-h-[min(85vh,800px)] overflow-y-auto ${
+          className={`w-full min-w-0 rounded-xl md:rounded-2xl border border-[rgba(147,51,234,0.2)] bg-[#111118] p-3 md:p-4 max-h-[min(calc(100dvh-14rem),800px)] lg:max-h-[min(85vh,800px)] overflow-y-auto overflow-x-hidden ${
             mobileTab !== "effects" ? "hidden lg:block" : ""
           }`}
         >
@@ -357,7 +367,7 @@ export default function Artistic() {
 
         {/* COL 3 — Geração */}
         <section
-          className={`rounded-2xl border border-[rgba(147,51,234,0.2)] bg-[#111118] p-4 flex flex-col ${
+          className={`w-full min-w-0 rounded-xl md:rounded-2xl border border-[rgba(147,51,234,0.2)] bg-[#111118] p-3 md:p-4 flex flex-col overflow-x-hidden ${
             mobileTab !== "generate" ? "hidden lg:block" : ""
           }`}
         >

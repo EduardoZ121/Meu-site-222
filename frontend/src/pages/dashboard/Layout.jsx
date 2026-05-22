@@ -1,4 +1,5 @@
-import { Outlet, NavLink, useNavigate } from "react-router-dom";
+import { Outlet, NavLink, useNavigate, useLocation } from "react-router-dom";
+import { isWorkspacePath } from "../../lib/dashboardRouteMode";
 import { useAuth } from "../../lib/auth";
 import { useI18n } from "../../lib/i18n";
 import {
@@ -81,6 +82,8 @@ export default function DashboardLayout() {
   const { t } = useI18n();
   const navigate = useNavigate();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const { pathname } = useLocation();
+  const workspaceMode = isWorkspacePath(pathname);
 
   const nav = useMemo(() => [
     {
@@ -214,15 +217,21 @@ export default function DashboardLayout() {
   return (
     <NotificationProvider>
       <motion.div
-        className="min-h-screen h-[100dvh] md:min-h-screen bg-rp-bg flex font-['Inter_Tight'] text-rp-text touch-manipulation overflow-hidden"
+        className={`min-h-screen h-[100dvh] md:min-h-screen bg-rp-bg flex font-['Inter_Tight'] text-rp-text touch-manipulation overflow-hidden w-full max-w-[100vw] ${
+          workspaceMode ? "rp-dashboard--workspace" : ""
+        }`}
         data-testid="dashboard-layout"
       >
-        <aside className="w-[240px] hidden md:flex flex-col border-r border-white/[0.08] shrink-0 h-full bg-white/[0.05] backdrop-blur-xl">
+        <aside
+          className={`w-[240px] flex-col border-r border-white/[0.08] shrink-0 h-full bg-white/[0.05] backdrop-blur-xl ${
+            workspaceMode ? "hidden" : "hidden md:flex"
+          }`}
+        >
           <SidebarContent />
         </aside>
 
         <AnimatePresence>
-          {mobileOpen && (
+          {mobileOpen && !workspaceMode && (
             <>
               <motion.div
                 key="overlay"
@@ -246,8 +255,8 @@ export default function DashboardLayout() {
           )}
         </AnimatePresence>
 
-        <div className="flex-1 min-w-0 flex flex-col min-h-0 h-full">
-          <Outlet context={{ openMobileNav: () => setMobileOpen(true) }} />
+        <div className="flex-1 min-w-0 w-full max-w-full flex flex-col min-h-0 h-full overflow-hidden">
+          <Outlet context={{ openMobileNav: () => setMobileOpen(true), workspaceMode }} />
         </div>
       </motion.div>
     </NotificationProvider>

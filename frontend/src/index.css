@@ -409,11 +409,66 @@
     box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.18), 0 0 24px -8px rgba(34, 211, 238, 0.12);
   }
 
+  /* ─── Workspace mobile (sessão = app independente) ─── */
+  .rp-dashboard--workspace {
+    width: 100%;
+    max-width: 100vw;
+    overflow-x: hidden;
+  }
+
+  .rp-workspace-layout {
+    width: 100%;
+    max-width: 100vw;
+    overflow-x: hidden;
+  }
+
+  .rp-workspace-main {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    padding: 0.75rem 0.75rem 1.25rem;
+  }
+
+  @media (min-width: 640px) {
+    .rp-workspace-main {
+      padding-left: 1rem;
+      padding-right: 1rem;
+    }
+  }
+
+  @media (min-width: 768px) {
+    .rp-workspace-main {
+      padding-left: 2rem;
+      padding-right: 2rem;
+    }
+  }
+
+  .rp-artistic-page {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+  }
+
+  .rp-studio-top-bar {
+    box-sizing: border-box;
+  }
+
   /* ─── Dashboard: estúdio / edição (superfícies sóbrias, menos “efeito IA”) ─── */
   .rp-studio-shell {
     max-width: 1400px;
     margin-left: auto;
     margin-right: auto;
+  }
+
+  @media (max-width: 767px) {
+    .rp-studio-shell {
+      max-width: 100%;
+      margin-left: 0;
+      margin-right: 0;
+      padding-left: 0;
+      padding-right: 0;
+    }
   }
 
   .rp-studio-back {

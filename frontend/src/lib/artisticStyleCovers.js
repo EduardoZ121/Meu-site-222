@@ -1,7 +1,7 @@
 /**
  * Capas JPG para a grelha do Estúdio Artístico.
  * AI Lab: `node scripts/download-artistic-covers-nsfw.mjs` (prompts únicos por card)
- * Fotografia: `node scripts/download-artistic-covers-photography.mjs`
+ * Fotografia (faltantes): `node scripts/download-artistic-covers-photography.mjs` — fotos Unsplash profissionais
  * Outros: `node scripts/generate-artistic-covers.mjs`
  */
 export const ARTISTIC_STYLE_COVER_BY_ID = {

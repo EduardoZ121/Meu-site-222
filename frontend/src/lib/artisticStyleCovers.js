@@ -3,6 +3,7 @@
  * AI Lab: `node scripts/download-artistic-covers-nsfw.mjs` (prompts únicos por card)
  * Fotografia (6 estilos): `node scripts/generate-artistic-covers-photography.mjs` — ref mulher + prompt (Pollinations Flux)
  * Anime & Manga: `node scripts/generate-artistic-covers-anime.mjs` — ref mulher estilizada por card
+ * Cartoon & 3D: `node scripts/generate-artistic-covers-cartoon.mjs` — ref mulher estilizada por card
  * Outros: `node scripts/generate-artistic-covers.mjs`
  */
 export const ARTISTIC_STYLE_COVER_BY_ID = {
@@ -59,6 +60,15 @@ export const ARTISTIC_STYLE_COVER_BY_ID = {
   anime_webtoon: "/images/artistic-covers/anime_webtoon.jpg",
   anime_mecha: "/images/artistic-covers/anime_mecha.jpg",
   anime_vtuber: "/images/artistic-covers/anime_vtuber.jpg",
+  // —— Cartoon & 3D ——
+  toon_disney_2d: "/images/artistic-covers/toon_disney_2d.jpg",
+  toon_disney_3d: "/images/artistic-covers/toon_disney_3d.jpg",
+  toon_cartoon: "/images/artistic-covers/toon_cartoon.jpg",
+  toon_pokemon_2d: "/images/artistic-covers/toon_pokemon_2d.jpg",
+  toon_pokemon_3d: "/images/artistic-covers/toon_pokemon_3d.jpg",
+  toon_claymation: "/images/artistic-covers/toon_claymation.jpg",
+  toon_cute_3d: "/images/artistic-covers/toon_cute_3d.jpg",
+  toon_figurine: "/images/artistic-covers/toon_figurine.jpg",
   dig_concept_art: "/images/artistic-covers/dig_concept_art.jpg",
   dig_pixel_art: "/images/artistic-covers/dig_pixel_art.jpg",
   dig_low_poly: "/images/artistic-covers/dig_low_poly.jpg",

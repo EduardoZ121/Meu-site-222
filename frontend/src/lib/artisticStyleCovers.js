@@ -6,6 +6,9 @@
  * Cartoon & 3D: `node scripts/generate-artistic-covers-cartoon.mjs` — ref mulher estilizada por card
  * Ilustração & Comic: `node scripts/generate-artistic-covers-illustration.mjs`
  * Digital & Sci-Fi: `node scripts/generate-artistic-covers-digital.mjs`
+ * Pintura Clássica: `node scripts/generate-artistic-covers-classic.mjs`
+ * Design Moderno: `node scripts/generate-artistic-covers-modern.mjs`
+ * Fantasia: `node scripts/generate-artistic-covers-fantasy.mjs`
  * Capas 4:5 (640×800) — alinhadas ao aspect-[4/5] dos cards
  * Outros: `node scripts/generate-artistic-covers.mjs`
  */
@@ -93,16 +96,33 @@ export const ARTISTIC_STYLE_COVER_BY_ID = {
   dig_holographic: "/images/artistic-covers/dig_holographic.jpg",
   dig_isometric: "/images/artistic-covers/dig_isometric.jpg",
   dig_photoreal: "/images/artistic-covers/dig_photoreal.jpg",
+  // —— Pintura Clássica ——
   cls_oil: "/images/artistic-covers/cls_oil.jpg",
   cls_watercolor: "/images/artistic-covers/cls_watercolor.jpg",
   cls_charcoal: "/images/artistic-covers/cls_charcoal.jpg",
   cls_pastel: "/images/artistic-covers/cls_pastel.jpg",
   cls_engraving: "/images/artistic-covers/cls_engraving.jpg",
   cls_mosaic: "/images/artistic-covers/cls_mosaic.jpg",
+  cls_acrylic: "/images/artistic-covers/cls_acrylic.jpg",
+  cls_gouache: "/images/artistic-covers/cls_gouache.jpg",
+  cls_ukiyoe: "/images/artistic-covers/cls_ukiyoe.jpg",
+  cls_nihonga: "/images/artistic-covers/cls_nihonga.jpg",
+  // —— Design Moderno ——
   mod_minimal: "/images/artistic-covers/mod_minimal.jpg",
   mod_flat: "/images/artistic-covers/mod_flat.jpg",
   mod_brutalist: "/images/artistic-covers/mod_brutalist.jpg",
   mod_art_deco: "/images/artistic-covers/mod_art_deco.jpg",
   mod_pop_art: "/images/artistic-covers/mod_pop_art.jpg",
   mod_surreal: "/images/artistic-covers/mod_surreal.jpg",
+  mod_art_nouveau: "/images/artistic-covers/mod_art_nouveau.jpg",
+  mod_y2k: "/images/artistic-covers/mod_y2k.jpg",
+  // —— Fantasia & Épico ——
+  fan_epic: "/images/artistic-covers/fan_epic.jpg",
+  fan_dark: "/images/artistic-covers/fan_dark.jpg",
+  fan_steampunk: "/images/artistic-covers/fan_steampunk.jpg",
+  fan_dnd: "/images/artistic-covers/fan_dnd.jpg",
+  fan_space: "/images/artistic-covers/fan_space.jpg",
+  fan_ethereal: "/images/artistic-covers/fan_ethereal.jpg",
+  fan_gothic: "/images/artistic-covers/fan_gothic.jpg",
+  fan_neon: "/images/artistic-covers/fan_neon.jpg",
 };

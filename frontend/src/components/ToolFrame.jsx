@@ -1,12 +1,14 @@
 import { useState } from "react";
 import { Loader2, Sparkles, RefreshCw } from "lucide-react";
-import { motion } from "framer-motion";
 import { useAuth } from "../lib/auth";
 import { useI18n } from "../lib/i18n";
 import ImageUploadZone from "./ImageUploadZone";
 import ResultPanel from "./ResultPanel";
 import CollapsibleSection from "./CollapsibleSection";
-import StudioResultAnchor from "./StudioResultAnchor";
+import StudioSessionShell from "./studio/StudioSessionShell";
+import StudioSplitLayout from "./studio/StudioSplitLayout";
+import StudioResultColumn from "./studio/StudioResultColumn";
+import StudioStickyCta, { StudioStickyMeta } from "./studio/StudioStickyCta";
 import { primaryResultUrl } from "../lib/creationUrls";
 import { AspectRatioShape } from "./AspectRatioShape";
 
@@ -67,16 +69,17 @@ export default function ToolFrame({
   const visibleModels = models ? (viewAllModels ? models : models.slice(0, 8)) : [];
   const resultReady = Boolean(primaryResultUrl(result));
 
-  return (
-    <div className="rp-studio-shell max-w-[1400px] mx-auto pb-32" data-testid={`${testId}-frame`}>
-      <header className="mb-8 md:mb-10 pb-6 md:pb-8 border-b border-[rgba(244,241,234,0.06)]">
-        <p className="rp-editor-section-cap mb-2">{t("tool_cap")}</p>
-        <h1 className="rp-studio-page-title mb-3 font-['Inter_Tight']">{title}</h1>
-        {subtitle && <p className="rp-studio-page-desc">{subtitle}</p>}
-      </header>
+  const balance = user?.is_unlimited ? "∞" : (user?.credits ?? 0);
 
-      <div className="grid grid-cols-1 xl:grid-cols-[1fr_400px] gap-8 xl:gap-10">
-        <div className="rp-editor-panel overflow-hidden">
+  return (
+    <StudioSessionShell
+      testId={`${testId}-frame`}
+      description={subtitle}
+      withStickyCta
+    >
+      <StudioSplitLayout
+        editor={(
+          <div className="rp-editor-panel overflow-hidden">
           <div className="rp-editor-panel-accent" />
           <div className="p-6 sm:p-8 space-y-0">
           {showPhoto && (
@@ -207,51 +210,39 @@ export default function ToolFrame({
           )}
           </div>
         </div>
+        )}
+        result={(
+          <StudioResultColumn label={t("tool_preview")} busy={busy} ready={resultReady}>
+            <div data-testid={`${testId}-result-panel`}>
+              <ResultPanel creation={result} loading={busy} onChange={onResultChange} emptyLabel={t("tool_result_empty")} />
+            </div>
+          </StudioResultColumn>
+        )}
+      />
 
-        <StudioResultAnchor
-          busy={busy}
-          ready={resultReady}
-          className="xl:sticky xl:top-[80px] self-start space-y-3"
+      <StudioStickyCta testId={`${testId}-cta-bar`}>
+        <StudioStickyMeta
+          cost={cost}
+          balance={balance}
+          costLabel={t("tool_cost_label")}
+          balanceLabel={t("tool_balance_label")}
+          creditsLabel={t("label_credits")}
+        />
+        <button
+          type="button"
+          onClick={onCreate}
+          disabled={busy}
+          className="rp-action-primary flex-1 sm:flex-initial sm:min-w-[240px] sm:ml-auto !w-auto sm:!w-auto"
+          data-testid={`${testId}-create-btn`}
         >
-          <p className="rp-editor-section-cap !text-[#6b6b70]">{t("tool_preview")}</p>
-          <div className="rp-editor-panel overflow-hidden p-4 sm:p-5" data-testid={`${testId}-result-panel`}>
-            <ResultPanel creation={result} loading={busy} onChange={onResultChange} emptyLabel={t("tool_result_empty")} />
-          </div>
-        </StudioResultAnchor>
-      </div>
-
-      <div
-        initial={{ y: 24, opacity: 0.96 }}
-        animate={{ y: 0, opacity: 1 }}
-        transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
-        className="rp-sticky-cta rp-sticky-cta--sidebar"
-        data-testid={`${testId}-cta-bar`}
-      >
-        <div className="rp-studio-shell max-w-[1400px] mx-auto flex items-center justify-between gap-4 px-2 sm:px-4">
-          <div className="hidden sm:flex items-center gap-4 text-[12px] font-['Inter_Tight']">
-            <span className="text-[#8A8A8E]">{t("tool_cost_label")}</span>
-            <span className="text-[#C4B5FD] font-semibold tabular-nums">{cost}</span>
-            <span className="text-[#5A5A5E] font-mono text-[10px] uppercase tracking-wider">{t("label_credits")}</span>
-            <span className="w-px h-4 bg-[#2E2E30]" />
-            <span className="text-[#8A8A8E]">{t("tool_balance_label")}</span>
-            <span className="text-[#F4F1EA] font-medium tabular-nums">{user?.is_unlimited ? "∞" : (user?.credits ?? 0)}</span>
-          </div>
-          <button
-            type="button"
-            onClick={onCreate}
-            disabled={busy}
-            className="rp-action-primary flex-1 sm:flex-initial sm:min-w-[240px] sm:ml-auto !w-auto sm:!w-auto"
-            data-testid={`${testId}-create-btn`}
-          >
-            {busy ? (
-              <><Loader2 className="w-4 h-4 animate-spin" strokeWidth={2} /> {t("tool_generating")}</>
-            ) : (
-              <><Sparkles className="w-4 h-4" strokeWidth={1.5} /> {t("tool_generate_credits", { n: cost })}</>
-            )}
-          </button>
-        </div>
-      </div>
-    </div>
+          {busy ? (
+            <><Loader2 className="w-4 h-4 animate-spin" strokeWidth={2} /> {t("tool_generating")}</>
+          ) : (
+            <><Sparkles className="w-4 h-4" strokeWidth={1.5} /> {t("tool_generate_credits", { n: cost })}</>
+          )}
+        </button>
+      </StudioStickyCta>
+    </StudioSessionShell>
   );
 }
 

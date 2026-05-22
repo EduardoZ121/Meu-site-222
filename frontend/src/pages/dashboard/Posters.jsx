@@ -632,7 +632,7 @@ function Editor(props) {
       <motion.div
         initial={{ y: 100 }}
         animate={{ y: 0 }}
-        className="fixed bottom-0 left-0 right-0 md:left-[240px] bg-gradient-to-t from-[#0B0B0C] via-[#0B0B0C] to-[#0B0B0C]/95 backdrop-blur-xl border-t border-[#2E2E30] z-30 px-4 sm:px-6 md:px-10 py-4"
+        className="rp-sticky-cta rp-sticky-cta--sidebar"
       >
         <div className="max-w-[1400px] mx-auto flex items-center justify-between gap-4">
           <div className="hidden sm:flex items-center gap-3 text-[12px]">

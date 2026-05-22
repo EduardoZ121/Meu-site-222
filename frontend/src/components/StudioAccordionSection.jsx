@@ -50,8 +50,8 @@ export default function StudioAccordionSection({
   return (
     <div
       className={cn(
-        "rounded-xl border border-[#2E2E30] bg-[#13131A]/50 overflow-hidden",
-        "shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]",
+        "rp-studio-acc rounded-xl border border-white/[0.08] bg-[#12121a]/80 overflow-hidden",
+        "shadow-[inset_0_1px_0_rgba(255,255,255,0.05),0_12px_40px_-28px_rgba(0,0,0,0.65)]",
         className,
       )}
       data-testid={testId}
@@ -61,20 +61,20 @@ export default function StudioAccordionSection({
         id={headerId}
         className={cn(
           "w-full flex items-center justify-between gap-3 px-4 py-3.5 sm:px-5 text-left",
-          "bg-[#0B0B0C] hover:bg-[#101014] border-b border-[#2E2E30] transition-colors",
-          "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FACC15]/35 focus-visible:ring-inset",
+          "bg-[#0c0c10]/90 hover:bg-[#12121a] border-b border-white/[0.06] transition-colors",
+          "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#A855F7]/40 focus-visible:ring-inset",
         )}
         aria-expanded={open}
         aria-controls={panelId}
         onClick={() => setOpen((v) => !v)}
       >
-        <span className="text-[11px] sm:text-[12px] font-mono font-semibold uppercase tracking-[0.12em] text-[#FACC15]">
+        <span className="text-[11px] sm:text-[12px] font-mono font-semibold uppercase tracking-[0.14em] text-[#C4B5FD]">
           {title}
         </span>
         <ChevronDown
           aria-hidden
           className={cn(
-            "w-4 h-4 shrink-0 text-[#FACC15] transition-transform duration-300 ease-out",
+            "w-4 h-4 shrink-0 text-[#A855F7]/90 transition-transform duration-300 ease-out",
             open ? "rotate-180" : "rotate-0",
           )}
           strokeWidth={2.5}
@@ -87,7 +87,7 @@ export default function StudioAccordionSection({
         className="overflow-hidden transition-[max-height] duration-300 ease-out"
         style={{ maxHeight }}
       >
-        <div ref={innerRef} className="p-6 sm:p-8">
+        <div ref={innerRef} className="p-5 sm:p-6 md:p-7">
           {children}
         </div>
       </div>

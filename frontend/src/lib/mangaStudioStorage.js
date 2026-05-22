@@ -38,6 +38,14 @@ export function projectForPersist(project) {
           back: trimDataUrl(c.sheets?.back),
           expressions: [],
         },
+        savedInteractions: (c.savedInteractions || []).map((ix) => ({
+          ...ix,
+          resultThumb: ix.resultThumb?.startsWith?.("http") ? ix.resultThumb : null,
+        })),
+        variants: (c.variants || []).map((v) => ({
+          ...v,
+          thumb: trimDataUrl(v.thumb),
+        })),
       };
     }),
     scenarios: (project.scenarios || []).map((s) => ({

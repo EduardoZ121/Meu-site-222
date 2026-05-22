@@ -17,6 +17,7 @@ import {
 } from "../../lib/mangaStudioStorage";
 import useTitle from "../../lib/useTitle";
 import { toast } from "sonner";
+import { buildMangaInteractionPrompt, emptySavedInteraction } from "../../lib/mangaCharacterInteractions";
 import MangaLibrarySidebar from "../../components/manga/MangaLibrarySidebar";
 import MangaPageCanvas from "../../components/manga/MangaPageCanvas";
 import MangaPanelConfig from "../../components/manga/MangaPanelConfig";
@@ -104,7 +105,7 @@ export default function MangaStudio() {
     return modelKey;
   };
 
-  const runGeneration = async (endpoint, cost, prompt, aspect = "4:5") => {
+  const runGeneration = async (endpoint, cost, prompt, aspect = "4:5", refCharacter = null) => {
     if (!prompt || prompt.trim().length < 12) {
       throw new Error(t("manga_err_prompt_short"));
     }
@@ -117,7 +118,9 @@ export default function MangaStudio() {
 
     const effectiveModel = resolveModelKey();
     const apiPath = endpoint.startsWith("/") ? endpoint : `/${endpoint}`;
-    const char = (project.characters || []).find((c) => c.id === activePanel?.characterId);
+    const char =
+      refCharacter ||
+      (project.characters || []).find((c) => c.id === activePanel?.characterId);
     const refFile = char?._refFile || null;
     const refUrl = char?.sheets?.front || char?.thumb;
     let photoBlob = null;
@@ -285,6 +288,90 @@ export default function MangaStudio() {
       aspect: "9:16",
     });
 
+  const generateCharacterInteraction = async ({ charA, charB, config }) => {
+    if (!charA?.id || !charB?.id) {
+      toast.error(t("manga_ix_need_two"));
+      return;
+    }
+    const prompt = buildMangaInteractionPrompt({ charA, charB, config });
+    setBusy(true);
+    setLastPromptPreview(prompt);
+    setStatusLine(t("manga_ix_compose"));
+    try {
+      let res;
+      try {
+        res = await runGeneration(
+          "/generate/manga-panel",
+          creditCosts.mangaPanel,
+          prompt,
+          "4:5",
+          charA,
+        );
+      } catch (primaryErr) {
+        const isServerDown = /indisponível|FUNCTION_INVOCATION|500|502|503/i.test(
+          String(primaryErr?.message || ""),
+        );
+        if (!isServerDown) throw primaryErr;
+        res = await runGeneration(
+          "/generate/artistic-studio",
+          creditCosts.artistic ?? 18,
+          prompt,
+          "4:5",
+          charA,
+        );
+      }
+      if (!res?.url) return;
+
+      const saved = emptySavedInteraction({
+        partnerId: charB.id,
+        partnerName: charB.name,
+        interactionType: config.interactionType,
+        config: {
+          partnerId: charB.id,
+          interactionType: config.interactionType,
+          slotA: config.slotA,
+          distance: config.distance,
+          emotionA: config.emotionA,
+          emotionB: config.emotionB,
+          focus: config.focus,
+          dialogueA: config.dialogueA,
+          dialogueB: config.dialogueB,
+        },
+        resultThumb: res.url,
+      });
+
+      setProject((prev) => ({
+        ...prev,
+        characters: (prev.characters || []).map((c) => {
+          if (c.id !== charA.id) return c;
+          const variants = [...(c.variants || [])];
+          if (!variants.some((v) => v.label === t("manga_char_variant_ix"))) {
+            variants.push({
+              id: `var_${Date.now()}`,
+              label: t("manga_char_variant_ix"),
+              note: `${charB.name} · ${config.interactionType}`,
+              thumb: res.url,
+            });
+          }
+          return {
+            ...c,
+            savedInteractions: [saved, ...(c.savedInteractions || [])].slice(0, 12),
+            variants: variants.slice(0, 8),
+          };
+        }),
+      }));
+
+      toast.success(t("manga_ix_success", { n: res.spent }));
+    } catch (e) {
+      const msg = errMsg(e);
+      setStatusLine(msg);
+      toast.error(msg, { duration: 9000 });
+    } finally {
+      setBusy(false);
+      setStatusLine("");
+    }
+  };
+
   const handleNewProject = () => {
     const name = window.prompt(t("manga_project_name"), t("manga_new_project_default"));
     if (name === null) return;
@@ -439,7 +526,12 @@ export default function MangaStudio() {
             <p className="px-2 py-2 text-[11px] font-mono text-[#5A5A5E] uppercase tracking-wider flex items-center gap-1">
               <BookOpen className="w-3 h-3 text-[#A855F7]" /> {t("manga_library")}
             </p>
-            <MangaLibrarySidebar project={project} onChange={updateProject} />
+            <MangaLibrarySidebar
+              project={project}
+              onChange={updateProject}
+              onGenerateInteraction={generateCharacterInteraction}
+              interactionBusy={busy}
+            />
           </div>
         </div>
 

@@ -8,6 +8,7 @@ import { useI18n } from "../../lib/i18n";
 import { getMangaStudioCatalog } from "../../lib/mangaStudioCatalog";
 import CollapsibleSection from "../CollapsibleSection";
 import { emptyCharacter, emptyScenario } from "../../lib/mangaStudioData";
+import MangaCharacterCard from "./MangaCharacterCard";
 
 function ThumbBox({ src, label }) {
   return (
@@ -67,7 +68,12 @@ function LibraryRow({
   );
 }
 
-export default function MangaLibrarySidebar({ project, onChange }) {
+export default function MangaLibrarySidebar({
+  project,
+  onChange,
+  onGenerateInteraction,
+  interactionBusy = false,
+}) {
   const { t } = useI18n();
   const catalog = useMemo(() => getMangaStudioCatalog(t), [t]);
   const [expandedId, setExpandedId] = useState(null);
@@ -137,69 +143,18 @@ export default function MangaLibrarySidebar({ project, onChange }) {
                 patch({ characters: project.characters.filter((x) => x.id !== c.id) });
               }}
             >
-              <p className="text-[10px] text-[#5A5A5E]">{t("manga_ref_sheet")}</p>
-              <div className="grid grid-cols-4 gap-1">
-                {["front", "profile", "back"].map((k) => (
-                  <div
-                    key={k}
-                    className="aspect-square rounded bg-[#13131A] border border-[#2E2E30] text-[8px] text-[#5A5A5E] flex items-center justify-center uppercase"
-                  >
-                    {c.sheets?.[k] ? (
-                      <img src={c.sheets[k]} alt="" className="w-full h-full object-cover rounded" />
-                    ) : (
-                      k.slice(0, 4)
-                    )}
-                  </div>
-                ))}
-                <div className="aspect-square rounded bg-[#13131A] border border-[#2E2E30] text-[8px] text-[#5A5A5E] flex items-center justify-center">
-                  4×
-                </div>
-              </div>
-              <div className="flex gap-1.5 flex-wrap">
-                <label className="manga-chip-btn cursor-pointer">
-                  <Upload className="w-3 h-3" /> {t("manga_upload_png")}
-                  <input
-                    type="file"
-                    accept="image/png,image/webp,image/jpeg"
-                    className="hidden"
-                    onChange={async (e) => {
-                      const f = e.target.files?.[0];
-                      if (!f) return;
-                      let url = null;
-                      try {
-                        url = await readFileAsDataUrl(f);
-                      } catch {
-                        url = null;
-                      }
-                      patch({
-                        characters: project.characters.map((x) =>
-                          x.id === c.id
-                            ? {
-                                ...x,
-                                thumb: url,
-                                _refFile: f,
-                                sheets: { ...x.sheets, front: url },
-                              }
-                            : x),
-                      });
-                    }}
-                  />
-                </label>
-                <button
-                  type="button"
-                  className="manga-chip-btn"
-                  onClick={() => {
-                    const desc = window.prompt(t("manga_char_desc_ai"), c.description || "");
-                    if (desc === null) return;
-                    patch({
-                      characters: project.characters.map((x) =>
-                        x.id === c.id ? { ...x, description: desc, tag: desc.slice(0, 48) } : x),
-                    });
-                  }}
-                >
-                  <Sparkles className="w-3 h-3" /> {t("manga_ia_sheet")}
-                </button>
-              </div>
+              <MangaCharacterCard
+                character={c}
+                characters={project.characters}
+                onUpdate={(next) => {
+                  patch({
+                    characters: project.characters.map((x) =>
+                      x.id === c.id ? next : x),
+                  });
+                }}
+                onGenerateInteraction={onGenerateInteraction}
+                interactionBusy={interactionBusy}
+              />
             </LibraryRow>
           ))}
           {!project.characters.length && (

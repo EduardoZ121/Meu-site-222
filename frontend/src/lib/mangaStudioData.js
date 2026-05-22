@@ -37,6 +37,29 @@ export function emptyCharacter(name = "") {
     thumb: null,
     description: "",
     sheets: { front: null, profile: null, back: null, expressions: [] },
+    tags: [],
+    favorite: false,
+    consistencyLock: true,
+    variants: [],
+    relations: [],
+    savedInteractions: [],
+  };
+}
+
+/** Garante campos v2 em projetos antigos. */
+export function normalizeCharacter(char) {
+  if (!char) return emptyCharacter();
+  const base = emptyCharacter(char.name);
+  return {
+    ...base,
+    ...char,
+    sheets: { ...base.sheets, ...(char.sheets || {}) },
+    tags: Array.isArray(char.tags) ? char.tags : [],
+    variants: Array.isArray(char.variants) ? char.variants : [],
+    relations: Array.isArray(char.relations) ? char.relations : [],
+    savedInteractions: Array.isArray(char.savedInteractions) ? char.savedInteractions : [],
+    favorite: Boolean(char.favorite),
+    consistencyLock: char.consistencyLock !== false,
   };
 }
 

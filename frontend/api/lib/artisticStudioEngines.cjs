@@ -1,13 +1,10 @@
 /**
- * AI Lab (admin) — sempre Qwen Image Edit na Replicate (edição com foto).
- * O Rapid AIO NSFW do Hugging Face não está publicado na Replicate; usamos
- * qwen/qwen-image-edit com disable_safety_checker (parâmetro oficial).
- *
- * Override opcional: ARTISTIC_LAB_QWEN_MODEL=usamaehsan/qwen-image-edit-fastest
+ * AI Lab (admin) — Qwen Image Edit 2511 (melhor consistência de rosto/corpo).
+ * Override: ARTISTIC_LAB_QWEN_MODEL=qwen/qwen-image-edit (versão antiga)
  */
 
 const QWEN_EDIT_MODEL =
-  String(process.env.ARTISTIC_LAB_QWEN_MODEL || "").trim() || "qwen/qwen-image-edit";
+  String(process.env.ARTISTIC_LAB_QWEN_MODEL || "").trim() || "qwen/qwen-image-edit-2511";
 
 function isNsfwStyleId(styleId) {
   const id = String(styleId || "").trim();
@@ -19,7 +16,7 @@ function resolveArtisticLabModel() {
   return {
     modelKey: "qwen",
     modelId: QWEN_EDIT_MODEL,
-    label: "Qwen Image Edit (Replicate)",
+    label: "Qwen Image Edit 2511",
   };
 }
 

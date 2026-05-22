@@ -180,7 +180,7 @@
       "art_nsfw_admin_badge": "modo experimental admin",
       "art_lab_badge_exp": "EXP",
       "art_lab_title": "AI Lab — presets rápidos",
-      "art_lab_desc": "Experimental (só admin): edita a tua foto com Qwen Image Edit na Replicate (safety checker desligado). Carrega foto + escreve o que queres (biquíni, nu, etc.). O Rapid AIO NSFW do Hugging Face não está na Replicate — este é o equivalente.",
+      "art_lab_desc": "Experimental (só admin): Qwen Image Edit 2511 — preserva rosto e corpo da foto. Carrega referência + descreve só o que queres mudar. Proporção fixa na foto original.",
       "art_lab_need_photo": "AI Lab exige foto no modo Imagem — o Qwen só edita a referência que envias.",
       "art_lab_engine_note": "Motor: {model}",
       "art_lab_light_row": "Mature leve",

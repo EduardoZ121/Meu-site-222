@@ -2,6 +2,7 @@ import {
   ARTISTIC_STUDIO_STYLES,
   ARTISTIC_EFFECT_SECTIONS,
 } from "./artisticStudioData";
+import { buildAiLabEditPrompt } from "./artisticLabPrompt";
 
 export function getStyleById(styleId) {
   return ARTISTIC_STUDIO_STYLES.find((s) => s.id === styleId) || null;
@@ -25,9 +26,10 @@ export function buildArtisticStudioPrompt({
   const style = getStyleById(styleId);
 
   if (style?.cat === "nsfw") {
-    if (trimmed) parts.push(trimmed);
-    if (style?.suffix) parts.push(style.suffix);
-    return parts.filter(Boolean).join(". ").replace(/\.\s*\./g, ".");
+    return buildAiLabEditPrompt({
+      userPrompt: trimmed,
+      styleSuffix: style?.suffix || "",
+    });
   }
 
   if (trimmed) parts.push(trimmed);

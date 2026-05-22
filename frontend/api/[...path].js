@@ -663,16 +663,20 @@ async function imageInput(fields, files, modelKey, prompt, opts = {}) {
     else if (n > 1) input.num_outputs = n;
   }
   if (modelKey === "qwen") {
-    input.go_fast = true;
+    input.go_fast = false;
     input.disable_safety_checker = true;
     input.output_format = "webp";
-    input.output_quality = 90;
-    input.enhance_prompt = false;
+    input.output_quality = 95;
+    if (opts.experimental) {
+      input.aspect_ratio = "match_input_image";
+    } else if (!input.aspect_ratio || input.aspect_ratio === "1:1") {
+      input.aspect_ratio = "match_input_image";
+    }
   }
   if (primary) {
     if (modelKey === "standard" || modelKey === "video") input.image = primary;
     else if (modelKey === "kontext") input.input_image = primary;
-    else if (modelKey === "qwen") input.image = primary;
+    else if (modelKey === "qwen") input.image = [primary];
     else input.images = [primary];
   }
   if (opts.experimental && modelKey === "qwen" && !input.image) {

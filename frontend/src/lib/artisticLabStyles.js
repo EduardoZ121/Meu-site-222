@@ -30,6 +30,7 @@ export const ARTISTIC_EXPERIMENTAL_STYLE_IDS = new Set([
   "nsfw_wet_look",
   "nsfw_stockings",
   "nsfw_oil_body",
+  "nsfw_oil_render",
   "nsfw_explicit_pose",
 ]);
 

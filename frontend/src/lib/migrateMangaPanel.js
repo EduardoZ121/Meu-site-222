@@ -1,6 +1,6 @@
 /** Map legacy PT panel values to stable ids (older saved projects). */
 
-import { normalizeCharacter } from "./mangaStudioData";
+import { normalizeCharacter, normalizeScenario } from "./mangaStudioData";
 
 const EXPR = {
   Normal: "normal", Feliz: "happy", Triste: "sad", Raiva: "angry", Medo: "fear",
@@ -38,6 +38,8 @@ export function migrateMangaProject(project) {
   return {
     ...project,
     characters: (project.characters || []).map(normalizeCharacter),
+    scenarios: (project.scenarios || []).map(normalizeScenario),
+    panelSceneDraft: project.panelSceneDraft || null,
     panels: (project.panels || []).map(migrateMangaPanel),
   };
 }

@@ -9,6 +9,7 @@ import { getMangaStudioCatalog } from "../../lib/mangaStudioCatalog";
 import CollapsibleSection from "../CollapsibleSection";
 import { emptyCharacter, emptyScenario } from "../../lib/mangaStudioData";
 import MangaCharacterCard from "./MangaCharacterCard";
+import MangaScenarioCard, { MangaScenarioRow } from "./MangaScenarioCard";
 
 function ThumbBox({ src, label }) {
   return (
@@ -73,6 +74,8 @@ export default function MangaLibrarySidebar({
   onChange,
   onGenerateInteraction,
   interactionBusy = false,
+  onPreparePanelScene,
+  onSaveSceneComposition,
 }) {
   const { t } = useI18n();
   const catalog = useMemo(() => getMangaStudioCatalog(t), [t]);
@@ -173,12 +176,10 @@ export default function MangaLibrarySidebar({
             <Plus className="w-3.5 h-3.5" /> {t("manga_create_scenario")}
           </button>
           {project.scenarios.map((s) => (
-            <LibraryRow
+            <MangaScenarioRow
               key={s.id}
               t={t}
-              thumb={s.thumb}
-              title={s.name}
-              sub={s.description?.slice(0, 40) || t("manga_day_night")}
+              scenario={s}
               expanded={expandedId === `scene_${s.id}`}
               onToggle={() => setExpandedId(expandedId === `scene_${s.id}` ? null : `scene_${s.id}`)}
               onEdit={() => {
@@ -197,6 +198,7 @@ export default function MangaLibrarySidebar({
                       ...s,
                       id: `scene_${Date.now()}`,
                       name: `${s.name}${t("manga_copy_suffix")}`,
+                      savedCompositions: [],
                     },
                   ],
                 });
@@ -206,31 +208,19 @@ export default function MangaLibrarySidebar({
                 patch({ scenarios: project.scenarios.filter((x) => x.id !== s.id) });
               }}
             >
-              <div className="flex gap-1 flex-wrap text-[9px] text-[#9CA3AF]">
-                {catalog.lighting.slice(0, 3).map((v) => (
-                  <span key={v.id} className="px-1.5 py-0.5 rounded bg-[#13131A] border border-[#2E2E30]">
-                    {v.label}
-                  </span>
-                ))}
-              </div>
-              <label className="manga-chip-btn cursor-pointer w-fit">
-                <Upload className="w-3 h-3" /> {t("manga_upload_image")}
-                <input
-                  type="file"
-                  accept="image/*"
-                  className="hidden"
-                  onChange={async (e) => {
-                    const f = e.target.files?.[0];
-                    if (!f) return;
-                    const url = await readFileAsDataUrl(f);
-                    patch({
-                      scenarios: project.scenarios.map((x) =>
-                        x.id === s.id ? { ...x, thumb: url } : x),
-                    });
-                  }}
-                />
-              </label>
-            </LibraryRow>
+              <MangaScenarioCard
+                scenario={s}
+                characters={project.characters || []}
+                onUpdate={(next) => {
+                  patch({
+                    scenarios: project.scenarios.map((x) =>
+                      x.id === s.id ? next : x),
+                  });
+                }}
+                onSaveComposition={onSaveSceneComposition}
+                onPreparePanelDraft={onPreparePanelScene}
+              />
+            </MangaScenarioRow>
           ))}
         </div>
       </CollapsibleSection>

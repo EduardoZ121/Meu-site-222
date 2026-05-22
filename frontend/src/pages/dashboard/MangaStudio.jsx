@@ -22,6 +22,7 @@ import {
   characterHasReference,
   getCharacterPhotoBlob,
 } from "../../lib/mangaCharacterRef";
+import { buildCompositionPromptPreview } from "../../lib/mangaScenarioStudio";
 import MangaLibrarySidebar from "../../components/manga/MangaLibrarySidebar";
 import MangaPageCanvas from "../../components/manga/MangaPageCanvas";
 import MangaPanelConfig from "../../components/manga/MangaPanelConfig";
@@ -291,6 +292,58 @@ export default function MangaStudio() {
       cost: creditCosts.mangaChapter,
       aspect: "9:16",
     });
+
+  const preparePanelSceneFromScenario = useCallback(
+    (draft) => {
+      if (!draft?.scenarioId) return;
+      const primaryCharId = draft.characterIds?.[0] || null;
+      const poseFromIx = {
+        talk: "talk",
+        fight: "action",
+        walk: "walk",
+        chase: "action",
+        hug: "talk",
+        battle_anime: "action",
+        romance: "talk",
+        protect: "action",
+        attack: "action",
+        train: "action",
+        group: "talk",
+        joint_pose: "talk",
+      };
+      const lightFromScene = {
+        morning: "day",
+        afternoon: "day",
+        sunset: "sunset",
+        night: "night",
+        dawn: "day",
+      };
+      const poseId = poseFromIx[draft.interactionType] || "talk";
+      const lighting = lightFromScene[draft.timeOfDay] || "day";
+
+      setProject((prev) => ({
+        ...prev,
+        panelSceneDraft: draft,
+        panels: (prev.panels || []).map((p) =>
+          p.id === activePanelId
+            ? {
+                ...p,
+                scenarioId: draft.scenarioId,
+                characterId: primaryCharId || p.characterId,
+                poseId,
+                lighting,
+                focus: "both",
+              }
+            : p,
+        ),
+      }));
+
+      setLastPromptPreview(buildCompositionPromptPreview(draft, project.characters));
+      toast.success(t("manga_scn_panel_ready"), { duration: 6000 });
+      setMobileTab("config");
+    },
+    [activePanelId, project.characters, t],
+  );
 
   const generateCharacterInteraction = async ({ charA, charB, config }) => {
     if (!charA?.id || !charB?.id) {
@@ -570,6 +623,8 @@ export default function MangaStudio() {
               onChange={updateProject}
               onGenerateInteraction={generateCharacterInteraction}
               interactionBusy={busy}
+              onPreparePanelScene={preparePanelSceneFromScenario}
+              onSaveSceneComposition={() => toast.message(t("manga_scn_comp_saved"))}
             />
           </div>
         </div>

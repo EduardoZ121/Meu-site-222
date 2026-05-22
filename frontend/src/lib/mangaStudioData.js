@@ -1,5 +1,7 @@
 /** MANGA STUDIO — panel defaults (stable ids; labels via mangaStudioCatalog + t()). */
 
+import { defaultScenarioConfig } from "./mangaScenarioStudio";
+
 export const PANEL_ASPECTS = ["4:5", "1:1", "3:4", "16:9"];
 
 export function uid(prefix = "m") {
@@ -70,6 +72,33 @@ export function emptyScenario(name = "") {
     thumb: null,
     description: "",
     variants: { day: null, night: null, interior: null },
+    sceneConfig: defaultScenarioConfig(),
+    savedCompositions: [],
+  };
+}
+
+export function normalizeScenario(scene) {
+  if (!scene) return emptyScenario();
+  const base = emptyScenario(scene.name);
+  const cfg = { ...defaultScenarioConfig(), ...(scene.sceneConfig || {}) };
+  return {
+    ...base,
+    ...scene,
+    sceneConfig: {
+      ...cfg,
+      connectedCharacterIds: Array.isArray(cfg.connectedCharacterIds)
+        ? cfg.connectedCharacterIds
+        : [],
+      enabledInteractions: Array.isArray(cfg.enabledInteractions)
+        ? cfg.enabledInteractions
+        : base.sceneConfig.enabledInteractions,
+      positioning: {
+        ...defaultScenarioConfig().positioning,
+        ...(cfg.positioning || {}),
+        slots: { ...(cfg.positioning?.slots || {}) },
+      },
+    },
+    savedCompositions: Array.isArray(scene.savedCompositions) ? scene.savedCompositions : [],
   };
 }
 
@@ -87,6 +116,8 @@ export function createNewProject(name = "Project 1") {
     characters: [],
     scenarios: [],
     panels: [panel],
+    /** Rascunho de cena da biblioteca → consumido pelo Painel na geração. */
+    panelSceneDraft: null,
   };
 }
 

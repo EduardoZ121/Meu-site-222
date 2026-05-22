@@ -51,7 +51,21 @@ export function projectForPersist(project) {
     scenarios: (project.scenarios || []).map((s) => ({
       ...s,
       thumb: trimDataUrl(s.thumb),
+      savedCompositions: (s.savedCompositions || []).map((c) => ({
+        ...c,
+        draft: c.draft
+          ? { ...c.draft, scenarioThumb: c.draft.scenarioThumb?.startsWith?.("http") ? c.draft.scenarioThumb : null }
+          : c.draft,
+      })),
     })),
+    panelSceneDraft: project.panelSceneDraft
+      ? {
+          ...project.panelSceneDraft,
+          scenarioThumb: project.panelSceneDraft.scenarioThumb?.startsWith?.("http")
+            ? project.panelSceneDraft.scenarioThumb
+            : null,
+        }
+      : null,
     customPoses: (project.customPoses || []).map((p) => ({
       ...p,
       thumb: trimDataUrl(p.thumb),

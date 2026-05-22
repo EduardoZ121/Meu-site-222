@@ -4,7 +4,7 @@ import { useAuth } from "../../lib/auth";
 import { useI18n } from "../../lib/i18n";
 import {
   Sparkles, Images, Heart, CreditCard, User, Users, ShieldCheck, LogOut,
-  Film, FileText, BookOpen, Menu, Settings, LayoutGrid, Camera, Palette, Wand2,
+  Film, FileText, BookOpen, Menu, Settings, LayoutGrid, Camera, Palette, Wand2, Lock,
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
@@ -35,7 +35,34 @@ function SidebarSectionLabel({ children, testId }) {
   );
 }
 
-function SidebarNavItem({ to, icon: Icon, label, badge, onClick, index, testId }) {
+function SidebarNavItem({
+  to, icon: Icon, label, badge, onClick, index, testId, locked, lockedLabel,
+}) {
+  if (locked) {
+    return (
+      <motion.div
+        initial={{ opacity: 0, x: -12 }}
+        animate={{ opacity: 1, x: 0 }}
+        transition={{ duration: 0.35, delay: index * 0.05, ease: [0.16, 1, 0.3, 1] }}
+      >
+        <div
+          className="group flex items-center gap-3 px-6 py-2.5 text-sm font-medium leading-relaxed border-l-2 border-transparent text-white/45 cursor-not-allowed rounded-r-xl mr-2 select-none"
+          role="presentation"
+          aria-disabled="true"
+          data-testid={testId}
+        >
+          <Lock className="w-4 h-4 shrink-0 text-[#5A5A5E]" strokeWidth={1.75} />
+          <span className="flex items-center gap-2 min-w-0">
+            <span className="truncate">{label}</span>
+            <span className="shrink-0 px-1.5 py-0.5 rounded text-[9px] font-mono uppercase tracking-wider bg-[#2E2E30] text-[#9CA3AF] border border-[#3f3f46]">
+              {lockedLabel}
+            </span>
+          </span>
+        </div>
+      </motion.div>
+    );
+  }
+
   return (
     <motion.div
       initial={{ opacity: 0, x: -12 }}
@@ -96,7 +123,12 @@ export default function DashboardLayout() {
         { to: "/app/artistic", icon: Palette, label: t("sidebar.artistic") },
         { to: "/app/posters", icon: FileText, label: t("sidebar.posters") },
         { to: "/app/video", icon: Film, label: t("sidebar.video") },
-        { to: "/app/manga-studio", icon: BookOpen, label: t("sidebar.manga_studio"), badge: t("badge_beta") },
+        {
+          to: "/app/manga-studio",
+          icon: BookOpen,
+          label: t("sidebar.manga_studio"),
+          mangaLocked: true,
+        },
         { to: "/app/wizard", icon: Wand2, label: t("sidebar.wizard") },
       ],
     },
@@ -170,13 +202,17 @@ export default function DashboardLayout() {
             </SidebarSectionLabel>
             {sec.links.map((l) => {
               const idx = linkIndex++;
+              const isManga = l.mangaLocked;
+              const locked = isManga && user?.role !== "admin";
               return (
                 <SidebarNavItem
                   key={l.to}
                   to={l.to}
                   icon={l.icon}
                   label={l.label}
-                  badge={l.badge}
+                  badge={locked ? undefined : l.badge}
+                  locked={locked}
+                  lockedLabel={locked ? t("badge_soon") : undefined}
                   onClick={onClick}
                   index={idx}
                   testId={`nav-${l.to.split("/").pop()}`}

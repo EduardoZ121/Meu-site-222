@@ -22,10 +22,12 @@ import {
   characterHasReference,
   getCharacterPhotoBlob,
 } from "../../lib/mangaCharacterRef";
+import { mangaApiAspect } from "../../lib/mangaApiAspect";
 import {
   draftToEditorScenePatch,
   editorSceneToPanelPatch,
   emptyEditorScene,
+  mergeEditorScene,
   panelToEditorScene,
 } from "../../lib/mangaEditorSync";
 import { defaultInteractionConfig } from "../../lib/mangaCharacterInteractions";
@@ -158,7 +160,7 @@ export default function MangaStudio() {
     return modelKey;
   };
 
-  const runGeneration = async (endpoint, cost, prompt, aspect = "4:5", refCharacter = null) => {
+  const runGeneration = async (endpoint, cost, prompt, aspect = "3:4", refCharacter = null) => {
     if (!prompt || prompt.trim().length < 12) {
       throw new Error(t("manga_err_prompt_short"));
     }
@@ -185,7 +187,7 @@ export default function MangaStudio() {
     if (photoBlob && photoBlob.size > 0 && photoBlob.size < 3_500_000) {
       const fd = new FormData();
       fd.append("prompt_final", prompt.trim());
-      fd.append("aspect_ratio", aspect);
+      fd.append("aspect_ratio", mangaApiAspect(aspect));
       fd.append("model_key", effectiveModel);
       fd.append("photo", photoBlob, "character-ref.png");
       const { data } = await uploadPost(apiPath, fd, {
@@ -198,7 +200,7 @@ export default function MangaStudio() {
         apiPath,
         {
           prompt_final: prompt.trim(),
-          aspect_ratio: aspect,
+          aspect_ratio: mangaApiAspect(aspect),
           model_key: effectiveModel,
         },
         { timeout: 90000, headers: { "X-Skip-Auto-Poll": "1" } },
@@ -343,7 +345,7 @@ export default function MangaStudio() {
       }
       const fd = new FormData();
       fd.append("prompt_final", prompt.trim());
-      fd.append("aspect_ratio", panelSnapshot?.aspect || "4:5");
+      fd.append("aspect_ratio", mangaApiAspect(panelSnapshot?.aspect || "3:4"));
       fd.append("photo", blobA, `${charA.name}-ref.png`);
       fd.append("photo_b", blobB, `${charB.name}-ref.png`);
 
@@ -407,7 +409,7 @@ export default function MangaStudio() {
       mode: "panel",
       endpoint: "/generate/manga-panel",
       cost: creditCosts.mangaPanel,
-      aspect: synced.aspect || "4:5",
+      aspect: mangaApiAspect(synced.aspect || "3:4"),
       panelOverride: synced,
     });
   };
@@ -440,37 +442,43 @@ export default function MangaStudio() {
     ({ characterId, preset }) => {
       if (!preset) return;
       const cfg = { ...defaultInteractionConfig(preset.partnerId), ...(preset.config || {}) };
-      setProject((prev) => ({
-        ...prev,
-        editorScene: {
-          ...(prev.editorScene || emptyEditorScene()),
-          characterId,
-          duoMode: true,
-          partnerCharacterId: preset.partnerId,
-          interaction: cfg,
-        },
-      }));
+      setProject((prev) => {
+        const { editorScene, panels } = mergeEditorScene(
+          prev,
+          {
+            characterId,
+            duoMode: true,
+            partnerCharacterId: preset.partnerId,
+            interaction: cfg,
+          },
+          activePanelId,
+        );
+        return { ...prev, editorScene, panels };
+      });
+      lastLoadedPanelRef.current = activePanelId;
       setMobileTab("editor");
-      toast.success(t("manga_preset_loaded_editor"));
+      toast.success(t("manga_preset_loaded_panel"));
     },
-    [t],
+    [activePanelId, t],
   );
 
   const applyCompositionToEditor = useCallback(
     ({ composition }) => {
       const draft = composition?.draft;
       if (!draft) return;
-      setProject((prev) => ({
-        ...prev,
-        editorScene: {
-          ...(prev.editorScene || emptyEditorScene()),
-          ...draftToEditorScenePatch(draft, prev.editorScene || emptyEditorScene()),
-        },
-      }));
+      setProject((prev) => {
+        const { editorScene, panels } = mergeEditorScene(
+          prev,
+          draftToEditorScenePatch(draft, prev.editorScene || emptyEditorScene()),
+          activePanelId,
+        );
+        return { ...prev, editorScene, panels };
+      });
+      lastLoadedPanelRef.current = activePanelId;
       setMobileTab("editor");
-      toast.success(t("manga_comp_loaded_editor"));
+      toast.success(t("manga_comp_loaded_panel"));
     },
-    [t],
+    [activePanelId, t],
   );
 
   const confirmEditorAndOpenPanel = useCallback(() => {
@@ -635,8 +643,20 @@ export default function MangaStudio() {
           <MangaSceneEditor
             project={project}
             editorScene={editorScene}
+            activePanelId={activePanelId}
             onChangeEditorScene={updateEditorScene}
             syncDirty={syncDirty}
+            onApplyToProject={(partial) => {
+              setProject((prev) => {
+                const { editorScene: nextScene, panels } = mergeEditorScene(
+                  prev,
+                  partial,
+                  activePanelId,
+                );
+                return { ...prev, editorScene: nextScene, panels };
+              });
+              lastLoadedPanelRef.current = activePanelId;
+            }}
             onConfirmAndOpenPanel={confirmEditorAndOpenPanel}
             onPreviewCharacter={onPreviewCharacter}
           />

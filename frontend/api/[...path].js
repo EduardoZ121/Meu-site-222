@@ -204,7 +204,8 @@ function json(res, status, data) {
 function normalizeRatio(ratio = "1:1", modelKey = "standard") {
   if (modelKey === "qwen") {
     if (!ratio || ["match", "match_input_image", "original"].includes(ratio)) return "match_input_image";
-    return ratio;
+    if (GROK_SUPPORTED.has(ratio) || ratio === "match_input_image") return ratio;
+    return { "4:5": "3:4", "5:4": "4:3", "21:9": "16:9", "9:21": "9:16" }[ratio] || "3:4";
   }
   if (!ratio || ["match", "match_input_image", "original"].includes(ratio)) {
     return modelKey === "pro" || modelKey === "artistic" || modelKey === "kontext" ? "match_input_image" : "1:1";
@@ -1057,9 +1058,10 @@ async function routePost(path, fields, files, req) {
 
     const aspectDefault = mode === "chapter" ? "9:16" : mode === "page" ? "3:4" : text(fields, "aspect_ratio", "4:5");
     const input = await imageInput(fields, files, modelKey, promptFinal);
-    if (!text(fields, "aspect_ratio", "").trim()) {
-      input.aspect_ratio = normalizeRatio(aspectDefault, modelKey);
-    }
+    input.aspect_ratio = normalizeRatio(
+      text(fields, "aspect_ratio", "").trim() || aspectDefault,
+      modelKey,
+    );
     const spendLabels = {
       panel: "MANGA STUDIO · painel",
       page: "MANGA STUDIO · página",

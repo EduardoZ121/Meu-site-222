@@ -14,6 +14,7 @@ import {
 } from "../../lib/mangaCharacterInteractions";
 import { characterHasReference } from "../../lib/mangaCharacterRef";
 import { buildPanelSceneDraft } from "../../lib/mangaScenarioStudio";
+import { mergeEditorScene } from "../../lib/mangaEditorSync";
 
 function ChipGroup({ options, value, onChange, multi }) {
   return (
@@ -75,6 +76,8 @@ export default function MangaSceneEditor({
   onConfirmAndOpenPanel,
   onPreviewCharacter,
   syncDirty = false,
+  activePanelId,
+  onApplyToProject,
 }) {
   const { t } = useI18n();
   const catalog = useMemo(() => getMangaStudioCatalog(t), [t]);
@@ -121,7 +124,7 @@ export default function MangaSceneEditor({
       characters,
       characterIds: ids,
     });
-    patch({
+    const partial = {
       scenarioId: s.id,
       characterId: ids[0] || editorScene.characterId,
       partnerCharacterId: ids[1] || null,
@@ -132,7 +135,12 @@ export default function MangaSceneEditor({
         interactionType: draft.interactionType || "talk",
         partnerId: ids[1] || null,
       },
-    });
+    };
+    if (onApplyToProject && activePanelId) {
+      onApplyToProject(partial);
+    } else {
+      patch(partial);
+    }
   };
 
   return (

@@ -107,3 +107,18 @@ export function draftToEditorScenePatch(draft, current = emptyEditorScene()) {
     scenarioDraftId: draft.scenarioId,
   };
 }
+
+/** Atualiza editorScene e aplica ao painel ativo (Biblioteca/Editor → Painel). */
+export function mergeEditorScene(project, scenePartial, activePanelId) {
+  const editorScene = {
+    ...(project.editorScene || emptyEditorScene()),
+    ...scenePartial,
+  };
+  const panelPatch = editorSceneToPanelPatch(editorScene);
+  const panels = activePanelId
+    ? (project.panels || []).map((p) =>
+        p.id === activePanelId ? { ...p, ...panelPatch } : p,
+      )
+    : project.panels;
+  return { editorScene, panels, panelPatch };
+}

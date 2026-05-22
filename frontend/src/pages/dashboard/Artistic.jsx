@@ -29,8 +29,8 @@ import ArtisticEffectOption from "../../components/artistic/ArtisticEffectOption
 import DraggableRecipeBubble from "../../components/artistic/DraggableRecipeBubble";
 import { localizeArtisticCatalog, countStylesInCategory } from "../../lib/artisticStudioLocales";
 import { canAccessNsfwArtisticStyles } from "../../lib/artisticStudioData";
-import { isArtisticLabStyle } from "../../lib/artisticLabStyles";
-import { getArtisticEngineLabel } from "../../lib/artisticStudioEngines";
+import { isArtisticExperimentalStyle } from "../../lib/artisticLabStyles";
+import { ARTISTIC_LAB_MODEL_LABEL } from "../../lib/artisticStudioEngines";
 import {
   buildArtisticStudioPrompt,
   buildRecipeChips,
@@ -115,9 +115,9 @@ export default function Artistic() {
     [classicExperimental],
   );
 
-  const activeEngineLabel = useMemo(
-    () => getArtisticEngineLabel(styleId, inputMode === "image" && Boolean(photo), t),
-    [styleId, inputMode, photo, t],
+  const isLabStyle = useMemo(
+    () => isArtisticExperimentalStyle(styleId),
+    [styleId],
   );
 
   const recipeChips = useMemo(
@@ -150,7 +150,7 @@ export default function Artistic() {
     (id) => {
       setStyleId(id);
       const picked = catalog.styles.find((s) => s.id === id);
-      if (picked?.labPreset && inputMode !== "image") {
+      if (picked?.cat === "nsfw" && inputMode !== "image") {
         setInputMode("image");
         toast.message(t("art_lab_image_hint"));
       }
@@ -174,7 +174,7 @@ export default function Artistic() {
       toast.error(t("art_err_image_mode"));
       return;
     }
-    if (isArtisticLabStyle(styleId) && inputMode === "image" && !photo) {
+    if (isLabStyle && !photo) {
       toast.error(t("art_lab_need_photo"));
       return;
     }
@@ -256,6 +256,7 @@ export default function Artistic() {
     }
   }, [
     styleId,
+    isLabStyle,
     prompt,
     inputMode,
     photo,
@@ -368,7 +369,7 @@ export default function Artistic() {
             <div className="art-lab-panel mb-4 rounded-xl border border-[rgba(236,72,153,0.25)] bg-gradient-to-br from-[#1a0a1f]/80 via-[#111118] to-[#0a0a0f] p-3 md:p-4 max-h-[min(calc(100dvh-12rem),720px)] overflow-y-auto overflow-x-hidden">
               <p className="text-[#f0abfc] text-[11px] font-semibold mb-1">{t("art_lab_title")}</p>
               <p className="text-[#6B7280] text-[9px] font-mono uppercase tracking-wider mb-1">
-                {t("art_lab_engine_note")} · {activeEngineLabel}
+                {t("art_lab_engine_note", { model: ARTISTIC_LAB_MODEL_LABEL })}
               </p>
               <p className="text-[#9CA3AF] text-[10px] leading-snug mb-3">{t("art_lab_desc")}</p>
               <div className="art-lab-scroll flex gap-2.5 overflow-x-auto pb-2 w-full min-w-0 snap-x snap-mandatory [-webkit-overflow-scrolling:touch] md:grid md:grid-cols-2 md:gap-2.5 md:overflow-visible md:pb-0 lg:grid-cols-2">
@@ -488,9 +489,20 @@ export default function Artistic() {
           <div className="inline-flex rounded-lg border border-[#2E2E30] p-0.5 bg-[#0A0A0F] mb-4 w-full">
             <button
               type="button"
-              onClick={() => setInputMode("text")}
+              disabled={isLabStyle}
+              onClick={() => {
+                if (isLabStyle) {
+                  toast.message(t("art_lab_image_hint"));
+                  return;
+                }
+                setInputMode("text");
+              }}
               className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-md text-[11px] font-medium transition-colors ${
-                inputMode === "text" ? "bg-[#9333EA] text-white" : "text-[#9CA3AF]"
+                isLabStyle
+                  ? "opacity-40 cursor-not-allowed text-[#6B7280]"
+                  : inputMode === "text"
+                    ? "bg-[#9333EA] text-white"
+                    : "text-[#9CA3AF]"
               }`}
             >
               <Type className="w-3.5 h-3.5" /> {t("art_input_text")}
@@ -523,9 +535,9 @@ export default function Artistic() {
             <label className="text-[#9CA3AF] text-[10px] font-mono uppercase tracking-wider">
               {inputMode === "image" ? t("art_prompt_label_image") : t("art_prompt_label")}
             </label>
-            {styleId && (
-              <span className="shrink-0 text-[9px] font-mono px-2 py-0.5 rounded-md border border-[rgba(147,51,234,0.35)] text-[#c4b5fd] bg-[#9333EA]/10">
-                {t("art_engine_active", { engine: activeEngineLabel })}
+            {isLabStyle && (
+              <span className="shrink-0 text-[9px] font-mono px-2 py-0.5 rounded-md border border-[rgba(236,72,153,0.35)] text-[#f9a8d4] bg-[#831843]/30">
+                {t("art_lab_engine_note", { model: ARTISTIC_LAB_MODEL_LABEL })}
               </span>
             )}
           </div>

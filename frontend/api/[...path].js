@@ -138,20 +138,13 @@ const functionConfig = {
 };
 
 const {
-  resolveArtisticEngine,
+  QWEN_EDIT_MODEL,
   isNsfwStyleId,
+  resolveArtisticLabModel,
 } = require("./lib/artisticStudioEngines.cjs");
 
 function isArtisticExperimentalStyleId(styleId) {
   return isNsfwStyleId(styleId);
-}
-
-/** Só remove a palavra literal "nsfw" — não censura bikini, lingerie, etc. */
-function sanitizeProviderPrompt(prompt) {
-  return String(prompt || "")
-    .replace(/\bnsfw\b/gi, "mature editorial")
-    .replace(/\s{2,}/g, " ")
-    .trim();
 }
 
 function resolveArtisticStudioModel({ styleId, hasPhoto, userDoc }) {
@@ -163,10 +156,15 @@ function resolveArtisticStudioModel({ styleId, hasPhoto, userDoc }) {
     err.status = 403;
     throw err;
   }
-  const resolved = resolveArtisticEngine({ styleId, hasPhoto });
-  const modelKey = resolved.modelKey;
-  const modelId = MODELS[modelKey] || MODELS.standard;
-  return { modelKey, modelId, label: resolved.label };
+  if (experimental) {
+    if (!hasPhoto) {
+      const err = new Error("AI Lab exige uma foto (Qwen Image Edit edita a referência).");
+      err.status = 400;
+      throw err;
+    }
+    return resolveArtisticLabModel();
+  }
+  return { modelKey: "standard", modelId: MODELS.standard, label: MODELS.standard };
 }
 
 const MODELS = {
@@ -174,6 +172,7 @@ const MODELS = {
   pro: "black-forest-labs/flux-2-klein-9b",
   artistic: "black-forest-labs/flux-2-klein-9b",
   kontext: "black-forest-labs/flux-kontext-max",
+  qwen: QWEN_EDIT_MODEL,
   video: "xai/grok-imagine-video",
   bg_remove: "851-labs/background-remover",
   upscale: "philz1337x/clarity-upscaler",
@@ -203,6 +202,10 @@ function json(res, status, data) {
 }
 
 function normalizeRatio(ratio = "1:1", modelKey = "standard") {
+  if (modelKey === "qwen") {
+    if (!ratio || ["match", "match_input_image", "original"].includes(ratio)) return "match_input_image";
+    return ratio;
+  }
   if (!ratio || ["match", "match_input_image", "original"].includes(ratio)) {
     return modelKey === "pro" || modelKey === "artistic" || modelKey === "kontext" ? "match_input_image" : "1:1";
   }
@@ -646,7 +649,7 @@ function creationFromPrediction(prediction) {
   };
 }
 
-async function imageInput(fields, files, modelKey, prompt) {
+async function imageInput(fields, files, modelKey, prompt, opts = {}) {
   const primary =
     (await resolveImageRef(files, fields, "photo", "photo_url"))
     || (await resolveImageRef(files, fields, "image", "image_url"));
@@ -659,10 +662,23 @@ async function imageInput(fields, files, modelKey, prompt) {
     if (modelKey !== "standard") input.num_outputs = n;
     else if (n > 1) input.num_outputs = n;
   }
+  if (modelKey === "qwen") {
+    input.go_fast = true;
+    input.disable_safety_checker = true;
+    input.output_format = "webp";
+    input.output_quality = 90;
+    input.enhance_prompt = false;
+  }
   if (primary) {
     if (modelKey === "standard" || modelKey === "video") input.image = primary;
     else if (modelKey === "kontext") input.input_image = primary;
+    else if (modelKey === "qwen") input.image = primary;
     else input.images = [primary];
+  }
+  if (opts.experimental && modelKey === "qwen" && !input.image) {
+    const err = new Error("AI Lab: envia uma foto de referência.");
+    err.status = 400;
+    throw err;
   }
   return input;
 }
@@ -911,9 +927,10 @@ async function routePost(path, fields, files, req) {
   }
 
   if (path === "generate/artistic-studio") {
-    let promptFinal = sanitizeProviderPrompt(text(fields, "prompt_final", "").trim());
-    if (!promptFinal) throw new Error("Prompt em falta.");
     const styleId = text(fields, "style_id", "").trim();
+    const experimental = isArtisticExperimentalStyleId(styleId);
+    let promptFinal = text(fields, "prompt_final", "").trim();
+    if (!promptFinal) throw new Error("Prompt em falta.");
     const hasPhoto = Boolean(files.photo || text(fields, "photo_url", "").trim());
     const { user, isLocal } = resolveSessionUser(req);
     let userDoc = null;
@@ -927,7 +944,7 @@ async function routePost(path, fields, files, req) {
       hasPhoto,
       userDoc,
     });
-    const input = await imageInput(fields, files, modelKey, promptFinal);
+    const input = await imageInput(fields, files, modelKey, promptFinal, { experimental });
     return submitBillableGeneration(req, fields, {
       cost: CREDIT.artistic,
       type: "artistic",
@@ -937,7 +954,7 @@ async function routePost(path, fields, files, req) {
       aspectRatio: input.aspect_ratio,
       modelUsed: modelLabel,
       spendDescription: isArtisticExperimentalStyleId(styleId)
-        ? "Estúdio artístico · AI Lab"
+        ? "Estúdio artístico · AI Lab (Qwen)"
         : "Estúdio artístico",
     });
   }

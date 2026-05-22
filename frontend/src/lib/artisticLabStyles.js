@@ -26,6 +26,11 @@ export const ARTISTIC_EXPERIMENTAL_STYLE_IDS = new Set([
   "nsfw_figure_study",
   "nsfw_explicit_art",
   "nsfw_intimate_couple",
+  "nsfw_cosplay",
+  "nsfw_wet_look",
+  "nsfw_stockings",
+  "nsfw_oil_body",
+  "nsfw_explicit_pose",
 ]);
 
 export function isArtisticLabStyle(styleId) {

@@ -24,11 +24,13 @@ export function buildArtisticStudioPrompt({
 
   const style = getStyleById(styleId);
 
-  if (trimmed) {
-    parts.push(
-      `Primary scene and subject — follow the user description exactly (wardrobe, pose, action): ${trimmed}`,
-    );
+  if (style?.cat === "nsfw") {
+    if (trimmed) parts.push(trimmed);
+    if (style?.suffix) parts.push(style.suffix);
+    return parts.filter(Boolean).join(". ").replace(/\.\s*\./g, ".");
   }
+
+  if (trimmed) parts.push(trimmed);
   if (style?.labPreset) {
     parts.push(
       imageMode
@@ -36,9 +38,7 @@ export function buildArtisticStudioPrompt({
         : "Experimental diffusion rendering with editorial finish.",
     );
   }
-  if (style?.suffix) {
-    parts.push(`Visual style preset (${style.label || style.id}): ${style.suffix}`);
-  }
+  if (style?.suffix) parts.push(style.suffix);
 
   for (const section of ARTISTIC_EFFECT_SECTIONS) {
     const value = effects[section.id];

@@ -27,7 +27,8 @@ import AspectPicker from "../../components/AspectPicker";
 import ArtisticStyleCard from "../../components/artistic/ArtisticStyleCard";
 import ArtisticEffectOption from "../../components/artistic/ArtisticEffectOption";
 import DraggableRecipeBubble from "../../components/artistic/DraggableRecipeBubble";
-import { localizeArtisticCatalog } from "../../lib/artisticStudioLocales";
+import { localizeArtisticCatalog, countStylesInCategory } from "../../lib/artisticStudioLocales";
+import { canAccessNsfwArtisticStyles } from "../../lib/artisticStudioData";
 import {
   buildArtisticStudioPrompt,
   buildRecipeChips,
@@ -76,7 +77,20 @@ export default function Artistic() {
     if (q) setPrompt(q);
   }, [searchParams]);
 
-  const catalog = useMemo(() => localizeArtisticCatalog(lang), [lang]);
+  const includeNsfw = useMemo(() => canAccessNsfwArtisticStyles(user), [user]);
+
+  const catalog = useMemo(
+    () => localizeArtisticCatalog(lang, { includeNsfw }),
+    [lang, includeNsfw],
+  );
+
+  useEffect(() => {
+    const catIds = catalog.categories.map((c) => c.id);
+    if (!catIds.includes(styleCat) && catIds.length) {
+      setStyleCat(catIds[0]);
+    }
+  }, [catalog.categories, styleCat]);
+
   const stylesInCat = useMemo(
     () => catalog.styles.filter((s) => s.cat === styleCat),
     [catalog.styles, styleCat],
@@ -258,26 +272,40 @@ export default function Artistic() {
             mobileTab !== "style" ? "hidden lg:block" : ""
           }`}
         >
-          <h2 className="text-white text-[13px] font-semibold mb-3 flex items-center gap-2">
+          <h2 className="text-white text-[13px] font-semibold mb-1 flex items-center gap-2">
             <Palette className="w-4 h-4 text-[#A855F7]" /> {t("art_sec_style")}
           </h2>
-          <div className="flex flex-wrap gap-1 mb-4">
-            {catalog.categories.map((c) => (
-              <button
-                key={c.id}
-                type="button"
-                onClick={() => setStyleCat(c.id)}
-                className={`px-3 py-1.5 rounded-full text-[10px] font-mono uppercase tracking-wider transition-all ${
-                  styleCat === c.id
-                    ? "bg-[#9333EA] text-white shadow-[0_0_12px_rgba(147,51,234,0.4)]"
-                    : "bg-[#0A0A0F] text-[#9CA3AF] border border-[rgba(147,51,234,0.15)] hover:text-white"
-                }`}
-              >
-                {c.label}
-              </button>
-            ))}
+          <p className="text-[#6B7280] text-[10px] mb-3">
+            {t("art_styles_count", { n: catalog.styles.length })}
+            {includeNsfw ? ` · ${t("art_nsfw_admin_badge")}` : ""}
+          </p>
+          <div className="flex gap-1.5 mb-3 overflow-x-auto pb-1 -mx-1 px-1 scrollbar-thin">
+            {catalog.categories.map((c) => {
+              const n = countStylesInCategory(catalog.styles, c.id);
+              return (
+                <button
+                  key={c.id}
+                  type="button"
+                  onClick={() => setStyleCat(c.id)}
+                  className={`shrink-0 px-3 py-2 rounded-xl text-[10px] font-medium transition-all border ${
+                    styleCat === c.id
+                      ? "bg-[#9333EA] text-white border-[#A855F7] shadow-[0_0_12px_rgba(147,51,234,0.35)]"
+                      : "bg-[#0A0A0F] text-[#9CA3AF] border-[rgba(147,51,234,0.15)] hover:text-white hover:border-[rgba(147,51,234,0.35)]"
+                  } ${c.adminOnly ? "ring-1 ring-[#be185d]/40" : ""}`}
+                  data-testid={`art-cat-${c.id}`}
+                >
+                  <span className="block leading-tight">{c.label}</span>
+                  <span className={`block text-[9px] mt-0.5 ${styleCat === c.id ? "text-white/70" : "text-[#6B7280]"}`}>
+                    {n}
+                  </span>
+                </button>
+              );
+            })}
           </div>
-          <div className="grid grid-cols-2 gap-2 max-h-[min(70vh,640px)] overflow-y-auto pr-1">
+          <p className="text-[#9CA3AF] text-[10px] font-mono uppercase tracking-[0.14em] mb-2">
+            {catalog.categories.find((c) => c.id === styleCat)?.label}
+          </p>
+          <div className="grid grid-cols-2 sm:grid-cols-2 gap-2 max-h-[min(70vh,640px)] overflow-y-auto pr-1">
             {stylesInCat.map((s) => (
               <ArtisticStyleCard
                 key={s.id}

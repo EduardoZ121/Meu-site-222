@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { AlertCircle } from "lucide-react";
-import { ARTISTIC_EFFECT_HELP, effectHelpKey } from "../../lib/artisticEffectHelp";
+import { getArtisticEffectHelp } from "../../lib/artisticEffectHelp";
+import { useI18n } from "../../lib/i18n";
 
 /**
  * Linha de efeito com botão ! — explicação visível enquanto mantém o clique.
@@ -11,9 +12,10 @@ export default function ArtisticEffectOption({
   active,
   onToggle,
 }) {
+  const { lang } = useI18n();
   const [showHelp, setShowHelp] = useState(false);
   const helpRef = useRef(null);
-  const helpText = ARTISTIC_EFFECT_HELP[effectHelpKey(section.id, opt.id)];
+  const helpText = getArtisticEffectHelp(lang, section.id, opt.id);
 
   useEffect(() => {
     if (!showHelp) return undefined;

@@ -1,242 +1,58 @@
-/** Artistic studio catalog labels (EN/PT). */
+/** Artistic studio catalog — labels from data (labelEn) + legacy keys. */
 
 import {
   ARTISTIC_STYLE_CATEGORIES,
   ARTISTIC_STUDIO_STYLES,
   ARTISTIC_EFFECT_SECTIONS,
+  filterArtisticCategories,
+  filterArtisticStyles,
 } from "./artisticStudioData";
 
-export const ARTISTIC_LABELS = {
-  en: {
-  "cat_photography": "Photography",
-  "cat_digital": "Digital",
-  "cat_classic": "Classic",
-  "cat_modern": "Modern",
-  "style_photo_classic_portrait": "Classic Portrait",
-  "style_photo_classic_portrait_desc": "Soft light, natural skin, blurred background",
-  "style_photo_editorial": "Editorial Portrait",
-  "style_photo_editorial_desc": "High contrast, fashion, dramatic poses",
-  "style_photo_lifestyle": "Lifestyle",
-  "style_photo_lifestyle_desc": "Natural, candid, daylight",
-  "style_photo_documentary": "Documentary",
-  "style_photo_documentary_desc": "Grainy B&W, real moments",
-  "style_photo_fine_art": "Fine Art",
-  "style_photo_fine_art_desc": "Painterly composition, canvas texture",
-  "style_photo_glamour": "Glamour",
-  "style_photo_glamour_desc": "Studio light, flawless skin, shine",
-  "style_dig_anime": "Anime",
-  "style_dig_anime_desc": "Large eyes, clean lines, vibrant colors",
-  "style_dig_concept_art": "Concept Art",
-  "style_dig_concept_art_desc": "Epic environments, detailed, cinematic",
-  "style_dig_pixel_art": "Pixel Art",
-  "style_dig_pixel_art_desc": "Retro 8-bit/16-bit, limited palette",
-  "style_dig_low_poly": "Low Poly",
-  "style_dig_low_poly_desc": "Geometric, faceted, minimalist 3D",
-  "style_dig_vaporwave": "Vaporwave",
-  "style_dig_vaporwave_desc": "Pink/blue neon, glitch, 80s",
-  "style_dig_cyberpunk": "Cyberpunk",
-  "style_dig_cyberpunk_desc": "Neon, rain, dystopian future",
-  "style_cls_oil": "Oil",
-  "style_cls_oil_desc": "Visible brushstrokes, rich texture, old masters",
-  "style_cls_watercolor": "Watercolor",
-  "style_cls_watercolor_desc": "Fluid, transparent, soft edges",
-  "style_cls_charcoal": "Charcoal",
-  "style_cls_charcoal_desc": "B&W, rough texture, artistic sketch",
-  "style_cls_pastel": "Pastel",
-  "style_cls_pastel_desc": "Soft powder colors, dreamy feel",
-  "style_cls_engraving": "Engraving",
-  "style_cls_engraving_desc": "Fine lines, B&W, antique technique",
-  "style_cls_mosaic": "Mosaic",
-  "style_cls_mosaic_desc": "Small tiles, Byzantine, colorful",
-  "style_mod_minimal": "Minimalist",
-  "style_mod_minimal_desc": "Clean lines, few elements, negative space",
-  "style_mod_flat": "Flat Design",
-  "style_mod_flat_desc": "Solid colors, no shadows, 2D icons",
-  "style_mod_brutalist": "Brutalism",
-  "style_mod_brutalist_desc": "Harsh type, raw colors, anti-design",
-  "style_mod_art_deco": "Art Deco",
-  "style_mod_art_deco_desc": "Geometric, gold, elegant 1920s",
-  "style_mod_pop_art": "Pop Art",
-  "style_mod_pop_art_desc": "Saturated colors, Ben-Day dots, Warhol",
-  "style_mod_surreal": "Surrealism",
-  "style_mod_surreal_desc": "Dream logic, floating objects",
-  "fxsec_lighting": "Lighting",
-  "fxsec_lens": "Lens / Camera",
-  "fxsec_atmosphere": "Atmosphere",
-  "fxsec_color": "Color / Mood",
-  "fx_lighting_natural": "Natural Light",
-  "fx_lighting_studio": "Studio Light",
-  "fx_lighting_golden": "Golden Hour",
-  "fx_lighting_blue": "Blue Hour",
-  "fx_lighting_backlit": "Backlight",
-  "fx_lighting_rembrandt": "Rembrandt",
-  "fx_lighting_split": "Split Lighting",
-  "fx_lighting_butterfly": "Butterfly Lighting",
-  "fx_lighting_rim": "Rim Light",
-  "fx_lighting_silhouette": "Silhouette",
-  "fx_lens_35mm": "35mm (wide)",
-  "fx_lens_50mm": "50mm (standard)",
-  "fx_lens_85mm": "85mm (portrait)",
-  "fx_lens_135mm": "135mm (tele)",
-  "fx_lens_macro": "Macro",
-  "fx_lens_fisheye": "Fisheye",
-  "fx_lens_tilt": "Tilt-Shift",
-  "fx_lens_lensbaby": "Lensbaby",
-  "fx_lens_polaroid": "Polaroid/Vintage",
-  "fx_lens_anamorphic": "Anamorphic",
-  "fx_atmosphere_mist_light": "Light Mist",
-  "fx_atmosphere_fog_dense": "Dense Fog",
-  "fx_atmosphere_rain": "Rain",
-  "fx_atmosphere_snow": "Snow",
-  "fx_atmosphere_dust": "Dust/Particles",
-  "fx_atmosphere_godrays": "God Rays",
-  "fx_atmosphere_bokeh_circle": "Circular Bokeh",
-  "fx_atmosphere_bokeh_hex": "Hexagonal Bokeh",
-  "fx_atmosphere_vignette_soft": "Soft Vignette",
-  "fx_atmosphere_vignette_strong": "Strong Vignette",
-  "fx_atmosphere_grain": "Film Grain",
-  "fx_atmosphere_leaks": "Light Leaks",
-  "fx_atmosphere_ca": "Chromatic Aberration",
-  "fx_atmosphere_flare": "Lens Flare",
-  "fx_color_warm": "Warm",
-  "fx_color_cool": "Cool",
-  "fx_color_desat": "Desaturated",
-  "fx_color_vibrant": "Vibrant Saturated",
-  "fx_color_mono": "Monochrome",
-  "fx_color_duotone": "Duotone",
-  "fx_color_pastel_mood": "Pastel",
-  "fx_color_neon_mood": "Neon",
-  "fx_color_sepia": "Sepia",
-  "fx_color_teal_orange": "Cyberpunk Teal/Orange"
-},
-  pt: {
-  "cat_photography": "Fotografia",
-  "cat_digital": "Digital",
-  "cat_classic": "Clássico",
-  "cat_modern": "Moderno",
-  "style_photo_classic_portrait": "Retrato Clássico",
-  "style_photo_classic_portrait_desc": "Iluminação suave, pele natural, fundo desfocado",
-  "style_photo_editorial": "Retrato Editorial",
-  "style_photo_editorial_desc": "Alto contraste, fashion, poses dramáticas",
-  "style_photo_lifestyle": "Lifestyle",
-  "style_photo_lifestyle_desc": "Natural, candid, luz do dia",
-  "style_photo_documentary": "Documental",
-  "style_photo_documentary_desc": "Preto e branco granulado, momentos reais",
-  "style_photo_fine_art": "Fine Art",
-  "style_photo_fine_art_desc": "Composição pictórica, textura de tela",
-  "style_photo_glamour": "Glamour",
-  "style_photo_glamour_desc": "Iluminação de estúdio, pele perfeita, brilho",
-  "style_dig_anime": "Anime",
-  "style_dig_anime_desc": "Olhos grandes, linhas limpas, cores vibrantes",
-  "style_dig_concept_art": "Concept Art",
-  "style_dig_concept_art_desc": "Ambientes épicos, detalhado, cinematográfico",
-  "style_dig_pixel_art": "Pixel Art",
-  "style_dig_pixel_art_desc": "Retro 8-bit/16-bit, paleta limitada",
-  "style_dig_low_poly": "Low Poly",
-  "style_dig_low_poly_desc": "Geométrico, facetado, minimalista 3D",
-  "style_dig_vaporwave": "Vaporwave",
-  "style_dig_vaporwave_desc": "Neon rosa/azul, glitch, anos 80",
-  "style_dig_cyberpunk": "Cyberpunk",
-  "style_dig_cyberpunk_desc": "Neon, chuva, futuro distópico, alta tecnologia",
-  "style_cls_oil": "Óleo",
-  "style_cls_oil_desc": "Pinceladas visíveis, textura rica, mestres antigos",
-  "style_cls_watercolor": "Aquarela",
-  "style_cls_watercolor_desc": "Fluido, transparente, bordas suaves",
-  "style_cls_charcoal": "Carvão",
-  "style_cls_charcoal_desc": "Preto e branco, textura áspera, esboço artístico",
-  "style_cls_pastel": "Pastel",
-  "style_cls_pastel_desc": "Suave, pó, cores delicadas, impressão de sonho",
-  "style_cls_engraving": "Gravura",
-  "style_cls_engraving_desc": "Linhas finas, preto e branco, técnica antiga",
-  "style_cls_mosaic": "Mosaico",
-  "style_cls_mosaic_desc": "Pequenos azulejos, bizantino, colorido",
-  "style_mod_minimal": "Minimalista",
-  "style_mod_minimal_desc": "Linhas limpas, poucos elementos, espaço negativo",
-  "style_mod_flat": "Flat Design",
-  "style_mod_flat_desc": "Cores sólidas, sem sombras, ícones 2D",
-  "style_mod_brutalist": "Brutalismo",
-  "style_mod_brutalist_desc": "Tipografia áspera, cores cruas, anti-design",
-  "style_mod_art_deco": "Art Déco",
-  "style_mod_art_deco_desc": "Geométrico, dourado, elegante anos 20",
-  "style_mod_pop_art": "Pop Art",
-  "style_mod_pop_art_desc": "Cores saturadas, Ben-Day dots, Andy Warhol",
-  "style_mod_surreal": "Surrealismo",
-  "style_mod_surreal_desc": "Sonho lógico, objetos flutuantes, inconsciente",
-  "fxsec_lighting": "Iluminação",
-  "fxsec_lens": "Lente / Câmara",
-  "fxsec_atmosphere": "Atmosfera",
-  "fxsec_color": "Cor / Mood",
-  "fx_lighting_natural": "Luz Natural",
-  "fx_lighting_studio": "Luz de Estúdio",
-  "fx_lighting_golden": "Luz Dourada (Golden Hour)",
-  "fx_lighting_blue": "Luz Azul (Blue Hour)",
-  "fx_lighting_backlit": "Contraluz",
-  "fx_lighting_rembrandt": "Rembrandt",
-  "fx_lighting_split": "Split Lighting",
-  "fx_lighting_butterfly": "Butterfly Lighting",
-  "fx_lighting_rim": "Rim Light",
-  "fx_lighting_silhouette": "Silhueta",
-  "fx_lens_35mm": "35mm (ampla)",
-  "fx_lens_50mm": "50mm (padrão)",
-  "fx_lens_85mm": "85mm (retrato)",
-  "fx_lens_135mm": "135mm (tele)",
-  "fx_lens_macro": "Macro",
-  "fx_lens_fisheye": "Fisheye",
-  "fx_lens_tilt": "Tilt-Shift",
-  "fx_lens_lensbaby": "Lensbaby",
-  "fx_lens_polaroid": "Polaroid/Vintage",
-  "fx_lens_anamorphic": "Anamórfico",
-  "fx_atmosphere_mist_light": "Névoa/Leve",
-  "fx_atmosphere_fog_dense": "Neblina Densa",
-  "fx_atmosphere_rain": "Chuva",
-  "fx_atmosphere_snow": "Neve",
-  "fx_atmosphere_dust": "Poeira/Partículas",
-  "fx_atmosphere_godrays": "Raios de Luz (God Rays)",
-  "fx_atmosphere_bokeh_circle": "Bokeh Circular",
-  "fx_atmosphere_bokeh_hex": "Bokeh Hexagonal",
-  "fx_atmosphere_vignette_soft": "Vignette Suave",
-  "fx_atmosphere_vignette_strong": "Vignette Forte",
-  "fx_atmosphere_grain": "Film Grain",
-  "fx_atmosphere_leaks": "Light Leaks",
-  "fx_atmosphere_ca": "Chromatic Aberration",
-  "fx_atmosphere_flare": "Lens Flare",
-  "fx_color_warm": "Warm (quente)",
-  "fx_color_cool": "Cool (frio)",
-  "fx_color_desat": "Desaturado",
-  "fx_color_vibrant": "Saturado Vibrante",
-  "fx_color_mono": "Monocromático",
-  "fx_color_duotone": "Duotone",
-  "fx_color_pastel_mood": "Pastel",
-  "fx_color_neon_mood": "Neon",
-  "fx_color_sepia": "Sepia",
-  "fx_color_teal_orange": "Cyberpunk Teal/Orange"
-},
-};
+export const ARTISTIC_LABELS = { en: {}, pt: {} };
 
 export function artLabel(lang, key, fallback = "") {
   const pack = ARTISTIC_LABELS[lang] || ARTISTIC_LABELS.en;
   return pack[key] ?? ARTISTIC_LABELS.en[key] ?? fallback;
 }
 
-export function localizeArtisticCatalog(lang) {
-  const L = (k, fb) => artLabel(lang, k, fb);
-  return {
-    categories: ARTISTIC_STYLE_CATEGORIES.map((c) => ({
-      ...c,
-      label: L(`cat_${c.id}`, c.label),
+function preferEnglish(lang) {
+  return lang !== "pt";
+}
+
+function pickLabel(item, lang) {
+  if (preferEnglish(lang)) return item.labelEn || item.label;
+  return item.label;
+}
+
+function pickDesc(item, lang) {
+  if (preferEnglish(lang)) return item.descEn || item.desc || "";
+  return item.desc || "";
+}
+
+export function localizeArtisticCatalog(lang, { includeNsfw = false } = {}) {
+  const categories = filterArtisticCategories(ARTISTIC_STYLE_CATEGORIES, includeNsfw).map((c) => ({
+    ...c,
+    label: pickLabel(c, lang),
+  }));
+
+  const styles = filterArtisticStyles(ARTISTIC_STUDIO_STYLES, includeNsfw).map((s) => ({
+    ...s,
+    label: pickLabel(s, lang),
+    desc: pickDesc(s, lang),
+  }));
+
+  const sections = ARTISTIC_EFFECT_SECTIONS.map((sec) => ({
+    ...sec,
+    title: preferEnglish(lang) ? sec.titleEn || sec.title : sec.title,
+    options: sec.options.map((o) => ({
+      ...o,
+      label: pickLabel(o, lang),
     })),
-    styles: ARTISTIC_STUDIO_STYLES.map((s) => ({
-      ...s,
-      label: L(`style_${s.id}`, s.label),
-      desc: L(`style_${s.id}_desc`, s.desc),
-    })),
-    sections: ARTISTIC_EFFECT_SECTIONS.map((sec) => ({
-      ...sec,
-      title: L(`fxsec_${sec.id}`, sec.title),
-      options: sec.options.map((o) => ({
-        ...o,
-        label: L(`fx_${sec.id}_${o.id}`, o.label),
-      })),
-    })),
-  };
+  }));
+
+  return { categories, styles, sections };
+}
+
+export function countStylesInCategory(styles, catId) {
+  return styles.filter((s) => s.cat === catId).length;
 }

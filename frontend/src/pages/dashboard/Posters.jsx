@@ -18,6 +18,8 @@ import { FALLBACK_POSTER_MODELS, FALLBACK_POSTER_TEMPLATES } from "../../lib/pos
 import { POSTER_TEMPLATE_COVER_BY_ID } from "../../lib/posterTemplateCovers";
 import { buildPosterPrompt, POSTER_MOOD_IDS } from "../../lib/posterPrompt";
 import { PosterSection, CustomTextLayersEditor } from "../../components/poster/PosterEditorParts";
+import AspectPicker from "../../components/AspectPicker";
+import { apiAspectRatio } from "../../lib/apiAspectRatio";
 import StudioResultAnchor from "../../components/StudioResultAnchor";
 import { useI18n } from "../../lib/i18n";
 import { useStudioI18n } from "../../lib/useStudioI18n";
@@ -178,7 +180,7 @@ export default function Posters() {
         fd.append("custom_blocks", JSON.stringify(customBlocks));
         fd.append("photo", photo);
         fd.append("model_key", effectiveModel);
-        fd.append("aspect_ratio", aspect || picked.aspect || "4:5");
+        fd.append("aspect_ratio", apiAspectRatio(aspect || picked.aspect || "4:5", { model: "standard" }));
         fd.append("num_outputs", String(numOutputs));
         fd.append("mood", mood);
         fd.append("color_hint", colorHint);
@@ -190,7 +192,7 @@ export default function Posters() {
           placeholders: values,
           custom_blocks: customBlocks,
           model_key: effectiveModel,
-          aspect_ratio: aspect || picked.aspect || "4:5",
+          aspect_ratio: apiAspectRatio(aspect || picked.aspect || "4:5", { model: "standard" }),
           num_outputs: numOutputs,
           mood,
           color_hint: colorHint,
@@ -571,24 +573,13 @@ function Editor(props) {
             title={t("post_sec_format")}
             hint={t("post_sec_format_hint")}
           >
-            <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 mb-5" data-testid="poster-formats">
-              {FORMATS.map(({ key, label, hint }) => (
-                <button
-                  key={key}
-                  onClick={() => setAspect(key)}
-                  data-testid={`poster-format-${key}`}
-                  className={`relative p-3 rounded-xl border-2 transition-all text-left ${
-                    aspect === key
-                      ? "border-[#7C3AED] bg-[#7C3AED]/10"
-                      : "border-[#2E2E30] bg-[#13131A]/50 hover:border-[#7C3AED]/40"
-                  }`}
-                >
-                  <AspectMini ratio={key} active={aspect === key} />
-                  <p className={`text-[12px] font-medium mt-2 font-['Inter_Tight'] ${aspect === key ? "text-[#F4F1EA]" : "text-[#F4F1EA]/85"}`}>{label}</p>
-                  <p className="text-[#5A5A5E] text-[10px] mt-0.5">{hint}</p>
-                </button>
-              ))}
-            </div>
+            <AspectPicker
+              value={aspect || picked?.aspect || "4:5"}
+              onChange={setAspect}
+              items={FORMATS.map(({ key, label, hint }) => ({ key, label, hint }))}
+              columns="grid grid-cols-2 sm:grid-cols-5 gap-2.5 mb-5"
+              testIdPrefix="poster-format"
+            />
 
             <div className="flex items-center justify-between p-4 rounded-xl border border-[#2E2E30] bg-[#13131A]/50">
               <div>
@@ -781,19 +772,3 @@ function PosterResult({ busy, result, setResult, aspect }) {
   );
 }
 
-function AspectMini({ ratio, active }) {
-  const map = {
-    "1:1":  { w: 18, h: 18 },
-    "4:5":  { w: 16, h: 20 },
-    "9:16": { w: 11, h: 20 },
-    "16:9": { w: 22, h: 12 },
-    "3:4":  { w: 15, h: 20 },
-  };
-  const { w, h } = map[ratio] || map["1:1"];
-  return (
-    <div
-      className={`border-[1.5px] rounded-sm ${active ? "border-[#C4B5FD]" : "border-[#5A5A5E]"}`}
-      style={{ width: w + "px", height: h + "px" }}
-    />
-  );
-}

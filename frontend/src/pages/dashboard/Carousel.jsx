@@ -19,6 +19,8 @@ import { getCarouselExample, getCarouselSlideRoles } from "../../lib/carouselLoc
 import { revokePanoramaBlobUrls, splitPanoramaToSlides } from "../../lib/carouselPanorama";
 import { useI18n } from "../../lib/i18n";
 import { useStudioI18n } from "../../lib/useStudioI18n";
+import AspectPicker from "../../components/AspectPicker";
+import { apiAspectRatio } from "../../lib/apiAspectRatio";
 
 const COST_PER_SLIDE = 5;
 const MIN_SLIDES = 2;
@@ -159,7 +161,7 @@ export default function CarouselPage() {
     }))));
     fd.append("campaign_brief", campaignBrief.trim());
     fd.append("style_suffix", styleSuffix);
-    fd.append("aspect_ratio", aspect);
+    fd.append("aspect_ratio", apiAspectRatio(aspect, { model: "standard" }));
     fd.append("keep_character", keepCharacter ? "true" : "false");
     fd.append("keep_lighting", keepLighting ? "true" : "false");
     fd.append("keep_palette", keepPalette ? "true" : "false");
@@ -259,7 +261,7 @@ export default function CarouselPage() {
         fd.append("slide_role", slide.role || "content");
         fd.append("campaign_brief", campaignBrief.trim());
         fd.append("style_suffix", styleSuffix);
-        fd.append("aspect_ratio", aspect);
+        fd.append("aspect_ratio", apiAspectRatio(aspect, { model: "standard" }));
         fd.append("keep_character", keepCharacter ? "true" : "false");
         fd.append("keep_lighting", keepLighting ? "true" : "false");
         fd.append("keep_palette", keepPalette ? "true" : "false");
@@ -575,23 +577,13 @@ export default function CarouselPage() {
           </StudioAccordionSection>
 
           <StudioAccordionSection title={t("car_sec_format")} defaultOpen testId="carousel-section-format">
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5" data-testid="carousel-formats">
-              {ASPECTS.map(({ key, label }) => (
-                <button
-                  key={key}
-                  type="button"
-                  onClick={() => setAspect(key)}
-                  data-testid={`carousel-format-${key}`}
-                  className={`p-3 rounded-xl border-2 transition-all text-center font-['Inter_Tight'] text-[12px] ${
-                    aspect === key
-                      ? "border-[#FACC15]/60 bg-[#FACC15]/8 text-[#F4F1EA]"
-                      : "border-[#2E2E30] text-[#8A8A8E] hover:border-[#FACC15]/35 hover:text-[#F4F1EA]"
-                  }`}
-                >
-                  {label}
-                </button>
-              ))}
-            </div>
+            <AspectPicker
+              value={aspect}
+              onChange={setAspect}
+              items={ASPECTS.map(({ key, label }) => ({ key, label }))}
+              columns="grid grid-cols-2 sm:grid-cols-4 gap-2.5"
+              testIdPrefix="carousel-format"
+            />
           </StudioAccordionSection>
         </div>
 

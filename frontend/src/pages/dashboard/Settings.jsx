@@ -17,6 +17,7 @@ import { readUserSettings, writeUserSettings } from "../../lib/userSettings";
 import { setLanguageAndReload } from "../../lib/remakepixLanguage";
 import useTitle from "../../lib/useTitle";
 import { toast } from "sonner";
+import AspectPicker from "../../components/AspectPicker";
 
 const ASPECTS = ["1:1", "4:5", "9:16", "16:9", "3:2"];
 
@@ -174,23 +175,13 @@ export default function Settings() {
 
         <Section title={t("set_section_studio")} icon={ImageIcon}>
           <p className="text-xs text-[#8A8A8E] mb-3">{t("set_aspect_hint")}</p>
-          <div className="flex flex-wrap gap-2">
-            {ASPECTS.map((a) => (
-              <button
-                key={a}
-                type="button"
-                onClick={() => pickAspect(a)}
-                data-testid={`ar-${a}`}
-                className={`min-w-[3rem] h-10 px-3 rounded-lg text-sm font-medium transition-all ${
-                  aspect === a
-                    ? "bg-[#7C3AED] text-white border border-[#A855F7]/50"
-                    : "bg-[#13131A] text-[#8A8A8E] border border-[#2E2E30] hover:text-white hover:border-[#7C3AED]/40"
-                }`}
-              >
-                {a}
-              </button>
-            ))}
-          </div>
+          <AspectPicker
+            value={aspect}
+            onChange={pickAspect}
+            options={ASPECTS}
+            columns="grid grid-cols-3 sm:grid-cols-5 gap-2.5 max-w-md"
+            testIdPrefix="settings-ar"
+          />
         </Section>
 
         <Section title={t("set_section_links")} icon={CreditCard}>

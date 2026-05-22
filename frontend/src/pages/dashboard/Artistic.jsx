@@ -23,6 +23,7 @@ import { usePricing } from "../../lib/PricingContext";
 import { toast } from "sonner";
 import ImageUploadZone from "../../components/ImageUploadZone";
 import AspectPicker from "../../components/AspectPicker";
+import { apiAspectRatio } from "../../lib/apiAspectRatio";
 import ArtisticStyleCard from "../../components/artistic/ArtisticStyleCard";
 import ArtisticLabStyleCard from "../../components/artistic/ArtisticLabStyleCard";
 import ArtisticEffectOption from "../../components/artistic/ArtisticEffectOption";
@@ -226,13 +227,13 @@ export default function Artistic() {
         const fd = new FormData();
         fd.append("photo", photo);
         fd.append("prompt_final", finalPrompt);
-        fd.append("aspect_ratio", aspect);
+        fd.append("aspect_ratio", apiAspectRatio(aspect, { model: "artistic", hasPhoto: true }));
         fd.append("style_id", styleId || "");
         ({ data } = await uploadPost("/generate/artistic-studio", fd, { timeout: 240000 }));
       } else {
         ({ data } = await api.post("/generate/artistic-studio", {
           prompt_final: finalPrompt,
-          aspect_ratio: aspect,
+          aspect_ratio: apiAspectRatio(aspect, { model: "artistic", hasPhoto: false }),
           style_id: styleId || "",
         }));
       }

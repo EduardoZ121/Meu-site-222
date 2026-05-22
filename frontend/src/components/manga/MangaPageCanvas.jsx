@@ -4,6 +4,7 @@ import { cn } from "../../lib/utils";
 import { useI18n } from "../../lib/i18n";
 import { getMangaStudioCatalog } from "../../lib/mangaStudioCatalog";
 import { emptyPanel, PANEL_ASPECTS } from "../../lib/mangaStudioData";
+import AspectPicker from "../AspectPicker";
 
 const aspectClass = {
   "4:5": "aspect-[4/5]",
@@ -141,20 +142,20 @@ export default function MangaPageCanvas({
           </>
         )}
         {activePanelId && (
-          <select
-            className="ml-auto field-input text-[11px] py-1.5 max-w-[100px]"
-            value={panels.find((p) => p.id === activePanelId)?.aspect || "4:5"}
-            onChange={(e) => {
-              patchPanels(
-                panels.map((p) =>
-                  p.id === activePanelId ? { ...p, aspect: e.target.value } : p),
-              );
-            }}
-          >
-            {PANEL_ASPECTS.map((a) => (
-              <option key={a} value={a}>{a}</option>
-            ))}
-          </select>
+          <div className="ml-auto w-full max-w-[280px] sm:max-w-[320px]">
+            <AspectPicker
+              compact
+              value={panels.find((p) => p.id === activePanelId)?.aspect || "4:5"}
+              onChange={(next) => {
+                patchPanels(
+                  panels.map((p) =>
+                    p.id === activePanelId ? { ...p, aspect: next } : p),
+                );
+              }}
+              options={PANEL_ASPECTS}
+              testIdPrefix="manga-panel-aspect"
+            />
+          </div>
         )}
       </div>
     </section>

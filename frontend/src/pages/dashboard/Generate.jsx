@@ -17,6 +17,7 @@ import { PADRAO_STYLE_COVER_BY_ID } from "../../lib/padraoStyleCovers";
 import useTitle from "../../lib/useTitle";
 import StudioAccordionSection from "../../components/StudioAccordionSection";
 import { readUserSettings } from "../../lib/userSettings";
+import { apiAspectRatio } from "../../lib/apiAspectRatio";
 
 const SUBJECT_KEYS = [
   { value: "the man", labelKey: "studio_subj_man" },
@@ -95,7 +96,7 @@ export default function Generate() {
         fd.append("photo", photo);
         fd.append("style_id", pickedStyle);
         fd.append("subject", subject);
-        fd.append("aspect_ratio", aspect);
+        fd.append("aspect_ratio", apiAspectRatio(aspect, { model: "standard", hasPhoto: true }));
         fd.append("lang", lang || "en");
         if (prompt.trim()) fd.append("extra_prompt", prompt.trim());
         ({ data: submitData } = await uploadPost("/generate/easy", fd, { timeout: 120000, headers: { "X-Skip-Auto-Poll": "1" } }));
@@ -103,14 +104,14 @@ export default function Generate() {
         const fd = new FormData();
         fd.append("photo", photo);
         fd.append("prompt", prompt.trim());
-        fd.append("aspect_ratio", aspect);
+        fd.append("aspect_ratio", apiAspectRatio(aspect, { model: "standard", hasPhoto: true }));
         fd.append("lang", lang || "en");
         ({ data: submitData } = await uploadPost("/generate/edit", fd, { timeout: 120000, headers: { "X-Skip-Auto-Poll": "1" } }));
       } else {
         ({ data: submitData } = await api.post("/generate/image", {
           prompt: prompt.trim(),
           mode: "advanced",
-          aspect_ratio: aspect,
+          aspect_ratio: apiAspectRatio(aspect, { model: "standard", hasPhoto: false }),
           num_outputs: 1,
           improve_prompt: improve,
           lang: lang || "en",

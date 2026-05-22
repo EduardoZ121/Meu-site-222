@@ -10,6 +10,8 @@ import useTitle from "../../lib/useTitle";
 import ResultPanel from "../../components/ResultPanel";
 import StudioResultAnchor from "../../components/StudioResultAnchor";
 import ImageUploadZone from "../../components/ImageUploadZone";
+import AspectPicker from "../../components/AspectPicker";
+import { apiAspectRatio } from "../../lib/apiAspectRatio";
 
 const ASPECTS = ["16:9", "9:16", "1:1", "4:5"];
 const IDEA_KEYS = ["vid_idea_1", "vid_idea_2", "vid_idea_3", "vid_idea_4"];
@@ -57,7 +59,7 @@ export default function Video() {
       // Compose a richer prompt with motion style + duration hint
       const composed = `${prompt.trim()} — motion style: ${motion}, duration: ${duration}s`;
       fd.append("prompt", composed);
-      fd.append("aspect_ratio", aspect);
+      fd.append("aspect_ratio", apiAspectRatio(aspect, { model: "video", hasPhoto: !!photo }));
       if (photo) fd.append("photo", photo);
       const { data } = await uploadPost("/generate/video", fd, { timeout: 300000 });
       const creation = normalizeCreation(data?.creation);
@@ -124,17 +126,14 @@ export default function Video() {
           {/* Step 3 — format */}
           <section>
             <p className="text-[10px] font-mono uppercase tracking-[0.22em] text-[#7C3AED] mb-3">{t("vid_step_format")}</p>
-            <div className="flex flex-wrap gap-2">
-              {ASPECTS.map((a) => (
-                <button key={a} onClick={() => setAspect(a)} data-testid={`vid-ar-${a}`}
-                  className={`px-5 py-2.5 rounded-md text-[11px] font-mono uppercase tracking-[0.14em] transition-all
-                    ${aspect === a
-                      ? "border border-[#7C3AED] bg-[#7C3AED]/15 text-[#F4F1EA] shadow-[0_0_24px_-8px_rgba(124,58,237,0.6)]"
-                      : "border border-[#2E2E30] text-[#8A8A8E] hover:text-[#F4F1EA] hover:border-[#5A5A5E]"}`}>
-                  {a}
-                </button>
-              ))}
-            </div>
+            <AspectPicker
+              value={aspect}
+              onChange={setAspect}
+              options={ASPECTS}
+              hasPhoto={!!photo}
+              columns="grid grid-cols-2 sm:grid-cols-4 gap-2.5"
+              testIdPrefix="vid-ar"
+            />
           </section>
 
           {/* Step 4 — duration */}

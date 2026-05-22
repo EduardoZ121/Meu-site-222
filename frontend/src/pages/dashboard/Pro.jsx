@@ -9,6 +9,7 @@ import { toast } from "sonner";
 import ResultPanel from "../../components/ResultPanel";
 import StudioResultAnchor from "../../components/StudioResultAnchor";
 import AspectPicker from "../../components/AspectPicker";
+import { apiAspectRatio } from "../../lib/apiAspectRatio";
 import StyleCover from "../../components/StyleCover";
 import ImageUploadZone from "../../components/ImageUploadZone";
 import { FALLBACK_PRO_PRESETS } from "../../lib/publicFallbacks";
@@ -72,7 +73,7 @@ export default function Pro() {
       const fd = new FormData();
       fd.append("photo", photo);
       fd.append("preset_id", preset);
-      fd.append("aspect_ratio", aspect);
+      fd.append("aspect_ratio", apiAspectRatio(aspect, { model: "pro", hasPhoto: !!photo }));
       fd.append("extra_prompt", customPrompt.trim());
       fd.append("intensity", String(intensity));
       const { data } = await uploadPost("/generate/pro", fd, { timeout: 180000 });

@@ -8,6 +8,7 @@ import ResultPanel from "./ResultPanel";
 import CollapsibleSection from "./CollapsibleSection";
 import StudioResultAnchor from "./StudioResultAnchor";
 import { primaryResultUrl } from "../lib/creationUrls";
+import { AspectRatioShape } from "./AspectRatioShape";
 
 /**
  * Unified studio frame — Pollo-style.
@@ -182,21 +183,23 @@ export default function ToolFrame({
 
           {aspectRatios && aspectRatios.length > 0 && onAspectChange && (
             <CollapsibleSection title={t("tool_output_format")} variant="inset" testId={`${testId}-section-aspect`}>
-              <div className="grid grid-cols-3 sm:grid-cols-6 gap-2" data-testid={`${testId}-aspect-ratios`}>
+              <div className="grid grid-cols-3 sm:grid-cols-6 gap-2.5" data-testid={`${testId}-aspect-ratios`}>
                 {aspectRatios.map((a) => (
                   <button
                     type="button"
                     key={a}
                     onClick={() => onAspectChange(a)}
-                    className={`py-3 rounded-xl text-[12px] font-medium transition-all flex flex-col items-center gap-1 border ${
+                    className={`py-3 rounded-xl text-[11px] font-medium transition-all flex flex-col items-center gap-1 border font-['Inter_Tight'] ${
                       aspect === a
                         ? "border-[#7C3AED] bg-[rgba(124,58,237,0.1)] text-[#E9E4DC] shadow-[inset_0_0_0_1px_rgba(124,58,237,0.12)]"
                         : "border-[rgba(244,241,234,0.08)] text-[#8A8A8E] hover:border-[rgba(124,58,237,0.35)] hover:text-[#F4F1EA]"
                     }`}
                     data-testid={`${testId}-aspect-${a}`}
                   >
-                    <AspectIcon ratio={a} />
-                    <span className="font-mono">{a}</span>
+                    <span className="flex h-6 items-center justify-center">
+                      <AspectRatioShape ratio={a} active={aspect === a} maxSize={22} />
+                    </span>
+                    <span>{a}</span>
                   </button>
                 ))}
               </div>
@@ -252,19 +255,3 @@ export default function ToolFrame({
   );
 }
 
-function AspectIcon({ ratio }) {
-  const map = {
-    "1:1": { w: 14, h: 14 },
-    "3:4": { w: 12, h: 16 },
-    "4:5": { w: 13, h: 16 },
-    "9:16": { w: 10, h: 18 },
-    "16:9": { w: 18, h: 10 },
-    "21:9": { w: 20, h: 9 },
-    "3:2": { w: 18, h: 12 },
-    "2:3": { w: 12, h: 18 },
-  };
-  const { w, h } = map[ratio] || { w: 14, h: 14 };
-  return (
-    <div className="border-[1.5px] border-current" style={{ width: w + "px", height: h + "px" }} />
-  );
-}

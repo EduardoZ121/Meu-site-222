@@ -100,14 +100,6 @@ export default function Restore() {
 
   return (
     <div className="max-w-[1400px] mx-auto pb-32" data-testid="restore-frame">
-      <button
-        onClick={() => navigate("/app/tools")}
-        className="rp-studio-back"
-        data-testid="restore-back"
-      >
-        <ArrowLeft className="w-4 h-4" /> {t("back_to_tools")}
-      </button>
-
       {/* Hero header */}
       <div className="mb-12 flex items-start gap-5">
         <div className="shrink-0 w-14 h-14 rounded-2xl bg-[#7C3AED]/15 border border-[#7C3AED]/30 flex items-center justify-center">

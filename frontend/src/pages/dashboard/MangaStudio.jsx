@@ -336,11 +336,7 @@ export default function MangaStudio() {
   };
 
   return (
-    <div className="manga-studio-root min-h-screen pb-28" data-testid="manga-studio-page">
-      <button type="button" onClick={() => navigate("/app/tools")} className="rp-studio-back mb-6">
-        <ArrowLeft className="w-4 h-4" /> {t("back_to_tools")}
-      </button>
-
+    <div className="manga-studio-root w-full max-w-[1600px] mx-auto pb-8 md:pb-12" data-testid="manga-studio-page">
       {(statusLine || busy) && (
         <div
           className={`mb-4 flex items-start gap-2 text-sm px-3 py-2.5 rounded-lg border ${

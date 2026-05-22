@@ -128,10 +128,6 @@ export default function Wizard() {
   if (composed) {
     return (
       <motion.div className="max-w-[860px] mx-auto" data-testid="wizard-result-page">
-        <button type="button" onClick={() => navigate("/app/tools")} className="rp-studio-back">
-          <ArrowLeft className="w-4 h-4" /> {t("back_to_tools")}
-        </button>
-
         <p className="text-[#7C3AED] text-[10px] font-mono uppercase tracking-[0.22em] mb-3">
           {t("wiz_result_eyebrow")}
         </p>
@@ -224,11 +220,7 @@ export default function Wizard() {
 
   return (
     <motion.div className="max-w-[900px] mx-auto pb-24" data-testid="wizard-page">
-      <button type="button" onClick={() => navigate("/app/tools")} className="rp-studio-back">
-        <ArrowLeft className="w-4 h-4" /> {t("back_to_tools")}
-      </button>
-
-      <motion.div className="mb-10 flex items-start gap-5">
+      <motion.div className="mb-8 md:mb-10 flex items-start gap-5">
         <div className="shrink-0 w-14 h-14 rounded-2xl bg-[#7C3AED]/15 border border-[#7C3AED]/30 flex items-center justify-center">
           <Wand2 className="w-7 h-7 text-[#C4B5FD]" strokeWidth={1.5} />
         </div>

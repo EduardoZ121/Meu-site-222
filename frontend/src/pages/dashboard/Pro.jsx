@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
-import { ArrowLeft, Loader2, Sparkles, Camera, Sliders } from "lucide-react";
+import { Loader2, Sparkles, Camera, Sliders } from "lucide-react";
 import { motion } from "framer-motion";
-import { useNavigate } from "react-router-dom";
 import { api, formatApiError, uploadPost } from "../../lib/api";
 import { normalizeCreation, primaryResultUrl } from "../../lib/creationUrls";
 import { useAuth } from "../../lib/auth";
@@ -22,8 +21,6 @@ export default function Pro() {
   useTitle(t("pro_page_title"));
   const { refresh, user } = useAuth();
   const { costs } = usePricing();
-  const navigate = useNavigate();
-
   const CAT_LABELS = {
     realism: t("pro_cat_realism"),
     mood: t("pro_cat_mood"),
@@ -91,11 +88,7 @@ export default function Pro() {
 
   return (
     <div className="rp-studio-shell max-w-[1400px] mx-auto pb-32" data-testid="pro-page">
-      <button type="button" onClick={() => navigate("/app/tools")} className="rp-studio-back">
-        <ArrowLeft className="w-4 h-4" strokeWidth={1.5} /> {t("back_to_tools")}
-      </button>
-
-      <header className="mb-10 pb-8 border-b border-[rgba(244,241,234,0.06)]">
+      <header className="mb-8 md:mb-10 pb-6 md:pb-8 border-b border-[rgba(244,241,234,0.06)]">
         <div className="flex items-center gap-3 mb-3">
           <div className="w-10 h-10 rounded-xl bg-[rgba(124,58,237,0.12)] border border-[rgba(124,58,237,0.22)] flex items-center justify-center">
             <Camera className="w-4 h-4 text-[#C4B5FD]" strokeWidth={1.5} />

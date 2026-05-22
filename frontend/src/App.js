@@ -11,6 +11,8 @@ import ForgotPassword from "./pages/ForgotPassword";
 import ResetPassword from "./pages/ResetPassword";
 import Explore from "./pages/Explore";
 import DashboardLayout from "./pages/dashboard/Layout";
+import HubMainLayout from "./layouts/HubMainLayout";
+import StudioWorkspaceLayout from "./layouts/StudioWorkspaceLayout";
 import Tools from "./pages/dashboard/Tools";
 import Generate from "./pages/dashboard/Generate";
 import Pro from "./pages/dashboard/Pro";
@@ -60,30 +62,36 @@ function App() {
 
               <Route path="/app" element={<RequireAuth><DashboardLayout /></RequireAuth>}>
                 <Route index element={<Navigate to="/app/tools" replace />} />
-                <Route path="tools" element={<Tools />} />
-                <Route path="tools/bg-remove" element={<BgRemove />} />
-                <Route path="tools/upscale" element={<Upscale />} />
-                <Route path="tools/restore" element={<Restore />} />
-                <Route path="tools/colorize" element={<Colorize />} />
-                <Route path="tools/inpaint" element={<Inpaint />} />
-                <Route path="tools/clothes" element={<ClothesChanger />} />
-                <Route path="generate" element={<Generate />} />
-                <Route path="studio" element={<Generate />} />
-                <Route path="pro" element={<Pro />} />
-                <Route path="artistic" element={<Artistic />} />
-                <Route path="video" element={<Video />} />
-                <Route path="posters" element={<Posters />} />
-                <Route path="manga-studio" element={<MangaStudio />} />
-                <Route path="carousel" element={<Navigate to="/app/manga-studio" replace />} />
-                <Route path="wizard" element={<Wizard />} />
-                <Route path="suggest" element={<Suggest />} />
-                <Route path="settings" element={<SettingsPage />} />
-                <Route path="gallery" element={<Gallery />} />
-                <Route path="favorites" element={<Gallery favoritesOnly />} />
-                <Route path="billing" element={<Billing />} />
-                <Route path="profile" element={<Profile />} />
-                <Route path="referrals" element={<Referrals />} />
-                <Route path="admin" element={<RequireAuth adminOnly><Admin /></RequireAuth>} />
+
+                <Route element={<HubMainLayout />}>
+                  <Route path="tools" element={<Tools />} />
+                  <Route path="suggest" element={<Suggest />} />
+                  <Route path="settings" element={<SettingsPage />} />
+                  <Route path="gallery" element={<Gallery />} />
+                  <Route path="favorites" element={<Gallery favoritesOnly />} />
+                  <Route path="billing" element={<Billing />} />
+                  <Route path="profile" element={<Profile />} />
+                  <Route path="referrals" element={<Referrals />} />
+                  <Route path="admin" element={<RequireAuth adminOnly><Admin /></RequireAuth>} />
+                </Route>
+
+                <Route element={<StudioWorkspaceLayout />}>
+                  <Route path="tools/bg-remove" element={<BgRemove />} />
+                  <Route path="tools/upscale" element={<Upscale />} />
+                  <Route path="tools/restore" element={<Restore />} />
+                  <Route path="tools/colorize" element={<Colorize />} />
+                  <Route path="tools/inpaint" element={<Inpaint />} />
+                  <Route path="tools/clothes" element={<ClothesChanger />} />
+                  <Route path="generate" element={<Generate />} />
+                  <Route path="studio" element={<Generate />} />
+                  <Route path="pro" element={<Pro />} />
+                  <Route path="artistic" element={<Artistic />} />
+                  <Route path="video" element={<Video />} />
+                  <Route path="posters" element={<Posters />} />
+                  <Route path="manga-studio" element={<MangaStudio />} />
+                  <Route path="carousel" element={<Navigate to="/app/manga-studio" replace />} />
+                  <Route path="wizard" element={<Wizard />} />
+                </Route>
               </Route>
 
               <Route path="*" element={<Navigate to="/" replace />} />

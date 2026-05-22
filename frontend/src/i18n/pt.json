@@ -3,7 +3,9 @@
     "header": {
       "credits": "Créditos",
       "menu_label": "Menu",
-      "back_to_tools": "Voltar às ferramentas"
+      "back_to_tools": "Voltar às ferramentas",
+      "studio_nav_back": "Voltar",
+      "studio_nav_workspace": "Workspace"
     },
     "profile_menu_open": "Abrir menu da conta",
     "profile_menu_account": "Conta",

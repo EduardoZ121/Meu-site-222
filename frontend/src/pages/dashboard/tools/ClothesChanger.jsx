@@ -199,11 +199,7 @@ export default function ClothesChanger() {
 
   return (
     <div className="max-w-[1400px] mx-auto pb-32" data-testid="clothes-page">
-      <button onClick={() => navigate("/app/tools")} className="rp-studio-back">
-        <ArrowLeft className="w-4 h-4" /> {t("header.back_to_tools")}
-      </button>
-
-      <header className="mb-10">
+      <header className="mb-8 md:mb-10">
         <div className="flex items-center gap-3 mb-3">
           <div className="w-9 h-9 rounded-full bg-[#7C3AED]/15 flex items-center justify-center">
             <Shirt className="w-4 h-4 text-[#C4B5FD]" strokeWidth={1.5} />

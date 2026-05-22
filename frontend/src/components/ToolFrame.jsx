@@ -1,6 +1,5 @@
 import { useState } from "react";
-import { ArrowLeft, Loader2, Sparkles, RefreshCw } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { Loader2, Sparkles, RefreshCw } from "lucide-react";
 import { motion } from "framer-motion";
 import { useAuth } from "../lib/auth";
 import { useI18n } from "../lib/i18n";
@@ -61,7 +60,6 @@ export default function ToolFrame({
 }) {
   const { user } = useAuth();
   const { t } = useI18n();
-  const navigate = useNavigate();
   const formatsLabel = acceptedFormats ?? t("tool_accept_formats");
   const [viewAllModels, setViewAllModels] = useState(false);
 
@@ -70,16 +68,7 @@ export default function ToolFrame({
 
   return (
     <div className="rp-studio-shell max-w-[1400px] mx-auto pb-32" data-testid={`${testId}-frame`}>
-      <button
-        type="button"
-        onClick={() => navigate("/app/tools")}
-        className="rp-studio-back"
-        data-testid={`${testId}-back`}
-      >
-        <ArrowLeft className="w-4 h-4" strokeWidth={1.5} /> {t("back_to_tools")}
-      </button>
-
-      <header className="mb-10 pb-8 border-b border-[rgba(244,241,234,0.06)]">
+      <header className="mb-8 md:mb-10 pb-6 md:pb-8 border-b border-[rgba(244,241,234,0.06)]">
         <p className="rp-editor-section-cap mb-2">{t("tool_cap")}</p>
         <h1 className="rp-studio-page-title mb-3 font-['Inter_Tight']">{title}</h1>
         {subtitle && <p className="rp-studio-page-desc">{subtitle}</p>}

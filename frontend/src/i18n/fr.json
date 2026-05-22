@@ -3,7 +3,9 @@
     "header": {
       "credits": "Crédits",
       "menu_label": "Menu",
-      "back_to_tools": "Retour aux outils"
+      "back_to_tools": "Retour aux outils",
+      "studio_nav_back": "Retour",
+      "studio_nav_workspace": "Workspace"
     },
     "sidebar": {
       "create": "Créer",

@@ -1,14 +1,13 @@
-import { Outlet, NavLink, useNavigate, Link } from "react-router-dom";
+import { Outlet, NavLink, useNavigate } from "react-router-dom";
 import { useAuth } from "../../lib/auth";
 import { useI18n } from "../../lib/i18n";
 import {
   Sparkles, Images, Heart, CreditCard, User, Users, ShieldCheck, LogOut,
   Film, FileText, BookOpen, Menu, Settings, LayoutGrid, Camera, Palette, Wand2,
 } from "lucide-react";
-import { useEffect, useMemo, useState, useCallback } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import Logo from "../../components/Logo";
-import DashboardProfileMenu from "../../components/DashboardProfileMenu";
 import { NotificationProvider } from "../../lib/NotificationContext";
 
 const navSpring = { type: "spring", stiffness: 380, damping: 32 };
@@ -82,7 +81,6 @@ export default function DashboardLayout() {
   const { t } = useI18n();
   const navigate = useNavigate();
   const [mobileOpen, setMobileOpen] = useState(false);
-  const [headerCompact, setHeaderCompact] = useState(false);
 
   const nav = useMemo(() => [
     {
@@ -146,16 +144,6 @@ export default function DashboardLayout() {
     return () => clearInterval(interval);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-
-  const onScroll = useCallback(() => {
-    setHeaderCompact(window.scrollY > 24);
-  }, []);
-
-  useEffect(() => {
-    window.addEventListener("scroll", onScroll, { passive: true });
-    onScroll();
-    return () => window.removeEventListener("scroll", onScroll);
-  }, [onScroll]);
 
   if (!user) return null;
 
@@ -225,92 +213,43 @@ export default function DashboardLayout() {
 
   return (
     <NotificationProvider>
-    <motion.div
-      className="min-h-screen bg-rp-bg flex font-['Inter_Tight'] text-rp-text touch-manipulation"
-      data-testid="dashboard-layout"
-    >
-      <aside className="w-[240px] hidden md:flex flex-col border-r border-white/[0.08] sticky top-0 h-screen bg-white/[0.05] backdrop-blur-xl">
-        <SidebarContent />
-      </aside>
+      <motion.div
+        className="min-h-screen h-[100dvh] md:min-h-screen bg-rp-bg flex font-['Inter_Tight'] text-rp-text touch-manipulation overflow-hidden"
+        data-testid="dashboard-layout"
+      >
+        <aside className="w-[240px] hidden md:flex flex-col border-r border-white/[0.08] shrink-0 h-full bg-white/[0.05] backdrop-blur-xl">
+          <SidebarContent />
+        </aside>
 
-      <AnimatePresence>
-        {mobileOpen && (
-          <>
-            <motion.div
-              key="overlay"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              onClick={() => setMobileOpen(false)}
-              className="md:hidden fixed inset-0 bg-black/60 z-40"
-            />
-            <motion.aside
-              key="drawer"
-              initial={{ x: "-100%" }}
-              animate={{ x: 0 }}
-              exit={{ x: "-100%" }}
-              transition={navSpring}
-              className="md:hidden fixed left-0 top-0 bottom-0 w-[280px] border-r border-white/[0.08] flex flex-col z-50 bg-white/[0.05] backdrop-blur-xl"
-            >
-              <SidebarContent onClick={() => setMobileOpen(false)} />
-            </motion.aside>
-          </>
-        )}
-      </AnimatePresence>
-
-      <motion.div className="flex-1 min-w-0 flex flex-col">
-        <motion.header
-          className={`sticky top-0 z-50 flex items-center justify-between px-4 md:px-8 border-b border-transparent bg-black/40 backdrop-blur-xl transition-shadow duration-300 ${
-            headerCompact
-              ? "h-14 shadow-[0_8px_32px_-8px_rgba(0,0,0,0.65)]"
-              : "h-16 shadow-[0_4px_24px_-12px_rgba(0,0,0,0.45)]"
-          }`}
-          animate={{ height: headerCompact ? 56 : 64 }}
-          transition={navSpring}
-          data-testid="dashboard-header"
-        >
-          <div
-            className="pointer-events-none absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-transparent via-[#9333EA]/60 to-transparent"
-            aria-hidden
-          />
-          <div className="flex items-center gap-3">
-            <button
-              onClick={() => setMobileOpen(true)}
-              className="md:hidden text-white/70 hover:text-white p-2 rounded-lg hover:bg-white/[0.06] transition-colors"
-              data-testid="mobile-menu-btn"
-            >
-              <Menu className="w-5 h-5" strokeWidth={1.75} />
-            </button>
-            <motion.div className="md:hidden" layout>
-              <Logo to="/app/tools" variant="header" />
-            </motion.div>
-          </div>
-
-          <div className="flex items-center gap-3 md:gap-4">
-            <Link
-              to="/app/billing"
-              className="group flex items-center gap-2 px-3.5 py-2 rounded-full border border-[#9333EA]/25 bg-white/[0.06] backdrop-blur-md hover:border-[#A855F7]/50 hover:shadow-[0_0_28px_-8px_rgba(168,85,247,0.5)] transition-all duration-300"
-              data-testid="credits-badge"
-            >
-              <span className="text-[10px] font-mono uppercase tracking-wider text-white/50 group-hover:text-white/70">
-                {t("header.credits")}
-              </span>
-              <span
-                className="text-[#A855F7] text-base font-mono font-semibold leading-none tabular-nums"
-                data-testid="credits-value"
+        <AnimatePresence>
+          {mobileOpen && (
+            <>
+              <motion.div
+                key="overlay"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                onClick={() => setMobileOpen(false)}
+                className="md:hidden fixed inset-0 bg-black/60 z-40"
+              />
+              <motion.aside
+                key="drawer"
+                initial={{ x: "-100%" }}
+                animate={{ x: 0 }}
+                exit={{ x: "-100%" }}
+                transition={navSpring}
+                className="md:hidden fixed left-0 top-0 bottom-0 w-[280px] border-r border-white/[0.08] flex flex-col z-50 bg-white/[0.05] backdrop-blur-xl"
               >
-                {user.is_unlimited ? "∞" : user.credits}
-              </span>
-            </Link>
-            <DashboardProfileMenu />
-          </div>
-        </motion.header>
+                <SidebarContent onClick={() => setMobileOpen(false)} />
+              </motion.aside>
+            </>
+          )}
+        </AnimatePresence>
 
-        <main className="flex-1 px-4 sm:px-6 md:px-10 py-8 md:py-12 overflow-x-hidden overscroll-x-none touch-pan-y">
-          <Outlet />
-        </main>
+        <div className="flex-1 min-w-0 flex flex-col min-h-0 h-full">
+          <Outlet context={{ openMobileNav: () => setMobileOpen(true) }} />
+        </div>
       </motion.div>
-    </motion.div>
     </NotificationProvider>
   );
 }

@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
-  ArrowLeft,
   Loader2,
   Sparkles,
   Palette,
@@ -223,12 +222,8 @@ export default function Artistic() {
   const downloadUrl = primaryResultUrl(result);
 
   return (
-    <div className="min-h-screen pb-28" style={{ background: "#0A0A0F" }} data-testid="artistic-studio-page">
-      <button onClick={() => navigate("/app/tools")} className="rp-studio-back mb-6">
-        <ArrowLeft className="w-4 h-4" /> {t("art_back")}
-      </button>
-
-      <header className="mb-8">
+    <div className="w-full max-w-[1600px] mx-auto pb-8 md:pb-12" style={{ background: "#0A0A0F" }} data-testid="artistic-studio-page">
+      <header className="mb-6 md:mb-8">
         <div className="flex items-center gap-3 mb-2">
           <div className="w-10 h-10 rounded-xl bg-[#9333EA]/20 border border-[rgba(147,51,234,0.35)] flex items-center justify-center">
             <Palette className="w-5 h-5 text-[#A855F7]" />

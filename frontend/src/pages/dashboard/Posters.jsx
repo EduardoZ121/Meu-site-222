@@ -242,15 +242,7 @@ export default function Posters() {
   /* ============================================================ */
   return (
     <div className="max-w-[1400px] mx-auto" data-testid="posters-page">
-      <button
-        onClick={() => navigate("/app/tools")}
-        className="rp-studio-back"
-        data-testid="posters-back"
-      >
-        <ArrowLeft className="w-4 h-4" /> {t("back_to_tools")}
-      </button>
-
-      <header className="mb-10">
+      <header className="mb-8 md:mb-10">
         <p className="text-[#7C3AED] text-[10px] font-mono uppercase tracking-[0.22em] mb-3">{t("sidebar_posters")}</p>
         <h1 className="text-[#F4F1EA] text-[36px] md:text-[52px] font-light tracking-[-0.02em] leading-[1.02] mb-3 font-['Inter_Tight']">
           {t("post_grid_title")}

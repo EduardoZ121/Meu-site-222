@@ -1,5 +1,6 @@
 /**
  * Personagens — interações, diálogo e prompts de cena conjunta (Manga Studio).
+ * Geração com Qwen Image Edit 2511 + 2 fotos de referência (identidade preservada).
  */
 
 export const MANGA_INTERACTION_TYPES = [
@@ -63,27 +64,10 @@ function pick(map, id, fallback) {
   return map.find((x) => x.id === id) || fallback;
 }
 
-function charVisualLock(c, label) {
-  const parts = [
-    `${label}: ${c.name}.`,
-    c.description || c.tag || "consistent manga character design",
-  ];
-  if (c.consistencyLock) {
-    parts.push(
-      `STRICT identity lock for ${c.name}: same face, hair, outfit, proportions, art style as reference.`,
-    );
-  }
-  return parts.join(" ");
-}
-
 /**
- * @param {object} opts
- * @param {object} opts.charA
- * @param {object} opts.charB
- * @param {object} opts.config
- * @param {object[]} [opts.extraChars]
+ * Prompt otimizado para Qwen multi-image (1ª foto = charA, 2ª foto = charB).
  */
-export function buildMangaInteractionPrompt({ charA, charB, config, extraChars = [] }) {
+export function buildMangaInteractionPrompt({ charA, charB, config }) {
   const type = pick(MANGA_INTERACTION_TYPES, config.interactionType, MANGA_INTERACTION_TYPES[0]);
   const dist = pick(MANGA_CHAR_DISTANCES, config.distance, MANGA_CHAR_DISTANCES[1]);
   const emoA = pick(MANGA_CHAR_EMOTIONS, config.emotionA, MANGA_CHAR_EMOTIONS[0]);
@@ -94,50 +78,35 @@ export function buildMangaInteractionPrompt({ charA, charB, config, extraChars =
   const slotA = config.slotA === "right" ? "right" : "left";
   const slotB = slotA === "left" ? "right" : "left";
 
-  const parts = [
-    "Single cohesive manga/comic illustration with TWO characters interacting in ONE scene.",
-    "NOT collage, NOT separate cutouts — unified composition, connected poses, shared perspective.",
-    "Professional ink, expressive faces, hands anatomically correct, eyes aligned with action.",
-    charVisualLock(charA, "Character A"),
-    charVisualLock(charB, "Character B"),
-    `Interaction: ${config.interactionLabel || type.id}. ${type.poseA} for ${charA.name}; ${type.poseB} for ${charB.name}.`,
-    `Spacing: ${dist.en}.`,
-    `${charA.name} positioned ${slotA} (${MANGA_CHAR_SLOT.find((s) => s.id === slotA)?.en}).`,
-    `${charB.name} positioned ${slotB}.`,
-    `${charA.name} emotion: ${emoA.en}; body language must match.`,
-    `${charB.name} emotion: ${emoB.en}; body language must match.`,
-    `${charA.name} gaze: ${gazeA.en}.`,
-    `${charB.name} gaze: ${gazeB.en}.`,
-    `Camera focus: ${focus.en}.`,
-  ];
+  const descA = charA.description || charA.tag || "";
+  const descB = charB.description || charB.tag || "";
 
-  extraChars.forEach((c, i) => {
-    parts.push(charVisualLock(c, `Character ${i + 3}`));
-    parts.push(`${c.name} participates in the group action, coherent with the main interaction.`);
-  });
+  const parts = [
+    "Edit and combine the TWO reference photos into ONE unified manga/comic panel illustration.",
+    "CRITICAL IDENTITY RULES: Do NOT swap faces. Do NOT invent new people. Each person must match their reference photo exactly — same face shape, eyes, nose, mouth, hair color, hair style, skin tone, age, and outfit.",
+    `FIRST reference image = ${charA.name}${descA ? ` (${descA})` : ""}. Place this exact person on the ${slotA} of the frame.`,
+    `SECOND reference image = ${charB.name}${descB ? ` (${descB})` : ""}. Place this exact person on the ${slotB} of the frame.`,
+    "Single cohesive scene — NOT a collage, NOT side-by-side reference sheets — one integrated manga panel with connected poses and shared lighting.",
+    `Interaction type: ${config.interactionLabel || type.id}.`,
+    `${charA.name}: ${type.poseA}. Emotion: ${emoA.en}. Gaze: ${gazeA.en}.`,
+    `${charB.name}: ${type.poseB}. Emotion: ${emoB.en}. Gaze: ${gazeB.en}.`,
+    `Physical spacing between them: ${dist.en}.`,
+    `Visual focus: ${focus.en}.`,
+    "Bodies must face each other appropriately for the action; hands and limbs anatomically correct.",
+  ];
 
   const lineA = String(config.dialogueA || "").trim();
   const lineB = String(config.dialogueB || "").trim();
   if (lineA || lineB) {
-    const order = config.dialogueOrder === "b_first" ? "second then first" : "first then second";
-    parts.push(
-      `Dialogue sequence (${order}): manga speech balloons with clear tails pointing to speakers.`,
-    );
-    if (lineA) {
-      parts.push(
-        `${charA.name} speech balloon (${slotA}): "${lineA}". Tail points to ${charA.name}'s mouth; pose matches words.`,
-      );
-    }
-    if (lineB) {
-      parts.push(
-        `${charB.name} speech balloon (${slotB}): "${lineB}". Tail points to ${charB.name}'s mouth; pose matches words.`,
-      );
-    }
-    parts.push("Characters look at each other when speaking unless gaze says otherwise.");
+    parts.push("Include manga speech balloons with tails pointing to the correct speaker's mouth.");
+    if (lineA) parts.push(`${charA.name} says: "${lineA}"`);
+    if (lineB) parts.push(`${charB.name} says: "${lineB}"`);
+    parts.push("When speaking, characters look at each other unless gaze direction says otherwise.");
   }
 
-  parts.push("Maintain outfit, hair, face identity and art style across the full image.");
-  parts.push("Aspect ratio 4:5 vertical manga panel. No watermark, no UI.");
+  parts.push(
+    "Professional manga ink style, screentones optional, 4:5 vertical panel, no watermark, no UI chrome.",
+  );
   return parts.join(" ");
 }
 

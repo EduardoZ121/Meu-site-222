@@ -1004,6 +1004,41 @@ async function routePost(path, fields, files, req) {
     });
   }
 
+  if (path === "generate/manga-interaction") {
+    let promptFinal = text(fields, "prompt_final", "").trim();
+    if (!promptFinal) throw new Error("Prompt em falta.");
+    const photoA = await resolveImageRef(files, fields, "photo", "photo_url");
+    const photoB = await resolveImageRef(files, fields, "photo_b", "photo_b_url");
+    if (!photoA || !photoB) {
+      const err = new Error(
+        "Interação exige duas fotos de referência (frente de cada personagem). Faz upload PNG nos dois.",
+      );
+      err.status = 400;
+      throw err;
+    }
+    const cost = Math.max(1, Number(CREDIT.mangaPanel) || 15);
+    const aspect = normalizeRatio(text(fields, "aspect_ratio", "4:5"), "qwen");
+    const input = {
+      prompt: promptFinal,
+      image: [photoA, photoB],
+      aspect_ratio: aspect === "match_input_image" ? "3:4" : aspect,
+      go_fast: false,
+      disable_safety_checker: true,
+      output_format: "webp",
+      output_quality: 95,
+    };
+    return submitBillableGeneration(req, fields, {
+      cost,
+      type: "manga",
+      modelId: QWEN_EDIT_MODEL,
+      input,
+      prompt: promptFinal,
+      aspectRatio: input.aspect_ratio,
+      modelUsed: "Qwen Image Edit 2511",
+      spendDescription: "MANGA STUDIO · interação (2 refs)",
+    });
+  }
+
   if (path === "generate/manga-panel" || path === "generate/manga-page" || path === "generate/manga-chapter") {
     let promptFinal = text(fields, "prompt_final", "").trim();
     if (!promptFinal) throw new Error("Prompt em falta.");

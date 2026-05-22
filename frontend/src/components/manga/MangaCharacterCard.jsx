@@ -5,6 +5,7 @@ import {
 } from "lucide-react";
 import { cn } from "../../lib/utils";
 import { useI18n } from "../../lib/i18n";
+import { characterHasReference } from "../../lib/mangaCharacterRef";
 import {
   MANGA_INTERACTION_TYPES,
   MANGA_CHAR_DISTANCES,
@@ -63,6 +64,9 @@ export default function MangaCharacterCard({
   );
 
   const partner = others.find((x) => x.id === ixConfig.partnerId) || null;
+  const selfHasRef = characterHasReference(c);
+  const partnerHasRef = partner ? characterHasReference(partner) : false;
+  const canGenerateIx = Boolean(partner && selfHasRef && partnerHasRef);
 
   const interactionOptions = useMemo(
     () =>
@@ -131,6 +135,17 @@ export default function MangaCharacterCard({
           4×
         </div>
       </div>
+
+      <p
+        className={cn(
+          "text-[10px] rounded-md px-2 py-1 border",
+          selfHasRef
+            ? "text-emerald-400/90 border-emerald-500/30 bg-emerald-500/10"
+            : "text-amber-400/90 border-amber-500/30 bg-amber-500/10",
+        )}
+      >
+        {selfHasRef ? t("manga_char_ref_ok") : t("manga_char_ref_missing")}
+      </p>
 
       <div className="flex gap-1.5 flex-wrap">
         <label className="manga-chip-btn cursor-pointer">
@@ -289,6 +304,19 @@ export default function MangaCharacterCard({
 
             {partner && (
               <>
+                <p
+                  className={cn(
+                    "text-[10px] rounded-md px-2 py-1 border",
+                    partnerHasRef
+                      ? "text-emerald-400/90 border-emerald-500/30 bg-emerald-500/10"
+                      : "text-amber-400/90 border-amber-500/30 bg-amber-500/10",
+                  )}
+                >
+                  {partnerHasRef
+                    ? t("manga_ix_partner_ref_ok", { name: partner.name })
+                    : t("manga_ix_partner_ref_missing", { name: partner.name })}
+                </p>
+                <p className="text-[10px] text-[#7c3aed] leading-snug">{t("manga_ix_qwen_hint")}</p>
                 <p className="text-[10px] text-[#9CA3AF]">{t("manga_ix_type_label")}</p>
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-1">
                   {interactionOptions.map((opt) => (
@@ -423,8 +451,9 @@ export default function MangaCharacterCard({
                   <button
                     type="button"
                     className="manga-generate-btn flex-1 min-w-[140px]"
-                    disabled={interactionBusy}
+                    disabled={interactionBusy || !canGenerateIx}
                     onClick={handleGenerate}
+                    title={!canGenerateIx ? t("manga_ix_need_refs") : undefined}
                   >
                     {interactionBusy ? (
                       <span className="animate-pulse">{t("manga_ix_generating")}</span>

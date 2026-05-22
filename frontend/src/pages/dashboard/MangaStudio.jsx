@@ -18,6 +18,10 @@ import {
 import useTitle from "../../lib/useTitle";
 import { toast } from "sonner";
 import { buildMangaInteractionPrompt, emptySavedInteraction } from "../../lib/mangaCharacterInteractions";
+import {
+  characterHasReference,
+  getCharacterPhotoBlob,
+} from "../../lib/mangaCharacterRef";
 import MangaLibrarySidebar from "../../components/manga/MangaLibrarySidebar";
 import MangaPageCanvas from "../../components/manga/MangaPageCanvas";
 import MangaPanelConfig from "../../components/manga/MangaPanelConfig";
@@ -293,33 +297,68 @@ export default function MangaStudio() {
       toast.error(t("manga_ix_need_two"));
       return;
     }
+    if (!characterHasReference(charA) || !characterHasReference(charB)) {
+      toast.error(t("manga_ix_need_refs"), { duration: 9000 });
+      return;
+    }
+    const cost = creditCosts.mangaPanel;
+    if ((user?.credits ?? 0) < cost && !user?.is_unlimited) {
+      const msg = t("manga_err_credits", { need: cost, have: user?.credits ?? 0 });
+      toast.error(msg);
+      return;
+    }
+
     const prompt = buildMangaInteractionPrompt({ charA, charB, config });
     setBusy(true);
     setLastPromptPreview(prompt);
-    setStatusLine(t("manga_ix_compose"));
+    setStatusLine(t("manga_ix_compose_qwen"));
     try {
-      let res;
-      try {
-        res = await runGeneration(
-          "/generate/manga-panel",
-          creditCosts.mangaPanel,
-          prompt,
-          "4:5",
-          charA,
-        );
-      } catch (primaryErr) {
-        const isServerDown = /indisponível|FUNCTION_INVOCATION|500|502|503/i.test(
-          String(primaryErr?.message || ""),
-        );
-        if (!isServerDown) throw primaryErr;
-        res = await runGeneration(
-          "/generate/artistic-studio",
-          creditCosts.artistic ?? 18,
-          prompt,
-          "4:5",
-          charA,
-        );
+      const blobA = await getCharacterPhotoBlob(charA);
+      const blobB = await getCharacterPhotoBlob(charB);
+      if (!blobA?.size || !blobB?.size) {
+        toast.error(t("manga_ix_need_refs"));
+        return;
       }
+      if (blobA.size > 3_500_000 || blobB.size > 3_500_000) {
+        toast.error(t("manga_ix_ref_too_large"));
+        return;
+      }
+
+      const fd = new FormData();
+      fd.append("prompt_final", prompt.trim());
+      fd.append("aspect_ratio", "4:5");
+      fd.append("photo", blobA, `${charA.name}-ref.png`);
+      fd.append("photo_b", blobB, `${charB.name}-ref.png`);
+
+      setStatusLine(t("manga_status_start"));
+      const { data: submitData } = await uploadPost("/generate/manga-interaction", fd, {
+        timeout: 120000,
+        headers: { "X-Skip-Auto-Poll": "1" },
+      });
+
+      let res;
+      if (!submitData?.prediction_id) {
+        const direct = submitData?.creation?.result_urls?.[0];
+        if (!direct) throw new Error(submitData?.detail || t("manga_err_no_prediction"));
+        await refresh();
+        res = { url: direct, spent: submitData?.credits_spent ?? cost };
+      } else {
+        setStatusLine(t("manga_status_generating"));
+        const polled = await pollPrediction(submitData.prediction_id, {
+          credits_spent: submitData.credits_spent ?? cost,
+          type: "manga",
+          timeoutMs: 300000,
+          onTick: (sec) => setStatusLine(t("manga_status_generating_sec", { n: sec })),
+        });
+        const url = polled?.creation?.result_urls?.[0];
+        if (!url) throw new Error(t("manga_err_no_url"));
+        await refresh();
+        res = {
+          url,
+          spent: polled?.creation?.credits_spent ?? submitData.credits_spent ?? cost,
+        };
+      }
+
       if (!res?.url) return;
 
       const saved = emptySavedInteraction({

@@ -1,17 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import {
-  Loader2,
-  Sparkles,
-  Palette,
-  Sun,
-  Camera,
-  Cloud,
-  RotateCcw,
-  Shuffle,
-  Sliders,
-  Type,
-  ImageIcon,
-} from "lucide-react";
+import { Sparkles, Palette, Sun, Camera, Cloud, Sliders } from "lucide-react";
 import { useSearchParams } from "react-router-dom";
 import { api, formatApiError, uploadPost } from "../../lib/api";
 import { normalizeCreation, primaryResultUrl } from "../../lib/creationUrls";
@@ -21,14 +9,19 @@ import { useAuth } from "../../lib/auth";
 import { useI18n } from "../../lib/i18n";
 import { usePricing } from "../../lib/PricingContext";
 import { toast } from "sonner";
-import ImageUploadZone from "../../components/ImageUploadZone";
-import AspectPicker from "../../components/AspectPicker";
 import { apiAspectRatio } from "../../lib/apiAspectRatio";
 import ArtisticStyleCard from "../../components/artistic/ArtisticStyleCard";
 import ArtisticLabStyleCard from "../../components/artistic/ArtisticLabStyleCard";
 import ArtisticEffectOption from "../../components/artistic/ArtisticEffectOption";
 import DraggableRecipeBubble from "../../components/artistic/DraggableRecipeBubble";
-import { localizeArtisticCatalog, countStylesInCategory } from "../../lib/artisticStudioLocales";
+import ArtisticStudioHeader from "../../components/artistic/ArtisticStudioHeader";
+import ArtisticStudioTabs from "../../components/artistic/ArtisticStudioTabs";
+import ArtisticCategoryRail from "../../components/artistic/ArtisticCategoryRail";
+import ArtisticStudioModule from "../../components/artistic/ArtisticStudioModule";
+import ArtisticPromptStudio from "../../components/artistic/ArtisticPromptStudio";
+import ArtisticResultStudio from "../../components/artistic/ArtisticResultStudio";
+import { pushArtisticPromptHistory } from "../../lib/artisticPromptHistory";
+import { localizeArtisticCatalog } from "../../lib/artisticStudioLocales";
 import { canAccessNsfwArtisticStyles } from "../../lib/artisticStudioData";
 import { isArtisticExperimentalStyle } from "../../lib/artisticLabStyles";
 import { ARTISTIC_LAB_MODEL_LABEL } from "../../lib/artisticStudioEngines";
@@ -39,9 +32,6 @@ import {
   getStyleById,
 } from "../../lib/buildArtisticStudioPrompt";
 import useTitle from "../../lib/useTitle";
-import PromptAssistBar from "../../components/promptAssist/PromptAssistBar";
-import WizardPromptModal from "../../components/promptAssist/WizardPromptModal";
-import SuggestPromptModal from "../../components/promptAssist/SuggestPromptModal";
 
 const SECTION_ICONS = {
   light: Sun,
@@ -70,6 +60,7 @@ export default function Artistic() {
   const [photo, setPhoto] = useState(null);
   const [aspect, setAspect] = useState("3:4");
   const [busy, setBusy] = useState(false);
+  const [improving, setImproving] = useState(false);
   const [result, setResult] = useState(null);
   const [meta, setMeta] = useState(null);
   const [mobileTab, setMobileTab] = useState("style");
@@ -243,10 +234,12 @@ export default function Artistic() {
         throw new Error(t("common_no_result"));
       }
       setResult(creation);
+      if (userPrompt.length >= 3) pushArtisticPromptHistory(userPrompt);
       setMeta({
         style: getStyleById(styleId)?.label,
         chips: recipeChips,
         seed: creation.id?.slice?.(0, 8),
+        lastPrompt: userPrompt,
       });
       toast.success(t("common_generated", { n: creation.credits_spent ?? cost }));
       await refresh();
@@ -275,185 +268,143 @@ export default function Artistic() {
 
   const downloadUrl = primaryResultUrl(result);
 
-  return (
-    <div
-      className="rp-artistic-page w-full min-w-0 max-w-full mx-auto pb-6 md:pb-12 md:max-w-[1600px] bg-[#0A0A0F]"
-      data-testid="artistic-studio-page"
-    >
-      {/* Hero — só desktop; no mobile o título está no StudioTopBar */}
-      <header className="hidden md:block mb-6 md:mb-8">
-        <div className="flex items-center gap-3 mb-2">
-          <div className="w-10 h-10 rounded-xl bg-[#9333EA]/20 border border-[rgba(147,51,234,0.35)] flex items-center justify-center">
-            <Palette className="w-5 h-5 text-[#A855F7]" />
-          </div>
-          <p className="text-[#A855F7] text-[10px] font-mono uppercase tracking-[0.22em]">
-            {t("art_brand")}
-          </p>
-        </div>
-        <h2 className="text-white text-[28px] md:text-[36px] font-light tracking-tight font-['Inter_Tight']">
-          {t("art_title")}
-        </h2>
-        <p className="text-[#9CA3AF] text-[14px] mt-2 max-w-2xl">
-          {t("art_subtitle")}
-        </p>
-      </header>
+  const improvePromptOnly = useCallback(async () => {
+    const userPrompt = prompt.trim();
+    if (userPrompt.length < 3) {
+      toast.error(t("studio_err_text"));
+      return;
+    }
+    setImproving(true);
+    try {
+      const pickedStyle = getStyleById(styleId);
+      const { data: imp } = await api.post("/prompt/improve", {
+        prompt: userPrompt,
+        lang: lang || "en",
+        tool: "artistic",
+        style_id: styleId || "",
+        style_label: pickedStyle?.label || "",
+        style_suffix: pickedStyle?.suffix || "",
+        image_mode: inputMode === "image",
+      });
+      if (imp?.prompt && imp.prompt.trim().length >= 3) {
+        setPrompt(imp.prompt.trim().slice(0, 800));
+        toast.success(imp.enhanced ? t("art_prompt_refined") : t("art_refine_unchanged"));
+      }
+    } catch (impErr) {
+      toast.error(impErr?.response?.data?.detail || t("art_refine_unavailable"));
+    } finally {
+      setImproving(false);
+    }
+  }, [prompt, styleId, inputMode, lang, t]);
 
-      <p className="md:hidden text-[#9CA3AF] text-[12px] leading-snug mb-3 px-0.5">
-        {t("art_subtitle")}
+  const panelVisibility = (tab) =>
+    mobileTab !== tab ? "hidden lg:block" : "";
+
+  const styleGallery = (
+    <>
+      <ArtisticCategoryRail
+        categories={catalog.categories}
+        styles={catalog.styles}
+        activeId={styleCat}
+        onSelect={setStyleCat}
+      />
+      <p className="text-[#9CA3AF] text-[10px] font-mono uppercase tracking-[0.14em] mb-3">
+        {catalog.categories.find((c) => c.id === styleCat)?.label}
+        {includeNsfw ? ` · ${t("art_nsfw_admin_badge")}` : ""}
       </p>
-
-      {/* Mobile tabs */}
-      <div
-        className="flex lg:hidden gap-1 mb-3 p-1 rounded-xl bg-[#111118] border border-[rgba(147,51,234,0.2)] w-full min-w-0"
-        role="tablist"
-      >
-        {[
-          { id: "style", label: t("art_tab_style") },
-          { id: "effects", label: t("art_tab_effects") },
-          { id: "generate", label: t("art_tab_prompt") },
-        ].map((t) => (
-          <button
-            key={t.id}
-            type="button"
-            onClick={() => setMobileTab(t.id)}
-            className={`flex-1 py-2 text-[11px] font-medium rounded-md transition-colors ${
-              mobileTab === t.id ? "bg-[#9333EA] text-white" : "text-[#9CA3AF]"
-            }`}
-          >
-            {t.label}
-          </button>
-        ))}
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 md:gap-5 w-full min-w-0">
-        {/* COL 1 — Estilos */}
-        <section
-          className={`w-full min-w-0 rounded-xl md:rounded-2xl border border-[rgba(147,51,234,0.2)] bg-[#111118] p-3 md:p-4 ${
-            mobileTab !== "style" ? "hidden lg:block" : ""
-          }`}
-        >
-          <h2 className="text-white text-[13px] font-semibold mb-1 flex items-center gap-2">
-            <Palette className="w-4 h-4 text-[#A855F7]" /> {t("art_sec_style")}
-          </h2>
-          <p className="text-[#6B7280] text-[10px] mb-3">
-            {t("art_styles_count", { n: catalog.styles.length })}
-            {includeNsfw ? ` · ${t("art_nsfw_admin_badge")}` : ""}
+      {isLabCategory && includeNsfw ? (
+        <div className="art-lab-panel mb-4 rounded-xl border border-[rgba(236,72,153,0.25)] bg-gradient-to-br from-[#1a0a1f]/80 via-[#111118] to-[#0a0a0f] p-3 md:p-4 max-h-[min(calc(100dvh-12rem),720px)] overflow-y-auto overflow-x-hidden">
+          <p className="text-[#f0abfc] text-[11px] font-semibold mb-1">{t("art_lab_title")}</p>
+          <p className="text-[#6B7280] text-[9px] font-mono uppercase tracking-wider mb-1">
+            {t("art_lab_engine_note", { model: ARTISTIC_LAB_MODEL_LABEL })}
           </p>
-          <div className="flex gap-1.5 mb-3 overflow-x-auto pb-1 w-full min-w-0 scrollbar-thin [-webkit-overflow-scrolling:touch]">
-            {catalog.categories.map((c) => {
-              const n = countStylesInCategory(catalog.styles, c.id);
-              return (
-                <button
-                  key={c.id}
-                  type="button"
-                  onClick={() => setStyleCat(c.id)}
-                  className={`shrink-0 px-3 py-2 rounded-xl text-[10px] font-medium transition-all border ${
-                    styleCat === c.id
-                      ? "bg-[#9333EA] text-white border-[#A855F7] shadow-[0_0_12px_rgba(147,51,234,0.35)]"
-                      : "bg-[#0A0A0F] text-[#9CA3AF] border-[rgba(147,51,234,0.15)] hover:text-white hover:border-[rgba(147,51,234,0.35)]"
-                  } ${c.adminOnly ? "ring-1 ring-[#be185d]/40" : ""}`}
-                  data-testid={`art-cat-${c.id}`}
-                >
-                  <span className="block leading-tight">{c.label}</span>
-                  <span className={`block text-[9px] mt-0.5 ${styleCat === c.id ? "text-white/70" : "text-[#6B7280]"}`}>
-                    {n}
-                  </span>
-                </button>
-              );
-            })}
+          <p className="text-[#9CA3AF] text-[10px] leading-snug mb-3">{t("art_lab_desc")}</p>
+          <div className="art-lab-scroll flex gap-2.5 overflow-x-auto pb-2 w-full min-w-0 snap-x snap-mandatory [-webkit-overflow-scrolling:touch] md:grid md:grid-cols-2 md:gap-2.5 md:overflow-visible md:pb-0 lg:grid-cols-2">
+            {labPresets.map((s) => (
+              <div key={s.id} className="snap-start shrink-0 w-[min(72vw,220px)] md:w-auto md:shrink">
+                <ArtisticLabStyleCard style={s} selected={styleId === s.id} onSelect={selectStyle} />
+              </div>
+            ))}
           </div>
-          <p className="text-[#9CA3AF] text-[10px] font-mono uppercase tracking-[0.14em] mb-2">
-            {catalog.categories.find((c) => c.id === styleCat)?.label}
-          </p>
-
-          {isLabCategory && includeNsfw && (
-            <div className="art-lab-panel mb-4 rounded-xl border border-[rgba(236,72,153,0.25)] bg-gradient-to-br from-[#1a0a1f]/80 via-[#111118] to-[#0a0a0f] p-3 md:p-4 max-h-[min(calc(100dvh-12rem),720px)] overflow-y-auto overflow-x-hidden">
-              <p className="text-[#f0abfc] text-[11px] font-semibold mb-1">{t("art_lab_title")}</p>
-              <p className="text-[#6B7280] text-[9px] font-mono uppercase tracking-wider mb-1">
-                {t("art_lab_engine_note", { model: ARTISTIC_LAB_MODEL_LABEL })}
+          {labLightStyles.length > 0 && (
+            <>
+              <p className="text-[#6B7280] text-[9px] font-mono uppercase tracking-[0.16em] mt-4 mb-2">
+                {t("art_lab_light_row")}
               </p>
-              <p className="text-[#9CA3AF] text-[10px] leading-snug mb-3">{t("art_lab_desc")}</p>
-              <div className="art-lab-scroll flex gap-2.5 overflow-x-auto pb-2 w-full min-w-0 snap-x snap-mandatory [-webkit-overflow-scrolling:touch] md:grid md:grid-cols-2 md:gap-2.5 md:overflow-visible md:pb-0 lg:grid-cols-2">
-                {labPresets.map((s) => (
-                  <div key={s.id} className="snap-start shrink-0 w-[min(72vw,200px)] md:w-auto md:shrink">
-                    <ArtisticLabStyleCard
-                      style={s}
-                      selected={styleId === s.id}
-                      onSelect={selectStyle}
-                    />
-                  </div>
+              <div className="art-studio-styles-grid !max-h-none">
+                {labLightStyles.map((s) => (
+                  <ArtisticStyleCard key={s.id} style={s} selected={styleId === s.id} onSelect={selectStyle} />
                 ))}
               </div>
-              {labLightStyles.length > 0 && (
-                <>
-                  <p className="text-[#6B7280] text-[9px] font-mono uppercase tracking-[0.16em] mt-4 mb-2">
-                    {t("art_lab_light_row")}
-                  </p>
-                  <div className="grid grid-cols-2 gap-2 w-full min-w-0">
-                    {labLightStyles.map((s) => (
-                      <ArtisticStyleCard
-                        key={s.id}
-                        style={s}
-                        selected={styleId === s.id}
-                        onSelect={selectStyle}
-                      />
-                    ))}
-                  </div>
-                </>
-              )}
-              {labHeavyStyles.length > 0 && (
-                <>
-                  <p className="text-[#6B7280] text-[9px] font-mono uppercase tracking-[0.16em] mt-4 mb-2">
-                    {t("art_lab_heavy_row")}
-                  </p>
-                  <div className="grid grid-cols-2 gap-2 w-full min-w-0">
-                    {labHeavyStyles.map((s) => (
-                      <ArtisticStyleCard
-                        key={s.id}
-                        style={s}
-                        selected={styleId === s.id}
-                        onSelect={selectStyle}
-                      />
-                    ))}
-                  </div>
-                </>
-              )}
-            </div>
+            </>
           )}
-
-          {!isLabCategory && (
-            <div className="grid grid-cols-2 gap-2 w-full min-w-0 max-h-[min(calc(100dvh-14rem),640px)] lg:max-h-[min(70vh,640px)] overflow-y-auto overflow-x-hidden pr-0.5">
-              {stylesInCat.map((s) => (
-                <ArtisticStyleCard
-                  key={s.id}
-                  style={s}
-                  selected={styleId === s.id}
-                  onSelect={selectStyle}
-                />
-              ))}
-            </div>
+          {labHeavyStyles.length > 0 && (
+            <>
+              <p className="text-[#6B7280] text-[9px] font-mono uppercase tracking-[0.16em] mt-4 mb-2">
+                {t("art_lab_heavy_row")}
+              </p>
+              <div className="art-studio-styles-grid !max-h-none">
+                {labHeavyStyles.map((s) => (
+                  <ArtisticStyleCard key={s.id} style={s} selected={styleId === s.id} onSelect={selectStyle} />
+                ))}
+              </div>
+            </>
           )}
+        </div>
+      ) : (
+        <div className="art-studio-styles-grid">
+          {stylesInCat.map((s) => (
+            <ArtisticStyleCard key={s.id} style={s} selected={styleId === s.id} onSelect={selectStyle} />
+          ))}
+        </div>
+      )}
+    </>
+  );
 
-        </section>
+  return (
+    <div
+      className="rp-artistic-page w-full min-w-0 max-w-full mx-auto px-1 sm:px-0 pb-8 md:pb-14 md:max-w-[1680px]"
+      data-testid="artistic-studio-page"
+    >
+      <ArtisticStudioHeader />
 
-        {/* COL 2 — Efeitos */}
-        <section
-          className={`w-full min-w-0 rounded-xl md:rounded-2xl border border-[rgba(147,51,234,0.2)] bg-[#111118] p-3 md:p-4 max-h-[min(calc(100dvh-14rem),800px)] lg:max-h-[min(85vh,800px)] overflow-y-auto overflow-x-hidden ${
-            mobileTab !== "effects" ? "hidden lg:block" : ""
-          }`}
+      <p className="md:hidden text-[#9CA3AF] text-[13px] leading-relaxed mb-4 px-0.5">
+        {t("art_hero_subtitle")}
+      </p>
+
+      <ArtisticStudioTabs value={mobileTab} onChange={setMobileTab} />
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6 w-full min-w-0">
+        <ArtisticStudioModule
+          title={t("art_sec_style")}
+          subtitle={t("art_module_style_hint")}
+          icon={Palette}
+          className={panelVisibility("style")}
+          testId="artistic-module-style"
         >
-          <h2 className="text-white text-[13px] font-semibold mb-4 flex items-center gap-2">
-            <Sliders className="w-4 h-4 text-[#06B6D4]" /> {t("art_sec_effects")}
-          </h2>
+          <p className="text-[#6B7280] text-[10px] mb-3">
+            {t("art_styles_count", { n: catalog.styles.length })}
+          </p>
+          {styleGallery}
+        </ArtisticStudioModule>
+
+        <ArtisticStudioModule
+          title={t("art_sec_effects")}
+          subtitle={t("art_module_effects_hint")}
+          icon={Sliders}
+          accent="cyan"
+          className={`${panelVisibility("effects")} max-h-[min(calc(100dvh-12rem),820px)] lg:max-h-[min(88vh,820px)] overflow-y-auto`}
+          testId="artistic-module-effects"
+        >
           <div className="space-y-6">
             {catalog.sections.map((section) => {
               const SecIcon = SECTION_ICONS[section.icon] || Sparkles;
               return (
                 <div key={section.id}>
-                  <p className="text-[#9CA3AF] text-[10px] font-mono uppercase tracking-[0.16em] mb-2 flex items-center gap-1.5">
-                    <SecIcon className="w-3 h-3 text-[#06B6D4]" /> {section.title}
+                  <p className="text-[#9CA3AF] text-[10px] font-mono uppercase tracking-[0.16em] mb-2.5 flex items-center gap-1.5">
+                    <SecIcon className="w-3.5 h-3.5 text-[#67e8f9]" /> {section.title}
                   </p>
-                  <div className="space-y-1.5">
+                  <div className="space-y-1">
                     {section.options.map((opt) => {
                       const active =
                         section.type === "radio"
@@ -477,205 +428,50 @@ export default function Artistic() {
               );
             })}
           </div>
-        </section>
+        </ArtisticStudioModule>
 
-        {/* COL 3 — Geração */}
-        <section
-          className={`w-full min-w-0 rounded-xl md:rounded-2xl border border-[rgba(147,51,234,0.2)] bg-[#111118] p-3 md:p-4 flex flex-col overflow-x-hidden ${
-            mobileTab !== "generate" ? "hidden lg:block" : ""
-          }`}
+        <ArtisticStudioModule
+          title={t("art_sec_generate")}
+          subtitle={t("art_module_prompt_hint")}
+          icon={Sparkles}
+          className={`${panelVisibility("generate")} flex flex-col`}
+          testId="artistic-module-prompt"
         >
-          <h2 className="text-white text-[13px] font-semibold mb-4">{t("art_sec_generate")}</h2>
-
-          <div className="inline-flex rounded-lg border border-[#2E2E30] p-0.5 bg-[#0A0A0F] mb-4 w-full">
-            <button
-              type="button"
-              disabled={isLabStyle}
-              onClick={() => {
-                if (isLabStyle) {
-                  toast.message(t("art_lab_image_hint"));
-                  return;
-                }
-                setInputMode("text");
-              }}
-              className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-md text-[11px] font-medium transition-colors ${
-                isLabStyle
-                  ? "opacity-40 cursor-not-allowed text-[#6B7280]"
-                  : inputMode === "text"
-                    ? "bg-[#9333EA] text-white"
-                    : "text-[#9CA3AF]"
-              }`}
-            >
-              <Type className="w-3.5 h-3.5" /> {t("art_input_text")}
-            </button>
-            <button
-              type="button"
-              onClick={() => setInputMode("image")}
-              className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-md text-[11px] font-medium transition-colors ${
-                inputMode === "image" ? "bg-[#9333EA] text-white" : "text-[#9CA3AF]"
-              }`}
-            >
-              <ImageIcon className="w-3.5 h-3.5" /> {t("art_input_image")}
-            </button>
-          </div>
-
-          {inputMode === "image" && (
-            <div className="mb-4">
-              <ImageUploadZone
-                value={photo}
-                onChange={setPhoto}
-                layout="wide"
-                testId="artistic-studio-photo"
-                emptyLabel={t("art_upload_label")}
-                emptyHint={t("art_upload_hint")}
-              />
-            </div>
-          )}
-
-          <div className="flex items-center justify-between gap-2 mb-1.5">
-            <label className="text-[#9CA3AF] text-[10px] font-mono uppercase tracking-wider">
-              {inputMode === "image" ? t("art_prompt_label_image") : t("art_prompt_label")}
-            </label>
-            {isLabStyle && (
-              <span className="shrink-0 text-[9px] font-mono px-2 py-0.5 rounded-md border border-[rgba(236,72,153,0.35)] text-[#f9a8d4] bg-[#831843]/30">
-                {t("art_lab_engine_note", { model: ARTISTIC_LAB_MODEL_LABEL })}
-              </span>
-            )}
-          </div>
-          <textarea
-            value={prompt}
-            onChange={(e) => setPrompt(e.target.value.slice(0, 800))}
-            rows={inputMode === "text" ? 5 : 3}
-            maxLength={800}
-            placeholder={
-              inputMode === "text"
-                ? t("art_prompt_ph_text")
-                : t("art_prompt_ph_image")
-            }
-            className="w-full bg-[#0A0A0F] border border-[rgba(147,51,234,0.25)] focus:border-[#9333EA] rounded-xl text-white text-[13px] placeholder:text-[#6B7280] px-3 py-3 resize-y min-h-[100px] focus:outline-none focus:ring-1 focus:ring-[#9333EA]/40"
-            data-testid="artistic-studio-prompt"
-          />
-
-          <PromptAssistBar
+          <ArtisticPromptStudio
+            inputMode={inputMode}
+            setInputMode={setInputMode}
+            isLabStyle={isLabStyle}
+            photo={photo}
+            setPhoto={setPhoto}
+            prompt={prompt}
+            setPrompt={setPrompt}
+            aspect={aspect}
+            setAspect={setAspect}
             improve={improve}
-            onImproveChange={setImprove}
-            onOpenWizard={() => setWizardOpen(true)}
-            onOpenSuggest={() => setSuggestOpen(true)}
-            promptLength={prompt.length}
-            maxLength={800}
-            testIdPrefix="artistic-prompt-assist"
-          />
-
-          <WizardPromptModal
-            open={wizardOpen}
-            onOpenChange={setWizardOpen}
-            onApply={setPrompt}
-          />
-          <SuggestPromptModal
-            open={suggestOpen}
-            onOpenChange={setSuggestOpen}
-            onApply={setPrompt}
-          />
-
-          <p className="text-[#9CA3AF] text-[10px] font-mono uppercase tracking-wider mb-2 mt-4">{t("art_format_label")}</p>
-          <AspectPicker
-            value={aspect}
-            onChange={setAspect}
-            hasPhoto={inputMode === "image" && !!photo}
-            options={["1:1", "3:4", "4:5", "9:16", "16:9"]}
-            testIdPrefix="art-studio-aspect"
-          />
-
-          <button
-            type="button"
-            onClick={generate}
-            disabled={busy}
-            className="mt-5 w-full py-3.5 rounded-xl bg-gradient-to-r from-[#7C3AED] to-[#9333EA] hover:from-[#8B5CF6] hover:to-[#A855F7] disabled:opacity-50 text-white text-[13px] font-medium shadow-[0_0_24px_rgba(147,51,234,0.35)] hover:shadow-[0_0_32px_rgba(147,51,234,0.5)] transition-all flex items-center justify-center gap-2"
-            data-testid="artistic-studio-generate"
-          >
-            {busy ? (
-              <>
-                <Loader2 className="w-4 h-4 animate-spin" /> {t("art_generating")}
-              </>
-            ) : (
-              <>
-                <Sparkles className="w-4 h-4" />
-                {inputMode === "image" ? t("art_edit_credits", { n: cost }) : t("art_generate_credits", { n: cost })}
-              </>
-            )}
-          </button>
-
-          {/* Preview resultado */}
-          <StudioResultAnchor
+            setImprove={setImprove}
             busy={busy}
-            ready={Boolean(downloadUrl)}
-            className="mt-6 flex-1"
-          >
-            <p className="text-[#9CA3AF] text-[10px] font-mono uppercase tracking-wider mb-2">{t("art_result_label")}</p>
-            {busy && (
-              <div className="aspect-[3/4] rounded-xl bg-[#0A0A0F] border border-[rgba(147,51,234,0.2)] animate-pulse flex flex-col items-center justify-center gap-3">
-                <Loader2 className="w-8 h-8 text-[#9333EA] animate-spin" />
-                <p className="text-[#9CA3AF] text-[12px]">{t("art_applying_recipe")}</p>
-                {recipeChips.length > 0 && (
-                  <p className="text-[#6B7280] text-[10px] px-4 text-center">
-                    {recipeChips.map((c) => c.label).join(" · ")}
-                  </p>
-                )}
-              </div>
-            )}
-            {!busy && downloadUrl && (
-              <div className="rounded-xl overflow-hidden border border-[rgba(147,51,234,0.3)] animate-in fade-in">
-                <CreationResultMedia
-                  creation={result}
-                  className="w-full object-contain max-h-[420px]"
-                  containerClassName="min-h-[200px] bg-[#0A0A0F] flex items-center justify-center"
-                  testId="artistic-result-image"
-                />
-                {meta && (
-                  <div className="p-3 bg-[#0A0A0F] border-t border-[rgba(147,51,234,0.15)] text-[10px] text-[#9CA3AF] space-y-1">
-                    {meta.style && <p>{t("art_meta_style", { style: meta.style })}</p>}
-                    {meta.chips?.length > 0 && (
-                      <p>{t("art_meta_effects", { effects: meta.chips.map((c) => c.label).join(", ") })}</p>
-                    )}
-                    {meta.seed && <p className="font-mono">ID: {meta.seed}</p>}
-                  </div>
-                )}
-                <div className="flex gap-2 p-2 bg-[#0A0A0F]">
-                  <a
-                    href={downloadUrl}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="flex-1 text-center py-2 rounded-lg border border-[rgba(147,51,234,0.3)] text-[11px] text-white hover:bg-[#9333EA]/20"
-                  >
-                    {t("art_download")}
-                  </a>
-                  <button
-                    type="button"
-                    onClick={generate}
-                    className="flex-1 py-2 rounded-lg border border-[rgba(147,51,234,0.3)] text-[11px] text-white hover:bg-[#9333EA]/20 flex items-center justify-center gap-1"
-                  >
-                    <Shuffle className="w-3 h-3" /> {t("art_vary")}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setPrompt((p) => `${p}${p ? " " : ""}refine details, higher quality`);
-                      toast.message(t("art_refine_toast"));
-                    }}
-                    className="flex-1 py-2 rounded-lg border border-[rgba(147,51,234,0.3)] text-[11px] text-white hover:bg-[#9333EA]/20 flex items-center justify-center gap-1"
-                  >
-                    <RotateCcw className="w-3 h-3" /> {t("art_refine_btn")}
-                  </button>
-                </div>
-              </div>
-            )}
-            {!busy && !downloadUrl && (
-              <div className="aspect-[3/4] rounded-xl border border-dashed border-[rgba(147,51,234,0.2)] flex items-center justify-center text-[#6B7280] text-[12px] text-center px-6">
-                {t("art_result_empty")}
-              </div>
-            )}
-          </StudioResultAnchor>
-        </section>
+            cost={cost}
+            onGenerate={generate}
+            onImprovePrompt={improvePromptOnly}
+            improving={improving}
+          />
+          <ArtisticResultStudio
+            busy={busy}
+            downloadUrl={downloadUrl}
+            result={result}
+            meta={meta}
+            recipeChips={recipeChips}
+            onVary={generate}
+            onRefine={() => {
+              setPrompt((p) => `${p}${p ? " " : ""}refine details, higher quality`);
+              toast.message(t("art_refine_toast"));
+            }}
+            onReusePrompt={() => {
+              if (meta?.lastPrompt) setPrompt(meta.lastPrompt);
+              else toast.message(t("art_result_reuse"));
+            }}
+          />
+        </ArtisticStudioModule>
       </div>
 
       <DraggableRecipeBubble chips={recipeChips} onClearAll={clearAll} />

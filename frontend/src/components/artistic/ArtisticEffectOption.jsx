@@ -31,11 +31,7 @@ export default function ArtisticEffectOption({
   return (
     <div className="relative">
       <label
-        className={`flex items-center gap-2 px-2.5 py-2 rounded-lg cursor-pointer border transition-all duration-200 ${
-          active
-            ? "border-[#9333EA] bg-[#9333EA]/10 text-white"
-            : "border-transparent hover:border-[rgba(147,51,234,0.25)] text-[#9CA3AF] hover:text-white"
-        }`}
+        className={`art-effect-row ${active ? "art-effect-row--active" : ""}`}
       >
         <input
           type={section.type === "radio" ? "radio" : "checkbox"}

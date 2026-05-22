@@ -9,6 +9,7 @@
  * Pintura Clássica: `node scripts/generate-artistic-covers-classic.mjs`
  * Design Moderno: `node scripts/generate-artistic-covers-modern.mjs`
  * Fantasia: `node scripts/generate-artistic-covers-fantasy.mjs`
+ * Vintage & Retro: `node scripts/generate-artistic-covers-vintage.mjs`
  * Capas 4:5 (640×800) — alinhadas ao aspect-[4/5] dos cards
  * Outros: `node scripts/generate-artistic-covers.mjs`
  */
@@ -125,4 +126,13 @@ export const ARTISTIC_STYLE_COVER_BY_ID = {
   fan_ethereal: "/images/artistic-covers/fan_ethereal.jpg",
   fan_gothic: "/images/artistic-covers/fan_gothic.jpg",
   fan_neon: "/images/artistic-covers/fan_neon.jpg",
+  // —— Vintage & Retro ——
+  vin_pulp: "/images/artistic-covers/vin_pulp.jpg",
+  vin_pinup_art: "/images/artistic-covers/vin_pinup_art.jpg",
+  vin_1920s: "/images/artistic-covers/vin_1920s.jpg",
+  vin_1990s: "/images/artistic-covers/vin_1990s.jpg",
+  vin_vhs: "/images/artistic-covers/vin_vhs.jpg",
+  vin_polaroid: "/images/artistic-covers/vin_polaroid.jpg",
+  vin_film_grain: "/images/artistic-covers/vin_film_grain.jpg",
+  vin_retro_comic: "/images/artistic-covers/vin_retro_comic.jpg",
 };

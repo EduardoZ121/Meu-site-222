@@ -20,6 +20,8 @@ function genReferralCode() {
 
 function publicUser(doc) {
   if (!doc) return null;
+  const email = String(doc.email || "").trim().toLowerCase();
+  const isAdmin = doc.role === "admin" || ADMIN_EMAILS.has(email);
   return {
     id: doc.id,
     email: doc.email,
@@ -39,6 +41,7 @@ function publicUser(doc) {
     last_country: doc.last_country || null,
     pricing_region: doc.pricing_region || "intl",
     last_activity: doc.last_activity || null,
+    nsfw_allowed: Boolean(doc.nsfw_allowed || isAdmin),
   };
 }
 
@@ -91,7 +94,7 @@ async function upsertGoogleUser(googleProfile, req, opts = {}) {
       referred_by: null,
       banned: false,
       shadowbanned: false,
-      nsfw_allowed: false,
+      nsfw_allowed: isAdmin,
       created_at: nowIso(),
       signup_ip: meta.ip || null,
       signup_country: meta.country || null,
@@ -119,6 +122,7 @@ async function upsertGoogleUser(googleProfile, req, opts = {}) {
         avatar_url: base.avatar_url,
         role: isAdmin ? "admin" : existing.role,
         is_unlimited: isAdmin || existing.is_unlimited,
+        ...(isAdmin ? { nsfw_allowed: true } : {}),
       },
     },
   );

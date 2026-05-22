@@ -28,8 +28,8 @@ export function buildArtisticStudioPrompt({
   if (style?.labPreset) {
     parts.push(
       imageMode
-        ? "AI Lab rapid edit mode: apply transformation while locking identity, face, and key composition."
-        : "AI Lab experimental preset: advanced diffusion-style rendering.",
+        ? "Rapid image edit: transform the reference photo while preserving identity, face, pose and framing."
+        : "Experimental diffusion rendering with editorial finish.",
     );
   }
   if (style?.suffix) parts.push(style.suffix);

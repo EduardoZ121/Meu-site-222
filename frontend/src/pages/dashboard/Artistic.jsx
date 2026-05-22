@@ -29,6 +29,7 @@ import ArtisticEffectOption from "../../components/artistic/ArtisticEffectOption
 import DraggableRecipeBubble from "../../components/artistic/DraggableRecipeBubble";
 import { localizeArtisticCatalog, countStylesInCategory } from "../../lib/artisticStudioLocales";
 import { canAccessNsfwArtisticStyles } from "../../lib/artisticStudioData";
+import { isArtisticLabStyle } from "../../lib/artisticLabStyles";
 import {
   buildArtisticStudioPrompt,
   buildRecipeChips,
@@ -157,6 +158,10 @@ export default function Artistic() {
     }
     if (inputMode === "image" && !photo) {
       toast.error(t("art_err_image_mode"));
+      return;
+    }
+    if (isArtisticLabStyle(styleId) && !photo) {
+      toast.error(t("art_lab_need_photo"));
       return;
     }
     if ((user?.credits ?? 0) < cost) {
@@ -337,6 +342,7 @@ export default function Artistic() {
           {isLabCategory && includeNsfw && (
             <div className="art-lab-panel mb-4 rounded-xl border border-[rgba(236,72,153,0.25)] bg-gradient-to-br from-[#1a0a1f]/80 via-[#111118] to-[#0a0a0f] p-3 md:p-4 max-h-[min(calc(100dvh-12rem),720px)] overflow-y-auto overflow-x-hidden">
               <p className="text-[#f0abfc] text-[11px] font-semibold mb-1">{t("art_lab_title")}</p>
+              <p className="text-[#6B7280] text-[9px] font-mono uppercase tracking-wider mb-1">{t("art_lab_engine_note")}</p>
               <p className="text-[#9CA3AF] text-[10px] leading-snug mb-3">{t("art_lab_desc")}</p>
               <div className="art-lab-scroll flex gap-2.5 overflow-x-auto pb-2 w-full min-w-0 snap-x snap-mandatory [-webkit-overflow-scrolling:touch] md:grid md:grid-cols-2 md:gap-2.5 md:overflow-visible md:pb-0 lg:grid-cols-2">
                 {labPresets.map((s) => (

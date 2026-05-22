@@ -137,6 +137,48 @@ const functionConfig = {
   },
 };
 
+/** Estilos AI Lab / experimental — motor permissivo (Flux Kontext), não Grok. */
+const ARTISTIC_EXPERIMENTAL_STYLE_IDS = new Set([
+  "lab_qwen_edit", "lab_ai_rapid", "lab_cinematic_edit", "lab_advanced_prompt",
+  "lab_experimental_ai", "lab_ultra_style", "lab_flux_edit", "lab_realistic_edit", "lab_hybrid_nsfw",
+  "nsfw_boudoir", "nsfw_pinup", "nsfw_dark", "nsfw_fantasy",
+]);
+
+function isArtisticExperimentalStyleId(styleId) {
+  const id = String(styleId || "").trim();
+  if (!id) return false;
+  return ARTISTIC_EXPERIMENTAL_STYLE_IDS.has(id) || id.startsWith("lab_") || id.startsWith("nsfw_");
+}
+
+/** Evita a palavra "nsfw" no prompt — Grok/Replicate interpretam como bloqueio. */
+function sanitizeProviderPrompt(prompt) {
+  return String(prompt || "")
+    .replace(/\bnsfw\b/gi, "mature editorial")
+    .replace(/\bstudio\s+nsfw\b/gi, "studio mature editorial")
+    .replace(/\s{2,}/g, " ")
+    .trim();
+}
+
+function resolveArtisticStudioModel({ styleId, hasPhoto, userDoc }) {
+  const email = String(userDoc?.email || "").toLowerCase();
+  const adminOk = userDoc?.role === "admin" || ADMIN_EMAILS.has(email) || Boolean(userDoc?.nsfw_allowed);
+  const experimental = isArtisticExperimentalStyleId(styleId);
+  if (experimental && !adminOk) {
+    const err = new Error("Estilos experimentais só para administradores.");
+    err.status = 403;
+    throw err;
+  }
+  if (experimental) {
+    if (!hasPhoto) {
+      const err = new Error("AI Lab exige uma foto no modo Imagem (edição rápida).");
+      err.status = 400;
+      throw err;
+    }
+    return { modelKey: "kontext", modelId: MODELS.kontext, label: "Flux Kontext Max (AI Lab)" };
+  }
+  return { modelKey: "standard", modelId: MODELS.standard, label: MODELS.standard };
+}
+
 const MODELS = {
   standard: "xai/grok-imagine-image",
   pro: "black-forest-labs/flux-2-klein-9b",
@@ -879,19 +921,34 @@ async function routePost(path, fields, files, req) {
   }
 
   if (path === "generate/artistic-studio") {
-    const promptFinal = text(fields, "prompt_final", "").trim();
+    let promptFinal = sanitizeProviderPrompt(text(fields, "prompt_final", "").trim());
     if (!promptFinal) throw new Error("Prompt em falta.");
+    const styleId = text(fields, "style_id", "").trim();
     const hasPhoto = Boolean(files.photo || text(fields, "photo_url", "").trim());
-    const input = await imageInput(fields, files, "standard", promptFinal);
+    const { user, isLocal } = resolveSessionUser(req);
+    let userDoc = null;
+    if (storageEnabled() && user?.id && !isLocal) {
+      userDoc = await getUserById(user.id);
+    } else if (user?.email && ADMIN_EMAILS.has(String(user.email).toLowerCase())) {
+      userDoc = { email: user.email, role: "admin", nsfw_allowed: true };
+    }
+    const { modelKey, modelId, label: modelLabel } = resolveArtisticStudioModel({
+      styleId,
+      hasPhoto,
+      userDoc,
+    });
+    const input = await imageInput(fields, files, modelKey, promptFinal);
     return submitBillableGeneration(req, fields, {
       cost: CREDIT.artistic,
       type: "artistic",
-      modelId: MODELS.standard,
+      modelId,
       input,
       prompt: promptFinal,
       aspectRatio: input.aspect_ratio,
-      modelUsed: MODELS.standard,
-      spendDescription: "Estúdio artístico",
+      modelUsed: modelLabel,
+      spendDescription: isArtisticExperimentalStyleId(styleId)
+        ? "Estúdio artístico · AI Lab"
+        : "Estúdio artístico",
     });
   }
 

@@ -1,8 +1,37 @@
 /**
  * Capas JPG para a grelha do Estúdio Artístico.
- * Geradas com `node scripts/generate-artistic-covers.mjs`
+ * AI Lab: `node scripts/download-artistic-covers-nsfw.mjs` (prompts únicos por card)
+ * Outros: `node scripts/generate-artistic-covers.mjs`
  */
 export const ARTISTIC_STYLE_COVER_BY_ID = {
+  // —— AI Lab (Admin) previews ——
+  lab_qwen_edit: "/images/artistic-covers/lab_qwen_edit.jpg",
+  lab_ai_rapid: "/images/artistic-covers/lab_ai_rapid.jpg",
+  lab_cinematic_edit: "/images/artistic-covers/lab_cinematic_edit.jpg",
+  lab_advanced_prompt: "/images/artistic-covers/lab_advanced_prompt.jpg",
+  lab_experimental_ai: "/images/artistic-covers/lab_experimental_ai.jpg",
+  lab_ultra_style: "/images/artistic-covers/lab_ultra_style.jpg",
+  lab_flux_edit: "/images/artistic-covers/lab_flux_edit.jpg",
+  lab_realistic_edit: "/images/artistic-covers/lab_realistic_edit.jpg",
+  lab_hybrid_nsfw: "/images/artistic-covers/lab_hybrid_nsfw.jpg",
+  nsfw_swimwear: "/images/artistic-covers/nsfw_swimwear.jpg",
+  nsfw_beach: "/images/artistic-covers/nsfw_beach.jpg",
+  nsfw_lingerie_soft: "/images/artistic-covers/nsfw_lingerie_soft.jpg",
+  nsfw_fitness_glam: "/images/artistic-covers/nsfw_fitness_glam.jpg",
+  nsfw_boudoir: "/images/artistic-covers/nsfw_boudoir.jpg",
+  nsfw_pinup: "/images/artistic-covers/nsfw_pinup.jpg",
+  nsfw_dark: "/images/artistic-covers/nsfw_dark.jpg",
+  nsfw_fantasy: "/images/artistic-covers/nsfw_fantasy.jpg",
+  nsfw_sheer: "/images/artistic-covers/nsfw_sheer.jpg",
+  nsfw_figure_study: "/images/artistic-covers/nsfw_figure_study.jpg",
+  nsfw_explicit_art: "/images/artistic-covers/nsfw_explicit_art.jpg",
+  nsfw_intimate_couple: "/images/artistic-covers/nsfw_intimate_couple.jpg",
+  nsfw_cosplay: "/images/artistic-covers/nsfw_cosplay.jpg",
+  nsfw_wet_look: "/images/artistic-covers/nsfw_wet_look.jpg",
+  nsfw_stockings: "/images/artistic-covers/nsfw_stockings.jpg",
+  nsfw_oil_body: "/images/artistic-covers/nsfw_oil_body.jpg",
+  nsfw_oil_render: "/images/artistic-covers/nsfw_oil_render.jpg",
+  nsfw_explicit_pose: "/images/artistic-covers/nsfw_explicit_pose.jpg",
   photo_classic_portrait: "/images/artistic-covers/photo_classic_portrait.jpg",
   photo_editorial: "/images/artistic-covers/photo_editorial.jpg",
   photo_lifestyle: "/images/artistic-covers/photo_lifestyle.jpg",

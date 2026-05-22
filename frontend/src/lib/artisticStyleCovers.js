@@ -2,6 +2,7 @@
  * Capas JPG para a grelha do Estúdio Artístico.
  * AI Lab: `node scripts/download-artistic-covers-nsfw.mjs` (prompts únicos por card)
  * Fotografia (6 estilos): `node scripts/generate-artistic-covers-photography.mjs` — ref mulher + prompt (Pollinations Flux)
+ * Anime & Manga: `node scripts/generate-artistic-covers-anime.mjs` — ref mulher estilizada por card
  * Outros: `node scripts/generate-artistic-covers.mjs`
  */
 export const ARTISTIC_STYLE_COVER_BY_ID = {
@@ -46,7 +47,18 @@ export const ARTISTIC_STYLE_COVER_BY_ID = {
   photo_noir: "/images/artistic-covers/photo_noir.jpg",
   photo_hdr: "/images/artistic-covers/photo_hdr.jpg",
   photo_casual: "/images/artistic-covers/photo_casual.jpg",
+  // —— Anime & Manga ——
   dig_anime: "/images/artistic-covers/dig_anime.jpg",
+  anime_ghibli: "/images/artistic-covers/anime_ghibli.jpg",
+  anime_manga_bw: "/images/artistic-covers/anime_manga_bw.jpg",
+  anime_manhwa: "/images/artistic-covers/anime_manhwa.jpg",
+  anime_chibi: "/images/artistic-covers/anime_chibi.jpg",
+  anime_shonen: "/images/artistic-covers/anime_shonen.jpg",
+  anime_soft: "/images/artistic-covers/anime_soft.jpg",
+  anime_vintage: "/images/artistic-covers/anime_vintage.jpg",
+  anime_webtoon: "/images/artistic-covers/anime_webtoon.jpg",
+  anime_mecha: "/images/artistic-covers/anime_mecha.jpg",
+  anime_vtuber: "/images/artistic-covers/anime_vtuber.jpg",
   dig_concept_art: "/images/artistic-covers/dig_concept_art.jpg",
   dig_pixel_art: "/images/artistic-covers/dig_pixel_art.jpg",
   dig_low_poly: "/images/artistic-covers/dig_low_poly.jpg",

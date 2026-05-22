@@ -1,5 +1,6 @@
 /** Map legacy PT panel values to stable ids (older saved projects). */
 
+import { emptyEditorScene, panelToEditorScene } from "./mangaEditorSync";
 import { normalizeCharacter, normalizeScenario } from "./mangaStudioData";
 
 const EXPR = {
@@ -35,11 +36,20 @@ export function migrateMangaPanel(panel) {
 
 export function migrateMangaProject(project) {
   if (!project) return project;
+  const panels = (project.panels || []).map(migrateMangaPanel);
+  const firstPanel = panels[0];
+  const editorScene =
+    project.editorScene && typeof project.editorScene === "object"
+      ? { ...emptyEditorScene(), ...project.editorScene }
+      : firstPanel
+        ? panelToEditorScene(firstPanel)
+        : emptyEditorScene();
   return {
     ...project,
     characters: (project.characters || []).map(normalizeCharacter),
     scenarios: (project.scenarios || []).map(normalizeScenario),
     panelSceneDraft: project.panelSceneDraft || null,
-    panels: (project.panels || []).map(migrateMangaPanel),
+    editorScene,
+    panels,
   };
 }

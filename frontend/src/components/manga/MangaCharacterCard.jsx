@@ -49,8 +49,6 @@ export default function MangaCharacterCard({
   character: c,
   characters,
   onUpdate,
-  onGenerateInteraction,
-  interactionBusy,
 }) {
   const { t } = useI18n();
   const [ixOpen, setIxOpen] = useState(true);
@@ -65,8 +63,7 @@ export default function MangaCharacterCard({
 
   const partner = others.find((x) => x.id === ixConfig.partnerId) || null;
   const selfHasRef = characterHasReference(c);
-  const partnerHasRef = partner ? characterHasReference(partner) : false;
-  const canGenerateIx = Boolean(partner && selfHasRef && partnerHasRef);
+  const canSaveIxPreset = Boolean(partner && ixConfig.partnerId);
 
   const interactionOptions = useMemo(
     () =>
@@ -102,16 +99,17 @@ export default function MangaCharacterCard({
     });
   };
 
-  const handleGenerate = () => {
+  const handleSaveIxPreset = () => {
     if (!ixConfig.partnerId || !partner) return;
-    const typeMeta = interactionOptions.find((x) => x.id === ixConfig.interactionType);
-    onGenerateInteraction({
-      charA: c,
-      charB: partner,
-      config: {
-        ...ixConfig,
-        interactionLabel: typeMeta?.label || ixConfig.interactionType,
-      },
+    const saved = emptySavedInteraction({
+      partnerId: partner.id,
+      partnerName: partner.name,
+      interactionType: ixConfig.interactionType,
+      config: { ...ixConfig, partnerId: partner.id },
+      resultThumb: null,
+    });
+    patch({
+      savedInteractions: [saved, ...(c.savedInteractions || [])].slice(0, 12),
     });
   };
 
@@ -316,7 +314,7 @@ export default function MangaCharacterCard({
                     ? t("manga_ix_partner_ref_ok", { name: partner.name })
                     : t("manga_ix_partner_ref_missing", { name: partner.name })}
                 </p>
-                <p className="text-[10px] text-[#7c3aed] leading-snug">{t("manga_ix_qwen_hint")}</p>
+                <p className="text-[10px] text-[#7c3aed] leading-snug">{t("manga_ix_library_hint")}</p>
                 <p className="text-[10px] text-[#9CA3AF]">{t("manga_ix_type_label")}</p>
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-1">
                   {interactionOptions.map((opt) => (
@@ -450,19 +448,12 @@ export default function MangaCharacterCard({
                   </button>
                   <button
                     type="button"
-                    className="manga-generate-btn flex-1 min-w-[140px]"
-                    disabled={interactionBusy || !canGenerateIx}
-                    onClick={handleGenerate}
-                    title={!canGenerateIx ? t("manga_ix_need_refs") : undefined}
+                    className="manga-chip-btn flex-1 min-w-[140px]"
+                    disabled={!canSaveIxPreset}
+                    onClick={handleSaveIxPreset}
                   >
-                    {interactionBusy ? (
-                      <span className="animate-pulse">{t("manga_ix_generating")}</span>
-                    ) : (
-                      <>
-                        <Zap className="w-3.5 h-3.5" />
-                        {t("manga_ix_generate_scene")}
-                      </>
-                    )}
+                    <Zap className="w-3.5 h-3.5" />
+                    {t("manga_ix_save_preset")}
                   </button>
                 </div>
               </>
@@ -487,8 +478,10 @@ export default function MangaCharacterCard({
                   type="button"
                   className="manga-char-ix-thumb"
                   onClick={() => {
+                    if (ix.config) setIxConfig({ ...defaultInteractionConfig(), ...ix.config });
                     if (ix.resultThumb) window.open(ix.resultThumb, "_blank", "noopener");
                   }}
+                  title={t("manga_ix_load_preset")}
                 >
                   {ix.resultThumb ? (
                     <img src={ix.resultThumb} alt="" className="w-full h-full object-cover" />

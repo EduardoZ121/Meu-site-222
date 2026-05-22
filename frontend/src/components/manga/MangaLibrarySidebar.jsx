@@ -72,9 +72,6 @@ function LibraryRow({
 export default function MangaLibrarySidebar({
   project,
   onChange,
-  onGenerateInteraction,
-  interactionBusy = false,
-  onPreparePanelScene,
   onSaveSceneComposition,
 }) {
   const { t } = useI18n();
@@ -155,8 +152,6 @@ export default function MangaLibrarySidebar({
                       x.id === c.id ? next : x),
                   });
                 }}
-                onGenerateInteraction={onGenerateInteraction}
-                interactionBusy={interactionBusy}
               />
             </LibraryRow>
           ))}
@@ -218,7 +213,6 @@ export default function MangaLibrarySidebar({
                   });
                 }}
                 onSaveComposition={onSaveSceneComposition}
-                onPreparePanelDraft={onPreparePanelScene}
               />
             </MangaScenarioRow>
           ))}

@@ -4,6 +4,7 @@
  * Fotografia (6 estilos): `node scripts/generate-artistic-covers-photography.mjs` — ref mulher + prompt (Pollinations Flux)
  * Anime & Manga: `node scripts/generate-artistic-covers-anime.mjs` — ref mulher estilizada por card
  * Cartoon & 3D: `node scripts/generate-artistic-covers-cartoon.mjs` — ref mulher estilizada por card
+ * Ilustração & Comic: `node scripts/generate-artistic-covers-illustration.mjs` — ref mulher estilizada por card
  * Outros: `node scripts/generate-artistic-covers.mjs`
  */
 export const ARTISTIC_STYLE_COVER_BY_ID = {
@@ -69,6 +70,16 @@ export const ARTISTIC_STYLE_COVER_BY_ID = {
   toon_claymation: "/images/artistic-covers/toon_claymation.jpg",
   toon_cute_3d: "/images/artistic-covers/toon_cute_3d.jpg",
   toon_figurine: "/images/artistic-covers/toon_figurine.jpg",
+  // —— Ilustração & Comic ——
+  ill_comic: "/images/artistic-covers/ill_comic.jpg",
+  ill_graphic_novel: "/images/artistic-covers/ill_graphic_novel.jpg",
+  ill_tintin: "/images/artistic-covers/ill_tintin.jpg",
+  ill_vector: "/images/artistic-covers/ill_vector.jpg",
+  ill_ink: "/images/artistic-covers/ill_ink.jpg",
+  ill_concept: "/images/artistic-covers/ill_concept.jpg",
+  ill_tattoo: "/images/artistic-covers/ill_tattoo.jpg",
+  ill_sticker: "/images/artistic-covers/ill_sticker.jpg",
+  ill_pop: "/images/artistic-covers/ill_pop.jpg",
   dig_concept_art: "/images/artistic-covers/dig_concept_art.jpg",
   dig_pixel_art: "/images/artistic-covers/dig_pixel_art.jpg",
   dig_low_poly: "/images/artistic-covers/dig_low_poly.jpg",

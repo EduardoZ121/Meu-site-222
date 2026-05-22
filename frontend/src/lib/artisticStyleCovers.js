@@ -1,6 +1,7 @@
 /**
  * Capas JPG para a grelha do Estúdio Artístico.
  * AI Lab: `node scripts/download-artistic-covers-nsfw.mjs` (prompts únicos por card)
+ * Fotografia: `node scripts/download-artistic-covers-photography.mjs`
  * Outros: `node scripts/generate-artistic-covers.mjs`
  */
 export const ARTISTIC_STYLE_COVER_BY_ID = {
@@ -38,6 +39,13 @@ export const ARTISTIC_STYLE_COVER_BY_ID = {
   photo_documentary: "/images/artistic-covers/photo_documentary.jpg",
   photo_fine_art: "/images/artistic-covers/photo_fine_art.jpg",
   photo_glamour: "/images/artistic-covers/photo_glamour.jpg",
+  // —— Fotografia ——
+  photo_street: "/images/artistic-covers/photo_street.jpg",
+  photo_fashion: "/images/artistic-covers/photo_fashion.jpg",
+  photo_cinematic: "/images/artistic-covers/photo_cinematic.jpg",
+  photo_noir: "/images/artistic-covers/photo_noir.jpg",
+  photo_hdr: "/images/artistic-covers/photo_hdr.jpg",
+  photo_casual: "/images/artistic-covers/photo_casual.jpg",
   dig_anime: "/images/artistic-covers/dig_anime.jpg",
   dig_concept_art: "/images/artistic-covers/dig_concept_art.jpg",
   dig_pixel_art: "/images/artistic-covers/dig_pixel_art.jpg",

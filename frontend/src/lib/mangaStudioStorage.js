@@ -18,6 +18,7 @@ function readAll() {
 
 function trimDataUrl(url) {
   if (!url || typeof url !== "string") return null;
+  if (url.startsWith("blob:")) return null;
   if (!url.startsWith("data:")) return url;
   if (url.length <= MAX_DATA_URL_LEN) return url;
   return null;
@@ -48,16 +49,19 @@ export function projectForPersist(project) {
         })),
       };
     }),
-    scenarios: (project.scenarios || []).map((s) => ({
-      ...s,
-      thumb: trimDataUrl(s.thumb),
+    scenarios: (project.scenarios || []).map((s) => {
+      const { _refFile, ...rest } = s;
+      return {
+        ...rest,
+        thumb: trimDataUrl(s.thumb),
       savedCompositions: (s.savedCompositions || []).map((c) => ({
         ...c,
         draft: c.draft
           ? { ...c.draft, scenarioThumb: c.draft.scenarioThumb?.startsWith?.("http") ? c.draft.scenarioThumb : null }
           : c.draft,
       })),
-    })),
+      };
+    }),
     panelSceneDraft: project.panelSceneDraft
       ? {
           ...project.panelSceneDraft,
@@ -66,10 +70,13 @@ export function projectForPersist(project) {
             : null,
         }
       : null,
-    customPoses: (project.customPoses || []).map((p) => ({
-      ...p,
-      thumb: trimDataUrl(p.thumb),
-    })),
+    customPoses: (project.customPoses || []).map((p) => {
+      const { _refFile, ...rest } = p;
+      return {
+        ...rest,
+        thumb: trimDataUrl(p.thumb),
+      };
+    }),
     panels: (project.panels || []).map((p) => ({
       ...p,
       resultUrl: p.resultUrl?.startsWith?.("http") ? p.resultUrl : null,

@@ -1,10 +1,12 @@
 import { useMemo, useState } from "react";
 import {
-  Plus, Upload, Users, Link2, MapPin, Cloud, Sun, Moon, ChevronDown,
+  Plus, Users, Link2, MapPin, ChevronDown,
   Save, Layers, Sparkles, Pencil, Copy, Trash2,
 } from "lucide-react";
+import ImageUploadZone from "../ImageUploadZone";
 import { cn } from "../../lib/utils";
 import { useI18n } from "../../lib/i18n";
+import { mangaScenarioFromUpload } from "../../lib/mangaImageUpload";
 import {
   SCENE_TYPES,
   SCENE_WEATHER,
@@ -18,15 +20,6 @@ import {
   buildPanelSceneDraft,
   emptySavedComposition,
 } from "../../lib/mangaScenarioStudio";
-
-function readFileAsDataUrl(file) {
-  return new Promise((resolve, reject) => {
-    const r = new FileReader();
-    r.onload = () => resolve(r.result);
-    r.onerror = reject;
-    r.readAsDataURL(file);
-  });
-}
 
 function MiniSelect({ label, value, onChange, options }) {
   return (
@@ -208,32 +201,16 @@ export default function MangaScenarioCard({
 
   return (
     <div className="manga-scenario-detail space-y-2.5" data-testid={`manga-scenario-${s.id}`}>
-      <div className="manga-scenario-preview">
-        {s.thumb ? (
-          <img src={s.thumb} alt="" className="w-full h-full object-cover" />
-        ) : (
-          <div className="flex flex-col items-center justify-center h-full text-[#5A5A5E] gap-1">
-            <MapPin className="w-8 h-8 opacity-40" />
-            <span className="text-[10px]">{t("manga_scn_no_preview")}</span>
-          </div>
-        )}
-        <div className="manga-scenario-preview__glow" aria-hidden />
-      </div>
-
-      <label className="manga-chip-btn cursor-pointer w-full justify-center">
-        <Upload className="w-3 h-3" /> {t("manga_upload_image")}
-        <input
-          type="file"
-          accept="image/*"
-          className="hidden"
-          onChange={async (e) => {
-            const f = e.target.files?.[0];
-            if (!f) return;
-            const url = await readFileAsDataUrl(f);
-            onUpdate({ ...s, thumb: url });
-          }}
-        />
-      </label>
+      <ImageUploadZone
+        value={s._refFile || null}
+        onChange={(file) => onUpdate(mangaScenarioFromUpload(s, file))}
+        layout="wide"
+        testId={`manga-scenario-upload-${s.id}`}
+        emptyLabel={t("manga_upload_image")}
+        emptyHint={t("upload_empty_hint")}
+        enableRemotePersist={false}
+        compressOptions={{ maxSize: 1400, maxBytes: 2 * 1024 * 1024 }}
+      />
 
       <div className="manga-char-block manga-char-block--accent">
         <p className="manga-char-block__title flex items-center gap-1">

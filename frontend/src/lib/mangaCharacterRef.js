@@ -14,6 +14,7 @@ export async function getCharacterPhotoBlob(character) {
   }
   const url = character.sheets?.front || character.thumb;
   if (!url || typeof url !== "string") return null;
+  if (url.startsWith("data:") && url.length > 120_000) return null;
   try {
     const res = await fetch(url);
     if (!res.ok) return null;

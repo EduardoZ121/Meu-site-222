@@ -34,6 +34,8 @@
       "page_desc": "{n} herramientas de IA listas. Elige una, sube una foto si hace falta y pulsa Generar.",
       "tab_image": "Herramientas de imagen",
       "tab_video": "Herramientas de vídeo",
+      "open_tool": "Abrir",
+      "count_label": "{n} herramientas en esta categoría",
       "tool_studio_name": "Estudio de generación",
       "tool_studio_desc": "Texto, foto + prompt o estilos listos.",
       "tool_clothes_name": "Cambiar ropa (IA)",

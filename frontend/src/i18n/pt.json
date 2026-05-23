@@ -39,6 +39,8 @@
       "page_desc": "{n} ferramentas de IA prontas a usar. Escolhe uma, envia uma foto quando necessário e clica em Gerar.",
       "tab_image": "Ferramentas de imagem",
       "tab_video": "Ferramentas de vídeo",
+      "open_tool": "Abrir",
+      "count_label": "{n} ferramentas nesta categoria",
       "tool_studio_name": "Estúdio de Geração",
       "tool_studio_desc": "Texto, foto + prompt ou estilos prontos.",
       "tool_clothes_name": "Trocar Roupa (AI)",

@@ -28,7 +28,7 @@ export default function Tools() {
       data-testid="tools-page"
     >
       <motion.section
-        className="relative -mx-4 sm:-mx-6 md:-mx-10 px-4 sm:px-6 md:px-10 py-12 md:py-16 mb-8 md:mb-10 border-b border-white/5 overflow-hidden"
+        className="relative -mx-4 sm:-mx-6 md:-mx-10 px-4 sm:px-6 md:px-10 py-10 md:py-12 mb-6 md:mb-8 border-b border-white/5 overflow-hidden"
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ duration: 0.45, ease: pageEase }}
@@ -46,25 +46,23 @@ export default function Tools() {
         />
 
         <div className="relative mx-auto flex w-full max-w-xl flex-col items-center text-center">
-          <p className="flex items-center justify-center gap-2 mb-3 text-[10px] sm:text-[11px] font-mono font-semibold uppercase tracking-[0.18em] text-violet-400/90">
-            <span className="hidden sm:block h-px w-6 bg-gradient-to-r from-transparent via-violet-500/70 to-transparent" aria-hidden />
+          <p className="mb-2 text-[10px] sm:text-[11px] font-mono font-semibold uppercase tracking-[0.18em] text-violet-400/90">
             {t("tools_grid.page_eyebrow")}
-            <span className="hidden sm:block h-px w-6 bg-gradient-to-l from-transparent via-violet-500/70 to-transparent" aria-hidden />
           </p>
 
           <h1
             id="tools-hero-title"
-            className="text-5xl sm:text-6xl font-bold tracking-[-2px] leading-[1.05] text-white font-['Inter_Tight'] drop-shadow-[0_2px_20px_rgba(0,0,0,0.4)] [text-shadow:0_0_40px_rgba(168,85,247,0.18)]"
+            className="mb-3 text-5xl font-bold leading-[1.05] tracking-tighter text-white md:text-6xl"
           >
             {t("tools_grid.page_title")}
           </h1>
 
-          <p className="mt-3 mx-auto max-w-xs sm:max-w-sm text-base sm:text-lg text-zinc-400 leading-snug sm:leading-relaxed">
+          <p className="max-w-[280px] text-[17px] leading-relaxed text-zinc-400">
             {t("tools_grid.page_desc_short", { n: filtered.length })}
           </p>
 
           <div
-            className="mt-5 flex flex-wrap items-center justify-center gap-2.5"
+            className="mt-4 flex flex-wrap items-center justify-center gap-3"
             data-testid="tools-tabs"
             role="tablist"
             aria-label={t("tools_grid.page_eyebrow")}
@@ -92,7 +90,7 @@ export default function Tools() {
             })}
           </div>
 
-          <p className="mt-3 text-[10px] sm:text-[11px] font-mono uppercase tracking-[0.14em] text-zinc-600">
+          <p className="mt-2 text-[10px] font-mono uppercase tracking-[0.14em] text-zinc-600">
             {t("tools_grid.count_label", { n: filtered.length })}
           </p>
         </div>

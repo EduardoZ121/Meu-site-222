@@ -34,6 +34,8 @@
       "page_desc": "{n} outils IA prêts. Choisissez-en un, importez une photo si besoin, puis Générer.",
       "tab_image": "Outils image",
       "tab_video": "Outils vidéo",
+      "open_tool": "Ouvrir",
+      "count_label": "{n} outils dans cette catégorie",
       "tool_studio_name": "Studio de génération",
       "tool_studio_desc": "Texte, photo + prompt ou styles prêts.",
       "tool_clothes_name": "Changer de tenue (IA)",

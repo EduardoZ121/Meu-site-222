@@ -37,6 +37,7 @@
       "page_eyebrow": "Tools",
       "page_title": "Everything you need.",
       "page_desc": "{n} AI tools ready to use. Pick one, upload a photo when needed, and hit Generate.",
+      "page_desc_short": "{n} AI tools — pick one and create.",
       "tab_image": "Image tools",
       "tab_video": "Video tools",
       "open_tool": "Open",

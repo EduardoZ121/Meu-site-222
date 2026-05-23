@@ -15,23 +15,11 @@ const navSpring = { type: "spring", stiffness: 380, damping: 32 };
 
 function SidebarSectionLabel({ children, testId }) {
   return (
-    <motion.div
-      className="px-6 mb-3"
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      data-testid={testId}
-    >
-      <p className="text-xs font-medium uppercase tracking-widest text-[#9333EA]/60 mb-2">
+    <div className="mb-4" data-testid={testId}>
+      <p className="mb-2 text-xs font-medium uppercase tracking-[1px] text-purple-400">
         {children}
       </p>
-      <motion.div
-        className="h-px w-full bg-gradient-to-r from-[#9333EA]/70 via-[#7C3AED]/25 to-transparent"
-        initial={{ scaleX: 0 }}
-        animate={{ scaleX: 1 }}
-        transition={{ duration: 0.45, ease: [0.16, 1, 0.3, 1] }}
-        style={{ transformOrigin: "left" }}
-      />
-    </motion.div>
+    </div>
   );
 }
 
@@ -46,12 +34,12 @@ function SidebarNavItem({
         transition={{ duration: 0.35, delay: index * 0.05, ease: [0.16, 1, 0.3, 1] }}
       >
         <div
-          className="group flex items-center gap-3 px-6 py-2.5 text-sm font-medium leading-relaxed border-l-2 border-transparent text-white/45 cursor-not-allowed rounded-r-xl mr-2 select-none"
+          className="group flex items-center gap-3 border-l-4 border-transparent py-3.5 pl-4 pr-3 text-sm font-medium leading-relaxed text-zinc-500 cursor-not-allowed select-none"
           role="presentation"
           aria-disabled="true"
           data-testid={testId}
         >
-          <Lock className="w-4 h-4 shrink-0 text-[#5A5A5E]" strokeWidth={1.75} />
+          <Lock className="h-5 w-5 shrink-0 text-zinc-600" strokeWidth={1.75} />
           <span className="flex items-center gap-2 min-w-0">
             <span className="truncate">{label}</span>
             <span className="shrink-0 px-1.5 py-0.5 rounded text-[9px] font-mono uppercase tracking-wider bg-[#2E2E30] text-[#9CA3AF] border border-[#3f3f46]">
@@ -73,10 +61,10 @@ function SidebarNavItem({
         to={to}
         onClick={onClick}
         className={({ isActive }) =>
-          `group flex items-center gap-3 px-6 py-2.5 text-sm font-medium leading-relaxed transition-all duration-300 border-l-2 rounded-r-xl mr-2 ${
+          `group flex items-center gap-3 border-l-4 py-3.5 pl-4 pr-3 text-sm font-medium leading-relaxed transition-all duration-300 ${
             isActive
-              ? "border-[#A855F7] text-white bg-gradient-to-r from-[#7C3AED]/20 via-[#7C3AED]/8 to-transparent shadow-[inset_0_0_24px_-8px_rgba(168,85,247,0.35),0_0_28px_-12px_rgba(168,85,247,0.45)]"
-              : "border-transparent text-white/70 hover:text-white hover:translate-x-1 hover:brightness-110"
+              ? "border-purple-500 bg-zinc-900 text-white"
+              : "border-transparent text-zinc-400 hover:bg-zinc-900/50 hover:text-white"
           }`
         }
         data-testid={testId}
@@ -84,8 +72,8 @@ function SidebarNavItem({
         {({ isActive }) => (
           <>
             <Icon
-              className={`w-4 h-4 shrink-0 transition-colors duration-300 ${
-                isActive ? "text-[#A855F7]" : "text-white/80 group-hover:text-[#A855F7]"
+              className={`h-5 w-5 shrink-0 transition-colors duration-300 ${
+                isActive ? "text-purple-400" : "text-zinc-500 group-hover:text-zinc-300"
               }`}
               strokeWidth={1.75}
             />
@@ -185,18 +173,18 @@ export default function DashboardLayout() {
   let linkIndex = 0;
 
   const SidebarContent = ({ onClick }) => (
-    <>
+    <div className="flex h-full flex-col px-6 py-10">
       <motion.div
-        className="px-6 h-16 flex items-center flex-shrink-0 sticky top-0 z-10 border-b border-white/[0.06] bg-white/[0.03] backdrop-blur-xl"
+        className="mb-8 flex flex-shrink-0 items-center"
         initial={{ opacity: 0, y: -8 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.35 }}
       >
         <Logo to="/app/tools" />
       </motion.div>
-      <nav className="flex-1 py-6 overflow-y-auto">
+      <nav className="flex-1 overflow-y-auto overscroll-contain">
         {nav.map((sec) => (
-          <motion.div key={sec.id} className="mb-6" layout>
+          <motion.div key={sec.id} className="mb-8" layout>
             <SidebarSectionLabel testId={`sidebar-section-${sec.id}`}>
               {sec.title}
             </SidebarSectionLabel>
@@ -222,7 +210,7 @@ export default function DashboardLayout() {
           </motion.div>
         ))}
         {user.role === "admin" && (
-          <motion.div className="mb-6" layout>
+          <motion.div className="mb-8" layout>
             <SidebarSectionLabel testId="sidebar-section-admin">
               {t("sidebar_admin_section")}
             </SidebarSectionLabel>
@@ -242,12 +230,12 @@ export default function DashboardLayout() {
         animate={{ opacity: 1 }}
         transition={{ delay: flatLinks.length * 0.05 + 0.1 }}
         onClick={() => { logout(); navigate("/"); }}
-        className="flex items-center gap-3 px-6 py-4 text-white/60 hover:text-white border-t border-white/[0.06] text-sm font-medium transition-all duration-300 hover:translate-x-1"
+        className="mt-6 flex items-center gap-3 border-t border-white/[0.06] pt-6 text-sm font-medium text-zinc-400 transition-all duration-300 hover:text-white"
         data-testid="sidebar-logout"
       >
-        <LogOut className="w-4 h-4 text-white/80" strokeWidth={1.75} /> {t("btn_logout")}
+        <LogOut className="h-5 w-5 shrink-0 text-zinc-500" strokeWidth={1.75} /> {t("btn_logout")}
       </motion.button>
-    </>
+    </div>
   );
 
   return (
@@ -259,7 +247,7 @@ export default function DashboardLayout() {
         data-testid="dashboard-layout"
       >
         <aside
-          className={`w-[240px] flex-col border-r border-white/[0.08] shrink-0 h-full bg-white/[0.05] backdrop-blur-xl ${
+          className={`w-[260px] shrink-0 h-full flex-col border-r border-white/[0.06] bg-zinc-950/95 backdrop-blur-xl ${
             workspaceMode ? "hidden" : "hidden md:flex"
           }`}
         >
@@ -283,7 +271,7 @@ export default function DashboardLayout() {
                 animate={{ x: 0 }}
                 exit={{ x: "-100%" }}
                 transition={navSpring}
-                className="md:hidden fixed left-0 top-0 bottom-0 w-[280px] border-r border-white/[0.08] flex flex-col z-50 bg-white/[0.05] backdrop-blur-xl"
+                className="md:hidden fixed left-0 top-0 bottom-0 z-50 flex w-[300px] flex-col border-r border-white/[0.06] bg-zinc-950/95 backdrop-blur-xl"
               >
                 <SidebarContent onClick={() => setMobileOpen(false)} />
               </motion.aside>

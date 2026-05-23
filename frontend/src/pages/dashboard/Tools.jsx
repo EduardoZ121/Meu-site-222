@@ -24,11 +24,11 @@ export default function Tools() {
 
   return (
     <div
-      className="relative w-full max-w-[1280px] mx-auto pb-20 md:pb-24"
+      className="relative w-full max-w-[1280px] mx-auto -mt-8 md:-mt-12 pb-20 md:pb-24"
       data-testid="tools-page"
     >
       <motion.section
-        className="relative -mx-4 sm:-mx-6 md:-mx-10 px-4 sm:px-6 md:px-10 py-10 md:py-12 mb-6 md:mb-8 border-b border-white/5 overflow-hidden"
+        className="relative -mx-4 sm:-mx-6 md:-mx-10 px-4 sm:px-6 md:px-10 pt-8 pb-10 md:pt-10 md:pb-12 mb-6 md:mb-8 border-b border-white/5 overflow-hidden"
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ duration: 0.45, ease: pageEase }}

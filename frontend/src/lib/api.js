@@ -118,7 +118,7 @@ async function isBlobUploadEnabled() {
 /** Envia ficheiros de imagem para Vercel Blob e substitui por campos `*_url` (pedido final fica pequeno). */
 async function offloadFormDataImagesToBlob(formData) {
   const { put } = await import("@vercel/blob/client");
-  const BLOB_KEYS = new Set(["photo", "image", "mask", "garment"]);
+  const BLOB_KEYS = new Set(["photo", "image", "mask", "garment", "video", "reference_image"]);
   const out = new FormData();
   for (const [key, val] of formData.entries()) {
     const isBlobLike = val instanceof File || (typeof Blob !== "undefined" && val instanceof Blob);
@@ -127,14 +127,18 @@ async function offloadFormDataImagesToBlob(formData) {
         ? val
         : new File([val], `${key}.bin`, { type: val.type || "application/octet-stream" });
       // eslint-disable-next-line no-await-in-loop
-      const { data } = await api.post("/blob/prepare", { filename: fileLike.name || `${key}.jpg` });
+      const isVideo = key === "video";
+      const { data } = await api.post("/blob/prepare", {
+        filename: fileLike.name || `${key}.${isVideo ? "mp4" : "jpg"}`,
+        kind: isVideo ? "video" : undefined,
+      });
       const { clientToken, pathname } = data;
       // eslint-disable-next-line no-await-in-loop
       const result = await put(pathname, fileLike, {
         access: "public",
         token: clientToken,
-        contentType: fileLike.type || "image/jpeg",
-        multipart: fileLike.size > 4_500_000,
+        contentType: fileLike.type || (isVideo ? "video/mp4" : "image/jpeg"),
+        multipart: fileLike.size > (isVideo ? 8_000_000 : 4_500_000),
       });
       out.append(`${key}_url`, result.url);
     } else {

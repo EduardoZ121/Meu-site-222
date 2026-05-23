@@ -28,42 +28,43 @@ export default function Tools() {
       data-testid="tools-page"
     >
       <motion.section
-        className="relative -mx-4 sm:-mx-6 md:-mx-10 px-4 sm:px-6 md:px-10 py-20 md:py-24 mb-10 md:mb-12 border-b border-white/5 overflow-hidden"
+        className="relative -mx-4 sm:-mx-6 md:-mx-10 px-4 sm:px-6 md:px-10 py-12 md:py-16 mb-8 md:mb-10 border-b border-white/5 overflow-hidden"
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ duration: 0.45, ease: pageEase }}
         aria-labelledby="tools-hero-title"
       >
         <div className="absolute inset-0 bg-gradient-to-b from-zinc-950 to-black" aria-hidden />
-        <div className="absolute inset-0 bg-[#6b21a8]/[0.07]" aria-hidden />
+        <div className="absolute inset-0 bg-[#6b21a8]/[0.06]" aria-hidden />
         <div
           className="absolute inset-0 pointer-events-none"
           aria-hidden
           style={{
             background:
-              "radial-gradient(ellipse 70% 55% at 20% 0%, rgba(107,33,168,0.14), transparent 50%), radial-gradient(ellipse 50% 40% at 80% 20%, rgba(124,58,237,0.08), transparent 45%)",
+              "radial-gradient(ellipse 80% 50% at 50% 0%, rgba(107,33,168,0.12), transparent 55%)",
           }}
         />
 
-        <div className="relative max-w-3xl">
-          <p className="inline-flex items-center gap-2 mb-5 text-[11px] font-mono font-semibold uppercase tracking-[0.2em] text-violet-400/90">
-            <span className="h-px w-8 bg-gradient-to-r from-violet-500/80 to-transparent" aria-hidden />
+        <div className="relative mx-auto w-full max-w-xl text-center">
+          <p className="flex items-center justify-center gap-2 mb-3 text-[10px] sm:text-[11px] font-mono font-semibold uppercase tracking-[0.18em] text-violet-400/90">
+            <span className="hidden sm:block h-px w-6 bg-gradient-to-r from-transparent via-violet-500/70 to-transparent" aria-hidden />
             {t("tools_grid.page_eyebrow")}
+            <span className="hidden sm:block h-px w-6 bg-gradient-to-l from-transparent via-violet-500/70 to-transparent" aria-hidden />
           </p>
 
           <h1
             id="tools-hero-title"
-            className="text-6xl sm:text-7xl font-bold tracking-tighter leading-none text-white font-['Inter_Tight'] drop-shadow-[0_2px_24px_rgba(0,0,0,0.45)] [text-shadow:0_0_48px_rgba(168,85,247,0.22)]"
+            className="text-5xl sm:text-6xl font-bold tracking-[-0.05em] sm:tracking-[-2px] leading-[1.05] text-white font-['Inter_Tight'] drop-shadow-[0_2px_20px_rgba(0,0,0,0.4)] [text-shadow:0_0_40px_rgba(168,85,247,0.18)]"
           >
             {t("tools_grid.page_title")}
           </h1>
 
-          <p className="mt-5 text-lg text-zinc-400 leading-relaxed max-w-md">
+          <p className="mt-3 mx-auto max-w-xs sm:max-w-sm text-base sm:text-lg text-zinc-400 leading-snug sm:leading-relaxed">
             {t("tools_grid.page_desc_short", { n: filtered.length })}
           </p>
 
           <div
-            className="mt-10 flex flex-wrap items-center gap-3"
+            className="mt-6 flex flex-wrap items-center justify-center gap-2.5"
             data-testid="tools-tabs"
             role="tablist"
             aria-label={t("tools_grid.page_eyebrow")}
@@ -80,8 +81,8 @@ export default function Tools() {
                   data-testid={testId}
                   className={
                     active
-                      ? "inline-flex items-center gap-2 px-5 sm:px-6 py-3 rounded-xl text-sm font-semibold text-white bg-gradient-to-r from-violet-600 to-purple-600 shadow-lg shadow-purple-500/30 hover:scale-105 transition-all duration-300"
-                      : "inline-flex items-center gap-2 px-5 sm:px-6 py-3 rounded-xl text-sm font-medium text-zinc-400 bg-zinc-900 border border-zinc-700 hover:border-zinc-500 hover:text-zinc-200 transition-all duration-300"
+                      ? "inline-flex items-center justify-center gap-2 px-4 sm:px-5 py-2.5 rounded-xl text-sm font-semibold text-white bg-gradient-to-r from-violet-600 to-purple-600 shadow-lg shadow-purple-500/30 hover:scale-105 transition-all duration-300"
+                      : "inline-flex items-center justify-center gap-2 px-4 sm:px-5 py-2.5 rounded-xl text-sm font-medium text-zinc-400 bg-zinc-900 border border-zinc-700 hover:border-zinc-500 hover:text-zinc-200 transition-all duration-300"
                   }
                 >
                   <Icon className="w-4 h-4 shrink-0" strokeWidth={1.75} />
@@ -91,7 +92,7 @@ export default function Tools() {
             })}
           </div>
 
-          <p className="mt-5 text-[11px] font-mono uppercase tracking-[0.16em] text-zinc-600">
+          <p className="mt-3 text-[10px] sm:text-[11px] font-mono uppercase tracking-[0.14em] text-zinc-600">
             {t("tools_grid.count_label", { n: filtered.length })}
           </p>
         </div>

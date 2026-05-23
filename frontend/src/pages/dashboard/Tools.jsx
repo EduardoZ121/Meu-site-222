@@ -24,85 +24,78 @@ export default function Tools() {
 
   return (
     <div
-      className="relative w-full max-w-[1280px] mx-auto px-0 sm:px-1 pb-20 md:pb-24"
+      className="relative w-full max-w-[1280px] mx-auto pb-20 md:pb-24"
       data-testid="tools-page"
     >
-      <div className="pointer-events-none absolute inset-0 -z-10 overflow-hidden" aria-hidden>
-        <div className="absolute -top-40 left-[5%] h-[min(520px,80vw)] w-[min(520px,80vw)] rounded-full bg-violet-600/[0.18] blur-[100px]" />
-        <div className="absolute top-[30%] -right-24 h-[400px] w-[400px] rounded-full bg-blue-600/[0.12] blur-[90px]" />
-        <div className="absolute bottom-0 left-1/2 -translate-x-1/2 h-[280px] w-[90%] max-w-3xl rounded-full bg-violet-900/[0.08] blur-[80px]" />
+      <motion.section
+        className="relative -mx-4 sm:-mx-6 md:-mx-10 px-4 sm:px-6 md:px-10 py-20 md:py-24 mb-10 md:mb-12 border-b border-white/5 overflow-hidden"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ duration: 0.45, ease: pageEase }}
+        aria-labelledby="tools-hero-title"
+      >
+        <div className="absolute inset-0 bg-gradient-to-b from-zinc-950 to-black" aria-hidden />
+        <div className="absolute inset-0 bg-[#6b21a8]/[0.07]" aria-hidden />
         <div
-          className="absolute inset-0 opacity-[0.35]"
+          className="absolute inset-0 pointer-events-none"
+          aria-hidden
           style={{
-            backgroundImage:
-              "radial-gradient(ellipse 80% 50% at 50% -20%, rgba(124,58,237,0.15), transparent 55%)",
+            background:
+              "radial-gradient(ellipse 70% 55% at 20% 0%, rgba(107,33,168,0.14), transparent 50%), radial-gradient(ellipse 50% 40% at 80% 20%, rgba(124,58,237,0.08), transparent 45%)",
           }}
         />
-      </div>
 
-      <motion.header
-        className="mb-10 md:mb-14 lg:mb-16 max-w-3xl"
-        initial={{ opacity: 0, y: 16 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5, ease: pageEase }}
-      >
-        <p className="inline-flex items-center gap-2 mb-4 text-[11px] font-mono font-semibold uppercase tracking-[0.2em] text-violet-400/90">
-          <span className="h-px w-8 bg-gradient-to-r from-violet-500/80 to-transparent" aria-hidden />
-          {t("tools_grid.page_eyebrow")}
-        </p>
-        <h1 className="text-[2.5rem] sm:text-[3.25rem] md:text-[3.75rem] lg:text-[4rem] font-semibold text-white tracking-[-0.04em] leading-[1.02] mb-5 font-['Inter_Tight']">
-          <span className="bg-gradient-to-br from-white via-white to-zinc-400 bg-clip-text text-transparent">
+        <div className="relative max-w-3xl">
+          <p className="inline-flex items-center gap-2 mb-5 text-[11px] font-mono font-semibold uppercase tracking-[0.2em] text-violet-400/90">
+            <span className="h-px w-8 bg-gradient-to-r from-violet-500/80 to-transparent" aria-hidden />
+            {t("tools_grid.page_eyebrow")}
+          </p>
+
+          <h1
+            id="tools-hero-title"
+            className="text-6xl sm:text-7xl font-bold tracking-tighter leading-none text-white font-['Inter_Tight'] drop-shadow-[0_2px_24px_rgba(0,0,0,0.45)] [text-shadow:0_0_48px_rgba(168,85,247,0.22)]"
+          >
             {t("tools_grid.page_title")}
-          </span>
-        </h1>
-        <p className="text-base sm:text-lg text-zinc-400 leading-relaxed max-w-2xl">
-          {t("tools_grid.page_desc", { n: filtered.length })}
-        </p>
-      </motion.header>
+          </h1>
 
-      <motion.div
-        className="mb-10 md:mb-12"
-        initial={{ opacity: 0, y: 12 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.45, delay: 0.08, ease: pageEase }}
-      >
-        <div
-          className="inline-flex flex-wrap items-center gap-1 p-1.5 rounded-2xl border border-white/[0.08] bg-white/[0.04] backdrop-blur-xl shadow-[0_8px_32px_-16px_rgba(0,0,0,0.6)]"
-          data-testid="tools-tabs"
-          role="tablist"
-          aria-label={t("tools_grid.page_eyebrow")}
-        >
-          {tabs.map(({ id, label, testId, icon: Icon }) => {
-            const active = tab === id;
-            return (
-              <button
-                key={id}
-                type="button"
-                role="tab"
-                aria-selected={active}
-                onClick={() => setTab(id)}
-                className={`relative flex items-center gap-2 px-5 sm:px-6 py-2.5 sm:py-3 rounded-xl text-sm font-medium transition-colors duration-300 ${
-                  active ? "text-white" : "text-zinc-500 hover:text-zinc-200"
-                }`}
-                data-testid={testId}
-              >
-                {active && (
-                  <motion.span
-                    layoutId="tools-tab-pill"
-                    className="absolute inset-0 rounded-xl bg-gradient-to-r from-violet-600 to-violet-500 shadow-[0_0_32px_-8px_rgba(168,85,247,0.7),inset_0_1px_0_rgba(255,255,255,0.15)]"
-                    transition={{ type: "spring", stiffness: 420, damping: 34 }}
-                  />
-                )}
-                <Icon className="relative z-10 w-4 h-4 shrink-0 opacity-80" strokeWidth={1.75} />
-                <span className="relative z-10">{label}</span>
-              </button>
-            );
-          })}
+          <p className="mt-5 text-lg text-zinc-400 leading-relaxed max-w-md">
+            {t("tools_grid.page_desc_short", { n: filtered.length })}
+          </p>
+
+          <div
+            className="mt-10 flex flex-wrap items-center gap-3"
+            data-testid="tools-tabs"
+            role="tablist"
+            aria-label={t("tools_grid.page_eyebrow")}
+          >
+            {tabs.map(({ id, label, testId, icon: Icon }) => {
+              const active = tab === id;
+              return (
+                <button
+                  key={id}
+                  type="button"
+                  role="tab"
+                  aria-selected={active}
+                  onClick={() => setTab(id)}
+                  data-testid={testId}
+                  className={
+                    active
+                      ? "inline-flex items-center gap-2 px-5 sm:px-6 py-3 rounded-xl text-sm font-semibold text-white bg-gradient-to-r from-violet-600 to-purple-600 shadow-lg shadow-purple-500/30 hover:scale-105 transition-all duration-300"
+                      : "inline-flex items-center gap-2 px-5 sm:px-6 py-3 rounded-xl text-sm font-medium text-zinc-400 bg-zinc-900 border border-zinc-700 hover:border-zinc-500 hover:text-zinc-200 transition-all duration-300"
+                  }
+                >
+                  <Icon className="w-4 h-4 shrink-0" strokeWidth={1.75} />
+                  {label}
+                </button>
+              );
+            })}
+          </div>
+
+          <p className="mt-5 text-[11px] font-mono uppercase tracking-[0.16em] text-zinc-600">
+            {t("tools_grid.count_label", { n: filtered.length })}
+          </p>
         </div>
-        <p className="mt-4 text-[12px] font-mono uppercase tracking-[0.16em] text-zinc-600">
-          {t("tools_grid.count_label", { n: filtered.length })}
-        </p>
-      </motion.div>
+      </motion.section>
 
       <AnimatePresence mode="wait">
         <motion.div

@@ -45,7 +45,7 @@ export default function Tools() {
           }}
         />
 
-        <div className="relative mx-auto w-full max-w-xl text-center">
+        <div className="relative mx-auto flex w-full max-w-xl flex-col items-center text-center">
           <p className="flex items-center justify-center gap-2 mb-3 text-[10px] sm:text-[11px] font-mono font-semibold uppercase tracking-[0.18em] text-violet-400/90">
             <span className="hidden sm:block h-px w-6 bg-gradient-to-r from-transparent via-violet-500/70 to-transparent" aria-hidden />
             {t("tools_grid.page_eyebrow")}
@@ -54,7 +54,7 @@ export default function Tools() {
 
           <h1
             id="tools-hero-title"
-            className="text-5xl sm:text-6xl font-bold tracking-[-0.05em] sm:tracking-[-2px] leading-[1.05] text-white font-['Inter_Tight'] drop-shadow-[0_2px_20px_rgba(0,0,0,0.4)] [text-shadow:0_0_40px_rgba(168,85,247,0.18)]"
+            className="text-5xl sm:text-6xl font-bold tracking-[-2px] leading-[1.05] text-white font-['Inter_Tight'] drop-shadow-[0_2px_20px_rgba(0,0,0,0.4)] [text-shadow:0_0_40px_rgba(168,85,247,0.18)]"
           >
             {t("tools_grid.page_title")}
           </h1>
@@ -64,7 +64,7 @@ export default function Tools() {
           </p>
 
           <div
-            className="mt-6 flex flex-wrap items-center justify-center gap-2.5"
+            className="mt-5 flex flex-wrap items-center justify-center gap-2.5"
             data-testid="tools-tabs"
             role="tablist"
             aria-label={t("tools_grid.page_eyebrow")}

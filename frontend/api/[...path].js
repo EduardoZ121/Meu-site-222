@@ -174,6 +174,7 @@ const MODELS = {
   kontext: "black-forest-labs/flux-kontext-max",
   qwen: QWEN_EDIT_MODEL,
   video: "xai/grok-imagine-video",
+  video_edit: "wan-video/wan-2.7-videoedit",
   bg_remove: "851-labs/background-remover",
   upscale: "philz1337x/clarity-upscaler",
   inpaint: "black-forest-labs/flux-fill-pro",
@@ -266,6 +267,98 @@ function trustedBlobImageUrl(raw) {
   return u;
 }
 
+function trustedBlobMediaUrl(raw) {
+  return trustedBlobImageUrl(raw);
+}
+
+async function requireAdminSession(req) {
+  const { user, isLocal } = resolveSessionUser(req);
+  if (!user?.id || isLocal) {
+    const err = new Error("Só administradores podem usar esta ferramenta.");
+    err.status = 403;
+    throw err;
+  }
+  const dbUser = storageEnabled() ? await getUserById(user.id) : null;
+  const email = String(dbUser?.email || user.email || "").toLowerCase();
+  const adminOk = dbUser?.role === "admin" || isAdminEmail(email);
+  if (!adminOk) {
+    const err = new Error("Só administradores podem usar esta ferramenta.");
+    err.status = 403;
+    throw err;
+  }
+  return { user, dbUser };
+}
+
+function buildVideoEditPrompt(userPrompt) {
+  const base = String(userPrompt || "").trim();
+  if (base.length < 3) {
+    const err = new Error("Descreve a edição que queres (mín. 3 caracteres).");
+    err.status = 400;
+    throw err;
+  }
+  const guard = (
+    "Preserve the exact same person: identical face, facial features, eyes, skin tone, hair, "
+    + "body shape, body proportions, pose, and natural motion in every frame. "
+    + "Apply only the requested visual change. Photorealistic, temporally consistent, "
+    + "no identity drift, no morphing artifacts, no extra limbs or duplicated body parts."
+  );
+  return `${base}. ${guard}`;
+}
+
+async function resolveVideoRef(files, fields, fileKey = "video", urlKey = "video_url") {
+  const fromUrl = trustedBlobMediaUrl(text(fields, urlKey, ""));
+  if (fromUrl) return fromUrl;
+  const file = fileOf(files, fileKey);
+  if (!file) return null;
+  const st = await fs.stat(file.filepath).catch(() => null);
+  if (st && st.size > 80 * 1024 * 1024) {
+    const err = new Error("Vídeo demasiado grande (máx. ~80 MB). Comprime ou encurta o clip.");
+    err.status = 413;
+    throw err;
+  }
+  if (st && st.size > 12 * 1024 * 1024) {
+    const err = new Error(
+      "Vídeo grande para envio direto — o upload deve ir para o armazenamento (recarrega e tenta de novo).",
+    );
+    err.status = 413;
+    throw err;
+  }
+  const mime = file.mimetype || "video/mp4";
+  if (!/^video\//i.test(mime) && mime !== "application/octet-stream") {
+    const err = new Error("Formato inválido — usa MP4 ou MOV.");
+    err.status = 400;
+    throw err;
+  }
+  const buffer = await fs.readFile(file.filepath);
+  return `data:${mime};base64,${buffer.toString("base64")}`;
+}
+
+async function videoEditInput(fields, files) {
+  const video = await resolveVideoRef(files, fields, "video", "video_url");
+  if (!video) {
+    const err = new Error("Envia um vídeo (MP4/MOV, idealmente 2–10 segundos).");
+    err.status = 400;
+    throw err;
+  }
+  const userPrompt = text(fields, "prompt", "").trim();
+  const prompt = buildVideoEditPrompt(userPrompt);
+  const resolution = text(fields, "resolution", "1080p");
+  const aspectRatio = text(fields, "aspect_ratio", "auto");
+  const audioSetting = text(fields, "audio_setting", "origin");
+  const input = {
+    video,
+    prompt,
+    resolution: resolution === "720p" ? "720p" : "1080p",
+    aspect_ratio: aspectRatio || "auto",
+    audio_setting: audioSetting === "auto" ? "auto" : "origin",
+  };
+  const dur = Number(text(fields, "duration", ""));
+  if (Number.isFinite(dur) && dur >= 2 && dur <= 10) input.duration = Math.round(dur);
+  const ref = await resolveImageRef(files, fields, "reference_image", "reference_image_url");
+  if (ref) input.reference_image = ref;
+  return { input, prompt: userPrompt };
+}
+
 async function resolveImageRef(files, fields, fileKey, urlKey) {
   const fromUrl = trustedBlobImageUrl(text(fields, urlKey, ""));
   if (fromUrl) return fromUrl;
@@ -285,8 +378,9 @@ async function routeBlobPrepare(req, res) {
       return json(res, 401, { detail: "Sessão inválida ou expirada." });
     }
     const body = await readJsonRequestBody(req);
-    let fn = String(body.filename || "upload.jpg").replace(/[^\w.\-]+/g, "_");
-    if (!/\.[a-z0-9]{2,5}$/i.test(fn)) fn += ".jpg";
+    const isVideo = String(body.kind || body.media_kind || "").toLowerCase() === "video";
+    let fn = String(body.filename || (isVideo ? "upload.mp4" : "upload.jpg")).replace(/[^\w.\-]+/g, "_");
+    if (!/\.[a-z0-9]{2,5}$/i.test(fn)) fn += isVideo ? ".mp4" : ".jpg";
     fn = fn.slice(0, 100);
     const pathname = `rp/${Date.now()}-${crypto.randomBytes(6).toString("hex")}-${fn}`;
     // eslint-disable-next-line global-require
@@ -295,16 +389,23 @@ async function routeBlobPrepare(req, res) {
       token: process.env.BLOB_READ_WRITE_TOKEN,
       pathname,
       access: "public",
-      maximumSizeInBytes: 48 * 1024 * 1024,
-      allowedContentTypes: [
-        "image/jpeg",
-        "image/png",
-        "image/webp",
-        "image/gif",
-        "image/avif",
-        "image/bmp",
-        "application/octet-stream",
-      ],
+      maximumSizeInBytes: isVideo ? 96 * 1024 * 1024 : 48 * 1024 * 1024,
+      allowedContentTypes: isVideo
+        ? [
+          "video/mp4",
+          "video/quicktime",
+          "video/webm",
+          "application/octet-stream",
+        ]
+        : [
+          "image/jpeg",
+          "image/png",
+          "image/webp",
+          "image/gif",
+          "image/avif",
+          "image/bmp",
+          "application/octet-stream",
+        ],
       addRandomSuffix: true,
     });
     return json(res, 200, { clientToken, pathname });
@@ -1171,6 +1272,22 @@ async function routePost(path, fields, files, req) {
       aspectRatio: input.aspect_ratio,
       modelUsed: MODELS.video,
       spendDescription: "Vídeo IA",
+    });
+  }
+
+  if (path === "generate/video-edit") {
+    await requireAdminSession(req);
+    const { input, prompt } = await videoEditInput(fields, files);
+    const cost = CREDIT.videoEdit ?? Math.max(CREDIT.video || 70, 85);
+    return submitBillableGeneration(req, fields, {
+      cost,
+      type: "video",
+      modelId: MODELS.video_edit,
+      input,
+      prompt,
+      aspectRatio: input.aspect_ratio,
+      modelUsed: MODELS.video_edit,
+      spendDescription: "Editor vídeo (admin)",
     });
   }
 

@@ -124,41 +124,83 @@ function withTimeout(promise, ms, label = "Operação") {
   ]);
 }
 
-/** Envia ficheiros para Vercel Blob e substitui por `*_url` (pedido final fica pequeno). */
-async function offloadFormDataImagesToBlob(formData, opts = {}) {
-  const perFileMs = opts.timeoutMs ?? 55_000;
+const BLOB_OFFLOAD_KEYS = new Set(["photo", "image", "mask", "garment", "video", "reference_image"]);
+const VIDEO_DIRECT_MAX = 12 * 1024 * 1024;
+
+async function uploadFileToVercelBlob(key, fileLike, perFileMs) {
   const { put } = await import("@vercel/blob/client");
-  const BLOB_KEYS = new Set(["photo", "image", "mask", "garment", "video", "reference_image"]);
+  const isVideo = key === "video";
+  const { data } = await api.post("/blob/prepare", {
+    filename: fileLike.name || `${key}.${isVideo ? "mp4" : "jpg"}`,
+    kind: isVideo ? "video" : undefined,
+  });
+  const { clientToken, pathname } = data;
+  return put(pathname, fileLike, {
+    access: "public",
+    token: clientToken,
+    contentType: fileLike.type || (isVideo ? "video/mp4" : "image/jpeg"),
+    multipart: fileLike.size > (isVideo ? 8_000_000 : 4_500_000),
+  });
+}
+
+/** Vercel Blob e/ou S3 — substitui ficheiros por `*_url` (pedido final fica leve). */
+async function offloadFormDataMediaToCloud(formData, opts = {}) {
+  const perFileMs = opts.timeoutMs ?? 55_000;
+  const blobEnabled = await isBlobUploadEnabled();
+  const { uploadVideoViaS3, isS3VideoUploadAvailable } = await import("./s3VideoUpload");
+  const s3Enabled = await isS3VideoUploadAvailable();
   const out = new FormData();
+
   for (const [key, val] of formData.entries()) {
     const isBlobLike = val instanceof File || (typeof Blob !== "undefined" && val instanceof Blob);
-    if (isBlobLike && BLOB_KEYS.has(key)) {
-      const fileLike = val instanceof File
-        ? val
-        : new File([val], `${key}.bin`, { type: val.type || "application/octet-stream" });
-      const isVideo = key === "video";
-      const uploadOne = async () => {
-        const { data } = await api.post("/blob/prepare", {
-          filename: fileLike.name || `${key}.${isVideo ? "mp4" : "jpg"}`,
-          kind: isVideo ? "video" : undefined,
-        });
-        const { clientToken, pathname } = data;
-        return put(pathname, fileLike, {
-          access: "public",
-          token: clientToken,
-          contentType: fileLike.type || (isVideo ? "video/mp4" : "image/jpeg"),
-          multipart: fileLike.size > (isVideo ? 8_000_000 : 4_500_000),
-        });
-      };
-      // eslint-disable-next-line no-await-in-loop
-      const result = await withTimeout(uploadOne(), perFileMs, "Upload em nuvem");
-      out.append(`${key}_url`, result.url);
-    } else {
+    if (!isBlobLike || !BLOB_OFFLOAD_KEYS.has(key)) {
       out.append(key, val);
+      // eslint-disable-next-line no-continue
+      continue;
     }
+
+    const fileLike = val instanceof File
+      ? val
+      : new File([val], `${key}.bin`, { type: val.type || "application/octet-stream" });
+    const isVideo = key === "video";
+    const isLargeVideo = isVideo && fileLike.size > VIDEO_DIRECT_MAX;
+
+    if (isLargeVideo && s3Enabled) {
+      // eslint-disable-next-line no-await-in-loop
+      const url = await withTimeout(
+        uploadVideoViaS3(fileLike, { onProgress: opts.onVideoProgress }),
+        perFileMs,
+        "Upload do vídeo (S3)",
+      );
+      out.append(`${key}_url`, url);
+      // eslint-disable-next-line no-continue
+      continue;
+    }
+
+    if (blobEnabled) {
+      // eslint-disable-next-line no-await-in-loop
+      const result = await withTimeout(
+        uploadFileToVercelBlob(key, fileLike, perFileMs),
+        perFileMs,
+        "Upload em nuvem",
+      );
+      out.append(`${key}_url`, result.url);
+      // eslint-disable-next-line no-continue
+      continue;
+    }
+
+    if (isLargeVideo) {
+      throw new Error(
+        "Vídeo grande sem armazenamento em nuvem. Na Vercel adiciona BLOB_READ_WRITE_TOKEN ou as variáveis AWS (S3).",
+      );
+    }
+
+    out.append(key, val);
   }
   return out;
 }
+
+export { isS3VideoUploadAvailable } from "./s3VideoUpload";
 
 /**
  * Multipart POST com várias tentativas. Usa XMLHttpRequest no browser (melhor em
@@ -183,8 +225,9 @@ export async function uploadPost(url, formData, config = {}) {
   const skipBlob = Boolean(config.skipBlobOffload);
   if (!skipBlob && typeof window !== "undefined" && (await isBlobUploadEnabled())) {
     try {
-      baseFd = await offloadFormDataImagesToBlob(cloneFormData(formData), {
+      baseFd = await offloadFormDataMediaToCloud(cloneFormData(formData), {
         timeoutMs: config.blobOffloadTimeoutMs ?? 55_000,
+        onVideoProgress: config.onVideoProgress,
       });
     } catch (blobErr) {
       let hasLargeVideo = false;

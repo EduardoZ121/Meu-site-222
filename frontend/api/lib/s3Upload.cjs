@@ -24,11 +24,11 @@ function isS3Configured() {
 function publicUrlForKey(key) {
   const cfg = getS3Config();
   if (!cfg) return null;
-  const encodedKey = String(key).split("/").map(encodeURIComponent).join("/");
+  const safeKey = String(key).replace(/^\/+/, "");
   if (cfg.cloudFront) {
-    return `https://${cfg.cloudFront}/${encodedKey}`;
+    return `https://${cfg.cloudFront}/${safeKey}`;
   }
-  return `https://${cfg.bucket}.s3.${cfg.region}.amazonaws.com/${encodedKey}`;
+  return `https://${cfg.bucket}.s3.${cfg.region}.amazonaws.com/${safeKey}`;
 }
 
 /** URLs públicas do bucket ou CloudFront (para Replicate). */
@@ -90,7 +90,6 @@ async function createVideoPresignedUpload({ filename, contentType, contentLength
     Bucket: cfg.bucket,
     Key: key,
     ContentType: ct === "application/octet-stream" ? "video/mp4" : ct,
-    ...(size > 0 ? { ContentLength: size } : {}),
   });
 
   const uploadUrl = await getSignedUrl(client, command, { expiresIn: 900 });

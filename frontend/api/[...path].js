@@ -325,7 +325,7 @@ async function resolveVideoRef(files, fields, fileKey = "video", urlKey = "video
   }
   if (st && st.size > 12 * 1024 * 1024) {
     const err = new Error(
-      "Vídeo demasiado grande para envio direto. Aguarda o upload S3 terminar (barra de progresso) ou envia video_url após o upload.",
+      "Vídeo demasiado grande para envio direto. Configura Vercel Blob ou AWS S3, ou usa um clip até ~12 MB.",
     );
     err.status = 413;
     throw err;

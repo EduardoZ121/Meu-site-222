@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { Clapperboard, Loader2, Sparkles } from "lucide-react";
-import { formatApiError, uploadPost } from "../../lib/api";
+import { formatApiError, isBlobUploadEnabled, uploadPost } from "../../lib/api";
 import { normalizeCreation, primaryResultUrl } from "../../lib/creationUrls";
 import { useAuth } from "../../lib/auth";
 import { usePricing } from "../../lib/PricingContext";
@@ -9,7 +9,7 @@ import { toast } from "sonner";
 import ResultPanel from "../../components/ResultPanel";
 import StudioResultAnchor from "../../components/StudioResultAnchor";
 import ImageUploadZone from "../../components/ImageUploadZone";
-import { isBlobPersistAvailable } from "../../lib/persistImage";
+import StudioVideoUpload, { VIDEO_DIRECT_MAX_BYTES } from "../../components/StudioVideoUpload";
 
 const EDIT_IDEAS = ["vid_edit_idea_1", "vid_edit_idea_2", "vid_edit_idea_3"];
 const DURATIONS = [4, 6, 8, 10];
@@ -36,7 +36,6 @@ export default function VideoEditorAdmin() {
   const cost = costs.videoEdit ?? costs.video ?? 95;
 
   const [video, setVideo] = useState(null);
-  const [videoUploadStatus, setVideoUploadStatus] = useState("idle");
   const [reference, setReference] = useState(null);
   const [prompt, setPrompt] = useState("");
   const [resolution, setResolution] = useState("1080p");
@@ -44,15 +43,13 @@ export default function VideoEditorAdmin() {
   const [aspect, setAspect] = useState("auto");
   const [audioSetting, setAudioSetting] = useState("origin");
   const [busy, setBusy] = useState(false);
+  const [uploadPhase, setUploadPhase] = useState("");
   const [result, setResult] = useState(null);
 
-  /** Vídeo fica utilizável assim que o ficheiro está escolhido (upload nuvem no clique Gerar). */
   const videoReady = Boolean(video);
-
-  const canRun = videoReady
-    && prompt.trim().length >= 3
-    && ((user?.credits ?? 0) >= cost || user?.is_unlimited)
-    && !busy;
+  const promptReady = prompt.trim().length >= 3;
+  const creditsReady = (user?.credits ?? 0) >= cost || user?.is_unlimited;
+  const canRun = videoReady && promptReady && creditsReady && !busy;
 
   const run = async () => {
     if (!video) {
@@ -67,16 +64,18 @@ export default function VideoEditorAdmin() {
       toast.error(t("vid_err_credits", { need: cost, have: user?.credits ?? 0 }));
       return;
     }
-    const blobOk = await isBlobPersistAvailable();
-    if (video.size > 12_000_000 && !blobOk) {
-      toast.error(t("vid_edit_blob_required"), { duration: 10000 });
-      return;
-    }
-    if (videoUploadStatus === "saving") {
-      toast.info(t("vid_edit_cloud_uploading"), { duration: 6000 });
+
+    const needsCloud = video.size > VIDEO_DIRECT_MAX_BYTES;
+    if (needsCloud) {
+      const blobOk = await isBlobUploadEnabled();
+      if (!blobOk) {
+        toast.error(t("vid_edit_blob_required"), { duration: 10000 });
+        return;
+      }
     }
 
     setBusy(true);
+    setUploadPhase(needsCloud ? "cloud" : "send");
     setResult(null);
     try {
       const fd = new FormData();
@@ -89,8 +88,10 @@ export default function VideoEditorAdmin() {
       if (reference) fd.append("reference_image", reference);
 
       const { data } = await uploadPost("/generate/video-edit", fd, {
-        timeout: 180000,
-        pollTimeoutMs: 600000,
+        timeout: needsCloud ? 300_000 : 120_000,
+        pollTimeoutMs: 600_000,
+        blobOffloadTimeoutMs: 120_000,
+        skipBlobOffload: !needsCloud,
       });
       const creation = normalizeCreation(data?.creation);
       if (!primaryResultUrl(creation)) throw new Error(t("vid_no_result"));
@@ -101,6 +102,7 @@ export default function VideoEditorAdmin() {
       toast.error(formatApiError(err, t("vid_edit_fail")), { duration: 12000 });
     } finally {
       setBusy(false);
+      setUploadPhase("");
     }
   };
 
@@ -117,27 +119,12 @@ export default function VideoEditorAdmin() {
               {t("vid_edit_desc")}
             </p>
             <div className="max-w-[560px]">
-              <ImageUploadZone
-                mediaType="video"
+              <StudioVideoUpload
                 value={video}
-                onChange={(f) => setVideo(f || null)}
-                layout="wide"
+                onChange={setVideo}
+                disabled={busy}
                 testId="video-edit-source"
-                enableRemotePersist={false}
-                onStatusChange={setVideoUploadStatus}
-                emptyLabel={t("upload_drop")}
-                emptyHint={t("vid_edit_video_hint")}
               />
-              {video && video.size > 12_000_000 && (
-                <p className="mt-2 text-[11px] text-[#8A8A8E] leading-relaxed">
-                  {t("vid_edit_large_hint")}
-                </p>
-              )}
-              {busy && videoUploadStatus === "saving" && (
-                <p className="mt-2 text-[10px] font-mono uppercase tracking-[0.14em] text-[#A78BFA]">
-                  {t("vid_edit_cloud_uploading")}
-                </p>
-              )}
             </div>
           </section>
 
@@ -175,11 +162,12 @@ export default function VideoEditorAdmin() {
               {t("vid_edit_ref_label")}
             </p>
             <p className="text-[#8A8A8E] text-[13px] mb-4">{t("vid_edit_ref_hint")}</p>
-            <div className="max-w-[560px]">
+            <div className="max-w-[280px]">
               <ImageUploadZone
                 value={reference}
                 onChange={setReference}
-                layout="wide"
+                layout="square"
+                enableRemotePersist={false}
                 testId="video-edit-reference"
                 emptyLabel={t("upload_drop")}
                 emptyHint={t("upload_empty_hint")}
@@ -275,15 +263,24 @@ export default function VideoEditorAdmin() {
               type="button"
               onClick={run}
               disabled={!canRun}
-              className="rp-action-primary w-full sm:w-auto sm:min-w-[280px]"
+              className="rp-action-primary w-full sm:w-auto sm:min-w-[280px] disabled:opacity-40"
               data-testid="video-edit-submit"
             >
               {busy ? (
-                <><Loader2 className="w-4 h-4 animate-spin" strokeWidth={2} /> {t("vid_edit_processing")}</>
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" strokeWidth={2} />
+                  {uploadPhase === "cloud" ? t("vid_edit_cloud_uploading") : t("vid_edit_processing")}
+                </>
               ) : (
                 <><Clapperboard className="w-4 h-4" strokeWidth={1.5} /> {t("vid_edit_btn", { n: cost })}</>
               )}
             </button>
+            {!videoReady && (
+              <p className="text-[#6b6b70] text-[11px] mt-2">{t("studio_gen_hint_video")}</p>
+            )}
+            {videoReady && !promptReady && (
+              <p className="text-[#6b6b70] text-[11px] mt-2">{t("studio_gen_hint_prompt")}</p>
+            )}
             <p className="text-[#5A5A5E] text-[11px] mt-3 font-mono uppercase tracking-[0.14em]">
               {t("vid_balance", { n: user?.is_unlimited ? "∞" : (user?.credits ?? 0) })}
             </p>

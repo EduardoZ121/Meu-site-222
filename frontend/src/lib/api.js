@@ -98,7 +98,7 @@ function pickUploadTimeoutMs(fd) {
 
 let blobUploadEnabledCache = null;
 
-async function isBlobUploadEnabled() {
+export async function isBlobUploadEnabled() {
   if (blobUploadEnabledCache !== null) return blobUploadEnabledCache;
   if (typeof window === "undefined" || typeof fetch === "undefined") {
     blobUploadEnabledCache = false;
@@ -115,8 +115,18 @@ async function isBlobUploadEnabled() {
   }
 }
 
-/** Envia ficheiros de imagem para Vercel Blob e substitui por campos `*_url` (pedido final fica pequeno). */
-async function offloadFormDataImagesToBlob(formData) {
+function withTimeout(promise, ms, label = "Operação") {
+  return Promise.race([
+    promise,
+    new Promise((_, reject) => {
+      setTimeout(() => reject(new Error(`${label} demorou demasiado (${Math.round(ms / 1000)}s).`)), ms);
+    }),
+  ]);
+}
+
+/** Envia ficheiros para Vercel Blob e substitui por `*_url` (pedido final fica pequeno). */
+async function offloadFormDataImagesToBlob(formData, opts = {}) {
+  const perFileMs = opts.timeoutMs ?? 55_000;
   const { put } = await import("@vercel/blob/client");
   const BLOB_KEYS = new Set(["photo", "image", "mask", "garment", "video", "reference_image"]);
   const out = new FormData();
@@ -126,20 +136,22 @@ async function offloadFormDataImagesToBlob(formData) {
       const fileLike = val instanceof File
         ? val
         : new File([val], `${key}.bin`, { type: val.type || "application/octet-stream" });
-      // eslint-disable-next-line no-await-in-loop
       const isVideo = key === "video";
-      const { data } = await api.post("/blob/prepare", {
-        filename: fileLike.name || `${key}.${isVideo ? "mp4" : "jpg"}`,
-        kind: isVideo ? "video" : undefined,
-      });
-      const { clientToken, pathname } = data;
+      const uploadOne = async () => {
+        const { data } = await api.post("/blob/prepare", {
+          filename: fileLike.name || `${key}.${isVideo ? "mp4" : "jpg"}`,
+          kind: isVideo ? "video" : undefined,
+        });
+        const { clientToken, pathname } = data;
+        return put(pathname, fileLike, {
+          access: "public",
+          token: clientToken,
+          contentType: fileLike.type || (isVideo ? "video/mp4" : "image/jpeg"),
+          multipart: fileLike.size > (isVideo ? 8_000_000 : 4_500_000),
+        });
+      };
       // eslint-disable-next-line no-await-in-loop
-      const result = await put(pathname, fileLike, {
-        access: "public",
-        token: clientToken,
-        contentType: fileLike.type || (isVideo ? "video/mp4" : "image/jpeg"),
-        multipart: fileLike.size > (isVideo ? 8_000_000 : 4_500_000),
-      });
+      const result = await withTimeout(uploadOne(), perFileMs, "Upload em nuvem");
       out.append(`${key}_url`, result.url);
     } else {
       out.append(key, val);
@@ -168,17 +180,24 @@ export async function uploadPost(url, formData, config = {}) {
   let lastErr;
 
   let baseFd = cloneFormData(formData);
-  if (typeof window !== "undefined" && (await isBlobUploadEnabled())) {
+  const skipBlob = Boolean(config.skipBlobOffload);
+  if (!skipBlob && typeof window !== "undefined" && (await isBlobUploadEnabled())) {
     try {
-      baseFd = await offloadFormDataImagesToBlob(cloneFormData(formData));
+      baseFd = await offloadFormDataImagesToBlob(cloneFormData(formData), {
+        timeoutMs: config.blobOffloadTimeoutMs ?? 55_000,
+      });
     } catch (blobErr) {
       let hasLargeVideo = false;
+      let hasLargeImage = false;
       for (const [, v] of formData.entries()) {
-        if (v instanceof File && (v.type?.startsWith?.("video/") || /\.(mp4|mov|webm)$/i.test(v.name || ""))) {
+        if (!(v instanceof File)) continue;
+        if (v.type?.startsWith?.("video/") || /\.(mp4|mov|webm)$/i.test(v.name || "")) {
           if (v.size > 4_000_000) hasLargeVideo = true;
+        } else if (v.size > 3_500_000) {
+          hasLargeImage = true;
         }
       }
-      if (hasLargeVideo) throw blobErr;
+      if (hasLargeVideo || hasLargeImage) throw blobErr;
       baseFd = cloneFormData(formData);
     }
   }

@@ -36,7 +36,13 @@ export function formatHttpError(err, fallback = "Falhou.") {
   }
 
   if (!err?.response) {
-    return "Não houve resposta do servidor. Tenta outra vez.";
+    if (/upload em nuvem|blob|cloud/i.test(raw)) {
+      return raw.trim() || "Falhou o upload em nuvem. Tenta um vídeo mais curto ou recarrega a página.";
+    }
+    if (/timeout|demorou demasiado|ECONNABORTED/i.test(raw) || err?.code === "ECONNABORTED") {
+      return "O servidor demorou a responder. Tenta outra vez com uma imagem mais pequena ou sem foto.";
+    }
+    return "Não houve resposta do servidor. Verifica a ligação e tenta outra vez.";
   }
 
   const detail = err?.response?.data?.detail;

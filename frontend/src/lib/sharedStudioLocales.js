@@ -259,6 +259,13 @@ const en = {
   post_editor_error_desc: "Something went wrong loading the editor. Go back and try again, or refresh the page.",
   vid_edit_large_hint: "Large clip: upload to cloud runs when you tap Generate (may take a minute).",
   vid_edit_cloud_uploading: "Uploading video to cloud…",
+  vid_upload_title: "Source video",
+  vid_upload_pick: "Choose video",
+  vid_upload_remove: "Remove video",
+  vid_upload_replace: "Choose another file",
+  vid_upload_ready: "Ready to generate",
+  post_gen_uploading: "Sending to server…",
+  post_gen_working: "Generating poster… {n}s",
 };
 
 const pt = {
@@ -520,6 +527,13 @@ const pt = {
   post_editor_error_desc: "Ocorreu um erro ao carregar o editor. Volta aos templates e tenta outra vez, ou atualiza a página.",
   vid_edit_large_hint: "Vídeo grande: o envio para a nuvem faz-se ao carregar em Gerar (pode demorar um minuto).",
   vid_edit_cloud_uploading: "A enviar vídeo para a nuvem…",
+  vid_upload_title: "Vídeo de origem",
+  vid_upload_pick: "Escolher vídeo",
+  vid_upload_remove: "Remover vídeo",
+  vid_upload_replace: "Escolher outro ficheiro",
+  vid_upload_ready: "Pronto para gerar",
+  post_gen_uploading: "A enviar ao servidor…",
+  post_gen_working: "A gerar pôster… {n}s",
 };
 
 export function mergeSharedStudioLocales(dict) {

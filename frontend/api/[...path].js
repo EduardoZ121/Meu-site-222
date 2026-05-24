@@ -1080,9 +1080,17 @@ async function routePost(path, fields, files, req) {
   }
 
   if (path === "generate/poster") {
-    const placeholdersRaw = text(fields, "placeholders", "{}");
+    const placeholdersRaw = first(fields.placeholders);
     let placeholders = {};
-    try { placeholders = typeof placeholdersRaw === "string" ? JSON.parse(placeholdersRaw) : placeholdersRaw; } catch {}
+    if (placeholdersRaw != null && typeof placeholdersRaw === "object") {
+      placeholders = placeholdersRaw;
+    } else {
+      try {
+        placeholders = JSON.parse(text(fields, "placeholders", "{}"));
+      } catch {
+        placeholders = {};
+      }
+    }
     const promptFinal = text(fields, "prompt_final", "").trim();
     let prompt = promptFinal;
     if (!prompt) {

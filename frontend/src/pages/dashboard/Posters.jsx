@@ -5,7 +5,7 @@ import {
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
-import { api, formatApiError, uploadPost } from "../../lib/api";
+import { formatApiError, pollPrediction, uploadPost } from "../../lib/api";
 import { normalizeCreation, primaryResultUrl } from "../../lib/creationUrls";
 import { useAuth } from "../../lib/auth";
 import { usePricing } from "../../lib/PricingContext";
@@ -96,6 +96,8 @@ export default function Posters() {
   const [customBlocks, setCustomBlocks] = useState([]);
 
   const [busy, setBusy] = useState(false);
+  const [genPhase, setGenPhase] = useState("");
+  const [genProgress, setGenProgress] = useState(0);
   const [result, setResult] = useState(null);
 
   useEffect(() => {
@@ -165,54 +167,65 @@ export default function Posters() {
       toast.error(t("common_need_credits", { need: totalCost, have: user?.credits ?? 0 }));
       return;
     }
-    setBusy(true); setResult(null);
-    try {
-      // Premium text-only mode has no image-to-image — if photo is present, auto-switch.
-      const effectiveModel = modelKey;
 
-      const promptFinal = buildPosterPrompt(picked, values, {
-        mood,
-        paletteColors,
-        customBlocks,
-        hasPhoto: Boolean(photo),
+    const promptFinal = buildPosterPrompt(picked, values, {
+      mood,
+      paletteColors,
+      customBlocks,
+      hasPhoto: Boolean(photo),
+    });
+
+    const fd = new FormData();
+    fd.append("template_id", picked.id);
+    fd.append("prompt_final", promptFinal);
+    fd.append("placeholders", JSON.stringify(values));
+    fd.append("custom_blocks", JSON.stringify(customBlocks));
+    fd.append("model_key", modelKey);
+    fd.append("aspect_ratio", apiAspectRatio(aspect || picked.aspect || "4:5", { model: "standard" }));
+    fd.append("num_outputs", String(numOutputs));
+    fd.append("mood", mood || "");
+    fd.append("palette_colors", JSON.stringify(paletteColors));
+    fd.append("lang", lang || "en");
+    if (photo) fd.append("photo", photo);
+
+    setBusy(true);
+    setResult(null);
+    setGenProgress(0);
+    setGenPhase("upload");
+
+    let submitData;
+    try {
+      ({ data: submitData } = await uploadPost("/generate/poster", fd, {
+        timeout: 90_000,
+        headers: { "X-Skip-Auto-Poll": "1" },
+        skipBlobOffload: !photo || photo.size < 3_500_000,
+        blobOffloadTimeoutMs: 50_000,
+      }));
+
+      if (!submitData?.prediction_id) {
+        throw new Error(t("common_no_result"));
+      }
+
+      setGenPhase("work");
+      const polled = await pollPrediction(submitData.prediction_id, {
+        onTick: (sec) => setGenProgress(sec),
+        timeoutMs: 300_000,
+        credits_spent: submitData.credits_spent ?? totalCost,
+        type: "poster",
       });
 
-      let data;
-      if (photo) {
-        const fd = new FormData();
-        fd.append("template_id", picked.id);
-        fd.append("prompt_final", promptFinal);
-        fd.append("placeholders", JSON.stringify(values));
-        fd.append("custom_blocks", JSON.stringify(customBlocks));
-        fd.append("photo", photo);
-        fd.append("model_key", effectiveModel);
-        fd.append("aspect_ratio", apiAspectRatio(aspect || picked.aspect || "4:5", { model: "standard" }));
-        fd.append("num_outputs", String(numOutputs));
-        fd.append("mood", mood);
-        fd.append("palette_colors", JSON.stringify(paletteColors));
-        ({ data } = await uploadPost("/generate/poster", fd, { timeout: 240000 }));
-      } else {
-        ({ data } = await api.post("/generate/poster", {
-          template_id: picked.id,
-          prompt_final: promptFinal,
-          placeholders: values,
-          custom_blocks: customBlocks,
-          model_key: effectiveModel,
-          aspect_ratio: apiAspectRatio(aspect || picked.aspect || "4:5", { model: "standard" }),
-          num_outputs: numOutputs,
-          mood,
-          palette_colors: paletteColors,
-        }, { timeout: 240000 }));
-      }
-      const creation = data?.creation;
-      const normalized = normalizeCreation(creation);
+      const normalized = normalizeCreation(polled?.creation);
       if (!primaryResultUrl(normalized)) throw new Error(t("common_no_result"));
       setResult(normalized);
-      toast.success(t("post_success", { n: creation?.credits_spent ?? totalCost }));
+      toast.success(t("post_success", { n: normalized?.credits_spent ?? submitData.credits_spent ?? totalCost }));
       await refresh();
     } catch (err) {
-      toast.error(formatApiError(err, t("post_fail")), { duration: 9000 });
-    } finally { setBusy(false); }
+      toast.error(formatApiError(err, t("post_fail")), { duration: 10000 });
+    } finally {
+      setBusy(false);
+      setGenPhase("");
+      setGenProgress(0);
+    }
   };
 
   /* ============================================================ */
@@ -238,6 +251,8 @@ export default function Posters() {
         busy={busy} result={result} setResult={setResult}
         missing={missing}
         onGenerate={generate}
+        genPhase={genPhase}
+        genProgress={genProgress}
         user={user}
         t={t}
         labelFor={labelFor}
@@ -392,7 +407,7 @@ function Editor(props) {
     customBlocks, setCustomBlocks,
     totalCost, perImageCost,
     busy, result, setResult,
-    missing, onGenerate, user,
+    missing, onGenerate, genPhase, genProgress, user,
     t, labelFor, catLabel,
   } = props;
 
@@ -671,9 +686,13 @@ function Editor(props) {
               ? (
                 <>
                   <Loader2 className="w-4 h-4 animate-spin" />
-                  {numOutputs > 1
-                    ? t("post_generating_variations", { n: numOutputs })
-                    : t("post_generating_poster")}
+                  {genPhase === "upload"
+                    ? t("post_gen_uploading")
+                    : genProgress > 0
+                      ? t("post_gen_working", { n: genProgress })
+                      : numOutputs > 1
+                        ? t("post_generating_variations", { n: numOutputs })
+                        : t("post_generating_poster")}
                 </>
               )
               : <><Sparkles className="w-4 h-4" /> {t("post_gen_btn", { n: totalCost })}</>

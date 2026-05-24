@@ -1,6 +1,5 @@
 import { useMemo, useState } from "react";
-import { Clapperboard, Loader2, Shield, Sparkles } from "lucide-react";
-import { motion } from "framer-motion";
+import { Clapperboard, Loader2, Sparkles } from "lucide-react";
 import { formatApiError, uploadPost } from "../../lib/api";
 import { normalizeCreation, primaryResultUrl } from "../../lib/creationUrls";
 import { useAuth } from "../../lib/auth";
@@ -10,7 +9,6 @@ import { toast } from "sonner";
 import ResultPanel from "../../components/ResultPanel";
 import StudioResultAnchor from "../../components/StudioResultAnchor";
 import ImageUploadZone from "../../components/ImageUploadZone";
-import VideoUpload from "../../components/VideoUpload";
 import { isBlobPersistAvailable } from "../../lib/persistImage";
 
 const EDIT_IDEAS = ["vid_edit_idea_1", "vid_edit_idea_2", "vid_edit_idea_3"];
@@ -48,7 +46,9 @@ export default function VideoEditorAdmin() {
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState(null);
 
-  const canRun = Boolean(video)
+  const videoReady = Boolean(video) && videoUploadStatus !== "saving";
+
+  const canRun = videoReady
     && prompt.trim().length >= 3
     && ((user?.credits ?? 0) >= cost || user?.is_unlimited)
     && !busy;
@@ -56,6 +56,10 @@ export default function VideoEditorAdmin() {
   const run = async () => {
     if (!video) {
       toast.error(t("vid_edit_err_video"));
+      return;
+    }
+    if (videoUploadStatus === "saving") {
+      toast.info(t("studio_preparing"));
       return;
     }
     if (prompt.trim().length < 3) {
@@ -66,7 +70,8 @@ export default function VideoEditorAdmin() {
       toast.error(t("vid_err_credits", { need: cost, have: user?.credits ?? 0 }));
       return;
     }
-    if (video.size > 12_000_000 && !(await isBlobPersistAvailable())) {
+    const blobOk = await isBlobPersistAvailable();
+    if (video.size > 12_000_000 && !blobOk) {
       toast.error(t("vid_edit_blob_required"), { duration: 10000 });
       return;
     }
@@ -84,7 +89,7 @@ export default function VideoEditorAdmin() {
       if (reference) fd.append("reference_image", reference);
 
       const { data } = await uploadPost("/generate/video-edit", fd, {
-        timeout: 120000,
+        timeout: 180000,
         pollTimeoutMs: 600000,
       });
       const creation = normalizeCreation(data?.creation);
@@ -104,34 +109,26 @@ export default function VideoEditorAdmin() {
       <div className="rp-editor-panel overflow-hidden">
         <div className="rp-editor-panel-accent" />
         <div className="p-6 sm:p-8 space-y-10">
-          <motion.div
-            initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="rounded-2xl border border-amber-500/25 bg-gradient-to-r from-amber-500/10 via-violet-600/10 to-blue-600/5 p-4 sm:p-5"
-          >
-            <div className="flex items-start gap-3">
-              <Shield className="w-5 h-5 text-amber-300 shrink-0 mt-0.5" strokeWidth={1.75} />
-              <div>
-                <p className="text-[11px] font-mono uppercase tracking-[0.16em] text-amber-200/90 mb-1">
-                  {t("vid_edit_admin_badge")}
-                </p>
-                <p className="text-sm text-zinc-300 leading-relaxed">{t("vid_edit_desc")}</p>
-                <p className="text-xs text-zinc-500 mt-2 leading-relaxed">{t("vid_edit_identity_note")}</p>
-              </div>
-            </div>
-          </motion.div>
-
           <section>
-            <p className="rp-editor-section-cap !mb-3 !text-[#a89bc9]">{t("vid_edit_video_label")}</p>
+            <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[#A78BFA] mb-2">
+              {t("vid_edit_video_label")}
+            </p>
+            <p className="text-[#8A8A8E] text-[13px] mb-4 leading-relaxed max-w-[560px]">
+              {t("vid_edit_desc")}
+            </p>
             <div className="max-w-[560px]">
-              <VideoUpload
+              <ImageUploadZone
+                mediaType="video"
                 value={video}
                 onChange={(f) => setVideo(f || null)}
+                layout="wide"
                 testId="video-edit-source"
                 onStatusChange={setVideoUploadStatus}
+                emptyLabel={t("upload_drop")}
+                emptyHint={t("vid_edit_video_hint")}
               />
               {videoUploadStatus === "saving" && (
-                <p className="mt-2 text-[10px] font-mono uppercase tracking-[0.14em] text-[#8A8A8E]">
+                <p className="mt-2 text-[10px] font-mono uppercase tracking-[0.14em] text-[#A78BFA]">
                   {t("studio_preparing")}
                 </p>
               )}
@@ -140,7 +137,9 @@ export default function VideoEditorAdmin() {
 
           <section>
             <div className="flex items-baseline justify-between mb-3">
-              <p className="rp-editor-section-cap !mb-0 !text-[#a89bc9]">{t("vid_edit_prompt_label")}</p>
+              <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[#A78BFA]">
+                {t("vid_edit_prompt_label")}
+              </p>
               <span className="text-[#5A5A5E] text-[11px] font-mono">{prompt.length}/800</span>
             </div>
             <textarea
@@ -166,8 +165,10 @@ export default function VideoEditorAdmin() {
           </section>
 
           <section>
-            <p className="rp-editor-section-cap !mb-3 !text-[#a89bc9]">{t("vid_edit_ref_label")}</p>
-            <p className="rp-studio-page-desc !mb-3 !text-sm">{t("vid_edit_ref_hint")}</p>
+            <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[#A78BFA] mb-3">
+              {t("vid_edit_ref_label")}
+            </p>
+            <p className="text-[#8A8A8E] text-[13px] mb-4">{t("vid_edit_ref_hint")}</p>
             <div className="max-w-[560px]">
               <ImageUploadZone
                 value={reference}
@@ -181,7 +182,9 @@ export default function VideoEditorAdmin() {
           </section>
 
           <section>
-            <p className="rp-editor-section-cap !mb-3 !text-[#a89bc9]">{t("vid_edit_resolution")}</p>
+            <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[#A78BFA] mb-3">
+              {t("vid_edit_resolution")}
+            </p>
             <div className="grid grid-cols-2 gap-2.5 max-w-[280px]">
               {["1080p", "720p"].map((r) => (
                 <button
@@ -198,7 +201,9 @@ export default function VideoEditorAdmin() {
           </section>
 
           <section>
-            <p className="rp-editor-section-cap !mb-3 !text-[#a89bc9]">{t("vid_edit_duration")}</p>
+            <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[#A78BFA] mb-3">
+              {t("vid_edit_duration")}
+            </p>
             <div className="grid grid-cols-4 gap-2.5 max-w-[360px]">
               {DURATIONS.map((d) => (
                 <button
@@ -215,7 +220,9 @@ export default function VideoEditorAdmin() {
           </section>
 
           <section>
-            <p className="rp-editor-section-cap !mb-3 !text-[#a89bc9]">{t("vid_edit_aspect")}</p>
+            <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[#A78BFA] mb-3">
+              {t("vid_edit_aspect")}
+            </p>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
               {ASPECTS.map((a) => (
                 <button
@@ -234,7 +241,9 @@ export default function VideoEditorAdmin() {
           </section>
 
           <section>
-            <p className="rp-editor-section-cap !mb-3 !text-[#a89bc9]">{t("vid_edit_audio")}</p>
+            <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[#A78BFA] mb-3">
+              {t("vid_edit_audio")}
+            </p>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 max-w-[480px]">
               <button
                 type="button"
@@ -260,7 +269,7 @@ export default function VideoEditorAdmin() {
               type="button"
               onClick={run}
               disabled={!canRun}
-              className="rp-action-primary"
+              className="rp-action-primary w-full sm:w-auto sm:min-w-[280px]"
               data-testid="video-edit-submit"
             >
               {busy ? (
@@ -269,7 +278,7 @@ export default function VideoEditorAdmin() {
                 <><Clapperboard className="w-4 h-4" strokeWidth={1.5} /> {t("vid_edit_btn", { n: cost })}</>
               )}
             </button>
-            <p className="text-[#5A5A5E] text-[11px] mt-3 text-center font-mono uppercase tracking-[0.14em]">
+            <p className="text-[#5A5A5E] text-[11px] mt-3 font-mono uppercase tracking-[0.14em]">
               {t("vid_balance", { n: user?.is_unlimited ? "∞" : (user?.credits ?? 0) })}
             </p>
           </div>
@@ -277,8 +286,10 @@ export default function VideoEditorAdmin() {
       </div>
 
       <StudioResultAnchor busy={busy} ready={Boolean(primaryResultUrl(result))} className="lg:sticky lg:top-[88px] self-start">
-        <p className="rp-editor-section-cap !mb-4 !text-[#a89bc9]">{t("last_result")}</p>
-        <ResultPanel creation={result} loading={busy} onChange={setResult} emptyLabel={t("vid_edit_processing")} />
+        <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[#A78BFA] mb-4">
+          {t("vid_edit_result_label")}
+        </p>
+        <ResultPanel creation={result} loading={busy} onChange={setResult} emptyLabel={t("vid_edit_result_empty")} />
       </StudioResultAnchor>
     </div>
   );

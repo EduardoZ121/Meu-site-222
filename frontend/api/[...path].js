@@ -313,7 +313,7 @@ async function resolveVideoRef(files, fields, fileKey = "video", urlKey = "video
   }
   if (st && st.size > 12 * 1024 * 1024) {
     const err = new Error(
-      "Vídeo demasiado grande para envio direto. Recarrega a página para usar o armazenamento em nuvem e tenta de novo.",
+      "Vídeo demasiado grande para envio direto. Aguarda o upload em nuvem terminar (barra «A preparar») ou usa um clip mais curto.",
     );
     err.status = 413;
     throw err;

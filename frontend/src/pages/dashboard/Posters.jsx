@@ -79,7 +79,7 @@ export default function Posters() {
 
   const [templates, setTemplates] = useState([]);
   const [models, setModels] = useState([]);
-  const [category, setCategory] = useState("flyer");
+  const [category, setCategory] = useState("flyers");
   const [picked, setPicked] = useState(null);
 
   // Editor state
@@ -224,6 +224,7 @@ export default function Posters() {
         photo={photo} setPhoto={setPhoto}
         modelKey={modelKey} setModelKey={setModelKey}
         models={models}
+        engineModels={engineModels}
         aspect={aspect} setAspect={setAspect}
         numOutputs={numOutputs} setNumOutputs={setNumOutputs}
         mood={mood} setMood={setMood}
@@ -344,7 +345,7 @@ function TemplateCard({ tpl, index, onClick, catLabel }) {
 function Editor(props) {
   const {
     picked, onBack, values, setValues, photo, setPhoto,
-    modelKey, setModelKey, models,
+    modelKey, setModelKey, models, engineModels,
     aspect, setAspect, numOutputs, setNumOutputs,
     mood, setMood, paletteColors, setPaletteColors,
     customBlocks, setCustomBlocks,

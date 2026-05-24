@@ -115,6 +115,31 @@ export const POSTER_FOOD_GUARD = (
   + "Do not replace with a different meal."
 );
 
+/** Campo satisfeito: valor do user, opcional, replacement ou texto já no prompt do template. */
+export function posterFieldSatisfied(template, values, fieldKey) {
+  if ((template?.optional || []).includes(fieldKey)) return true;
+  if (String(values?.[fieldKey] || "").trim()) return true;
+  const rep = (template?.replacements || {})[fieldKey];
+  if (rep && String(rep).trim()) return true;
+  const prompt = String(template?.prompt || "");
+  if (fieldKey && prompt.includes(fieldKey)) return true;
+  return false;
+}
+
+export function posterMissingFields(template, values = {}) {
+  if (!template?.placeholders?.length) return [];
+  return template.placeholders.filter((p) => !posterFieldSatisfied(template, values, p));
+}
+
+export function posterInitialValues(template) {
+  const initial = {};
+  for (const p of template?.placeholders || []) {
+    const rep = (template.replacements || {})[p];
+    if (rep && String(rep).trim()) initial[p] = String(rep).trim();
+  }
+  return initial;
+}
+
 export function isPosterFoodTemplate(template) {
   const cat = String(template?.category || "").toLowerCase();
   if (cat === "food") return true;

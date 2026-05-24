@@ -19,7 +19,12 @@ import {
   FALLBACK_POSTER_TEMPLATES,
 } from "../../lib/posterFallbacks";
 import { POSTER_TEMPLATE_COVER_BY_ID } from "../../lib/posterTemplateCovers";
-import { buildPosterPrompt, POSTER_MOOD_IDS } from "../../lib/posterPrompt";
+import {
+  buildPosterPrompt,
+  POSTER_MOOD_IDS,
+  posterInitialValues,
+  posterMissingFields,
+} from "../../lib/posterPrompt";
 import { PosterSection, CustomTextLayersEditor } from "../../components/poster/PosterEditorParts";
 import PosterMoodPalette from "../../components/poster/PosterMoodPalette";
 import AspectPicker from "../../components/AspectPicker";
@@ -137,15 +142,14 @@ export default function Posters() {
   const selectedModel = engineModels.find((m) => m.key === modelKey) || { cost: 24 };
   const totalCost = selectedModel.cost * numOutputs;
 
-  const missing = picked
-    ? (picked.placeholders || []).filter(
-        (p) => !(picked.optional || []).includes(p) && !(values[p] || "").trim()
-      )
-    : [];
+  const missing = useMemo(
+    () => (picked ? posterMissingFields(picked, values) : []),
+    [picked, values],
+  );
 
   const openTemplate = (tpl) => {
     setPicked(tpl);
-    setValues({});
+    setValues(posterInitialValues(tpl));
     setPhoto(null);
     setResult(null);
     setCustomBlocks([]);
@@ -439,6 +443,9 @@ function Editor(props) {
     user,
     cost: totalCost,
     missingCount: missing.length,
+    hintOverride: missing.length > 0
+      ? `${t("post_fill")}: ${missing.map(labelFor).join(", ")}`
+      : null,
   });
 
   const genBusyLabel = genPhase === "upload"

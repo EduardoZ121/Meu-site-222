@@ -1,5 +1,6 @@
 import { Loader2, Sparkles } from "lucide-react";
 import { motion } from "framer-motion";
+import { toast } from "sonner";
 
 /**
  * Botão Gerar unificado — todas as sessões do estúdio.
@@ -21,7 +22,14 @@ export default function StudioGenerateBar({
   alignHint = "end",
   icon: Icon = Sparkles,
 }) {
-  const disabled = busy || !ready;
+  const handleClick = () => {
+    if (busy) return;
+    if (!ready) {
+      if (hint) toast.error(hint, { duration: 7000 });
+      return;
+    }
+    onClick?.();
+  };
 
   const btnClass = [
     "rp-action-primary",
@@ -48,11 +56,11 @@ export default function StudioGenerateBar({
     >
       <button
         type="button"
-        onClick={onClick}
-        disabled={disabled}
+        onClick={handleClick}
+        disabled={busy}
         className={btnClass}
         data-testid={testId}
-        aria-disabled={disabled}
+        aria-disabled={busy || !ready}
       >
         {busy ? (
           <>

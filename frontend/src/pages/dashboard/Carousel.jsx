@@ -546,21 +546,17 @@ export default function CarouselPage() {
           <StudioAccordionSection title={t("car_sec_model")} defaultOpen={false} testId="carousel-section-model">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3" data-testid="carousel-model-toggle">
               {MODELS.map((m) => {
-                const disabled = false;
                 const active = modelKey === m.key;
                 return (
                   <button
                     key={m.key}
                     type="button"
-                    onClick={() => !disabled && setModelKey(m.key)}
-                    disabled={disabled}
+                    onClick={() => setModelKey(m.key)}
                     data-testid={`carousel-model-${m.key}`}
                     className={`text-left p-4 rounded-xl border-2 transition-all ${
-                      disabled
-                        ? "border-[#1F1F22] opacity-50 cursor-not-allowed"
-                        : active
-                          ? "border-[#FACC15]/60 bg-[#FACC15]/8"
-                          : "border-[#2E2E30] bg-[#0B0B0C]/40 hover:border-[#FACC15]/35"
+                      active
+                        ? "border-[#FACC15]/60 bg-[#FACC15]/8"
+                        : "border-[#2E2E30] bg-[#0B0B0C]/40 hover:border-[#FACC15]/35"
                     }`}
                   >
                     <p className="text-[15px] font-medium text-[#F4F1EA] mb-1 font-['Inter_Tight']">{m.label}</p>

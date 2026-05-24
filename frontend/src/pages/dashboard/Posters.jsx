@@ -125,7 +125,13 @@ export default function Posters() {
     return m;
   }, [templates]);
 
-  const selectedModel = models.find((m) => m.key === modelKey) || { cost: 24 };
+  /** API legada pode devolver supports_photo:false no Premium — forçar desbloqueio com foto. */
+  const engineModels = useMemo(
+    () => models.map((m) => (m.key === "gpt_image" ? { ...m, supports_photo: true } : m)),
+    [models],
+  );
+
+  const selectedModel = engineModels.find((m) => m.key === modelKey) || { cost: 24 };
   const totalCost = selectedModel.cost * numOutputs;
 
   const missing = picked
@@ -519,9 +525,9 @@ function Editor(props) {
             hint={t("post_sec_engine_hint")}
           >
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3" data-testid="poster-models">
-              {models.map((m) => {
+              {engineModels.map((m) => {
                 const Icon = MODEL_ICONS[m.key] || Zap;
-                const disabled = photo && !m.supports_photo;
+                const disabled = false;
                 const active = modelKey === m.key;
                 return (
                   <button

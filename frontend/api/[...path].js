@@ -1437,6 +1437,41 @@ async function handlePath(path, req, res) {
       return json(res, 200, { presets: listProPresets() });
     }
 
+    if (req.method === "GET" && path === "public/poster-models") {
+      const country = countryFromRequest(req);
+      const client = String(req.headers["x-pricing-region"] || "").trim();
+      const region = resolvePricingRegion({ countryCode: country, clientRegion: client });
+      const CREDIT = getCreditCostsForRegion(region);
+      return json(res, 200, {
+        models: [
+          {
+            key: "grok",
+            label: "Motor Rápido",
+            cost: CREDIT.posterFast,
+            tier: "fast",
+            supports_photo: true,
+            tag: "Padrão · rápido",
+          },
+          {
+            key: "flux2",
+            label: "Motor Pro",
+            cost: CREDIT.posterPro,
+            tier: "pro",
+            supports_photo: true,
+            tag: "Foto-realista",
+          },
+          {
+            key: "gpt_image",
+            label: "Motor Premium",
+            cost: CREDIT.posterPremium,
+            tier: "premium",
+            supports_photo: true,
+            tag: "Qualidade Máxima",
+          },
+        ],
+      });
+    }
+
     if (req.method === "GET" && path === "public/pricing") {
       const country = countryFromRequest(req);
       const client = String(req.headers["x-pricing-region"] || "").trim();

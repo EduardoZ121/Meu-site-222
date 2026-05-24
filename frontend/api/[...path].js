@@ -30,7 +30,7 @@ const { formatGenerationError } = require("./lib/generationErrors.cjs");
 const { handleCreationsRoute } = require("./lib/creationsRoutes.cjs");
 const { handlePromptAssistRoute } = require("./lib/promptAssist.cjs");
 const PADRAO_STYLES_LIST = require("./lib/padraoStylesData.cjs");
-const { finalizeImagePrompt } = require("./lib/imageQualityPrompts.cjs");
+const { finalizeImagePrompt, finalizeClothesPrompt } = require("./lib/imageQualityPrompts.cjs");
 const { getProPreset, listProPresets } = require("./lib/proPresetsData.cjs");
 
 function getPadraoStyle(styleId) {
@@ -690,29 +690,40 @@ function buildRestorePrompt(fields) {
   return parts.join(" ");
 }
 
-function buildClothesPrompt(fields, hasGarment) {
+function buildClothesPrompt(fields, { hasGarment, composed } = {}) {
   const userPrompt = text(fields, "prompt", "").trim();
   const changeType = text(fields, "change_type", "full");
+
   if (hasGarment) {
     let p = (
-      "The image shows TWO photos side by side: a person on the LEFT and a clothing/outfit reference on the RIGHT. "
-      + "Output a single photo of ONLY the person from the LEFT, now wearing the outfit shown on the RIGHT. "
-      + "Preserve the person's identity, face, hair, body proportions and pose. "
-      + "Match the clothing's style, color, fabric and details precisely. "
-      + "Discard the garment-side panel and any background from the right photo. "
-      + "Photorealistic, natural lighting, clean background."
+      "Virtual try-on. Reference image 1 = the person. Reference image 2 = the garment/outfit. "
+      + "Generate ONE single full-frame photograph of that exact person wearing the outfit from reference 2. "
+      + "Match colors, fabric, fit, patterns and silhouette precisely. "
+      + "Preserve face, hair, body proportions and pose from reference 1. "
+      + "Natural lighting, photorealistic. Never output a collage or comparison."
     );
-    if (userPrompt) p += ` Additional notes: ${userPrompt}`;
+    if (userPrompt) p += ` Notes: ${userPrompt}.`;
     return p;
   }
+
+  if (composed) {
+    let p = (
+      "Dress the person in the target outfit from the references. "
+      + "Output ONE single clean photograph only — never a side-by-side or before/after layout."
+    );
+    if (userPrompt) p += ` Notes: ${userPrompt}.`;
+    return p;
+  }
+
   if (!userPrompt) {
     return "Change outfit while preserving face, body pose and identity. Photorealistic, natural lighting.";
   }
+
   const prefix = {
-    full: "Change the outfit. Replace all clothing with: ",
-    piece: "Add/replace this specific clothing piece: ",
-    color: "Keep the same outfit but change the color/style to: ",
-    tryon: "Show the person wearing: ",
+    full: "Replace all clothing with: ",
+    piece: "Add or replace this clothing piece: ",
+    color: "Same outfit, new color or pattern: ",
+    tryon: "Person wearing: ",
   };
   return (
     `${prefix[changeType] || prefix.full}${userPrompt}. `
@@ -1338,16 +1349,17 @@ async function routePost(path, fields, files, req) {
     const person = await resolveImageRef(files, fields, "photo", "photo_url");
     const garment = await resolveImageRef(files, fields, "garment", "garment_url");
     const composed = truthyField(fields, "composed");
-    const hasGarment = Boolean(garment) && !composed;
-    const prompt = buildClothesPrompt(fields, hasGarment);
+    const hasGarment = Boolean(garment);
+    const rawPrompt = buildClothesPrompt(fields, { hasGarment, composed });
+    const prompt = finalizeClothesPrompt(rawPrompt);
     const input = { prompt };
-    if (composed || !garment) {
-      if (person) input.image = person;
-    } else if (person && garment) {
+    if (person && garment) {
       input.images = [person, garment];
     } else if (person) {
       input.image = person;
     }
+    const aspect = normalizeRatio(text(fields, "aspect_ratio", "match_input_image"), "standard");
+    input.aspect_ratio = aspect === "match_input_image" ? "match_input_image" : aspect;
     return submitBillableGeneration(req, fields, {
       cost: CREDIT.clothes,
       type: "image",

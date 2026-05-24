@@ -32,10 +32,34 @@ function finalizeImagePrompt(prompt, { modelKey, posterFood } = {}) {
   return applyImageQualityNegative(applyImageQualityPositive(base), { modelKey });
 }
 
+const CLOTHES_POSITIVE_SUFFIX =
+  ", single clean image, only the final result, no split screen, no before after panels, "
+  + "no text, no captions, no instructions, no borders, clean photorealistic image only, "
+  + "same person, exact same face and pose, only change the clothing";
+
+const CLOTHES_NEGATIVE_EXTRA =
+  "split image, two panels, before after, text on image, caption, instructions, "
+  + "keep the same outfit, two panels, side by side, collage, comparison, diptych, "
+  + "labeled panels, arrows, watermark";
+
+function finalizeClothesPrompt(prompt) {
+  let base = String(prompt || "").trim();
+  if (!base) return base;
+  if (!base.includes("single clean image")) {
+    base = `${base}${CLOTHES_POSITIVE_SUFFIX}`;
+  }
+  base = applyImageQualityPositive(base);
+  if (!base.includes("split image, two panels")) {
+    base = `${base} Avoid: ${CLOTHES_NEGATIVE_EXTRA}, ${NEGATIVE_PROMPT}.`;
+  }
+  return base;
+}
+
 module.exports = {
   POSITIVE_SUFFIX,
   NEGATIVE_PROMPT,
   applyImageQualityPositive,
   applyImageQualityNegative,
   finalizeImagePrompt,
+  finalizeClothesPrompt,
 };

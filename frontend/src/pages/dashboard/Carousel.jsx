@@ -21,6 +21,9 @@ import { useI18n } from "../../lib/i18n";
 import { useStudioI18n } from "../../lib/useStudioI18n";
 import AspectPicker from "../../components/AspectPicker";
 import { apiAspectRatio } from "../../lib/apiAspectRatio";
+import StudioGenerateBar from "../../components/StudioGenerateBar";
+import StudioGenerateCostMeta from "../../components/StudioGenerateCostMeta";
+import { useStudioGenerateGate } from "../../lib/useStudioGenerateGate";
 
 const COST_PER_SLIDE = 5;
 const MIN_SLIDES = 2;
@@ -112,6 +115,25 @@ export default function CarouselPage() {
   const isPanoramic = generationMode === "panoramic";
   const perSlide = MODELS.find((m) => m.key === modelKey)?.cost || COST_PER_SLIDE;
   const totalCost = slides.length * perSlide;
+
+  const slidesReady = useMemo(() => {
+    const cleaned = normalizeSlides(slides).map((s) => slideText(s).trim());
+    return cleaned.length >= MIN_SLIDES
+      && cleaned.length <= MAX_SLIDES
+      && cleaned.every((s) => s.length >= 3);
+  }, [slides]);
+
+  const { ready: carReady, hint: carHint } = useStudioGenerateGate({
+    busy,
+    user,
+    cost: totalCost,
+    readyOverride: slidesReady && campaignBrief.trim().length >= 10,
+    hintOverride: campaignBrief.trim().length < 10
+      ? t("studio_gen_hint_brief")
+      : !slidesReady
+        ? t("studio_gen_hint_fields")
+        : null,
+  });
 
   useEffect(() => () => {
     revokePanoramaBlobUrls(blobUrlsRef.current);
@@ -596,36 +618,22 @@ export default function CarouselPage() {
         </StudioResultAnchor>
       </div>
 
-      <div className="fixed bottom-0 left-0 right-0 md:left-[240px] z-30 border-t border-rp-border bg-rp-bg/90 backdrop-blur-xl px-4 sm:px-6 md:px-10 py-4">
-        <div className="rp-studio-shell flex items-center justify-between gap-4">
-          <div className="hidden sm:flex items-center gap-3 text-[12px] text-rp-mute font-['Inter_Tight']">
-            <span>{t("carousel_cost", { n: totalCost })}</span>
-            <span className="text-rp-mute2">·</span>
-            <span>{slides.length} × {perSlide}</span>
-            <span className="text-rp-mute2">·</span>
-            <span>{t("carousel_balance")} <strong className="text-rp-text tabular-nums">{user?.is_unlimited ? "∞" : (user?.credits ?? 0)}</strong></span>
-          </div>
-          <button
-            type="button"
-            onClick={generate}
-            disabled={busy || ((user?.credits ?? 0) < totalCost && !user?.is_unlimited)}
-            className="rp-action-primary flex-1 sm:flex-initial sm:min-w-[280px] !py-3.5"
-            data-testid="carousel-generate"
-          >
-            {busy ? (
-              <>
-                <Loader2 className="w-4 h-4 animate-spin" />
-                {slideProgress.label || `A renderizar ${slides.length} slides…`}
-              </>
-            ) : (
-              <>
-                <Sparkles className="w-4 h-4" />
-                {isPanoramic ? t("car_gen_panoramic") : t("car_gen_slides")} · {totalCost} {t("credits")}
-              </>
-            )}
-          </button>
-        </div>
-      </div>
+      <StudioGenerateBar
+        ready={carReady}
+        busy={busy}
+        onClick={generate}
+        label={`${isPanoramic ? t("car_gen_panoramic") : t("car_gen_slides")} · ${totalCost} ${t("credits")}`}
+        busyLabel={slideProgress.label || t("car_generating")}
+        hint={carHint}
+        testId="carousel-generate"
+        costMeta={(
+          <StudioGenerateCostMeta
+            cost={totalCost}
+            user={user}
+            extra={`${slides.length} × ${perSlide}`}
+          />
+        )}
+      />
     </motion.div>
   );
 }

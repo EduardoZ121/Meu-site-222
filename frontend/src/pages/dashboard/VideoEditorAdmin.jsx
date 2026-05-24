@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { Clapperboard, Loader2, Sparkles } from "lucide-react";
+import { Clapperboard, Sparkles } from "lucide-react";
 import { formatApiError, isBlobUploadEnabled, uploadPost } from "../../lib/api";
 import { isS3VideoUploadAvailable } from "../../lib/s3VideoUpload";
 import { normalizeCreation, primaryResultUrl } from "../../lib/creationUrls";
@@ -11,6 +11,8 @@ import ResultPanel from "../../components/ResultPanel";
 import StudioResultAnchor from "../../components/StudioResultAnchor";
 import ImageUploadZone from "../../components/ImageUploadZone";
 import StudioVideoUpload, { VIDEO_DIRECT_MAX_BYTES } from "../../components/StudioVideoUpload";
+import StudioGenerateBar from "../../components/StudioGenerateBar";
+import { useStudioGenerateGate } from "../../lib/useStudioGenerateGate";
 
 const EDIT_IDEAS = ["vid_edit_idea_1", "vid_edit_idea_2", "vid_edit_idea_3"];
 const DURATIONS = [4, 6, 8, 10];
@@ -46,6 +48,16 @@ export default function VideoEditorAdmin() {
   const [busy, setBusy] = useState(false);
   const [uploadPhase, setUploadPhase] = useState("");
   const [result, setResult] = useState(null);
+
+  const { ready, hint } = useStudioGenerateGate({
+    busy,
+    user,
+    cost,
+    requireVideo: true,
+    video,
+    requirePrompt: true,
+    prompt,
+  });
 
   const run = async () => {
     if (!video) {
@@ -257,27 +269,20 @@ export default function VideoEditorAdmin() {
             </div>
           </section>
 
-          <div>
-            <button
-              type="button"
-              onClick={run}
-              disabled={busy}
-              className="rp-action-primary w-full sm:w-auto sm:min-w-[280px] disabled:opacity-40"
-              data-testid="video-edit-submit"
-            >
-              {busy ? (
-                <>
-                  <Loader2 className="w-4 h-4 animate-spin" strokeWidth={2} />
-                  {uploadPhase === "cloud" ? t("vid_edit_cloud_uploading") : t("vid_edit_processing")}
-                </>
-              ) : (
-                <><Clapperboard className="w-4 h-4" strokeWidth={1.5} /> {t("vid_edit_btn", { n: cost })}</>
-              )}
-            </button>
-            <p className="text-[#5A5A5E] text-[11px] mt-3 font-mono uppercase tracking-[0.14em]">
-              {t("vid_balance", { n: user?.is_unlimited ? "∞" : (user?.credits ?? 0) })}
-            </p>
-          </div>
+          <StudioGenerateBar
+            layout="inline"
+            ready={ready}
+            busy={busy}
+            onClick={run}
+            label={t("vid_edit_btn", { n: cost })}
+            busyLabel={uploadPhase === "cloud" ? t("vid_edit_cloud_uploading") : t("vid_edit_processing")}
+            hint={hint}
+            testId="video-edit-submit"
+            icon={Clapperboard}
+          />
+          <p className="text-[#5A5A5E] text-[11px] mt-3 font-mono uppercase tracking-[0.14em]">
+            {t("vid_balance", { n: user?.is_unlimited ? "∞" : (user?.credits ?? 0) })}
+          </p>
         </div>
       </div>
 

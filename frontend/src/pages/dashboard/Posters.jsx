@@ -25,6 +25,9 @@ import PosterMoodPalette from "../../components/poster/PosterMoodPalette";
 import AspectPicker from "../../components/AspectPicker";
 import { apiAspectRatio } from "../../lib/apiAspectRatio";
 import StudioResultAnchor from "../../components/StudioResultAnchor";
+import StudioGenerateBar from "../../components/StudioGenerateBar";
+import StudioGenerateCostMeta from "../../components/StudioGenerateCostMeta";
+import { useStudioGenerateGate } from "../../lib/useStudioGenerateGate";
 import { useI18n } from "../../lib/i18n";
 import { useStudioI18n } from "../../lib/useStudioI18n";
 import { posterFieldLabel, POSTER_CAT_KEYS } from "../../lib/posterFieldLocales";
@@ -430,6 +433,21 @@ function Editor(props) {
     }
   }, [picked, values, mood, paletteColors, customBlocks, photo]);
 
+  const { ready: genReady, hint: genHint } = useStudioGenerateGate({
+    busy,
+    user,
+    cost: totalCost,
+    missingCount: missing.length,
+  });
+
+  const genBusyLabel = genPhase === "upload"
+    ? t("post_gen_uploading")
+    : genProgress > 0
+      ? t("post_gen_working", { n: genProgress })
+      : numOutputs > 1
+        ? t("post_generating_variations", { n: numOutputs })
+        : t("post_generating_poster");
+
   return (
     <div className="max-w-[1400px] mx-auto pb-32" data-testid="posters-editor">
       <button
@@ -658,53 +676,22 @@ function Editor(props) {
         </StudioResultAnchor>
       </div>
 
-      {/* Sticky CTA */}
-      <motion.div
-        initial={{ y: 100 }}
-        animate={{ y: 0 }}
-        className="fixed bottom-0 left-0 right-0 md:left-[240px] bg-gradient-to-t from-[#0B0B0C] via-[#0B0B0C] to-[#0B0B0C]/95 backdrop-blur-xl border-t border-[#2E2E30] z-30 px-4 sm:px-6 md:px-10 py-4"
-      >
-        <div className="max-w-[1400px] mx-auto flex items-center justify-between gap-4">
-          <div className="hidden sm:flex items-center gap-3 text-[12px]">
-            <span className="text-[#8A8A8E]">{t("post_total_cost")}</span>
-            <span className="text-[#C4B5FD] font-medium text-[16px]">
-              {totalCost} <span className="text-[10px] font-mono uppercase tracking-wider">{t("common_credits_label")}</span>
-            </span>
-            <span className="text-[#5A5A5E]">·</span>
-            <span className="text-[#8A8A8E]">{numOutputs}× {perImageCost}</span>
-            <span className="text-[#5A5A5E] mx-2">·</span>
-            <span className="text-[#8A8A8E]">{t("common_balance")}</span>
-            <span className="text-[#F4F1EA] font-medium">{user?.credits ?? 0}</span>
-          </div>
-          <button
-            onClick={onGenerate}
-            disabled={busy || missing.length > 0}
-            className="flex-1 sm:flex-initial sm:min-w-[260px] bg-[#7C3AED] hover:bg-[#9333EA] disabled:bg-[#2E2E30] disabled:text-[#5A5A5E] text-white py-3.5 rounded-lg text-[13px] font-medium transition-all flex items-center justify-center gap-2 shadow-lg shadow-[#7C3AED]/25"
-            data-testid="poster-generate"
-          >
-            {busy
-              ? (
-                <>
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                  {genPhase === "upload"
-                    ? t("post_gen_uploading")
-                    : genProgress > 0
-                      ? t("post_gen_working", { n: genProgress })
-                      : numOutputs > 1
-                        ? t("post_generating_variations", { n: numOutputs })
-                        : t("post_generating_poster")}
-                </>
-              )
-              : <><Sparkles className="w-4 h-4" /> {t("post_gen_btn", { n: totalCost })}</>
-            }
-          </button>
-        </div>
-        {missing.length > 0 && !busy && (
-          <p className="max-w-[1400px] mx-auto text-[#EF4444] text-[11px] mt-2 text-right">
-            {t("post_fill")}: {missing.map(labelFor).join(", ")}
-          </p>
+      <StudioGenerateBar
+        ready={genReady}
+        busy={busy}
+        onClick={onGenerate}
+        label={t("post_gen_btn", { n: totalCost })}
+        busyLabel={genBusyLabel}
+        hint={genHint || (missing.length > 0 ? `${t("post_fill")}: ${missing.map(labelFor).join(", ")}` : null)}
+        testId="poster-generate"
+        costMeta={(
+          <StudioGenerateCostMeta
+            cost={totalCost}
+            user={user}
+            extra={`${numOutputs}× ${perImageCost}`}
+          />
         )}
-      </motion.div>
+      />
     </div>
   );
 }

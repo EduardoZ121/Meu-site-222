@@ -1,6 +1,8 @@
 import { useMemo, useState } from "react";
-import { Loader2, Sparkles, Shirt } from "lucide-react";
-import { motion } from "framer-motion";
+import { Shirt } from "lucide-react";
+import StudioGenerateBar from "../../../components/StudioGenerateBar";
+import StudioGenerateCostMeta from "../../../components/StudioGenerateCostMeta";
+import { useStudioGenerateGate } from "../../../lib/useStudioGenerateGate";
 import { toast } from "sonner";
 import { formatApiError, uploadPost } from "../../../lib/api";
 import { normalizeCreation, primaryResultUrl } from "../../../lib/creationUrls";
@@ -83,6 +85,21 @@ export default function ClothesChanger() {
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState(null);
   const cost = costs.clothes;
+
+  const garmentOk = Boolean(garment) || prompt.trim().length >= 3;
+  const { ready, hint } = useStudioGenerateGate({
+    busy,
+    user,
+    cost,
+    requirePhoto: true,
+    photo,
+    readyOverride: Boolean(photo) && garmentOk,
+    hintOverride: !photo
+      ? t("studio_gen_hint_person")
+      : !garmentOk
+        ? t("studio_gen_hint_garment")
+        : null,
+  });
 
   const changeTypes = useMemo(
     () => [
@@ -292,44 +309,16 @@ export default function ClothesChanger() {
         </StudioResultAnchor>
       </div>
 
-      <motion.div
-        initial={{ y: 80, opacity: 0 }}
-        animate={{ y: 0, opacity: 1 }}
-        className="fixed bottom-0 left-0 right-0 md:left-[240px] z-30 border-t border-[#2E2E30]/80 bg-[#0B0B0C]/95 backdrop-blur-xl px-4 sm:px-8 py-5"
-      >
-        <div className="max-w-[1400px] mx-auto flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4">
-          <div className="hidden sm:flex items-center gap-4 text-[12px] text-[#8A8A8E]">
-            <span>
-              {t("clothes_credits_needed")}{" "}
-              <strong className="text-[#C4B5FD] text-[15px] tabular-nums">{cost}</strong>
-            </span>
-            <span className="text-[#3F3F46]">·</span>
-            <span>
-              {t("clothes_balance")}{" "}
-              <strong className="text-[#F4F1EA] tabular-nums">{user?.credits ?? 0}</strong>
-            </span>
-          </div>
-          <button
-            type="button"
-            onClick={run}
-            disabled={busy}
-            className="w-full sm:w-auto sm:min-w-[300px] bg-gradient-to-r from-[#6D28D9] via-[#7C3AED] to-[#9333EA] hover:from-[#7C3AED] hover:via-[#8B5CF6] hover:to-[#A855F7] disabled:from-[#1A1A1C] disabled:via-[#1A1A1C] disabled:to-[#1A1A1C] disabled:text-[#5A5A5E] text-white py-4 px-8 rounded-xl text-[14px] font-semibold tracking-wide transition-all flex items-center justify-center gap-2.5 shadow-[0_8px_32px_-8px_rgba(124,58,237,0.65)] hover:shadow-[0_12px_40px_-8px_rgba(124,58,237,0.75)]"
-            data-testid="clothes-create"
-          >
-            {busy ? (
-              <>
-                <Loader2 className="w-5 h-5 animate-spin" />
-                {t("clothes_dressing")}
-              </>
-            ) : (
-              <>
-                <Sparkles className="w-5 h-5" strokeWidth={2} />
-                {t("clothes_btn", { n: cost })}
-              </>
-            )}
-          </button>
-        </div>
-      </motion.div>
+      <StudioGenerateBar
+        ready={ready}
+        busy={busy}
+        onClick={run}
+        label={t("clothes_btn", { n: cost })}
+        busyLabel={t("clothes_dressing")}
+        hint={hint}
+        testId="clothes-create"
+        costMeta={<StudioGenerateCostMeta cost={cost} user={user} />}
+      />
     </div>
   );
 }

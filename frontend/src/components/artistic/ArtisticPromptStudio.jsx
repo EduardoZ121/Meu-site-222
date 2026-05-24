@@ -5,12 +5,13 @@ import {
   History,
   ImageIcon,
   Loader2,
-  Sparkles,
   Type,
   Wand2,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useI18n } from "../../lib/i18n";
+import StudioGenerateBar from "../StudioGenerateBar";
+import { useStudioGenerateGate } from "../../lib/useStudioGenerateGate";
 import ImageUploadZone from "../ImageUploadZone";
 import AspectPicker from "../AspectPicker";
 import PromptAssistBar from "../promptAssist/PromptAssistBar";
@@ -44,11 +45,23 @@ export default function ArtisticPromptStudio({
   setImprove,
   busy,
   cost,
+  user,
+  styleId,
   onGenerate,
   onImprovePrompt,
   improving,
 }) {
   const { t } = useI18n();
+
+  const needsPhoto = inputMode === "image" || isLabStyle;
+  const { ready, hint } = useStudioGenerateGate({
+    busy,
+    user,
+    cost,
+    requirePhoto: needsPhoto,
+    photo,
+    blocked: !styleId && prompt.trim().length < 3,
+  });
   const [wizardOpen, setWizardOpen] = useState(false);
   const [suggestOpen, setSuggestOpen] = useState(false);
   const [history, setHistory] = useState(() => readArtisticPromptHistory());
@@ -239,26 +252,19 @@ export default function ArtisticPromptStudio({
         testIdPrefix="art-studio-aspect"
       />
 
-      <button
-        type="button"
+      <StudioGenerateBar
+        layout="inline"
+        className="mt-6"
+        ready={ready}
+        busy={busy}
         onClick={handleGenerate}
-        disabled={busy}
-        className="art-studio-cta mt-6"
-        data-testid="artistic-studio-generate"
-      >
-        <span className="art-studio-cta__shine" aria-hidden />
-        {busy ? (
-          <>
-            <Loader2 className="w-5 h-5 animate-spin relative z-[1]" />
-            <span className="relative z-[1]">{t("art_generating")}</span>
-          </>
-        ) : (
-          <>
-            <Sparkles className="w-5 h-5 relative z-[1]" strokeWidth={1.5} />
-            <span className="relative z-[1]">{t("art_generate_credits", { n: cost })}</span>
-          </>
-        )}
-      </button>
+        label={t("art_generate_credits", { n: cost })}
+        busyLabel={t("art_generating")}
+        hint={hint}
+        alignHint="start"
+        testId="artistic-studio-generate"
+        buttonClassName="!w-full"
+      />
     </div>
   );
 }

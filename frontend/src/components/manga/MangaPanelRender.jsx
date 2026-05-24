@@ -2,12 +2,14 @@ import { useMemo } from "react";
 import { RefreshCw, Loader2, Sparkles, Check, X } from "lucide-react";
 import { useI18n } from "../../lib/i18n";
 import { getMangaStudioCatalog } from "../../lib/mangaStudioCatalog";
+import { useStudioGenerateGate } from "../../lib/useStudioGenerateGate";
 
 export default function MangaPanelRender({
   panel,
   editorScene,
   readiness,
   costs,
+  user,
   busy,
   modelKey,
   onModelKeyChange,
@@ -25,7 +27,31 @@ export default function MangaPanelRender({
     editorScene?.characterId &&
     editorScene?.partnerCharacterId;
 
-  const canGenerate = readiness?.ok && !busy && panel;
+  const panelCost = costs?.mangaPanel ?? 15;
+  const panelHint = readiness?.ok
+    ? null
+    : (readiness?.issues?.[0]?.text || t("manga_ready_no_char"));
+  const panelGate = useStudioGenerateGate({
+    busy,
+    user,
+    cost: panelCost,
+    readyOverride: Boolean(panel) && Boolean(readiness?.ok),
+    hintOverride: panelHint,
+  });
+
+  const pageGate = useStudioGenerateGate({
+    busy,
+    user,
+    cost: costs?.mangaPage ?? 40,
+    readyOverride: Boolean(panel),
+  });
+
+  const chapterGate = useStudioGenerateGate({
+    busy,
+    user,
+    cost: costs?.mangaChapter ?? 150,
+    readyOverride: Boolean(panel),
+  });
 
   return (
     <section
@@ -118,15 +144,22 @@ export default function MangaPanelRender({
       <div className="space-y-2 pt-2 border-t border-[#2E2E30]">
         <button
           type="button"
-          disabled={!canGenerate}
+          disabled={!panelGate.ready || busy}
           onClick={onGeneratePanel}
-          className="manga-generate-btn w-full"
+          className={[
+            "rp-action-primary w-full !py-3.5 !text-[13px]",
+            panelGate.ready && !busy ? "rp-action-primary--ready" : "",
+            !panelGate.ready && !busy ? "rp-action-primary--locked" : "",
+          ].filter(Boolean).join(" ")}
           data-testid="manga-gen-panel"
-          title={!readiness?.ok ? readiness?.issues?.[0]?.text : undefined}
+          title={panelGate.hint || undefined}
         >
           {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
-          {t("manga_gen_panel_btn", { n: costs?.mangaPanel ?? 15 })}
+          {t("manga_gen_panel_btn", { n: panelCost })}
         </button>
+        {panelGate.hint && !busy ? (
+          <p className="rp-studio-gen-hint text-left w-full">{panelGate.hint}</p>
+        ) : null}
 
         <details className="manga-panel-advanced">
           <summary className="text-[10px] text-[#9CA3AF] cursor-pointer uppercase tracking-wider py-1">
@@ -135,18 +168,26 @@ export default function MangaPanelRender({
           <div className="space-y-2 mt-2">
             <button
               type="button"
-              disabled={busy || !panel}
+              disabled={!pageGate.ready || busy}
               onClick={onGeneratePage}
-              className="manga-generate-btn w-full manga-generate-secondary"
+              className={[
+                "rp-action-primary w-full !py-3 !text-[12px] manga-generate-secondary",
+                pageGate.ready && !busy ? "rp-action-primary--ready" : "",
+                !pageGate.ready && !busy ? "rp-action-primary--locked" : "",
+              ].filter(Boolean).join(" ")}
               data-testid="manga-gen-page"
             >
               {t("manga_gen_page_btn", { n: costs?.mangaPage ?? 40 })}
             </button>
             <button
               type="button"
-              disabled={busy || !panel}
+              disabled={!chapterGate.ready || busy}
               onClick={onGenerateChapter}
-              className="manga-generate-btn w-full manga-generate-secondary"
+              className={[
+                "rp-action-primary w-full !py-3 !text-[12px] manga-generate-secondary",
+                chapterGate.ready && !busy ? "rp-action-primary--ready" : "",
+                !chapterGate.ready && !busy ? "rp-action-primary--locked" : "",
+              ].filter(Boolean).join(" ")}
               data-testid="manga-gen-chapter"
             >
               {t("manga_gen_chapter_btn", { n: costs?.mangaChapter ?? 150 })}

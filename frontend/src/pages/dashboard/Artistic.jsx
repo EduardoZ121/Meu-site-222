@@ -451,6 +451,8 @@ export default function Artistic() {
             setImprove={setImprove}
             busy={busy}
             cost={cost}
+            user={user}
+            styleId={styleId}
             onGenerate={generate}
             onImprovePrompt={improvePromptOnly}
             improving={improving}

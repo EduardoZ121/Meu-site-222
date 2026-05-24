@@ -10,7 +10,9 @@ import ResultPanel from "../../components/ResultPanel";
 import StudioResultAnchor from "../../components/StudioResultAnchor";
 import ImageUploadZone from "../../components/ImageUploadZone";
 import AspectPicker from "../../components/AspectPicker";
+import StudioGenerateBar from "../../components/StudioGenerateBar";
 import { apiAspectRatio } from "../../lib/apiAspectRatio";
+import { useStudioGenerateGate } from "../../lib/useStudioGenerateGate";
 
 const ASPECTS = ["16:9", "9:16", "1:1", "4:5"];
 const IDEA_KEYS = ["vid_idea_1", "vid_idea_2", "vid_idea_3", "vid_idea_4"];
@@ -40,12 +42,20 @@ export default function VideoGenerate() {
   const [result, setResult] = useState(null);
 
   const cost = costs.video;
-  const canGenerate = prompt.trim().length >= 3 && (user?.credits ?? 0) >= cost && !busy;
+  const { ready, hint } = useStudioGenerateGate({
+    busy,
+    user,
+    cost,
+    requirePrompt: true,
+    prompt,
+  });
 
   const generate = async () => {
-    if (!canGenerate) {
+    if (!ready) {
       if (prompt.trim().length < 3) toast.error(t("vid_err_short"));
-      else if ((user?.credits ?? 0) < cost) toast.error(t("vid_err_credits", { need: cost, have: user?.credits ?? 0 }));
+      else if ((user?.credits ?? 0) < cost && !user?.is_unlimited) {
+        toast.error(t("vid_err_credits", { need: cost, have: user?.credits ?? 0 }));
+      }
       return;
     }
     setBusy(true); setResult(null);
@@ -169,24 +179,21 @@ export default function VideoGenerate() {
           </div>
         </section>
 
-        <div>
-          <button
-            type="button"
-            onClick={generate}
-            disabled={!canGenerate}
-            data-testid="video-generate"
-            className="rp-action-primary"
-          >
-            {busy ? (
-              <><Loader2 className="w-4 h-4 animate-spin" strokeWidth={2} /> {t("vid_rendering")}</>
-            ) : (
-              <><Film className="w-4 h-4" strokeWidth={1.5} /> {t("vid_render_btn", { n: cost })}</>
-            )}
-          </button>
-          <p className="text-[#5A5A5E] text-[11px] mt-3 text-center font-mono uppercase tracking-[0.14em]">
-            {t("vid_balance", { n: user?.credits ?? 0 })}
-          </p>
-        </div>
+        <StudioGenerateBar
+          layout="inline"
+          ready={ready}
+          busy={busy}
+          onClick={generate}
+          label={t("vid_render_btn", { n: cost })}
+          busyLabel={t("vid_rendering")}
+          hint={hint}
+          testId="video-generate"
+          icon={Film}
+          alignHint="center"
+        />
+        <p className="text-[#5A5A5E] text-[11px] mt-3 text-center font-mono uppercase tracking-[0.14em]">
+          {t("vid_balance", { n: user?.is_unlimited ? "∞" : (user?.credits ?? 0) })}
+        </p>
       </div>
 
       <StudioResultAnchor busy={busy} ready={Boolean(primaryResultUrl(result))} className="lg:sticky lg:top-[88px] self-start">

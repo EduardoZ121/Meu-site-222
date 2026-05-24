@@ -16,8 +16,10 @@ import { FALLBACK_PADRAO_STYLES } from "../../lib/publicFallbacks";
 import { PADRAO_STYLE_COVER_BY_ID } from "../../lib/padraoStyleCovers";
 import useTitle from "../../lib/useTitle";
 import StudioAccordionSection from "../../components/StudioAccordionSection";
+import StudioGenerateBar from "../../components/StudioGenerateBar";
 import { readUserSettings } from "../../lib/userSettings";
 import { apiAspectRatio } from "../../lib/apiAspectRatio";
+import { useStudioGenerateGate } from "../../lib/useStudioGenerateGate";
 
 const SUBJECT_KEYS = [
   { value: "the man", labelKey: "studio_subj_man" },
@@ -72,6 +74,24 @@ export default function Generate() {
     if (!photo && pickedStyle) return { mode: "blocked", cost: 0, ctaLabel: t("studio_cta_blocked") };
     return { mode: "text", cost: costs.image, ctaLabel: t("studio_cta_text", { n: costs.image }) };
   }, [photo, pickedStyle, costs, t]);
+
+  const generateReady = photoUploadStatus !== "saving"
+    && mode !== "blocked"
+    && (mode === "easy" || prompt.trim().length >= 3);
+
+  const { ready: gateReady, hint: gateHint } = useStudioGenerateGate({
+    busy,
+    user,
+    cost,
+    readyOverride: generateReady,
+    hintOverride: mode === "blocked"
+      ? t("studio_gen_hint_blocked")
+      : (mode === "text" || mode === "edit") && prompt.trim().length < 3
+        ? t("studio_gen_hint_prompt")
+        : photoUploadStatus === "saving"
+          ? t("upload_preparing")
+          : null,
+  });
 
   const generate = async () => {
     if (mode === "blocked") { toast.error(t("studio_err_blocked")); return; }
@@ -232,18 +252,18 @@ export default function Generate() {
 
           <StudioAccordionSection title={t("studio_acc_format")} defaultOpen testId="studio-acc-format">
             <AspectPicker value={aspect} onChange={setAspect} hasPhoto={!!photo} testIdPrefix="aspect" />
-            <button type="button" onClick={generate} disabled={busy || mode === "blocked"} className="rp-action-primary mt-8" data-testid="generate-button">
-              {busy ? (
-                <>
-                  <Loader2 className="w-4 h-4 animate-spin" strokeWidth={2} />
-                  {progress > 0 ? t("studio_generating", { n: progress }) : t("studio_sending")}
-                </>
-              ) : mode === "blocked" ? (
-                <><ImagePlus className="w-4 h-4" strokeWidth={1.5} /> {ctaLabel}</>
-              ) : (
-                <><Sparkles className="w-4 h-4" strokeWidth={1.5} /> {ctaLabel}</>
-              )}
-            </button>
+            <StudioGenerateBar
+              layout="inline"
+              ready={gateReady}
+              busy={busy}
+              onClick={generate}
+              label={ctaLabel}
+              busyLabel={progress > 0 ? t("studio_generating", { n: progress }) : t("studio_sending")}
+              hint={gateHint}
+              testId="generate-button"
+              className="mt-8"
+              alignHint="center"
+            />
             <p className="text-[#6b6b70] text-[11px] mt-3 text-center font-['Inter_Tight']">
               {t("studio_balance")} <span className="text-[#C4B5FD] font-medium tabular-nums">{user?.is_unlimited ? "∞" : (user?.credits ?? 0)}</span> {t("credits")}
             </p>

@@ -660,6 +660,7 @@ export default function MangaStudio() {
             editorScene={editorScene}
             readiness={readiness}
             costs={creditCosts}
+            user={user}
             busy={busy}
             modelKey={modelKey}
             onModelKeyChange={setModelKey}

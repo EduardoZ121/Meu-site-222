@@ -1,8 +1,10 @@
-import { useState } from "react";
-import { Loader2, Sparkles, RefreshCw } from "lucide-react";
-import { motion } from "framer-motion";
+import { useMemo, useState } from "react";
+import { RefreshCw } from "lucide-react";
 import { useAuth } from "../lib/auth";
 import { useI18n } from "../lib/i18n";
+import StudioGenerateBar from "./StudioGenerateBar";
+import StudioGenerateCostMeta from "./StudioGenerateCostMeta";
+import { useStudioGenerateGate } from "../lib/useStudioGenerateGate";
 import ImageUploadZone from "./ImageUploadZone";
 import ResultPanel from "./ResultPanel";
 import CollapsibleSection from "./CollapsibleSection";
@@ -58,6 +60,8 @@ export default function ToolFrame({
   result,
   onResultChange,
   testId = "tool",
+  generateReady,
+  generateHint,
 }) {
   const { user } = useAuth();
   const { t } = useI18n();
@@ -66,6 +70,22 @@ export default function ToolFrame({
 
   const visibleModels = models ? (viewAllModels ? models : models.slice(0, 8)) : [];
   const resultReady = Boolean(primaryResultUrl(result));
+
+  const needsPhoto = showPhoto;
+  const needsPrompt = Boolean(promptLabel);
+  const gate = useStudioGenerateGate({
+    busy,
+    user,
+    cost,
+    requirePhoto: needsPhoto,
+    photo,
+    requirePrompt: needsPrompt,
+    prompt,
+    readyOverride: generateReady,
+    hintOverride: generateHint,
+  });
+  const ready = generateReady !== undefined ? generateReady && !busy : gate.ready;
+  const hint = generateHint ?? gate.hint;
 
   return (
     <div className="rp-studio-shell max-w-[1400px] mx-auto pb-32" data-testid={`${testId}-frame`}>
@@ -220,37 +240,16 @@ export default function ToolFrame({
         </StudioResultAnchor>
       </div>
 
-      <div
-        initial={{ y: 24, opacity: 0.96 }}
-        animate={{ y: 0, opacity: 1 }}
-        transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
-        className="rp-sticky-cta rp-sticky-cta--sidebar"
-        data-testid={`${testId}-cta-bar`}
-      >
-        <div className="rp-studio-shell max-w-[1400px] mx-auto flex items-center justify-between gap-4 px-2 sm:px-4">
-          <div className="hidden sm:flex items-center gap-4 text-[12px] font-['Inter_Tight']">
-            <span className="text-[#8A8A8E]">{t("tool_cost_label")}</span>
-            <span className="text-[#C4B5FD] font-semibold tabular-nums">{cost}</span>
-            <span className="text-[#5A5A5E] font-mono text-[10px] uppercase tracking-wider">{t("label_credits")}</span>
-            <span className="w-px h-4 bg-[#2E2E30]" />
-            <span className="text-[#8A8A8E]">{t("tool_balance_label")}</span>
-            <span className="text-[#F4F1EA] font-medium tabular-nums">{user?.is_unlimited ? "∞" : (user?.credits ?? 0)}</span>
-          </div>
-          <button
-            type="button"
-            onClick={onCreate}
-            disabled={busy}
-            className="rp-action-primary flex-1 sm:flex-initial sm:min-w-[240px] sm:ml-auto !w-auto sm:!w-auto"
-            data-testid={`${testId}-create-btn`}
-          >
-            {busy ? (
-              <><Loader2 className="w-4 h-4 animate-spin" strokeWidth={2} /> {t("tool_generating")}</>
-            ) : (
-              <><Sparkles className="w-4 h-4" strokeWidth={1.5} /> {t("tool_generate_credits", { n: cost })}</>
-            )}
-          </button>
-        </div>
-      </div>
+      <StudioGenerateBar
+        ready={ready}
+        busy={busy}
+        onClick={onCreate}
+        label={t("tool_generate_credits", { n: cost })}
+        busyLabel={t("tool_generating")}
+        hint={hint}
+        testId={`${testId}-create-btn`}
+        costMeta={<StudioGenerateCostMeta cost={cost} user={user} />}
+      />
     </div>
   );
 }

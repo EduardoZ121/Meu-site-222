@@ -13,7 +13,7 @@
       "includeFiles": "frontend/api/lib/**"
     }
   },
-  "installCommand": "yarn install --frozen-lockfile && cd frontend && yarn install --frozen-lockfile",
+  "installCommand": "ln -sfn frontend/api api && yarn install --frozen-lockfile && cd frontend && yarn install --frozen-lockfile",
   "buildCommand": "cd frontend && yarn build",
   "outputDirectory": "frontend/build",
   "routes": [

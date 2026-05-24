@@ -26,6 +26,7 @@ frontend/.env.*
 /components.json
 /frontend-completo.zip
 /api.symlink.txt
+/api
 _archive-meu-telegram-bot/
 
 # Large marketing renders (optional local only)

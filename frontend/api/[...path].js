@@ -32,6 +32,12 @@ const { handlePromptAssistRoute } = require("./lib/promptAssist.cjs");
 const PADRAO_STYLES_LIST = require("./lib/padraoStylesData.cjs");
 const { finalizeImagePrompt, finalizeClothesPrompt } = require("./lib/imageQualityPrompts.cjs");
 const { getProPreset, listProPresets } = require("./lib/proPresetsData.cjs");
+const {
+  isS3Configured,
+  isTrustedS3MediaUrl,
+  createVideoPresignedUpload,
+  getS3Config,
+} = require("./lib/s3Upload.cjs");
 
 function getPadraoStyle(styleId) {
   return PADRAO_STYLES_LIST.find((s) => s.id === String(styleId || "").trim()) || null;
@@ -266,6 +272,12 @@ function trustedBlobMediaUrl(raw) {
   return trustedBlobImageUrl(raw);
 }
 
+/** Blob ou S3/CloudFront (URLs públicas aceites pelo Replicate). */
+function trustedMediaUrl(raw) {
+  const u = String(raw || "").trim();
+  return trustedBlobMediaUrl(u) || (isTrustedS3MediaUrl(u) ? u : null);
+}
+
 async function requireAdminSession(req) {
   const { user, isLocal } = resolveSessionUser(req);
   if (!user?.id || isLocal) {
@@ -301,7 +313,7 @@ function buildVideoEditPrompt(userPrompt) {
 }
 
 async function resolveVideoRef(files, fields, fileKey = "video", urlKey = "video_url") {
-  const fromUrl = trustedBlobMediaUrl(text(fields, urlKey, ""));
+  const fromUrl = trustedMediaUrl(text(fields, urlKey, ""));
   if (fromUrl) return fromUrl;
   const file = fileOf(files, fileKey);
   if (!file) return null;
@@ -1528,6 +1540,34 @@ async function handlePath(path, req, res) {
 
     if (req.method === "GET" && path === "blob/status") {
       return json(res, 200, { blob: Boolean(process.env.BLOB_READ_WRITE_TOKEN) });
+    }
+
+    if (req.method === "GET" && path === "upload/s3/status") {
+      const cfg = getS3Config();
+      return json(res, 200, {
+        s3: isS3Configured(),
+        cloudFront: cfg?.cloudFront || null,
+      });
+    }
+
+    if (req.method === "POST" && path === "upload/s3/presign-video") {
+      const { user, isLocal } = resolveSessionUser(req);
+      if (!user?.id || isLocal) {
+        return json(res, 401, { detail: "Inicia sessão para enviar vídeos." });
+      }
+      const body = await readJsonRequestBody(req);
+      try {
+        const out = await createVideoPresignedUpload({
+          filename: body.filename,
+          contentType: body.contentType,
+          contentLength: body.contentLength,
+          userId: user.id,
+        });
+        await touchUser(user.id, req, { action: "s3_presign_video" });
+        return json(res, 200, out);
+      } catch (err) {
+        return json(res, err.status || 500, { detail: err.message || "Falha ao preparar upload." });
+      }
     }
 
     if (req.method === "GET" && path === "carousel/panorama-image") {

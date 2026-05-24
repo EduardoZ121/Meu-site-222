@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useId, useRef, useState } from "react";
-import { Film, Upload, X, AlertCircle } from "lucide-react";
+import { Film, Loader2, Upload, X, AlertCircle } from "lucide-react";
 import { toast } from "sonner";
 import { useI18n } from "../lib/i18n";
 import {
@@ -7,6 +7,8 @@ import {
   MAX_VIDEO_BYTES,
   VIDEO_ACCEPT,
 } from "../lib/imageCompress";
+import { isS3VideoUploadAvailable, uploadVideoViaS3 } from "../lib/s3VideoUpload";
+import { formatApiError } from "../lib/api";
 
 const MAX_DIRECT_BYTES = 12 * 1024 * 1024;
 
@@ -24,12 +26,15 @@ function formatDuration(sec) {
 }
 
 /**
- * Upload de vídeo dedicado (video-to-video) — sem ImageUploadZone.
- * Fluxo simples: escolher ficheiro → pré-visualizar → envio no Gerar (Blob no uploadPost).
+ * Upload de vídeo (video-to-video): pré-visualização local;
+ * ficheiros > 12 MB sobem automaticamente para S3 + CloudFront.
  */
 export default function StudioVideoUpload({
   value,
   onChange,
+  cloudUrl = null,
+  onCloudUrlChange,
+  onUploadingChange,
   testId = "studio-video-upload",
   disabled = false,
 }) {
@@ -39,6 +44,17 @@ export default function StudioVideoUpload({
   const [drag, setDrag] = useState(false);
   const [previewUrl, setPreviewUrl] = useState(null);
   const [meta, setMeta] = useState({ duration: 0, width: 0, height: 0 });
+  const [uploading, setUploading] = useState(false);
+  const [progress, setProgress] = useState(0);
+  const [s3Available, setS3Available] = useState(null);
+
+  useEffect(() => {
+    isS3VideoUploadAvailable().then(setS3Available);
+  }, []);
+
+  useEffect(() => {
+    onUploadingChange?.(uploading);
+  }, [uploading, onUploadingChange]);
 
   useEffect(() => {
     if (!value) {
@@ -51,6 +67,55 @@ export default function StudioVideoUpload({
     return () => URL.revokeObjectURL(url);
   }, [value]);
 
+  useEffect(() => {
+    if (!value || value.size <= MAX_DIRECT_BYTES) {
+      onCloudUrlChange?.(null);
+      setUploading(false);
+      setProgress(0);
+      return undefined;
+    }
+
+    let cancelled = false;
+
+    (async () => {
+      const s3ok = s3Available ?? (await isS3VideoUploadAvailable());
+      if (cancelled) return;
+      if (!s3ok) {
+        onCloudUrlChange?.(null);
+        return;
+      }
+      if (cloudUrl) return;
+
+      setUploading(true);
+      setProgress(0);
+      try {
+        const url = await uploadVideoViaS3(value, {
+          onProgress: (pct) => {
+            if (!cancelled) setProgress(pct);
+          },
+        });
+        if (!cancelled) {
+          onCloudUrlChange?.(url);
+          toast.success(t("vid_upload_cloud_done"));
+        }
+      } catch (err) {
+        if (!cancelled) {
+          onCloudUrlChange?.(null);
+          toast.error(formatApiError(err, t("vid_upload_cloud_fail")), { duration: 10000 });
+        }
+      } finally {
+        if (!cancelled) {
+          setUploading(false);
+        }
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- re-upload só quando muda o ficheiro
+  }, [value, s3Available]);
+
   const ingest = useCallback((file) => {
     if (!file || !looksLikeVideoFile(file)) {
       toast.error(t("vid_edit_video_hint"));
@@ -60,13 +125,17 @@ export default function StudioVideoUpload({
       toast.error(t("vid_edit_video_hint"));
       return;
     }
+    onCloudUrlChange?.(null);
     onChange(file);
-  }, [onChange, t]);
+  }, [onChange, onCloudUrlChange, t]);
 
   const clear = useCallback(() => {
     onChange(null);
+    onCloudUrlChange?.(null);
+    setProgress(0);
+    setUploading(false);
     if (inputRef.current) inputRef.current.value = "";
-  }, [onChange]);
+  }, [onChange, onCloudUrlChange]);
 
   const onLoadedMetadata = (e) => {
     const v = e.currentTarget;
@@ -78,6 +147,9 @@ export default function StudioVideoUpload({
   };
 
   const needsCloud = value && value.size > MAX_DIRECT_BYTES;
+  const cloudReady = needsCloud && Boolean(cloudUrl);
+  const cloudPending = needsCloud && !cloudUrl && uploading;
+  const cloudBlocked = needsCloud && !cloudUrl && !uploading && s3Available === false;
 
   return (
     <div className="studio-video-upload" data-testid={testId}>
@@ -87,7 +159,7 @@ export default function StudioVideoUpload({
         type="file"
         accept={VIDEO_ACCEPT}
         className="sr-only"
-        disabled={disabled}
+        disabled={disabled || uploading}
         onChange={(e) => {
           const f = e.target.files?.[0];
           if (f) ingest(f);
@@ -141,7 +213,7 @@ export default function StudioVideoUpload({
             <button
               type="button"
               onClick={clear}
-              disabled={disabled}
+              disabled={disabled || uploading}
               className="studio-video-upload__clear"
               aria-label={t("vid_upload_remove")}
               data-testid={`${testId}-clear`}
@@ -156,16 +228,48 @@ export default function StudioVideoUpload({
               {meta.duration > 0 ? ` · ${formatDuration(meta.duration)}` : ""}
               {meta.width > 0 ? ` · ${meta.width}×${meta.height}` : ""}
             </p>
-            {needsCloud ? (
+
+            {cloudPending ? (
+              <div className="studio-video-upload__progress-wrap" data-testid={`${testId}-progress`}>
+                <div className="flex items-center gap-2 text-[#A78BFA] text-[12px] mb-2">
+                  <Loader2 className="w-3.5 h-3.5 animate-spin shrink-0" />
+                  <span>{t("vid_upload_cloud_progress", { n: progress })}</span>
+                </div>
+                <div className="studio-video-upload__progress-track">
+                  <div
+                    className="studio-video-upload__progress-bar"
+                    style={{ width: `${Math.max(progress, 4)}%` }}
+                  />
+                </div>
+              </div>
+            ) : null}
+
+            {cloudReady ? (
+              <p className="studio-video-upload__ready">{t("vid_upload_cloud_ready")}</p>
+            ) : null}
+
+            {needsCloud && !cloudPending && !cloudReady && !cloudBlocked ? (
               <p className="studio-video-upload__cloud-note flex items-start gap-2">
                 <AlertCircle className="w-3.5 h-3.5 shrink-0 mt-0.5 text-[#A78BFA]" />
                 <span>{t("vid_edit_large_hint")}</span>
               </p>
-            ) : (
+            ) : null}
+
+            {cloudBlocked ? (
+              <p className="studio-video-upload__cloud-note flex items-start gap-2 text-[#f87171]">
+                <AlertCircle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
+                <span>{t("vid_edit_s3_required")}</span>
+              </p>
+            ) : null}
+
+            {!needsCloud ? (
               <p className="studio-video-upload__ready">{t("vid_upload_ready")}</p>
-            )}
+            ) : null}
           </div>
-          <label htmlFor={inputId} className="studio-video-upload__replace">
+          <label
+            htmlFor={inputId}
+            className={`studio-video-upload__replace ${uploading ? "pointer-events-none opacity-50" : ""}`}
+          >
             {t("vid_upload_replace")}
           </label>
         </div>

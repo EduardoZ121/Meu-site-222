@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { Clapperboard, Loader2, Sparkles } from "lucide-react";
-import { formatApiError, isBlobUploadEnabled, uploadPost } from "../../lib/api";
+import { formatApiError, isBlobUploadEnabled, pollPrediction, uploadPost } from "../../lib/api";
 import { normalizeCreation, primaryResultUrl } from "../../lib/creationUrls";
 import { useAuth } from "../../lib/auth";
 import { usePricing } from "../../lib/PricingContext";
@@ -10,6 +10,7 @@ import ResultPanel from "../../components/ResultPanel";
 import StudioResultAnchor from "../../components/StudioResultAnchor";
 import ImageUploadZone from "../../components/ImageUploadZone";
 import StudioVideoUpload, { VIDEO_DIRECT_MAX_BYTES } from "../../components/StudioVideoUpload";
+import { isS3VideoUploadAvailable } from "../../lib/s3VideoUpload";
 
 const EDIT_IDEAS = ["vid_edit_idea_1", "vid_edit_idea_2", "vid_edit_idea_3"];
 const DURATIONS = [4, 6, 8, 10];
@@ -36,6 +37,8 @@ export default function VideoEditorAdmin() {
   const cost = costs.videoEdit ?? costs.video ?? 95;
 
   const [video, setVideo] = useState(null);
+  const [videoUrl, setVideoUrl] = useState(null);
+  const [videoUploading, setVideoUploading] = useState(false);
   const [reference, setReference] = useState(null);
   const [prompt, setPrompt] = useState("");
   const [resolution, setResolution] = useState("1080p");
@@ -46,7 +49,9 @@ export default function VideoEditorAdmin() {
   const [uploadPhase, setUploadPhase] = useState("");
   const [result, setResult] = useState(null);
 
-  const videoReady = Boolean(video);
+  const needsCloud = Boolean(video && video.size > VIDEO_DIRECT_MAX_BYTES);
+  const cloudReady = !needsCloud || Boolean(videoUrl);
+  const videoReady = Boolean(video) && cloudReady && !videoUploading;
   const promptReady = prompt.trim().length >= 3;
   const creditsReady = (user?.credits ?? 0) >= cost || user?.is_unlimited;
   const canRun = videoReady && promptReady && creditsReady && !busy;
@@ -54,6 +59,10 @@ export default function VideoEditorAdmin() {
   const run = async () => {
     if (!video) {
       toast.error(t("vid_edit_err_video"));
+      return;
+    }
+    if (needsCloud && !videoUrl) {
+      toast.error(t("vid_edit_wait_upload"));
       return;
     }
     if (prompt.trim().length < 3) {
@@ -65,17 +74,17 @@ export default function VideoEditorAdmin() {
       return;
     }
 
-    const needsCloud = video.size > VIDEO_DIRECT_MAX_BYTES;
-    if (needsCloud) {
+    if (needsCloud && !videoUrl) {
+      const s3ok = await isS3VideoUploadAvailable();
       const blobOk = await isBlobUploadEnabled();
-      if (!blobOk) {
-        toast.error(t("vid_edit_blob_required"), { duration: 10000 });
+      if (!s3ok && !blobOk) {
+        toast.error(t("vid_edit_s3_required"), { duration: 10000 });
         return;
       }
     }
 
     setBusy(true);
-    setUploadPhase(needsCloud ? "cloud" : "send");
+    setUploadPhase(needsCloud && !videoUrl ? "cloud" : "send");
     setResult(null);
     try {
       const fd = new FormData();
@@ -84,16 +93,32 @@ export default function VideoEditorAdmin() {
       fd.append("duration", String(duration));
       fd.append("aspect_ratio", aspect);
       fd.append("audio_setting", audioSetting);
-      fd.append("video", video);
+      if (videoUrl) {
+        fd.append("video_url", videoUrl);
+      } else {
+        fd.append("video", video);
+      }
       if (reference) fd.append("reference_image", reference);
 
-      const { data } = await uploadPost("/generate/video-edit", fd, {
-        timeout: needsCloud ? 300_000 : 120_000,
-        pollTimeoutMs: 600_000,
+      const { data: submitData } = await uploadPost("/generate/video-edit", fd, {
+        timeout: videoUrl ? 90_000 : needsCloud ? 300_000 : 120_000,
+        headers: { "X-Skip-Auto-Poll": "1" },
+        skipBlobOffload: Boolean(videoUrl) || !needsCloud,
         blobOffloadTimeoutMs: 120_000,
-        skipBlobOffload: !needsCloud,
       });
-      const creation = normalizeCreation(data?.creation);
+
+      if (!submitData?.prediction_id) {
+        throw new Error(t("vid_no_result"));
+      }
+
+      setUploadPhase("work");
+      const polled = await pollPrediction(submitData.prediction_id, {
+        timeoutMs: 600_000,
+        credits_spent: submitData.credits_spent ?? cost,
+        type: "video",
+      });
+
+      const creation = normalizeCreation(polled?.creation);
       if (!primaryResultUrl(creation)) throw new Error(t("vid_no_result"));
       setResult(creation);
       toast.success(t("vid_edit_success", { n: creation?.credits_spent ?? cost }));
@@ -122,6 +147,9 @@ export default function VideoEditorAdmin() {
               <StudioVideoUpload
                 value={video}
                 onChange={setVideo}
+                cloudUrl={videoUrl}
+                onCloudUrlChange={setVideoUrl}
+                onUploadingChange={setVideoUploading}
                 disabled={busy}
                 testId="video-edit-source"
               />
@@ -269,14 +297,21 @@ export default function VideoEditorAdmin() {
               {busy ? (
                 <>
                   <Loader2 className="w-4 h-4 animate-spin" strokeWidth={2} />
-                  {uploadPhase === "cloud" ? t("vid_edit_cloud_uploading") : t("vid_edit_processing")}
+                  {uploadPhase === "cloud"
+                    ? t("vid_edit_cloud_uploading")
+                    : uploadPhase === "work"
+                      ? t("vid_edit_processing")
+                      : t("vid_edit_processing")}
                 </>
               ) : (
                 <><Clapperboard className="w-4 h-4" strokeWidth={1.5} /> {t("vid_edit_btn", { n: cost })}</>
               )}
             </button>
-            {!videoReady && (
+            {!video && (
               <p className="text-[#6b6b70] text-[11px] mt-2">{t("studio_gen_hint_video")}</p>
+            )}
+            {video && videoUploading && (
+              <p className="text-[#6b6b70] text-[11px] mt-2">{t("vid_edit_wait_upload")}</p>
             )}
             {videoReady && !promptReady && (
               <p className="text-[#6b6b70] text-[11px] mt-2">{t("studio_gen_hint_prompt")}</p>

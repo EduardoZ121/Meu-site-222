@@ -47,6 +47,8 @@ export default function ArtisticPromptStudio({
   onGenerate,
   onImprovePrompt,
   improving,
+  generateReady = true,
+  generateHint = "",
 }) {
   const { t } = useI18n();
   const [wizardOpen, setWizardOpen] = useState(false);
@@ -239,26 +241,33 @@ export default function ArtisticPromptStudio({
         testIdPrefix="art-studio-aspect"
       />
 
-      <button
-        type="button"
-        onClick={handleGenerate}
-        disabled={busy}
-        className="art-studio-cta mt-6"
-        data-testid="artistic-studio-generate"
-      >
-        <span className="art-studio-cta__shine" aria-hidden />
-        {busy ? (
-          <>
-            <Loader2 className="w-5 h-5 animate-spin relative z-[1]" />
-            <span className="relative z-[1]">{t("art_generating")}</span>
-          </>
-        ) : (
-          <>
-            <Sparkles className="w-5 h-5 relative z-[1]" strokeWidth={1.5} />
-            <span className="relative z-[1]">{t("art_generate_credits", { n: cost })}</span>
-          </>
-        )}
-      </button>
+      <div className="mt-6 flex flex-col gap-1.5">
+        <button
+          type="button"
+          onClick={handleGenerate}
+          disabled={busy || !generateReady}
+          className={`art-studio-cta ${generateReady && !busy ? "art-studio-cta--ready" : "art-studio-cta--locked"}`}
+          data-testid="artistic-studio-generate"
+        >
+          <span className="art-studio-cta__shine" aria-hidden />
+          {busy ? (
+            <>
+              <Loader2 className="w-5 h-5 animate-spin relative z-[1]" />
+              <span className="relative z-[1]">{t("art_generating")}</span>
+            </>
+          ) : (
+            <>
+              <Sparkles className="w-5 h-5 relative z-[1]" strokeWidth={1.5} />
+              <span className="relative z-[1]">{t("art_generate_credits", { n: cost })}</span>
+            </>
+          )}
+        </button>
+        {!generateReady && !busy && generateHint ? (
+          <p className="rp-studio-gen-hint text-center" data-testid="artistic-studio-generate-hint">
+            {generateHint}
+          </p>
+        ) : null}
+      </div>
     </div>
   );
 }

@@ -125,6 +125,14 @@ export default function Inpaint() {
       cost={cost}
       busy={busy} result={result} onResultChange={setResult}
       onCreate={run}
+      generateReady={Boolean(photo) && prompt.trim().length >= 3}
+      generateHint={
+        !photo
+          ? t("studio_gen_hint_photo")
+          : prompt.trim().length < 3
+            ? t("studio_gen_hint_prompt")
+            : ""
+      }
       extraFields={
         photoUrl && (
           <section>

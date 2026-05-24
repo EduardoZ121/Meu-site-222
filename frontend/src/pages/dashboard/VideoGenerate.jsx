@@ -8,6 +8,7 @@ import { useI18n } from "../../lib/i18n";
 import { toast } from "sonner";
 import ResultPanel from "../../components/ResultPanel";
 import StudioResultAnchor from "../../components/StudioResultAnchor";
+import StudioGenerateBar from "../../components/StudioGenerateBar";
 import ImageUploadZone from "../../components/ImageUploadZone";
 import AspectPicker from "../../components/AspectPicker";
 import { apiAspectRatio } from "../../lib/apiAspectRatio";
@@ -40,7 +41,14 @@ export default function VideoGenerate() {
   const [result, setResult] = useState(null);
 
   const cost = costs.video;
-  const canGenerate = prompt.trim().length >= 3 && (user?.credits ?? 0) >= cost && !busy;
+  const contentReady = prompt.trim().length >= 3;
+  const creditsReady = (user?.credits ?? 0) >= cost || user?.is_unlimited;
+  const canGenerate = contentReady && creditsReady && !busy;
+  const generateHint = !contentReady
+    ? t("studio_gen_hint_prompt")
+    : !creditsReady
+      ? t("vid_err_credits", { need: cost, have: user?.credits ?? 0 })
+      : "";
 
   const generate = async () => {
     if (!canGenerate) {
@@ -170,19 +178,17 @@ export default function VideoGenerate() {
         </section>
 
         <div>
-          <button
-            type="button"
+          <StudioGenerateBar
+            layout="inline"
+            alignHint="center"
+            ready={contentReady && creditsReady}
+            busy={busy}
             onClick={generate}
-            disabled={!canGenerate}
-            data-testid="video-generate"
-            className="rp-action-primary"
-          >
-            {busy ? (
-              <><Loader2 className="w-4 h-4 animate-spin" strokeWidth={2} /> {t("vid_rendering")}</>
-            ) : (
-              <><Film className="w-4 h-4" strokeWidth={1.5} /> {t("vid_render_btn", { n: cost })}</>
-            )}
-          </button>
+            label={t("vid_render_btn", { n: cost })}
+            busyLabel={t("vid_rendering")}
+            hint={generateHint}
+            testId="video-generate"
+          />
           <p className="text-[#5A5A5E] text-[11px] mt-3 text-center font-mono uppercase tracking-[0.14em]">
             {t("vid_balance", { n: user?.credits ?? 0 })}
           </p>

@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Loader2, Sparkles, Camera, Sliders } from "lucide-react";
-import { motion } from "framer-motion";
+import { Camera, Sliders } from "lucide-react";
 import { api, formatApiError, uploadPost } from "../../lib/api";
 import { normalizeCreation, primaryResultUrl } from "../../lib/creationUrls";
 import { useAuth } from "../../lib/auth";
@@ -12,6 +11,7 @@ import AspectPicker from "../../components/AspectPicker";
 import { apiAspectRatio } from "../../lib/apiAspectRatio";
 import StyleCover from "../../components/StyleCover";
 import ImageUploadZone from "../../components/ImageUploadZone";
+import StudioGenerateBar from "../../components/StudioGenerateBar";
 import { FALLBACK_PRO_PRESETS } from "../../lib/publicFallbacks";
 import useTitle from "../../lib/useTitle";
 import { useI18n } from "../../lib/i18n";
@@ -258,13 +258,17 @@ export default function Pro() {
         </StudioResultAnchor>
       </div>
 
-      <motion.div
-        initial={{ y: 20, opacity: 0.96 }}
-        animate={{ y: 0, opacity: 1 }}
-        transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
-        className="rp-sticky-cta rp-sticky-cta--sidebar"
-      >
-        <div className="rp-studio-shell max-w-[1400px] mx-auto flex items-center justify-between gap-4 px-2 sm:px-4">
+      <StudioGenerateBar
+        ready={Boolean(photo)}
+        busy={busy}
+        onClick={generate}
+        label={`${t("pro_button")} · ${cost} ${t("label_credits")}`}
+        busyLabel={t("pro_loading")}
+        hint={!photo ? t("studio_gen_hint_photo") : ""}
+        variant="pro"
+        testId="pro-create"
+        buttonClassName="sm:min-w-[300px]"
+        costMeta={(
           <div className="hidden sm:flex items-center gap-4 text-[12px] font-['Inter_Tight']">
             <span className="text-[#8A8A8E]">{t("tool_cost_label")}</span>
             <span className="text-[#C4B5FD] font-semibold tabular-nums">{cost}</span>
@@ -272,21 +276,8 @@ export default function Pro() {
             <span className="text-[#8A8A8E]">{t("tool_balance_label")}</span>
             <span className="text-[#F4F1EA] font-medium tabular-nums">{user?.is_unlimited ? "∞" : (user?.credits ?? 0)}</span>
           </div>
-          <button
-            type="button"
-            onClick={generate}
-            disabled={busy}
-            className="rp-action-primary rp-action-primary--pro flex-1 sm:flex-initial sm:min-w-[300px] sm:ml-auto !w-auto sm:!w-auto"
-            data-testid="pro-create"
-          >
-            {busy ? (
-              <><Loader2 className="w-4 h-4 animate-spin" strokeWidth={2} /> {t("pro_loading")}</>
-            ) : (
-              <><Sparkles className="w-4 h-4" strokeWidth={1.5} /> {t("pro_button")} · {cost} {t("label_credits")}</>
-            )}
-          </button>
-        </div>
-      </motion.div>
+        )}
+      />
     </div>
   );
 }

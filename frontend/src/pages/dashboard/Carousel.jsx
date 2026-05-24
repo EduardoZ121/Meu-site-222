@@ -20,6 +20,7 @@ import { revokePanoramaBlobUrls, splitPanoramaToSlides } from "../../lib/carouse
 import { useI18n } from "../../lib/i18n";
 import { useStudioI18n } from "../../lib/useStudioI18n";
 import AspectPicker from "../../components/AspectPicker";
+import StudioGenerateBar from "../../components/StudioGenerateBar";
 import { apiAspectRatio } from "../../lib/apiAspectRatio";
 
 const COST_PER_SLIDE = 5;
@@ -112,6 +113,29 @@ export default function CarouselPage() {
   const isPanoramic = generationMode === "panoramic";
   const perSlide = MODELS.find((m) => m.key === modelKey)?.cost || COST_PER_SLIDE;
   const totalCost = slides.length * perSlide;
+
+  const carouselReady = useMemo(() => {
+    const normalized = normalizeSlides(slides);
+    const cleaned = normalized.map((s) => slideText(s).trim());
+    return (
+      campaignBrief.trim().length >= 10
+      && cleaned.length >= MIN_SLIDES
+      && cleaned.length <= MAX_SLIDES
+      && !cleaned.some((s) => s.length < 3)
+    );
+  }, [slides, campaignBrief]);
+
+  const carouselHint = useMemo(() => {
+    if (carouselReady) return "";
+    if (campaignBrief.trim().length < 10) return t("studio_gen_hint_brief");
+    const normalized = normalizeSlides(slides);
+    const cleaned = normalized.map((s) => slideText(s).trim());
+    if (cleaned.some((s) => s.length < 3)) return t("car_err_slide");
+    if (cleaned.length < MIN_SLIDES || cleaned.length > MAX_SLIDES) {
+      return t("car_err_slide_count", { min: MIN_SLIDES, max: MAX_SLIDES });
+    }
+    return t("studio_gen_hint_fields");
+  }, [carouselReady, campaignBrief, slides, t]);
 
   useEffect(() => () => {
     revokePanoramaBlobUrls(blobUrlsRef.current);
@@ -596,36 +620,34 @@ export default function CarouselPage() {
         </StudioResultAnchor>
       </div>
 
-      <div className="fixed bottom-0 left-0 right-0 md:left-[240px] z-30 border-t border-rp-border bg-rp-bg/90 backdrop-blur-xl px-4 sm:px-6 md:px-10 py-4">
-        <div className="rp-studio-shell flex items-center justify-between gap-4">
+      <StudioGenerateBar
+        ready={carouselReady && ((user?.credits ?? 0) >= totalCost || user?.is_unlimited)}
+        busy={busy}
+        onClick={generate}
+        label={`${isPanoramic ? t("car_gen_panoramic") : t("car_gen_slides")} · ${totalCost} ${t("credits")}`}
+        busyLabel={slideProgress.label || t("tool_generating")}
+        hint={
+          !carouselReady
+            ? carouselHint
+            : (user?.credits ?? 0) < totalCost && !user?.is_unlimited
+              ? t("common_need_credits", { need: totalCost, have: user?.credits ?? 0 })
+              : ""
+        }
+        testId="carousel-generate"
+        buttonClassName="!min-w-[280px] !py-3.5"
+        costMeta={(
           <div className="hidden sm:flex items-center gap-3 text-[12px] text-rp-mute font-['Inter_Tight']">
             <span>{t("carousel_cost", { n: totalCost })}</span>
             <span className="text-rp-mute2">·</span>
             <span>{slides.length} × {perSlide}</span>
             <span className="text-rp-mute2">·</span>
-            <span>{t("carousel_balance")} <strong className="text-rp-text tabular-nums">{user?.is_unlimited ? "∞" : (user?.credits ?? 0)}</strong></span>
+            <span>
+              {t("carousel_balance")}{" "}
+              <strong className="text-rp-text tabular-nums">{user?.is_unlimited ? "∞" : (user?.credits ?? 0)}</strong>
+            </span>
           </div>
-          <button
-            type="button"
-            onClick={generate}
-            disabled={busy || ((user?.credits ?? 0) < totalCost && !user?.is_unlimited)}
-            className="rp-action-primary flex-1 sm:flex-initial sm:min-w-[280px] !py-3.5"
-            data-testid="carousel-generate"
-          >
-            {busy ? (
-              <>
-                <Loader2 className="w-4 h-4 animate-spin" />
-                {slideProgress.label || `A renderizar ${slides.length} slides…`}
-              </>
-            ) : (
-              <>
-                <Sparkles className="w-4 h-4" />
-                {isPanoramic ? t("car_gen_panoramic") : t("car_gen_slides")} · {totalCost} {t("credits")}
-              </>
-            )}
-          </button>
-        </div>
-      </div>
+        )}
+      />
     </motion.div>
   );
 }

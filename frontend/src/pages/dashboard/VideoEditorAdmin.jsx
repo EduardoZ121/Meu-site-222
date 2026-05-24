@@ -8,6 +8,7 @@ import { useI18n } from "../../lib/i18n";
 import { toast } from "sonner";
 import ResultPanel from "../../components/ResultPanel";
 import StudioResultAnchor from "../../components/StudioResultAnchor";
+import StudioGenerateBar from "../../components/StudioGenerateBar";
 import ImageUploadZone from "../../components/ImageUploadZone";
 import { isBlobPersistAvailable } from "../../lib/persistImage";
 
@@ -48,10 +49,16 @@ export default function VideoEditorAdmin() {
 
   const videoReady = Boolean(video) && videoUploadStatus !== "saving";
 
-  const canRun = videoReady
-    && prompt.trim().length >= 3
-    && ((user?.credits ?? 0) >= cost || user?.is_unlimited)
-    && !busy;
+  const promptReady = prompt.trim().length >= 3;
+  const creditsReady = (user?.credits ?? 0) >= cost || user?.is_unlimited;
+  const canRun = videoReady && promptReady && creditsReady && !busy;
+  const runHint = !videoReady
+    ? t("studio_gen_hint_video")
+    : !promptReady
+      ? t("studio_gen_hint_prompt")
+      : !creditsReady
+        ? t("vid_err_credits", { need: cost, have: user?.credits ?? 0 })
+        : "";
 
   const run = async () => {
     if (!video) {
@@ -265,19 +272,17 @@ export default function VideoEditorAdmin() {
           </section>
 
           <div>
-            <button
-              type="button"
+            <StudioGenerateBar
+              layout="inline"
+              ready={videoReady && promptReady && creditsReady}
+              busy={busy}
               onClick={run}
-              disabled={!canRun}
-              className="rp-action-primary w-full sm:w-auto sm:min-w-[280px]"
-              data-testid="video-edit-submit"
-            >
-              {busy ? (
-                <><Loader2 className="w-4 h-4 animate-spin" strokeWidth={2} /> {t("vid_edit_processing")}</>
-              ) : (
-                <><Clapperboard className="w-4 h-4" strokeWidth={1.5} /> {t("vid_edit_btn", { n: cost })}</>
-              )}
-            </button>
+              label={t("vid_edit_btn", { n: cost })}
+              busyLabel={t("vid_edit_processing")}
+              hint={runHint}
+              testId="video-edit-submit"
+              buttonClassName="w-full sm:w-auto sm:min-w-[280px]"
+            />
             <p className="text-[#5A5A5E] text-[11px] mt-3 font-mono uppercase tracking-[0.14em]">
               {t("vid_balance", { n: user?.is_unlimited ? "∞" : (user?.credits ?? 0) })}
             </p>

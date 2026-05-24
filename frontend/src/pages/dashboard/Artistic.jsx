@@ -112,6 +112,18 @@ export default function Artistic() {
     [styleId],
   );
 
+  const artisticGenerateReady = useMemo(() => {
+    const hasPromptOrStyle = Boolean(styleId) || prompt.trim().length >= 3;
+    const photoOk = (inputMode !== "image" && !isLabStyle) || Boolean(photo);
+    return hasPromptOrStyle && photoOk;
+  }, [styleId, prompt, inputMode, isLabStyle, photo]);
+
+  const artisticGenerateHint = useMemo(() => {
+    if (artisticGenerateReady) return "";
+    if ((inputMode === "image" || isLabStyle) && !photo) return t("studio_gen_hint_photo");
+    return t("studio_gen_hint_prompt");
+  }, [artisticGenerateReady, inputMode, isLabStyle, photo, t]);
+
   const recipeChips = useMemo(
     () => buildRecipeChips({ styleId, effects }),
     [styleId, effects],
@@ -454,6 +466,8 @@ export default function Artistic() {
             onGenerate={generate}
             onImprovePrompt={improvePromptOnly}
             improving={improving}
+            generateReady={artisticGenerateReady}
+            generateHint={artisticGenerateHint}
           />
           <ArtisticResultStudio
             busy={busy}

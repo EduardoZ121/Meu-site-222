@@ -5,9 +5,19 @@ import { toast } from "sonner";
 import { Upload, X } from "lucide-react";
 import { readFileAsDataURL } from "../lib/previewDataUrl";
 import { compressImageNeverFail } from "../lib/canvasCompress";
-import { isBlobPersistAvailable, persistImageToBlobStore } from "../lib/persistImage";
+import {
+  isBlobPersistAvailable,
+  persistImageToBlobStore,
+  persistVideoToBlobStore,
+} from "../lib/persistImage";
 import { formatHttpError } from "../lib/uploadErrors";
-import { looksLikeImageFile, IMAGE_ACCEPT } from "../lib/imageCompress";
+import {
+  looksLikeImageFile,
+  looksLikeVideoFile,
+  IMAGE_ACCEPT,
+  VIDEO_ACCEPT,
+  MAX_VIDEO_BYTES,
+} from "../lib/imageCompress";
 import { useI18n } from "../lib/i18n";
 
 const LAYOUT = {
@@ -26,7 +36,7 @@ const LAYOUT = {
 export default function ImageUploadZone({
   value,
   onChange,
-  accept = IMAGE_ACCEPT,
+  accept,
   testId = "image-upload-zone",
   layout = "portrait",
   className = "",
@@ -39,10 +49,13 @@ export default function ImageUploadZone({
   emptyHint,
   previewImgStyle,
   previewImgClassName = "",
+  mediaType = "image",
 }) {
   const { t } = useI18n();
-  const resolvedLabel = emptyLabel ?? t("upload_empty_label");
-  const resolvedHint = emptyHint ?? t("upload_empty_hint");
+  const isVideo = mediaType === "video";
+  const resolvedAccept = accept ?? (isVideo ? VIDEO_ACCEPT : IMAGE_ACCEPT);
+  const resolvedLabel = emptyLabel ?? (isVideo ? t("vid_edit_video_label") : t("upload_empty_label"));
+  const resolvedHint = emptyHint ?? (isVideo ? t("vid_edit_video_hint") : t("upload_empty_hint"));
   const inputId = useId();
   const inputRef = useRef(null);
   const [drag, setDrag] = useState(false);
@@ -68,6 +81,15 @@ export default function ImageUploadZone({
     }
     let cancelled = false;
     setPreviewFailed(false);
+    if (isVideo) {
+      const url = URL.createObjectURL(value);
+      setPreviewUrl(url);
+      notifyStatus("ready");
+      return () => {
+        cancelled = true;
+        URL.revokeObjectURL(url);
+      };
+    }
     (async () => {
       try {
         const url = await readFileAsDataURL(value);
@@ -82,7 +104,7 @@ export default function ImageUploadZone({
       }
     })();
     return () => { cancelled = true; };
-  }, [value, notifyStatus]);
+  }, [value, notifyStatus, isVideo]);
 
   const runBackground = useCallback(async (rawFile, rid) => {
     setPersistState("saving");
@@ -113,7 +135,50 @@ export default function ImageUploadZone({
     }
   }, [compressOptions, enableRemotePersist, onChange, notifyStatus]);
 
+  const runVideoBackground = useCallback(async (rawFile, rid) => {
+    setPersistState("saving");
+    notifyStatus("saving");
+    lastPreparedRef.current = rawFile;
+    const blobOk = enableRemotePersist && (await isBlobPersistAvailable());
+    if (!blobOk) {
+      if (rid !== runIdRef.current) return;
+      setPersistState("saved");
+      notifyStatus("saved");
+      return;
+    }
+    try {
+      await persistVideoToBlobStore(rawFile);
+      if (rid !== runIdRef.current) return;
+      setPersistState("saved");
+      notifyStatus("saved");
+    } catch (err) {
+      if (rid !== runIdRef.current) return;
+      setPersistState("error");
+      notifyStatus("error");
+      toast.error(formatHttpError(err, "Erro ao guardar o vídeo. Tenta de novo."), { duration: 6000 });
+      console.warn("[ImageUploadZone] video persist", err);
+    }
+  }, [enableRemotePersist, notifyStatus]);
+
   const ingestFile = useCallback((file) => {
+    if (isVideo) {
+      if (!file || !looksLikeVideoFile(file)) {
+        toast.error(t("vid_edit_video_hint"));
+        return;
+      }
+      if (file.size > MAX_VIDEO_BYTES) {
+        toast.error(t("vid_edit_video_hint"));
+        return;
+      }
+      runIdRef.current += 1;
+      const rid = runIdRef.current;
+      lastPreparedRef.current = null;
+      setPersistState("saving");
+      notifyStatus("saving");
+      onChange(file);
+      void runVideoBackground(file, rid);
+      return;
+    }
     if (!file || !looksLikeImageFile(file)) {
       toast.error("Ficheiro tem de ser uma imagem suportada.");
       return;
@@ -125,7 +190,7 @@ export default function ImageUploadZone({
     notifyStatus("saving");
     onChange(file);
     void runBackground(file, rid);
-  }, [runBackground, onChange, notifyStatus]);
+  }, [isVideo, runBackground, runVideoBackground, onChange, notifyStatus, t]);
 
   const clear = useCallback(() => {
     runIdRef.current += 1;
@@ -142,6 +207,10 @@ export default function ImageUploadZone({
     const f = lastPreparedRef.current || value;
     if (!f) return;
     const rid = runIdRef.current;
+    if (isVideo) {
+      void runVideoBackground(f, rid);
+      return;
+    }
     setPersistState("saving");
     notifyStatus("saving");
     const blobOk = enableRemotePersist && (await isBlobPersistAvailable());
@@ -161,7 +230,7 @@ export default function ImageUploadZone({
       notifyStatus("error");
       toast.error(formatHttpError(err, "Erro ao guardar. Podes continuar a editar."), { duration: 6000 });
     }
-  }, [value, enableRemotePersist, notifyStatus]);
+  }, [value, isVideo, runVideoBackground, enableRemotePersist, notifyStatus]);
 
   const onPick = (e) => {
     const f = e.target.files?.[0];
@@ -178,7 +247,7 @@ export default function ImageUploadZone({
   const onPaste = (e) => {
     const items = e.clipboardData?.files;
     const f = items?.[0];
-    if (f && looksLikeImageFile(f)) {
+    if (f && (isVideo ? looksLikeVideoFile(f) : looksLikeImageFile(f))) {
       e.preventDefault();
       void ingestFile(f);
     }
@@ -196,7 +265,7 @@ export default function ImageUploadZone({
         ref={inputRef}
         id={inputId}
         type="file"
-        accept={accept}
+        accept={resolvedAccept}
         capture={capture}
         className="sr-only"
         onChange={onPick}
@@ -231,15 +300,26 @@ export default function ImageUploadZone({
 
         {previewUrl ? (
           <>
-            <img
-              src={previewUrl}
-              alt=""
-              style={previewImgStyle}
-              className={[
-                "relative z-[1] h-full w-full object-contain p-3 opacity-0 animate-[rpFadeIn_0.35s_ease-out_forwards]",
-                previewImgClassName,
-              ].filter(Boolean).join(" ")}
-            />
+            {isVideo ? (
+              <video
+                src={previewUrl}
+                className="relative z-[1] h-full w-full object-contain p-3 opacity-0 animate-[rpFadeIn_0.35s_ease-out_forwards] bg-black"
+                controls
+                playsInline
+                muted
+                data-testid={`${testId}-preview`}
+              />
+            ) : (
+              <img
+                src={previewUrl}
+                alt=""
+                style={previewImgStyle}
+                className={[
+                  "relative z-[1] h-full w-full object-contain p-3 opacity-0 animate-[rpFadeIn_0.35s_ease-out_forwards]",
+                  previewImgClassName,
+                ].filter(Boolean).join(" ")}
+              />
+            )}
             <div className="pointer-events-none absolute left-3 top-3 z-20 flex flex-wrap gap-2">
               {persistState === "saving" && (
                 <span className="rounded-full bg-black/70 px-3 py-1.5 text-xs font-medium text-white backdrop-blur-md">

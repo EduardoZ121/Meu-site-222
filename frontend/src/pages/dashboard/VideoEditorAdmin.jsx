@@ -9,8 +9,8 @@ import { useI18n } from "../../lib/i18n";
 import { toast } from "sonner";
 import ResultPanel from "../../components/ResultPanel";
 import StudioResultAnchor from "../../components/StudioResultAnchor";
-import VideoUploadZone from "../../components/VideoUploadZone";
 import ImageUploadZone from "../../components/ImageUploadZone";
+import { isBlobPersistAvailable } from "../../lib/persistImage";
 
 const EDIT_IDEAS = ["vid_edit_idea_1", "vid_edit_idea_2", "vid_edit_idea_3"];
 const DURATIONS = [4, 6, 8, 10];
@@ -62,6 +62,10 @@ export default function VideoEditorAdmin() {
     }
     if ((user?.credits ?? 0) < cost && !user?.is_unlimited) {
       toast.error(t("vid_err_credits", { need: cost, have: user?.credits ?? 0 }));
+      return;
+    }
+    if (video.size > 12_000_000 && !(await isBlobPersistAvailable())) {
+      toast.error(t("vid_edit_blob_required"), { duration: 10000 });
       return;
     }
 
@@ -117,7 +121,17 @@ export default function VideoEditorAdmin() {
           <p className="text-[10px] font-mono uppercase tracking-[0.22em] text-[#7C3AED] mb-3">
             {t("vid_edit_video_label")}
           </p>
-          <VideoUploadZone value={video} onChange={setVideo} testId="video-edit-source" />
+          <div className="max-w-[420px]">
+            <ImageUploadZone
+              mediaType="video"
+              layout="video"
+              value={video}
+              onChange={setVideo}
+              testId="video-edit-source"
+              emptyLabel={t("vid_edit_video_label")}
+              emptyHint={t("vid_edit_video_hint")}
+            />
+          </div>
         </section>
 
         <section>
@@ -154,12 +168,14 @@ export default function VideoEditorAdmin() {
             {t("vid_edit_ref_label")}
           </p>
           <p className="text-xs text-zinc-500 mb-3">{t("vid_edit_ref_hint")}</p>
-          <div className="max-w-[320px]">
+          <div className="max-w-[420px]">
             <ImageUploadZone
               value={reference}
               onChange={setReference}
               layout="portrait"
               testId="video-edit-reference"
+              emptyLabel={t("vid_edit_ref_label")}
+              emptyHint={t("vid_edit_ref_hint")}
             />
           </div>
         </section>

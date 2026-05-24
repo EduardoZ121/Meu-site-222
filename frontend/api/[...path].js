@@ -318,7 +318,7 @@ async function resolveVideoRef(files, fields, fileKey = "video", urlKey = "video
   }
   if (st && st.size > 12 * 1024 * 1024) {
     const err = new Error(
-      "Vídeo grande para envio direto — o upload deve ir para o armazenamento (recarrega e tenta de novo).",
+      "Vídeo demasiado grande para envio direto. Recarrega a página para usar o armazenamento em nuvem e tenta de novo.",
     );
     err.status = 413;
     throw err;
@@ -414,12 +414,12 @@ async function routeBlobPrepare(req, res) {
   }
 }
 
-async function parseBody(req) {
+async function parseBody(req, opts = {}) {
   const contentType = req.headers["content-type"] || "";
   if (contentType.includes("multipart/form-data")) {
     const form = formidable({
       multiples: true,
-      maxFileSize: 4.2 * 1024 * 1024,
+      maxFileSize: opts.maxFileSize ?? 4.2 * 1024 * 1024,
       maxFields: 200,
       maxFieldsSize: 4 * 1024 * 1024,
       allowEmptyFiles: true,
@@ -1658,7 +1658,10 @@ async function handlePath(path, req, res) {
     }
 
     if (req.method === "POST") {
-      const { fields, files } = await parseBody(req);
+      const maxFileSize = path === "generate/video-edit"
+        ? 96 * 1024 * 1024
+        : 4.2 * 1024 * 1024;
+      const { fields, files } = await parseBody(req, { maxFileSize });
       if (path === "auth/login" || path === "auth/register" || path === "auth/google") {
         try {
           const out = await routeAuth(path, fields, req);
@@ -1677,7 +1680,12 @@ async function handlePath(path, req, res) {
   } catch (err) {
     const msg = String(err?.message || err || "");
     if (/max file size|larger than|maxFields|maxFieldsSize|exceeded|MultipartParserError/i.test(msg)) {
-      return json(res, 413, { detail: "O envio ultrapassou o limite (~4 MB) do servidor. Recarrega a página e tenta com uma foto em JPEG; o site comprime automaticamente." });
+      const isVideoEdit = String(pathFromRequest(req) || "").includes("video-edit");
+      return json(res, 413, {
+        detail: isVideoEdit
+          ? "O vídeo ultrapassou o limite do servidor. Usa MP4/MOV até ~80 MB (ideal 2–10 s) ou recarrega para ativar o upload em nuvem."
+          : "O envio ultrapassou o limite (~4 MB) do servidor. Recarrega a página e tenta com uma foto em JPEG; o site comprime automaticamente.",
+      });
     }
     return json(res, err.status || 500, { detail: err.message || "Erro no servidor de geração." });
   }

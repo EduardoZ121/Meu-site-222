@@ -171,7 +171,14 @@ export async function uploadPost(url, formData, config = {}) {
   if (typeof window !== "undefined" && (await isBlobUploadEnabled())) {
     try {
       baseFd = await offloadFormDataImagesToBlob(cloneFormData(formData));
-    } catch {
+    } catch (blobErr) {
+      let hasLargeVideo = false;
+      for (const [, v] of formData.entries()) {
+        if (v instanceof File && (v.type?.startsWith?.("video/") || /\.(mp4|mov|webm)$/i.test(v.name || ""))) {
+          if (v.size > 4_000_000) hasLargeVideo = true;
+        }
+      }
+      if (hasLargeVideo) throw blobErr;
       baseFd = cloneFormData(formData);
     }
   }

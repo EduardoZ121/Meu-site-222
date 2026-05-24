@@ -31,3 +31,19 @@ export async function persistImageToBlobStore(file) {
     multipart: file.size > 4_500_000,
   });
 }
+
+/** Upload de vídeo para Vercel Blob (video-to-video). */
+export async function persistVideoToBlobStore(file) {
+  const { put } = await import("@vercel/blob/client");
+  const { data } = await api.post("/blob/prepare", {
+    filename: file.name || "upload.mp4",
+    kind: "video",
+  });
+  const { clientToken, pathname } = data;
+  await put(pathname, file, {
+    access: "public",
+    token: clientToken,
+    contentType: file.type || "video/mp4",
+    multipart: file.size > 8_000_000,
+  });
+}

@@ -15,6 +15,17 @@ export function looksLikeImageFile(file) {
   return IMAGE_EXTENSIONS.test(file.name || "");
 }
 
+export const VIDEO_ACCEPT = "video/mp4,video/quicktime,video/webm,.mp4,.mov,.webm";
+export const MAX_VIDEO_BYTES = 80 * 1024 * 1024;
+
+export function looksLikeVideoFile(file) {
+  if (!file) return false;
+  const t = (file.type || "").toLowerCase();
+  if (t.startsWith("video/")) return true;
+  const n = (file.name || "").toLowerCase();
+  return n.endsWith(".mp4") || n.endsWith(".mov") || n.endsWith(".webm");
+}
+
 function mimeFromName(name = "") {
   if (/\.jpe?g$/i.test(name)) return "image/jpeg";
   if (/\.png$/i.test(name)) return "image/png";

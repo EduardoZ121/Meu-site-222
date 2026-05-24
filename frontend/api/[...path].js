@@ -751,7 +751,7 @@ async function imageInput(fields, files, modelKey, prompt, opts = {}) {
     (await resolveImageRef(files, fields, "photo", "photo_url"))
     || (await resolveImageRef(files, fields, "image", "image_url"));
   const input = {
-    prompt: finalizeImagePrompt(prompt, { modelKey }),
+    prompt: finalizeImagePrompt(prompt, { modelKey, posterFood: opts.posterFood }),
     aspect_ratio: normalizeRatio(text(fields, "aspect_ratio", "1:1"), modelKey),
   };
   if (["standard", "pro", "artistic"].includes(modelKey)) {
@@ -1095,7 +1095,9 @@ async function routePost(path, fields, files, req) {
     const modelKey = selected === "flux2" || selected === "gpt_image" ? "pro" : "standard";
     const perImage = selected === "gpt_image" ? CREDIT.posterPremium : selected === "flux2" ? CREDIT.posterPro : CREDIT.posterFast;
     const count = Number(text(fields, "num_outputs", 1)) || 1;
-    const input = await imageInput(fields, files, modelKey, prompt);
+    const templateId = text(fields, "template_id", "");
+    const posterFood = String(templateId).startsWith("food_");
+    const input = await imageInput(fields, files, modelKey, prompt, { posterFood });
     const cost = perImage * count;
     return submitBillableGeneration(req, fields, {
       cost,

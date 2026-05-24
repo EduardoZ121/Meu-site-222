@@ -23,8 +23,13 @@ function applyImageQualityNegative(prompt, { modelKey } = {}) {
   return `${base}${NEGATIVE_INLINE}`;
 }
 
-function finalizeImagePrompt(prompt, { modelKey } = {}) {
-  return applyImageQualityNegative(applyImageQualityPositive(prompt), { modelKey });
+function finalizeImagePrompt(prompt, { modelKey, posterFood } = {}) {
+  const base = String(prompt || "").trim();
+  if (!base) return base;
+  if (posterFood) {
+    return applyImageQualityNegative(base, { modelKey });
+  }
+  return applyImageQualityNegative(applyImageQualityPositive(base), { modelKey });
 }
 
 module.exports = {

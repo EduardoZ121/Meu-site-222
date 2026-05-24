@@ -2,8 +2,10 @@
 
 export const POSTER_DIRECTOR = (
   "Professional design poster, 8K resolution, magazine print quality, "
-  + "perfectly legible typography rendered as crisp vector-like text, "
+  + "perfectly legible typography rendered as crisp vector-like text with sharp edges, "
   + "strong typographic hierarchy with clear primary/secondary/tertiary text levels, "
+  + "every word spelled exactly as given in the brief (no gibberish, no random letters), "
+  + "high contrast between text and background for readability, "
   + "balanced composition with intentional negative space, "
   + "premium graphic design, art-directed by a senior creative director. "
 );
@@ -24,31 +26,37 @@ export const POSTER_MOOD_IDS = [
   "sun_warm",
 ];
 
+/**
+ * Mood presets — reforço leve; não substituem a paleta do template
+ * (a menos que o utilizador defina cores personalizadas).
+ */
 export const MOOD_EXPANSIONS = {
   cinematic:
-    "Cinematic teal-and-orange color grading, anamorphic shallow depth of field, dramatic backlit subject, atmospheric haze, film grain, 2.39:1 widescreen feel.",
+    "Subtle cinematic atmosphere: gentle contrast and depth, mild film grain. "
+    + "Keep the template color palette and typography colors unchanged unless a custom user palette is specified.",
   neon:
-    "Saturated neon magenta and electric cyan, glossy reflections, dark mirror floor, dramatic rim light, cyberpunk aesthetic, halated glow on type.",
+    "Subtle neon nightlife accent on rims and highlights only — do not flood the whole poster with new colors. "
+    + "Preserve template-specified background and text colors unless overridden by custom palette.",
   minimal:
-    "Minimalist Swiss-grid design, ample negative space, single accent color, refined sans-serif type, no ornaments, gallery-quality restraint.",
+    "Cleaner negative space and restrained ornament — keep original template hues and type colors.",
   vintage:
-    "Vintage analog feel — soft halation, mild paper bleed, off-set CMYK misregistration, faded sun-warmed palette, retro 70s typography.",
+    "Soft vintage print texture and mild halation — preserve the template color story, only gentle fade.",
   bold:
-    "Bold high-contrast layout, oversized condensed display type, primary-color blocks, strong diagonal composition, attention-grabbing.",
+    "Slightly stronger contrast and hierarchy — do not replace template palette or rewrite layout colors.",
   luxury:
-    "Luxury editorial aesthetic — embossed gold foil accents, deep matte black, refined didone serif, monogram-level restraint, Hermès / Chanel level taste.",
+    "Refined luxury finish (subtle foil sheen on accents only) — keep template palette and legible type.",
   editorial:
-    "Editorial magazine layout — modular grid, mixed serif headline + sans body, considered hierarchy, Vogue / The New Yorker quality.",
+    "Magazine editorial polish on spacing and type hierarchy — colors stay as in the template brief.",
   brutalist:
-    "Brutalist graphic design — raw typographic stacks, exposed grid, harsh contrast, oversized helvetica, off-balance composition, 90s anti-design.",
+    "Raw typographic emphasis — keep template color blocks; no random color shifts.",
   pastel:
-    "Pastel palette of dusty rose, butter, lavender and seafoam, soft diffuse light, fine rounded sans-serif, dreamy and gentle.",
+    "Softer diffuse light — only if compatible with template; do not wash out specified bold colors.",
   y2k:
-    "Y2K aesthetic — chrome 3D type, candy color gradients, lens flares, bubbly forms, early-2000s tech-glam revival.",
+    "Light Y2K chrome accent on type edges only — template palette remains primary.",
   mono:
-    "Strict monochrome palette in a single hue, photographic duotone treatment, refined museum-poster feel.",
+    "Duotone treatment using template's dominant hue — do not invent unrelated colors.",
   sun_warm:
-    "Sun-warmed palette of amber, terracotta and ochre, golden-hour light, gentle film grain, optimistic mood.",
+    "Warm golden-hour lift on lighting only — template color assignments for text/background stay.",
 };
 
 const SIZE_HINTS = {
@@ -74,6 +82,32 @@ const STYLE_HINTS = {
   display: "bold condensed display face",
   script: "stylish script accent (use sparingly)",
 };
+
+export const POSTER_IDENTITY_GUARD = (
+  "CRITICAL — Preserve the reference person's exact face, facial structure, skin tone, "
+  + "body shape and proportions. Do not change identity, age, or ethnicity. "
+  + "Only adapt pose, outfit, lighting and poster styling as the template describes."
+);
+
+export const POSTER_FOOD_GUARD = (
+  "Preserve the reference dish exactly — same food identity, textures, colors and plating. "
+  + "Do not replace with a different meal."
+);
+
+export function isPosterFoodTemplate(template) {
+  return String(template?.category || "").toLowerCase() === "food";
+}
+
+export function templateUsesPersonReference(template) {
+  if (isPosterFoodTemplate(template)) return false;
+  const p = String(template?.prompt || "").toLowerCase();
+  return (
+    p.includes("reference image as the identity")
+    || p.includes("provided reference image")
+    || p.includes("preserve identity")
+    || p.includes("replace face and hair")
+  );
+}
 
 export function newCustomTextBlock(partial = {}) {
   return {
@@ -112,8 +146,32 @@ export function formatCustomBlocks(blocks = []) {
   );
 }
 
+function formatPaletteOverride(colors = []) {
+  const list = (colors || []).map((c) => String(c || "").trim()).filter(Boolean);
+  if (!list.length) return "";
+
+  const joined = list.join(", ");
+  return (
+    "USER CUSTOM PALETTE (mandatory override): "
+    + `Replace the template's default color scheme with ONLY these colors: ${joined}. `
+    + "Apply them to backgrounds, graphic blocks, accents and typographic highlights. "
+    + "Ignore conflicting color instructions from the template brief (e.g. 'red background', 'neon purple') "
+    + "and reinterpret the design using this palette while keeping layout, typography hierarchy and subject."
+  );
+}
+
+function formatMoodExtra(moodId) {
+  const id = String(moodId || "").trim();
+  if (!id) return "";
+  return MOOD_EXPANSIONS[id] || `Subtle visual mood (${id}) — preserve template colors unless custom palette is set.`;
+}
+
 /**
- * Constrói o prompt final do pôster (template + campos + blocos + mood).
+ * Constrói o prompt final do pôster (template + campos + blocos + mood/paleta opcionais).
+ * @param {object} options
+ * @param {string} [options.mood] — vazio = cores/mood do template
+ * @param {string[]} [options.paletteColors] — vazio = paleta do template
+ * @param {boolean} [options.hasPhoto]
  */
 export function buildPosterPrompt(template, values = {}, options = {}) {
   if (!template?.prompt) {
@@ -144,7 +202,7 @@ export function buildPosterPrompt(template, values = {}, options = {}) {
   }
 
   for (const key of template.placeholders || []) {
-    const v = String(values[key] || "").trim();
+    const v = String(values[k] || "").trim();
     if (!v || template.replacements?.[key]) continue;
     if (raw.includes(key)) raw = raw.split(key).join(v);
   }
@@ -152,20 +210,34 @@ export function buildPosterPrompt(template, values = {}, options = {}) {
   const blocksPart = formatCustomBlocks(options.customBlocks);
   if (blocksPart) raw = `${raw}\n\n${blocksPart}`;
 
+  const palettePart = formatPaletteOverride(options.paletteColors);
+  const moodPart = formatMoodExtra(options.mood);
+
   const extras = [];
-  const mood = String(options.mood || "").trim();
-  if (mood) {
-    extras.push(MOOD_EXPANSIONS[mood] || `Visual mood: ${mood}.`);
-  }
-  const colorHint = String(options.colorHint || "").trim();
-  if (colorHint) {
+  if (palettePart) extras.push(palettePart);
+  if (moodPart) extras.push(moodPart);
+
+  if (!palettePart && !moodPart) {
     extras.push(
-      `Anchor the dominant color palette around ${colorHint} — use it as the primary `
-      + "accent hue across backgrounds, typographic highlights and graphic blocks.",
+      "Keep the exact color palette, lighting mood and typography colors described in the template brief above. "
+      + "Do not invent a new color scheme.",
     );
   }
 
+  extras.push(
+    "Typography: render every headline, subhead, CTA and label razor-sharp, perfectly spelled, "
+    + "high contrast, no blurry or melted letters.",
+  );
+
   let out = POSTER_DIRECTOR + raw;
-  if (extras.length) out = `${out} ${extras.join(" ")}`;
+  if (extras.length) out = `${out}\n\n${extras.join("\n")}`;
+
+  const hasPhoto = Boolean(options.hasPhoto);
+  if (hasPhoto && isPosterFoodTemplate(template)) {
+    out = `${out}\n\n${POSTER_FOOD_GUARD}`;
+  } else if (hasPhoto && templateUsesPersonReference(template)) {
+    out = `${out}\n\n${POSTER_IDENTITY_GUARD}`;
+  }
+
   return out;
 }

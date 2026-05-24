@@ -18,6 +18,7 @@ import { FALLBACK_POSTER_MODELS, FALLBACK_POSTER_TEMPLATES } from "../../lib/pos
 import { POSTER_TEMPLATE_COVER_BY_ID } from "../../lib/posterTemplateCovers";
 import { buildPosterPrompt, POSTER_MOOD_IDS } from "../../lib/posterPrompt";
 import { PosterSection, CustomTextLayersEditor } from "../../components/poster/PosterEditorParts";
+import PosterMoodPalette from "../../components/poster/PosterMoodPalette";
 import AspectPicker from "../../components/AspectPicker";
 import { apiAspectRatio } from "../../lib/apiAspectRatio";
 import StudioResultAnchor from "../../components/StudioResultAnchor";
@@ -47,11 +48,6 @@ const CAT_GRADIENTS = {
 };
 
 const isLong = (k) => /text|description|tagline|story|notes|additional|caption|quote|details|deck|subhead|positions|extra_text/i.test(k);
-
-const QUICK_COLORS = [
-  "#7C3AED", "#EC4899", "#06B6D4", "#22C55E",
-  "#F59E0B", "#EF4444", "#F4F1EA", "#0B0B0C",
-];
 
 const FORMATS = [
   { key: "1:1",  label: "Square",     hint: "Post · 1080×1080" },
@@ -93,8 +89,7 @@ export default function Posters() {
   const [aspect, setAspect] = useState("");      // empty = template default (4:5)
   const [numOutputs, setNumOutputs] = useState(1);
   const [mood, setMood] = useState("");
-  const [colorHint, setColorHint] = useState("");
-  const [showColorPicker, setShowColorPicker] = useState(false);
+  const [paletteColors, setPaletteColors] = useState([]);
   const [customBlocks, setCustomBlocks] = useState([]);
 
   const [busy, setBusy] = useState(false);
@@ -146,6 +141,8 @@ export default function Posters() {
     setPhoto(null);
     setResult(null);
     setCustomBlocks([]);
+    setMood("");
+    setPaletteColors([]);
     setNumOutputs(1);
     // Default aspect ratio from prompt text (Vertical 4:5 / Square 1:1 etc.)
     const p = (tpl.prompt || "").toLowerCase();
@@ -171,7 +168,10 @@ export default function Posters() {
       const effectiveModel = modelKey;
 
       const promptFinal = buildPosterPrompt(picked, values, {
-        mood, colorHint, customBlocks,
+        mood,
+        paletteColors,
+        customBlocks,
+        hasPhoto: Boolean(photo),
       });
 
       let data;
@@ -186,7 +186,7 @@ export default function Posters() {
         fd.append("aspect_ratio", apiAspectRatio(aspect || picked.aspect || "4:5", { model: "standard" }));
         fd.append("num_outputs", String(numOutputs));
         fd.append("mood", mood);
-        fd.append("color_hint", colorHint);
+        fd.append("palette_colors", JSON.stringify(paletteColors));
         ({ data } = await uploadPost("/generate/poster", fd, { timeout: 240000 }));
       } else {
         ({ data } = await api.post("/generate/poster", {
@@ -198,7 +198,7 @@ export default function Posters() {
           aspect_ratio: apiAspectRatio(aspect || picked.aspect || "4:5", { model: "standard" }),
           num_outputs: numOutputs,
           mood,
-          color_hint: colorHint,
+          palette_colors: paletteColors,
         }, { timeout: 240000 }));
       }
       const creation = data?.creation;
@@ -227,8 +227,7 @@ export default function Posters() {
         aspect={aspect} setAspect={setAspect}
         numOutputs={numOutputs} setNumOutputs={setNumOutputs}
         mood={mood} setMood={setMood}
-        colorHint={colorHint} setColorHint={setColorHint}
-        showColorPicker={showColorPicker} setShowColorPicker={setShowColorPicker}
+        paletteColors={paletteColors} setPaletteColors={setPaletteColors}
         customBlocks={customBlocks} setCustomBlocks={setCustomBlocks}
         totalCost={totalCost} perImageCost={selectedModel.cost}
         busy={busy} result={result} setResult={setResult}
@@ -347,8 +346,7 @@ function Editor(props) {
     picked, onBack, values, setValues, photo, setPhoto,
     modelKey, setModelKey, models,
     aspect, setAspect, numOutputs, setNumOutputs,
-    mood, setMood, colorHint, setColorHint,
-    showColorPicker, setShowColorPicker,
+    mood, setMood, paletteColors, setPaletteColors,
     customBlocks, setCustomBlocks,
     totalCost, perImageCost,
     busy, result, setResult,
@@ -357,8 +355,13 @@ function Editor(props) {
   } = props;
 
   const promptPreview = useMemo(
-    () => buildPosterPrompt(picked, values, { mood, colorHint, customBlocks }),
-    [picked, values, mood, colorHint, customBlocks],
+    () => buildPosterPrompt(picked, values, {
+      mood,
+      paletteColors,
+      customBlocks,
+      hasPhoto: Boolean(photo),
+    }),
+    [picked, values, mood, paletteColors, customBlocks, photo],
   );
 
   return (
@@ -468,56 +471,14 @@ function Editor(props) {
             optional
             hint={t("post_visual_hint")}
           >
-            <div className="flex flex-wrap gap-2 mb-4" data-testid="poster-moods">
-              {POSTER_MOOD_IDS.map((id) => (
-                <button
-                  key={id}
-                  onClick={() => setMood(mood === id ? "" : id)}
-                  data-testid={`mood-${id}`}
-                  className={`px-3 py-1.5 rounded-full text-[11.5px] font-medium transition-all border ${
-                    mood === id
-                      ? "bg-[#7C3AED] border-[#7C3AED] text-white shadow-sm shadow-[#7C3AED]/30"
-                      : "bg-[#13131A] border-[#2E2E30] text-[#8A8A8E] hover:text-[#F4F1EA] hover:border-[#7C3AED]/40"
-                  }`}
-                >
-                  {t(`post_mood_${id}`)}
-                </button>
-              ))}
-            </div>
-
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="text-[#8A8A8E] text-[11.5px] mr-1">{t("post_dominant_color")}</span>
-              {QUICK_COLORS.map((c) => (
-                <button
-                  key={c}
-                  onClick={() => setColorHint(colorHint === c ? "" : c)}
-                  className={`w-7 h-7 rounded-full border-2 transition-all ${
-                    colorHint === c ? "border-[#F4F1EA] scale-110 ring-2 ring-[#7C3AED]/40" : "border-[#2E2E30] hover:border-[#7C3AED]/50"
-                  }`}
-                  style={{ background: c }}
-                  data-testid={`color-${c.replace("#", "")}`}
-                  aria-label={c}
-                />
-              ))}
-              <button
-                onClick={() => setShowColorPicker(!showColorPicker)}
-                className="px-2.5 h-7 text-[11px] text-[#8A8A8E] hover:text-[#F4F1EA] border border-[#2E2E30] rounded-full transition-colors"
-              >
-                + custom
-              </button>
-              {showColorPicker && (
-                <input
-                  type="color"
-                  value={colorHint || "#7C3AED"}
-                  onChange={(e) => setColorHint(e.target.value)}
-                  className="w-7 h-7 rounded-full bg-transparent border border-[#2E2E30] cursor-pointer"
-                  data-testid="poster-color-picker"
-                />
-              )}
-              {colorHint && (
-                <span className="text-[10px] font-mono text-[#C4B5FD]">{colorHint.toUpperCase()}</span>
-              )}
-            </div>
+            <PosterMoodPalette
+              mood={mood}
+              setMood={setMood}
+              paletteColors={paletteColors}
+              setPaletteColors={setPaletteColors}
+              moodIds={POSTER_MOOD_IDS}
+              t={t}
+            />
           </PosterSection>
 
           <PosterSection

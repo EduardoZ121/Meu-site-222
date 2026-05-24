@@ -501,14 +501,17 @@ function Editor(props) {
             defaultOpen
             hint={t("post_sec_ref_hint")}
           >
-            <ImageUploadZone
-              value={photo}
-              onChange={setPhoto}
-              layout="carousel"
-              testId="poster-photo"
-              emptyLabel={t("post_upload_label")}
-              emptyHint={t("post_upload_hint")}
-            />
+            <div className="max-w-[560px]">
+              <ImageUploadZone
+                value={photo}
+                onChange={setPhoto}
+                layout="wide"
+                testId="poster-photo"
+                compressOptions={{ maxSize: 2048 }}
+                emptyLabel={t("upload_drop")}
+                emptyHint={t("tool_accept_formats")}
+              />
+            </div>
           </PosterSection>
 
           {picked.placeholders && picked.placeholders.length > 0 && (

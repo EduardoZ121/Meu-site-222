@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { Component, useEffect, useMemo, useState } from "react";
 import {
   Loader2, Sparkles, ArrowLeft, Check, Layers, Crown, Zap, Aperture,
   Image as ImageIcon,
@@ -14,7 +14,10 @@ import { toast } from "sonner";
 import StyleCover from "../../components/StyleCover";
 import ImageUploadZone from "../../components/ImageUploadZone";
 import useTitle from "../../lib/useTitle";
-import { FALLBACK_POSTER_MODELS, FALLBACK_POSTER_TEMPLATES } from "../../lib/posterFallbacks";
+import {
+  FALLBACK_POSTER_MODELS,
+  FALLBACK_POSTER_TEMPLATES,
+} from "../../lib/posterFallbacks";
 import { POSTER_TEMPLATE_COVER_BY_ID } from "../../lib/posterTemplateCovers";
 import { buildPosterPrompt, POSTER_MOOD_IDS } from "../../lib/posterPrompt";
 import { PosterSection, CustomTextLayersEditor } from "../../components/poster/PosterEditorParts";
@@ -217,6 +220,7 @@ export default function Posters() {
   /* ============================================================ */
   if (picked) {
     return (
+      <PosterEditorErrorBoundary onBack={() => setPicked(null)} t={t}>
       <Editor
         picked={picked}
         onBack={() => setPicked(null)}
@@ -239,6 +243,7 @@ export default function Posters() {
         labelFor={labelFor}
         catLabel={catLabel}
       />
+      </PosterEditorErrorBoundary>
     );
   }
 
@@ -339,6 +344,42 @@ function TemplateCard({ tpl, index, onClick, catLabel }) {
 }
 
 /* ------------------------------------------------------------------ */
+/*  Editor error boundary (evita ecrã preto total em runtime)          */
+/* ------------------------------------------------------------------ */
+
+class PosterEditorErrorBoundary extends Component {
+  constructor(props) {
+    super(props);
+    this.state = { error: null };
+  }
+
+  static getDerivedStateFromError(error) {
+    return { error };
+  }
+
+  render() {
+    const { error } = this.state;
+    const { onBack, t, children } = this.props;
+    if (error) {
+      return (
+        <div className="max-w-[640px] mx-auto py-16 px-6 text-center" data-testid="posters-editor-error">
+          <p className="text-[#F4F1EA] text-[18px] font-medium mb-2 font-['Inter_Tight']">
+            {t("post_editor_error_title")}
+          </p>
+          <p className="text-[#8A8A8E] text-[14px] mb-6 leading-relaxed">
+            {t("post_editor_error_desc")}
+          </p>
+          <button type="button" onClick={onBack} className="rp-action-primary !w-auto !inline-flex px-8">
+            {t("post_back_templates")}
+          </button>
+        </div>
+      );
+    }
+    return children;
+  }
+}
+
+/* ------------------------------------------------------------------ */
 /*  Editor                                                             */
 /* ------------------------------------------------------------------ */
 
@@ -355,15 +396,24 @@ function Editor(props) {
     t, labelFor, catLabel,
   } = props;
 
-  const promptPreview = useMemo(
-    () => buildPosterPrompt(picked, values, {
-      mood,
-      paletteColors,
-      customBlocks,
-      hasPhoto: Boolean(photo),
-    }),
-    [picked, values, mood, paletteColors, customBlocks, photo],
-  );
+  const modelsForPicker = useMemo(() => {
+    if (engineModels?.length) return engineModels;
+    if (models?.length) return models;
+    return FALLBACK_POSTER_MODELS;
+  }, [engineModels, models]);
+
+  const promptPreview = useMemo(() => {
+    try {
+      return buildPosterPrompt(picked, values, {
+        mood,
+        paletteColors,
+        customBlocks,
+        hasPhoto: Boolean(photo),
+      });
+    } catch {
+      return "";
+    }
+  }, [picked, values, mood, paletteColors, customBlocks, photo]);
 
   return (
     <div className="max-w-[1400px] mx-auto pb-32" data-testid="posters-editor">
@@ -487,7 +537,7 @@ function Editor(props) {
             hint={t("post_sec_engine_hint")}
           >
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3" data-testid="poster-models">
-              {engineModels.map((m) => {
+              {modelsForPicker.map((m) => {
                 const Icon = MODEL_ICONS[m.key] || Zap;
                 const disabled = false;
                 const active = modelKey === m.key;

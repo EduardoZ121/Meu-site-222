@@ -255,6 +255,10 @@ const en = {
   wiz_q5_ph: 'Type "no" to skip, or describe who/what is the reference',
   wiz_q5_hint: 'e.g. "Ana\'s face from iPhone photos", "an Eames chair", or leave blank.',
   wiz_back: "Back",
+  post_editor_error_title: "Could not open this template",
+  post_editor_error_desc: "Something went wrong loading the editor. Go back and try again, or refresh the page.",
+  vid_edit_large_hint: "Large clip: upload to cloud runs when you tap Generate (may take a minute).",
+  vid_edit_cloud_uploading: "Uploading video to cloud…",
 };
 
 const pt = {
@@ -512,6 +516,10 @@ const pt = {
   wiz_q5_ph: 'Escreve "não" para saltar, ou descreve quem/o que serve de referência',
   wiz_q5_hint: 'Ex: "rosto da Ana Carolina, fotos do iPhone na pasta", "uma cadeira Eames", "ou deixa em branco".',
   wiz_back: "Voltar",
+  post_editor_error_title: "Não foi possível abrir este template",
+  post_editor_error_desc: "Ocorreu um erro ao carregar o editor. Volta aos templates e tenta outra vez, ou atualiza a página.",
+  vid_edit_large_hint: "Vídeo grande: o envio para a nuvem faz-se ao carregar em Gerar (pode demorar um minuto).",
+  vid_edit_cloud_uploading: "A enviar vídeo para a nuvem…",
 };
 
 export function mergeSharedStudioLocales(dict) {

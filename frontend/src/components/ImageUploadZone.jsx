@@ -171,12 +171,15 @@ export default function ImageUploadZone({
         return;
       }
       runIdRef.current += 1;
-      const rid = runIdRef.current;
-      lastPreparedRef.current = null;
-      setPersistState("saving");
-      notifyStatus("saving");
+      lastPreparedRef.current = file;
       onChange(file);
-      void runVideoBackground(file, rid);
+      // Vídeo: preview imediato; upload para Blob só no envio (uploadPost), não bloquear o botão Gerar.
+      setPersistState("saved");
+      notifyStatus("ready");
+      if (enableRemotePersist && file.size > 12_000_000) {
+        const rid = runIdRef.current;
+        void runVideoBackground(file, rid);
+      }
       return;
     }
     if (!file || !looksLikeImageFile(file)) {
@@ -190,7 +193,7 @@ export default function ImageUploadZone({
     notifyStatus("saving");
     onChange(file);
     void runBackground(file, rid);
-  }, [isVideo, runBackground, runVideoBackground, onChange, notifyStatus, t]);
+  }, [isVideo, runBackground, runVideoBackground, onChange, notifyStatus, t, enableRemotePersist]);
 
   const clear = useCallback(() => {
     runIdRef.current += 1;

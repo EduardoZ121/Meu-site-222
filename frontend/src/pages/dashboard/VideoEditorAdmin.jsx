@@ -46,7 +46,8 @@ export default function VideoEditorAdmin() {
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState(null);
 
-  const videoReady = Boolean(video) && videoUploadStatus !== "saving";
+  /** Vídeo fica utilizável assim que o ficheiro está escolhido (upload nuvem no clique Gerar). */
+  const videoReady = Boolean(video);
 
   const canRun = videoReady
     && prompt.trim().length >= 3
@@ -56,10 +57,6 @@ export default function VideoEditorAdmin() {
   const run = async () => {
     if (!video) {
       toast.error(t("vid_edit_err_video"));
-      return;
-    }
-    if (videoUploadStatus === "saving") {
-      toast.info(t("studio_preparing"));
       return;
     }
     if (prompt.trim().length < 3) {
@@ -74,6 +71,9 @@ export default function VideoEditorAdmin() {
     if (video.size > 12_000_000 && !blobOk) {
       toast.error(t("vid_edit_blob_required"), { duration: 10000 });
       return;
+    }
+    if (videoUploadStatus === "saving") {
+      toast.info(t("vid_edit_cloud_uploading"), { duration: 6000 });
     }
 
     setBusy(true);
@@ -123,13 +123,19 @@ export default function VideoEditorAdmin() {
                 onChange={(f) => setVideo(f || null)}
                 layout="wide"
                 testId="video-edit-source"
+                enableRemotePersist={false}
                 onStatusChange={setVideoUploadStatus}
                 emptyLabel={t("upload_drop")}
                 emptyHint={t("vid_edit_video_hint")}
               />
-              {videoUploadStatus === "saving" && (
+              {video && video.size > 12_000_000 && (
+                <p className="mt-2 text-[11px] text-[#8A8A8E] leading-relaxed">
+                  {t("vid_edit_large_hint")}
+                </p>
+              )}
+              {busy && videoUploadStatus === "saving" && (
                 <p className="mt-2 text-[10px] font-mono uppercase tracking-[0.14em] text-[#A78BFA]">
-                  {t("studio_preparing")}
+                  {t("vid_edit_cloud_uploading")}
                 </p>
               )}
             </div>

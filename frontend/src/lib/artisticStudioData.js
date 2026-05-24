@@ -1,6 +1,6 @@
 /**
  * Estúdio Artístico — estilos e efeitos (inspirado em Perchance / mega-lens).
- * `adminOnly` — visível só para admin (ex.: estilos NSFW experimentais).
+ * `adminOnly` — filtrado por `canAccessNsfwArtisticStyles` (utilizadores autenticados).
  */
 
 export const ARTISTIC_STYLE_CATEGORIES = [
@@ -13,15 +13,11 @@ export const ARTISTIC_STYLE_CATEGORIES = [
   { id: "modern", label: "Design Moderno", labelEn: "Modern Design" },
   { id: "fantasy", label: "Fantasia & Épico", labelEn: "Fantasy & Epic" },
   { id: "vintage", label: "Vintage & Retro", labelEn: "Vintage & Retro" },
-  { id: "nsfw", label: "AI Lab (Admin)", labelEn: "AI Lab (Admin)", adminOnly: true, labCategory: true },
+  { id: "nsfw", label: "AI Lab", labelEn: "AI Lab", labCategory: true },
 ];
 
-const NSFW_ADMIN_EMAILS = new Set(["eduardozola1998@gmail.com"]);
-
 export function canAccessNsfwArtisticStyles(user) {
-  if (!user) return false;
-  if (user.role === "admin") return true;
-  return NSFW_ADMIN_EMAILS.has(String(user.email || "").trim().toLowerCase());
+  return Boolean(user);
 }
 
 export const ARTISTIC_STUDIO_STYLES = [

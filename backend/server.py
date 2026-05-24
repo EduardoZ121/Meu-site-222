@@ -1282,7 +1282,7 @@ async def public_poster_models():
         "models": [
             {"key": "grok",      "label": "Grok Imagine",  "cost": POSTER_MODEL_COSTS["grok"],      "tier": "fast",    "supports_photo": True,  "tag": "Padrão · rápido"},
             {"key": "flux2",     "label": "Flux 2",        "cost": POSTER_MODEL_COSTS["flux2"],     "tier": "pro",     "supports_photo": True,  "tag": "Foto-realista"},
-            {"key": "gpt_image", "label": "GPT Image 1",   "cost": POSTER_MODEL_COSTS["gpt_image"], "tier": "premium", "supports_photo": False, "tag": "Qualidade Máxima"},
+            {"key": "gpt_image", "label": "GPT Image 1",   "cost": POSTER_MODEL_COSTS["gpt_image"], "tier": "premium", "supports_photo": True, "tag": "Qualidade Máxima"},
         ],
     }
 

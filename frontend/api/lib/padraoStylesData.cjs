@@ -556,7 +556,6 @@ module.exports = [
     "nome": "🔮 Fantasy Sorcerer Poster",
     "cat": "unisex",
     "grp": "epic",
-    "locked": true,
     "subject": "the person",
     "prompt": "Hyper-realistic cinematic movie poster of [subject] as a powerful sorcerer bursting through a cracked Queen of Spades playing card. The card explodes outward with stone fragments, dust, and debris frozen mid-air. Wearing an ornate royal maroon and gold embroidered medieval fantasy jacket, rich fabric textures, intricate detailing, regal and mystical. The subject extends one hand forward, fingers glowing with intense magical energy, subtle golden sparks and dark arcane aura. Intense piercing gaze, confident dominant expression, cinematic hero framing. Dramatic chiaroscuro lighting, dark moody background, volumetric light rays, ultra-detailed textures, photorealistic face, epic fantasy realism, movie poster composition, high contrast, dynamic motion, dust particles, 8K. preserve identity, keep same face, keep facial structure, keep skin tone, maintain original identity, do not change person, realistic face consistency, preserve original facial expression, keep same emotion, keep same eye expression, keep same pose"
   },
@@ -565,7 +564,6 @@ module.exports = [
     "nome": "🎬 Editorial Grid — Classic",
     "cat": "unisex",
     "grp": "epic",
-    "locked": true,
     "subject": "the person",
     "prompt": "Professional studio fashion photoshoot in a 2×2 grid collage showing four poses of [subject] wearing black sunglasses. Outfit: deep emerald green tailored blazer, cream/off-white dress shirt, black slim trousers, burgundy tie, silver watch. Blazer appears differently across frames (worn, draped over shoulder, partially removed, held). Background: clean teal-to-turquoise gradient studio. Poses: 1. Close portrait adjusting tie. 2. Seated editorial pose leaning forward elbow on knee. 3. Relaxed pose with vintage camera around neck. 4. Stylish pose running hand through hair while holding blazer. Lighting: three-point studio lighting — softbox key 45° camera left, soft fill camera right, subtle rim light. 85mm f/2.2 ISO 100 1/160s. Ultra-realistic GQ/Vogue editorial, sharp 4K, clean 2×2 grid. preserve identity, keep same face, keep facial structure, keep skin tone, maintain original identity, do not change person, realistic face consistency, preserve original facial expression, keep same emotion, keep same eye expression, keep same pose"
   },
@@ -574,7 +572,6 @@ module.exports = [
     "nome": "🎬 Editorial Grid — Dark Mode",
     "cat": "unisex",
     "grp": "epic",
-    "locked": true,
     "subject": "the person",
     "prompt": "Same 2×2 grid editorial of [subject] with sunglasses, identical outfit and poses, but darker teal gradient with subtle vignette, stronger contrast, deeper shadows, cinematic moody tone. Editorial high contrast, 4K, 2×2 grid. preserve identity, keep same face, keep facial structure, keep skin tone, maintain original identity, do not change person, realistic face consistency, preserve original facial expression, keep same emotion, keep same eye expression, keep same pose"
   },
@@ -583,7 +580,6 @@ module.exports = [
     "nome": "🎬 Editorial Grid — Soft Luxury",
     "cat": "unisex",
     "grp": "epic",
-    "locked": true,
     "subject": "the person",
     "prompt": "Same 2×2 grid editorial of [subject] with sunglasses, identical outfit and poses, but soft pastel teal gradient cleaner luxury look, softer diffusion, more even highlights, luxury fashion tone. Clean Vogue-style, 4K, 2×2 grid. preserve identity, keep same face, keep facial structure, keep skin tone, maintain original identity, do not change person, realistic face consistency, preserve original facial expression, keep same emotion, keep same eye expression, keep same pose"
   },
@@ -592,7 +588,6 @@ module.exports = [
     "nome": "🎬 Editorial Grid — Street Edge",
     "cat": "unisex",
     "grp": "epic",
-    "locked": true,
     "subject": "the person",
     "prompt": "Same 2×2 grid editorial of [subject] with sunglasses, identical outfit and poses, but teal gradient with subtle texture, slightly harsher lighting, sharper shadows, street-fashion tone. Edgy editorial sharper contrast, 4K, 2×2 grid. preserve identity, keep same face, keep facial structure, keep skin tone, maintain original identity, do not change person, realistic face consistency, preserve original facial expression, keep same emotion, keep same eye expression, keep same pose"
   },
@@ -601,7 +596,6 @@ module.exports = [
     "nome": "🔬 Cyber Science Portrait",
     "cat": "unisex",
     "grp": "scifi",
-    "locked": true,
     "subject": "the person",
     "prompt": "Cinematic close-up portrait of [subject] in side profile, wet hair strands on the skin, intense reflective eyes, mathematical formulas and scientific equations projected across the face and neck, glowing white handwritten symbols, physics diagrams and abstract calculations overlay, futuristic holographic projection, dark moody background, dramatic lighting, high contrast, detailed skin texture, cyberpunk science aesthetic, shallow depth of field, volumetric lighting, photorealistic, 8k, film still, sci-fi atmosphere. preserve identity, keep same face, keep facial structure, keep skin tone, maintain original identity, do not change person, realistic face consistency, preserve original facial expression, keep same emotion, keep same eye expression, keep same pose"
   },
@@ -610,7 +604,6 @@ module.exports = [
     "nome": "💜 Cybergoth Neon Portrait",
     "cat": "unisex",
     "grp": "scifi",
-    "locked": true,
     "subject": "the person",
     "prompt": "Cyberpunk portrait of [subject] with pale synthetic complexion, dark metallic lipstick, intense gaze directed at viewer. Vivid holographic glow with magenta and cyan edge lighting. Captured on a mirrorless 85mm f/1.2, deep atmospheric bokeh. Cyberpunk portraiture, techno-goth aesthetic, high-contrast digital realism, ultra high resolution, hyper-detailed textures, cinematic sci-fi realism. preserve identity, keep same face, keep facial structure, keep skin tone, maintain original identity, do not change person, realistic face consistency, preserve original facial expression, keep same emotion, keep same eye expression, keep same pose"
   },
@@ -667,7 +660,6 @@ module.exports = [
     "id": "sn_dark_asteric",
     "nome": "🌒 Dark Asteric",
     "cat": "sensual",
-    "locked": true,
     "subject": "the woman",
     "prompt": "Ultra photorealistic iPhone-style candid of [subject], 4:3 ratio, 35mm look. Dim bedroom, minimal lighting, stronger shadows, warm bedside light mixed with darker ambient tones. Subject stands near bed slightly leaning, one hand holding hoodie hem, posture relaxed but more intense. Direct eye contact with deeper mysterious expression. Damp brunette hair messier waves. Outfit: oversized grey hoodie falling naturally, bare legs partially visible in shadow. Visible skin texture stronger contrast, deeper shadows across face/body, light catching moisture, cinematic shadow gradients. Mood: moody intimate slightly edgy, late-night raw aesthetic. Avoid: explicit nudity. preserve identity, keep same face, keep facial structure, keep skin tone, maintain original identity, do not change person, realistic face consistency, preserve original facial expression, keep same emotion, keep same eye expression, keep same pose"
   },
@@ -675,7 +667,6 @@ module.exports = [
     "id": "sn_minimal",
     "nome": "🤍 Minimalist Lifestyle Portrait",
     "cat": "sensual",
-    "locked": true,
     "subject": "the woman",
     "prompt": "Modern minimalist lifestyle portrait of [subject] standing leaning against a clean white desk in a contemporary room, relaxed posture, calm direct gaze. Natural facial features with soft makeup, clean realistic skin texture, hair in simple ponytail. Outfit: light gray long-sleeved form-fitting ribbed knit lounge set. Minimalist room with soft off-white walls, clean desk with dual monitors PC tower accessories, subtle tech atmosphere without clutter. Soft even lighting, gentle shadows, clean natural indoor tones. Calm confident modern lifestyle aesthetic, contemporary editorial look, ultra photorealistic. preserve identity, keep same face, keep facial structure, keep skin tone, maintain original identity, do not change person, realistic face consistency, preserve original facial expression, keep same emotion, keep same eye expression, keep same pose"
   },
@@ -683,7 +674,6 @@ module.exports = [
     "id": "sn_mirror_gaming",
     "nome": "🎮 Mirror Selfie Gaming Room",
     "cat": "sensual",
-    "locked": true,
     "subject": "the woman",
     "prompt": "Ultra photorealistic mirror selfie of [subject], 8k, raw style, 35mm equivalent. Vibrant indoor RGB lighting with soft pink tones and warm ambient glow, influencer aesthetic, cozy gaming room. White wood-paneled walls, white shelving with gaming items and colorful accessories, plush pink gaming chair with soft cushion, decorative ivy vines, small ornamental tree. Slim fit physique with realistic proportions, positioned in crouching squat on a soft rug, body in side profile relative to mirror. Long hair with soft bangs, dark-framed glasses, confident focused gaze through mirror reflection. Outfit: fitted long-sleeve crop top, short pleated skirt, over-the-knee socks, smartphone in one hand. Vertical 9:16 full-body. preserve identity, keep same face, keep facial structure, keep skin tone, maintain original identity, do not change person, realistic face consistency, preserve original facial expression, keep same emotion, keep same eye expression, keep same pose"
   },
@@ -691,7 +681,6 @@ module.exports = [
     "id": "sn_actress",
     "nome": "🎬 Cinematic Actress Concepts",
     "cat": "sensual",
-    "locked": true,
     "subject": "the woman",
     "prompt": "Ultra-detailed cinematic portrait of [subject] in a versatile aesthetic. Concept: blend of sport-minimal energy (vibrant athletic outfit, sunglasses, high-angle shot interacting with reflective metallic sphere, strong color contrast background, sharp lighting), urban glamour (rooftop overlooking city, elegant gown with subtle shine, accessories, city lights bokeh), lifestyle mirror (casual athletic outfit indoor mirror), and character-inspired fashion (playful themed outfit clean studio). Combination of natural studio and cinematic lighting, soft controlled shadows. Confident expressive modern, mix of playful elegant cinematic. Editorial fashion 8k sharp textures. preserve identity, keep same face, keep facial structure, keep skin tone, maintain original identity, do not change person, realistic face consistency, preserve original facial expression, keep same emotion, keep same eye expression, keep same pose"
   },
@@ -699,7 +688,6 @@ module.exports = [
     "id": "sn_lux_mirror",
     "nome": "💎 Luxury Mirror Editorial",
     "cat": "sensual",
-    "locked": true,
     "subject": "the woman",
     "prompt": "Editorial fashion portrait of [subject] with naturally curvy toned body, voluminous dark curly hair, wearing a long beige body-fitting shape dress with realistic drape and detailed texture. Pose: back to camera, hands behind head, looking over shoulder toward a large round mirror, frontal reflection visible. Modern clean interior, light floor, contrasting dark rug, softly translucent white curtains. Soft natural light through window creating delicate highlights and gentle shadows, refined cinematic aesthetic. Composition: balance between body and reflection, light depth of field, elegant minimal framing. Sophisticated sensual atmosphere, luxury editorial, no exaggeration. Warm neutral color grading, ultra-realistic, 8k, sharp focus, natural fabric and skin texture. --ar 4:5. preserve identity, keep same face, keep facial structure, keep skin tone, maintain original identity, do not change person, realistic face consistency, preserve original facial expression, keep same emotion, keep same eye expression, keep same pose"
   },
@@ -707,7 +695,6 @@ module.exports = [
     "id": "sn_softglam",
     "nome": "💖 Mirror Selfie Soft Glam",
     "cat": "sensual",
-    "locked": true,
     "subject": "the woman",
     "prompt": "Fashion/lifestyle portrait of [subject] with voluminous dark curly hair, naturally curvy silhouette, wearing a long light-pink strapless body-fitting dress with soft texture and subtle slight transparency. Pose: taking a mirror selfie with phone in hand, natural confident posture, slight body lean for composition, relaxed expression. Modern apartment with wooden door and wall mirror, clean contemporary aesthetic. Soft natural light entering, refined editorial atmosphere. Ultra-realistic 8k, sharp focus, natural fabric and skin texture. --ar 4:5. preserve identity, keep same face, keep facial structure, keep skin tone, maintain original identity, do not change person, realistic face consistency, preserve original facial expression, keep same emotion, keep same eye expression, keep same pose"
   },
@@ -715,7 +702,6 @@ module.exports = [
     "id": "sn_clean_jumpsuit",
     "nome": "🤍 Editorial Sensual Clean",
     "cat": "sensual",
-    "locked": true,
     "subject": "the woman",
     "prompt": "Editorial fashion portrait of [subject], long wavy black hair, wearing white sleeveless high-neck jumpsuit, slightly shiny fabric with side cutouts and crossed straps at the hip. Three-quarter pose, one hand on waist and the other resting on the leg, slight hip tilt, direct gaze with confident expression. Elegant background: white framed wall, crystal chandelier in the back, vase of red roses on the floor, bare feet. Soft cinematic lighting with moderate contrast highlighting silhouette and fabric details. Sophisticated editorial fashion aesthetic, hyperrealistic, 8k, sharp focus. --ar 4:5. preserve identity, keep same face, keep facial structure, keep skin tone, maintain original identity, do not change person, realistic face consistency, preserve original facial expression, keep same emotion, keep same eye expression, keep same pose"
   },
@@ -723,7 +709,6 @@ module.exports = [
     "id": "sn_high_impact",
     "nome": "🔥 High Impact Sensual Editorial",
     "cat": "sensual",
-    "locked": true,
     "subject": "the woman",
     "prompt": "Editorial fashion portrait of [subject], well-defined curvy silhouette, long wavy black hair flowing down the back, wearing tight white high-neck jumpsuit, slightly translucent satin-finish fabric with deep side cutouts and crossed straps along the hip contour. Three-quarter pose, one hand firm on waist and the other gliding lightly along thigh, hip projected to one side, confident provocative posture, intense direct gaze. Elegant environment: white framed wall, crystal chandelier, vase of red roses, contrast between classical setting and striking presence. Cinematic side soft light with marked highlights, shadows emphasizing silhouette and fabric texture. Slightly translucent fabric subtly revealing contours, natural skin glow, hyperrealistic detail. High-fashion editorial framing, focus on form attitude presence. Strong sensual sophisticated provocative atmosphere, bold fashion campaign style. 8k ultra realistic sharp focus cinematic color grading. --ar 4:5. preserve identity, keep same face, keep facial structure, keep skin tone, maintain original identity, do not change person, realistic face consistency, preserve original facial expression, keep same emotion, keep same eye expression, keep same pose"
   },
@@ -731,7 +716,6 @@ module.exports = [
     "id": "sn_street_edge",
     "nome": "🎯 Street Edge Sensual",
     "cat": "sensual",
-    "locked": true,
     "subject": "the woman",
     "prompt": "Fashion/lifestyle portrait of [subject] with voluminous curly hair, wearing oversized red streetwear hoodie (no visible brand) combined with fitted bottom piece in light leopard texture print, following body curves naturally. Pose: side position with hip projected, well-marked body line, looking over shoulder with intense confident expression. Outfit interaction: hoodie slightly displaced by body movement, contrast between volume on top and fitted bottom. Modern apartment with large mirror in background, clean contemporary aesthetic. Side natural lighting with moderate contrast, shadows highlighting silhouette and contours. Realistic fabric and skin texture, natural shine, clear shape definition without exaggeration. Editorial framing with mirror presence for depth. Strong sensual marked atmosphere, modern street-fashion attitude. Ultra-realistic 8k sharp focus cinematic color grading. --ar 4:5. preserve identity, keep same face, keep facial structure, keep skin tone, maintain original identity, do not change person, realistic face consistency, preserve original facial expression, keep same emotion, keep same eye expression, keep same pose"
   }

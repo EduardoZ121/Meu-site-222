@@ -217,11 +217,7 @@ export default function CarouselPage() {
       return;
     }
 
-    let effectiveModel = modelKey;
-    if (photo && modelKey === "gpt_image") {
-      effectiveModel = "grok";
-      toast.info(t("car_gpt_fallback"));
-    }
+    const effectiveModel = modelKey;
 
     setBusy(true);
     clearBlobUrls();
@@ -550,7 +546,7 @@ export default function CarouselPage() {
           <StudioAccordionSection title={t("car_sec_model")} defaultOpen={false} testId="carousel-section-model">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3" data-testid="carousel-model-toggle">
               {MODELS.map((m) => {
-                const disabled = m.key === "gpt_image" && !!photo;
+                const disabled = false;
                 const active = modelKey === m.key;
                 return (
                   <button

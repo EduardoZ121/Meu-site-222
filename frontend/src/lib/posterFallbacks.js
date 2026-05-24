@@ -688,7 +688,7 @@ export const FALLBACK_POSTER_MODELS = [
     "label": "Motor Premium",
     "cost": 45,
     "tier": "premium",
-    "supports_photo": false,
+    "supports_photo": true,
     "tag": "Qualidade Máxima"
   }
 ];

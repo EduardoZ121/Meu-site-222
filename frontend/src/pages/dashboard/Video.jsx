@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
 import { Film, Clapperboard } from "lucide-react";
-import { useAuth } from "../../lib/auth";
 import { useI18n } from "../../lib/i18n";
 import useTitle from "../../lib/useTitle";
 import VideoGenerate from "./VideoGenerate";
@@ -9,9 +8,7 @@ import VideoEditorAdmin from "./VideoEditorAdmin";
 
 export default function Video() {
   const { t } = useI18n();
-  const { user } = useAuth();
   useTitle(t("sidebar_video"));
-  const isAdmin = user?.role === "admin";
   const [mode, setMode] = useState("generate");
 
   return (
@@ -22,49 +19,47 @@ export default function Video() {
           {t("vid_title_a")} <span className="italic text-[#C4B5FD]">{t("vid_title_b")}</span>{t("vid_title_dot")}
         </h1>
         <p className="text-[#8A8A8E] text-[15px] max-w-[640px]">
-          {mode === "edit" && isAdmin ? t("vid_edit_desc") : t("vid_desc_body")}
+          {mode === "edit" ? t("vid_edit_desc") : t("vid_desc_body")}
         </p>
       </header>
 
-      {isAdmin && (
-        <div
-          className="inline-flex flex-wrap items-center gap-1 p-1 mb-8 rounded-2xl border border-white/[0.08] bg-white/[0.04] backdrop-blur-xl"
-          role="tablist"
-          data-testid="video-mode-tabs"
-        >
-          {[
-            { id: "generate", label: t("vid_tab_generate"), icon: Film, testId: "video-tab-generate" },
-            { id: "edit", label: t("vid_tab_editor"), icon: Clapperboard, testId: "video-tab-editor" },
-          ].map(({ id, label, icon: Icon, testId }) => {
-            const active = mode === id;
-            return (
-              <button
-                key={id}
-                type="button"
-                role="tab"
-                aria-selected={active}
-                onClick={() => setMode(id)}
-                className={`relative flex items-center gap-2 px-4 sm:px-5 py-2.5 rounded-xl text-sm font-medium transition-colors ${
-                  active ? "text-white" : "text-zinc-500 hover:text-zinc-200"
-                }`}
-                data-testid={testId}
-              >
-                {active && (
-                  <motion.span
-                    layoutId="video-mode-pill"
-                    className="absolute inset-0 rounded-xl bg-gradient-to-r from-violet-600 to-violet-500 shadow-[0_0_28px_-8px_rgba(168,85,247,0.65)]"
-                    transition={{ type: "spring", stiffness: 400, damping: 32 }}
-                  />
-                )}
-                <Icon className="relative z-10 w-4 h-4" strokeWidth={1.75} />
-                <span className="relative z-10">{label}</span>
-              </button>
-            );
-          })}
-        </div>
-      )}
+      <div
+        className="inline-flex flex-wrap items-center gap-1 p-1 mb-8 rounded-2xl border border-white/[0.08] bg-white/[0.04] backdrop-blur-xl"
+        role="tablist"
+        data-testid="video-mode-tabs"
+      >
+        {[
+          { id: "generate", label: t("vid_tab_generate"), icon: Film, testId: "video-tab-generate" },
+          { id: "edit", label: t("vid_tab_editor"), icon: Clapperboard, testId: "video-tab-editor" },
+        ].map(({ id, label, icon: Icon, testId }) => {
+          const active = mode === id;
+          return (
+            <button
+              key={id}
+              type="button"
+              role="tab"
+              aria-selected={active}
+              onClick={() => setMode(id)}
+              className={`relative flex items-center gap-2 px-4 sm:px-5 py-2.5 rounded-xl text-sm font-medium transition-colors ${
+                active ? "text-white" : "text-zinc-500 hover:text-zinc-200"
+              }`}
+              data-testid={testId}
+            >
+              {active && (
+                <motion.span
+                  layoutId="video-mode-pill"
+                  className="absolute inset-0 rounded-xl bg-gradient-to-r from-violet-600 to-violet-500 shadow-[0_0_28px_-8px_rgba(168,85,247,0.65)]"
+                  transition={{ type: "spring", stiffness: 400, damping: 32 }}
+                />
+              )}
+              <Icon className="relative z-10 w-4 h-4" strokeWidth={1.75} />
+              <span className="relative z-10">{label}</span>
+            </button>
+          );
+        })}
+      </div>
 
-      {mode === "edit" && isAdmin ? <VideoEditorAdmin /> : <VideoGenerate />}
+      {mode === "edit" ? <VideoEditorAdmin /> : <VideoGenerate />}
     </div>
   );
 }

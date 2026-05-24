@@ -149,15 +149,8 @@ function isArtisticExperimentalStyleId(styleId) {
   return isNsfwStyleId(styleId);
 }
 
-function resolveArtisticStudioModel({ styleId, hasPhoto, userDoc }) {
-  const email = String(userDoc?.email || "").toLowerCase();
-  const adminOk = userDoc?.role === "admin" || ADMIN_EMAILS.has(email) || Boolean(userDoc?.nsfw_allowed);
+function resolveArtisticStudioModel({ styleId, hasPhoto }) {
   const experimental = isArtisticExperimentalStyleId(styleId);
-  if (experimental && !adminOk) {
-    const err = new Error("Estilos experimentais só para administradores.");
-    err.status = 403;
-    throw err;
-  }
   if (experimental) {
     if (!hasPhoto) {
       const err = new Error("AI Lab exige uma foto (Qwen Image Edit edita a referência).");
@@ -1164,8 +1157,7 @@ async function routePost(path, fields, files, req) {
     const selected = text(fields, "model_key", "grok");
     const hasPhoto = Boolean(files.photo || text(fields, "photo_url", "").trim());
     let modelKey = "standard";
-    if (selected === "gpt_image" && !hasPhoto) modelKey = "pro";
-    if (selected === "gpt_image" && hasPhoto) modelKey = "standard";
+    if (selected === "gpt_image" || selected === "flux2") modelKey = "pro";
 
     const aspectDefault = mode === "chapter" ? "9:16" : mode === "page" ? "3:4" : text(fields, "aspect_ratio", "4:5");
     const input = await imageInput(fields, files, modelKey, promptFinal);
@@ -1193,11 +1185,6 @@ async function routePost(path, fields, files, req) {
 
   if (path === "generate/carousel-panoramic") {
     const selected = text(fields, "model_key", "grok");
-    if (selected === "gpt_image" && (files.photo || text(fields, "photo_url", ""))) {
-      const err = new Error("Motor GPT não suporta foto de referência — usa Motor Rápido.");
-      err.status = 400;
-      throw err;
-    }
     let slides = [];
     try {
       slides = JSON.parse(text(fields, "slides_json", "[]"));
@@ -1232,20 +1219,6 @@ async function routePost(path, fields, files, req) {
     const slideIndex = Number(text(fields, "slide_index", 0)) || 0;
     const totalSlides = Number(text(fields, "total_slides", 1)) || 1;
     const selected = text(fields, "model_key", "grok");
-    if (
-      selected === "gpt_image"
-      && (
-        files.slide_photo
-        || text(fields, "slide_photo_url", "")
-        || text(fields, "photo_url", "")
-        || files.photo
-        || text(fields, "previous_slide_url", "")
-      )
-    ) {
-      const err = new Error("Motor GPT não suporta foto de referência — usa Motor Rápido.");
-      err.status = 400;
-      throw err;
-    }
     const modelKey = selected === "gpt_image" ? "pro" : "standard";
     const replicateModel = selected === "gpt_image" ? MODELS.pro : MODELS.standard;
     const perSlide = selected === "gpt_image" ? CREDIT.carouselPremiumPerSlide : CREDIT.carouselFastPerSlide;
@@ -1286,7 +1259,6 @@ async function routePost(path, fields, files, req) {
   }
 
   if (path === "generate/video-edit") {
-    await requireAdminSession(req);
     const { input, prompt } = await videoEditInput(fields, files);
     const cost = CREDIT.videoEdit ?? Math.max(CREDIT.video || 70, 85);
     return submitBillableGeneration(req, fields, {
@@ -1297,7 +1269,7 @@ async function routePost(path, fields, files, req) {
       prompt,
       aspectRatio: input.aspect_ratio,
       modelUsed: MODELS.video_edit,
-      spendDescription: "Editor vídeo (admin)",
+      spendDescription: "Editor vídeo",
     });
   }
 

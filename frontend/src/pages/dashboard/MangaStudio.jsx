@@ -150,15 +150,7 @@ export default function MangaStudio() {
     }));
   };
 
-  const resolveModelKey = () => {
-    const char = project.characters?.find((c) => c.id === activePanel?.characterId);
-    const hasRef = Boolean(char?._refFile || char?.thumb || char?.sheets?.front);
-    if (modelKey === "gpt_image" && hasRef) {
-      toast.info(t("manga_err_gpt_photo"));
-      return "grok";
-    }
-    return modelKey;
-  };
+  const resolveModelKey = () => modelKey;
 
   const runGeneration = async (endpoint, cost, prompt, aspect = "3:4", refCharacter = null) => {
     if (!prompt || prompt.trim().length < 12) {

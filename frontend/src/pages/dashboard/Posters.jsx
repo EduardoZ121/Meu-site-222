@@ -162,10 +162,7 @@ export default function Posters() {
     setBusy(true); setResult(null);
     try {
       // Premium text-only mode has no image-to-image — if photo is present, auto-switch.
-      const effectiveModel = (photo && modelKey === "gpt_image") ? "flux2" : modelKey;
-      if (photo && modelKey === "gpt_image") {
-        toast.info(t("post_premium_fallback"));
-      }
+      const effectiveModel = modelKey;
 
       const promptFinal = buildPosterPrompt(picked, values, {
         mood, colorHint, customBlocks,

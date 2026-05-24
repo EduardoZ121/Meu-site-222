@@ -115,7 +115,6 @@ export default function DashboardLayout() {
           to: "/app/manga-studio",
           icon: BookOpen,
           label: t("sidebar.manga_studio"),
-          mangaLocked: true,
         },
         { to: "/app/wizard", icon: Wand2, label: t("sidebar.wizard") },
       ],
@@ -190,8 +189,7 @@ export default function DashboardLayout() {
             </SidebarSectionLabel>
             {sec.links.map((l) => {
               const idx = linkIndex++;
-              const isManga = l.mangaLocked;
-              const locked = isManga && user?.role !== "admin";
+              const locked = false;
               return (
                 <SidebarNavItem
                   key={l.to}

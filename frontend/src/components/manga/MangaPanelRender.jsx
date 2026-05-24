@@ -43,14 +43,16 @@ export default function MangaPanelRender({
     busy,
     user,
     cost: costs?.mangaPage ?? 40,
-    readyOverride: Boolean(panel),
+    readyOverride: Boolean(panel) && Boolean(readiness?.ok),
+    hintOverride: panelHint,
   });
 
   const chapterGate = useStudioGenerateGate({
     busy,
     user,
     cost: costs?.mangaChapter ?? 150,
-    readyOverride: Boolean(panel),
+    readyOverride: Boolean(panel) && Boolean(readiness?.ok),
+    hintOverride: panelHint,
   });
 
   return (

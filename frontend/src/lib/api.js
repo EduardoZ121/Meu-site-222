@@ -98,19 +98,22 @@ function pickUploadTimeoutMs(fd) {
 
 let blobUploadEnabledCache = null;
 
+export function invalidateBlobUploadCache() {
+  blobUploadEnabledCache = null;
+}
+
 export async function isBlobUploadEnabled() {
   if (blobUploadEnabledCache !== null) return blobUploadEnabledCache;
   if (typeof window === "undefined" || typeof fetch === "undefined") {
-    blobUploadEnabledCache = false;
     return false;
   }
   try {
     const r = await fetch(joinApiPath("/blob/status"), { method: "GET", credentials: "same-origin" });
+    if (!r.ok) return false;
     const j = await r.json();
     blobUploadEnabledCache = Boolean(j.blob);
     return blobUploadEnabledCache;
   } catch {
-    blobUploadEnabledCache = false;
     return false;
   }
 }
@@ -130,11 +133,21 @@ const VIDEO_DIRECT_MAX = 12 * 1024 * 1024;
 async function uploadFileToVercelBlob(key, fileLike, perFileMs) {
   const { put } = await import("@vercel/blob/client");
   const isVideo = key === "video";
-  const { data } = await api.post("/blob/prepare", {
-    filename: fileLike.name || `${key}.${isVideo ? "mp4" : "jpg"}`,
-    kind: isVideo ? "video" : undefined,
-  });
-  const { clientToken, pathname } = data;
+  let data;
+  try {
+    ({ data } = await api.post("/blob/prepare", {
+      filename: fileLike.name || `${key}.${isVideo ? "mp4" : "jpg"}`,
+      kind: isVideo ? "video" : undefined,
+    }));
+  } catch (err) {
+    invalidateBlobUploadCache();
+    throw err;
+  }
+  const { clientToken, pathname } = data || {};
+  if (!clientToken || !pathname) {
+    invalidateBlobUploadCache();
+    throw new Error("Armazenamento em nuvem indisponível. Tenta um ficheiro mais pequeno ou mais tarde.");
+  }
   return put(pathname, fileLike, {
     access: "public",
     token: clientToken,
@@ -479,7 +492,10 @@ export async function pollPrediction(predictionId, opts = {}) {
     try {
       res = await api.get(`/predictions/${predictionId}`);
     } catch (e) {
-      // Network blip — wait then retry the poll
+      const status = e?.response?.status;
+      if (status && status >= 400 && status < 500 && status !== 429) {
+        throw e;
+      }
       await new Promise((r) => setTimeout(r, intervalMs));
       continue;
     }
@@ -497,16 +513,20 @@ export async function pollPrediction(predictionId, opts = {}) {
       if (data.new_balance != null && typeof window !== "undefined") {
         window.dispatchEvent(new CustomEvent("rp:credits-sync", { detail: { credits: data.new_balance } }));
       }
-      if (data.creation) {
-        data.creation = normalizeCreation(data.creation);
-        data.creation.server_billing = data.server_billing || data.creation.server_billing;
-        if (data.new_balance != null) data.creation.new_balance = data.new_balance;
-        if (!data.creation.result_urls?.length) {
-          const err = new Error("Geração concluída sem ficheiro de resultado.");
-          err.refunded = data.refunded;
-          err.new_balance = data.new_balance;
-          throw err;
-        }
+      if (!data.creation) {
+        const err = new Error("Geração concluída sem resultado.");
+        err.refunded = data.refunded;
+        err.new_balance = data.new_balance;
+        throw err;
+      }
+      data.creation = normalizeCreation(data.creation);
+      data.creation.server_billing = data.server_billing || data.creation.server_billing;
+      if (data.new_balance != null) data.creation.new_balance = data.new_balance;
+      if (!data.creation.result_urls?.length) {
+        const err = new Error("Geração concluída sem ficheiro de resultado.");
+        err.refunded = data.refunded;
+        err.new_balance = data.new_balance;
+        throw err;
       }
       notifyCreationSucceeded(data.creation);
       return data;

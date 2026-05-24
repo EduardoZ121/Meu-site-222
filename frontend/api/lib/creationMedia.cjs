@@ -77,9 +77,11 @@ function trustedProxyTarget(url) {
   return null;
 }
 
+const { isBlobConfigured } = require("./blobEnv.cjs");
+
 /** Copia resultados para Vercel Blob (URLs permanentes na galeria). */
 async function mirrorUrlsToBlob(urls) {
-  if (!process.env.BLOB_READ_WRITE_TOKEN || !Array.isArray(urls) || !urls.length) {
+  if (!isBlobConfigured() || !Array.isArray(urls) || !urls.length) {
     return urls || [];
   }
   const { put } = require("@vercel/blob");
@@ -136,7 +138,7 @@ async function repairCreationMedia(db, doc) {
   if (!urls.length || !doc?.id) return urls;
   const primary = urls[0];
   if (isBlobUrl(primary)) return urls;
-  if (!process.env.BLOB_READ_WRITE_TOKEN) return urls;
+  if (!isBlobConfigured()) return urls;
 
   const mirrored = await mirrorUrlsToBlob(urls);
   if (mirrored[0] && isBlobUrl(mirrored[0])) {
@@ -194,7 +196,7 @@ async function loadCreationMedia(db, doc) {
   const buf = Buffer.from(await res.arrayBuffer());
   if (buf.length < 64) return null;
 
-  if (process.env.BLOB_READ_WRITE_TOKEN && !isBlobUrl(url)) {
+  if (isBlobConfigured() && !isBlobUrl(url)) {
     const mirrored = await mirrorUrlsToBlob([url]);
     if (mirrored[0] && isBlobUrl(mirrored[0])) {
       try {

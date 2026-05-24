@@ -10,11 +10,11 @@ export async function isBlobPersistAvailable() {
   }
   try {
     const r = await fetch(`${API}/blob/status`, { method: "GET", credentials: "same-origin" });
+    if (!r.ok) return false;
     const j = await r.json();
     blobCache = Boolean(j.blob);
     return blobCache;
   } catch {
-    blobCache = false;
     return false;
   }
 }
@@ -23,7 +23,10 @@ export async function isBlobPersistAvailable() {
 export async function persistImageToBlobStore(file) {
   const { put } = await import("@vercel/blob/client");
   const { data } = await api.post("/blob/prepare", { filename: file.name || "upload.jpg" });
-  const { clientToken, pathname } = data;
+  const { clientToken, pathname } = data || {};
+  if (!clientToken || !pathname) {
+    throw new Error("Armazenamento em nuvem indisponível.");
+  }
   await put(pathname, file, {
     access: "public",
     token: clientToken,
@@ -39,7 +42,10 @@ export async function persistVideoToBlobStore(file) {
     filename: file.name || "upload.mp4",
     kind: "video",
   });
-  const { clientToken, pathname } = data;
+  const { clientToken, pathname } = data || {};
+  if (!clientToken || !pathname) {
+    throw new Error("Armazenamento em nuvem indisponível.");
+  }
   await put(pathname, file, {
     access: "public",
     token: clientToken,

@@ -39,6 +39,9 @@ const {
   createImagePresignedUpload,
   getS3Config,
 } = require("./lib/s3Upload.cjs");
+const { getBlobReadWriteToken, isBlobConfigured } = require("./lib/blobEnv.cjs");
+const { listPosterTemplates } = require("./lib/posterTemplatesData.cjs");
+const { improvePrompt } = require("./lib/promptAssist.cjs");
 
 function getPadraoStyle(styleId) {
   return PADRAO_STYLES_LIST.find((s) => s.id === String(styleId || "").trim()) || null;
@@ -156,9 +159,15 @@ function isArtisticExperimentalStyleId(styleId) {
   return isNsfwStyleId(styleId);
 }
 
-function resolveArtisticStudioModel({ styleId, hasPhoto }) {
+function resolveArtisticStudioModel({ styleId, hasPhoto, userDoc }) {
   const experimental = isArtisticExperimentalStyleId(styleId);
   if (experimental) {
+    const adminOk = userDoc?.role === "admin" || userDoc?.nsfw_allowed;
+    if (!adminOk) {
+      const err = new Error("Este estilo requer permissão NSFW na conta.");
+      err.status = 403;
+      throw err;
+    }
     if (!hasPhoto) {
       const err = new Error("AI Lab exige uma foto (Qwen Image Edit edita a referência).");
       err.status = 400;
@@ -279,6 +288,15 @@ function trustedMediaUrl(raw) {
   return trustedBlobMediaUrl(u) || (isTrustedS3MediaUrl(u) ? u : null);
 }
 
+/** URLs de resultado Replicate — só para proxy de panorâmica (evita SSRF aberto). */
+function trustedPanoramaProxyUrl(raw) {
+  const u = String(raw || "").trim();
+  if (trustedMediaUrl(u)) return u;
+  if (/^https:\/\/(pbxt|replicate)\.replicate\.delivery\/.+/i.test(u)) return u;
+  if (/^https:\/\/replicate\.com\/api\/models\/.+\/predictions\/.+/i.test(u)) return u;
+  return null;
+}
+
 async function requireAdminSession(req) {
   const { user, isLocal } = resolveSessionUser(req);
   if (!user?.id || isLocal) {
@@ -375,7 +393,8 @@ async function resolveImageRef(files, fields, fileKey, urlKey) {
 
 async function routeBlobPrepare(req, res) {
   try {
-    if (!process.env.BLOB_READ_WRITE_TOKEN) {
+    const blobToken = getBlobReadWriteToken();
+    if (!blobToken) {
       return json(res, 503, { detail: "Armazenamento Blob não configurado neste ambiente." });
     }
     const auth = req.headers.authorization || "";
@@ -394,7 +413,7 @@ async function routeBlobPrepare(req, res) {
     // eslint-disable-next-line global-require
     const { generateClientTokenFromReadWriteToken } = require("@vercel/blob/client");
     const clientToken = await generateClientTokenFromReadWriteToken({
-      token: process.env.BLOB_READ_WRITE_TOKEN,
+      token: blobToken,
       pathname,
       access: "public",
       maximumSizeInBytes: isVideo ? 96 * 1024 * 1024 : 48 * 1024 * 1024,
@@ -956,8 +975,12 @@ async function routePost(path, fields, files, req) {
   const CREDIT = getCreditCostsForRegion(region);
 
   if (path === "generate/image") {
-    const prompt = text(fields, "prompt", "").trim();
+    let prompt = text(fields, "prompt", "").trim();
     if (!prompt) throw new Error("Escreve um prompt.");
+    const lang = text(fields, "lang", "en").slice(0, 2);
+    if (truthyField(fields, "improve_prompt")) {
+      prompt = await improvePrompt(prompt, lang, {});
+    }
     const input = await imageInput(fields, files, "standard", prompt);
     return submitBillableGeneration(req, fields, {
       cost: CREDIT.image,
@@ -1459,6 +1482,10 @@ async function handlePath(path, req, res) {
       return json(res, 200, { presets: listProPresets() });
     }
 
+    if (req.method === "GET" && path === "public/poster-templates") {
+      return json(res, 200, { templates: listPosterTemplates() });
+    }
+
     if (req.method === "GET" && path === "public/poster-models") {
       const country = countryFromRequest(req);
       const client = String(req.headers["x-pricing-region"] || "").trim();
@@ -1527,7 +1554,7 @@ async function handlePath(path, req, res) {
     }
 
     if (req.method === "GET" && path === "blob/status") {
-      return json(res, 200, { blob: Boolean(process.env.BLOB_READ_WRITE_TOKEN) });
+      return json(res, 200, { blob: isBlobConfigured() });
     }
 
     if (req.method === "GET" && path === "upload/s3/status") {
@@ -1580,7 +1607,7 @@ async function handlePath(path, req, res) {
 
     if (req.method === "GET" && path === "carousel/panorama-image") {
       const url = new URL(req.url, `https://${req.headers.host}`);
-      const imageUrl = trustedBlobImageUrl(url.searchParams.get("url") || "");
+      const imageUrl = trustedPanoramaProxyUrl(url.searchParams.get("url") || "");
       if (!imageUrl) {
         return json(res, 400, { detail: "URL da panorâmica inválida." });
       }

@@ -84,7 +84,7 @@ export default function ToolFrame({
     readyOverride: generateReady,
     hintOverride: generateHint,
   });
-  const ready = generateReady !== undefined ? generateReady && !busy : gate.ready;
+  const ready = gate.ready;
   const hint = generateHint ?? gate.hint;
 
   return (

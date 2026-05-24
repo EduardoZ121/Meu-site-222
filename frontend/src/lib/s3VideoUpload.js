@@ -24,11 +24,11 @@ export async function isS3VideoUploadAvailable() {
       method: "GET",
       credentials: "same-origin",
     });
+    if (!r.ok) return false;
     const j = await r.json();
     s3AvailableCache = Boolean(j.s3);
     return s3AvailableCache;
   } catch {
-    s3AvailableCache = false;
     return false;
   }
 }

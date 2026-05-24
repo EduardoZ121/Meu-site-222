@@ -407,6 +407,10 @@ export default function MangaStudio() {
   };
 
   const generatePage = async () => {
+    if (!readiness.ok) {
+      toast.error(readiness.issues[0]?.text || t("manga_ready_no_char"), { duration: 8000 });
+      return;
+    }
     const synced = syncEditorToActivePanel();
     if (!synced) return;
     await composeThenGenerate({
@@ -419,6 +423,10 @@ export default function MangaStudio() {
   };
 
   const generateChapter = async () => {
+    if (!readiness.ok) {
+      toast.error(readiness.issues[0]?.text || t("manga_ready_no_char"), { duration: 8000 });
+      return;
+    }
     const synced = syncEditorToActivePanel();
     if (!synced) return;
     await composeThenGenerate({

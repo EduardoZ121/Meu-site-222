@@ -50,9 +50,11 @@ export function useStudioGenerateGate({
       hint = t("studio_gen_hint_credits", { need: cost, have: user?.credits ?? 0 });
     }
 
-    const ready = readyOverride !== undefined
-      ? Boolean(readyOverride) && !busy
+    const prerequisitesOk = readyOverride !== undefined
+      ? Boolean(readyOverride)
       : !hint;
+
+    const ready = prerequisitesOk && !busy && !hint;
 
     return { ready, hint: ready ? null : hint };
   }, [

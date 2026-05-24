@@ -165,13 +165,14 @@ export default function Posters() {
   };
 
   const generate = async () => {
+    if (busy) return;
     if (!picked) { toast.error(t("post_pick_template")); return; }
     if (missing.length) {
-      toast.error(`${t("post_fill")}: ${missing.map(labelFor).join(", ")}`);
+      toast.error(`${t("post_fill")}: ${missing.map(labelFor).join(", ")}`, { duration: 8000 });
       return;
     }
     if ((user?.credits ?? 0) < totalCost && !user?.is_unlimited && user?.role !== "admin") {
-      toast.error(t("common_need_credits", { need: totalCost, have: user?.credits ?? 0 }));
+      toast.error(t("common_need_credits", { need: totalCost, have: user?.credits ?? 0 }), { duration: 8000 });
       return;
     }
 
@@ -228,7 +229,9 @@ export default function Posters() {
       toast.success(t("post_success", { n: normalized?.credits_spent ?? submitData.credits_spent ?? totalCost }));
       await refresh();
     } catch (err) {
-      toast.error(formatApiError(err, t("post_fail")), { duration: 10000 });
+      const msg = formatApiError(err, t("post_fail"));
+      console.error("[Posters] generate failed", err);
+      toast.error(msg, { duration: 12000 });
     } finally {
       setBusy(false);
       setGenPhase("");

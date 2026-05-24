@@ -147,7 +147,11 @@ async function uploadFileToVercelBlob(key, fileLike, perFileMs) {
 async function offloadFormDataMediaToCloud(formData, opts = {}) {
   const perFileMs = opts.timeoutMs ?? 55_000;
   const blobEnabled = await isBlobUploadEnabled();
-  const { uploadVideoViaS3, isS3VideoUploadAvailable } = await import("./s3VideoUpload");
+  const {
+    uploadVideoViaS3,
+    uploadImageViaS3,
+    isS3VideoUploadAvailable,
+  } = await import("./s3VideoUpload");
   const s3Enabled = await isS3VideoUploadAvailable();
   const out = new FormData();
 
@@ -163,7 +167,20 @@ async function offloadFormDataMediaToCloud(formData, opts = {}) {
       ? val
       : new File([val], `${key}.bin`, { type: val.type || "application/octet-stream" });
     const isVideo = key === "video";
+    const isImage = !isVideo && String(fileLike.type || "").startsWith("image/");
     const isLargeVideo = isVideo && fileLike.size > VIDEO_DIRECT_MAX;
+
+    if (isImage && s3Enabled && fileLike.size > DIRECT_UPLOAD_MAX) {
+      // eslint-disable-next-line no-await-in-loop
+      const url = await withTimeout(
+        uploadImageViaS3(fileLike, { onProgress: opts.onImageProgress }),
+        perFileMs,
+        "Upload da foto (S3)",
+      );
+      out.append(`${key}_url`, url);
+      // eslint-disable-next-line no-continue
+      continue;
+    }
 
     if (isLargeVideo && s3Enabled) {
       // eslint-disable-next-line no-await-in-loop

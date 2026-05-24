@@ -76,3 +76,16 @@ export async function uploadVideoViaS3(file, { onProgress } = {}) {
   }
   return putToPresignedUrl(file, presign, onProgress);
 }
+
+/** Fotos grandes → S3/CloudFront (evita limite 4 MB da Vercel). */
+export async function uploadImageViaS3(file, { onProgress } = {}) {
+  const { data: presign } = await api.post("/upload/s3/presign-image", {
+    filename: file.name || "photo.jpg",
+    contentType: file.type || "image/jpeg",
+    contentLength: file.size,
+  });
+  if (!presign?.uploadUrl || !presign?.publicUrl) {
+    throw new Error("Resposta inválida do servidor de upload.");
+  }
+  return putToPresignedUrl(file, presign, onProgress);
+}

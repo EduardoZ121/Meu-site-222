@@ -22,13 +22,18 @@ export default function StudioGenerateBar({
   alignHint = "end",
   icon: Icon = Sparkles,
 }) {
-  const handleClick = () => {
+  const handleClick = async () => {
     if (busy) return;
     if (!ready) {
       if (hint) toast.error(hint, { duration: 7000 });
       return;
     }
-    onClick?.();
+    try {
+      await Promise.resolve(onClick?.());
+    } catch (err) {
+      console.error("[StudioGenerateBar]", err);
+      toast.error(err?.message || "Não foi possível iniciar a geração.", { duration: 8000 });
+    }
   };
 
   const btnClass = [

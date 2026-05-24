@@ -1756,6 +1756,21 @@
   line-height: 1.45;
   color: #a78bfa;
 }
+.studio-video-upload__progress-wrap {
+  margin-top: 10px;
+}
+.studio-video-upload__progress-track {
+  height: 6px;
+  border-radius: 999px;
+  background: #1a1a1e;
+  overflow: hidden;
+}
+.studio-video-upload__progress-bar {
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #7c3aed, #a78bfa);
+  transition: width 0.2s ease;
+}
 .studio-video-upload__ready {
   margin: 0.35rem 0 0;
   font-size: 11px;

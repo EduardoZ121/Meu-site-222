@@ -751,7 +751,12 @@ async function imageInput(fields, files, modelKey, prompt, opts = {}) {
     (await resolveImageRef(files, fields, "photo", "photo_url"))
     || (await resolveImageRef(files, fields, "image", "image_url"));
   const input = {
-    prompt: finalizeImagePrompt(prompt, { modelKey, posterFood: opts.posterFood }),
+    prompt: finalizeImagePrompt(prompt, {
+      modelKey,
+      posterFood: opts.posterFood,
+      poster: opts.poster,
+      hasPersonPhoto: opts.hasPersonPhoto ?? Boolean(primary && !opts.posterFood),
+    }),
     aspect_ratio: normalizeRatio(text(fields, "aspect_ratio", "1:1"), modelKey),
   };
   if (["standard", "pro", "artistic"].includes(modelKey)) {
@@ -1084,11 +1089,6 @@ async function routePost(path, fields, files, req) {
       } else {
         prompt = `Professional premium poster design. Template: ${text(fields, "template_id", "poster")}. Text details: ${JSON.stringify(placeholders)}.`;
       }
-      const mood = text(fields, "mood", "").trim();
-      const colorHint = text(fields, "color_hint", "").trim();
-      if (mood || colorHint) {
-        prompt += ` Mood: ${mood || "editorial"}. Color hint: ${colorHint}.`;
-      }
       prompt += " Legible typography, strong hierarchy, print quality.";
     }
     const selected = text(fields, "model_key", "grok");
@@ -1096,8 +1096,15 @@ async function routePost(path, fields, files, req) {
     const perImage = selected === "gpt_image" ? CREDIT.posterPremium : selected === "flux2" ? CREDIT.posterPro : CREDIT.posterFast;
     const count = Number(text(fields, "num_outputs", 1)) || 1;
     const templateId = text(fields, "template_id", "");
-    const posterFood = String(templateId).startsWith("food_");
-    const input = await imageInput(fields, files, modelKey, prompt, { posterFood });
+    const templateCategory = text(fields, "template_category", "").trim().toLowerCase();
+    const posterFood = templateCategory === "food" || String(templateId).startsWith("food_");
+    const photoRef = await resolveImageRef(files, fields, "photo", "photo_url");
+    const hasPersonPhoto = Boolean(photoRef) && !posterFood;
+    const input = await imageInput(fields, files, modelKey, prompt, {
+      posterFood,
+      poster: true,
+      hasPersonPhoto,
+    });
     const cost = perImage * count;
     return submitBillableGeneration(req, fields, {
       cost,

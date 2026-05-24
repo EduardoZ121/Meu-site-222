@@ -23,9 +23,20 @@ function applyImageQualityNegative(prompt, { modelKey } = {}) {
   return `${base}${NEGATIVE_INLINE}`;
 }
 
-function finalizeImagePrompt(prompt, { modelKey, posterFood } = {}) {
+function finalizeImagePrompt(prompt, { modelKey, posterFood, poster, hasPersonPhoto } = {}) {
   const base = String(prompt || "").trim();
   if (!base) return base;
+
+  if (poster) {
+    if (posterFood) {
+      return applyImageQualityNegative(base, { modelKey });
+    }
+    if (hasPersonPhoto) {
+      return applyImageQualityNegative(applyImageQualityPositive(base), { modelKey });
+    }
+    return applyImageQualityNegative(base, { modelKey });
+  }
+
   if (posterFood) {
     return applyImageQualityNegative(base, { modelKey });
   }

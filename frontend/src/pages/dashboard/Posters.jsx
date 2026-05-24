@@ -180,6 +180,7 @@ export default function Posters() {
 
     const fd = new FormData();
     fd.append("template_id", picked.id);
+    fd.append("template_category", picked.category || "");
     fd.append("prompt_final", promptFinal);
     fd.append("placeholders", JSON.stringify(values));
     fd.append("custom_blocks", JSON.stringify(customBlocks));

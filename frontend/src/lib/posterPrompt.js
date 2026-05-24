@@ -10,6 +10,17 @@ export const POSTER_DIRECTOR = (
   + "premium graphic design, art-directed by a senior creative director. "
 );
 
+export const POSTER_TYPOGRAPHY_GUARD = (
+  "TYPOGRAPHY (mandatory): render every headline, subhead, CTA, date and label razor-sharp, "
+  + "perfectly spelled character-by-character as written in the brief, high contrast, "
+  + "no blurry, melted, warped, duplicated or invented letters; crisp vector-like type edges."
+);
+
+export const TEMPLATE_COLOR_GUARD = (
+  "COLOR (template default): keep the exact color palette, lighting mood and typography colors "
+  + "described in the template brief above. Do not invent a new color scheme or random recolor."
+);
+
 /** Stable mood ids — labels come from i18n (`post_mood_*`). */
 export const POSTER_MOOD_IDS = [
   "cinematic",
@@ -27,36 +38,46 @@ export const POSTER_MOOD_IDS = [
 ];
 
 /**
- * Mood presets — reforço leve; não substituem a paleta do template
- * (a menos que o utilizador defina cores personalizadas).
+ * Mood presets — alteram atmosfera/grading sem substituir a paleta do template,
+ * exceto quando o utilizador define paleta personalizada (aí só lighting/texture).
  */
 export const MOOD_EXPANSIONS = {
   cinematic:
-    "Subtle cinematic atmosphere: gentle contrast and depth, mild film grain. "
-    + "Keep the template color palette and typography colors unchanged unless a custom user palette is specified.",
+    "MOOD — Cinematic: filmic contrast, gentle grain, depth and directional lighting. "
+    + "Enhance drama through light and shadow, not by inventing new brand colors.",
   neon:
-    "Subtle neon nightlife accent on rims and highlights only — do not flood the whole poster with new colors. "
-    + "Preserve template-specified background and text colors unless overridden by custom palette.",
+    "MOOD — Neon nightlife: controlled glow, rim light and light beams on existing elements. "
+    + "Keep headline and background color roles from the template; add glow, do not flood the frame with random neon.",
   minimal:
-    "Cleaner negative space and restrained ornament — keep original template hues and type colors.",
+    "MOOD — Minimal: more negative space, cleaner shapes, restrained decoration. "
+    + "Same template hues; simplify clutter only.",
   vintage:
-    "Soft vintage print texture and mild halation — preserve the template color story, only gentle fade.",
+    "MOOD — Vintage print: soft halation, mild paper texture, nostalgic fade on edges. "
+    + "Template color story stays; gentle age the finish only.",
   bold:
-    "Slightly stronger contrast and hierarchy — do not replace template palette or rewrite layout colors.",
+    "MOOD — Bold: stronger hierarchy and contrast on type blocks and graphics. "
+    + "Do not swap the template palette — amplify impact within it.",
   luxury:
-    "Refined luxury finish (subtle foil sheen on accents only) — keep template palette and legible type.",
+    "MOOD — Luxury: refined finish, subtle foil sheen on accents, premium spacing. "
+    + "Template colors remain; elevate polish only.",
   editorial:
-    "Magazine editorial polish on spacing and type hierarchy — colors stay as in the template brief.",
+    "MOOD — Editorial magazine: crisp grid, refined type spacing, fashion-print polish. "
+    + "Preserve template color assignments.",
   brutalist:
-    "Raw typographic emphasis — keep template color blocks; no random color shifts.",
+    "MOOD — Brutalist: raw typographic weight and hard edges on layout blocks. "
+    + "Keep template color blocks; emphasize structure, not new hues.",
   pastel:
-    "Softer diffuse light — only if compatible with template; do not wash out specified bold colors.",
+    "MOOD — Pastel soft light: diffuse highlights and gentler shadows. "
+    + "Only soften intensity; do not replace bold template colors with unrelated pastels.",
   y2k:
-    "Light Y2K chrome accent on type edges only — template palette remains primary.",
+    "MOOD — Y2K: light chrome highlights on type edges and UI accents. "
+    + "Template palette stays primary.",
   mono:
-    "Duotone treatment using template's dominant hue — do not invent unrelated colors.",
+    "MOOD — Mono: cohesive duotone using the template's dominant hue plus neutrals. "
+    + "Do not introduce unrelated accent colors.",
   sun_warm:
-    "Warm golden-hour lift on lighting only — template color assignments for text/background stay.",
+    "MOOD — Sun-warm: golden-hour warmth on lighting and skin tones. "
+    + "Template text and graphic color assignments stay readable and on-brief.",
 };
 
 const SIZE_HINTS = {
@@ -85,8 +106,8 @@ const STYLE_HINTS = {
 
 export const POSTER_IDENTITY_GUARD = (
   "CRITICAL — Preserve the reference person's exact face, facial structure, skin tone, "
-  + "body shape and proportions. Do not change identity, age, or ethnicity. "
-  + "Only adapt pose, outfit, lighting and poster styling as the template describes."
+  + "body shape, proportions and pose fidelity. Do not change identity, age, or ethnicity. "
+  + "Only adapt outfit, lighting and poster styling as the template describes."
 );
 
 export const POSTER_FOOD_GUARD = (
@@ -95,18 +116,21 @@ export const POSTER_FOOD_GUARD = (
 );
 
 export function isPosterFoodTemplate(template) {
-  return String(template?.category || "").toLowerCase() === "food";
+  const cat = String(template?.category || "").toLowerCase();
+  if (cat === "food") return true;
+  const id = String(template?.id || "").toLowerCase();
+  return id.startsWith("food_");
+}
+
+/** Com foto: todos os templates não-comida preservam rosto/corpo. */
+export function posterNeedsIdentityGuard(template, hasPhoto) {
+  if (!hasPhoto) return false;
+  return !isPosterFoodTemplate(template);
 }
 
 export function templateUsesPersonReference(template) {
-  if (isPosterFoodTemplate(template)) return false;
-  const p = String(template?.prompt || "").toLowerCase();
-  return (
-    p.includes("reference image as the identity")
-    || p.includes("provided reference image")
-    || p.includes("preserve identity")
-    || p.includes("replace face and hair")
-  );
+  return posterNeedsIdentityGuard(template, true)
+    || (!isPosterFoodTemplate(template) && String(template?.prompt || "").toLowerCase().includes("reference image"));
 }
 
 export function newCustomTextBlock(partial = {}) {
@@ -152,18 +176,34 @@ function formatPaletteOverride(colors = []) {
 
   const joined = list.join(", ");
   return (
-    "USER CUSTOM PALETTE (mandatory override): "
-    + `Replace the template's default color scheme with ONLY these colors: ${joined}. `
-    + "Apply them to backgrounds, graphic blocks, accents and typographic highlights. "
-    + "Ignore conflicting color instructions from the template brief (e.g. 'red background', 'neon purple') "
-    + "and reinterpret the design using this palette while keeping layout, typography hierarchy and subject."
+    "USER CUSTOM PALETTE (highest priority — mandatory): "
+    + `Use ONLY these colors for the entire poster: ${joined}. `
+    + "Apply them to background fills, graphic shapes, accents, gradients and typographic highlights. "
+    + "DISREGARD any specific color names or hex instructions in the template brief above "
+    + "(e.g. 'neon purple', 'red background', 'gold typography') — those describe layout roles only, not hues. "
+    + "Map each role (background, headline, accent, CTA) to the closest swatch from this user palette. "
+    + "Keep layout, hierarchy, subjects and all quoted text unchanged."
   );
 }
 
-function formatMoodExtra(moodId) {
+function formatMoodExtra(moodId, { hasCustomPalette = false } = {}) {
   const id = String(moodId || "").trim();
   if (!id) return "";
-  return MOOD_EXPANSIONS[id] || `Subtle visual mood (${id}) — preserve template colors unless custom palette is set.`;
+
+  const base = MOOD_EXPANSIONS[id]
+    || `MOOD — ${id}: adjust atmosphere and lighting only.`;
+
+  if (hasCustomPalette) {
+    return (
+      `${base} Apply this mood through lighting, texture, grain and composition only — `
+      + "all color must come from USER CUSTOM PALETTE below, not from the template brief."
+    );
+  }
+
+  return (
+    `${base} When no custom palette is set, keep the template's specified color roles for `
+    + "background, typography and brand blocks; change atmosphere, not the color story."
+  );
 }
 
 /**
@@ -175,7 +215,7 @@ function formatMoodExtra(moodId) {
  */
 export function buildPosterPrompt(template, values = {}, options = {}) {
   if (!template?.prompt) {
-    return POSTER_DIRECTOR + "Professional premium poster design.";
+    return `${POSTER_DIRECTOR}Professional premium poster design.\n\n${POSTER_TYPOGRAPHY_GUARD}`;
   }
 
   let raw = template.prompt;
@@ -211,31 +251,27 @@ export function buildPosterPrompt(template, values = {}, options = {}) {
   if (blocksPart) raw = `${raw}\n\n${blocksPart}`;
 
   const palettePart = formatPaletteOverride(options.paletteColors);
-  const moodPart = formatMoodExtra(options.mood);
+  const hasCustomPalette = Boolean(palettePart);
+  const moodPart = formatMoodExtra(options.mood, { hasCustomPalette });
 
   const extras = [];
-  if (palettePart) extras.push(palettePart);
-  if (moodPart) extras.push(moodPart);
 
-  if (!palettePart && !moodPart) {
-    extras.push(
-      "Keep the exact color palette, lighting mood and typography colors described in the template brief above. "
-      + "Do not invent a new color scheme.",
-    );
+  if (!hasCustomPalette && !moodPart) {
+    extras.push(TEMPLATE_COLOR_GUARD);
   }
 
-  extras.push(
-    "Typography: render every headline, subhead, CTA and label razor-sharp, perfectly spelled, "
-    + "high contrast, no blurry or melted letters.",
-  );
+  if (moodPart) extras.push(moodPart);
+  if (palettePart) extras.push(palettePart);
 
-  let out = POSTER_DIRECTOR + raw;
-  if (extras.length) out = `${out}\n\n${extras.join("\n")}`;
+  extras.push(POSTER_TYPOGRAPHY_GUARD);
+
+  let out = `${POSTER_DIRECTOR}${raw}`;
+  if (extras.length) out = `${out}\n\n${extras.join("\n\n")}`;
 
   const hasPhoto = Boolean(options.hasPhoto);
   if (hasPhoto && isPosterFoodTemplate(template)) {
     out = `${out}\n\n${POSTER_FOOD_GUARD}`;
-  } else if (hasPhoto && templateUsesPersonReference(template)) {
+  } else if (posterNeedsIdentityGuard(template, hasPhoto)) {
     out = `${out}\n\n${POSTER_IDENTITY_GUARD}`;
   }
 

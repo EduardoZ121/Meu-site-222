@@ -54,7 +54,7 @@ export default function ImageUploadZone({
   const { t } = useI18n();
   const isVideo = mediaType === "video";
   const resolvedAccept = accept ?? (isVideo ? VIDEO_ACCEPT : IMAGE_ACCEPT);
-  const resolvedLabel = emptyLabel ?? (isVideo ? t("vid_edit_video_label") : t("upload_empty_label"));
+  const resolvedLabel = emptyLabel ?? t("upload_empty_label");
   const resolvedHint = emptyHint ?? (isVideo ? t("vid_edit_video_hint") : t("upload_empty_hint"));
   const inputId = useId();
   const inputRef = useRef(null);

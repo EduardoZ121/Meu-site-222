@@ -30,14 +30,8 @@ const { formatGenerationError } = require("./lib/generationErrors.cjs");
 const { handleCreationsRoute } = require("./lib/creationsRoutes.cjs");
 const { handlePromptAssistRoute } = require("./lib/promptAssist.cjs");
 const PADRAO_STYLES_LIST = require("./lib/padraoStylesData.cjs");
-const { finalizeImagePrompt, finalizeClothesPrompt } = require("./lib/imageQualityPrompts.cjs");
+const { finalizeImagePrompt } = require("./lib/imageQualityPrompts.cjs");
 const { getProPreset, listProPresets } = require("./lib/proPresetsData.cjs");
-const {
-  isS3Configured,
-  isTrustedS3MediaUrl,
-  createVideoPresignedUpload,
-  getS3Config,
-} = require("./lib/s3Upload.cjs");
 
 function getPadraoStyle(styleId) {
   return PADRAO_STYLES_LIST.find((s) => s.id === String(styleId || "").trim()) || null;
@@ -272,12 +266,6 @@ function trustedBlobMediaUrl(raw) {
   return trustedBlobImageUrl(raw);
 }
 
-/** Blob ou S3/CloudFront (URLs públicas aceites pelo Replicate). */
-function trustedMediaUrl(raw) {
-  const u = String(raw || "").trim();
-  return trustedBlobMediaUrl(u) || (isTrustedS3MediaUrl(u) ? u : null);
-}
-
 async function requireAdminSession(req) {
   const { user, isLocal } = resolveSessionUser(req);
   if (!user?.id || isLocal) {
@@ -313,7 +301,7 @@ function buildVideoEditPrompt(userPrompt) {
 }
 
 async function resolveVideoRef(files, fields, fileKey = "video", urlKey = "video_url") {
-  const fromUrl = trustedMediaUrl(text(fields, urlKey, ""));
+  const fromUrl = trustedBlobMediaUrl(text(fields, urlKey, ""));
   if (fromUrl) return fromUrl;
   const file = fileOf(files, fileKey);
   if (!file) return null;
@@ -325,7 +313,7 @@ async function resolveVideoRef(files, fields, fileKey = "video", urlKey = "video
   }
   if (st && st.size > 12 * 1024 * 1024) {
     const err = new Error(
-      "Vídeo demasiado grande para envio direto. Configura Vercel Blob ou AWS S3, ou usa um clip até ~12 MB.",
+      "Vídeo demasiado grande para envio direto. Recarrega a página para usar o armazenamento em nuvem e tenta de novo.",
     );
     err.status = 413;
     throw err;
@@ -702,40 +690,29 @@ function buildRestorePrompt(fields) {
   return parts.join(" ");
 }
 
-function buildClothesPrompt(fields, { hasGarment, composed } = {}) {
+function buildClothesPrompt(fields, hasGarment) {
   const userPrompt = text(fields, "prompt", "").trim();
   const changeType = text(fields, "change_type", "full");
-
   if (hasGarment) {
     let p = (
-      "Virtual try-on. Reference image 1 = the person. Reference image 2 = the garment/outfit. "
-      + "Generate ONE single full-frame photograph of that exact person wearing the outfit from reference 2. "
-      + "Match colors, fabric, fit, patterns and silhouette precisely. "
-      + "Preserve face, hair, body proportions and pose from reference 1. "
-      + "Natural lighting, photorealistic. Never output a collage or comparison."
+      "The image shows TWO photos side by side: a person on the LEFT and a clothing/outfit reference on the RIGHT. "
+      + "Output a single photo of ONLY the person from the LEFT, now wearing the outfit shown on the RIGHT. "
+      + "Preserve the person's identity, face, hair, body proportions and pose. "
+      + "Match the clothing's style, color, fabric and details precisely. "
+      + "Discard the garment-side panel and any background from the right photo. "
+      + "Photorealistic, natural lighting, clean background."
     );
-    if (userPrompt) p += ` Notes: ${userPrompt}.`;
+    if (userPrompt) p += ` Additional notes: ${userPrompt}`;
     return p;
   }
-
-  if (composed) {
-    let p = (
-      "Dress the person in the target outfit from the references. "
-      + "Output ONE single clean photograph only — never a side-by-side or before/after layout."
-    );
-    if (userPrompt) p += ` Notes: ${userPrompt}.`;
-    return p;
-  }
-
   if (!userPrompt) {
     return "Change outfit while preserving face, body pose and identity. Photorealistic, natural lighting.";
   }
-
   const prefix = {
-    full: "Replace all clothing with: ",
-    piece: "Add or replace this clothing piece: ",
-    color: "Same outfit, new color or pattern: ",
-    tryon: "Person wearing: ",
+    full: "Change the outfit. Replace all clothing with: ",
+    piece: "Add/replace this specific clothing piece: ",
+    color: "Keep the same outfit but change the color/style to: ",
+    tryon: "Show the person wearing: ",
   };
   return (
     `${prefix[changeType] || prefix.full}${userPrompt}. `
@@ -1092,17 +1069,9 @@ async function routePost(path, fields, files, req) {
   }
 
   if (path === "generate/poster") {
-    const placeholdersRaw = first(fields.placeholders);
+    const placeholdersRaw = text(fields, "placeholders", "{}");
     let placeholders = {};
-    if (placeholdersRaw != null && typeof placeholdersRaw === "object") {
-      placeholders = placeholdersRaw;
-    } else {
-      try {
-        placeholders = JSON.parse(text(fields, "placeholders", "{}"));
-      } catch {
-        placeholders = {};
-      }
-    }
+    try { placeholders = typeof placeholdersRaw === "string" ? JSON.parse(placeholdersRaw) : placeholdersRaw; } catch {}
     const promptFinal = text(fields, "prompt_final", "").trim();
     let prompt = promptFinal;
     if (!prompt) {
@@ -1369,17 +1338,16 @@ async function routePost(path, fields, files, req) {
     const person = await resolveImageRef(files, fields, "photo", "photo_url");
     const garment = await resolveImageRef(files, fields, "garment", "garment_url");
     const composed = truthyField(fields, "composed");
-    const hasGarment = Boolean(garment);
-    const rawPrompt = buildClothesPrompt(fields, { hasGarment, composed });
-    const prompt = finalizeClothesPrompt(rawPrompt);
+    const hasGarment = Boolean(garment) && !composed;
+    const prompt = buildClothesPrompt(fields, hasGarment);
     const input = { prompt };
-    if (person && garment) {
+    if (composed || !garment) {
+      if (person) input.image = person;
+    } else if (person && garment) {
       input.images = [person, garment];
     } else if (person) {
       input.image = person;
     }
-    const aspect = normalizeRatio(text(fields, "aspect_ratio", "match_input_image"), "standard");
-    input.aspect_ratio = aspect === "match_input_image" ? "match_input_image" : aspect;
     return submitBillableGeneration(req, fields, {
       cost: CREDIT.clothes,
       type: "image",
@@ -1540,34 +1508,6 @@ async function handlePath(path, req, res) {
 
     if (req.method === "GET" && path === "blob/status") {
       return json(res, 200, { blob: Boolean(process.env.BLOB_READ_WRITE_TOKEN) });
-    }
-
-    if (req.method === "GET" && path === "upload/s3/status") {
-      const cfg = getS3Config();
-      return json(res, 200, {
-        s3: isS3Configured(),
-        cloudFront: cfg?.cloudFront || null,
-      });
-    }
-
-    if (req.method === "POST" && path === "upload/s3/presign-video") {
-      const { user, isLocal } = resolveSessionUser(req);
-      if (!user?.id || isLocal) {
-        return json(res, 401, { detail: "Inicia sessão para enviar vídeos." });
-      }
-      const body = await readJsonRequestBody(req);
-      try {
-        const out = await createVideoPresignedUpload({
-          filename: body.filename,
-          contentType: body.contentType,
-          contentLength: body.contentLength,
-          userId: user.id,
-        });
-        await touchUser(user.id, req, { action: "s3_presign_video" });
-        return json(res, 200, out);
-      } catch (err) {
-        return json(res, err.status || 500, { detail: err.message || "Falha ao preparar upload." });
-      }
     }
 
     if (req.method === "GET" && path === "carousel/panorama-image") {

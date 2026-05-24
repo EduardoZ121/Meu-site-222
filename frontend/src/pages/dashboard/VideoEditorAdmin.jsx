@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { Clapperboard, Loader2, Sparkles } from "lucide-react";
-import { formatApiError, isBlobUploadEnabled, isS3VideoUploadAvailable, uploadPost } from "../../lib/api";
+import { formatApiError, isBlobUploadEnabled, uploadPost } from "../../lib/api";
+import { isS3VideoUploadAvailable } from "../../lib/s3VideoUpload";
 import { normalizeCreation, primaryResultUrl } from "../../lib/creationUrls";
 import { useAuth } from "../../lib/auth";
 import { usePricing } from "../../lib/PricingContext";

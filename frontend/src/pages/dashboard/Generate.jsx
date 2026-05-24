@@ -232,7 +232,7 @@ export default function Generate() {
 
           <StudioAccordionSection title={t("studio_acc_format")} defaultOpen testId="studio-acc-format">
             <AspectPicker value={aspect} onChange={setAspect} hasPhoto={!!photo} testIdPrefix="aspect" />
-            <button type="button" onClick={generate} disabled={busy || photoUploadStatus === "saving" || mode === "blocked"} className="rp-action-primary mt-8" data-testid="generate-button">
+            <button type="button" onClick={generate} disabled={busy || mode === "blocked"} className="rp-action-primary mt-8" data-testid="generate-button">
               {busy ? (
                 <>
                   <Loader2 className="w-4 h-4 animate-spin" strokeWidth={2} />

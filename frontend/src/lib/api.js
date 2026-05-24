@@ -189,6 +189,22 @@ async function offloadFormDataMediaToCloud(formData, opts = {}) {
       continue;
     }
 
+    if (
+      !isVideo
+      && fileLike.size > DIRECT_UPLOAD_MAX
+      && String(fileLike.type || "").startsWith("image/")
+    ) {
+      const { compressImageNeverFail } = await import("./canvasCompress");
+      // eslint-disable-next-line no-await-in-loop
+      const shrunk = await compressImageNeverFail(fileLike, {
+        maxBytes: DIRECT_UPLOAD_MAX,
+        maxSize: 2048,
+      });
+      out.append(key, shrunk);
+      // eslint-disable-next-line no-await-in-loop
+      continue;
+    }
+
     if (isLargeVideo) {
       throw new Error(
         "Vídeo grande sem armazenamento em nuvem. Na Vercel adiciona BLOB_READ_WRITE_TOKEN ou as variáveis AWS (S3).",
@@ -200,7 +216,36 @@ async function offloadFormDataMediaToCloud(formData, opts = {}) {
   return out;
 }
 
-export { isS3VideoUploadAvailable } from "./s3VideoUpload";
+const IMAGE_OFFLOAD_KEYS = new Set(["photo", "image", "mask", "garment", "reference_image"]);
+const DIRECT_UPLOAD_MAX = 3_500_000;
+
+/** Comprime imagens grandes quando não há Blob/S3 (limite Vercel ~4 MB no multipart). */
+async function shrinkFormDataForDirectUpload(formData) {
+  const { compressImageNeverFail } = await import("./canvasCompress");
+  const out = new FormData();
+  for (const [key, val] of formData.entries()) {
+    const isFile = val instanceof File || (typeof Blob !== "undefined" && val instanceof Blob);
+    if (
+      isFile
+      && IMAGE_OFFLOAD_KEYS.has(key)
+      && val.size > DIRECT_UPLOAD_MAX
+      && String(val.type || "").startsWith("image/")
+    ) {
+      const fileLike = val instanceof File
+        ? val
+        : new File([val], `${key}.jpg`, { type: val.type || "image/jpeg" });
+      // eslint-disable-next-line no-await-in-loop
+      const shrunk = await compressImageNeverFail(fileLike, {
+        maxBytes: DIRECT_UPLOAD_MAX,
+        maxSize: 2048,
+      });
+      out.append(key, shrunk);
+    } else {
+      out.append(key, val);
+    }
+  }
+  return out;
+}
 
 /**
  * Multipart POST com várias tentativas. Usa XMLHttpRequest no browser (melhor em
@@ -223,25 +268,29 @@ export async function uploadPost(url, formData, config = {}) {
 
   let baseFd = cloneFormData(formData);
   const skipBlob = Boolean(config.skipBlobOffload);
-  if (!skipBlob && typeof window !== "undefined" && (await isBlobUploadEnabled())) {
-    try {
-      baseFd = await offloadFormDataMediaToCloud(cloneFormData(formData), {
-        timeoutMs: config.blobOffloadTimeoutMs ?? 55_000,
-        onVideoProgress: config.onVideoProgress,
-      });
-    } catch (blobErr) {
-      let hasLargeVideo = false;
-      let hasLargeImage = false;
-      for (const [, v] of formData.entries()) {
-        if (!(v instanceof File)) continue;
-        if (v.type?.startsWith?.("video/") || /\.(mp4|mov|webm)$/i.test(v.name || "")) {
-          if (v.size > 4_000_000) hasLargeVideo = true;
-        } else if (v.size > 3_500_000) {
-          hasLargeImage = true;
+  if (!skipBlob && typeof window !== "undefined") {
+    const blobOn = await isBlobUploadEnabled();
+    const { isS3VideoUploadAvailable } = await import("./s3VideoUpload");
+    const s3On = await isS3VideoUploadAvailable();
+    if (blobOn || s3On) {
+      try {
+        baseFd = await offloadFormDataMediaToCloud(cloneFormData(formData), {
+          timeoutMs: config.blobOffloadTimeoutMs ?? 55_000,
+          onVideoProgress: config.onVideoProgress,
+        });
+      } catch (blobErr) {
+        let hasLargeVideo = false;
+        for (const [, v] of formData.entries()) {
+          if (!(v instanceof File)) continue;
+          if (v.type?.startsWith?.("video/") || /\.(mp4|mov|webm)$/i.test(v.name || "")) {
+            if (v.size > VIDEO_DIRECT_MAX) hasLargeVideo = true;
+          }
         }
+        if (hasLargeVideo) throw blobErr;
+        baseFd = await shrinkFormDataForDirectUpload(cloneFormData(formData));
       }
-      if (hasLargeVideo || hasLargeImage) throw blobErr;
-      baseFd = cloneFormData(formData);
+    } else {
+      baseFd = await shrinkFormDataForDirectUpload(cloneFormData(formData));
     }
   }
 

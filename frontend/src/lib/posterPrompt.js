@@ -267,7 +267,7 @@ export function buildPosterPrompt(template, values = {}, options = {}) {
   }
 
   for (const key of template.placeholders || []) {
-    const v = String(values[k] || "").trim();
+    const v = String(values[key] || "").trim();
     if (!v || template.replacements?.[key]) continue;
     if (raw.includes(key)) raw = raw.split(key).join(v);
   }

@@ -30,6 +30,8 @@ const { formatGenerationError } = require("./lib/generationErrors.cjs");
 const { handleCreationsRoute } = require("./lib/creationsRoutes.cjs");
 const { handlePromptAssistRoute } = require("./lib/promptAssist.cjs");
 const PADRAO_STYLES_LIST = require("./lib/padraoStylesData.cjs");
+const { finalizeImagePrompt } = require("./lib/imageQualityPrompts.cjs");
+const { getProPreset, listProPresets } = require("./lib/proPresetsData.cjs");
 
 function getPadraoStyle(styleId) {
   return PADRAO_STYLES_LIST.find((s) => s.id === String(styleId || "").trim()) || null;
@@ -756,7 +758,7 @@ async function imageInput(fields, files, modelKey, prompt, opts = {}) {
     (await resolveImageRef(files, fields, "photo", "photo_url"))
     || (await resolveImageRef(files, fields, "image", "image_url"));
   const input = {
-    prompt,
+    prompt: finalizeImagePrompt(prompt, { modelKey }),
     aspect_ratio: normalizeRatio(text(fields, "aspect_ratio", "1:1"), modelKey),
   };
   if (["standard", "pro", "artistic"].includes(modelKey)) {
@@ -912,7 +914,7 @@ async function carouselPanoramicImageInput(fields, files, modelKey, prompt, slid
   const panelAspect = text(fields, "aspect_ratio", "4:5");
   const wideAspect = panoramicGenerationAspect(slideCount, panelAspect, modelKey);
   const input = {
-    prompt,
+    prompt: finalizeImagePrompt(prompt, { modelKey }),
     aspect_ratio: normalizeRatio(wideAspect, modelKey),
     num_outputs: 1,
   };
@@ -923,7 +925,7 @@ async function carouselPanoramicImageInput(fields, files, modelKey, prompt, slid
 
 async function carouselSlideImageInput(fields, files, modelKey, prompt) {
   const input = {
-    prompt,
+    prompt: finalizeImagePrompt(prompt, { modelKey }),
     aspect_ratio: normalizeRatio(text(fields, "aspect_ratio", "4:5"), modelKey),
     num_outputs: 1,
   };
@@ -999,9 +1001,17 @@ async function routePost(path, fields, files, req) {
   }
 
   if (path === "generate/pro") {
-    const preset = text(fields, "preset_id", "ultra_real");
-    const extra = text(fields, "extra_prompt", "");
-    const prompt = `Professional portrait retouch using preset ${preset}. Preserve identity and natural facial features. ${extra}`;
+    const presetId = text(fields, "preset_id", "ultra_real");
+    const preset = getProPreset(presetId);
+    const extra = text(fields, "extra_prompt", "").trim();
+    const intensity = Number(text(fields, "intensity", "70"));
+    let prompt = preset?.prompt
+      || "Professional portrait retouch. Preserve identity and natural facial features.";
+    if (extra) prompt += `\n\nAdditional instructions: ${extra}`;
+    if (Number.isFinite(intensity)) {
+      if (intensity < 34) prompt += "\n\nApply a very subtle, gentle enhancement.";
+      else if (intensity > 66) prompt += "\n\nApply a stronger visible enhancement while strictly preserving identity.";
+    }
     const input = await imageInput(fields, files, "pro", prompt);
     return submitBillableGeneration(req, fields, {
       cost: CREDIT.pro,
@@ -1121,7 +1131,7 @@ async function routePost(path, fields, files, req) {
     const cost = Math.max(1, Number(CREDIT.mangaPanel) || 15);
     const aspect = normalizeRatio(text(fields, "aspect_ratio", "4:5"), "qwen");
     const input = {
-      prompt: promptFinal,
+      prompt: finalizeImagePrompt(promptFinal, { modelKey: "qwen" }),
       image: [photoA, photoB],
       aspect_ratio: aspect === "match_input_image" ? "3:4" : aspect,
       go_fast: false,
@@ -1449,6 +1459,10 @@ async function handlePath(path, req, res) {
       const styles = PADRAO_STYLES_LIST.map((s) => ({ id: s.id, ...s }));
       const categories = [...new Set(styles.map((s) => s.cat))];
       return json(res, 200, { styles, categories });
+    }
+
+    if (req.method === "GET" && path === "public/pro-presets") {
+      return json(res, 200, { presets: listProPresets() });
     }
 
     if (req.method === "GET" && path === "public/pricing") {

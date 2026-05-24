@@ -21,6 +21,7 @@ export default function AspectPicker({
   options = DEFAULT_OPTIONS,
   items: customItems,
   compact = false,
+  premium = false,
   columns,
 }) {
   const items = customItems?.length
@@ -47,10 +48,14 @@ export default function AspectPicker({
             data-testid={`${testIdPrefix}-${key}`}
             className={cn(
               "relative flex flex-col items-center justify-center gap-1 transition-all overflow-hidden border font-['Inter_Tight']",
-              compact ? "py-2 px-2 rounded-lg text-[10px]" : "py-3 rounded-xl text-[11px] font-medium",
+              compact ? "py-2 px-2 rounded-lg text-[10px]" : premium ? "py-3.5 rounded-xl text-[12px] font-medium" : "py-3 rounded-xl text-[11px] font-medium",
               active
-                ? "border-[#7C3AED] bg-[rgba(124,58,237,0.1)] text-[#E9E4DC] shadow-[inset_0_0_0_1px_rgba(124,58,237,0.12)]"
-                : "border-[rgba(244,241,234,0.08)] text-[#8A8A8E] hover:border-[rgba(124,58,237,0.35)] hover:text-[#F4F1EA]",
+                ? premium
+                  ? "border-purple-500 bg-zinc-900/90 text-white shadow-[0_0_32px_-8px_rgba(168,85,247,0.55),inset_0_0_0_1px_rgba(168,85,247,0.2)]"
+                  : "border-[#7C3AED] bg-[rgba(124,58,237,0.1)] text-[#E9E4DC] shadow-[inset_0_0_0_1px_rgba(124,58,237,0.12)]"
+                : premium
+                  ? "border-zinc-800 bg-zinc-950/60 text-zinc-500 hover:border-purple-500/40 hover:text-zinc-200 hover:bg-zinc-900/50"
+                  : "border-[rgba(244,241,234,0.08)] text-[#8A8A8E] hover:border-[rgba(124,58,237,0.35)] hover:text-[#F4F1EA]",
             )}
           >
             <span className={cn("flex items-center justify-center", compact ? "h-5" : "h-6")}>

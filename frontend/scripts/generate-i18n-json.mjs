@@ -13,12 +13,9 @@ import { fileURLToPath, pathToFileURL } from "url";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const srcRoot = path.resolve(__dirname, "../src");
 
-const { createMergedDict } = await import(
-  pathToFileURL(path.join(srcRoot, "lib/createMergedDict.js")).href
-);
-const { nestTranslations } = await import(
-  pathToFileURL(path.join(srcRoot, "i18n/nestTranslations.js")).href
-);
+const requireFromSrc = createRequire(path.join(srcRoot, "package.json"));
+const { createMergedDict } = requireFromSrc("./lib/createMergedDict.js");
+const { nestTranslations } = requireFromSrc("./i18n/nestTranslations.js");
 
 const dicts = createMergedDict();
 

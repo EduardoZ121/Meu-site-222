@@ -13,11 +13,10 @@ import {
 import { formatHttpError } from "../lib/uploadErrors";
 import {
   looksLikeImageFile,
-  looksLikeVideoFile,
   IMAGE_ACCEPT,
   VIDEO_ACCEPT,
-  MAX_VIDEO_BYTES,
 } from "../lib/imageCompress";
+import { validateImageUpload, validateVideoUpload } from "../lib/videoMedia";
 import { useI18n } from "../lib/i18n";
 
 const LAYOUT = {
@@ -162,12 +161,9 @@ export default function ImageUploadZone({
 
   const ingestFile = useCallback((file) => {
     if (isVideo) {
-      if (!file || !looksLikeVideoFile(file)) {
-        toast.error(t("vid_edit_video_hint"));
-        return;
-      }
-      if (file.size > MAX_VIDEO_BYTES) {
-        toast.error(t("vid_edit_video_hint"));
+      const check = validateVideoUpload(file, t);
+      if (!check.ok) {
+        toast.error(check.message);
         return;
       }
       runIdRef.current += 1;
@@ -182,8 +178,13 @@ export default function ImageUploadZone({
       }
       return;
     }
-    if (!file || !looksLikeImageFile(file)) {
-      toast.error("Ficheiro tem de ser uma imagem suportada.");
+    const imgCheck = validateImageUpload(file, t);
+    if (!imgCheck.ok) {
+      toast.error(imgCheck.message);
+      return;
+    }
+    if (!looksLikeImageFile(file)) {
+      toast.error(t("img_err_invalid_type"));
       return;
     }
     runIdRef.current += 1;

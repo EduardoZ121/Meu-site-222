@@ -339,8 +339,8 @@ async function resolveVideoRef(files, fields, fileKey = "video", urlKey = "video
   const file = fileOf(files, fileKey);
   if (!file) return null;
   const st = await fs.stat(file.filepath).catch(() => null);
-  if (st && st.size > 80 * 1024 * 1024) {
-    const err = new Error("Vídeo demasiado grande (máx. ~80 MB). Comprime ou encurta o clip.");
+  if (st && st.size > 50 * 1024 * 1024) {
+    const err = new Error("Vídeo muito grande. Máximo 50MB.");
     err.status = 413;
     throw err;
   }
@@ -414,21 +414,35 @@ async function routeUploadVideoBlob(req, res) {
     if (!bearer.startsWith("local:") && !verifySessionToken(bearer)) {
       return json(res, 401, { detail: "Sessão inválida ou expirada." });
     }
-    const { files } = await parseBody(req, { maxFileSize: 96 * 1024 * 1024 });
+    const { MAX_VIDEO_BYTES, transcodeVideoToH264, shouldAttemptTranscode } = require("./lib/videoTranscode.cjs");
+    const { files } = await parseBody(req, { maxFileSize: MAX_VIDEO_BYTES + 4 * 1024 * 1024 });
     const file = fileOf(files, "video");
     if (!file?.filepath) {
       return json(res, 400, { detail: "Envia um vídeo (MP4/MOV)." });
     }
     const st = await fs.stat(file.filepath).catch(() => null);
     if (!st?.size) return json(res, 400, { detail: "Ficheiro de vídeo inválido." });
-    if (st.size > 80 * 1024 * 1024) {
-      return json(res, 413, { detail: "Vídeo demasiado grande (máx. ~80 MB)." });
+    if (st.size > MAX_VIDEO_BYTES) {
+      return json(res, 413, { detail: "Vídeo muito grande. Máximo 50MB." });
+    }
+    let uploadPath = file.filepath;
+    let converted = false;
+    if (shouldAttemptTranscode(file.originalFilename, file.mimetype)) {
+      const out = await transcodeVideoToH264(file.filepath);
+      if (out?.outputPath) {
+        uploadPath = out.outputPath;
+        converted = true;
+      }
     }
     let fn = String(file.originalFilename || "video.mp4").replace(/[^\w.\-]+/g, "_");
+    if (converted) fn = fn.replace(/\.[^.]+$/, "") + ".mp4";
     if (!/\.[a-z0-9]{2,5}$/i.test(fn)) fn += ".mp4";
     const pathname = `rp/${Date.now()}-${crypto.randomBytes(6).toString("hex")}-${fn.slice(0, 80)}`;
-    const mime = file.mimetype || "video/mp4";
-    const buf = await fs.readFile(file.filepath);
+    const mime = converted ? "video/mp4" : (file.mimetype || "video/mp4");
+    const buf = await fs.readFile(uploadPath);
+    if (converted && uploadPath !== file.filepath) {
+      await fs.unlink(uploadPath).catch(() => {});
+    }
     const { put } = require("@vercel/blob");
     const blob = await put(pathname, buf, {
       access: "public",
@@ -468,7 +482,7 @@ async function routeBlobPrepare(req, res) {
       token: blobToken,
       pathname,
       access: "public",
-      maximumSizeInBytes: isVideo ? 96 * 1024 * 1024 : 48 * 1024 * 1024,
+      maximumSizeInBytes: isVideo ? 52 * 1024 * 1024 : 6 * 1024 * 1024,
       allowedContentTypes: isVideo
         ? [
           "video/mp4",
@@ -1833,7 +1847,7 @@ async function handlePath(path, req, res) {
 
     if (req.method === "POST") {
       const maxFileSize = path === "generate/video-edit"
-        ? 96 * 1024 * 1024
+        ? 54 * 1024 * 1024
         : 4.2 * 1024 * 1024;
       const { fields, files } = await parseBody(req, { maxFileSize });
       if (path === "auth/login" || path === "auth/register" || path === "auth/google") {
@@ -1857,7 +1871,7 @@ async function handlePath(path, req, res) {
       const isVideoEdit = String(pathFromRequest(req) || "").includes("video-edit");
       return json(res, 413, {
         detail: isVideoEdit
-          ? "O vídeo ultrapassou o limite do servidor. Usa MP4/MOV até ~80 MB (ideal 2–10 s) ou recarrega para ativar o upload em nuvem."
+          ? "Vídeo muito grande. Máximo 50MB. Usa MP4 (H.264) ou MOV (ideal 2–10 s) ou recarrega para ativar o upload em nuvem."
           : "O envio ultrapassou o limite (~4 MB) do servidor. Recarrega a página e tenta com uma foto em JPEG; o site comprime automaticamente.",
       });
     }

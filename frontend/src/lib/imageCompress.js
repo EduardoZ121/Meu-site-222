@@ -15,8 +15,8 @@ export function looksLikeImageFile(file) {
   return IMAGE_EXTENSIONS.test(file.name || "");
 }
 
-export const VIDEO_ACCEPT = "video/mp4,video/quicktime,video/webm,.mp4,.mov,.webm";
-export const MAX_VIDEO_BYTES = 80 * 1024 * 1024;
+export const VIDEO_ACCEPT = "video/mp4,video/quicktime,.mp4,.mov";
+export const MAX_VIDEO_BYTES = 50 * 1024 * 1024;
 
 export function looksLikeVideoFile(file) {
   if (!file) return false;

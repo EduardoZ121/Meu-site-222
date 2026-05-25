@@ -3,8 +3,9 @@
  * Existing components keep importing useI18n() from here.
  */
 import { useTranslation } from "react-i18next";
-import { LANG_LABELS, LANG_ORDER } from "./localeStrings";
-import { setLanguageAndReload } from "./remakepixLanguage";
+import { LANG_LABELS, LANG_ORDER } from "./localeStrings.js";
+import { setLanguageAndReload } from "./remakepixLanguage.js";
+import { humanFallbackLabel } from "./i18nHumanFallback.js";
 
 function format(str, vars) {
   if (!vars || typeof str !== "string") return str;
@@ -18,10 +19,12 @@ export function useI18n() {
 
   const t = (key, vars) => {
     const raw = i18nT(key, { ...vars, defaultValue: "" });
-    if (raw) return format(raw, vars);
+    if (raw && raw !== key) return format(raw, vars);
     const enFallback = i18n.getResource("en", "translation", key);
     if (enFallback) return format(enFallback, vars);
-    return key;
+    const nestedVideo = i18n.getResource(lang, "translation", `video.${key.replace(/^vid_/, "")}`);
+    if (nestedVideo) return format(nestedVideo, vars);
+    return format(humanFallbackLabel(key, lang), vars);
   };
 
   return {

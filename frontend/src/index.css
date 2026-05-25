@@ -1757,6 +1757,16 @@
   max-height: 280px;
   object-fit: contain;
 }
+.studio-video-upload__preview--thumb {
+  min-height: 160px;
+  background: #000;
+}
+.studio-video-upload__preview--thumb img {
+  display: block;
+  width: 100%;
+  max-height: 280px;
+  object-fit: contain;
+}
 .studio-video-upload__clear {
   position: absolute;
   top: 0.5rem;

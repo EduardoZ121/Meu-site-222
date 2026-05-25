@@ -24,8 +24,8 @@ function isLocalToken(token) {
   return token?.startsWith("local:");
 }
 
-export function formatApiError(err, fallback = "Falhou.") {
-  return formatHttpError(err, fallback);
+export function formatApiError(err, fallback = "Falhou.", opts) {
+  return formatHttpError(err, fallback, opts);
 }
 
 export const api = axios.create({
@@ -190,8 +190,11 @@ async function uploadFileToVercelBlob(key, fileLike, perFileMs, onProgress) {
   } catch (err) {
     const msg = String(err?.message || err);
     if (/fetch|network|failed|abort/i.test(msg)) {
+      const online = typeof navigator !== "undefined" && navigator.onLine !== false;
       throw new Error(
-        "Falhou o envio do vídeo para a nuvem. Verifica a ligação, faz Ctrl+F5 ou usa um clip mais curto.",
+        online
+          ? "Falhou o envio do vídeo para a nuvem. Recarrega (Ctrl+F5) ou usa um clip mais curto."
+          : "Sem ligação à internet. Liga-te à rede e tenta outra vez.",
       );
     }
     throw err;

@@ -1,8 +1,31 @@
 /**
- * Mensagens HTTP / rede (regra: nunca “erro de rede” para respostas do servidor).
+ * Mensagens HTTP / rede (regra: não assumir falha de internet sem navigator.onLine).
  */
-export function formatHttpError(err, fallback = "Falhou.") {
+
+function isBrowserOnline() {
+  if (typeof navigator === "undefined") return true;
+  return navigator.onLine !== false;
+}
+
+function networkHint() {
+  return isBrowserOnline()
+    ? "Tenta outra vez ou recarrega a página (Ctrl+F5)."
+    : "Sem ligação à internet. Liga-te à rede e tenta outra vez.";
+}
+
+/**
+ * @param {unknown} err
+ * @param {string} [fallback]
+ * @param {{ context?: "video_preview" | "video_upload" | "image_upload" }} [opts]
+ */
+export function formatHttpError(err, fallback = "Falhou.", opts = {}) {
   const raw = String(err?.response?.data?.detail || err?.message || "");
+  const ctx = opts.context || "";
+
+  if (/preview|pré-visualiz|codec|HEVC|canPlayType/i.test(raw) || ctx === "video_preview") {
+    return "Não foi possível pré-visualizar o vídeo. Verifique o formato ou tente novamente.";
+  }
+
   if (/FUNCTION_INVOCATION_FAILED|A server error has occurred/i.test(raw)) {
     return "Servidor temporariamente indisponível. Recarrega a página em 30 segundos e tenta de novo.";
   }
@@ -11,6 +34,12 @@ export function formatHttpError(err, fallback = "Falhou.") {
   if (status === 413) {
     const detail = err.response?.data?.detail;
     if (typeof detail === "string" && detail.trim()) return detail.trim();
+    if (ctx === "video_upload" || /vídeo|video/i.test(raw)) {
+      return "Vídeo muito grande. Máximo 50MB.";
+    }
+    if (ctx === "image_upload") {
+      return "Imagem muito grande. Máximo 5 MB.";
+    }
     return "Ficheiro demasiado grande para enviar. Tenta um mais pequeno.";
   }
   if (status === 500) {
@@ -36,23 +65,39 @@ export function formatHttpError(err, fallback = "Falhou.") {
   }
 
   if (err?.code === "ERR_NETWORK" || err?.message === "Network Error") {
-    return "Ligação interrompida. Verifica a internet e tenta outra vez.";
+    return isBrowserOnline()
+      ? "Ligação interrompida com o servidor. Tenta outra vez."
+      : "Sem ligação à internet. Liga-te à rede e tenta outra vez.";
   }
 
   if (!err?.response) {
     if (/upload em nuvem|blob|cloud|nuvem/i.test(raw)) {
-      return raw.trim() || "Falhou o upload em nuvem. Tenta um vídeo mais curto ou recarrega a página (Ctrl+F5).";
+      return raw.trim() || `Falhou o upload em nuvem. ${networkHint()}`;
     }
     if (/Failed to fetch|Load failed|fetch failed|NetworkError/i.test(raw)) {
-      return "O navegador não conseguiu falar com o servidor ou com a nuvem. Verifica a internet, faz Ctrl+F5 e tenta outra vez.";
+      if (ctx === "video_preview") {
+        return "Não foi possível pré-visualizar o vídeo. Verifique o formato ou tente novamente.";
+      }
+      return isBrowserOnline()
+        ? "O pedido não chegou ao servidor. Recarrega (Ctrl+F5) e tenta outra vez."
+        : "Sem ligação à internet. Liga-te à rede e tenta outra vez.";
     }
     if (/timeout|demorou demasiado|ECONNABORTED|Tempo esgotado|esgotado/i.test(raw) || err?.code === "ECONNABORTED") {
       return raw.trim() || "O servidor demorou demasiado. Tenta com um ficheiro mais pequeno ou mais tarde.";
     }
     if (err?.message && String(err.message).trim()) {
-      return String(err.message).trim();
+      const msg = String(err.message).trim();
+      if (/Verifica a (tua )?internet|ligação/i.test(msg) && isBrowserOnline() && ctx === "video_preview") {
+        return "Não foi possível pré-visualizar o vídeo. Verifique o formato ou tente novamente.";
+      }
+      return msg;
     }
-    return "Não houve resposta do servidor. Verifica a ligação e tenta outra vez.";
+    if (ctx === "video_preview") {
+      return "Não foi possível pré-visualizar o vídeo. Verifique o formato ou tente novamente.";
+    }
+    return isBrowserOnline()
+      ? (fallback || "Não houve resposta do servidor. Tenta outra vez.")
+      : `Não houve resposta do servidor. ${networkHint()}`;
   }
 
   const detail = err?.response?.data?.detail;

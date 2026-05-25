@@ -109,7 +109,7 @@ export default function VideoEditorAdmin() {
       })
       .catch((err) => {
         if (cloudUploadGen.current !== gen) return;
-        const msg = formatApiError(err, t("vid_upload_cloud_fail"));
+        const msg = formatApiError(err, t("vid_upload_cloud_fail"), { context: "video_upload" });
         setVideoCloudError(msg);
         toast.error(msg, { duration: 12000 });
       })

@@ -1,6 +1,12 @@
 import { useMemo, useState } from "react";
 import { Clapperboard, Sparkles } from "lucide-react";
-import { formatApiError, invalidateBlobUploadCache, isBlobUploadEnabled, uploadPost } from "../../lib/api";
+import {
+  formatApiError,
+  invalidateBlobUploadCache,
+  isBlobUploadEnabled,
+  pollPrediction,
+  uploadPost,
+} from "../../lib/api";
 import { isS3VideoUploadAvailable } from "../../lib/s3VideoUpload";
 import { normalizeCreation, primaryResultUrl } from "../../lib/creationUrls";
 import { useAuth } from "../../lib/auth";
@@ -47,6 +53,7 @@ export default function VideoEditorAdmin() {
   const [audioSetting, setAudioSetting] = useState("origin");
   const [busy, setBusy] = useState(false);
   const [uploadPhase, setUploadPhase] = useState("");
+  const [progress, setProgress] = useState(0);
   const [result, setResult] = useState(null);
 
   const { ready, hint } = useStudioGenerateGate({
@@ -87,8 +94,10 @@ export default function VideoEditorAdmin() {
     }
 
     setBusy(true);
+    setProgress(0);
     setUploadPhase(needsCloud ? "cloud" : "send");
     setResult(null);
+    let submitData;
     try {
       const fd = new FormData();
       fd.append("prompt", prompt.trim());
@@ -99,15 +108,24 @@ export default function VideoEditorAdmin() {
       fd.append("video", video);
       if (reference) fd.append("reference_image", reference);
 
-      const { data } = await uploadPost("/generate/video-edit", fd, {
-        timeout: needsCloud ? 300_000 : 120_000,
-        pollTimeoutMs: 600_000,
-        blobOffloadTimeoutMs: needsCloud ? 300_000 : 55_000,
+      ({ data: submitData } = await uploadPost("/generate/video-edit", fd, {
+        timeout: 120_000,
+        blobOffloadTimeoutMs: needsCloud ? 600_000 : 55_000,
         skipBlobOffload: !needsCloud,
+        headers: { "X-Skip-Auto-Poll": "1" },
         onVideoProgress: needsCloud
           ? (pct) => setUploadPhase(pct > 0 ? `cloud:${pct}` : "cloud")
           : undefined,
+      }));
+
+      setUploadPhase("processing");
+      const data = await pollPrediction(submitData.prediction_id, {
+        timeoutMs: 600_000,
+        credits_spent: submitData.credits_spent || cost,
+        type: "video",
+        onTick: (sec) => setProgress(sec),
       });
+
       const creation = normalizeCreation(data?.creation);
       if (!primaryResultUrl(creation)) throw new Error(t("vid_no_result"));
       setResult(creation);
@@ -115,9 +133,13 @@ export default function VideoEditorAdmin() {
       await refresh();
     } catch (err) {
       toast.error(formatApiError(err, t("vid_edit_fail")), { duration: 12000 });
+      if (err?.refunded && submitData?.credits_spent) {
+        try { await refresh(); } catch { /* ignore */ }
+      }
     } finally {
       setBusy(false);
       setUploadPhase("");
+      setProgress(0);
     }
   };
 
@@ -284,7 +306,9 @@ export default function VideoEditorAdmin() {
                 ? (uploadPhase.includes(":")
                   ? t("vid_upload_cloud_progress", { n: uploadPhase.split(":")[1] || "0" })
                   : t("vid_edit_cloud_uploading"))
-                : t("vid_edit_processing")
+                : uploadPhase === "processing" && progress > 0
+                  ? `${t("vid_edit_processing")} (${progress}s)`
+                  : t("vid_edit_processing")
             }
             hint={hint}
             testId="video-edit-submit"

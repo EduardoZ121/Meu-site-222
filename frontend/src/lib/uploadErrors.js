@@ -36,15 +36,21 @@ export function formatHttpError(err, fallback = "Falhou.") {
   }
 
   if (err?.code === "ERR_NETWORK" || err?.message === "Network Error") {
-    return "Verifica a tua internet.";
+    return "Ligação interrompida. Verifica a internet e tenta outra vez.";
   }
 
   if (!err?.response) {
-    if (/upload em nuvem|blob|cloud/i.test(raw)) {
-      return raw.trim() || "Falhou o upload em nuvem. Tenta um vídeo mais curto ou recarrega a página.";
+    if (/upload em nuvem|blob|cloud|nuvem/i.test(raw)) {
+      return raw.trim() || "Falhou o upload em nuvem. Tenta um vídeo mais curto ou recarrega a página (Ctrl+F5).";
     }
-    if (/timeout|demorou demasiado|ECONNABORTED/i.test(raw) || err?.code === "ECONNABORTED") {
-      return "O servidor demorou a responder. Tenta outra vez com uma imagem mais pequena ou sem foto.";
+    if (/Failed to fetch|Load failed|fetch failed|NetworkError/i.test(raw)) {
+      return "O navegador não conseguiu falar com o servidor ou com a nuvem. Verifica a internet, faz Ctrl+F5 e tenta outra vez.";
+    }
+    if (/timeout|demorou demasiado|ECONNABORTED|Tempo esgotado|esgotado/i.test(raw) || err?.code === "ECONNABORTED") {
+      return raw.trim() || "O servidor demorou demasiado. Tenta com um ficheiro mais pequeno ou mais tarde.";
+    }
+    if (err?.message && String(err.message).trim()) {
+      return String(err.message).trim();
     }
     return "Não houve resposta do servidor. Verifica a ligação e tenta outra vez.";
   }

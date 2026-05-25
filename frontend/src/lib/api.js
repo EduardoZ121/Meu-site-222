@@ -140,17 +140,25 @@ function withTimeout(promise, ms, label = "Operação") {
 const BLOB_OFFLOAD_KEYS = new Set(["photo", "image", "mask", "garment", "video", "reference_image"]);
 const VIDEO_DIRECT_MAX = 12 * 1024 * 1024;
 
-async function uploadFileToVercelBlob(key, fileLike, perFileMs) {
+async function uploadFileToVercelBlob(key, fileLike, perFileMs, onProgress) {
   const { put } = await import("@vercel/blob/client");
   const isVideo = key === "video";
   let data;
   try {
-    ({ data } = await api.post("/blob/prepare", {
-      filename: fileLike.name || `${key}.${isVideo ? "mp4" : "jpg"}`,
-      kind: isVideo ? "video" : undefined,
-    }));
+    ({ data } = await api.post(
+      "/blob/prepare",
+      {
+        filename: fileLike.name || `${key}.${isVideo ? "mp4" : "jpg"}`,
+        kind: isVideo ? "video" : undefined,
+      },
+      { timeout: isVideo ? 90_000 : 45_000 },
+    ));
   } catch (err) {
     invalidateBlobUploadCache();
+    const detail = err?.response?.data?.detail;
+    if (typeof detail === "string" && detail.trim()) {
+      throw new Error(detail.trim());
+    }
     throw err;
   }
   const { clientToken, pathname } = data || {};
@@ -158,12 +166,36 @@ async function uploadFileToVercelBlob(key, fileLike, perFileMs) {
     invalidateBlobUploadCache();
     throw new Error("Armazenamento em nuvem indisponível. Tenta um ficheiro mais pequeno ou mais tarde.");
   }
-  return put(pathname, fileLike, {
-    access: "public",
-    token: clientToken,
-    contentType: fileLike.type || (isVideo ? "video/mp4" : "image/jpeg"),
-    multipart: fileLike.size > (isVideo ? 8_000_000 : 4_500_000),
-  });
+  const label = isVideo ? "Upload do vídeo (nuvem)" : "Upload em nuvem";
+  try {
+    return await withTimeout(
+      put(pathname, fileLike, {
+        access: "public",
+        token: clientToken,
+        contentType: fileLike.type || (isVideo ? "video/mp4" : "image/jpeg"),
+        multipart: fileLike.size > (isVideo ? 8_000_000 : 4_500_000),
+        onUploadProgress: onProgress
+          ? (ev) => {
+            const pct = Number(ev?.percentage);
+            if (Number.isFinite(pct)) onProgress(Math.round(pct));
+            else if (ev?.loaded && ev?.total) {
+              onProgress(Math.round((ev.loaded / ev.total) * 100));
+            }
+          }
+          : undefined,
+      }),
+      perFileMs,
+      label,
+    );
+  } catch (err) {
+    const msg = String(err?.message || err);
+    if (/fetch|network|failed|abort/i.test(msg)) {
+      throw new Error(
+        "Falhou o envio do vídeo para a nuvem. Verifica a ligação, faz Ctrl+F5 ou usa um clip mais curto.",
+      );
+    }
+    throw err;
+  }
 }
 
 /** Vercel Blob e/ou S3 — substitui ficheiros por `*_url` (pedido final fica leve). */
@@ -218,12 +250,9 @@ async function offloadFormDataMediaToCloud(formData, opts = {}) {
     }
 
     if (blobEnabled) {
+      const progressCb = isVideo ? opts.onVideoProgress : opts.onImageProgress;
       // eslint-disable-next-line no-await-in-loop
-      const result = await withTimeout(
-        uploadFileToVercelBlob(key, fileLike, perFileMs),
-        perFileMs,
-        "Upload em nuvem",
-      );
+      const result = await uploadFileToVercelBlob(key, fileLike, perFileMs, progressCb);
       out.append(`${key}_url`, result.url);
       // eslint-disable-next-line no-continue
       continue;

@@ -400,6 +400,49 @@ async function resolveImageRef(files, fields, fileKey, urlKey) {
   return fileToDataUri(fileOf(files, fileKey));
 }
 
+/** Upload de vídeo pelo servidor → Vercel Blob (fallback quando o browser não consegue PUT direto). */
+async function routeUploadVideoBlob(req, res) {
+  try {
+    const blobToken = getBlobReadWriteToken();
+    if (!blobToken) {
+      return json(res, 503, { detail: "Armazenamento Blob não configurado." });
+    }
+    const auth = req.headers.authorization || "";
+    const m = auth.match(/^Bearer\s+(.+)$/i);
+    if (!m?.[1]?.trim()) return json(res, 401, { detail: "Não autenticado." });
+    const bearer = m[1].trim();
+    if (!bearer.startsWith("local:") && !verifySessionToken(bearer)) {
+      return json(res, 401, { detail: "Sessão inválida ou expirada." });
+    }
+    const { files } = await parseBody(req, { maxFileSize: 96 * 1024 * 1024 });
+    const file = fileOf(files, "video");
+    if (!file?.filepath) {
+      return json(res, 400, { detail: "Envia um vídeo (MP4/MOV)." });
+    }
+    const st = await fs.stat(file.filepath).catch(() => null);
+    if (!st?.size) return json(res, 400, { detail: "Ficheiro de vídeo inválido." });
+    if (st.size > 80 * 1024 * 1024) {
+      return json(res, 413, { detail: "Vídeo demasiado grande (máx. ~80 MB)." });
+    }
+    let fn = String(file.originalFilename || "video.mp4").replace(/[^\w.\-]+/g, "_");
+    if (!/\.[a-z0-9]{2,5}$/i.test(fn)) fn += ".mp4";
+    const pathname = `rp/${Date.now()}-${crypto.randomBytes(6).toString("hex")}-${fn.slice(0, 80)}`;
+    const mime = file.mimetype || "video/mp4";
+    const buf = await fs.readFile(file.filepath);
+    const { put } = require("@vercel/blob");
+    const blob = await put(pathname, buf, {
+      access: "public",
+      token: blobToken,
+      contentType: mime,
+    });
+    return json(res, 200, { url: blob.url });
+  } catch (err) {
+    return json(res, err.status || 500, {
+      detail: err.message || "Falha ao guardar vídeo na nuvem.",
+    });
+  }
+}
+
 async function routeBlobPrepare(req, res) {
   try {
     const blobToken = getBlobReadWriteToken();
@@ -1739,6 +1782,10 @@ async function handlePath(path, req, res) {
 
     if (req.method === "POST" && path === "blob/prepare") {
       return await routeBlobPrepare(req, res);
+    }
+
+    if (req.method === "POST" && path === "upload/video-blob") {
+      return await routeUploadVideoBlob(req, res);
     }
 
     if (await handleCreationsRoute(path, req, res, { verifySessionToken, json })) {

@@ -285,16 +285,58 @@ async function offloadFormDataMediaToCloud(formData, opts = {}) {
   return out;
 }
 
-/** Envia vídeo para Vercel Blob (ou S3) e devolve URL pública. */
-export async function uploadVideoToCloud(file, opts = {}) {
-  if (!file) throw new Error("Vídeo em falta.");
+function uploadVideoViaServerProxy(file, opts = {}) {
+  const timeoutMs = opts.timeoutMs ?? 600_000;
+  return new Promise((resolve, reject) => {
+    const fd = new FormData();
+    fd.append("video", file);
+    const xhr = new XMLHttpRequest();
+    xhr.open("POST", joinApiPath("/upload/video-blob"));
+    xhr.timeout = timeoutMs;
+    const token = typeof localStorage !== "undefined" ? localStorage.getItem("rp_token") : null;
+    if (token) xhr.setRequestHeader("Authorization", `Bearer ${token}`);
+    xhr.upload.onprogress = (e) => {
+      if (e.lengthComputable && opts.onProgress) {
+        opts.onProgress(Math.round((e.loaded / e.total) * 100));
+      }
+    };
+    xhr.onload = () => {
+      let data = {};
+      try {
+        data = xhr.responseText ? JSON.parse(xhr.responseText) : {};
+      } catch {
+        data = { detail: xhr.responseText?.slice(0, 200) || "Resposta inválida." };
+      }
+      if (xhr.status >= 200 && xhr.status < 300 && data.url) {
+        resolve(String(data.url));
+        return;
+      }
+      const err = new Error(typeof data.detail === "string" ? data.detail : "Upload do vídeo falhou.");
+      err.response = { status: xhr.status, data };
+      reject(err);
+    };
+    xhr.onerror = () => {
+      const err = new Error("Ligação interrompida ao enviar o vídeo.");
+      err.code = "ERR_NETWORK";
+      reject(err);
+    };
+    xhr.ontimeout = () => {
+      const err = new Error("Timeout ao enviar o vídeo ao servidor.");
+      err.code = "ECONNABORTED";
+      reject(err);
+    };
+    xhr.send(fd);
+  });
+}
+
+async function uploadVideoToCloudDirect(file, opts = {}) {
   invalidateBlobUploadCache();
   const blobOn = await isBlobUploadEnabled({ refresh: true });
   const { isS3VideoUploadAvailable } = await import("./s3VideoUpload");
   const s3On = await isS3VideoUploadAvailable();
   if (!blobOn && !s3On) {
     throw new Error(
-      "Vídeos grandes precisam de armazenamento em nuvem. Recarrega a página (Ctrl+F5) e confirma Blob ativo em /api/blob/status.",
+      "Vídeos grandes precisam de armazenamento em nuvem. Recarrega a página (Ctrl+F5).",
     );
   }
   const fd = new FormData();
@@ -310,7 +352,26 @@ export async function uploadVideoToCloud(file, opts = {}) {
   for (const [k, v] of out.entries()) {
     if (k === "video_url" && typeof v === "string") return v;
   }
-  throw new Error("Upload do vídeo terminou sem URL. Tenta um clip mais curto ou outro formato (MP4).");
+  throw new Error("Upload do vídeo terminou sem URL. Tenta MP4 mais curto.");
+}
+
+/** Envia vídeo para nuvem; tenta browser→Blob e, se falhar, servidor→Blob. */
+export async function uploadVideoToCloud(file, opts = {}) {
+  if (!file) throw new Error("Vídeo em falta.");
+  try {
+    return await uploadVideoToCloudDirect(file, opts);
+  } catch (directErr) {
+    const msg = String(directErr?.message || directErr);
+    const tryServer = /fetch|network|failed|nuvem|blob|interrompida|abort|timeout|ligação/i.test(msg)
+      || directErr?.code === "ERR_NETWORK";
+    if (!tryServer) throw directErr;
+    try {
+      return await uploadVideoViaServerProxy(file, opts);
+    } catch (proxyErr) {
+      const proxyMsg = formatHttpError(proxyErr, "Upload falhou.");
+      throw new Error(`${proxyMsg} (também falhou envio direto à nuvem.)`);
+    }
+  }
 }
 
 const IMAGE_OFFLOAD_KEYS = new Set(["photo", "image", "mask", "garment", "reference_image"]);

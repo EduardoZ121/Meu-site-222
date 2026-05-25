@@ -36,7 +36,6 @@ export default function Generate() {
   const [searchParams] = useSearchParams();
 
   const [photo, setPhoto] = useState(null);
-  const [photoUploadStatus, setPhotoUploadStatus] = useState("idle");
   const [prompt, setPrompt] = useState(searchParams.get("prompt") || "");
   const [improve, setImprove] = useState(false);
   const [aspect, setAspect] = useState(() => readUserSettings().aspect_ratio_default || "4:5");
@@ -75,8 +74,7 @@ export default function Generate() {
     return { mode: "text", cost: costs.image, ctaLabel: t("studio_cta_text", { n: costs.image }) };
   }, [photo, pickedStyle, costs, t]);
 
-  const generateReady = photoUploadStatus !== "saving"
-    && mode !== "blocked"
+  const generateReady = mode !== "blocked"
     && (mode === "easy" || prompt.trim().length >= 3);
 
   const { ready: gateReady, hint: gateHint } = useStudioGenerateGate({
@@ -88,9 +86,7 @@ export default function Generate() {
       ? t("studio_gen_hint_blocked")
       : (mode === "text" || mode === "edit") && prompt.trim().length < 3
         ? t("studio_gen_hint_prompt")
-        : photoUploadStatus === "saving"
-          ? t("upload_preparing")
-          : null,
+        : null,
   });
 
   const generate = async () => {
@@ -176,10 +172,7 @@ export default function Generate() {
               )}
             </div>
             <div className="max-w-[420px]">
-              <PhotoUpload value={photo} onChange={(f) => setPhoto(f || null)} testId="gen-photo" compressOptions={{ maxSize: 768, maxBytes: 2 * 1024 * 1024, maxBytesIOS: 1.5 * 1024 * 1024 }} onStatusChange={setPhotoUploadStatus} />
-              {photoUploadStatus === "saving" && (
-                <p className="mt-2 text-[10px] font-mono uppercase tracking-[0.14em] text-[#8A8A8E]">{t("studio_preparing")}</p>
-              )}
+              <PhotoUpload value={photo} onChange={(f) => setPhoto(f || null)} testId="gen-photo" compressOptions={{ maxSize: 768, maxBytes: 2 * 1024 * 1024, maxBytesIOS: 1.5 * 1024 * 1024 }} />
             </div>
           </StudioAccordionSection>
 

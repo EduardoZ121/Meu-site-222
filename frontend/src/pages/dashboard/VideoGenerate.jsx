@@ -72,7 +72,7 @@ export default function VideoGenerate() {
       toast.success(t("vid_success", { n: creation?.credits_spent ?? cost }));
       await refresh();
     } catch (err) {
-      toast.error(formatApiError(err, t("vid_fail")), { duration: 9000 });
+      toast.error(formatApiError(err, t("vid_fail"), { context: "video_upload", t }), { duration: 9000 });
     } finally {
       setBusy(false);
     }

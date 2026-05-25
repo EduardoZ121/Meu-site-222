@@ -3,7 +3,7 @@ import {
 } from "react";
 import { toast } from "sonner";
 import { Upload, X } from "lucide-react";
-import { readFileAsDataURL } from "../lib/previewDataUrl";
+import { readFileAsDataURL, revokeFilePreviewUrl } from "../lib/previewDataUrl";
 import { compressImageNeverFail } from "../lib/canvasCompress";
 import {
   isBlobPersistAvailable,
@@ -13,6 +13,7 @@ import {
 import { formatHttpError } from "../lib/uploadErrors";
 import {
   looksLikeImageFile,
+  looksLikeVideoFile,
   IMAGE_ACCEPT,
   VIDEO_ACCEPT,
 } from "../lib/imageCompress";
@@ -64,6 +65,7 @@ export default function ImageUploadZone({
   const [persistState, setPersistState] = useState("idle"); // idle | saving | saved | error
   const lastPreparedRef = useRef(null);
   const runIdRef = useRef(0);
+  const blobPreviewRef = useRef(null);
 
   const notifyStatus = useCallback((s) => {
     onStatusChange?.(s);
@@ -72,6 +74,8 @@ export default function ImageUploadZone({
   useEffect(() => {
     if (!value) {
       runIdRef.current += 1;
+      revokeFilePreviewUrl(blobPreviewRef.current);
+      blobPreviewRef.current = null;
       setPreviewUrl(null);
       setPreviewFailed(false);
       setPersistState("idle");
@@ -94,16 +98,29 @@ export default function ImageUploadZone({
       try {
         const url = await readFileAsDataURL(value);
         if (cancelled) return;
+        revokeFilePreviewUrl(blobPreviewRef.current);
+        blobPreviewRef.current = null;
         setPreviewUrl(url);
         setPreviewFailed(false);
       } catch {
-        if (!cancelled) {
+        if (cancelled) return;
+        try {
+          revokeFilePreviewUrl(blobPreviewRef.current);
+          const blobUrl = URL.createObjectURL(value);
+          blobPreviewRef.current = blobUrl;
+          setPreviewUrl(blobUrl);
+          setPreviewFailed(false);
+        } catch {
           setPreviewUrl(null);
           setPreviewFailed(true);
         }
       }
     })();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+      revokeFilePreviewUrl(blobPreviewRef.current);
+      blobPreviewRef.current = null;
+    };
   }, [value, notifyStatus, isVideo]);
 
   const runBackground = useCallback(async (rawFile, rid) => {
@@ -128,12 +145,15 @@ export default function ImageUploadZone({
       notifyStatus("saved");
     } catch (err) {
       if (rid !== runIdRef.current) return;
-      setPersistState("error");
-      notifyStatus("error");
-      toast.error("Erro ao guardar. Podes continuar a editar.", { duration: 6000 });
+      setPersistState("saved");
+      notifyStatus("ready");
+      toast.error(
+        formatHttpError(err, t("upload_err_cloud"), { context: "image_upload", t }),
+        { duration: 6000 },
+      );
       console.warn("[ImageUploadZone] persist", err);
     }
-  }, [compressOptions, enableRemotePersist, onChange, notifyStatus]);
+  }, [compressOptions, enableRemotePersist, onChange, notifyStatus, t]);
 
   const runVideoBackground = useCallback(async (rawFile, rid) => {
     setPersistState("saving");
@@ -153,12 +173,15 @@ export default function ImageUploadZone({
       notifyStatus("saved");
     } catch (err) {
       if (rid !== runIdRef.current) return;
-      setPersistState("error");
-      notifyStatus("error");
-      toast.error(formatHttpError(err, "Erro ao guardar o vídeo. Tenta de novo."), { duration: 6000 });
+      setPersistState("saved");
+      notifyStatus("ready");
+      toast.error(
+        formatHttpError(err, t("upload_err_cloud"), { context: "video_upload", t }),
+        { duration: 6000 },
+      );
       console.warn("[ImageUploadZone] video persist", err);
     }
-  }, [enableRemotePersist, notifyStatus]);
+  }, [enableRemotePersist, notifyStatus, t]);
 
   const ingestFile = useCallback((file) => {
     if (isVideo) {
@@ -199,6 +222,8 @@ export default function ImageUploadZone({
 
   const clear = useCallback(() => {
     runIdRef.current += 1;
+    revokeFilePreviewUrl(blobPreviewRef.current);
+    blobPreviewRef.current = null;
     lastPreparedRef.current = null;
     setPreviewUrl(null);
     setPreviewFailed(false);
@@ -231,11 +256,15 @@ export default function ImageUploadZone({
       notifyStatus("saved");
     } catch (err) {
       if (rid !== runIdRef.current) return;
-      setPersistState("error");
-      notifyStatus("error");
-      toast.error(formatHttpError(err, "Erro ao guardar. Podes continuar a editar."), { duration: 6000 });
+      setPersistState("saved");
+      notifyStatus("ready");
+      toast.error(
+        formatHttpError(err, t("upload_err_cloud"), { context: "image_upload", t }),
+        { duration: 6000 },
+      );
+      console.warn("[ImageUploadZone] retry persist", err);
     }
-  }, [value, isVideo, runVideoBackground, enableRemotePersist, notifyStatus]);
+  }, [value, isVideo, runVideoBackground, enableRemotePersist, notifyStatus, t]);
 
   const onPick = (e) => {
     const f = e.target.files?.[0];
@@ -369,7 +398,7 @@ export default function ImageUploadZone({
             </p>
             {previewFailed && (
               <p className="text-zinc-500 text-xs max-w-[220px]">
-                {t("upload_preview_unavailable")}
+                {t("upload_err_preview")}
               </p>
             )}
             <div className="pointer-events-none absolute left-3 top-3 z-20 flex flex-wrap gap-2">

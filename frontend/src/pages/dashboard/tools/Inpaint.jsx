@@ -18,7 +18,7 @@ export default function Inpaint() {
   const { t } = useI18n();
   const tools = useLocalizedTools();
   const tool = tools.find((x) => x.id === "inpaint");
-  const errMsg = (err) => formatApiError(err, t("common_fail"));
+  const errMsg = (err) => formatApiError(err, t("common_fail"), { context: "image_upload", t });
   const { refresh } = useAuth();
   const { costs } = usePricing();
   const [photo, setPhoto] = useState(null);

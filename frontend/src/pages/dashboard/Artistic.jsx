@@ -41,7 +41,7 @@ const SECTION_ICONS = {
 
 export default function Artistic() {
   const { lang, t } = useI18n();
-  const errMsg = useCallback((err) => formatApiError(err, t("common_fail")), [t]);
+  const errMsg = useCallback((err) => formatApiError(err, t("common_fail"), { context: "image_upload", t }), [t]);
   useTitle(t("art_page_title"));
   const [searchParams] = useSearchParams();
   const { refresh, user } = useAuth();

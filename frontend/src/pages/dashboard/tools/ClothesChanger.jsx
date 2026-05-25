@@ -95,7 +95,7 @@ function PhotoBox({ photo, onChange, label, helper, emptyLabel, testId }) {
 export default function ClothesChanger() {
   const { t } = useStudioI18n();
   const { t: tCat } = useI18n();
-  const errMsg = (err) => formatApiError(err, t("common_fail"));
+  const errMsg = (err) => formatApiError(err, t("common_fail"), { context: "image_upload", t });
   useTitle(tCat("tool_clothes_name"));
   const { refresh, user } = useAuth();
   const { costs } = usePricing();

@@ -1,4 +1,5 @@
 import { api } from "./api";
+import { isBrowserOnlineFlag } from "./uploadReachability";
 
 function joinApiPath(path) {
   const base = String(process.env.REACT_APP_BACKEND_URL || "").trim().replace(/\/$/, "");
@@ -56,7 +57,13 @@ function putToPresignedUrl(file, presign, onProgress) {
       }
       reject(new Error(`Upload S3 falhou (HTTP ${xhr.status}).`));
     };
-    xhr.onerror = () => reject(new Error("Ligação interrompida durante o upload do vídeo."));
+    xhr.onerror = () => {
+      reject(new Error(
+        isBrowserOnlineFlag()
+          ? "Falhou o envio do vídeo. Tenta outra vez ou recarrega (Ctrl+F5)."
+          : "Sem ligação à rede. Verifica Wi‑Fi ou dados móveis.",
+      ));
+    };
     xhr.ontimeout = () => reject(new Error("Upload do vídeo expirou — tenta um ficheiro mais curto."));
     xhr.send(file);
   });

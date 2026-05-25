@@ -75,7 +75,7 @@
       "tool_generating": "A gerar…",
       "tool_prompt_ph": "Descreve o que queres criar…",
       "tool_example": "Exemplo: {text}",
-      "tool_accept_formats": "JPEG, PNG ou WEBP até 15 MB"
+      "tool_accept_formats": "JPEG, PNG, WEBP ou HEIC até 5 MB"
     },
     "clothes_changer": {
       "garment_label": "Roupa de referência (opcional)",
@@ -1443,7 +1443,7 @@
     "studio_gen_hint_person": "Envia a foto da pessoa para continuar",
     "tool_prompt_ph": "Descreve o que queres criar…",
     "tool_example": "Exemplo: {text}",
-    "tool_accept_formats": "JPEG, PNG ou WEBP até 15 MB",
+    "tool_accept_formats": "JPEG, PNG, WEBP ou HEIC até 5 MB",
     "upload_drop_action": "Arrasta, clica ou cola",
     "upload_send": "Enviar imagem",
     "upload_loaded": "Imagem carregada",

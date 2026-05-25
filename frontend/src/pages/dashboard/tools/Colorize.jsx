@@ -36,7 +36,7 @@ const VIBE_OPTIONS = [
 export default function Colorize() {
   const { t } = useStudioI18n();
   const { t: tCat } = useI18n();
-  const errMsg = (err) => formatApiError(err, t("common_fail"));
+  const errMsg = (err) => formatApiError(err, t("common_fail"), { context: "image_upload", t });
   const navigate = useNavigate();
   const { user, refresh } = useAuth();
   const { costs } = usePricing();

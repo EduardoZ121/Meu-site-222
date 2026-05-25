@@ -7,7 +7,7 @@ export function useStudioI18n() {
   return {
     t,
     lang,
-    errMsg: (err) => formatApiError(err, t("common_fail")),
+    errMsg: (err) => formatApiError(err, t("common_fail"), { context: "image_upload", t }),
     needCredits: (need, have) => t("common_need_credits", { need, have }),
     generated: (n) => t("common_generated", { n }),
   };

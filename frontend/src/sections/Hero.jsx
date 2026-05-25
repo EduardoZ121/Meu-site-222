@@ -36,7 +36,17 @@ export default function Hero() {
         >
           {t("hero_title_1")}
           <br />
-          <span className="italic font-light text-rp-lavender">{t("hero_title_2")}</span> {t("hero_title_3")}
+          <motion.span
+            className="hero-word-art"
+            initial={{ opacity: 0, scale: 0.92, filter: "blur(8px)" }}
+            animate={{ opacity: 1, scale: 1, filter: "blur(0px)" }}
+            transition={{ duration: 1.1, delay: 0.65, ease: EASE }}
+          >
+            <span className="hero-word-art__glow" aria-hidden />
+            <span className="hero-word-art__shine" aria-hidden />
+            <span className="hero-word-art__text">{t("hero_title_2")}</span>
+          </motion.span>{" "}
+          {t("hero_title_3")}
         </motion.h1>
 
         <motion.div

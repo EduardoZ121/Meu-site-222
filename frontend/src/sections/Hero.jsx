@@ -2,6 +2,7 @@ import { motion } from "framer-motion";
 import { ChevronDown } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useI18n } from "../lib/i18n";
+import HeroFloatingPreviews from "../components/landing/HeroFloatingPreviews";
 
 const EASE = [0.16, 1, 0.3, 1];
 
@@ -12,8 +13,10 @@ export default function Hero() {
     <section className="relative min-h-[100dvh] flex flex-col items-center justify-center overflow-hidden" data-testid="hero-section">
       <div className="absolute inset-0 z-0">
         <img src="/images/hero-bg.jpg?v=13" alt="" className="w-full h-full object-cover opacity-50" draggable={false} />
+        <div className="hero-aurora absolute inset-0" aria-hidden />
         <div className="absolute inset-0 bg-gradient-to-b from-[#0B0B0C]/70 via-[#0B0B0C]/40 to-[#0B0B0C]" />
       </div>
+      <HeroFloatingPreviews />
 
       <div className="relative z-10 flex flex-col items-center text-center px-6 max-w-[900px] mx-auto pt-[56px]">
         <motion.p

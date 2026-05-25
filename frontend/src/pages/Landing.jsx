@@ -1,6 +1,7 @@
 import Navbar from "../components/Navbar";
 import Hero from "../sections/Hero";
 import LandingHighlights from "../components/landing/LandingHighlights";
+import LandingShowcaseStrip from "../components/landing/LandingShowcaseStrip";
 import Footer from "../sections/Footer";
 import useTitle from "../lib/useTitle";
 import { useSocialMeta } from "../lib/useSocialMeta";
@@ -22,6 +23,7 @@ export default function Landing() {
       <div className="noise-overlay" />
       <Navbar />
       <Hero />
+      <LandingShowcaseStrip />
       <LandingHighlights />
       <Footer />
     </div>

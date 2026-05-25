@@ -53,9 +53,9 @@ export default function ShowcasePanel({ item, index }) {
         >
           <motion.div
             style={{ y: imgY }}
-            initial={{ opacity: 0, x: imgFirst ? -40 : 40 }}
-            animate={isInView ? { opacity: 1, x: 0 } : {}}
-            transition={{ duration: 0.9, ease: EASE }}
+            initial={{ opacity: 0, x: imgFirst ? -80 : 80, scale: 0.94 }}
+            animate={isInView ? { opacity: 1, x: 0, scale: 1 } : {}}
+            transition={{ type: "spring", stiffness: 70, damping: 18, mass: 0.8 }}
             className={imgFirst ? "" : "lg:[direction:ltr]"}
             onMouseEnter={() => setHovered(true)}
             onMouseLeave={() => setHovered(false)}

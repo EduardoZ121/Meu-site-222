@@ -1,3 +1,26 @@
+/* Hero aurora + home marquee */
+.hero-aurora {
+  background:
+    radial-gradient(ellipse 80% 50% at 20% 40%, rgba(124, 58, 237, 0.35), transparent 55%),
+    radial-gradient(ellipse 60% 45% at 80% 60%, rgba(192, 38, 211, 0.25), transparent 50%),
+    radial-gradient(ellipse 50% 40% at 50% 90%, rgba(34, 211, 238, 0.12), transparent 45%);
+  animation: hero-aurora-shift 14s ease-in-out infinite alternate;
+}
+
+@keyframes hero-aurora-shift {
+  0% { opacity: 0.7; transform: scale(1) translateX(0); }
+  100% { opacity: 1; transform: scale(1.05) translateX(2%); }
+}
+
+.landing-marquee-track {
+  animation: landing-marquee 45s linear infinite;
+}
+
+@keyframes landing-marquee {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
+
 /* Discover page — unique motion per showcase block */
 
 .discover-mesh {

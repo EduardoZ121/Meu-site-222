@@ -7,9 +7,9 @@ import { useI18n } from "../../lib/i18n";
 const EASE = [0.16, 1, 0.3, 1];
 
 const cards = [
-  { icon: Sparkles, key: "home_card_generate", to: "/discover#showcase" },
-  { icon: Palette, key: "home_card_styles", to: "/discover#showcase" },
-  { icon: Film, key: "home_card_video", to: "/discover#showcase" },
+  { icon: Sparkles, key: "home_card_generate", to: "/discover#showcase", img: "/images/discover/generate.jpg?v=2" },
+  { icon: Palette, key: "home_card_styles", to: "/discover#showcase", img: "/images/discover/styles.jpg?v=2" },
+  { icon: Film, key: "home_card_video", to: "/discover#showcase", img: "/images/discover/video.jpg?v=2" },
 ];
 
 export default function LandingHighlights() {
@@ -54,7 +54,7 @@ export default function LandingHighlights() {
         </motion.p>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-12">
-          {cards.map(({ icon: Icon, key, to }, i) => (
+          {cards.map(({ icon: Icon, key, to, img }, i) => (
             <motion.div
               key={key}
               initial={{ opacity: 0, y: 24 }}
@@ -63,13 +63,19 @@ export default function LandingHighlights() {
             >
               <Link
                 to={to}
-                className="card-surface block p-6 text-left h-full hover:border-[#7C3AED]/40 transition-colors duration-300 group"
+                className="card-surface block overflow-hidden text-left h-full hover:border-[#7C3AED]/40 transition-colors duration-300 group"
               >
-                <div className="w-10 h-10 rounded-sm bg-[#7C3AED]/15 flex items-center justify-center mb-5 group-hover:bg-[#7C3AED]/25 transition-colors">
-                  <Icon className="w-5 h-5 text-[#A855F7]" strokeWidth={1.5} />
+                <div className="relative h-36 overflow-hidden">
+                  <img src={img} alt="" className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" loading="lazy" />
+                  <div className="absolute inset-0 bg-gradient-to-t from-[#13131A] via-[#13131A]/40 to-transparent" />
+                  <div className="absolute bottom-3 left-4 w-10 h-10 rounded-sm bg-[#7C3AED]/25 backdrop-blur flex items-center justify-center border border-[#7C3AED]/30">
+                    <Icon className="w-5 h-5 text-[#A855F7]" strokeWidth={1.5} />
+                  </div>
                 </div>
-                <h3 className="text-[#F4F1EA] text-lg font-medium mb-2">{t(`${key}_title`)}</h3>
-                <p className="text-[#8A8A8E] text-sm leading-relaxed">{t(`${key}_desc`)}</p>
+                <div className="p-6">
+                  <h3 className="text-[#F4F1EA] text-lg font-medium mb-2">{t(`${key}_title`)}</h3>
+                  <p className="text-[#8A8A8E] text-sm leading-relaxed">{t(`${key}_desc`)}</p>
+                </div>
               </Link>
             </motion.div>
           ))}

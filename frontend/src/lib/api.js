@@ -102,8 +102,18 @@ export function invalidateBlobUploadCache() {
   blobUploadEnabledCache = null;
 }
 
-export async function isBlobUploadEnabled() {
-  if (blobUploadEnabledCache !== null) return blobUploadEnabledCache;
+function formDataHasLargeVideo(fd) {
+  if (!fd?.entries) return false;
+  for (const [, v] of fd.entries()) {
+    if (!(v instanceof File)) continue;
+    const isVid = v.type?.startsWith?.("video/") || /\.(mp4|mov|webm)$/i.test(v.name || "");
+    if (isVid && v.size > VIDEO_DIRECT_MAX) return true;
+  }
+  return false;
+}
+
+export async function isBlobUploadEnabled(opts = {}) {
+  if (!opts.refresh && blobUploadEnabledCache !== null) return blobUploadEnabledCache;
   if (typeof window === "undefined" || typeof fetch === "undefined") {
     return false;
   }
@@ -298,8 +308,10 @@ export async function uploadPost(url, formData, config = {}) {
 
   let baseFd = cloneFormData(formData);
   const skipBlob = Boolean(config.skipBlobOffload);
+  const hasLargeVideo = formDataHasLargeVideo(formData);
   if (!skipBlob && typeof window !== "undefined") {
-    const blobOn = await isBlobUploadEnabled();
+    if (hasLargeVideo) invalidateBlobUploadCache();
+    const blobOn = await isBlobUploadEnabled({ refresh: hasLargeVideo });
     const { isS3VideoUploadAvailable } = await import("./s3VideoUpload");
     const s3On = await isS3VideoUploadAvailable();
     if (blobOn || s3On) {

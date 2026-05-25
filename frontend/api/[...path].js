@@ -271,15 +271,17 @@ async function readJsonRequestBody(req) {
   }
 }
 
-/** Só aceita URLs públicas do Vercel Blob (evita SSRF para o Replicate). */
-function trustedBlobImageUrl(raw) {
+/** URLs públicas Vercel Blob (evita SSRF). Aceita .public.blob e .blob.vercel-storage.com */
+function trustedBlobMediaUrl(raw) {
   const u = String(raw || "").trim();
-  if (!/^https:\/\/[a-z0-9_-]{1,120}\.public\.blob\.vercel-storage\.com\/.+/i.test(u)) return null;
-  return u;
+  if (!u.startsWith("https://")) return null;
+  if (/^https:\/\/[a-z0-9_-]{1,120}\.public\.blob\.vercel-storage\.com\/.+/i.test(u)) return u;
+  if (/^https:\/\/[a-z0-9][a-z0-9.-]{0,200}\.blob\.vercel-storage\.com\/.+/i.test(u)) return u;
+  return null;
 }
 
-function trustedBlobMediaUrl(raw) {
-  return trustedBlobImageUrl(raw);
+function trustedBlobImageUrl(raw) {
+  return trustedBlobMediaUrl(raw);
 }
 
 /** Blob ou S3/CloudFront (URLs públicas aceites pelo Replicate). */
@@ -343,9 +345,16 @@ async function resolveVideoRef(files, fields, fileKey = "video", urlKey = "video
     throw err;
   }
   if (st && st.size > 12 * 1024 * 1024) {
-    const err = new Error(
-      "Vídeo demasiado grande para envio direto. Configura Vercel Blob ou AWS S3, ou usa um clip até ~12 MB.",
-    );
+    const hadUrl = Boolean(String(text(fields, urlKey, "")).trim());
+    let msg = "Vídeo demasiado grande para envio direto.";
+    if (isBlobConfigured() || isS3Configured()) {
+      msg = hadUrl
+        ? "URL do vídeo na nuvem inválida ou inacessível. Recarrega a página (Ctrl+F5) e tenta Gerar outra vez."
+        : "O upload para a nuvem não concluiu (o ficheiro foi enviado direto). Recarrega a página (Ctrl+F5) e clica Gerar outra vez.";
+    } else {
+      msg += " Configura Vercel Blob ou AWS S3, ou usa um clip até ~12 MB.";
+    }
+    const err = new Error(msg);
     err.status = 413;
     throw err;
   }

@@ -8,7 +8,11 @@ export function formatHttpError(err, fallback = "Falhou.") {
   }
   const status = err?.response?.status;
 
-  if (status === 413) return "Imagem muito grande para enviar. Tenta uma mais pequena.";
+  if (status === 413) {
+    const detail = err.response?.data?.detail;
+    if (typeof detail === "string" && detail.trim()) return detail.trim();
+    return "Ficheiro demasiado grande para enviar. Tenta um mais pequeno.";
+  }
   if (status === 500) {
     const detail = err.response?.data?.detail;
     if (typeof detail === "string" && detail.trim()) return detail.trim();

@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { Clapperboard, Sparkles } from "lucide-react";
-import { formatApiError, isBlobUploadEnabled, uploadPost } from "../../lib/api";
+import { formatApiError, invalidateBlobUploadCache, isBlobUploadEnabled, uploadPost } from "../../lib/api";
 import { isS3VideoUploadAvailable } from "../../lib/s3VideoUpload";
 import { normalizeCreation, primaryResultUrl } from "../../lib/creationUrls";
 import { useAuth } from "../../lib/auth";
@@ -75,8 +75,9 @@ export default function VideoEditorAdmin() {
 
     const needsCloud = video.size > VIDEO_DIRECT_MAX_BYTES;
     if (needsCloud) {
+      invalidateBlobUploadCache();
       const [blobOk, s3ok] = await Promise.all([
-        isBlobUploadEnabled(),
+        isBlobUploadEnabled({ refresh: true }),
         isS3VideoUploadAvailable(),
       ]);
       if (!blobOk && !s3ok) {
@@ -101,8 +102,11 @@ export default function VideoEditorAdmin() {
       const { data } = await uploadPost("/generate/video-edit", fd, {
         timeout: needsCloud ? 300_000 : 120_000,
         pollTimeoutMs: 600_000,
-        blobOffloadTimeoutMs: needsCloud ? 180_000 : 55_000,
+        blobOffloadTimeoutMs: needsCloud ? 300_000 : 55_000,
         skipBlobOffload: !needsCloud,
+        onVideoProgress: needsCloud
+          ? (pct) => setUploadPhase(pct > 0 ? `cloud:${pct}` : "cloud")
+          : undefined,
       });
       const creation = normalizeCreation(data?.creation);
       if (!primaryResultUrl(creation)) throw new Error(t("vid_no_result"));
@@ -275,7 +279,13 @@ export default function VideoEditorAdmin() {
             busy={busy}
             onClick={run}
             label={t("vid_edit_btn", { n: cost })}
-            busyLabel={uploadPhase === "cloud" ? t("vid_edit_cloud_uploading") : t("vid_edit_processing")}
+            busyLabel={
+              uploadPhase.startsWith("cloud")
+                ? (uploadPhase.includes(":")
+                  ? t("vid_upload_cloud_progress", { n: uploadPhase.split(":")[1] || "0" })
+                  : t("vid_edit_cloud_uploading"))
+                : t("vid_edit_processing")
+            }
             hint={hint}
             testId="video-edit-submit"
             icon={Clapperboard}

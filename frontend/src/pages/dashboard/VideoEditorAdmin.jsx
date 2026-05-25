@@ -163,7 +163,6 @@ export default function VideoEditorAdmin() {
       setUploadPhase("send");
       ({ data: submitData } = await uploadPost("/generate/video-edit", fd, {
         timeout: 120_000,
-        skipBlobOffload: Boolean(videoCloudUrl),
         headers: { "X-Skip-Auto-Poll": "1" },
       }));
 

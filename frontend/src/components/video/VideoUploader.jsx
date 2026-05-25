@@ -9,7 +9,9 @@ import {
 } from "../../lib/videoMedia";
 import VideoPreview from "./VideoPreview";
 
-const MAX_DIRECT_BYTES = 12 * 1024 * 1024;
+import { VIDEO_VERCEL_SAFE_BYTES } from "../../lib/videoCloudLimits";
+
+const MAX_DIRECT_BYTES = VIDEO_VERCEL_SAFE_BYTES;
 
 function formatBytes(n) {
   if (n < 1024 * 1024) return `${(n / 1024).toFixed(0)} KB`;

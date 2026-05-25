@@ -344,15 +344,16 @@ async function resolveVideoRef(files, fields, fileKey = "video", urlKey = "video
     err.status = 413;
     throw err;
   }
-  if (st && st.size > 12 * 1024 * 1024) {
+  const VERCEL_INLINE_VIDEO_MAX = 3.2 * 1024 * 1024;
+  if (st && st.size > VERCEL_INLINE_VIDEO_MAX) {
     const hadUrl = Boolean(String(text(fields, urlKey, "")).trim());
-    let msg = "Vídeo demasiado grande para envio direto.";
+    let msg = "Vídeo demasiado grande para envio direto ao servidor.";
     if (isBlobConfigured() || isS3Configured()) {
       msg = hadUrl
         ? "URL do vídeo na nuvem inválida ou inacessível. Recarrega a página (Ctrl+F5) e tenta Gerar outra vez."
-        : "O upload para a nuvem não concluiu (o ficheiro foi enviado direto). Recarrega a página (Ctrl+F5) e clica Gerar outra vez.";
+        : "O upload para a nuvem não concluiu. Aguarda «Pronto para gerar» ou recarrega (Ctrl+F5) e tenta outra vez.";
     } else {
-      msg += " Configura Vercel Blob ou AWS S3, ou usa um clip até ~12 MB.";
+      msg += " Configura Vercel Blob (BLOB_READ_WRITE_TOKEN) ou usa um clip até ~3 MB.";
     }
     const err = new Error(msg);
     err.status = 413;
@@ -1867,8 +1868,18 @@ async function handlePath(path, req, res) {
     return json(res, 404, { detail: "Endpoint não encontrado." });
   } catch (err) {
     const msg = String(err?.message || err || "");
-    if (/max file size|larger than|maxFields|maxFieldsSize|exceeded|MultipartParserError/i.test(msg)) {
+    if (
+      /FUNCTION_PAYLOAD_TOO_LARGE|Request Entity Too Large/i.test(msg)
+      || /max file size|larger than|maxFields|maxFieldsSize|exceeded|MultipartParserError/i.test(msg)
+    ) {
       const isVideoEdit = String(pathFromRequest(req) || "").includes("video-edit");
+      if (/FUNCTION_PAYLOAD_TOO_LARGE|Request Entity Too Large/i.test(msg)) {
+        return json(res, 413, {
+          detail: isVideoEdit
+            ? "O vídeo ultrapassou o limite do servidor (Vercel). Aguarda o upload para a nuvem antes de Gerar, ou usa um clip mais curto."
+            : "O pedido é demasiado grande para o servidor. Comprime a imagem ou ativa o upload em nuvem.",
+        });
+      }
       return json(res, 413, {
         detail: isVideoEdit
           ? "Vídeo muito grande. Máximo 50MB. Usa MP4 (H.264) ou MOV (ideal 2–10 s) ou recarrega para ativar o upload em nuvem."

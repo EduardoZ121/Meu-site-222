@@ -1,6 +1,7 @@
 import axios from "axios";
 
 import { formatHttpError } from "./uploadErrors";
+import { VIDEO_VERCEL_SAFE_BYTES } from "./videoCloudLimits";
 import { normalizeCreation } from "./creationUrls";
 import { notifyCreditsUpdate, notifyGenerationComplete } from "./notifyUser";
 
@@ -102,12 +103,23 @@ export function invalidateBlobUploadCache() {
   blobUploadEnabledCache = null;
 }
 
+function isVideoFileLike(file) {
+  return file?.type?.startsWith?.("video/") || /\.(mp4|mov|webm)$/i.test(file?.name || "");
+}
+
+function formDataHasVideoFile(fd) {
+  if (!fd?.entries) return false;
+  for (const [, v] of fd.entries()) {
+    if (v instanceof File && isVideoFileLike(v)) return true;
+  }
+  return false;
+}
+
 function formDataHasLargeVideo(fd) {
   if (!fd?.entries) return false;
   for (const [, v] of fd.entries()) {
     if (!(v instanceof File)) continue;
-    const isVid = v.type?.startsWith?.("video/") || /\.(mp4|mov|webm)$/i.test(v.name || "");
-    if (isVid && v.size > VIDEO_DIRECT_MAX) return true;
+    if (isVideoFileLike(v) && v.size > VIDEO_DIRECT_MAX) return true;
   }
   return false;
 }
@@ -138,7 +150,8 @@ function withTimeout(promise, ms, label = "Operação") {
 }
 
 const BLOB_OFFLOAD_KEYS = new Set(["photo", "image", "mask", "garment", "video", "reference_image"]);
-const VIDEO_DIRECT_MAX = 12 * 1024 * 1024;
+/** Acima disto o vídeo nunca vai no body do serverless — só `video_url` após Blob/S3. */
+const VIDEO_DIRECT_MAX = VIDEO_VERCEL_SAFE_BYTES;
 
 async function uploadFileToVercelBlob(key, fileLike, perFileMs, onProgress) {
   const { put } = await import("@vercel/blob/client");
@@ -434,10 +447,13 @@ export async function uploadPost(url, formData, config = {}) {
 
   let baseFd = cloneFormData(formData);
   const skipBlob = Boolean(config.skipBlobOffload);
+  const isVideoEdit = /video-edit/i.test(String(url || ""));
+  const hasVideoFile = formDataHasVideoFile(formData);
   const hasLargeVideo = formDataHasLargeVideo(formData);
-  if (!skipBlob && typeof window !== "undefined") {
-    if (hasLargeVideo) invalidateBlobUploadCache();
-    const blobOn = await isBlobUploadEnabled({ refresh: hasLargeVideo });
+  const mustOffloadVideo = isVideoEdit && hasVideoFile;
+  if ((!skipBlob || mustOffloadVideo) && typeof window !== "undefined") {
+    if (hasLargeVideo || mustOffloadVideo) invalidateBlobUploadCache();
+    const blobOn = await isBlobUploadEnabled({ refresh: hasLargeVideo || mustOffloadVideo });
     const { isS3VideoUploadAvailable } = await import("./s3VideoUpload");
     const s3On = await isS3VideoUploadAvailable();
     if (blobOn || s3On) {
@@ -447,16 +463,15 @@ export async function uploadPost(url, formData, config = {}) {
           onVideoProgress: config.onVideoProgress,
         });
       } catch (blobErr) {
-        let hasLargeVideo = false;
-        for (const [, v] of formData.entries()) {
-          if (!(v instanceof File)) continue;
-          if (v.type?.startsWith?.("video/") || /\.(mp4|mov|webm)$/i.test(v.name || "")) {
-            if (v.size > VIDEO_DIRECT_MAX) hasLargeVideo = true;
-          }
-        }
-        if (hasLargeVideo) throw blobErr;
+        const isVideoEdit = /video-edit/i.test(String(url || ""));
+        if (isVideoEdit && formDataHasVideoFile(formData)) throw blobErr;
+        if (formDataHasLargeVideo(formData)) throw blobErr;
         baseFd = await shrinkFormDataForDirectUpload(cloneFormData(formData));
       }
+    } else if (mustOffloadVideo) {
+      throw new Error(
+        "Vídeo demasiado grande para envio direto. Recarrega a página (Ctrl+F5) — é necessário armazenamento em nuvem (Blob).",
+      );
     } else {
       baseFd = await shrinkFormDataForDirectUpload(cloneFormData(formData));
     }
@@ -486,8 +501,16 @@ export async function uploadPost(url, formData, config = {}) {
           resolve({ data, status: xhr.status, config: { url, ...config } });
           return;
         }
-        const err = new Error(typeof data.detail === "string" ? data.detail : xhr.statusText || "Pedido falhou.");
-        err.response = { status: xhr.status, data };
+        const detailStr = typeof data.detail === "string" ? data.detail : "";
+        const payloadTooLarge = /FUNCTION_PAYLOAD_TOO_LARGE|Request Entity Too Large/i.test(
+          `${detailStr} ${xhr.statusText || ""} ${text}`,
+        );
+        const err = new Error(
+          payloadTooLarge
+            ? "O vídeo é demasiado grande para enviar num único pedido. Aguarda o upload para a nuvem ou usa um clip mais curto."
+            : (detailStr || xhr.statusText || "Pedido falhou."),
+        );
+        err.response = { status: payloadTooLarge ? 413 : xhr.status, data };
         if (xhr.status === 401 && token && !isLocalToken(token)) {
           localStorage.removeItem("rp_token");
           localStorage.removeItem("rp_user");
@@ -542,8 +565,16 @@ export async function uploadPost(url, formData, config = {}) {
         data = { detail: rawText?.slice(0, 240) || "Resposta inválida do servidor." };
       }
       if (!res.ok) {
-        const err = new Error(typeof data.detail === "string" ? data.detail : res.statusText || "Pedido falhou.");
-        err.response = { status: res.status, data };
+        const detailStr = typeof data.detail === "string" ? data.detail : "";
+        const payloadTooLarge = /FUNCTION_PAYLOAD_TOO_LARGE|Request Entity Too Large/i.test(
+          `${detailStr} ${res.statusText || ""} ${rawText}`,
+        );
+        const err = new Error(
+          payloadTooLarge
+            ? "O vídeo é demasiado grande para enviar num único pedido. Aguarda o upload para a nuvem ou usa um clip mais curto."
+            : (detailStr || res.statusText || "Pedido falhou."),
+        );
+        err.response = { status: payloadTooLarge ? 413 : res.status, data };
         if (res.status === 401 && token && !isLocalToken(token)) {
           localStorage.removeItem("rp_token");
           localStorage.removeItem("rp_user");

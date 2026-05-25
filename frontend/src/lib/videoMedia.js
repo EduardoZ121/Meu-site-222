@@ -1,7 +1,10 @@
 /** Limites e validação de media — imagem vs vídeo (nunca misturar mensagens). */
 
 export const MAX_IMAGE_UPLOAD_BYTES = 5 * 1024 * 1024;
-export const MAX_VIDEO_UPLOAD_BYTES = 50 * 1024 * 1024;
+import { MAX_VIDEO_USER_BYTES, VIDEO_VERCEL_SAFE_BYTES } from "./videoCloudLimits";
+
+export const MAX_VIDEO_UPLOAD_BYTES = MAX_VIDEO_USER_BYTES;
+export { VIDEO_VERCEL_SAFE_BYTES };
 
 export const IMAGE_UPLOAD_ACCEPT =
   "image/png,image/jpeg,image/webp,.png,.jpg,.jpeg,.webp";

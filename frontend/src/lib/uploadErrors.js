@@ -22,6 +22,10 @@ export function formatHttpError(err, fallback = "Falhou.", opts = {}) {
   const raw = String(err?.response?.data?.detail || err?.message || "");
   const ctx = opts.context || "";
 
+  if (/FUNCTION_PAYLOAD_TOO_LARGE|Request Entity Too Large/i.test(raw)) {
+    return "O vídeo é demasiado grande para este pedido. Aguarda o upload para a nuvem (barra de progresso) ou usa um clip mais curto (~3 MB se não houver nuvem).";
+  }
+
   if (/preview|pré-visualiz|codec|HEVC|canPlayType/i.test(raw) || ctx === "video_preview") {
     return "Não foi possível pré-visualizar o vídeo. Verifique o formato ou tente novamente.";
   }

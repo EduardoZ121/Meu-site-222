@@ -17,6 +17,7 @@ import {
   VIDEO_ACCEPT,
 } from "../lib/imageCompress";
 import { validateImageUpload, validateVideoUpload } from "../lib/videoMedia";
+import { VIDEO_VERCEL_SAFE_BYTES } from "../lib/videoCloudLimits";
 import { useI18n } from "../lib/i18n";
 
 const LAYOUT = {
@@ -172,7 +173,7 @@ export default function ImageUploadZone({
       // Vídeo: preview imediato; upload para Blob só no envio (uploadPost), não bloquear o botão Gerar.
       setPersistState("saved");
       notifyStatus("ready");
-      if (enableRemotePersist && file.size > 12_000_000) {
+      if (enableRemotePersist && file.size > VIDEO_VERCEL_SAFE_BYTES) {
         const rid = runIdRef.current;
         void runVideoBackground(file, rid);
       }

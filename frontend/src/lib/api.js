@@ -319,7 +319,12 @@ function uploadVideoViaServerProxy(file, opts = {}) {
       reject(err);
     };
     xhr.onerror = () => {
-      const err = new Error("Ligação interrompida ao enviar o vídeo.");
+      const online = typeof navigator !== "undefined" && navigator.onLine !== false;
+      const err = new Error(
+        online
+          ? "Falhou o envio do vídeo ao servidor. Tenta outra vez ou recarrega (Ctrl+F5)."
+          : "Sem ligação à internet. Liga-te à rede e tenta outra vez.",
+      );
       err.code = "ERR_NETWORK";
       reject(err);
     };

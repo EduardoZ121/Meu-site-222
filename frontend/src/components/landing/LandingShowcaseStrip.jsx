@@ -16,7 +16,7 @@ export default function LandingShowcaseStrip() {
   const doubled = [...STRIP_IMAGES, ...STRIP_IMAGES];
 
   return (
-    <section className="relative py-12 border-t border-[#2E2E30] overflow-hidden bg-[#08080a]" data-testid="landing-showcase-strip">
+    <section id="home-next" className="relative py-12 border-t border-[#2E2E30] overflow-hidden bg-[#08080a] scroll-mt-4" data-testid="landing-showcase-strip">
       <div className="absolute inset-0 bg-gradient-to-r from-[#7C3AED]/10 via-transparent to-[#C026D3]/10 pointer-events-none" />
       <p className="text-center eyebrow mb-8 relative z-10">{t("home_strip_eyebrow")}</p>
       <div className="landing-marquee-track flex gap-4 w-max">

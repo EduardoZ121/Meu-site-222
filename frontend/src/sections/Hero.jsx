@@ -1,8 +1,8 @@
 import { motion } from "framer-motion";
-import { ChevronDown } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useI18n } from "../lib/i18n";
 import HeroFloatingPreviews from "../components/landing/HeroFloatingPreviews";
+import HeroScrollCue from "../components/landing/HeroScrollCue";
 
 const EASE = [0.16, 1, 0.3, 1];
 
@@ -45,8 +45,9 @@ export default function Hero() {
           transition={{ duration: 0.8, delay: 0.65, ease: EASE }}
           className="hero-cta-row flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-4 flex-wrap"
         >
-          <Link to="/register" className="btn-primary" data-testid="hero-cta-primary">
-            {t("hero_cta_primary")}
+          <Link to="/register" className="btn-primary btn-hero-primary" data-testid="hero-cta-primary">
+            <span className="btn-hero-primary__shine" aria-hidden />
+            <span className="btn-hero-primary__text">{t("hero_cta_primary")}</span>
           </Link>
           <Link to="/explore" className="btn-ghost" data-testid="hero-cta-gallery">
             {t("hero_cta_gallery")}
@@ -58,17 +59,12 @@ export default function Hero() {
       </div>
 
       <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ delay: 1.2 }}
-        className="absolute bottom-10 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2 z-10"
+        initial={{ opacity: 0, y: 12 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 1.15, duration: 0.8, ease: EASE }}
+        className="absolute bottom-8 left-1/2 -translate-x-1/2 z-10"
       >
-        <span className="text-[#5A5A5E] text-[9px] font-medium uppercase tracking-[0.25em] font-['JetBrains_Mono']">
-          {t("hero_scroll")}
-        </span>
-        <motion.div animate={{ y: [0, 6, 0] }} transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}>
-          <ChevronDown className="w-4 h-4 text-[#5A5A5E]" />
-        </motion.div>
+        <HeroScrollCue />
       </motion.div>
     </section>
   );

@@ -401,27 +401,31 @@ export async function uploadVideoToCloud(file, opts = {}) {
 const IMAGE_OFFLOAD_KEYS = new Set(["photo", "image", "mask", "garment", "reference_image"]);
 const DIRECT_UPLOAD_MAX = 3_500_000;
 
-/** Comprime imagens grandes quando não há Blob/S3 (limite Vercel ~4 MB no multipart). */
+/** Prepara imagens para POST directo (JPEG, <4 MB) — HEIC e ficheiros grandes incluídos. */
 async function shrinkFormDataForDirectUpload(formData) {
-  const { compressImageNeverFail } = await import("./canvasCompress");
+  const { prepareImageForUpload } = await import("./prepareImageForUpload");
   const out = new FormData();
   for (const [key, val] of formData.entries()) {
     const isFile = val instanceof File || (typeof Blob !== "undefined" && val instanceof Blob);
-    if (
-      isFile
-      && IMAGE_OFFLOAD_KEYS.has(key)
-      && val.size > DIRECT_UPLOAD_MAX
-      && String(val.type || "").startsWith("image/")
-    ) {
+    const isImageField = isFile && IMAGE_OFFLOAD_KEYS.has(key)
+      && (String(val.type || "").startsWith("image/") || /\.(heic|heif|jpe?g|png|webp)$/i.test(val.name || ""));
+    if (isImageField) {
       const fileLike = val instanceof File
         ? val
         : new File([val], `${key}.jpg`, { type: val.type || "image/jpeg" });
-      // eslint-disable-next-line no-await-in-loop
-      const shrunk = await compressImageNeverFail(fileLike, {
-        maxBytes: DIRECT_UPLOAD_MAX,
-        maxSize: 2048,
-      });
-      out.append(key, shrunk);
+      const needsPrep = fileLike.size > DIRECT_UPLOAD_MAX * 0.92
+        || !/^image\/jpe?g$/i.test(fileLike.type || "")
+        || /\.(heic|heif)$/i.test(fileLike.name || "");
+      if (needsPrep) {
+        // eslint-disable-next-line no-await-in-loop
+        const prepared = await prepareImageForUpload(fileLike, {
+          maxBytes: DIRECT_UPLOAD_MAX,
+          maxSize: 2048,
+        });
+        out.append(key, prepared);
+      } else {
+        out.append(key, val);
+      }
     } else {
       out.append(key, val);
     }
@@ -479,6 +483,8 @@ export async function uploadPost(url, formData, config = {}) {
     } else {
       baseFd = await shrinkFormDataForDirectUpload(cloneFormData(formData));
     }
+  } else if (typeof window !== "undefined") {
+    baseFd = await shrinkFormDataForDirectUpload(baseFd);
   }
 
   const timeout = config.timeout ?? pickUploadTimeoutMs(baseFd);

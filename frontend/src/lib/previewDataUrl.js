@@ -1,6 +1,7 @@
 /**
- * Preview imediato: só FileReader → data URL (sem canvas).
+ * Preview de ficheiros — object URLs estáveis (evita imagem “corrompida” por revoke prematuro).
  */
+
 export function readFileAsDataURL(file) {
   return new Promise((resolve, reject) => {
     if (!file) {
@@ -20,4 +21,22 @@ export function revokeFilePreviewUrl(url) {
   } catch {
     /* ignore */
   }
+}
+
+/**
+ * Cria object URL para preview; revoga a anterior. Devolve a nova URL ou null.
+ * @param {File|Blob|null} file
+ * @param {{ current: string|null }} urlRef
+ */
+export function attachFileObjectPreview(file, urlRef) {
+  const prev = urlRef?.current;
+  if (!file) {
+    revokeFilePreviewUrl(prev);
+    if (urlRef) urlRef.current = null;
+    return null;
+  }
+  const next = URL.createObjectURL(file);
+  if (urlRef) urlRef.current = next;
+  if (prev && prev !== next) revokeFilePreviewUrl(prev);
+  return next;
 }

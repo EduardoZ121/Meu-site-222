@@ -10,6 +10,7 @@ export default function PhotoUpload({
   accept = IMAGE_ACCEPT,
   testId = "photo-upload",
   compressOptions = {},
+  compressOnSelect = false,
   onStatusChange,
 }) {
   return (
@@ -20,6 +21,7 @@ export default function PhotoUpload({
       testId={testId}
       layout="portrait"
       compressOptions={compressOptions}
+      compressOnSelect={compressOnSelect}
       onStatusChange={onStatusChange}
     />
   );

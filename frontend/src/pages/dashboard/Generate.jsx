@@ -172,7 +172,7 @@ export default function Generate() {
               )}
             </div>
             <div className="max-w-[420px]">
-              <PhotoUpload value={photo} onChange={(f) => setPhoto(f || null)} testId="gen-photo" compressOptions={{ maxSize: 768, maxBytes: 2 * 1024 * 1024, maxBytesIOS: 1.5 * 1024 * 1024 }} />
+              <PhotoUpload value={photo} onChange={(f) => setPhoto(f || null)} testId="gen-photo" />
             </div>
           </StudioAccordionSection>
 

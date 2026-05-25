@@ -3,7 +3,7 @@ import {
 } from "react";
 import { toast } from "sonner";
 import { Upload, X } from "lucide-react";
-import { readFileAsDataURL, revokeFilePreviewUrl } from "../lib/previewDataUrl";
+import { attachFileObjectPreview, revokeFilePreviewUrl } from "../lib/previewDataUrl";
 import { compressImageNeverFail } from "../lib/canvasCompress";
 import {
   isBlobPersistAvailable,
@@ -31,8 +31,7 @@ const LAYOUT = {
 };
 
 /**
- * Upload com preview imediato (dataURL), compressão canvas em background,
- * persistência opcional no Blob, estados visuais e reenvio.
+ * Upload: preview imediato (object URL estável), compressão opcional só se compressOnSelect.
  */
 export default function ImageUploadZone({
   value,
@@ -44,6 +43,7 @@ export default function ImageUploadZone({
   overlay = null,
   capture = undefined,
   compressOptions = {},
+  compressOnSelect = false,
   enableRemotePersist = false,
   onStatusChange,
   emptyLabel,
@@ -64,83 +64,49 @@ export default function ImageUploadZone({
   const [previewFailed, setPreviewFailed] = useState(false);
   const lastPreparedRef = useRef(null);
   const runIdRef = useRef(0);
-  const blobPreviewRef = useRef(null);
+  const previewObjectUrlRef = useRef(null);
 
   const notifyStatus = useCallback((s) => {
     onStatusChange?.(s);
   }, [onStatusChange]);
 
+  const syncPreview = useCallback((file) => {
+    try {
+      const url = attachFileObjectPreview(file, previewObjectUrlRef);
+      setPreviewUrl(url);
+      setPreviewFailed(!file || !url);
+      return Boolean(url);
+    } catch {
+      setPreviewUrl(null);
+      setPreviewFailed(Boolean(file));
+      return false;
+    }
+  }, []);
+
+  useEffect(() => () => {
+    revokeFilePreviewUrl(previewObjectUrlRef.current);
+    previewObjectUrlRef.current = null;
+  }, []);
+
   useEffect(() => {
     if (!value) {
       runIdRef.current += 1;
-      revokeFilePreviewUrl(blobPreviewRef.current);
-      blobPreviewRef.current = null;
-      setPreviewUrl(null);
-      setPreviewFailed(false);
+      syncPreview(null);
       lastPreparedRef.current = null;
       notifyStatus("idle");
-      return undefined;
+      return;
     }
-    let cancelled = false;
-    setPreviewFailed(false);
-    if (isVideo) {
-      const url = URL.createObjectURL(value);
-      setPreviewUrl(url);
-      notifyStatus("ready");
-      return () => {
-        cancelled = true;
-        URL.revokeObjectURL(url);
-      };
-    }
-    (async () => {
-      try {
-        const url = await readFileAsDataURL(value);
-        if (cancelled) return;
-        revokeFilePreviewUrl(blobPreviewRef.current);
-        blobPreviewRef.current = null;
-        setPreviewUrl(url);
-        setPreviewFailed(false);
-      } catch {
-        if (cancelled) return;
-        try {
-          revokeFilePreviewUrl(blobPreviewRef.current);
-          const blobUrl = URL.createObjectURL(value);
-          blobPreviewRef.current = blobUrl;
-          setPreviewUrl(blobUrl);
-          setPreviewFailed(false);
-        } catch {
-          setPreviewUrl(null);
-          setPreviewFailed(true);
-        }
-      }
-    })();
-    return () => {
-      cancelled = true;
-      revokeFilePreviewUrl(blobPreviewRef.current);
-      blobPreviewRef.current = null;
-    };
-  }, [value, notifyStatus, isVideo]);
+    syncPreview(value);
+    notifyStatus("ready");
+  }, [value, notifyStatus, syncPreview]);
 
   const runBackground = useCallback(async (rawFile, rid) => {
     const prepared = await compressImageNeverFail(rawFile, compressOptions);
     if (rid !== runIdRef.current) return;
     lastPreparedRef.current = prepared;
+    syncPreview(prepared);
     onChange(prepared);
-
-    if (!enableRemotePersist) return;
-    const blobOk = await isBlobPersistAvailable();
-    if (!blobOk || rid !== runIdRef.current) return;
-    try {
-      await persistImageToBlobStore(prepared);
-    } catch (err) {
-      if (rid !== runIdRef.current) return;
-      toast.error(
-        formatHttpError(err, t("upload_err_cloud"), { context: "image_upload", t }),
-        { duration: 5000 },
-      );
-      console.warn("[ImageUploadZone] persist", err);
-    }
-  }, [compressOptions, enableRemotePersist, onChange, t]);
+  }, [compressOptions, onChange, syncPreview]);
 
   const runVideoBackground = useCallback(async (rawFile, rid) => {
     lastPreparedRef.current = rawFile;
@@ -171,8 +137,7 @@ export default function ImageUploadZone({
       onChange(file);
       notifyStatus("ready");
       if (enableRemotePersist && file.size > VIDEO_VERCEL_SAFE_BYTES) {
-        const rid = runIdRef.current;
-        void runVideoBackground(file, rid);
+        void runVideoBackground(file, runIdRef.current);
       }
       return;
     }
@@ -187,28 +152,33 @@ export default function ImageUploadZone({
     }
     runIdRef.current += 1;
     const rid = runIdRef.current;
-    lastPreparedRef.current = null;
-    revokeFilePreviewUrl(blobPreviewRef.current);
-    const instantUrl = URL.createObjectURL(file);
-    blobPreviewRef.current = instantUrl;
-    setPreviewUrl(instantUrl);
-    setPreviewFailed(false);
+    lastPreparedRef.current = file;
+    syncPreview(file);
     onChange(file);
     notifyStatus("ready");
-    void runBackground(file, rid);
-  }, [isVideo, runBackground, runVideoBackground, onChange, notifyStatus, t, enableRemotePersist]);
+    if (compressOnSelect) {
+      void runBackground(file, rid);
+    }
+  }, [
+    isVideo,
+    runBackground,
+    runVideoBackground,
+    onChange,
+    notifyStatus,
+    syncPreview,
+    t,
+    enableRemotePersist,
+    compressOnSelect,
+  ]);
 
   const clear = useCallback(() => {
     runIdRef.current += 1;
-    revokeFilePreviewUrl(blobPreviewRef.current);
-    blobPreviewRef.current = null;
+    syncPreview(null);
     lastPreparedRef.current = null;
-    setPreviewUrl(null);
-    setPreviewFailed(false);
     onChange(null);
     notifyStatus("idle");
     if (inputRef.current) inputRef.current.value = "";
-  }, [onChange, notifyStatus]);
+  }, [onChange, notifyStatus, syncPreview]);
 
   const onPick = (e) => {
     const f = e.target.files?.[0];
@@ -296,6 +266,7 @@ export default function ImageUploadZone({
                   "relative z-[1] h-full w-full object-contain p-3 opacity-0 animate-[rpFadeIn_0.35s_ease-out_forwards]",
                   previewImgClassName,
                 ].filter(Boolean).join(" ")}
+                onError={() => setPreviewFailed(true)}
               />
             )}
             <button
@@ -312,7 +283,7 @@ export default function ImageUploadZone({
           <div className="absolute inset-0 flex min-h-12 flex-col items-center justify-center gap-2 px-4 py-6 text-center bg-[#0c0c12]/80">
             <p className="text-zinc-200 text-sm font-medium">{t("upload_loaded")}</p>
             {previewFailed && (
-              <p className="text-zinc-500 text-xs max-w-[220px]">
+              <p className="text-zinc-500 text-xs max-w-[240px]">
                 {t("upload_err_preview")}
               </p>
             )}

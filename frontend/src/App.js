@@ -7,6 +7,7 @@ import { PricingProvider } from "./lib/PricingContext";
 import { isPwaStandalone } from "./lib/pwaMode";
 
 import Landing from "./pages/Landing";
+import Discover from "./pages/Discover";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
 import ForgotPassword from "./pages/ForgotPassword";
@@ -77,6 +78,7 @@ function App() {
             <PwaStartupRedirect />
             <Routes>
               <Route path="/" element={<Landing />} />
+              <Route path="/discover" element={<Discover />} />
               <Route path="/login" element={<Login />} />
               <Route path="/register" element={<Register />} />
               <Route path="/forgot-password" element={<ForgotPassword />} />

@@ -17,7 +17,7 @@ export default function InsideRemakePixel() {
             transition={{ duration: 0.8, ease: EASE }}
           >
             <div className="rounded-sm overflow-hidden border border-[#2E2E30]">
-              <img src="/images/dashboard-mockup.jpg" alt="Remake Pixel Dashboard" className="w-full object-cover" loading="lazy" />
+              <img src="/images/discover/generate.jpg" alt="Remake Pixel studio" className="w-full object-cover" loading="lazy" />
             </div>
           </motion.div>
           <motion.div

@@ -1,23 +1,16 @@
 import Navbar from "../components/Navbar";
 import Hero from "../sections/Hero";
-import QuoteBlock from "../sections/QuoteBlock";
-import FeatureSection from "../sections/FeatureSection";
-import Pricing from "../sections/Pricing";
-import InsideRemakePixel from "../sections/InsideRemakePixel";
-import AvailableNow from "../sections/AvailableNow";
-import Reviews from "../sections/Reviews";
-import FAQ from "../sections/FAQ";
-import Policy from "../sections/Policy";
-import Founder from "../sections/Founder";
-import Marquee from "../sections/Marquee";
-import CTAFinal from "../sections/CTAFinal";
+import LandingHighlights from "../components/landing/LandingHighlights";
 import Footer from "../sections/Footer";
 import useTitle from "../lib/useTitle";
 import { useSocialMeta } from "../lib/useSocialMeta";
 import { DEFAULT_OG } from "../lib/siteMeta";
+import { useI18n } from "../lib/i18n";
 
+/** Home — first impression only: hero + teaser. Full story lives on /discover. */
 export default function Landing() {
-  useTitle("Transforma ideias em arte com IA");
+  const { t } = useI18n();
+  useTitle(t("landing_page_title"));
   useSocialMeta({
     title: DEFAULT_OG.title,
     description: DEFAULT_OG.description,
@@ -29,17 +22,7 @@ export default function Landing() {
       <div className="noise-overlay" />
       <Navbar />
       <Hero />
-      <QuoteBlock />
-      <FeatureSection />
-      <Pricing />
-      <InsideRemakePixel />
-      <AvailableNow />
-      <Reviews />
-      <FAQ />
-      <Policy />
-      <Founder />
-      <Marquee />
-      <CTAFinal />
+      <LandingHighlights />
       <Footer />
     </div>
   );

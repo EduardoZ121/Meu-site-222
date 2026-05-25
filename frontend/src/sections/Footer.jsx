@@ -1,16 +1,16 @@
 import { Link } from "react-router-dom";
 import Logo from "../components/Logo";
-
-const footerLinks = [
-  { label: "Ferramentas", to: "/#features" },
-  { label: "Preços", to: "/#pricing" },
-  { label: "Galeria", to: "/explore" },
-  { label: "FAQ", to: "/#faq" },
-  { label: "Entrar", to: "/login" },
-  { label: "Política", to: "/#faq" },
-];
+import { useI18n } from "../lib/i18n";
 
 export default function Footer() {
+  const { t } = useI18n();
+  const footerLinks = [
+    { label: t("nav_discover"), to: "/discover" },
+    { label: t("nav_pricing"), to: "/discover#pricing" },
+    { label: t("nav_gallery"), to: "/explore" },
+    { label: t("faq_title"), to: "/discover#faq" },
+    { label: t("nav_login"), to: "/login" },
+  ];
   return (
     <footer className="relative bg-[#0B0B0C] border-t border-[#2E2E30]" data-testid="footer-section">
       <div className="max-w-[1200px] mx-auto px-6 lg:px-10 py-8 md:py-10">
@@ -38,7 +38,7 @@ export default function Footer() {
           </a>
         </div>
 
-        <p className="text-center text-[#5A5A5E] text-[10px] font-mono">&copy; 2026 Remake Pixel. Criado pixel a pixel.</p>
+        <p className="text-center text-[#5A5A5E] text-[10px] font-mono">&copy; 2026 Remake Pixel. {t("footer_rights")}</p>
       </div>
     </footer>
   );

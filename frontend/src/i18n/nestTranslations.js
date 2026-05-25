@@ -43,6 +43,9 @@ function classifyKey(key) {
   if (key.startsWith("nav_") || key.startsWith("hero_") || key.startsWith("pricing_") || key.startsWith("faq_") || key.startsWith("footer_")) {
     return ["landing", key];
   }
+  if (key.startsWith("discover_") || key.startsWith("showcase_") || key.startsWith("home_")) {
+    return ["discover", key];
+  }
   return null;
 }
 

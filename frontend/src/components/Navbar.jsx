@@ -6,13 +6,14 @@ import Logo from "./Logo";
 import LanguageSwitcher from "./LanguageSwitcher";
 import { useI18n } from "../lib/i18n";
 
-export default function Navbar() {
+export default function Navbar({ variant = "home" }) {
   const { t } = useI18n();
+  const base = variant === "discover" ? "/discover" : "/";
   const navLinks = [
-    { label: t("nav_tools"), href: "#features" },
-    { label: t("nav_pricing"), href: "#pricing" },
-    { label: t("faq_title"), href: "#faq" },
-    { label: t("nav_gallery"), href: "/explore" },
+    { label: t("nav_discover"), href: variant === "home" ? "/discover" : `${base}#showcase`, isRoute: variant === "home" },
+    { label: t("nav_pricing"), href: `${base}#pricing`, isRoute: false },
+    { label: t("faq_title"), href: `${base}#faq`, isRoute: false },
+    { label: t("nav_gallery"), href: "/explore", isRoute: true },
   ];
   const [scrolled, setScrolled] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -39,7 +40,7 @@ export default function Navbar() {
 
           <div className="hidden md:flex items-center gap-8">
             {navLinks.map((l) =>
-              l.href.startsWith("/") ? (
+              l.isRoute || l.href.startsWith("/discover") || l.href === "/explore" ? (
                 <Link
                   key={l.label}
                   to={l.href}
@@ -93,7 +94,7 @@ export default function Navbar() {
           >
             <div className="flex flex-col items-center gap-6 p-8">
               {navLinks.map((l, i) =>
-                l.href.startsWith("/") ? (
+                l.isRoute || l.href.startsWith("/discover") || l.href === "/explore" ? (
                   <motion.div
                     key={l.label}
                     initial={{ opacity: 0, y: 12 }}

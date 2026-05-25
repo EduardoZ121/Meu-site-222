@@ -13,12 +13,12 @@ export default function Hero() {
     <section className="relative min-h-[100dvh] flex flex-col items-center justify-center overflow-hidden" data-testid="hero-section">
       <div className="absolute inset-0 z-0">
         <img src="/images/hero-bg.jpg?v=13" alt="" className="w-full h-full object-cover opacity-50" draggable={false} />
-        <div className="hero-aurora absolute inset-0" aria-hidden />
+        <div className="hero-aurora hero-aurora--static absolute inset-0" aria-hidden />
         <div className="absolute inset-0 bg-gradient-to-b from-[#0B0B0C]/70 via-[#0B0B0C]/40 to-[#0B0B0C]" />
       </div>
       <HeroFloatingPreviews />
 
-      <div className="relative z-10 flex flex-col items-center text-center px-6 max-w-[900px] mx-auto pt-[56px]">
+      <div className="hero-headline-wrap relative z-30 flex flex-col items-center text-center px-6 max-w-[900px] mx-auto pt-[56px]">
         <motion.p
           initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
@@ -36,7 +36,7 @@ export default function Hero() {
         >
           {t("hero_title_1")}
           <br />
-          <span className="hero-word-art">{t("hero_title_2")}</span>{" "}
+          <span className="italic font-light text-rp-lavender">{t("hero_title_2")}</span>{" "}
           {t("hero_title_3")}
         </motion.h1>
 
@@ -46,9 +46,8 @@ export default function Hero() {
           transition={{ duration: 0.8, delay: 0.65, ease: EASE }}
           className="hero-cta-row flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-4 flex-wrap"
         >
-          <Link to="/register" className="btn-primary btn-hero-primary" data-testid="hero-cta-primary">
-            <span className="btn-hero-primary__shine" aria-hidden />
-            <span className="btn-hero-primary__text">{t("hero_cta_primary")}</span>
+          <Link to="/register" className="btn-primary btn-hero-primary btn-hero-primary--plain" data-testid="hero-cta-primary">
+            {t("hero_cta_primary")}
           </Link>
           <Link to="/explore" className="btn-ghost" data-testid="hero-cta-gallery">
             {t("hero_cta_gallery")}

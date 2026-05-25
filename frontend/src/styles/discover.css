@@ -323,10 +323,13 @@
 
 /* Scroll cue — linha + chevrons + anel */
 .hero-scroll-cue {
+  position: relative;
   display: flex;
   flex-direction: column;
   align-items: center;
+  justify-content: center;
   gap: 10px;
+  margin: 0 auto;
   padding: 12px 16px;
   background: transparent;
   border: none;
@@ -337,10 +340,6 @@
 
 .hero-scroll-cue:hover {
   color: #e9d5ff;
-}
-
-.hero-scroll-cue {
-  position: relative;
 }
 
 .hero-scroll-cue__ring {

@@ -58,14 +58,16 @@ export default function Hero() {
         </motion.div>
       </div>
 
-      <motion.div
-        initial={{ opacity: 0, y: 12 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 1.15, duration: 0.8, ease: EASE }}
-        className="absolute bottom-8 left-1/2 -translate-x-1/2 z-10"
-      >
-        <HeroScrollCue />
-      </motion.div>
+      <div className="absolute bottom-8 inset-x-0 z-10 flex justify-center pointer-events-none">
+        <motion.div
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 1.15, duration: 0.8, ease: EASE }}
+          className="pointer-events-auto"
+        >
+          <HeroScrollCue />
+        </motion.div>
+      </div>
     </section>
   );
 }

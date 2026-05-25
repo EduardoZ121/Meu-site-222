@@ -53,7 +53,7 @@ export default function BgRemove() {
   const navigate = useNavigate();
   const { user, refresh } = useAuth();
   const { costs } = usePricing();
-  const errMsg = (err) => formatApiError(err, t("common_fail"));
+  const errMsg = (err) => formatApiError(err, t("common_fail"), { context: "image_upload", t });
   const scenePresets = useMemo(
     () => BG_SCENE_KEYS.map((key) => ({
       key,

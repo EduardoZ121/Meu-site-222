@@ -43,7 +43,7 @@ const CREDIT_DEFAULTS = { mangaPanel: 15, mangaPage: 40, mangaChapter: 150 };
 export default function MangaStudio() {
   const navigate = useNavigate();
   const { lang, t } = useI18n();
-  const errMsg = (err) => formatApiError(err, t("manga_fail"));
+  const errMsg = (err) => formatApiError(err, t("manga_fail"), { context: "image_upload", t });
   const catalog = useMemo(() => getMangaStudioCatalog(t), [t]);
   useTitle(t("manga_title"));
   const { user, refresh } = useAuth();

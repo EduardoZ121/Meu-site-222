@@ -111,7 +111,7 @@ export default function VideoEditorAdmin() {
       })
       .catch((err) => {
         if (cloudUploadGen.current !== gen) return;
-        const msg = formatApiError(err, t("vid_upload_cloud_fail"), { context: "video_upload" });
+        const msg = formatApiError(err, t("vid_upload_cloud_fail"), { context: "video_upload", t });
         setVideoCloudError(msg);
         toast.error(msg, { duration: 12000 });
       })
@@ -182,7 +182,7 @@ export default function VideoEditorAdmin() {
       toast.success(t("vid_edit_success", { n: creation?.credits_spent ?? cost }));
       await refresh();
     } catch (err) {
-      toast.error(formatApiError(err, t("vid_edit_fail")), { duration: 12000 });
+      toast.error(formatApiError(err, t("vid_edit_fail"), { context: "video_upload", t }), { duration: 12000 });
       if (err?.refunded && submitData?.credits_spent) {
         try { await refresh(); } catch { /* ignore */ }
       }

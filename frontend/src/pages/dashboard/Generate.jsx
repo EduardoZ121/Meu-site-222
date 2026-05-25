@@ -149,7 +149,7 @@ export default function Generate() {
       toast.success(t("studio_success", { n: creation?.credits_spent ?? cost }));
       await refresh();
     } catch (err) {
-      const msg = formatApiError(err, t("studio_fail"));
+      const msg = formatApiError(err, t("studio_fail"), { context: "image_upload", t });
       toast.error(msg, { duration: 9000 });
       if (err?.refunded && submitData?.credits_spent && !submitData?.server_billing) {
         refundCredits?.(submitData.credits_spent, t("studio_refund_desc"));

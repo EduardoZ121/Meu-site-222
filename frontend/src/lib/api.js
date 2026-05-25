@@ -1,7 +1,12 @@
 import axios from "axios";
 
 import { formatHttpError } from "./uploadErrors";
-import { VIDEO_VERCEL_SAFE_BYTES } from "./videoCloudLimits";
+import { isBrowserOnlineFlag } from "./uploadReachability";
+import {
+  formDataTotalBlobBytes,
+  pickBlobOffloadTimeoutMs,
+  VIDEO_VERCEL_SAFE_BYTES,
+} from "./uploadConstants";
 import { normalizeCreation } from "./creationUrls";
 import { notifyCreditsUpdate, notifyGenerationComplete } from "./notifyUser";
 
@@ -203,11 +208,10 @@ async function uploadFileToVercelBlob(key, fileLike, perFileMs, onProgress) {
   } catch (err) {
     const msg = String(err?.message || err);
     if (/fetch|network|failed|abort/i.test(msg)) {
-      const online = typeof navigator !== "undefined" && navigator.onLine !== false;
       throw new Error(
-        online
-          ? "Falhou o envio do vídeo para a nuvem. Recarrega (Ctrl+F5) ou usa um clip mais curto."
-          : "Sem ligação à internet. Liga-te à rede e tenta outra vez.",
+        isBrowserOnlineFlag()
+          ? "Falhou o envio para a nuvem. Recarrega (Ctrl+F5) ou usa um ficheiro mais pequeno."
+          : "Sem ligação à rede. Verifica Wi‑Fi ou dados móveis.",
       );
     }
     throw err;
@@ -216,7 +220,7 @@ async function uploadFileToVercelBlob(key, fileLike, perFileMs, onProgress) {
 
 /** Vercel Blob e/ou S3 — substitui ficheiros por `*_url` (pedido final fica leve). */
 async function offloadFormDataMediaToCloud(formData, opts = {}) {
-  const perFileMs = opts.timeoutMs ?? 55_000;
+  const perFileMs = opts.timeoutMs ?? pickBlobOffloadTimeoutMs(formDataTotalBlobBytes(formData), false);
   const blobEnabled = await isBlobUploadEnabled();
   const {
     uploadVideoViaS3,
@@ -332,11 +336,10 @@ function uploadVideoViaServerProxy(file, opts = {}) {
       reject(err);
     };
     xhr.onerror = () => {
-      const online = typeof navigator !== "undefined" && navigator.onLine !== false;
       const err = new Error(
-        online
+        isBrowserOnlineFlag()
           ? "Falhou o envio do vídeo ao servidor. Tenta outra vez ou recarrega (Ctrl+F5)."
-          : "Sem ligação à internet. Liga-te à rede e tenta outra vez.",
+          : "Sem ligação à rede. Verifica Wi‑Fi ou dados móveis.",
       );
       err.code = "ERR_NETWORK";
       reject(err);
@@ -456,10 +459,11 @@ export async function uploadPost(url, formData, config = {}) {
     const blobOn = await isBlobUploadEnabled({ refresh: hasLargeVideo || mustOffloadVideo });
     const { isS3VideoUploadAvailable } = await import("./s3VideoUpload");
     const s3On = await isS3VideoUploadAvailable();
+    const offloadBytes = formDataTotalBlobBytes(formData);
     if (blobOn || s3On) {
       try {
         baseFd = await offloadFormDataMediaToCloud(cloneFormData(formData), {
-          timeoutMs: config.blobOffloadTimeoutMs ?? 55_000,
+          timeoutMs: config.blobOffloadTimeoutMs ?? pickBlobOffloadTimeoutMs(offloadBytes, hasLargeVideo || mustOffloadVideo),
           onVideoProgress: config.onVideoProgress,
         });
       } catch (blobErr) {
@@ -518,7 +522,11 @@ export async function uploadPost(url, formData, config = {}) {
         reject(err);
       };
       xhr.onerror = () => {
-        const err = new Error("Ligação interrompida.");
+        const err = new Error(
+          isBrowserOnlineFlag()
+            ? "Falha ao enviar o ficheiro. Recarrega (Ctrl+F5) e tenta outra vez."
+            : "Sem ligação à rede. Verifica Wi‑Fi ou dados móveis.",
+        );
         err.code = "ERR_NETWORK";
         reject(err);
       };

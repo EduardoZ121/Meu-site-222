@@ -229,7 +229,7 @@ export default function Posters() {
       toast.success(t("post_success", { n: normalized?.credits_spent ?? submitData.credits_spent ?? totalCost }));
       await refresh();
     } catch (err) {
-      const msg = formatApiError(err, t("post_fail"));
+      const msg = formatApiError(err, t("post_fail"), { context: "image_upload", t });
       console.error("[Posters] generate failed", err);
       toast.error(msg, { duration: 12000 });
     } finally {

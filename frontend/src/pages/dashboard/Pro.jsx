@@ -35,7 +35,7 @@ function ProStep({ step, title, hint, children }) {
 
 export default function Pro() {
   const { t } = useI18n();
-  const errMsg = (err) => formatApiError(err, t("common_fail"));
+  const errMsg = (err) => formatApiError(err, t("common_fail"), { context: "image_upload", t });
   useTitle(t("pro_page_title"));
   const { refresh, user } = useAuth();
   const { costs } = usePricing();

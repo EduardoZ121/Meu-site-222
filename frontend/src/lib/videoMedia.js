@@ -1,7 +1,9 @@
 /** Limites e validação de media — imagem vs vídeo (nunca misturar mensagens). */
 
-export const MAX_IMAGE_UPLOAD_BYTES = 5 * 1024 * 1024;
-import { MAX_VIDEO_USER_BYTES, VIDEO_VERCEL_SAFE_BYTES } from "./videoCloudLimits";
+import { looksLikeImageFile } from "./imageCompress";
+import { MAX_IMAGE_PICKER_BYTES, MAX_VIDEO_USER_BYTES, VIDEO_VERCEL_SAFE_BYTES } from "./uploadConstants";
+
+export const MAX_IMAGE_UPLOAD_BYTES = MAX_IMAGE_PICKER_BYTES;
 
 export const MAX_VIDEO_UPLOAD_BYTES = MAX_VIDEO_USER_BYTES;
 export { VIDEO_VERCEL_SAFE_BYTES };
@@ -50,7 +52,7 @@ export function validateImageUpload(file, t) {
   if (looksLikeVideoUpload(file)) {
     return { ok: false, message: t("vid_err_use_video_zone") };
   }
-  if (!looksLikeImageUpload(file)) {
+  if (!looksLikeImageFile(file) && !looksLikeImageUpload(file)) {
     return { ok: false, message: t("img_err_invalid_type") };
   }
   if (file.size > MAX_IMAGE_UPLOAD_BYTES) {

@@ -1,23 +1,4 @@
-import { API, api } from "./api";
-
-let blobCache = null;
-
-export async function isBlobPersistAvailable() {
-  if (blobCache !== null) return blobCache;
-  if (typeof fetch === "undefined") {
-    blobCache = false;
-    return false;
-  }
-  try {
-    const r = await fetch(`${API}/blob/status`, { method: "GET", credentials: "same-origin" });
-    if (!r.ok) return false;
-    const j = await r.json();
-    blobCache = Boolean(j.blob);
-    return blobCache;
-  } catch {
-    return false;
-  }
-}
+import { api, invalidateBlobUploadCache, isBlobUploadEnabled } from "./api";
 
 /** Upload para Vercel Blob (opcional). Lança em falha. */
 export async function persistImageToBlobStore(file) {
@@ -53,3 +34,10 @@ export async function persistVideoToBlobStore(file) {
     multipart: file.size > 8_000_000,
   });
 }
+
+/** Mesmo estado que uploadPost — evita cache desatualizado. */
+export async function isBlobPersistAvailable() {
+  return isBlobUploadEnabled();
+}
+
+export { invalidateBlobUploadCache };

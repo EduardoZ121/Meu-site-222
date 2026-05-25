@@ -5,7 +5,7 @@ const { purchaseEconomics } = require("./financeModel.cjs");
 const { consumeAccountPreset, findAccountPreset } = require("./accountPresets.cjs");
 
 const ADMIN_EMAILS = new Set(
-  String(process.env.ADMIN_EMAILS || "eduardozola1998@gmail.com,eduardozola121998@gmail.com")
+  String(process.env.ADMIN_EMAILS || "eduardozola1998@gmail.com,eduardozola121998@gmail.com,eduardozola11998@gmail.com")
     .split(",")
     .map((e) => e.trim().toLowerCase())
     .filter(Boolean),

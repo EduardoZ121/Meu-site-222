@@ -1371,6 +1371,7 @@ async function routePost(path, fields, files, req) {
   }
 
   if (path === "generate/video-edit") {
+    await requireAdminSession(req);
     const { input, prompt } = await videoEditInput(fields, files);
     const cost = CREDIT.videoEdit ?? Math.max(CREDIT.video || 70, 85);
     return submitBillableGeneration(req, fields, {

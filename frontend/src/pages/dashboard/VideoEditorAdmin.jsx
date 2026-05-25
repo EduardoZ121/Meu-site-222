@@ -8,6 +8,7 @@ import {
 } from "../../lib/api";
 import { normalizeCreation, primaryResultUrl } from "../../lib/creationUrls";
 import { useAuth } from "../../lib/auth";
+import { isAdminUser } from "../../lib/isAdmin";
 import { usePricing } from "../../lib/PricingContext";
 import { useI18n } from "../../lib/i18n";
 import { toast } from "sonner";
@@ -39,6 +40,7 @@ export default function VideoEditorAdmin() {
   const { t } = useI18n();
   const ideas = useMemo(() => EDIT_IDEAS.map((k) => t(k)), [t]);
   const { refresh, user } = useAuth();
+  const canEdit = isAdminUser(user);
   const { costs } = usePricing();
   const cost = costs.videoEdit ?? costs.video ?? 95;
 
@@ -190,6 +192,14 @@ export default function VideoEditorAdmin() {
       setProgress(0);
     }
   };
+
+  if (!canEdit) {
+    return (
+      <p className="text-[#8A8A8E] text-sm" data-testid="video-editor-forbidden">
+        {t("vid_editor_admin_only")}
+      </p>
+    );
+  }
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-[1fr_400px] gap-10" data-testid="video-editor-admin">

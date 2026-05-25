@@ -1,15 +1,38 @@
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { motion } from "framer-motion";
-import { Film, Clapperboard } from "lucide-react";
+import { Film, Clapperboard, Lock } from "lucide-react";
 import { useI18n } from "../../lib/i18n";
+import { useAuth } from "../../lib/auth";
+import { isAdminUser } from "../../lib/isAdmin";
 import useTitle from "../../lib/useTitle";
 import VideoGenerate from "./VideoGenerate";
 import VideoEditorAdmin from "./VideoEditorAdmin";
 
 export default function Video() {
   const { t } = useI18n();
+  const { user } = useAuth();
+  const canUseVideoEditor = isAdminUser(user);
   useTitle(t("sidebar_video"));
   const [mode, setMode] = useState("generate");
+
+  useEffect(() => {
+    if (!canUseVideoEditor && mode === "edit") setMode("generate");
+  }, [canUseVideoEditor, mode]);
+
+  const tabs = useMemo(() => {
+    const list = [
+      { id: "generate", label: t("vid_tab_generate"), icon: Film, testId: "video-tab-generate" },
+    ];
+    if (canUseVideoEditor) {
+      list.push({
+        id: "edit",
+        label: t("vid_tab_editor"),
+        icon: Clapperboard,
+        testId: "video-tab-editor",
+      });
+    }
+    return list;
+  }, [canUseVideoEditor, t]);
 
   return (
     <div className="max-w-[1200px] mx-auto pb-20" data-testid="video-page">
@@ -28,10 +51,7 @@ export default function Video() {
         role="tablist"
         data-testid="video-mode-tabs"
       >
-        {[
-          { id: "generate", label: t("vid_tab_generate"), icon: Film, testId: "video-tab-generate" },
-          { id: "edit", label: t("vid_tab_editor"), icon: Clapperboard, testId: "video-tab-editor" },
-        ].map(({ id, label, icon: Icon, testId }) => {
+        {tabs.map(({ id, label, icon: Icon, testId }) => {
           const active = mode === id;
           return (
             <button
@@ -59,7 +79,17 @@ export default function Video() {
         })}
       </div>
 
-      {mode === "edit" ? <VideoEditorAdmin /> : <VideoGenerate />}
+      {!canUseVideoEditor && (
+        <p
+          className="mb-6 flex items-center gap-2 text-[13px] text-[#8A8A8E]"
+          data-testid="video-editor-locked-hint"
+        >
+          <Lock className="w-3.5 h-3.5 shrink-0 text-[#6b6b70]" />
+          {t("vid_editor_admin_only")}
+        </p>
+      )}
+
+      {mode === "edit" && canUseVideoEditor ? <VideoEditorAdmin /> : <VideoGenerate />}
     </div>
   );
 }

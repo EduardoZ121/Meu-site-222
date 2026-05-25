@@ -1,14 +1,11 @@
 import { createContext, useContext, useEffect, useState } from "react";
 import { api } from "./api";
 import { applyUserLanguage } from "./applyUserLanguage";
+import { ADMIN_EMAILS, isAdminUser as checkAdminUser } from "./isAdmin";
 
 const AuthCtx = createContext(null);
 const LOCAL_USERS_KEY = "rp_local_users";
 const LOCAL_TX_KEY = "rp_local_transactions";
-const ADMIN_EMAILS = new Set([
-  "eduardozola1998@gmail.com",
-  "eduardozola121998@gmail.com",
-]);
 const STARTER_CREDITS = 50;
 
 function readLocalUsers() {
@@ -31,6 +28,8 @@ function isUnlimitedEmail(email) {
   return ADMIN_EMAILS.has(email?.trim().toLowerCase());
 }
 
+export { isAdminUser } from "./isAdmin";
+
 function updateStoredUser(user) {
   localStorage.setItem("rp_user", JSON.stringify(user));
 }
@@ -43,7 +42,7 @@ function decodeJwtPayload(token) {
 }
 
 function publicLocalUser(user) {
-  const unlimited = isUnlimitedEmail(user.email);
+  const unlimited = isUnlimitedEmail(user.email) || checkAdminUser({ email: user.email, role: user.role });
   let pricing_region = user.pricing_region;
   try {
     if (!pricing_region) {

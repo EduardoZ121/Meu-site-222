@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import useTitle from "../lib/useTitle";
 import GoogleAuthButton from "../components/GoogleAuthButton";
 import Logo from "../components/Logo";
+import PublicLanguageBar from "../components/PublicLanguageBar";
 
 export default function Register() {
   useTitle("Criar conta");
@@ -51,6 +52,7 @@ export default function Register() {
 
   return (
     <div className="min-h-screen bg-rp-bg flex flex-col" data-testid="register-page">
+      <PublicLanguageBar testId="register-lang-bar" />
       <div className="film-grain" />
       <header className="container-rp h-[64px] flex items-center">
         <Logo to="/" size="lg" />

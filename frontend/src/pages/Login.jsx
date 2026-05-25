@@ -9,6 +9,7 @@ import useTitle from "../lib/useTitle";
 import GoogleAuthButton from "../components/GoogleAuthButton";
 import Logo from "../components/Logo";
 import PwaLoginScreen from "../components/pwa/PwaLoginScreen";
+import PublicLanguageBar from "../components/PublicLanguageBar";
 
 function BrowserLogin() {
   const { t } = useI18n();
@@ -50,6 +51,7 @@ function BrowserLogin() {
 
   return (
     <div className="min-h-screen bg-rp-bg flex flex-col" data-testid="login-page">
+      <PublicLanguageBar testId="login-lang-bar" />
       <div className="film-grain" />
       <header className="container-rp h-[64px] flex items-center">
         <Logo to="/" size="lg" />

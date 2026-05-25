@@ -1,6 +1,5 @@
 import { createContext, useContext, useEffect, useState } from "react";
 import { api } from "./api";
-import { applyUserLanguage } from "./applyUserLanguage";
 import { ADMIN_EMAILS, isAdminUser as checkAdminUser } from "./isAdmin";
 
 const AuthCtx = createContext(null);
@@ -110,7 +109,6 @@ export function AuthProvider({ children }) {
       .then((r) => {
         setUser(r.data);
         updateStoredUser(r.data);
-        applyUserLanguage(r.data);
       })
       .catch((err) => {
         if (err?.response?.status === 401) {
@@ -166,7 +164,6 @@ export function AuthProvider({ children }) {
       localStorage.setItem("rp_token", data.token);
       updateStoredUser(data.user);
       setUser(data.user);
-      applyUserLanguage(data.user);
       return data.user;
     } catch (err) {
       if (!isBackendUnavailable(err)) throw err;
@@ -183,7 +180,6 @@ export function AuthProvider({ children }) {
       localStorage.setItem("rp_token", localTokenFor(local));
       updateStoredUser(user);
       setUser(user);
-      applyUserLanguage(user);
       return user;
     }
   };
@@ -195,7 +191,6 @@ export function AuthProvider({ children }) {
       localStorage.setItem("rp_token", data.token);
       localStorage.setItem("rp_user", JSON.stringify(data.user));
       setUser(data.user);
-      applyUserLanguage(data.user);
       return data.user;
     } catch (err) {
       if (!isBackendUnavailable(err)) throw err;
@@ -237,7 +232,6 @@ export function AuthProvider({ children }) {
       localStorage.setItem("rp_token", data.token);
       updateStoredUser(data.user);
       setUser(data.user);
-      applyUserLanguage(data.user);
       return data.user;
     } catch (err) {
       if (!isBackendUnavailable(err)) throw err;
@@ -328,7 +322,6 @@ export function AuthProvider({ children }) {
       const { data } = await api.get("/auth/me");
       setUser(data);
       updateStoredUser(data);
-      applyUserLanguage(data);
       return data;
     } catch (e) {
       if (e?.response?.status === 401) {

@@ -7,6 +7,7 @@ import { useI18n } from "../../lib/i18n";
 import { toast } from "sonner";
 import useTitle from "../../lib/useTitle";
 import GoogleAuthButton from "../GoogleAuthButton";
+import PublicLanguageBar from "../PublicLanguageBar";
 
 export default function PwaLoginScreen() {
   const { t } = useI18n();
@@ -49,6 +50,7 @@ export default function PwaLoginScreen() {
 
   return (
     <div className="pwa-login" data-testid="pwa-login-page">
+      <PublicLanguageBar testId="pwa-login-lang-bar" />
       <div className="pwa-login__grain" aria-hidden />
       <div className="pwa-login__orb pwa-login__orb--violet" aria-hidden />
       <div className="pwa-login__orb pwa-login__orb--fuchsia" aria-hidden />

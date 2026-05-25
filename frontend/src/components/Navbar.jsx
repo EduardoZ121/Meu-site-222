@@ -122,19 +122,22 @@ export default function Navbar() {
                   </motion.a>
                 )
               )}
+              <div className="py-2">
+                <LanguageSwitcher testId="landing-mobile-lang" />
+              </div>
               <Link
                 to="/login"
                 onClick={() => setMobileOpen(false)}
                 className="text-[#8A8A8E] text-lg font-light hover:text-[#7C3AED] transition-colors"
               >
-                Entrar
+                {t("nav_login")}
               </Link>
               <Link
                 to="/register"
                 onClick={() => setMobileOpen(false)}
                 className="btn-primary mt-4"
               >
-                Começar grátis — 50 créditos
+                {t("nav_signup")}
               </Link>
             </div>
           </motion.div>

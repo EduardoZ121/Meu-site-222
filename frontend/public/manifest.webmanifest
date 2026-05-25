@@ -2,7 +2,7 @@
   "name": "Remake Pixel",
   "short_name": "Remake Pixel",
   "description": "Estúdio AI de imagem e vídeo.",
-  "start_url": "/",
+  "start_url": "/login?pwa=1",
   "display": "standalone",
   "background_color": "#0B0B0C",
   "theme_color": "#0B0B0C",

@@ -1,8 +1,10 @@
 import "./App.css";
-import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
+import { useEffect } from "react";
+import { BrowserRouter, Routes, Route, Navigate, useLocation, useNavigate } from "react-router-dom";
 import { Toaster } from "sonner";
 import { AuthProvider, useAuth } from "./lib/auth";
 import { PricingProvider } from "./lib/PricingContext";
+import { isPwaStandalone } from "./lib/pwaMode";
 
 import Landing from "./pages/Landing";
 import Login from "./pages/Login";
@@ -35,6 +37,27 @@ import Colorize from "./pages/dashboard/tools/Colorize";
 import Inpaint from "./pages/dashboard/tools/Inpaint";
 import ClothesChanger from "./pages/dashboard/tools/ClothesChanger";
 
+/** App instalado (Chrome): abre login em vez da landing; sessão autenticada vai ao estúdio. */
+function PwaStartupRedirect() {
+  const { user, loading } = useAuth();
+  const navigate = useNavigate();
+  const location = useLocation();
+
+  useEffect(() => {
+    if (!isPwaStandalone() || loading) return;
+    const path = location.pathname;
+    if (user && (path === "/" || path === "/login")) {
+      navigate("/app/tools", { replace: true });
+      return;
+    }
+    if (!user && path === "/") {
+      navigate("/login", { replace: true });
+    }
+  }, [user, loading, location.pathname, navigate]);
+
+  return null;
+}
+
 function RequireAuth({ children, adminOnly = false }) {
   const { user, loading } = useAuth();
   const loc = useLocation();
@@ -51,6 +74,7 @@ function App() {
           <PricingProvider>
           <BrowserRouter>
             <Toaster position="top-center" theme="dark" toastOptions={{ style: { background: "#121217", color: "#F4F1EA", border: "1px solid rgba(244,241,234,0.08)" } }} />
+            <PwaStartupRedirect />
             <Routes>
               <Route path="/" element={<Landing />} />
               <Route path="/login" element={<Login />} />

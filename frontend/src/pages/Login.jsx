@@ -3,12 +3,14 @@ import { Link, useNavigate, useLocation } from "react-router-dom";
 import { motion } from "framer-motion";
 import { useAuth } from "../lib/auth";
 import { useI18n } from "../lib/i18n";
+import { isPwaStandalone } from "../lib/pwaMode";
 import { toast } from "sonner";
 import useTitle from "../lib/useTitle";
 import GoogleAuthButton from "../components/GoogleAuthButton";
 import Logo from "../components/Logo";
+import PwaLoginScreen from "../components/pwa/PwaLoginScreen";
 
-export default function Login() {
+function BrowserLogin() {
   const { t } = useI18n();
   useTitle(t("nav_login"));
   const [email, setEmail] = useState("");
@@ -88,4 +90,9 @@ export default function Login() {
       </div>
     </div>
   );
+}
+
+export default function Login() {
+  if (isPwaStandalone()) return <PwaLoginScreen />;
+  return <BrowserLogin />;
 }

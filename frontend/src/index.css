@@ -1845,3 +1845,177 @@
   color: #f4f1ea;
 }
 
+/* —— PWA instalado (Chrome): ecrã de login centrado —— */
+.pwa-login {
+  position: relative;
+  min-height: 100dvh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: max(1.5rem, env(safe-area-inset-top)) 1.25rem max(2rem, env(safe-area-inset-bottom));
+  overflow: hidden;
+  background: #050505;
+}
+.pwa-login__grain {
+  position: absolute;
+  inset: 0;
+  opacity: 0.35;
+  pointer-events: none;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.5'/%3E%3C/svg%3E");
+}
+.pwa-login__orb {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(72px);
+  pointer-events: none;
+  opacity: 0.55;
+}
+.pwa-login__orb--violet {
+  width: min(72vw, 320px);
+  height: min(72vw, 320px);
+  top: 8%;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(124, 58, 237, 0.45);
+}
+.pwa-login__orb--fuchsia {
+  width: min(50vw, 220px);
+  height: min(50vw, 220px);
+  bottom: 12%;
+  right: -8%;
+  background: rgba(192, 38, 211, 0.28);
+}
+.pwa-login__inner {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  max-width: 380px;
+  text-align: center;
+}
+.pwa-login__logo-wrap {
+  position: relative;
+  width: 132px;
+  height: 132px;
+  margin: 0 auto 1.25rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.pwa-login__logo-ring {
+  position: absolute;
+  inset: -6px;
+  border-radius: 50%;
+  background: conic-gradient(
+    from 0deg,
+    transparent 0deg,
+    rgba(168, 85, 247, 0.5) 80deg,
+    rgba(34, 211, 238, 0.35) 160deg,
+    transparent 220deg
+  );
+  opacity: 0.85;
+}
+.pwa-login__logo-mark {
+  position: relative;
+  z-index: 1;
+  width: 108px;
+  height: 108px;
+  border-radius: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(145deg, rgba(24, 24, 27, 0.95), rgba(9, 9, 11, 0.98));
+  border: 1px solid rgba(168, 85, 247, 0.35);
+  box-shadow:
+    0 0 60px rgba(124, 58, 237, 0.35),
+    0 24px 48px rgba(0, 0, 0, 0.55),
+    inset 0 1px 0 rgba(255, 255, 255, 0.06);
+}
+.pwa-login__logo-r {
+  font-family: "Inter Tight", system-ui, sans-serif;
+  font-size: 3.5rem;
+  font-weight: 700;
+  line-height: 1;
+  color: #fafafa;
+  letter-spacing: -0.04em;
+}
+.pwa-login__logo-dot {
+  font-family: "Inter Tight", system-ui, sans-serif;
+  font-size: 3.5rem;
+  font-weight: 700;
+  line-height: 1;
+  color: #a855f7;
+}
+.pwa-login__brand {
+  margin: 0 0 0.5rem;
+  font-family: "Inter Tight", system-ui, sans-serif;
+  font-size: 1.35rem;
+  font-weight: 600;
+  letter-spacing: -0.03em;
+  color: #fafafa;
+}
+.pwa-login__tagline {
+  margin: 0 0 2rem;
+  font-size: 0.9rem;
+  line-height: 1.45;
+  color: #a1a1aa;
+  max-width: 280px;
+  margin-left: auto;
+  margin-right: auto;
+}
+.pwa-login__actions {
+  text-align: left;
+}
+.pwa-login__google {
+  margin-bottom: 0.75rem;
+}
+.pwa-login__secondary-btn {
+  width: 100%;
+  padding: 0.85rem 1rem;
+  font-size: 0.8rem;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #a1a1aa;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+  transition: border-color 0.2s, color 0.2s, background 0.2s;
+}
+.pwa-login__secondary-btn:hover {
+  color: #fafafa;
+  border-color: rgba(168, 85, 247, 0.4);
+  background: rgba(124, 58, 237, 0.1);
+}
+.pwa-login__form {
+  margin-top: 0.5rem;
+  padding: 1rem;
+  border-radius: 16px;
+  background: rgba(17, 17, 19, 0.75);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  backdrop-filter: blur(12px);
+}
+.pwa-login__label {
+  display: block;
+  margin: 0.5rem 0 0.35rem;
+  font-size: 10px;
+  font-family: ui-monospace, monospace;
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
+  color: #71717a;
+}
+.pwa-login__label:first-child {
+  margin-top: 0;
+}
+.pwa-login__input {
+  margin-bottom: 0.25rem;
+}
+.pwa-login__submit {
+  margin-top: 0.75rem;
+}
+.pwa-login__footer {
+  margin: 1.75rem 0 0;
+  font-size: 0.8rem;
+  color: #71717a;
+  line-height: 1.5;
+}
+

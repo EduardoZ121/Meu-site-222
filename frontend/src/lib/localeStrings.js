@@ -19,6 +19,9 @@ const loginEn = {
   login_new: "New to Remake Pixel?",
   login_register: "Create account →",
   login_success: "Welcome back.",
+  pwa_login_tagline: "AI image & video studio — create in seconds",
+  pwa_login_or_email: "Continue with email",
+  pwa_login_enter_studio: "Enter studio",
 };
 
 const loginPt = {
@@ -33,6 +36,9 @@ const loginPt = {
   login_new: "Novo no Remake Pixel?",
   login_register: "Criar conta →",
   login_success: "Bem-vindo de volta.",
+  pwa_login_tagline: "Estúdio AI de imagem e vídeo — cria em segundos",
+  pwa_login_or_email: "Continuar com email",
+  pwa_login_enter_studio: "Entrar no estúdio",
 };
 
 const loginEs = {

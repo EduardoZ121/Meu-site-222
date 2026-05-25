@@ -285,6 +285,34 @@ async function offloadFormDataMediaToCloud(formData, opts = {}) {
   return out;
 }
 
+/** Envia vídeo para Vercel Blob (ou S3) e devolve URL pública. */
+export async function uploadVideoToCloud(file, opts = {}) {
+  if (!file) throw new Error("Vídeo em falta.");
+  invalidateBlobUploadCache();
+  const blobOn = await isBlobUploadEnabled({ refresh: true });
+  const { isS3VideoUploadAvailable } = await import("./s3VideoUpload");
+  const s3On = await isS3VideoUploadAvailable();
+  if (!blobOn && !s3On) {
+    throw new Error(
+      "Vídeos grandes precisam de armazenamento em nuvem. Recarrega a página (Ctrl+F5) e confirma Blob ativo em /api/blob/status.",
+    );
+  }
+  const fd = new FormData();
+  fd.append("video", file);
+  const out = await offloadFormDataMediaToCloud(fd, {
+    timeoutMs: opts.timeoutMs ?? 600_000,
+    onVideoProgress: opts.onProgress,
+  });
+  if (typeof out.get === "function") {
+    const url = out.get("video_url");
+    if (url) return String(url);
+  }
+  for (const [k, v] of out.entries()) {
+    if (k === "video_url" && typeof v === "string") return v;
+  }
+  throw new Error("Upload do vídeo terminou sem URL. Tenta um clip mais curto ou outro formato (MP4).");
+}
+
 const IMAGE_OFFLOAD_KEYS = new Set(["photo", "image", "mask", "garment", "reference_image"]);
 const DIRECT_UPLOAD_MAX = 3_500_000;
 

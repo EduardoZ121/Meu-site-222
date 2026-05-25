@@ -1,13 +1,11 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Clapperboard, Sparkles } from "lucide-react";
 import {
   formatApiError,
-  invalidateBlobUploadCache,
-  isBlobUploadEnabled,
   pollPrediction,
   uploadPost,
+  uploadVideoToCloud,
 } from "../../lib/api";
-import { isS3VideoUploadAvailable } from "../../lib/s3VideoUpload";
 import { normalizeCreation, primaryResultUrl } from "../../lib/creationUrls";
 import { useAuth } from "../../lib/auth";
 import { usePricing } from "../../lib/PricingContext";
@@ -45,6 +43,11 @@ export default function VideoEditorAdmin() {
   const cost = costs.videoEdit ?? costs.video ?? 95;
 
   const [video, setVideo] = useState(null);
+  const [videoCloudUrl, setVideoCloudUrl] = useState(null);
+  const [videoCloudBusy, setVideoCloudBusy] = useState(false);
+  const [videoCloudPct, setVideoCloudPct] = useState(0);
+  const [videoCloudError, setVideoCloudError] = useState(null);
+  const cloudUploadGen = useRef(0);
   const [reference, setReference] = useState(null);
   const [prompt, setPrompt] = useState("");
   const [resolution, setResolution] = useState("1080p");
@@ -56,15 +59,68 @@ export default function VideoEditorAdmin() {
   const [progress, setProgress] = useState(0);
   const [result, setResult] = useState(null);
 
+  const needsCloud = video && video.size > VIDEO_DIRECT_MAX_BYTES;
+  const cloudReady = !needsCloud || Boolean(videoCloudUrl);
   const { ready, hint } = useStudioGenerateGate({
-    busy,
+    busy: busy || videoCloudBusy,
     user,
     cost,
     requireVideo: true,
     video,
     requirePrompt: true,
     prompt,
+    readyOverride: Boolean(video) && prompt.trim().length >= 3 && cloudReady,
+    hintOverride: videoCloudBusy
+      ? (videoCloudPct > 0
+        ? t("vid_upload_cloud_progress", { n: videoCloudPct })
+        : t("vid_edit_cloud_uploading"))
+      : (needsCloud && videoCloudError)
+        ? videoCloudError
+        : (needsCloud && !videoCloudUrl && !videoCloudBusy)
+          ? t("vid_edit_wait_upload")
+          : null,
   });
+
+  useEffect(() => {
+    if (!video || video.size <= VIDEO_DIRECT_MAX_BYTES) {
+      setVideoCloudUrl(null);
+      setVideoCloudError(null);
+      setVideoCloudBusy(false);
+      setVideoCloudPct(0);
+      return undefined;
+    }
+    const gen = cloudUploadGen.current + 1;
+    cloudUploadGen.current = gen;
+    setVideoCloudUrl(null);
+    setVideoCloudError(null);
+    setVideoCloudBusy(true);
+    setVideoCloudPct(0);
+
+    uploadVideoToCloud(video, {
+      onProgress: (pct) => {
+        if (cloudUploadGen.current === gen) setVideoCloudPct(pct);
+      },
+    })
+      .then((url) => {
+        if (cloudUploadGen.current !== gen) return;
+        setVideoCloudUrl(url);
+        setVideoCloudError(null);
+        toast.success(t("vid_upload_cloud_done"), { duration: 4000 });
+      })
+      .catch((err) => {
+        if (cloudUploadGen.current !== gen) return;
+        const msg = formatApiError(err, t("vid_upload_cloud_fail"));
+        setVideoCloudError(msg);
+        toast.error(msg, { duration: 12000 });
+      })
+      .finally(() => {
+        if (cloudUploadGen.current === gen) setVideoCloudBusy(false);
+      });
+
+    return () => {
+      cloudUploadGen.current += 1;
+    };
+  }, [video, t]);
 
   const run = async () => {
     if (!video) {
@@ -80,22 +136,14 @@ export default function VideoEditorAdmin() {
       return;
     }
 
-    const needsCloud = video.size > VIDEO_DIRECT_MAX_BYTES;
-    if (needsCloud) {
-      invalidateBlobUploadCache();
-      const [blobOk, s3ok] = await Promise.all([
-        isBlobUploadEnabled({ refresh: true }),
-        isS3VideoUploadAvailable(),
-      ]);
-      if (!blobOk && !s3ok) {
-        toast.error(t("vid_edit_cloud_required"), { duration: 12000 });
-        return;
-      }
+    if (needsCloud && !videoCloudUrl) {
+      toast.error(videoCloudError || t("vid_edit_wait_upload"), { duration: 12000 });
+      return;
     }
 
     setBusy(true);
     setProgress(0);
-    setUploadPhase(needsCloud ? "cloud" : "send");
+    setUploadPhase("send");
     setResult(null);
     let submitData;
     try {
@@ -105,17 +153,18 @@ export default function VideoEditorAdmin() {
       fd.append("duration", String(duration));
       fd.append("aspect_ratio", aspect);
       fd.append("audio_setting", audioSetting);
-      fd.append("video", video);
+      if (videoCloudUrl) {
+        fd.append("video_url", videoCloudUrl);
+      } else {
+        fd.append("video", video);
+      }
       if (reference) fd.append("reference_image", reference);
 
+      setUploadPhase("send");
       ({ data: submitData } = await uploadPost("/generate/video-edit", fd, {
         timeout: 120_000,
-        blobOffloadTimeoutMs: needsCloud ? 600_000 : 55_000,
-        skipBlobOffload: !needsCloud,
+        skipBlobOffload: Boolean(videoCloudUrl),
         headers: { "X-Skip-Auto-Poll": "1" },
-        onVideoProgress: needsCloud
-          ? (pct) => setUploadPhase(pct > 0 ? `cloud:${pct}` : "cloud")
-          : undefined,
       }));
 
       setUploadPhase("processing");
@@ -158,10 +207,29 @@ export default function VideoEditorAdmin() {
             <div className="max-w-[560px]">
               <StudioVideoUpload
                 value={video}
-                onChange={setVideo}
-                disabled={busy}
+                onChange={(f) => {
+                  setVideo(f);
+                  setVideoCloudUrl(null);
+                  setVideoCloudError(null);
+                }}
+                disabled={busy || videoCloudBusy}
                 testId="video-edit-source"
               />
+              {needsCloud && (
+                <p className={`mt-3 text-[12px] leading-relaxed ${
+                  videoCloudError ? "text-red-400" : videoCloudUrl ? "text-emerald-400/90" : "text-[#A78BFA]"
+                }`}>
+                  {videoCloudBusy
+                    ? (videoCloudPct > 0
+                      ? t("vid_upload_cloud_progress", { n: videoCloudPct })
+                      : t("vid_edit_cloud_uploading"))
+                    : videoCloudError
+                      ? videoCloudError
+                      : videoCloudUrl
+                        ? t("vid_upload_cloud_ready")
+                        : t("vid_edit_large_hint")}
+                </p>
+              )}
             </div>
           </section>
 

@@ -1,6 +1,7 @@
 const { getDb, storageEnabled, kvEnabled } = require("./mongo.cjs");
 const { computeAdminStats, computeIpGroups, computeFinance } = require("./statsCompute.cjs");
-const { ADMIN_EMAILS, addCredits, publicUser } = require("./usersDb.cjs");
+const { ADMIN_EMAILS, addCredits, publicUser, setUserAccountByEmail } = require("./usersDb.cjs");
+const { upsertAccountPreset } = require("./accountPresets.cjs");
 const { runDeployEventCredits } = require("./deployEventCredits.cjs");
 const { aggregateFinance } = require("./financeModel.cjs");
 // aggregateFinance used when MONGO_URL is set; KV uses computeFinance from statsCompute
@@ -243,6 +244,10 @@ async function adminPatchUser(userId, patch) {
   if (patch.banned != null) update.banned = Boolean(patch.banned);
   if (patch.role != null) update.role = patch.role;
   if (patch.nsfw_allowed != null) update.nsfw_allowed = Boolean(patch.nsfw_allowed);
+  if (patch.lang != null) update.lang = String(patch.lang).slice(0, 2);
+  if (patch.credits != null && Number.isFinite(Number(patch.credits))) {
+    update.credits = Math.max(0, Math.floor(Number(patch.credits)));
+  }
   if (!Object.keys(update).length) return { ok: true };
   const res = await db.collection("users").updateOne({ id: userId }, { $set: update });
   if (!res.matchedCount) {
@@ -295,6 +300,30 @@ async function handleAdminRoute(path, req, res, { verifySessionToken, json, read
     if (req.method === "POST" && path === "admin/credits/adjust") {
       const out = await adminAdjustCredits(body.user_id, Number(body.amount), body.reason);
       return json(res, 200, out);
+    }
+    if (req.method === "POST" && path === "admin/account/setup") {
+      const email = String(body.email || "").trim().toLowerCase();
+      if (!email) return json(res, 400, { detail: "Email em falta." });
+      const credits = body.credits != null ? Number(body.credits) : null;
+      const lang = body.lang ? String(body.lang).slice(0, 2) : "en";
+      const applied = await setUserAccountByEmail(email, { credits, lang });
+      if (applied?.user) {
+        return json(res, 200, { ok: true, user: applied.user, applied: "existing_user" });
+      }
+      const db = await getDb();
+      await upsertAccountPreset(db, email, {
+        credits: Number.isFinite(credits) ? credits : 800,
+        lang,
+        note: body.reason || "admin account setup",
+      });
+      return json(res, 200, {
+        ok: true,
+        pending: true,
+        email,
+        credits: Number.isFinite(credits) ? credits : 800,
+        lang,
+        message: "Conta ainda não existe — créditos e idioma aplicam-se no primeiro login Google com este email.",
+      });
     }
     if (req.method === "POST" && path === "admin/deploy-event-credits") {
       const prev = process.env.DEPLOY_EVENT_CREDITS_ENABLED;

@@ -2,6 +2,7 @@ const crypto = require("crypto");
 const { getDb, ensureIndexes, storageEnabled } = require("./mongo.cjs");
 const { requestMeta } = require("./requestMeta.cjs");
 const { purchaseEconomics } = require("./financeModel.cjs");
+const { consumeAccountPreset, findAccountPreset } = require("./accountPresets.cjs");
 
 const ADMIN_EMAILS = new Set(
   String(process.env.ADMIN_EMAILS || "eduardozola1998@gmail.com,eduardozola121998@gmail.com")
@@ -86,10 +87,15 @@ async function upsertGoogleUser(googleProfile, req, opts = {}) {
   };
 
   if (!existing) {
+    const preset = await findAccountPreset(db, email);
+    const startCredits = isAdmin
+      ? 999999999
+      : (Number.isFinite(preset?.credits) ? preset.credits : 50);
+    const startLang = preset?.lang || "en";
     const doc = {
       ...base,
-      lang: "en",
-      credits: isAdmin ? 999999999 : 50,
+      lang: startLang,
+      credits: startCredits,
       referral_code: genReferralCode(),
       referred_by: null,
       banned: false,
@@ -101,14 +107,16 @@ async function upsertGoogleUser(googleProfile, req, opts = {}) {
       provider: "google",
     };
     await db.collection("users").insertOne(doc);
+    const bonus = isAdmin ? 0 : startCredits;
     await db.collection("credit_transactions").insertOne({
       id: `tx_${Date.now().toString(36)}`,
       user_id: userId,
-      amount: isAdmin ? 0 : 50,
-      type: "free",
-      description: "Signup bonus (Google)",
+      amount: bonus,
+      type: preset ? "admin" : "free",
+      description: preset ? "Conta pré-configurada (admin)" : "Signup bonus (Google)",
       created_at: nowIso(),
     });
+    if (preset) await consumeAccountPreset(db, email);
     await logIpEvent(db, userId, meta, "signup");
     return publicUser(doc);
   }
@@ -149,6 +157,44 @@ async function getUserById(userId) {
   const db = await getDb();
   const doc = await db.collection("users").findOne({ id: userId }, { projection: { _id: 0, password_hash: 0 } });
   return publicUser(doc);
+}
+
+async function getUserByEmail(email) {
+  if (!storageEnabled()) return null;
+  const db = await getDb();
+  const normalized = String(email || "").trim().toLowerCase();
+  const doc = await db.collection("users").findOne({ email: normalized }, { projection: { _id: 0, password_hash: 0 } });
+  return publicUser(doc);
+}
+
+async function setUserAccountByEmail(email, { credits, lang }) {
+  if (!storageEnabled()) return null;
+  const db = await getDb();
+  const normalized = String(email || "").trim().toLowerCase();
+  const doc = await db.collection("users").findOne({ email: normalized });
+  if (!doc) return { pending: true };
+  const $set = {};
+  if (lang) $set.lang = String(lang).slice(0, 2);
+  if (Number.isFinite(credits) && credits >= 0) {
+    $set.credits = Math.floor(credits);
+    if ($set.credits > 0) $set.is_unlimited = false;
+  }
+  if (!Object.keys($set).length) return { user: publicUser(doc) };
+  const before = { credits: doc.credits, lang: doc.lang };
+  await db.collection("users").updateOne({ id: doc.id }, { $set });
+  if (Number.isFinite(credits)) {
+    await db.collection("credit_transactions").insertOne({
+      id: `tx_admin_${Date.now().toString(36)}`,
+      user_id: doc.id,
+      amount: $set.credits - (before.credits ?? 0),
+      type: "admin",
+      description: `Admin set balance to ${$set.credits}`,
+      metadata: { email: normalized, before: before.credits, after: $set.credits },
+      created_at: nowIso(),
+    });
+  }
+  const updated = await db.collection("users").findOne({ id: doc.id });
+  return { user: publicUser(updated), before };
 }
 
 async function addCredits(userId, amount, type, description, metadata = {}) {
@@ -226,6 +272,8 @@ module.exports = {
   upsertGoogleUser,
   touchUser,
   getUserById,
+  getUserByEmail,
+  setUserAccountByEmail,
   addCredits,
   recordPurchase,
   recordCreation,

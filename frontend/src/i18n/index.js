@@ -1,13 +1,14 @@
 import i18n from "i18next";
 import { initReactI18next } from "react-i18next";
 import { getInitialLanguage, setSavedLanguage, LANGUAGE_STORAGE_KEY } from "../lib/remakepixLanguage.js";
+import { getLanguageFromStoredUser } from "../lib/applyUserLanguage.js";
 import { createMergedDict } from "../lib/createMergedDict.js";
 import en from "./en.json";
 import pt from "./pt.json";
 import es from "./es.json";
 import fr from "./fr.json";
 
-const savedLang = getInitialLanguage();
+const savedLang = getLanguageFromStoredUser() || getInitialLanguage();
 
 const studioLocalesByLang = createMergedDict();
 

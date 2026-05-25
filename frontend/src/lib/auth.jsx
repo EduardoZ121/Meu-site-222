@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useState } from "react";
 import { api } from "./api";
+import { applyUserLanguage } from "./applyUserLanguage";
 
 const AuthCtx = createContext(null);
 const LOCAL_USERS_KEY = "rp_local_users";
@@ -107,7 +108,11 @@ export function AuthProvider({ children }) {
       return;
     }
     api.get("/auth/me")
-      .then((r) => { setUser(r.data); updateStoredUser(r.data); })
+      .then((r) => {
+        setUser(r.data);
+        updateStoredUser(r.data);
+        applyUserLanguage(r.data);
+      })
       .catch((err) => {
         if (err?.response?.status === 401) {
           localStorage.removeItem("rp_token");
@@ -162,6 +167,7 @@ export function AuthProvider({ children }) {
       localStorage.setItem("rp_token", data.token);
       updateStoredUser(data.user);
       setUser(data.user);
+      applyUserLanguage(data.user);
       return data.user;
     } catch (err) {
       if (!isBackendUnavailable(err)) throw err;
@@ -178,6 +184,7 @@ export function AuthProvider({ children }) {
       localStorage.setItem("rp_token", localTokenFor(local));
       updateStoredUser(user);
       setUser(user);
+      applyUserLanguage(user);
       return user;
     }
   };
@@ -189,6 +196,7 @@ export function AuthProvider({ children }) {
       localStorage.setItem("rp_token", data.token);
       localStorage.setItem("rp_user", JSON.stringify(data.user));
       setUser(data.user);
+      applyUserLanguage(data.user);
       return data.user;
     } catch (err) {
       if (!isBackendUnavailable(err)) throw err;
@@ -230,6 +238,7 @@ export function AuthProvider({ children }) {
       localStorage.setItem("rp_token", data.token);
       updateStoredUser(data.user);
       setUser(data.user);
+      applyUserLanguage(data.user);
       return data.user;
     } catch (err) {
       if (!isBackendUnavailable(err)) throw err;
@@ -320,6 +329,7 @@ export function AuthProvider({ children }) {
       const { data } = await api.get("/auth/me");
       setUser(data);
       updateStoredUser(data);
+      applyUserLanguage(data);
       return data;
     } catch (e) {
       if (e?.response?.status === 401) {

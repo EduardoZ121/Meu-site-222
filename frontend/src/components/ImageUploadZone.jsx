@@ -44,7 +44,7 @@ export default function ImageUploadZone({
   overlay = null,
   capture = undefined,
   compressOptions = {},
-  enableRemotePersist = true,
+  enableRemotePersist = false,
   onStatusChange,
   emptyLabel,
   emptyHint,
@@ -62,7 +62,6 @@ export default function ImageUploadZone({
   const [drag, setDrag] = useState(false);
   const [previewUrl, setPreviewUrl] = useState(null);
   const [previewFailed, setPreviewFailed] = useState(false);
-  const [persistState, setPersistState] = useState("idle"); // idle | saving | saved | error
   const lastPreparedRef = useRef(null);
   const runIdRef = useRef(0);
   const blobPreviewRef = useRef(null);
@@ -78,7 +77,6 @@ export default function ImageUploadZone({
       blobPreviewRef.current = null;
       setPreviewUrl(null);
       setPreviewFailed(false);
-      setPersistState("idle");
       lastPreparedRef.current = null;
       notifyStatus("idle");
       return undefined;
@@ -124,64 +122,42 @@ export default function ImageUploadZone({
   }, [value, notifyStatus, isVideo]);
 
   const runBackground = useCallback(async (rawFile, rid) => {
-    setPersistState("saving");
-    notifyStatus("saving");
     const prepared = await compressImageNeverFail(rawFile, compressOptions);
     if (rid !== runIdRef.current) return;
     lastPreparedRef.current = prepared;
     onChange(prepared);
 
-    const blobOk = enableRemotePersist && (await isBlobPersistAvailable());
-    if (!blobOk) {
-      if (rid !== runIdRef.current) return;
-      setPersistState("saved");
-      notifyStatus("saved");
-      return;
-    }
+    if (!enableRemotePersist) return;
+    const blobOk = await isBlobPersistAvailable();
+    if (!blobOk || rid !== runIdRef.current) return;
     try {
       await persistImageToBlobStore(prepared);
-      if (rid !== runIdRef.current) return;
-      setPersistState("saved");
-      notifyStatus("saved");
     } catch (err) {
       if (rid !== runIdRef.current) return;
-      setPersistState("saved");
-      notifyStatus("ready");
       toast.error(
         formatHttpError(err, t("upload_err_cloud"), { context: "image_upload", t }),
-        { duration: 6000 },
+        { duration: 5000 },
       );
       console.warn("[ImageUploadZone] persist", err);
     }
-  }, [compressOptions, enableRemotePersist, onChange, notifyStatus, t]);
+  }, [compressOptions, enableRemotePersist, onChange, t]);
 
   const runVideoBackground = useCallback(async (rawFile, rid) => {
-    setPersistState("saving");
-    notifyStatus("saving");
     lastPreparedRef.current = rawFile;
-    const blobOk = enableRemotePersist && (await isBlobPersistAvailable());
-    if (!blobOk) {
-      if (rid !== runIdRef.current) return;
-      setPersistState("saved");
-      notifyStatus("saved");
-      return;
-    }
+    if (!enableRemotePersist) return;
+    const blobOk = await isBlobPersistAvailable();
+    if (!blobOk || rid !== runIdRef.current) return;
     try {
       await persistVideoToBlobStore(rawFile);
-      if (rid !== runIdRef.current) return;
-      setPersistState("saved");
-      notifyStatus("saved");
     } catch (err) {
       if (rid !== runIdRef.current) return;
-      setPersistState("saved");
-      notifyStatus("ready");
       toast.error(
         formatHttpError(err, t("upload_err_cloud"), { context: "video_upload", t }),
-        { duration: 6000 },
+        { duration: 5000 },
       );
       console.warn("[ImageUploadZone] video persist", err);
     }
-  }, [enableRemotePersist, notifyStatus, t]);
+  }, [enableRemotePersist, t]);
 
   const ingestFile = useCallback((file) => {
     if (isVideo) {
@@ -193,8 +169,6 @@ export default function ImageUploadZone({
       runIdRef.current += 1;
       lastPreparedRef.current = file;
       onChange(file);
-      // Vídeo: preview imediato; upload para Blob só no envio (uploadPost), não bloquear o botão Gerar.
-      setPersistState("saved");
       notifyStatus("ready");
       if (enableRemotePersist && file.size > VIDEO_VERCEL_SAFE_BYTES) {
         const rid = runIdRef.current;
@@ -214,9 +188,13 @@ export default function ImageUploadZone({
     runIdRef.current += 1;
     const rid = runIdRef.current;
     lastPreparedRef.current = null;
-    setPersistState("saving");
-    notifyStatus("saving");
+    revokeFilePreviewUrl(blobPreviewRef.current);
+    const instantUrl = URL.createObjectURL(file);
+    blobPreviewRef.current = instantUrl;
+    setPreviewUrl(instantUrl);
+    setPreviewFailed(false);
     onChange(file);
+    notifyStatus("ready");
     void runBackground(file, rid);
   }, [isVideo, runBackground, runVideoBackground, onChange, notifyStatus, t, enableRemotePersist]);
 
@@ -227,44 +205,10 @@ export default function ImageUploadZone({
     lastPreparedRef.current = null;
     setPreviewUrl(null);
     setPreviewFailed(false);
-    setPersistState("idle");
     onChange(null);
     notifyStatus("idle");
     if (inputRef.current) inputRef.current.value = "";
   }, [onChange, notifyStatus]);
-
-  const retryPersist = useCallback(async () => {
-    const f = lastPreparedRef.current || value;
-    if (!f) return;
-    const rid = runIdRef.current;
-    if (isVideo) {
-      void runVideoBackground(f, rid);
-      return;
-    }
-    setPersistState("saving");
-    notifyStatus("saving");
-    const blobOk = enableRemotePersist && (await isBlobPersistAvailable());
-    if (!blobOk) {
-      setPersistState("saved");
-      notifyStatus("saved");
-      return;
-    }
-    try {
-      await persistImageToBlobStore(f);
-      if (rid !== runIdRef.current) return;
-      setPersistState("saved");
-      notifyStatus("saved");
-    } catch (err) {
-      if (rid !== runIdRef.current) return;
-      setPersistState("saved");
-      notifyStatus("ready");
-      toast.error(
-        formatHttpError(err, t("upload_err_cloud"), { context: "image_upload", t }),
-        { duration: 6000 },
-      );
-      console.warn("[ImageUploadZone] retry persist", err);
-    }
-  }, [value, isVideo, runVideoBackground, enableRemotePersist, notifyStatus, t]);
 
   const onPick = (e) => {
     const f = e.target.files?.[0];
@@ -354,33 +298,6 @@ export default function ImageUploadZone({
                 ].filter(Boolean).join(" ")}
               />
             )}
-            <div className="pointer-events-none absolute left-3 top-3 z-20 flex flex-wrap gap-2">
-              {persistState === "saving" && (
-                <span className="rounded-full bg-black/70 px-3 py-1.5 text-xs font-medium text-white backdrop-blur-md">
-                  A guardar...
-                </span>
-              )}
-              {persistState === "saved" && (
-                <span className="rounded-full bg-emerald-600/90 px-3 py-1.5 text-xs font-medium text-white backdrop-blur-md">
-                  Guardado ✓
-                </span>
-              )}
-              {persistState === "error" && (
-                <span className="rounded-full bg-red-600/95 px-3 py-1.5 text-xs font-medium text-white backdrop-blur-md">
-                  Erro ao guardar
-                </span>
-              )}
-            </div>
-            {persistState === "error" && (
-              <button
-                type="button"
-                onClick={(e) => { e.preventDefault(); e.stopPropagation(); void retryPersist(); }}
-                className="absolute bottom-3 left-3 z-20 min-h-12 min-w-[7.5rem] rounded-xl bg-[#9333EA] px-4 text-sm font-semibold text-white shadow-lg shadow-purple-900/40"
-                data-testid={`${testId}-retry`}
-              >
-                Reenviar
-              </button>
-            )}
             <button
               type="button"
               onClick={(e) => { e.preventDefault(); e.stopPropagation(); clear(); }}
@@ -393,31 +310,12 @@ export default function ImageUploadZone({
           </>
         ) : value ? (
           <div className="absolute inset-0 flex min-h-12 flex-col items-center justify-center gap-2 px-4 py-6 text-center bg-[#0c0c12]/80">
-            <p className="text-zinc-200 text-sm font-medium">
-              {previewFailed ? t("upload_loaded") : t("upload_preparing")}
-            </p>
+            <p className="text-zinc-200 text-sm font-medium">{t("upload_loaded")}</p>
             {previewFailed && (
               <p className="text-zinc-500 text-xs max-w-[220px]">
                 {t("upload_err_preview")}
               </p>
             )}
-            <div className="pointer-events-none absolute left-3 top-3 z-20 flex flex-wrap gap-2">
-              {persistState === "saving" && (
-                <span className="rounded-full bg-black/70 px-3 py-1.5 text-xs font-medium text-white backdrop-blur-md">
-                  A guardar...
-                </span>
-              )}
-              {persistState === "saved" && (
-                <span className="rounded-full bg-emerald-600/90 px-3 py-1.5 text-xs font-medium text-white backdrop-blur-md">
-                  Guardado ✓
-                </span>
-              )}
-              {persistState === "error" && (
-                <span className="rounded-full bg-red-600/95 px-3 py-1.5 text-xs font-medium text-white backdrop-blur-md">
-                  Erro ao guardar
-                </span>
-              )}
-            </div>
             <button
               type="button"
               onClick={(e) => { e.preventDefault(); e.stopPropagation(); clear(); }}

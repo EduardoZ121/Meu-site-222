@@ -4,7 +4,6 @@ import { useSearchParams } from "react-router-dom";
 import { api, formatApiError, uploadPost } from "../../lib/api";
 import { normalizeCreation, primaryResultUrl } from "../../lib/creationUrls";
 import CreationResultMedia from "../../components/CreationResultMedia";
-import StudioResultAnchor from "../../components/StudioResultAnchor";
 import { useAuth } from "../../lib/auth";
 import { useI18n } from "../../lib/i18n";
 import { usePricing } from "../../lib/PricingContext";

@@ -301,6 +301,15 @@
   filter: brightness(1.12) saturate(1.08);
 }
 
+/* Hero: botão sem brilho a passar */
+.btn-hero-primary--plain {
+  animation: none;
+}
+
+.btn-hero-primary--plain::after {
+  display: none;
+}
+
 @keyframes hero-cta-shine {
   0%, 72% { transform: translateX(-120%); }
   100% { transform: translateX(120%); }

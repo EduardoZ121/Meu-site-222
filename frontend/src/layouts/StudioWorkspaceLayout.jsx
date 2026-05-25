@@ -24,6 +24,7 @@ export default function StudioWorkspaceLayout() {
           exit={{ opacity: 0 }}
           transition={{ duration: 0.18, ease: [0.16, 1, 0.3, 1] }}
           className="rp-workspace-main flex-1 min-h-0 w-full max-w-full overflow-y-auto overflow-x-hidden overscroll-y-contain touch-pan-y"
+          data-studio-scroll-root=""
           data-testid="studio-workspace-main"
         >
           <Outlet />

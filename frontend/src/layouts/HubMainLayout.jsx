@@ -89,6 +89,7 @@ export default function HubMainLayout() {
 
       <main
         ref={mainRef}
+        data-studio-scroll-root=""
         className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden overscroll-x-none touch-pan-y px-4 sm:px-6 md:px-10 py-8 md:py-12"
       >
         <Outlet />

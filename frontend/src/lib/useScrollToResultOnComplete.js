@@ -3,7 +3,8 @@ import { scrollElementIntoStudioView } from "./scrollToStudioResult";
 
 /**
  * Quando a geração termina (busy → idle) e `ready` é true, faz scroll ao painel de resultado.
- * Também reage a `rp:scroll-to-result` (disparado ao concluir geração na API).
+ * Só corre com o componente montado (utilizador ainda na sessão) e separador visível.
+ * Também reage a `rp:scroll-to-result` (disparado ao concluir poll na API).
  */
 export function useScrollToResultOnComplete(ready, busy) {
   const ref = useRef(null);
@@ -11,6 +12,8 @@ export function useScrollToResultOnComplete(ready, busy) {
   const pendingScrollRef = useRef(false);
 
   const performScroll = useCallback(() => {
+    if (typeof document === "undefined") return;
+    if (document.visibilityState === "hidden") return;
     scrollElementIntoStudioView(ref.current);
   }, []);
 
@@ -37,12 +40,11 @@ export function useScrollToResultOnComplete(ready, busy) {
     wasBusyRef.current = false;
     pendingScrollRef.current = false;
 
-    const t1 = window.setTimeout(performScroll, 60);
-    const t2 = window.setTimeout(performScroll, 350);
+    const delays = [80, 320, 720, 1200];
+    const timers = delays.map((ms) => window.setTimeout(performScroll, ms));
 
     return () => {
-      window.clearTimeout(t1);
-      window.clearTimeout(t2);
+      timers.forEach((id) => window.clearTimeout(id));
     };
   }, [ready, busy, performScroll]);
 

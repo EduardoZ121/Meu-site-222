@@ -135,12 +135,9 @@ function isImageFileLike(file) {
   return /\.(heic|heif|jpe?g|png|webp|gif|bmp|avif)$/i.test(file.name || "");
 }
 
-/** Só fotos grandes ou HEIC vão para Blob/S3 — fotos normais vão directo ao /api (mais fiável). */
+/** DISABLED — images go direct to server. Only videos use cloud offload.
+ * The Blob integration for images was causing upload failures. */
 function imageNeedsCloudOffload(file) {
-  if (!file || !isImageFileLike(file)) return false;
-  if (file.size > DIRECT_UPLOAD_MAX) return true;
-  if (/\.(heic|heif)$/i.test(file.name || "")) return true;
-  if (!/^image\/jpe?g$/i.test(file.type || "") && file.size > 1_200_000) return true;
   return false;
 }
 

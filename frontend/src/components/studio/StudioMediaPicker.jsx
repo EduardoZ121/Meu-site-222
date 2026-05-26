@@ -59,6 +59,34 @@ function canDecodeAsImage(file) {
 }
 
 /**
+ * Reads the first 16 bytes and detects HEIC/HEIF by ISOBMFF brand, regardless
+ * of file extension. Samsung Galaxy phones in "high efficiency" mode and
+ * iPhones often save HEIF content with a `.jpg` extension, so trusting the
+ * extension alone is unreliable.
+ *
+ * Returns a label: "heic" | "heif" | null
+ */
+async function sniffHeicLikeFormat(file) {
+  try {
+    const head = await file.slice(0, 16).arrayBuffer();
+    const bytes = new Uint8Array(head);
+    if (bytes.length < 12) return null;
+    // bytes 4..8 should be "ftyp"
+    const ftyp =
+      bytes[4] === 0x66 && bytes[5] === 0x74 && bytes[6] === 0x79 && bytes[7] === 0x70;
+    if (!ftyp) return null;
+    const brand = String.fromCharCode(bytes[8], bytes[9], bytes[10], bytes[11]);
+    // Known HEIC/HEIF brands. mif1/msf1/heic/heix/hevc/hevx are HEIF family.
+    if (/^(heic|heix|hevc|hevx|mif1|msf1|heim|heis|hevm|hevs)$/i.test(brand)) {
+      return /heic|heix|hevc|hevx/i.test(brand) ? "heic" : "heif";
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+/**
  * Upload do estúdio v4 — visual distinto, preview imediato, pronto para Gerar sem “guardar”.
  */
 export default function StudioMediaPicker({
@@ -126,16 +154,20 @@ export default function StudioMediaPicker({
     }
 
     // Reject HEIC/HEIF/AVIF up-front — most browsers (Android Chrome, older
-    // Safari, Firefox) can't decode them for preview, so the user would end
-    // up with a broken-thumbnail upload box.
+    // Safari, Firefox) can't decode them for preview, and our backend can't
+    // process them either, so they would just fail at generation time.
+    // We check BOTH the filename AND the actual file content (magic bytes),
+    // because Samsung Galaxy in "high efficiency" mode saves HEIF with a
+    // `.jpg` extension — extension alone is not reliable.
     const nameLower = (file.name || "").toLowerCase();
     const typeLower = (file.type || "").toLowerCase();
-    const isHeic = /\.(heic|heif)$/.test(nameLower) || /image\/(heic|heif)/.test(typeLower);
+    const isHeicByName = /\.(heic|heif)$/.test(nameLower) || /image\/(heic|heif)/.test(typeLower);
     const isAvif = /\.avif$/.test(nameLower) || /image\/avif/.test(typeLower);
-    if (isHeic) {
+    const sniffed = await sniffHeicLikeFormat(file);
+    if (isHeicByName || sniffed) {
       toast.error(
-        "HEIC/HEIF não é suportado neste browser. No iPhone: Definições → Câmara → Formatos → escolhe \"Mais compatível\". No Samsung: desativa \"Imagens de alta eficiência\".",
-        { duration: 9000 },
+        "Foto em formato HEIC/HEIF (alta eficiência) — não funciona neste browser. No iPhone: Definições → Câmara → Formatos → \"Mais compatível\". No Samsung: Câmara → Definições → desativa \"Imagens HEIF\" (ou \"High efficiency\").",
+        { duration: 12000 },
       );
       return;
     }

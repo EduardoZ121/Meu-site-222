@@ -1,0 +1,95 @@
+import { useEffect, useMemo, useState } from "react";
+import { motion } from "framer-motion";
+import { Film, Clapperboard, Lock } from "lucide-react";
+import { useI18n } from "../../lib/i18n";
+import { useAuth } from "../../lib/auth";
+import { isAdminUser } from "../../lib/isAdmin";
+import useTitle from "../../lib/useTitle";
+import VideoGenerate from "./VideoGenerate";
+import VideoEditorAdmin from "./VideoEditorAdmin";
+
+export default function Video() {
+  const { t } = useI18n();
+  const { user } = useAuth();
+  const canUseVideoEditor = isAdminUser(user);
+  useTitle(t("sidebar_video"));
+  const [mode, setMode] = useState("generate");
+
+  useEffect(() => {
+    if (!canUseVideoEditor && mode === "edit") setMode("generate");
+  }, [canUseVideoEditor, mode]);
+
+  const tabs = useMemo(() => {
+    const list = [
+      { id: "generate", label: t("vid_tab_generate"), icon: Film, testId: "video-tab-generate" },
+    ];
+    if (canUseVideoEditor) {
+      list.push({
+        id: "edit",
+        label: t("vid_tab_editor"),
+        icon: Clapperboard,
+        testId: "video-tab-editor",
+      });
+    }
+    return list;
+  }, [canUseVideoEditor, t]);
+
+  return (
+    <div className="max-w-[1200px] mx-auto pb-20" data-testid="video-page">
+      <header className="mb-8 md:mb-10">
+        <p className="text-[10px] font-mono uppercase tracking-[0.22em] text-[#7C3AED] mb-3">{t("vid_cap")}</p>
+        <h1 className="text-[#F4F1EA] font-light leading-[1.05] tracking-[-0.02em] text-[42px] md:text-[56px] mb-3 font-['Inter_Tight']">
+          {t("vid_title_a")} <span className="italic text-[#C4B5FD]">{t("vid_title_b")}</span>{t("vid_title_dot")}
+        </h1>
+        <p className="text-[#8A8A8E] text-[15px] max-w-[640px]">
+          {mode === "edit" ? t("vid_edit_desc") : t("vid_desc_body")}
+        </p>
+      </header>
+
+      <div
+        className="inline-flex flex-wrap items-center gap-1 p-1 mb-8 rounded-2xl border border-white/[0.08] bg-white/[0.04] backdrop-blur-xl"
+        role="tablist"
+        data-testid="video-mode-tabs"
+      >
+        {tabs.map(({ id, label, icon: Icon, testId }) => {
+          const active = mode === id;
+          return (
+            <button
+              key={id}
+              type="button"
+              role="tab"
+              aria-selected={active}
+              onClick={() => setMode(id)}
+              className={`relative flex items-center gap-2 px-4 sm:px-5 py-2.5 rounded-xl text-sm font-medium transition-colors ${
+                active ? "text-white" : "text-zinc-500 hover:text-zinc-200"
+              }`}
+              data-testid={testId}
+            >
+              {active && (
+                <motion.span
+                  layoutId="video-mode-pill"
+                  className="absolute inset-0 rounded-xl bg-gradient-to-r from-violet-600 to-violet-500 shadow-[0_0_28px_-8px_rgba(168,85,247,0.65)]"
+                  transition={{ type: "spring", stiffness: 400, damping: 32 }}
+                />
+              )}
+              <Icon className="relative z-10 w-4 h-4" strokeWidth={1.75} />
+              <span className="relative z-10">{label}</span>
+            </button>
+          );
+        })}
+      </div>
+
+      {!canUseVideoEditor && (
+        <p
+          className="mb-6 flex items-center gap-2 text-[13px] text-[#8A8A8E]"
+          data-testid="video-editor-locked-hint"
+        >
+          <Lock className="w-3.5 h-3.5 shrink-0 text-[#6b6b70]" />
+          {t("vid_editor_admin_only")}
+        </p>
+      )}
+
+      {mode === "edit" && canUseVideoEditor ? <VideoEditorAdmin /> : <VideoGenerate />}
+    </div>
+  );
+}

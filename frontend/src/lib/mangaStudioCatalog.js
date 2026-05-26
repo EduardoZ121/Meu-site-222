@@ -1,0 +1,178 @@
+/** Localized option lists for MANGA STUDIO (stable ids for panel state + prompts). */
+
+export function getMangaStudioCatalog(t) {
+  return {
+    poses: [
+      { id: "talk", label: t("manga_pose_talk"), emoji: "💬" },
+      { id: "run", label: t("manga_pose_run"), emoji: "🏃" },
+      { id: "think", label: t("manga_pose_think"), emoji: "🤔" },
+      { id: "surprise", label: t("manga_pose_surprise"), emoji: "😲" },
+      { id: "attack", label: t("manga_pose_attack"), emoji: "⚔️" },
+      { id: "sit", label: t("manga_pose_sit"), emoji: "🪑" },
+    ],
+    expressions: [
+      { id: "normal", label: t("manga_expr_normal") },
+      { id: "happy", label: t("manga_expr_happy") },
+      { id: "sad", label: t("manga_expr_sad") },
+      { id: "angry", label: t("manga_expr_angry") },
+      { id: "fear", label: t("manga_expr_fear") },
+      { id: "shy", label: t("manga_expr_shy") },
+      { id: "determined", label: t("manga_expr_determined") },
+    ],
+    angles: [
+      { id: "front", label: t("manga_angle_front") },
+      { id: "three_quarter", label: t("manga_angle_three_quarter") },
+      { id: "profile", label: t("manga_angle_profile") },
+      { id: "back", label: t("manga_angle_back") },
+      { id: "top", label: t("manga_angle_top") },
+    ],
+    shots: [
+      { id: "close", label: t("manga_shot_close") },
+      { id: "medium", label: t("manga_shot_medium") },
+      { id: "wide", label: t("manga_shot_wide") },
+      { id: "establishing", label: t("manga_shot_establishing") },
+    ],
+    lighting: [
+      { id: "day", label: t("manga_light_day") },
+      { id: "night", label: t("manga_light_night") },
+      { id: "interior", label: t("manga_light_interior") },
+      { id: "sunset", label: t("manga_light_sunset") },
+    ],
+    focus: [
+      { id: "character", label: t("manga_focus_character") },
+      { id: "scenario", label: t("manga_focus_scenario") },
+      { id: "both", label: t("manga_focus_both") },
+    ],
+    framing: [
+      { id: "static", label: t("manga_frame_static") },
+      { id: "pan", label: t("manga_frame_pan") },
+      { id: "zoom_in", label: t("manga_frame_zoom_in") },
+      { id: "shake", label: t("manga_frame_shake") },
+      { id: "dutch", label: t("manga_frame_dutch") },
+      { id: "over_shoulder", label: t("manga_frame_over_shoulder") },
+    ],
+    balloonTypes: [
+      { id: "speech", label: t("manga_balloon_speech") },
+      { id: "thought", label: t("manga_balloon_thought") },
+      { id: "shout", label: t("manga_balloon_shout") },
+      { id: "whisper", label: t("manga_balloon_whisper") },
+    ],
+    balloonPos: [
+      { id: "top", label: t("manga_balloon_pos_top") },
+      { id: "left", label: t("manga_balloon_pos_left") },
+      { id: "right", label: t("manga_balloon_pos_right") },
+      { id: "bottom", label: t("manga_balloon_pos_bottom") },
+    ],
+    letterStyles: [
+      { id: "anime", label: t("manga_letter_anime") },
+      { id: "classic", label: t("manga_letter_classic") },
+      { id: "webtoon", label: t("manga_letter_webtoon") },
+    ],
+    effects: [
+      { id: "speed_lines", label: t("manga_fx_speed_lines") },
+      { id: "impact", label: t("manga_fx_impact") },
+      { id: "dramatic_shadow", label: t("manga_fx_dramatic_shadow") },
+      { id: "radial_focus", label: t("manga_fx_radial_focus") },
+      { id: "mosaic", label: t("manga_fx_mosaic") },
+      { id: "blood", label: t("manga_fx_blood") },
+      { id: "chibi", label: t("manga_fx_chibi") },
+      { id: "super_deform", label: t("manga_fx_super_deform") },
+      { id: "realism_anime", label: t("manga_fx_realism_anime") },
+    ],
+    elements: {
+      effects: [
+        { id: "speed", label: t("manga_el_speed") },
+        { id: "impact_fx", label: t("manga_el_impact") },
+        { id: "aura", label: t("manga_el_aura") },
+      ],
+      expressions: [
+        { id: "sweat", label: t("manga_el_sweat") },
+        { id: "vein", label: t("manga_el_vein") },
+        { id: "blush", label: t("manga_el_blush") },
+      ],
+      objects: [
+        { id: "phone", label: t("manga_el_phone") },
+        { id: "book", label: t("manga_el_book") },
+        { id: "katana", label: t("manga_el_katana") },
+      ],
+    },
+    pageLayouts: [
+      { id: "horizontal", label: t("manga_layout_horizontal") },
+      { id: "vertical", label: t("manga_layout_vertical") },
+      { id: "grid_2x2", label: t("manga_layout_grid") },
+    ],
+    mobileTabs: [
+      { id: "library", label: t("manga_tab_library") },
+      { id: "editor", label: t("manga_tab_editor") },
+      { id: "config", label: t("manga_tab_panel") },
+    ],
+    models: [
+      { key: "grok", label: t("manga_model_grok"), hint: t("manga_model_grok_hint") },
+      { key: "gpt_image", label: t("manga_model_gpt"), hint: t("manga_model_gpt_hint") },
+    ],
+  };
+}
+
+/** English labels for prompt building (language-independent). */
+export const MANGA_PROMPT_EN = {
+  poses: {
+    talk: "talking, hand on chest",
+    run: "running, arm back, leg raised",
+    think: "thinking, hand on chin, distant gaze",
+    surprise: "surprised, wide eyes, O mouth, leaning back",
+    attack: "fighting attack pose",
+    sit: "sitting on ground, knees bent",
+  },
+  expressions: {
+    normal: "neutral expression",
+    happy: "happy expression",
+    sad: "sad expression",
+    angry: "angry expression",
+    fear: "fearful expression",
+    shy: "embarrassed expression",
+    determined: "determined expression",
+  },
+  angles: {
+    front: "front view",
+    three_quarter: "three-quarter view",
+    profile: "profile view",
+    back: "back view",
+    top: "high angle from above",
+  },
+  shots: {
+    close: "close-up shot",
+    medium: "medium shot",
+    wide: "wide shot",
+    establishing: "establishing wide shot",
+  },
+  lighting: {
+    day: "daylight",
+    night: "night",
+    interior: "interior lighting",
+    sunset: "sunset golden hour",
+  },
+  focus: {
+    character: "sharp focus on character",
+    scenario: "sharp focus on background",
+    both: "balanced focus on character and background",
+  },
+  framing: {
+    static: "static frame",
+    pan: "slow pan feel",
+    zoom_in: "zoom in",
+    shake: "camera shake energy",
+    dutch: "dutch angle",
+    over_shoulder: "over-the-shoulder",
+  },
+  balloonPos: {
+    top: "top",
+    left: "left",
+    right: "right",
+    bottom: "bottom",
+  },
+  letterStyles: {
+    anime: "anime",
+    classic: "classic manga",
+    webtoon: "webtoon",
+  },
+};

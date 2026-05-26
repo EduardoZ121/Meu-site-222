@@ -13,6 +13,8 @@
 
 ## Vercel
 
-- Projeto: `remakepix`
-- Repo: `Meu-site-222`, branch `main`
-- Build: `cd frontend && yarn build` → `frontend/build`
+- **Projeto de produção (domínio):** `meu-site-222` → https://remakepix.com
+- **Não deployar** no projeto `remakepix` (duplicado; variáveis antigas + Blob).
+- Repo: `EduardoZ121/Meu-site-222`, branch `main`, Root Directory `.`
+- Build: `vercel.json` → `frontend/build`
+- Guia utilizador: `docs/VERCEL-UNIFICAR.md`

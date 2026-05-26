@@ -1,24 +1,12 @@
 /**
- * Prepara FormData antes do POST.
+ * prepareStudioFormDataForSubmit — REWRITTEN FROM ZERO
  *
- * SIMPLIFIED — only offload VIDEOS to cloud when they're too large for
- * Vercel's body limit. Images go through directly; the server handles
- * HEIF conversion + compression with sharp. Previous versions tried to
- * Blob-offload images too and broke uploads.
+ * Simple pass-through. Files go directly to the server.
+ * Only exception: videos > 3.2 MB go to cloud (Vercel body limit).
+ * Images are NEVER offloaded — they go in the multipart body directly.
  */
 
-import { prepareImageForUpload } from "../prepareImageForUpload";
 import { VIDEO_VERCEL_SAFE_BYTES } from "../videoCloudLimits";
-
-export const STUDIO_IMAGE_FIELDS = new Set([
-  "photo",
-  "image",
-  "mask",
-  "garment",
-  "reference_image",
-  "slide_photo",
-  "photo_b",
-]);
 
 function isVideoFile(file) {
   if (!file) return false;
@@ -27,51 +15,31 @@ function isVideoFile(file) {
   return /\.(mp4|mov|webm)$/i.test(file.name || "");
 }
 
-function isImageField(key, file) {
-  if (STUDIO_IMAGE_FIELDS.has(key)) return true;
-  if (file.type?.startsWith?.("image/")) return true;
-  return /\.(heic|heif|jpe?g|png|webp|gif|bmp|avif)$/i.test(file.name || "");
-}
-
-/**
- * Normaliza ficheiros para envio ao /api.
- * Vídeos grandes → nuvem. Imagens → directo (servidor trata HEIF com sharp).
- */
 export async function prepareStudioFormDataForSubmit(formData, options = {}) {
-  const skipBlob = Boolean(options.skipBlobOffload);
   const out = new FormData();
 
   for (const [key, val] of formData.entries()) {
+    // Not a file — pass through
     if (!(val instanceof File)) {
       out.append(key, val);
-      // eslint-disable-next-line no-continue
       continue;
     }
 
-    // Videos > 3.2 MB need cloud upload (Vercel body limit)
-    if (key === "video" || (isVideoFile(val) && key !== "mask")) {
-      if (!skipBlob && val.size > VIDEO_VERCEL_SAFE_BYTES) {
+    // Large video — needs cloud upload (Vercel serverless body limit ~4.5 MB)
+    if ((key === "video" || isVideoFile(val)) && val.size > VIDEO_VERCEL_SAFE_BYTES) {
+      try {
         const { uploadVideoToCloud } = await import("../api");
-        // eslint-disable-next-line no-await-in-loop
         const url = await uploadVideoToCloud(val, options);
         out.append(key === "video" ? "video_url" : `${key}_url`, url);
-      } else {
+      } catch (err) {
+        // Cloud upload failed — append file directly as last resort
+        console.warn("[prepareSubmit] video cloud upload failed:", err?.message);
         out.append(key, val);
       }
-      // eslint-disable-next-line no-continue
       continue;
     }
 
-    // Images — just normalize MIME type and send directly.
-    // Server handles HEIF→JPEG conversion with sharp.
-    if (isImageField(key, val)) {
-      // eslint-disable-next-line no-await-in-loop
-      const prepared = await prepareImageForUpload(val);
-      out.append(key, prepared);
-      // eslint-disable-next-line no-continue
-      continue;
-    }
-
+    // Everything else (images, small videos, text files) — pass through directly
     out.append(key, val);
   }
 

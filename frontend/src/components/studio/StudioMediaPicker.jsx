@@ -31,12 +31,15 @@ const LAYOUT = {
 
 /**
  * Returns true only if the browser can actually decode this file into a
- * non-empty raster image. Used as a safety net after compression so we never
- * accept a file that would show a broken-thumbnail preview (HEIC on Chrome,
- * corrupt JPEGs, unsupported colorspace, etc.).
+ * non-empty raster image. Used as a strict pre-flight gate: if the browser
+ * can't decode it, neither can sharp/PIL on the backend reliably, so the AI
+ * would either fail to upload or generate from prompt alone, ignoring the
+ * photo. We try `<img>` first then `createImageBitmap` as a fallback (the
+ * latter accepts more codecs in some browsers).
  */
-function canDecodeAsImage(file) {
-  return new Promise((resolve) => {
+async function canDecodeAsImage(file) {
+  // Path 1: classic <img> decode
+  const imgOk = await new Promise((resolve) => {
     let url;
     try {
       url = URL.createObjectURL(file);
@@ -45,7 +48,10 @@ function canDecodeAsImage(file) {
       return;
     }
     const img = new Image();
+    let settled = false;
     const done = (ok) => {
+      if (settled) return;
+      settled = true;
       try { URL.revokeObjectURL(url); } catch { /* ignore */ }
       resolve(ok);
     };
@@ -53,9 +59,22 @@ function canDecodeAsImage(file) {
     img.onerror = () => done(false);
     img.decoding = "async";
     img.src = url;
-    // Hard timeout so a stuck decode never blocks the picker indefinitely.
     setTimeout(() => done(img.naturalWidth > 0), 6000);
   });
+  if (imgOk) return true;
+
+  // Path 2: createImageBitmap — supports more codecs in some browsers
+  if (typeof createImageBitmap === "function") {
+    try {
+      const bmp = await createImageBitmap(file);
+      const ok = bmp && bmp.width > 0 && bmp.height > 0;
+      try { bmp.close?.(); } catch { /* ignore */ }
+      if (ok) return true;
+    } catch {
+      /* ignore */
+    }
+  }
+  return false;
 }
 
 /**
@@ -196,16 +215,18 @@ export default function StudioMediaPicker({
       return;
     }
 
-    // Best-effort decode check — used only to decide whether to show a real
-    // preview or a fallback placeholder. NEVER blocks the upload, because
-    // some valid files (Samsung HEIF saved as .jpg, weird colorspaces) can't
-    // render in mobile Chrome but the backend still processes them fine.
-    canDecodeAsImage(workFile).then((ok) => {
-      if (!ok) {
-        // Mark on the file so the UI shows a "no preview" placeholder.
-        try { workFile.__rpNoPreview = true; } catch { /* ignore */ }
-      }
-    }).catch(() => { /* ignore */ });
+    // Strict gate: if neither the browser nor createImageBitmap can decode
+    // this file, the backend also won't process it reliably — the AI ends up
+    // generating from prompt alone and the user thinks the upload failed
+    // silently. Reject here with a clear message including the filename.
+    const decodable = await canDecodeAsImage(workFile);
+    if (!decodable) {
+      toast.error(
+        `Não foi possível ler "${file.name || "esta foto"}" neste browser. Tenta outra foto (JPEG ou PNG da câmara/galeria).`,
+        { duration: 9000 },
+      );
+      return;
+    }
 
     onChange(workFile);
   }, [isVideo, onChange, t]);

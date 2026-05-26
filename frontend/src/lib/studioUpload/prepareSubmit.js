@@ -1,24 +1,17 @@
 /**
- * Prepara FormData antes do POST.
- * - Imagens pequenas: directo ao /api
- * - Imagens grandes: comprimir no browser; se ainda > 3 MB → nuvem (photo_url)
- * - Vídeos grandes: nuvem (video_url)
+ * Envio ao /api — imagens sempre JPEG pequeno (como antes do Blob).
+ * Blob só se, após compressão, ainda passar de 3 MB (raro).
+ * Vídeos grandes → nuvem.
  */
 
+import { prepareImageForUpload } from "../prepareImageForUpload";
 import { MAX_IMAGE_DIRECT_BYTES, VIDEO_VERCEL_SAFE_BYTES } from "../uploadConstants";
 
 const IMAGE_KEYS = new Set([
-  "photo",
-  "image",
-  "mask",
-  "garment",
-  "reference_image",
-  "slide_photo",
-  "photo_b",
+  "photo", "image", "mask", "garment", "reference_image", "slide_photo", "photo_b",
 ]);
 
-/** Margem abaixo do limite ~4,5 MB do body na Vercel. */
-const VERCEL_SAFE_IMAGE_BYTES = 3_000_000;
+const VERCEL_SAFE = 3_000_000;
 
 function isVideoFile(file) {
   if (!file) return false;
@@ -31,20 +24,6 @@ function isImageField(key, file) {
   if (IMAGE_KEYS.has(key)) return true;
   if (file.type?.startsWith?.("image/")) return true;
   return /\.(heic|heif|jpe?g|png|webp|gif|bmp|avif)$/i.test(file.name || "");
-}
-
-async function shrinkImageForDirectUpload(file) {
-  if (file.size <= VERCEL_SAFE_IMAGE_BYTES) return file;
-  try {
-    const { compressImageNeverFail } = await import("../canvasCompress");
-    const out = await compressImageNeverFail(file, {
-      maxBytes: MAX_IMAGE_DIRECT_BYTES,
-      maxSize: 2048,
-    });
-    return out instanceof File ? out : file;
-  } catch {
-    return file;
-  }
 }
 
 export async function prepareStudioFormDataForSubmit(formData, options = {}) {
@@ -68,14 +47,18 @@ export async function prepareStudioFormDataForSubmit(formData, options = {}) {
     }
 
     if (isImageField(key, val)) {
-      let work = await shrinkImageForDirectUpload(val);
-      if (work.size > VERCEL_SAFE_IMAGE_BYTES) {
+      const prepared = await prepareImageForUpload(val, {
+        maxBytes: MAX_IMAGE_DIRECT_BYTES,
+        maxSize: 2048,
+        force: true,
+      });
+      if (prepared.size > VERCEL_SAFE) {
         const { uploadImageToCloud } = await import("../api");
-        const url = await uploadImageToCloud(work, options);
+        const url = await uploadImageToCloud(prepared, options);
         out.append(`${key}_url`, url);
-        continue;
+      } else {
+        out.append(key, prepared);
       }
-      out.append(key, work);
       continue;
     }
 

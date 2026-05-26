@@ -135,10 +135,9 @@ function isImageFileLike(file) {
   return /\.(heic|heif|jpe?g|png|webp|gif|bmp|avif)$/i.test(file.name || "");
 }
 
-/** Fotos > ~3 MB não cabem no body do serverless Vercel (~4,5 MB) — vão para nuvem. */
-function imageNeedsCloudOffload(file) {
-  if (!file || !isImageFileLike(file)) return false;
-  return file.size > 3_000_000;
+/** Imagens vão comprimidas no browser; Blob só em último caso no prepareSubmit. */
+function imageNeedsCloudOffload(_file) {
+  return false;
 }
 
 function formDataNeedsCloudOffload(fd) {

@@ -67,7 +67,7 @@
   },
   "scripts": {
     "start": "craco start",
-    "build": "REACT_APP_BUILD_ID=upload-fix-2026-05-26 craco build",
+    "build": "REACT_APP_BUILD_ID=upload-compress-on-pick-v1 craco build",
     "test": "craco test",
     "generate:i18n": "node scripts/generate-i18n-json.mjs"
   },

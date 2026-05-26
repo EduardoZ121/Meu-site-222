@@ -1,18 +1,15 @@
 import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { toast } from "sonner";
-import { CheckCircle2, FileImage, Upload, X } from "lucide-react";
+import { CheckCircle2, FileImage, Loader2, Upload, X } from "lucide-react";
 import { useI18n } from "../../lib/i18n";
 import { CLIENT_BUILD_ID } from "../../lib/buildInfo";
+import { prepareImageForUpload } from "../../lib/prepareImageForUpload";
+import { readFileAsDataURL } from "../../lib/previewDataUrl";
+import { MAX_IMAGE_DIRECT_BYTES } from "../../lib/uploadConstants";
 
 /**
- * StudioMediaPicker — REWRITTEN FROM ZERO
- *
- * Simple image/video upload zone.
- * 1. User picks a file
- * 2. Show preview (or placeholder if browser can't decode)
- * 3. Call onChange(file)
- * 4. Done. No compression, no HEIF sniffing, no Blob offload.
- *    Server handles everything with sharp.
+ * Upload do estúdio — como antes do Blob para fotos:
+ * comprimir ao escolher → preview estável (data URL) → POST directo ao /api.
  */
 
 const MAX_IMAGE_BYTES = 10 * 1024 * 1024; // 10 MB
@@ -64,43 +61,62 @@ export default function StudioMediaPicker({
   const resolvedHint = emptyHint ?? (isVideo ? t("vid_edit_video_hint") : t("upload_empty_hint"));
   const inputId = useId();
   const inputRef = useRef(null);
-  const previewObjectUrlRef = useRef(null);
+  const videoObjectUrlRef = useRef(null);
   const [drag, setDrag] = useState(false);
+  const [preparing, setPreparing] = useState(false);
   const [previewUrl, setPreviewUrl] = useState(null);
   const [previewBroken, setPreviewBroken] = useState(false);
 
-  // Preview local — não revogar no cleanup do React (evita imagem “corrompida”)
   useEffect(() => {
+    let cancelled = false;
     if (!value) {
-      if (previewObjectUrlRef.current) {
-        URL.revokeObjectURL(previewObjectUrlRef.current);
-        previewObjectUrlRef.current = null;
+      if (videoObjectUrlRef.current) {
+        URL.revokeObjectURL(videoObjectUrlRef.current);
+        videoObjectUrlRef.current = null;
       }
       setPreviewUrl(null);
       setPreviewBroken(false);
-      return;
+      return undefined;
     }
-    const url = URL.createObjectURL(value);
-    if (previewObjectUrlRef.current) {
-      URL.revokeObjectURL(previewObjectUrlRef.current);
+    if (isVideo) {
+      const url = URL.createObjectURL(value);
+      if (videoObjectUrlRef.current) URL.revokeObjectURL(videoObjectUrlRef.current);
+      videoObjectUrlRef.current = url;
+      setPreviewUrl(url);
+      setPreviewBroken(false);
+      return () => {
+        if (videoObjectUrlRef.current) {
+          URL.revokeObjectURL(videoObjectUrlRef.current);
+          videoObjectUrlRef.current = null;
+        }
+      };
     }
-    previewObjectUrlRef.current = url;
-    setPreviewUrl(url);
-    setPreviewBroken(false);
-  }, [value]);
+    (async () => {
+      try {
+        const dataUrl = await readFileAsDataURL(value);
+        if (!cancelled) {
+          setPreviewUrl(dataUrl);
+          setPreviewBroken(!dataUrl);
+        }
+      } catch {
+        if (!cancelled) setPreviewBroken(true);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [value, isVideo]);
 
   useEffect(() => () => {
-    if (previewObjectUrlRef.current) {
-      URL.revokeObjectURL(previewObjectUrlRef.current);
-      previewObjectUrlRef.current = null;
+    if (videoObjectUrlRef.current) {
+      URL.revokeObjectURL(videoObjectUrlRef.current);
     }
   }, []);
 
-  const ingest = useCallback((file) => {
+  const ingest = useCallback(async (file) => {
     if (!file) return;
 
     if (isVideo) {
-      // Video validation
       if (!looksLikeVideo(file)) {
         toast.error(t("vid_err_invalid_type"));
         return;
@@ -113,7 +129,6 @@ export default function StudioMediaPicker({
       return;
     }
 
-    // Image validation
     if (looksLikeVideo(file)) {
       toast.error(t("vid_err_use_video_zone"));
       return;
@@ -127,8 +142,26 @@ export default function StudioMediaPicker({
       return;
     }
 
-    // Accept the file as-is. Server handles conversion with sharp.
-    onChange(file);
+    setPreparing(true);
+    try {
+      const ready = await prepareImageForUpload(file, {
+        maxBytes: MAX_IMAGE_DIRECT_BYTES,
+        maxSize: 2048,
+        force: true,
+      });
+      if (ready.size > 3_200_000) {
+        toast.error(
+          t("upload_heic_hint") || "Não foi possível reduzir a foto. No iPhone: Ajustes → Câmara → Formatos → Mais compatível (JPEG).",
+          { duration: 12000 },
+        );
+        return;
+      }
+      onChange(ready);
+    } catch (err) {
+      toast.error(err?.message || t("img_err_invalid_type"));
+    } finally {
+      setPreparing(false);
+    }
   }, [isVideo, onChange, t]);
 
   const clear = useCallback(() => {
@@ -177,12 +210,14 @@ export default function StudioMediaPicker({
         capture={capture}
         className="sr-only"
         onChange={onPick}
+        disabled={preparing}
         data-testid={`${testId}-input`}
       />
       <label
         htmlFor={inputId}
         tabIndex={0}
         onKeyDown={(e) => {
+          if (preparing) return;
           if (e.key === "Enter" || e.key === " ") {
             e.preventDefault();
             inputRef.current?.click();
@@ -201,9 +236,17 @@ export default function StudioMediaPicker({
             : drag
               ? "border-[#a855f7] bg-[#16101f] border-solid"
               : "border-dashed border-[#6b5b80]/80 bg-[#0c0c12] hover:border-[#9333EA]/70",
+          preparing ? "pointer-events-none opacity-90" : "",
           "min-h-[12rem]",
         ].join(" ")}
       >
+        {preparing ? (
+          <div className="absolute inset-0 z-30 flex flex-col items-center justify-center gap-2 bg-black/75">
+            <Loader2 className="h-9 w-9 animate-spin text-[#c4b5fd]" aria-hidden />
+            <p className="text-sm text-[#f4f1ea]">{t("upload_preparing")}</p>
+          </div>
+        ) : null}
+
         {overlay && hasFile ? (
           <div className="pointer-events-none absolute inset-0 z-0">{overlay}</div>
         ) : null}

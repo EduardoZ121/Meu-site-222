@@ -341,6 +341,7 @@ const pt = {
   upload_send: "Enviar imagem",
   upload_loaded: "Imagem carregada",
   upload_preparing: "A preparar pré-visualização…",
+  upload_heic_hint: "Não foi possível reduzir a foto. No iPhone: Ajustes → Câmara → Formatos → Mais compatível (JPEG) e tenta outra vez.",
   drop_not_image: "Ficheiro não reconhecido como imagem.",
   media_unavailable: "Indisponível",
   gal_close: "Fechar",

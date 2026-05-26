@@ -1,5 +1,5 @@
 /**
- * Prepara imagem para POST — HEIC→JPEG (heic2any) + compressão canvas.
+ * Prepara imagem para POST — HEIC→JPEG + compressão até caber no body Vercel (~3 MB).
  */
 
 import { compressImageNeverFail } from "./canvasCompress";
@@ -7,6 +7,8 @@ import { normalizeImageFile } from "./imageCompress";
 import { MAX_IMAGE_DIRECT_BYTES } from "./uploadConstants";
 
 const HEIC = /\.(heic|heif)$/i;
+/** Margem segura abaixo do ~4,5 MB do serverless. */
+export const VERCEL_BODY_SAFE_BYTES = 2_800_000;
 
 function isHeicLike(file) {
   if (!file) return false;
@@ -22,7 +24,7 @@ async function convertHeicToJpeg(file) {
     const out = await heic2any({
       blob: file,
       toType: "image/jpeg",
-      quality: 0.9,
+      quality: 0.88,
     });
     const blob = Array.isArray(out) ? out[0] : out;
     if (!blob) return file;
@@ -34,6 +36,46 @@ async function convertHeicToJpeg(file) {
   } catch {
     return file;
   }
+}
+
+/**
+ * Comprime em passos até ficar abaixo do limite Vercel (evita “upload failed” em fotos difíceis).
+ */
+export async function ensureFitsVercelBody(file, opts = {}) {
+  const targetCap = Math.min(
+    Number(opts.maxBytes) || VERCEL_BODY_SAFE_BYTES,
+    VERCEL_BODY_SAFE_BYTES,
+  );
+  const steps = opts.emergency
+    ? [
+      { maxBytes: Math.min(2_000_000, targetCap), maxSize: 1024 },
+      { maxBytes: Math.min(1_500_000, targetCap), maxSize: 880 },
+      { maxBytes: Math.min(1_100_000, targetCap), maxSize: 768 },
+    ]
+    : [
+      { maxBytes: Math.min(MAX_IMAGE_DIRECT_BYTES, targetCap), maxSize: 2048 },
+      { maxBytes: Math.min(2_400_000, targetCap), maxSize: 1536 },
+      { maxBytes: Math.min(2_000_000, targetCap), maxSize: 1280 },
+      { maxBytes: Math.min(1_500_000, targetCap), maxSize: 1024 },
+      { maxBytes: Math.min(1_200_000, targetCap), maxSize: 896 },
+    ];
+
+  let work = file;
+  for (const step of steps) {
+    if (work.size <= targetCap) return work;
+    work = await prepareImageForUpload(work, {
+      ...opts,
+      maxBytes: step.maxBytes,
+      maxSize: step.maxSize,
+      force: true,
+    });
+  }
+  if (work.size > targetCap) {
+    const err = new Error("compress_too_large");
+    err.code = "COMPRESS_TOO_LARGE";
+    throw err;
+  }
+  return work;
 }
 
 export async function prepareImageForUpload(file, opts = {}) {
@@ -51,7 +93,7 @@ export async function prepareImageForUpload(file, opts = {}) {
   const maxSize = Math.min(Number(opts.maxSize) || 2048, 4096);
   const isJpeg = /^image\/jpe?g$/i.test(work.type || "");
   const small = !opts.force
-    && work.size <= maxBytes * 0.85
+    && work.size <= VERCEL_BODY_SAFE_BYTES
     && isJpeg
     && !HEIC.test(work.name || "");
 
@@ -63,6 +105,5 @@ export async function prepareImageForUpload(file, opts = {}) {
     maxBytesIOS: Math.min(maxBytes, 1.4 * 1024 * 1024),
   });
 
-  if (out instanceof File) return out;
-  return work;
+  return out instanceof File ? out : work;
 }

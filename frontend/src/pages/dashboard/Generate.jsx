@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
 import { Loader2, Sparkles, ImagePlus, Wand2, Lightbulb } from "lucide-react";
 import { useSearchParams, useNavigate } from "react-router-dom";
-import { api, formatApiError, pollPrediction, uploadPost } from "../../lib/api";
+import { api, pollPrediction, uploadPost } from "../../lib/api";
 import { normalizeCreation, primaryResultUrl } from "../../lib/creationUrls";
 import { useAuth } from "../../lib/auth";
 import { usePricing } from "../../lib/PricingContext";
 import { useI18n } from "../../lib/i18n";
+import { useStudioI18n } from "../../lib/useStudioI18n";
 import { toast } from "sonner";
 import PhotoUpload from "../../components/PhotoUpload";
 import AspectPicker from "../../components/AspectPicker";
@@ -29,6 +30,7 @@ const SUBJECT_KEYS = [
 
 export default function Generate() {
   const { t, lang } = useI18n();
+  const { errToast, clearUploadToast } = useStudioI18n();
   useTitle(t("sidebar_generate"));
   const { refresh, user, refundCredits } = useAuth();
   const { costs } = usePricing();
@@ -104,6 +106,7 @@ export default function Generate() {
       return;
     }
 
+    clearUploadToast();
     setBusy(true); setResult(null); setProgress(0);
     let submitData;
     try {
@@ -145,8 +148,7 @@ export default function Generate() {
       toast.success(t("studio_success", { n: creation?.credits_spent ?? cost }));
       await refresh();
     } catch (err) {
-      const msg = formatApiError(err, t("studio_fail"), { context: "image_upload", t });
-      toast.error(msg, { duration: 9000 });
+      errToast(err);
       if (err?.refunded && submitData?.credits_spent && !submitData?.server_billing) {
         refundCredits?.(submitData.credits_spent, t("studio_refund_desc"));
       }

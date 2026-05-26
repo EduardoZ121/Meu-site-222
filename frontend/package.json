@@ -68,7 +68,7 @@
   },
   "scripts": {
     "start": "craco start",
-    "build": "REACT_APP_BUILD_ID=upload-heic-fix-v2 craco build",
+    "build": "REACT_APP_BUILD_ID=upload-retry-v4 craco build",
     "test": "craco test",
     "generate:i18n": "node scripts/generate-i18n-json.mjs"
   },

@@ -61,9 +61,8 @@ const GENERATION_MODES = [
 /* ------------------------------------------------------------------ */
 
 export default function CarouselPage() {
-  const { t, lang } = useStudioI18n();
+  const { t, lang, errMsg, errToast, clearUploadToast } = useStudioI18n();
   const slideRoles = useMemo(() => getCarouselSlideRoles(t), [t]);
-  const errMsg = (err) => formatApiError(err, t("common_fail"), { context: "image_upload", t });
   useTitle(t("car_page_title"));
   const navigate = useNavigate();
   const { refresh, user } = useAuth();
@@ -252,6 +251,7 @@ export default function CarouselPage() {
 
     const effectiveModel = modelKey;
 
+    clearUploadToast();
     setBusy(true);
     clearBlobUrls();
     setResult(null);
@@ -348,7 +348,7 @@ export default function CarouselPage() {
           { duration: 12000 },
         );
       } else {
-        toast.error(errMsg(err), { duration: 8000 });
+        errToast(err);
       }
     } finally {
       lastPanoramaRef.current = null;

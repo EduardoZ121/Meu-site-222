@@ -3,9 +3,8 @@ import { toast } from "sonner";
 import { CheckCircle2, FileImage, Loader2, Upload, X } from "lucide-react";
 import { useI18n } from "../../lib/i18n";
 import { CLIENT_BUILD_ID } from "../../lib/buildInfo";
-import { prepareImageForUpload } from "../../lib/prepareImageForUpload";
+import { ensureFitsVercelBody, VERCEL_BODY_SAFE_BYTES } from "../../lib/prepareImageForUpload";
 import { readFileAsDataURL } from "../../lib/previewDataUrl";
-import { MAX_IMAGE_DIRECT_BYTES } from "../../lib/uploadConstants";
 
 /**
  * Upload do estúdio — como antes do Blob para fotos:
@@ -142,28 +141,34 @@ export default function StudioMediaPicker({
       return;
     }
 
+    toast.dismiss("rp-upload-error");
+    toast.dismiss("rp-upload-warn");
     setPreparing(true);
     try {
-      const ready = await prepareImageForUpload(file, {
-        maxBytes: MAX_IMAGE_DIRECT_BYTES,
-        maxSize: 2048,
-        force: true,
-      });
+      let ready = await ensureFitsVercelBody(file);
+      if (ready.size > VERCEL_BODY_SAFE_BYTES) {
+        ready = await ensureFitsVercelBody(file, { emergency: true });
+      }
+      if (ready.size > VERCEL_BODY_SAFE_BYTES) {
+        toast.error(t("upload_compress_fail"), { id: "rp-upload-error", duration: 8000 });
+        return;
+      }
       onChange(ready);
       const mb = (ready.size / (1024 * 1024)).toFixed(1);
-      if (ready.size > 3_200_000) {
-        toast.warning(t("upload_heic_hint"), { duration: 10000 });
-      } else {
-        toast.success(t("upload_loaded_size", { size: `${mb} MB` }), { duration: 2500 });
-      }
+      toast.success(t("upload_loaded_size", { size: `${mb} MB` }), { id: "rp-upload-ok", duration: 2500 });
     } catch (err) {
-      toast.error(err?.message || t("img_err_invalid_type"));
+      const msg = err?.code === "COMPRESS_TOO_LARGE"
+        ? t("upload_compress_fail")
+        : (err?.message || t("img_err_invalid_type"));
+      toast.error(msg, { id: "rp-upload-error", duration: 8000 });
     } finally {
       setPreparing(false);
     }
   }, [isVideo, onChange, t]);
 
   const clear = useCallback(() => {
+    toast.dismiss("rp-upload-error");
+    toast.dismiss("rp-upload-warn");
     setPreviewUrl(null);
     setPreviewBroken(false);
     onChange(null);

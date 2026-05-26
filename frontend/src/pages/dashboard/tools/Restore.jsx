@@ -22,9 +22,8 @@ import { RESTORE_LEVEL_KEYS } from "../../../lib/toolPagesLocales";
 const RESTORE_PROMPT_KEYS = [1, 2, 3, 4];
 
 export default function Restore() {
-  const { t } = useStudioI18n();
+  const { t, errToast, clearUploadToast } = useStudioI18n();
   const { t: tCat } = useI18n();
-  const errMsg = (err) => formatApiError(err, t("common_fail"), { context: "image_upload", t });
   const navigate = useNavigate();
   const { user, refresh } = useAuth();
   const { costs } = usePricing();
@@ -72,6 +71,7 @@ export default function Restore() {
 
   const run = async () => {
     if (!photo) { toast.error(t("restore_err_upload")); return; }
+    clearUploadToast();
     setBusy(true); setResult(null);
     try {
       const fd = new FormData();
@@ -90,7 +90,7 @@ export default function Restore() {
       toast.success(t("restore_success", { n: creation?.credits_spent ?? cost }));
       await refresh();
     } catch (err) {
-      toast.error(errMsg(err), { duration: 8000 });
+      errToast(err);
     } finally { setBusy(false); }
   };
 

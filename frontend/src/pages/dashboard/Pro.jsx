@@ -17,6 +17,7 @@ import { useI18n } from "../../lib/i18n";
 import StudioGenerateBar from "../../components/StudioGenerateBar";
 import StudioGenerateCostMeta from "../../components/StudioGenerateCostMeta";
 import { useStudioGenerateGate } from "../../lib/useStudioGenerateGate";
+import { useStudioI18n } from "../../lib/useStudioI18n";
 
 function ProStep({ step, title, hint, children }) {
   return (
@@ -35,7 +36,7 @@ function ProStep({ step, title, hint, children }) {
 
 export default function Pro() {
   const { t } = useI18n();
-  const errMsg = (err) => formatApiError(err, t("common_fail"), { context: "image_upload", t });
+  const { errToast, clearUploadToast } = useStudioI18n();
   useTitle(t("pro_page_title"));
   const { refresh, user } = useAuth();
   const { costs } = usePricing();
@@ -94,6 +95,7 @@ export default function Pro() {
   const generate = async () => {
     if (!photo) { toast.error(t("pro_upload_photo")); return; }
     if (!preset) { toast.error(t("pro_pick_preset")); return; }
+    clearUploadToast();
     setBusy(true); setResult(null);
     try {
       const fd = new FormData();
@@ -109,7 +111,7 @@ export default function Pro() {
       toast.success(t("pro_success", { n: creation?.credits_spent ?? cost }));
       await refresh();
     } catch (err) {
-      toast.error(errMsg(err), { duration: 8000 });
+      errToast(err);
     } finally { setBusy(false); }
   };
 

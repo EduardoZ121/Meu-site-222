@@ -63,6 +63,10 @@ export function formatHttpError(err, fallback = "Falhou.", opts = {}) {
   const ctx = opts.context || "";
   const t = opts.t;
 
+  if (/compress_too_large/i.test(raw) || err?.code === "COMPRESS_TOO_LARGE") {
+    return tr("upload_compress_fail", t);
+  }
+
   if (/FUNCTION_PAYLOAD_TOO_LARGE|Request Entity Too Large/i.test(raw)) {
     if (ctx === "image_upload" || ctx === "image_pick") {
       return tr("upload_err_image_large", t);

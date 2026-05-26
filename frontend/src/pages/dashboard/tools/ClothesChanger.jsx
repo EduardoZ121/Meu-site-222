@@ -97,9 +97,8 @@ function PhotoBox({ photo, onChange, label, helper, emptyLabel, testId }) {
 }
 
 export default function ClothesChanger() {
-  const { t } = useStudioI18n();
+  const { t, errToast, clearUploadToast } = useStudioI18n();
   const { t: tCat } = useI18n();
-  const errMsg = (err) => formatApiError(err, t("common_fail"), { context: "image_upload", t });
   useTitle(tCat("tool_clothes_name"));
   const { refresh, user } = useAuth();
   const { costs } = usePricing();
@@ -138,6 +137,7 @@ export default function ClothesChanger() {
       toast.error(t("common_need_credits", { need: cost, have: user?.credits ?? 0 }));
       return;
     }
+    clearUploadToast();
     setBusy(true); setResult(null);
     try {
       const fd = new FormData();
@@ -197,7 +197,7 @@ export default function ClothesChanger() {
       toast.success(t("clothes_success", { n: creation?.credits_spent ?? cost }));
       await refresh();
     } catch (err) {
-      toast.error(errMsg(err), { duration: 8000 });
+      errToast(err);
     } finally { setBusy(false); }
   };
 

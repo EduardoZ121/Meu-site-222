@@ -34,9 +34,8 @@ const VIBE_OPTIONS = [
 ];
 
 export default function Colorize() {
-  const { t } = useStudioI18n();
+  const { t, errToast, clearUploadToast } = useStudioI18n();
   const { t: tCat } = useI18n();
-  const errMsg = (err) => formatApiError(err, t("common_fail"), { context: "image_upload", t });
   const navigate = useNavigate();
   const { user, refresh } = useAuth();
   const { costs } = usePricing();
@@ -84,6 +83,7 @@ export default function Colorize() {
 
   const run = async () => {
     if (!photo) { toast.error(t("colorize_err_upload")); return; }
+    clearUploadToast();
     setBusy(true); setResult(null);
     try {
       const fd = new FormData();
@@ -101,7 +101,7 @@ export default function Colorize() {
       toast.success(t("colorize_success", { n: creation?.credits_spent ?? cost }));
       await refresh();
     } catch (err) {
-      toast.error(errMsg(err), { duration: 8000 });
+      errToast(err);
     } finally { setBusy(false); }
   };
 

@@ -41,7 +41,7 @@ const SECTION_ICONS = {
 
 export default function Artistic() {
   const { lang, t } = useI18n();
-  const errMsg = useCallback((err) => formatApiError(err, t("common_fail"), { context: "image_upload", t }), [t]);
+  const { errToast, clearUploadToast } = useStudioI18n();
   useTitle(t("art_page_title"));
   const [searchParams] = useSearchParams();
   const { refresh, user } = useAuth();
@@ -174,6 +174,7 @@ export default function Artistic() {
       return;
     }
 
+    clearUploadToast();
     setBusy(true);
     setResult(null);
     try {
@@ -243,7 +244,7 @@ export default function Artistic() {
       toast.success(t("common_generated", { n: creation.credits_spent ?? cost }));
       await refresh();
     } catch (err) {
-      toast.error(errMsg(err), { duration: 8000 });
+      errToast(err);
     } finally {
       setBusy(false);
     }
@@ -262,7 +263,8 @@ export default function Artistic() {
     recipeChips,
     refresh,
     t,
-    errMsg,
+    errToast,
+    clearUploadToast,
   ]);
 
   const downloadUrl = primaryResultUrl(result);

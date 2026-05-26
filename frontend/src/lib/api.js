@@ -473,25 +473,28 @@ async function uploadVideoToCloudDirect(file, opts = {}) {
   throw new Error("Upload do vídeo terminou sem URL. Tenta MP4 mais curto.");
 }
 
-/** Envia imagem grande para nuvem (browser→Blob ou servidor→/upload/image-blob). */
+/** Envia imagem grande para nuvem (browser→Blob). Proxy servidor só se ficheiro < 4 MB. */
 export async function uploadImageToCloud(file, opts = {}) {
   if (!file) throw new Error("Imagem em falta.");
   invalidateBlobUploadCache();
   const blobOn = await isBlobUploadEnabled({ refresh: true });
+  const canUseServerProxy = file.size <= 3_900_000;
+
   if (!blobOn) {
-    try {
-      return await uploadImageViaServerProxy(file, { timeoutMs: opts.timeoutMs ?? 120_000 });
-    } catch (proxyErr) {
-      throw proxyErr;
+    if (!canUseServerProxy) {
+      throw new Error(
+        "Foto ainda demasiado grande para enviar. Escolhe outra imagem ou exporta JPEG mais pequena no telemóvel.",
+      );
     }
+    return uploadImageViaServerProxy(file, { timeoutMs: opts.timeoutMs ?? 120_000 });
   }
   try {
     const result = await uploadFileToVercelBlob("photo", file, opts.timeoutMs ?? 120_000, opts.onProgress);
     return result.url;
   } catch (directErr) {
     const msg = String(directErr?.message || directErr);
-    const tryServer = /fetch|network|failed|nuvem|blob|abort|timeout/i.test(msg)
-      || directErr?.code === "ERR_NETWORK";
+    const tryServer = canUseServerProxy
+      && (/fetch|network|failed|nuvem|blob|abort|timeout/i.test(msg) || directErr?.code === "ERR_NETWORK");
     if (!tryServer) throw directErr;
     return uploadImageViaServerProxy(file, { timeoutMs: opts.timeoutMs ?? 120_000 });
   }
@@ -571,12 +574,14 @@ export async function uploadPost(url, formData, config = {}) {
   let lastErr;
 
   let baseFd = cloneFormData(formData);
+  let emergencyCompress = false;
   if (typeof window !== "undefined") {
     const { prepareStudioFormDataForSubmit } = await import("./studioUpload/prepareSubmit");
     baseFd = await prepareStudioFormDataForSubmit(cloneFormData(formData), {
       skipBlobOffload: config.skipBlobOffload,
       onProgress: config.onVideoProgress,
       timeoutMs: config.blobOffloadTimeoutMs,
+      emergencyCompress,
     });
   }
 
@@ -693,6 +698,20 @@ export async function uploadPost(url, formData, config = {}) {
       return { data: merged, status: res.status, config: { url, ...config } };
     } catch (e) {
       lastErr = e;
+      const payloadTooLarge = e?.response?.status === 413
+        || /FUNCTION_PAYLOAD_TOO_LARGE|Request Entity Too Large|demasiado grande/i.test(String(e?.message || ""));
+      if (payloadTooLarge && !emergencyCompress && typeof window !== "undefined") {
+        emergencyCompress = true;
+        const { prepareStudioFormDataForSubmit } = await import("./studioUpload/prepareSubmit");
+        baseFd = await prepareStudioFormDataForSubmit(cloneFormData(formData), {
+          skipBlobOffload: config.skipBlobOffload,
+          onProgress: config.onVideoProgress,
+          timeoutMs: config.blobOffloadTimeoutMs,
+          emergencyCompress: true,
+        });
+        // eslint-disable-next-line no-continue
+        continue;
+      }
       const aborted = e?.name === "AbortError" || e?.code === "ECONNABORTED";
       const noResponse = !e?.response;
       const net =
@@ -702,6 +721,7 @@ export async function uploadPost(url, formData, config = {}) {
         || /network|fetch|Failed to fetch|Load failed|Ligação interrompida/i.test(String(e?.message || ""));
       const retryable = net;
       if (!retryable || i === attempts - 1) throw e;
+      invalidateBlobUploadCache();
       // eslint-disable-next-line no-await-in-loop
       await new Promise((r) => setTimeout(r, 400 * 2 ** i));
     }

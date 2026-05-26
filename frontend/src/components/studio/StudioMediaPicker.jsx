@@ -2,7 +2,7 @@ import {
   useCallback, useEffect, useId, useRef, useState,
 } from "react";
 import { toast } from "sonner";
-import { CheckCircle2, Upload, X } from "lucide-react";
+import { CheckCircle2, FileImage, Upload, X } from "lucide-react";
 import { useI18n } from "../../lib/i18n";
 import { CLIENT_BUILD_ID } from "../../lib/buildInfo";
 import { setPreviewFromFile, revokePreviewUrl } from "../../lib/studioUpload/mediaPreview";
@@ -86,10 +86,12 @@ export default function StudioMediaPicker({
   const previewStore = useRef({ current: null, key: "" });
   const [drag, setDrag] = useState(false);
   const [previewUrl, setPreviewUrl] = useState(null);
+  const [previewBroken, setPreviewBroken] = useState(false);
 
   const syncPreview = useCallback((file) => {
     const url = setPreviewFromFile(file || null, previewStore.current);
     setPreviewUrl(url);
+    setPreviewBroken(false);
   }, []);
 
   useEffect(() => () => {
@@ -162,18 +164,16 @@ export default function StudioMediaPicker({
       return;
     }
 
-    // Final safety net: confirm the browser can actually render this file as
-    // an image. If decode fails (corrupt file, unsupported colorspace, etc.)
-    // we abort here instead of accepting a file that would show a broken
-    // thumbnail and fail generation later.
-    const previewable = await canDecodeAsImage(workFile);
-    if (!previewable) {
-      toast.error(
-        "Não foi possível ler esta imagem neste browser. Tenta outra foto (JPEG ou PNG).",
-        { duration: 7000 },
-      );
-      return;
-    }
+    // Best-effort decode check — used only to decide whether to show a real
+    // preview or a fallback placeholder. NEVER blocks the upload, because
+    // some valid files (Samsung HEIF saved as .jpg, weird colorspaces) can't
+    // render in mobile Chrome but the backend still processes them fine.
+    canDecodeAsImage(workFile).then((ok) => {
+      if (!ok) {
+        // Mark on the file so the UI shows a "no preview" placeholder.
+        try { workFile.__rpNoPreview = true; } catch { /* ignore */ }
+      }
+    }).catch(() => { /* ignore */ });
 
     onChange(workFile);
   }, [isVideo, onChange, t]);
@@ -265,6 +265,19 @@ export default function StudioMediaPicker({
                 muted
                 data-testid={`${testId}-preview`}
               />
+            ) : previewBroken ? (
+              <div
+                className="relative z-[1] flex h-full w-full flex-col items-center justify-center gap-2 bg-[#0a120e] p-4 pb-14 text-center"
+                data-testid={`${testId}-preview-fallback`}
+              >
+                <FileImage className="h-12 w-12 text-emerald-400/80" strokeWidth={1.5} />
+                <p className="text-sm font-medium text-emerald-100 break-all">
+                  {value?.name || "image"}
+                </p>
+                <p className="text-xs text-emerald-200/70">
+                  Pré-visualização indisponível neste browser, mas o ficheiro vai ser usado ao gerar.
+                </p>
+              </div>
             ) : (
               <img
                 src={previewUrl}
@@ -276,13 +289,11 @@ export default function StudioMediaPicker({
                 ].filter(Boolean).join(" ")}
                 data-testid={`${testId}-preview`}
                 onError={() => {
-                  // Decoded once already (canDecodeAsImage gate), but if the
-                  // browser unexpectedly fails to render, clear the file so
-                  // the user is not left staring at a broken thumbnail.
-                  toast.error(
-                    "Não foi possível mostrar esta imagem. Tenta outra foto.",
-                  );
-                  clear();
+                  // Browser can't render this image (Samsung HEIF saved as
+                  // .jpg, unusual colorspace, etc.). Keep the file — backend
+                  // can still process it — and switch to a name-only
+                  // placeholder so the user isn't stuck on a broken icon.
+                  setPreviewBroken(true);
                 }}
               />
             )}

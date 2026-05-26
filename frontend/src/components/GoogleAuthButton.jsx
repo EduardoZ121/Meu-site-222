@@ -43,6 +43,18 @@ export default function GoogleAuthButton({ onCredential, label = "Continuar com 
             if (response?.credential) onCredential(response.credential);
             else toast.error("Não foi possível validar a conta Google.");
           },
+          error_callback: (err) => {
+            const type = String(err?.type || err || "");
+            if (/popup_closed|user_cancelled/i.test(type)) return;
+            const origin = typeof window !== "undefined" ? window.location.origin : "";
+            console.warn("[Google Login]", type, err);
+            toast.error(
+              type.includes("origin") || type.includes("client")
+                ? `Google bloqueou este domínio (${origin}). Confirma em Google Cloud → Credenciais → Origens: ${origin}`
+                : "Google bloqueou o login. No Google Cloud: Utilizadores de teste (modo Teste) ou Publicar app. Ver docs/GOOGLE-LOGIN.md",
+              { duration: 14000 },
+            );
+          },
         });
         google.accounts.id.renderButton(buttonRef.current, {
           theme: "outline",

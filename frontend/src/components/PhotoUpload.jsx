@@ -22,7 +22,6 @@ export default function PhotoUpload({
       className={className}
       emptyLabel={emptyLabel}
       emptyHint={emptyHint}
-      enableRemotePersist={false}
     />
   );
 }

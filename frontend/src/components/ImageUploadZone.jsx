@@ -8,6 +8,8 @@ import { prepareImageForUpload } from "../lib/prepareImageForUpload";
 import { looksLikeImageFile, IMAGE_ACCEPT } from "../lib/imageCompress";
 import { MAX_IMAGE_DIRECT_BYTES } from "../lib/uploadConstants";
 import { CLIENT_BUILD_ID } from "../lib/buildInfo";
+import { formatHttpError } from "../lib/uploadErrors";
+import { isBlobPersistAvailable, persistImageToBlobStore } from "../lib/persistImage";
 import { useI18n } from "../lib/i18n";
 
 const LAYOUT = {
@@ -21,7 +23,7 @@ const LAYOUT = {
 
 /**
  * Caixa de upload do estúdio (visual original com brilho atrás do ícone).
- * Preview imediato → comprimir em background → POST directo ao Gerar (sem Blob/AWS).
+ * Preview imediato → comprimir em background → POST directo; Blob só se grande ou persistência.
  */
 export default function ImageUploadZone({
   value,
@@ -33,7 +35,7 @@ export default function ImageUploadZone({
   overlay = null,
   capture = undefined,
   compressOptions = {},
-  enableRemotePersist = false,
+  enableRemotePersist = true,
   onStatusChange,
   emptyLabel,
   emptyHint,
@@ -97,18 +99,57 @@ export default function ImageUploadZone({
       if (rid !== runIdRef.current) return;
       lastPreparedRef.current = prepared;
       onChange(prepared);
-      setPersistState("saved");
-      notifyStatus("saved");
+
+      const blobOk = enableRemotePersist && (await isBlobPersistAvailable());
+      if (!blobOk) {
+        if (rid !== runIdRef.current) return;
+        setPersistState("saved");
+        notifyStatus("saved");
+        return;
+      }
+      try {
+        await persistImageToBlobStore(prepared);
+        if (rid !== runIdRef.current) return;
+        setPersistState("saved");
+        notifyStatus("saved");
+      } catch (err) {
+        if (rid !== runIdRef.current) return;
+        setPersistState("error");
+        notifyStatus("error");
+        toast.error(formatHttpError(err, t("upload_save_error")), { duration: 6000 });
+      }
     } catch (err) {
       if (rid !== runIdRef.current) return;
       setPersistState("error");
       notifyStatus("error");
       toast.error(err?.message || t("upload_invalid_type"), { duration: 6000 });
     }
-    if (enableRemotePersist) {
-      console.warn("[ImageUploadZone] enableRemotePersist ignorado — Blob desligado.");
-    }
   }, [compressOptions, enableRemotePersist, onChange, notifyStatus, t]);
+
+  const retryPersist = useCallback(async () => {
+    const f = lastPreparedRef.current || value;
+    if (!f) return;
+    const rid = runIdRef.current;
+    setPersistState("saving");
+    notifyStatus("saving");
+    const blobOk = enableRemotePersist && (await isBlobPersistAvailable());
+    if (!blobOk) {
+      setPersistState("saved");
+      notifyStatus("saved");
+      return;
+    }
+    try {
+      await persistImageToBlobStore(f);
+      if (rid !== runIdRef.current) return;
+      setPersistState("saved");
+      notifyStatus("saved");
+    } catch (err) {
+      if (rid !== runIdRef.current) return;
+      setPersistState("error");
+      notifyStatus("error");
+      toast.error(formatHttpError(err, t("upload_save_error")), { duration: 6000 });
+    }
+  }, [value, enableRemotePersist, notifyStatus, t]);
 
   const ingestFile = useCallback((file) => {
     if (!file || !looksLikeImageFile(file)) {
@@ -228,7 +269,22 @@ export default function ImageUploadZone({
                   {savedLabel}
                 </span>
               )}
+              {persistState === "error" && (
+                <span className="rounded-full bg-red-600/95 px-3 py-1.5 text-xs font-medium text-white backdrop-blur-md">
+                  {t("upload_save_error")}
+                </span>
+              )}
             </div>
+            {persistState === "error" && (
+              <button
+                type="button"
+                onClick={(e) => { e.preventDefault(); e.stopPropagation(); void retryPersist(); }}
+                className="absolute bottom-3 left-3 z-20 min-h-12 min-w-[7.5rem] rounded-xl bg-[#9333EA] px-4 text-sm font-semibold text-white shadow-lg shadow-purple-900/40"
+                data-testid={`${testId}-retry`}
+              >
+                {t("upload_retry")}
+              </button>
+            )}
             <button
               type="button"
               onClick={(e) => { e.preventDefault(); e.stopPropagation(); clear(); }}

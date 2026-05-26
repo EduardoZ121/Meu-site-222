@@ -97,23 +97,12 @@ function pickUploadTimeoutMs(fd) {
   return 180_000;
 }
 
-export function invalidateBlobUploadCache() {
-  /* Blob/AWS desligados */
-}
-
-export async function isBlobUploadEnabled() {
-  return false;
-}
-
-/** Desligado — upload só por POST directo comprimido. */
-export async function uploadImageToCloud() {
-  throw new Error("Upload por nuvem desligado. Comprime a foto e tenta outra vez.");
-}
-
-/** Desligado — vídeo só se couber no POST (~3 MB). */
-export async function uploadVideoToCloud() {
-  throw new Error("Upload de vídeo grande desligado. Usa um clip mais curto (~3 MB).");
-}
+export {
+  invalidateBlobUploadCache,
+  isBlobUploadEnabled,
+  uploadImageToCloud,
+  uploadVideoToCloud,
+} from "./blobUploadClient";
 
 /**
  * Multipart POST com várias tentativas. Usa XMLHttpRequest no browser (melhor em

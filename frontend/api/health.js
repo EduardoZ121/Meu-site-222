@@ -1,6 +1,6 @@
 /** GET /api/health — confirma serverless + estado das integrações (sem expor segredos). */
 const { storageEnabled } = require("./lib/mongo.cjs");
-const { isBlobConfigured } = require("./lib/blobEnv.cjs");
+const { isBlobConfigured, isBlobDisabled } = require("./lib/blobEnv.cjs");
 const { isS3Configured } = require("./lib/s3Upload.cjs");
 
 module.exports = async function handler(req, res) {
@@ -11,6 +11,7 @@ module.exports = async function handler(req, res) {
   const replicate = Boolean(String(process.env.REPLICATE_API_TOKEN || "").trim());
   const openai = Boolean(String(process.env.OPENAI_API_KEY || "").trim());
   const stripe = Boolean(String(process.env.STRIPE_SECRET_KEY || "").trim());
+  const blobDisabled = isBlobDisabled();
   const blob = isBlobConfigured();
   const s3 = isS3Configured();
   const mongo = storageEnabled();
@@ -18,7 +19,7 @@ module.exports = async function handler(req, res) {
   return res.status(200).json({
     ok: true,
     api: "remakepix",
-    build: "upload-stable-v1",
+    build: "upload-no-blob-v1",
     ts: Date.now(),
     integrations: {
       replicate,
@@ -26,6 +27,7 @@ module.exports = async function handler(req, res) {
       mongo,
       stripe,
       blob,
+      blob_disabled: blobDisabled,
       s3,
     },
     ready: {
@@ -33,7 +35,7 @@ module.exports = async function handler(req, res) {
       prompt_assist: openai,
       billing: stripe && mongo,
       gallery_persist: mongo,
-      large_upload: blob || s3,
+      large_upload: s3,
     },
   });
 };

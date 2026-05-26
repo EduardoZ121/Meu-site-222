@@ -1,5 +1,6 @@
 import axios from "axios";
 
+import { VERCEL_BLOB_DISABLED } from "./blobDisabled";
 import { formatHttpError } from "./uploadErrors";
 import { isBrowserOnlineFlag } from "./uploadReachability";
 import {
@@ -151,6 +152,10 @@ function formDataNeedsCloudOffload(fd) {
 }
 
 export async function isBlobUploadEnabled(opts = {}) {
+  if (VERCEL_BLOB_DISABLED) {
+    blobUploadEnabledCache = false;
+    return false;
+  }
   if (!opts.refresh && blobUploadEnabledCache !== null) return blobUploadEnabledCache;
   if (typeof window === "undefined" || typeof fetch === "undefined") {
     return false;
@@ -390,7 +395,9 @@ async function offloadFormDataMediaToCloud(formData, opts = {}) {
 
     if (isLargeVideo) {
       throw new Error(
-        "Vídeo grande sem armazenamento em nuvem. Na Vercel adiciona BLOB_READ_WRITE_TOKEN ou as variáveis AWS (S3).",
+        VERCEL_BLOB_DISABLED
+          ? "Vídeo demasiado grande. Usa um clip até ~3 MB ou configura AWS S3."
+          : "Vídeo grande sem armazenamento em nuvem. Configura AWS (S3) ou um clip mais curto.",
       );
     }
 
@@ -473,36 +480,29 @@ async function uploadVideoToCloudDirect(file, opts = {}) {
   throw new Error("Upload do vídeo terminou sem URL. Tenta MP4 mais curto.");
 }
 
-/** Envia imagem grande para nuvem (browser→Blob). Proxy servidor só se ficheiro < 4 MB. */
-export async function uploadImageToCloud(file, opts = {}) {
+/** @deprecated Blob desligado — usar prepareStudioFormDataForSubmit + POST directo. */
+export async function uploadImageToCloud(file) {
   if (!file) throw new Error("Imagem em falta.");
-  invalidateBlobUploadCache();
-  const blobOn = await isBlobUploadEnabled({ refresh: true });
-  const canUseServerProxy = file.size <= 3_900_000;
-
-  if (!blobOn) {
-    if (!canUseServerProxy) {
-      throw new Error(
-        "Foto ainda demasiado grande para enviar. Escolhe outra imagem ou exporta JPEG mais pequena no telemóvel.",
-      );
-    }
-    return uploadImageViaServerProxy(file, { timeoutMs: opts.timeoutMs ?? 120_000 });
-  }
-  try {
-    const result = await uploadFileToVercelBlob("photo", file, opts.timeoutMs ?? 120_000, opts.onProgress);
-    return result.url;
-  } catch (directErr) {
-    const msg = String(directErr?.message || directErr);
-    const tryServer = canUseServerProxy
-      && (/fetch|network|failed|nuvem|blob|abort|timeout/i.test(msg) || directErr?.code === "ERR_NETWORK");
-    if (!tryServer) throw directErr;
-    return uploadImageViaServerProxy(file, { timeoutMs: opts.timeoutMs ?? 120_000 });
-  }
+  throw new Error(
+    "Envio por nuvem (Blob) está desligado. A foto tem de caber comprimida (~3 MB).",
+  );
 }
 
-/** Envia vídeo para nuvem; tenta browser→Blob e, se falhar, servidor→Blob. */
+/** Vídeo grande: só S3 (se configurado). Blob desligado. */
 export async function uploadVideoToCloud(file, opts = {}) {
   if (!file) throw new Error("Vídeo em falta.");
+  if (VERCEL_BLOB_DISABLED) {
+    const { isS3VideoUploadAvailable, uploadVideoViaS3 } = await import("./s3VideoUpload");
+    if (await isS3VideoUploadAvailable()) {
+      return uploadVideoViaS3(file, { onProgress: opts.onProgress });
+    }
+    if (file.size <= VIDEO_VERCEL_SAFE_BYTES) {
+      throw new Error("Vídeo deve ser enviado no formulário directo (sem nuvem).");
+    }
+    throw new Error(
+      "Vídeo demasiado grande. Usa um clip até ~3 MB ou configura AWS S3 no servidor.",
+    );
+  }
   try {
     return await uploadVideoToCloudDirect(file, opts);
   } catch (directErr) {
@@ -514,7 +514,7 @@ export async function uploadVideoToCloud(file, opts = {}) {
       return await uploadVideoViaServerProxy(file, opts);
     } catch (proxyErr) {
       const proxyMsg = formatHttpError(proxyErr, "Upload falhou.");
-      throw new Error(`${proxyMsg} (também falhou envio direto à nuvem.)`);
+      throw new Error(`${proxyMsg} (também falhou envio directo à nuvem.)`);
     }
   }
 }

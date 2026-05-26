@@ -39,7 +39,18 @@ const {
   createImagePresignedUpload,
   getS3Config,
 } = require("./lib/s3Upload.cjs");
-const { getBlobReadWriteToken, isBlobConfigured } = require("./lib/blobEnv.cjs");
+const {
+  getBlobReadWriteToken,
+  isBlobConfigured,
+  isBlobDisabled,
+} = require("./lib/blobEnv.cjs");
+
+function blobDisabledResponse(res) {
+  return json(res, 410, {
+    detail: "Vercel Blob está desligado neste projeto. Uploads usam POST directo (fotos comprimidas).",
+    blob_disabled: true,
+  });
+}
 const { listPosterTemplates } = require("./lib/posterTemplatesData.cjs");
 const { improvePrompt } = require("./lib/promptAssist.cjs");
 
@@ -501,6 +512,7 @@ async function resolveImageRef(files, fields, fileKey, urlKey) {
 /** Upload de vídeo pelo servidor → Vercel Blob (fallback quando o browser não consegue PUT direto). */
 /** Upload de imagem pelo servidor → Vercel Blob (fallback quando o browser não consegue PUT directo). */
 async function routeUploadImageBlob(req, res) {
+  if (isBlobDisabled()) return blobDisabledResponse(res);
   try {
     const blobToken = getBlobReadWriteToken();
     if (!blobToken) {
@@ -545,6 +557,7 @@ async function routeUploadImageBlob(req, res) {
 }
 
 async function routeUploadVideoBlob(req, res) {
+  if (isBlobDisabled()) return blobDisabledResponse(res);
   try {
     const blobToken = getBlobReadWriteToken();
     if (!blobToken) {
@@ -601,6 +614,7 @@ async function routeUploadVideoBlob(req, res) {
 }
 
 async function routeBlobPrepare(req, res) {
+  if (isBlobDisabled()) return blobDisabledResponse(res);
   try {
     const blobToken = getBlobReadWriteToken();
     if (!blobToken) {
@@ -1811,7 +1825,10 @@ async function handlePath(path, req, res) {
     }
 
     if (req.method === "GET" && path === "blob/status") {
-      return json(res, 200, { blob: isBlobConfigured() });
+      return json(res, 200, {
+        blob: isBlobConfigured(),
+        blob_disabled: isBlobDisabled(),
+      });
     }
 
     if (req.method === "GET" && path === "upload/s3/status") {

@@ -1,10 +1,9 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useMemo, useState } from "react";
 import { Clapperboard, Sparkles } from "lucide-react";
 import {
   formatApiError,
   pollPrediction,
   uploadPost,
-  uploadVideoToCloud,
 } from "../../lib/api";
 import { normalizeCreation, primaryResultUrl } from "../../lib/creationUrls";
 import { useAuth } from "../../lib/auth";
@@ -45,11 +44,6 @@ export default function VideoEditorAdmin() {
   const cost = costs.videoEdit ?? costs.video ?? 95;
 
   const [video, setVideo] = useState(null);
-  const [videoCloudUrl, setVideoCloudUrl] = useState(null);
-  const [videoCloudBusy, setVideoCloudBusy] = useState(false);
-  const [videoCloudPct, setVideoCloudPct] = useState(0);
-  const [videoCloudError, setVideoCloudError] = useState(null);
-  const cloudUploadGen = useRef(0);
   const [reference, setReference] = useState(null);
   const [prompt, setPrompt] = useState("");
   const [resolution, setResolution] = useState("1080p");
@@ -61,72 +55,28 @@ export default function VideoEditorAdmin() {
   const [progress, setProgress] = useState(0);
   const [result, setResult] = useState(null);
 
-  const needsCloud = video && video.size > VIDEO_DIRECT_MAX_BYTES;
-  const cloudReady = !needsCloud || Boolean(videoCloudUrl);
+  const videoTooLarge = video && video.size > VIDEO_DIRECT_MAX_BYTES;
   const { ready, hint } = useStudioGenerateGate({
-    busy: busy || videoCloudBusy,
+    busy,
     user,
     cost,
     requireVideo: true,
     video,
     requirePrompt: true,
     prompt,
-    readyOverride: Boolean(video) && prompt.trim().length >= 3 && cloudReady,
-    hintOverride: videoCloudBusy
-      ? (videoCloudPct > 0
-        ? t("vid_upload_cloud_progress", { n: videoCloudPct })
-        : t("vid_edit_cloud_uploading"))
-      : (needsCloud && videoCloudError)
-        ? videoCloudError
-        : (needsCloud && !videoCloudUrl && !videoCloudBusy)
-          ? t("vid_edit_wait_upload")
-          : null,
+    readyOverride: Boolean(video) && !videoTooLarge && prompt.trim().length >= 3,
+    hintOverride: videoTooLarge
+      ? t("vid_edit_large_hint")
+      : null,
   });
-
-  useEffect(() => {
-    if (!video || video.size <= VIDEO_DIRECT_MAX_BYTES) {
-      setVideoCloudUrl(null);
-      setVideoCloudError(null);
-      setVideoCloudBusy(false);
-      setVideoCloudPct(0);
-      return undefined;
-    }
-    const gen = cloudUploadGen.current + 1;
-    cloudUploadGen.current = gen;
-    setVideoCloudUrl(null);
-    setVideoCloudError(null);
-    setVideoCloudBusy(true);
-    setVideoCloudPct(0);
-
-    uploadVideoToCloud(video, {
-      onProgress: (pct) => {
-        if (cloudUploadGen.current === gen) setVideoCloudPct(pct);
-      },
-    })
-      .then((url) => {
-        if (cloudUploadGen.current !== gen) return;
-        setVideoCloudUrl(url);
-        setVideoCloudError(null);
-        toast.success(t("vid_upload_cloud_done"), { duration: 4000 });
-      })
-      .catch((err) => {
-        if (cloudUploadGen.current !== gen) return;
-        const msg = formatApiError(err, t("vid_upload_cloud_fail"), { context: "video_upload", t });
-        setVideoCloudError(msg);
-        toast.error(msg, { duration: 12000 });
-      })
-      .finally(() => {
-        if (cloudUploadGen.current === gen) setVideoCloudBusy(false);
-      });
-
-    return () => {
-      cloudUploadGen.current += 1;
-    };
-  }, [video, t]);
 
   const run = async () => {
     if (!video) {
       toast.error(t("vid_edit_err_video"));
+      return;
+    }
+    if (videoTooLarge) {
+      toast.error(t("vid_edit_large_hint"), { duration: 12000 });
       return;
     }
     if (prompt.trim().length < 3) {
@@ -135,11 +85,6 @@ export default function VideoEditorAdmin() {
     }
     if ((user?.credits ?? 0) < cost && !user?.is_unlimited) {
       toast.error(t("vid_err_credits", { need: cost, have: user?.credits ?? 0 }));
-      return;
-    }
-
-    if (needsCloud && !videoCloudUrl) {
-      toast.error(videoCloudError || t("vid_edit_wait_upload"), { duration: 12000 });
       return;
     }
 
@@ -155,14 +100,9 @@ export default function VideoEditorAdmin() {
       fd.append("duration", String(duration));
       fd.append("aspect_ratio", aspect);
       fd.append("audio_setting", audioSetting);
-      if (videoCloudUrl) {
-        fd.append("video_url", videoCloudUrl);
-      } else {
-        fd.append("video", video);
-      }
+      fd.append("video", video);
       if (reference) fd.append("reference_image", reference);
 
-      setUploadPhase("send");
       ({ data: submitData } = await uploadPost("/generate/video-edit", fd, {
         timeout: 120_000,
         headers: { "X-Skip-Auto-Poll": "1" },
@@ -216,27 +156,13 @@ export default function VideoEditorAdmin() {
             <div className="max-w-[560px]">
               <StudioVideoUpload
                 value={video}
-                onChange={(f) => {
-                  setVideo(f);
-                  setVideoCloudUrl(null);
-                  setVideoCloudError(null);
-                }}
-                disabled={busy || videoCloudBusy}
+                onChange={setVideo}
+                disabled={busy}
                 testId="video-edit-source"
               />
-              {needsCloud && (
-                <p className={`mt-3 text-[12px] leading-relaxed ${
-                  videoCloudError ? "text-red-400" : videoCloudUrl ? "text-emerald-400/90" : "text-[#A78BFA]"
-                }`}>
-                  {videoCloudBusy
-                    ? (videoCloudPct > 0
-                      ? t("vid_upload_cloud_progress", { n: videoCloudPct })
-                      : t("vid_edit_cloud_uploading"))
-                    : videoCloudError
-                      ? videoCloudError
-                      : videoCloudUrl
-                        ? t("vid_upload_cloud_ready")
-                        : t("vid_edit_large_hint")}
+              {videoTooLarge && (
+                <p className="mt-3 text-[12px] leading-relaxed text-red-400">
+                  {t("vid_edit_large_hint")}
                 </p>
               )}
             </div>
@@ -379,13 +305,9 @@ export default function VideoEditorAdmin() {
             onClick={run}
             label={t("vid_edit_btn", { n: cost })}
             busyLabel={
-              uploadPhase.startsWith("cloud")
-                ? (uploadPhase.includes(":")
-                  ? t("vid_upload_cloud_progress", { n: uploadPhase.split(":")[1] || "0" })
-                  : t("vid_edit_cloud_uploading"))
-                : uploadPhase === "processing" && progress > 0
-                  ? `${t("vid_edit_processing")} (${progress}s)`
-                  : t("vid_edit_processing")
+              uploadPhase === "processing" && progress > 0
+                ? `${t("vid_edit_processing")} (${progress}s)`
+                : t("vid_edit_processing")
             }
             hint={hint}
             testId="video-edit-submit"

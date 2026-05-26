@@ -1,13 +1,7 @@
 import axios from "axios";
 
-import { VERCEL_BLOB_DISABLED } from "./blobDisabled";
 import { formatHttpError } from "./uploadErrors";
 import { isBrowserOnlineFlag } from "./uploadReachability";
-import {
-  formDataTotalBlobBytes,
-  pickBlobOffloadTimeoutMs,
-  VIDEO_VERCEL_SAFE_BYTES,
-} from "./uploadConstants";
 import { normalizeCreation } from "./creationUrls";
 import { notifyCreditsUpdate, notifyGenerationComplete } from "./notifyUser";
 
@@ -103,455 +97,22 @@ function pickUploadTimeoutMs(fd) {
   return 180_000;
 }
 
-let blobUploadEnabledCache = null;
-
 export function invalidateBlobUploadCache() {
-  blobUploadEnabledCache = null;
+  /* Blob/AWS desligados */
 }
 
-function isVideoFileLike(file) {
-  return file?.type?.startsWith?.("video/") || /\.(mp4|mov|webm)$/i.test(file?.name || "");
-}
-
-function formDataHasVideoFile(fd) {
-  if (!fd?.entries) return false;
-  for (const [, v] of fd.entries()) {
-    if (v instanceof File && isVideoFileLike(v)) return true;
-  }
+export async function isBlobUploadEnabled() {
   return false;
 }
 
-function formDataHasLargeVideo(fd) {
-  if (!fd?.entries) return false;
-  for (const [, v] of fd.entries()) {
-    if (!(v instanceof File)) continue;
-    if (isVideoFileLike(v) && v.size > VIDEO_DIRECT_MAX) return true;
-  }
-  return false;
+/** Desligado — upload só por POST directo comprimido. */
+export async function uploadImageToCloud() {
+  throw new Error("Upload por nuvem desligado. Comprime a foto e tenta outra vez.");
 }
 
-function isImageFileLike(file) {
-  if (!file) return false;
-  if (file.type?.startsWith?.("image/")) return true;
-  return /\.(heic|heif|jpe?g|png|webp|gif|bmp|avif)$/i.test(file.name || "");
-}
-
-/** Imagens vão comprimidas no browser; Blob só em último caso no prepareSubmit. */
-function imageNeedsCloudOffload(_file) {
-  return false;
-}
-
-function formDataNeedsCloudOffload(fd) {
-  if (!fd?.entries) return false;
-  for (const [, v] of fd.entries()) {
-    if (!(v instanceof File)) continue;
-    if (isVideoFileLike(v) && v.size > VIDEO_DIRECT_MAX) return true;
-    if (imageNeedsCloudOffload(v)) return true;
-  }
-  return false;
-}
-
-export async function isBlobUploadEnabled(opts = {}) {
-  if (VERCEL_BLOB_DISABLED) {
-    blobUploadEnabledCache = false;
-    return false;
-  }
-  if (!opts.refresh && blobUploadEnabledCache !== null) return blobUploadEnabledCache;
-  if (typeof window === "undefined" || typeof fetch === "undefined") {
-    return false;
-  }
-  try {
-    const r = await fetch(joinApiPath("/blob/status"), { method: "GET", credentials: "same-origin" });
-    if (!r.ok) return false;
-    const j = await r.json();
-    blobUploadEnabledCache = Boolean(j.blob);
-    return blobUploadEnabledCache;
-  } catch {
-    return false;
-  }
-}
-
-function withTimeout(promise, ms, label = "Operação") {
-  return Promise.race([
-    promise,
-    new Promise((_, reject) => {
-      setTimeout(() => reject(new Error(`${label} demorou demasiado (${Math.round(ms / 1000)}s).`)), ms);
-    }),
-  ]);
-}
-
-const BLOB_OFFLOAD_KEYS = new Set(["photo", "image", "mask", "garment", "video", "reference_image"]);
-/** Acima disto o vídeo nunca vai no body do serverless — só `video_url` após Blob/S3. */
-const VIDEO_DIRECT_MAX = VIDEO_VERCEL_SAFE_BYTES;
-
-async function uploadFileToVercelBlob(key, fileLike, perFileMs, onProgress) {
-  const { put } = await import("@vercel/blob/client");
-  const isVideo = key === "video";
-  let data;
-  try {
-    ({ data } = await api.post(
-      "/blob/prepare",
-      {
-        filename: fileLike.name || `${key}.${isVideo ? "mp4" : "jpg"}`,
-        kind: isVideo ? "video" : undefined,
-      },
-      { timeout: isVideo ? 90_000 : 45_000 },
-    ));
-  } catch (err) {
-    invalidateBlobUploadCache();
-    const detail = err?.response?.data?.detail;
-    if (typeof detail === "string" && detail.trim()) {
-      throw new Error(detail.trim());
-    }
-    throw err;
-  }
-  const { clientToken, pathname } = data || {};
-  if (!clientToken || !pathname) {
-    invalidateBlobUploadCache();
-    throw new Error("Armazenamento em nuvem indisponível. Tenta um ficheiro mais pequeno ou mais tarde.");
-  }
-  const label = isVideo ? "Upload do vídeo (nuvem)" : "Upload em nuvem";
-  try {
-    return await withTimeout(
-      put(pathname, fileLike, {
-        access: "public",
-        token: clientToken,
-        contentType: fileLike.type || (isVideo ? "video/mp4" : "image/jpeg"),
-        multipart: fileLike.size > (isVideo ? 8_000_000 : 4_500_000),
-        onUploadProgress: onProgress
-          ? (ev) => {
-            const pct = Number(ev?.percentage);
-            if (Number.isFinite(pct)) onProgress(Math.round(pct));
-            else if (ev?.loaded && ev?.total) {
-              onProgress(Math.round((ev.loaded / ev.total) * 100));
-            }
-          }
-          : undefined,
-      }),
-      perFileMs,
-      label,
-    );
-  } catch (err) {
-    const msg = String(err?.message || err);
-    if (!isVideo && /fetch|network|failed|abort/i.test(msg)) {
-      try {
-        const url = await uploadImageViaServerProxy(fileLike, { timeoutMs: perFileMs });
-        return { url };
-      } catch (proxyErr) {
-        throw proxyErr;
-      }
-    }
-    if (/fetch|network|failed|abort/i.test(msg)) {
-      throw new Error(
-        isBrowserOnlineFlag()
-          ? "Falhou o envio para a nuvem. Recarrega (Ctrl+F5) ou usa um ficheiro mais pequeno."
-          : "Sem ligação à rede. Verifica Wi‑Fi ou dados móveis.",
-      );
-    }
-    throw err;
-  }
-}
-
-function uploadImageViaServerProxy(file, opts = {}) {
-  const timeoutMs = opts.timeoutMs ?? 120_000;
-  return new Promise((resolve, reject) => {
-    const fd = new FormData();
-    fd.append("photo", file);
-    const xhr = new XMLHttpRequest();
-    xhr.open("POST", joinApiPath("/upload/image-blob"));
-    xhr.timeout = timeoutMs;
-    const token = typeof localStorage !== "undefined" ? localStorage.getItem("rp_token") : null;
-    if (token) xhr.setRequestHeader("Authorization", `Bearer ${token}`);
-    xhr.onload = () => {
-      let data = {};
-      try {
-        data = xhr.responseText ? JSON.parse(xhr.responseText) : {};
-      } catch {
-        data = { detail: xhr.responseText?.slice(0, 200) || "Resposta inválida." };
-      }
-      if (xhr.status >= 200 && xhr.status < 300 && data.url) {
-        resolve(String(data.url));
-        return;
-      }
-      const err = new Error(typeof data.detail === "string" ? data.detail : "Upload da imagem falhou.");
-      err.response = { status: xhr.status, data };
-      reject(err);
-    };
-    xhr.onerror = () => {
-      const err = new Error(
-        isBrowserOnlineFlag()
-          ? "Falhou o envio da imagem. Tenta outra vez ou recarrega (Ctrl+F5)."
-          : "Sem ligação à rede. Verifica Wi‑Fi ou dados móveis.",
-      );
-      err.code = "ERR_NETWORK";
-      reject(err);
-    };
-    xhr.ontimeout = () => {
-      const err = new Error("Timeout ao enviar a imagem.");
-      err.code = "ECONNABORTED";
-      reject(err);
-    };
-    xhr.send(fd);
-  });
-}
-
-/**
- * Upload image to Blob storage (for large images that exceed Vercel body limit).
- * Tries server-proxy upload route.
- */
-export async function uploadImageToBlob(file, opts = {}) {
-  if (!file) throw new Error("Imagem em falta.");
-  return await uploadImageViaServerProxy(file, opts);
-}
-
-/** Vercel Blob e/ou S3 — substitui ficheiros por `*_url` (pedido final fica leve). */
-async function offloadFormDataMediaToCloud(formData, opts = {}) {
-  const perFileMs = opts.timeoutMs ?? pickBlobOffloadTimeoutMs(formDataTotalBlobBytes(formData), false);
-  const blobEnabled = await isBlobUploadEnabled();
-  const {
-    uploadVideoViaS3,
-    uploadImageViaS3,
-    isS3VideoUploadAvailable,
-  } = await import("./s3VideoUpload");
-  const s3Enabled = await isS3VideoUploadAvailable();
-  const out = new FormData();
-
-  for (const [key, val] of formData.entries()) {
-    const isBlobLike = val instanceof File || (typeof Blob !== "undefined" && val instanceof Blob);
-    if (!isBlobLike || !BLOB_OFFLOAD_KEYS.has(key)) {
-      out.append(key, val);
-      // eslint-disable-next-line no-continue
-      continue;
-    }
-
-    const fileLike = val instanceof File
-      ? val
-      : new File([val], `${key}.bin`, { type: val.type || "application/octet-stream" });
-    const isVideo = key === "video";
-    const isImage = !isVideo && isImageFileLike(fileLike);
-    const isLargeVideo = isVideo && fileLike.size > VIDEO_DIRECT_MAX;
-    const cloudImage = isImage && imageNeedsCloudOffload(fileLike);
-
-    if (!isVideo && isImage && !cloudImage) {
-      const { prepareImageForUpload } = await import("./prepareImageForUpload");
-      // eslint-disable-next-line no-await-in-loop
-      const prepared = await prepareImageForUpload(fileLike, {
-        maxBytes: DIRECT_UPLOAD_MAX,
-        maxSize: 2048,
-      });
-      out.append(key, prepared);
-      // eslint-disable-next-line no-continue
-      continue;
-    }
-
-    if (isImage && s3Enabled && fileLike.size > DIRECT_UPLOAD_MAX) {
-      // eslint-disable-next-line no-await-in-loop
-      const url = await withTimeout(
-        uploadImageViaS3(fileLike, { onProgress: opts.onImageProgress }),
-        perFileMs,
-        "Upload da foto (S3)",
-      );
-      out.append(`${key}_url`, url);
-      // eslint-disable-next-line no-continue
-      continue;
-    }
-
-    if (isLargeVideo && s3Enabled) {
-      // eslint-disable-next-line no-await-in-loop
-      const url = await withTimeout(
-        uploadVideoViaS3(fileLike, { onProgress: opts.onVideoProgress }),
-        perFileMs,
-        "Upload do vídeo (S3)",
-      );
-      out.append(`${key}_url`, url);
-      // eslint-disable-next-line no-continue
-      continue;
-    }
-
-    if (blobEnabled && (isVideo ? isLargeVideo : cloudImage)) {
-      const progressCb = isVideo ? opts.onVideoProgress : opts.onImageProgress;
-      // eslint-disable-next-line no-await-in-loop
-      const result = await uploadFileToVercelBlob(key, fileLike, perFileMs, progressCb);
-      out.append(`${key}_url`, result.url);
-      // eslint-disable-next-line no-continue
-      continue;
-    }
-
-    if (
-      !isVideo
-      && fileLike.size > DIRECT_UPLOAD_MAX
-      && String(fileLike.type || "").startsWith("image/")
-    ) {
-      const { compressImageNeverFail } = await import("./canvasCompress");
-      // eslint-disable-next-line no-await-in-loop
-      const shrunk = await compressImageNeverFail(fileLike, {
-        maxBytes: DIRECT_UPLOAD_MAX,
-        maxSize: 2048,
-      });
-      out.append(key, shrunk);
-      // eslint-disable-next-line no-await-in-loop
-      continue;
-    }
-
-    if (isLargeVideo) {
-      throw new Error(
-        VERCEL_BLOB_DISABLED
-          ? "Vídeo demasiado grande. Usa um clip até ~3 MB ou configura AWS S3."
-          : "Vídeo grande sem armazenamento em nuvem. Configura AWS (S3) ou um clip mais curto.",
-      );
-    }
-
-    out.append(key, val);
-  }
-  return out;
-}
-
-function uploadVideoViaServerProxy(file, opts = {}) {
-  const timeoutMs = opts.timeoutMs ?? 600_000;
-  return new Promise((resolve, reject) => {
-    const fd = new FormData();
-    fd.append("video", file);
-    const xhr = new XMLHttpRequest();
-    xhr.open("POST", joinApiPath("/upload/video-blob"));
-    xhr.timeout = timeoutMs;
-    const token = typeof localStorage !== "undefined" ? localStorage.getItem("rp_token") : null;
-    if (token) xhr.setRequestHeader("Authorization", `Bearer ${token}`);
-    xhr.upload.onprogress = (e) => {
-      if (e.lengthComputable && opts.onProgress) {
-        opts.onProgress(Math.round((e.loaded / e.total) * 100));
-      }
-    };
-    xhr.onload = () => {
-      let data = {};
-      try {
-        data = xhr.responseText ? JSON.parse(xhr.responseText) : {};
-      } catch {
-        data = { detail: xhr.responseText?.slice(0, 200) || "Resposta inválida." };
-      }
-      if (xhr.status >= 200 && xhr.status < 300 && data.url) {
-        resolve(String(data.url));
-        return;
-      }
-      const err = new Error(typeof data.detail === "string" ? data.detail : "Upload do vídeo falhou.");
-      err.response = { status: xhr.status, data };
-      reject(err);
-    };
-    xhr.onerror = () => {
-      const err = new Error(
-        isBrowserOnlineFlag()
-          ? "Falhou o envio do vídeo ao servidor. Tenta outra vez ou recarrega (Ctrl+F5)."
-          : "Sem ligação à rede. Verifica Wi‑Fi ou dados móveis.",
-      );
-      err.code = "ERR_NETWORK";
-      reject(err);
-    };
-    xhr.ontimeout = () => {
-      const err = new Error("Timeout ao enviar o vídeo ao servidor.");
-      err.code = "ECONNABORTED";
-      reject(err);
-    };
-    xhr.send(fd);
-  });
-}
-
-async function uploadVideoToCloudDirect(file, opts = {}) {
-  invalidateBlobUploadCache();
-  const blobOn = await isBlobUploadEnabled({ refresh: true });
-  const { isS3VideoUploadAvailable } = await import("./s3VideoUpload");
-  const s3On = await isS3VideoUploadAvailable();
-  if (!blobOn && !s3On) {
-    throw new Error(
-      "Vídeos grandes precisam de armazenamento em nuvem. Recarrega a página (Ctrl+F5).",
-    );
-  }
-  const fd = new FormData();
-  fd.append("video", file);
-  const out = await offloadFormDataMediaToCloud(fd, {
-    timeoutMs: opts.timeoutMs ?? 600_000,
-    onVideoProgress: opts.onProgress,
-  });
-  if (typeof out.get === "function") {
-    const url = out.get("video_url");
-    if (url) return String(url);
-  }
-  for (const [k, v] of out.entries()) {
-    if (k === "video_url" && typeof v === "string") return v;
-  }
-  throw new Error("Upload do vídeo terminou sem URL. Tenta MP4 mais curto.");
-}
-
-/** @deprecated Blob desligado — usar prepareStudioFormDataForSubmit + POST directo. */
-export async function uploadImageToCloud(file) {
-  if (!file) throw new Error("Imagem em falta.");
-  throw new Error(
-    "Envio por nuvem (Blob) está desligado. A foto tem de caber comprimida (~3 MB).",
-  );
-}
-
-/** Vídeo grande: só S3 (se configurado). Blob desligado. */
-export async function uploadVideoToCloud(file, opts = {}) {
-  if (!file) throw new Error("Vídeo em falta.");
-  if (VERCEL_BLOB_DISABLED) {
-    const { isS3VideoUploadAvailable, uploadVideoViaS3 } = await import("./s3VideoUpload");
-    if (await isS3VideoUploadAvailable()) {
-      return uploadVideoViaS3(file, { onProgress: opts.onProgress });
-    }
-    if (file.size <= VIDEO_VERCEL_SAFE_BYTES) {
-      throw new Error("Vídeo deve ser enviado no formulário directo (sem nuvem).");
-    }
-    throw new Error(
-      "Vídeo demasiado grande. Usa um clip até ~3 MB ou configura AWS S3 no servidor.",
-    );
-  }
-  try {
-    return await uploadVideoToCloudDirect(file, opts);
-  } catch (directErr) {
-    const msg = String(directErr?.message || directErr);
-    const tryServer = /fetch|network|failed|nuvem|blob|interrompida|abort|timeout|ligação/i.test(msg)
-      || directErr?.code === "ERR_NETWORK";
-    if (!tryServer) throw directErr;
-    try {
-      return await uploadVideoViaServerProxy(file, opts);
-    } catch (proxyErr) {
-      const proxyMsg = formatHttpError(proxyErr, "Upload falhou.");
-      throw new Error(`${proxyMsg} (também falhou envio directo à nuvem.)`);
-    }
-  }
-}
-
-const IMAGE_OFFLOAD_KEYS = new Set(["photo", "image", "mask", "garment", "reference_image"]);
-const DIRECT_UPLOAD_MAX = 3_500_000;
-
-/** Prepara imagens para POST directo (JPEG, <4 MB) — HEIC e ficheiros grandes incluídos. */
-async function shrinkFormDataForDirectUpload(formData) {
-  const { prepareImageForUpload } = await import("./prepareImageForUpload");
-  const out = new FormData();
-  for (const [key, val] of formData.entries()) {
-    const isFile = val instanceof File || (typeof Blob !== "undefined" && val instanceof Blob);
-    const isImageField = isFile && IMAGE_OFFLOAD_KEYS.has(key)
-      && (String(val.type || "").startsWith("image/") || /\.(heic|heif|jpe?g|png|webp)$/i.test(val.name || ""));
-    if (isImageField) {
-      const fileLike = val instanceof File
-        ? val
-        : new File([val], `${key}.jpg`, { type: val.type || "image/jpeg" });
-      const needsPrep = fileLike.size > DIRECT_UPLOAD_MAX * 0.92
-        || !/^image\/jpe?g$/i.test(fileLike.type || "")
-        || /\.(heic|heif)$/i.test(fileLike.name || "");
-      if (needsPrep) {
-        // eslint-disable-next-line no-await-in-loop
-        const prepared = await prepareImageForUpload(fileLike, {
-          maxBytes: DIRECT_UPLOAD_MAX,
-          maxSize: 2048,
-        });
-        out.append(key, prepared);
-      } else {
-        out.append(key, val);
-      }
-    } else {
-      out.append(key, val);
-    }
-  }
-  return out;
+/** Desligado — vídeo só se couber no POST (~3 MB). */
+export async function uploadVideoToCloud() {
+  throw new Error("Upload de vídeo grande desligado. Usa um clip mais curto (~3 MB).");
 }
 
 /**
@@ -578,9 +139,6 @@ export async function uploadPost(url, formData, config = {}) {
   if (typeof window !== "undefined") {
     const { prepareStudioFormDataForSubmit } = await import("./studioUpload/prepareSubmit");
     baseFd = await prepareStudioFormDataForSubmit(cloneFormData(formData), {
-      skipBlobOffload: config.skipBlobOffload,
-      onProgress: config.onVideoProgress,
-      timeoutMs: config.blobOffloadTimeoutMs,
       emergencyCompress,
     });
   }
@@ -615,7 +173,7 @@ export async function uploadPost(url, formData, config = {}) {
         );
         const err = new Error(
           payloadTooLarge
-            ? "O vídeo é demasiado grande para enviar num único pedido. Aguarda o upload para a nuvem ou usa um clip mais curto."
+            ? "Ficheiro demasiado grande. Usa uma foto mais pequena ou um vídeo mais curto."
             : (detailStr || xhr.statusText || "Pedido falhou."),
         );
         err.response = { status: payloadTooLarge ? 413 : xhr.status, data };
@@ -683,7 +241,7 @@ export async function uploadPost(url, formData, config = {}) {
         );
         const err = new Error(
           payloadTooLarge
-            ? "O vídeo é demasiado grande para enviar num único pedido. Aguarda o upload para a nuvem ou usa um clip mais curto."
+            ? "Ficheiro demasiado grande. Usa uma foto mais pequena ou um vídeo mais curto."
             : (detailStr || res.statusText || "Pedido falhou."),
         );
         err.response = { status: payloadTooLarge ? 413 : res.status, data };
@@ -704,9 +262,6 @@ export async function uploadPost(url, formData, config = {}) {
         emergencyCompress = true;
         const { prepareStudioFormDataForSubmit } = await import("./studioUpload/prepareSubmit");
         baseFd = await prepareStudioFormDataForSubmit(cloneFormData(formData), {
-          skipBlobOffload: config.skipBlobOffload,
-          onProgress: config.onVideoProgress,
-          timeoutMs: config.blobOffloadTimeoutMs,
           emergencyCompress: true,
         });
         // eslint-disable-next-line no-continue

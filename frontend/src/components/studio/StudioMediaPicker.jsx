@@ -4,8 +4,8 @@ import { CheckCircle2, FileImage, Loader2, Upload, X } from "lucide-react";
 import { useI18n } from "../../lib/i18n";
 import { CLIENT_BUILD_ID } from "../../lib/buildInfo";
 import { prepareImageForUpload } from "../../lib/prepareImageForUpload";
-import { MAX_IMAGE_DIRECT_BYTES } from "../../lib/uploadConstants";
 import { readFileAsDataURL } from "../../lib/previewDataUrl";
+import { MAX_IMAGE_DIRECT_BYTES } from "../../lib/uploadConstants";
 
 /**
  * Upload do estúdio — como antes do Blob para fotos:
@@ -142,8 +142,6 @@ export default function StudioMediaPicker({
       return;
     }
 
-    toast.dismiss("rp-upload-error");
-    toast.dismiss("rp-upload-warn");
     setPreparing(true);
     try {
       const ready = await prepareImageForUpload(file, {
@@ -151,23 +149,22 @@ export default function StudioMediaPicker({
         maxSize: 2048,
         force: true,
       });
-      onChange(ready);
       if (ready.size > 3_200_000) {
-        toast.warning(t("upload_heic_hint"), { id: "rp-upload-warn", duration: 8000 });
-      } else {
-        const mb = (ready.size / (1024 * 1024)).toFixed(1);
-        toast.success(t("upload_loaded_size", { size: `${mb} MB` }), { id: "rp-upload-ok", duration: 2500 });
+        toast.error(
+          t("upload_heic_hint") || "Não foi possível reduzir a foto. No iPhone: Ajustes → Câmara → Formatos → Mais compatível (JPEG).",
+          { duration: 12000 },
+        );
+        return;
       }
+      onChange(ready);
     } catch (err) {
-      toast.error(err?.message || t("img_err_invalid_type"), { id: "rp-upload-error", duration: 8000 });
+      toast.error(err?.message || t("img_err_invalid_type"));
     } finally {
       setPreparing(false);
     }
   }, [isVideo, onChange, t]);
 
   const clear = useCallback(() => {
-    toast.dismiss("rp-upload-error");
-    toast.dismiss("rp-upload-warn");
     setPreviewUrl(null);
     setPreviewBroken(false);
     onChange(null);
@@ -205,14 +202,6 @@ export default function StudioMediaPicker({
       data-rp-upload-build={CLIENT_BUILD_ID}
       data-testid={`${testId}-wrap`}
     >
-      <p
-        className="mb-1 text-center text-[10px] font-mono text-[#6b7280]"
-        data-testid={`${testId}-build-tag`}
-        aria-hidden
-      >
-        upload v
-        {CLIENT_BUILD_ID.replace("upload-", "")}
-      </p>
       <input
         ref={inputRef}
         id={inputId}

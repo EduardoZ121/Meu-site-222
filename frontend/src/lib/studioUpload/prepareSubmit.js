@@ -1,6 +1,6 @@
 /**
- * Envio ao /api — só POST directo (sem Vercel Blob).
- * Fotos: comprimir no browser. Vídeos: só se couberem no limite Vercel.
+ * Envio ao /api — só POST directo (sem Blob, sem AWS).
+ * Comprimir no browser → enviar no formulário.
  */
 
 import { prepareImageForUpload } from "../prepareImageForUpload";
@@ -12,14 +12,11 @@ const IMAGE_KEYS = new Set([
 
 const VERCEL_SAFE = 3_000_000;
 
-const ERR_IMAGE_TOO_LARGE =
-  "Foto ainda demasiado grande. Escolhe outra imagem ou exporta JPEG mais pequena no telemóvel.";
+const ERR_IMAGE =
+  "Foto demasiado grande. Escolhe outra ou, no iPhone: Ajustes → Câmara → Mais compatível (JPEG).";
 
-const ERR_IMAGE_NEED_S3 =
-  "Foto grande: configura AWS S3 no projeto remakepix (Vercel) ou usa uma imagem mais pequena.";
-
-const ERR_VIDEO_TOO_LARGE =
-  "Vídeo demasiado grande. Usa um clip mais curto (~3 MB) ou configura AWS S3 no projeto remakepix na Vercel.";
+const ERR_VIDEO =
+  "Vídeo demasiado grande para enviar (~3 MB máx.). Usa um clip mais curto.";
 
 function isVideoFile(file) {
   if (!file) return false;
@@ -34,7 +31,7 @@ function isImageField(key, file) {
   return /\.(heic|heif|jpe?g|png|webp|gif|bmp|avif)$/i.test(file.name || "");
 }
 
-function countImageFields(formData) {
+function countImages(formData) {
   let n = 0;
   for (const [key, val] of formData.entries()) {
     if (val instanceof File && isImageField(key, val)) n += 1;
@@ -42,38 +39,8 @@ function countImageFields(formData) {
   return n;
 }
 
-async function prepareImageForPost(file, perImageMax, emergency) {
-  let prepared = await prepareImageForUpload(file, {
-    maxBytes: perImageMax,
-    maxSize: emergency ? 1024 : 2048,
-    force: true,
-  });
-  if (emergency && prepared.size > perImageMax) {
-    prepared = await prepareImageForUpload(prepared, {
-      maxBytes: Math.floor(perImageMax * 0.7),
-      maxSize: 896,
-      force: true,
-    });
-  }
-  return prepared;
-}
-
-async function appendImage(out, key, prepared, options) {
-  if (prepared.size <= VERCEL_SAFE) {
-    out.append(key, prepared);
-    return;
-  }
-  const { isS3VideoUploadAvailable, uploadImageViaS3 } = await import("../s3VideoUpload");
-  if (await isS3VideoUploadAvailable()) {
-    const url = await uploadImageViaS3(prepared, { onProgress: options.onImageProgress });
-    out.append(`${key}_url`, url);
-    return;
-  }
-  throw new Error(ERR_IMAGE_NEED_S3);
-}
-
 export async function prepareStudioFormDataForSubmit(formData, options = {}) {
-  const imageCount = countImageFields(formData);
+  const imageCount = Math.max(1, countImages(formData));
   const perImageMax = imageCount > 1
     ? Math.min(MAX_IMAGE_DIRECT_BYTES, Math.floor(VERCEL_SAFE / imageCount))
     : MAX_IMAGE_DIRECT_BYTES;
@@ -88,29 +55,29 @@ export async function prepareStudioFormDataForSubmit(formData, options = {}) {
 
     if (key === "video" || (isVideoFile(val) && key !== "mask")) {
       if (val.size > VIDEO_VERCEL_SAFE_BYTES) {
-        const { isS3VideoUploadAvailable, uploadVideoViaS3 } = await import("../s3VideoUpload");
-        if (await isS3VideoUploadAvailable()) {
-          // eslint-disable-next-line no-await-in-loop
-          const url = await uploadVideoViaS3(val, { onProgress: options.onVideoProgress });
-          out.append(key === "video" ? "video_url" : `${key}_url`, url);
-        } else {
-          throw new Error(ERR_VIDEO_TOO_LARGE);
-        }
-      } else {
-        out.append(key, val);
+        throw new Error(ERR_VIDEO);
       }
+      out.append(key, val);
       continue;
     }
 
     if (isImageField(key, val)) {
-      // eslint-disable-next-line no-await-in-loop
-      const prepared = await prepareImageForPost(
-        val,
-        perImageMax,
-        Boolean(options.emergencyCompress),
-      );
-      // eslint-disable-next-line no-await-in-loop
-      await appendImage(out, key, prepared, options);
+      let prepared = await prepareImageForUpload(val, {
+        maxBytes: perImageMax,
+        maxSize: options.emergencyCompress ? 1024 : 2048,
+        force: true,
+      });
+      if (options.emergencyCompress && prepared.size > perImageMax) {
+        prepared = await prepareImageForUpload(prepared, {
+          maxBytes: Math.floor(perImageMax * 0.75),
+          maxSize: 896,
+          force: true,
+        });
+      }
+      if (prepared.size > VERCEL_SAFE) {
+        throw new Error(ERR_IMAGE);
+      }
+      out.append(key, prepared);
       continue;
     }
 

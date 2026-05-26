@@ -1,21 +1,16 @@
-import { VERCEL_BLOB_DISABLED } from "./blobDisabled";
-import { invalidateBlobUploadCache, isBlobUploadEnabled } from "./api";
-
-const BLOB_OFF_MSG = "Armazenamento Vercel Blob está desligado neste projeto.";
-
-/** @deprecated Blob desligado */
-export async function persistImageToBlobStore() {
-  throw new Error(BLOB_OFF_MSG);
+/** Persistência em Blob desligada — galeria usa URLs do Replicate/Mongo. */
+export function invalidateBlobUploadCache() {
+  /* no-op */
 }
 
-/** @deprecated Blob desligado */
+export async function persistImageToBlobStore() {
+  throw new Error("Armazenamento em nuvem desligado.");
+}
+
 export async function persistVideoToBlobStore() {
-  throw new Error(BLOB_OFF_MSG);
+  throw new Error("Armazenamento em nuvem desligado.");
 }
 
 export async function isBlobPersistAvailable() {
-  if (VERCEL_BLOB_DISABLED) return false;
-  return isBlobUploadEnabled();
+  return false;
 }
-
-export { invalidateBlobUploadCache };

@@ -1832,65 +1832,23 @@ async function handlePath(path, req, res) {
     }
 
     if (req.method === "GET" && path === "upload/s3/status") {
-      const cfg = getS3Config();
-      const arn = String(process.env.AWS_RESOURCE_ARN || "");
-      let resourceKind = "none";
-      if (arn.includes(":s3:")) resourceKind = "s3";
-      else if (arn.includes(":rds:")) resourceKind = "rds";
-      else if (arn) resourceKind = "other";
-      return json(res, 200, {
-        s3: isS3Configured(),
-        bucket: cfg?.bucket || null,
-        region: cfg?.region || null,
-        auth: cfg?.authMode || null,
-        cloudFront: cfg?.cloudFront || null,
-        resource_kind: resourceKind,
-        hint: !cfg?.bucket && resourceKind === "rds"
-          ? "A integração Vercel ligou Postgres (RDS), não S3. Adiciona AWS_S3_BUCKET com o nome do teu bucket."
-          : !cfg?.bucket
-            ? "Adiciona AWS_S3_BUCKET=nome-do-bucket na Vercel (projeto remakepix) e faz Redeploy."
-            : null,
+      return json(res, 410, {
+        s3: false,
+        disabled: true,
+        detail: "Upload AWS S3 desligado. Usa fotos comprimidas e vídeos até ~3 MB.",
       });
     }
 
     if (req.method === "POST" && path === "upload/s3/presign-video") {
-      const { user, isLocal } = resolveSessionUser(req);
-      if (!user?.id || isLocal) {
-        return json(res, 401, { detail: "Inicia sessão para enviar vídeos." });
-      }
-      const body = await readJsonRequestBody(req);
-      try {
-        const out = await createVideoPresignedUpload({
-          filename: body.filename,
-          contentType: body.contentType,
-          contentLength: body.contentLength,
-          userId: user.id,
-        });
-        await touchUser(user.id, req, { action: "s3_presign_video" });
-        return json(res, 200, out);
-      } catch (err) {
-        return json(res, err.status || 500, { detail: err.message || "Falha ao preparar upload." });
-      }
+      return json(res, 410, {
+        detail: "Upload AWS S3 desligado. Usa um vídeo mais curto (~3 MB).",
+      });
     }
 
     if (req.method === "POST" && path === "upload/s3/presign-image") {
-      const { user, isLocal } = resolveSessionUser(req);
-      if (!user?.id || isLocal) {
-        return json(res, 401, { detail: "Inicia sessão para enviar fotos." });
-      }
-      const body = await readJsonRequestBody(req);
-      try {
-        const out = await createImagePresignedUpload({
-          filename: body.filename,
-          contentType: body.contentType,
-          contentLength: body.contentLength,
-          userId: user.id,
-        });
-        await touchUser(user.id, req, { action: "s3_presign_image" });
-        return json(res, 200, out);
-      } catch (err) {
-        return json(res, err.status || 500, { detail: err.message || "Falha ao preparar upload." });
-      }
+      return json(res, 410, {
+        detail: "Upload AWS S3 desligado. Comprime a foto no browser.",
+      });
     }
 
     if (req.method === "GET" && path === "carousel/panorama-image") {

@@ -30,12 +30,11 @@ module.exports = async function handler(req, res) {
       blob,
       blob_disabled: blobDisabled,
       s3,
-      s3_bucket: bucketResolved,
-      s3_env: {
-        AWS_S3_BUCKET: Boolean(String(process.env.AWS_S3_BUCKET || "").trim()),
-        AWS_RESOURCE_ARN: Boolean(String(process.env.AWS_RESOURCE_ARN || "").trim()),
-        AWS_ROLE_ARN: Boolean(String(process.env.AWS_ROLE_ARN || "").trim()),
-        AWS_ACCESS_KEY_ID: Boolean(String(process.env.AWS_ACCESS_KEY_ID || "").trim()),
+      s3_env_present: {
+        bucket: Boolean(String(process.env.AWS_S3_BUCKET || "").trim()),
+        resource_arn: Boolean(String(process.env.AWS_RESOURCE_ARN || "").trim()),
+        role_arn: Boolean(String(process.env.AWS_ROLE_ARN || "").trim()),
+        access_key: Boolean(String(process.env.AWS_ACCESS_KEY_ID || "").trim()),
       },
     },
     ready: {

@@ -29,10 +29,10 @@
   },
   {
     "content": "Phase 3: End-to-end testing using testing agent",
-    "status": "in_progress"
+    "status": "completed"
   },
   {
     "content": "Phase 4: Save to GitHub",
-    "status": "pending"
+    "status": "completed"
   }
 ]

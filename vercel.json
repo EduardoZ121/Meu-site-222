@@ -17,7 +17,7 @@
     }
   },
   "installCommand": "ln -sfn frontend/api api; yarn install --frozen-lockfile || yarn install; cd frontend && yarn install --frozen-lockfile || yarn install",
-  "buildCommand": "cd frontend && REACT_APP_BUILD_ID=s3-only-v1 REACT_APP_DISABLE_VERCEL_BLOB=1 yarn build",
+  "buildCommand": "cd frontend && REACT_APP_BUILD_ID=s3-vercel-aws-v1 REACT_APP_DISABLE_VERCEL_BLOB=1 yarn build",
   "headers": [
     {
       "source": "/index.html",

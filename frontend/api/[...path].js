@@ -1835,6 +1835,9 @@ async function handlePath(path, req, res) {
       const cfg = getS3Config();
       return json(res, 200, {
         s3: isS3Configured(),
+        bucket: cfg?.bucket || null,
+        region: cfg?.region || null,
+        auth: cfg?.authMode || null,
         cloudFront: cfg?.cloudFront || null,
       });
     }

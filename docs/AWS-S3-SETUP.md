@@ -1,6 +1,21 @@
 # AWS S3 + CloudFront (substitui Vercel Blob)
 
-## Variáveis na Vercel (projeto **remakepix**)
+## Opção A — Integração Vercel ↔ AWS (o que fizeste)
+
+Na Vercel → projeto **remakepix** → Storage / AWS, a Vercel cria:
+
+- `AWS_ROLE_ARN`
+- `AWS_REGION`
+- `AWS_RESOURCE_ARN` (ARN do bucket, ex. `arn:aws:s3:::meu-bucket`)
+
+O código **lê o nome do bucket** desse ARN. Também precisas de:
+
+- `DISABLE_VERCEL_BLOB=1`
+- **Redeploy** em Production depois de ligar a AWS
+
+Opcional: `AWS_CLOUDFRONT_DOMAIN=dxxxx.cloudfront.net`
+
+## Opção B — Chaves IAM manuais
 
 ```
 AWS_S3_BUCKET=remakepix-media

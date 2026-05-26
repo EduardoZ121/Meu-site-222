@@ -39,3 +39,8 @@ _archive-meu-telegram-bot/
 
 # Vercel local
 .vercel/
+*.env
+credentials.json
+*.pem
+*.key
+.credentials

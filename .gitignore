@@ -25,8 +25,9 @@ frontend/.env.*
 /tailwind.config.js
 /components.json
 /frontend-completo.zip
+# NOTE: /api is intentionally NOT ignored — it's a symlink to frontend/api
+# that Vercel needs at the repo root to discover serverless functions.
 /api.symlink.txt
-/api
 _archive-meu-telegram-bot/
 
 # Large marketing renders (optional local only)

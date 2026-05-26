@@ -1,7 +1,12 @@
 /** GET /api/health — confirma serverless + estado das integrações (sem expor segredos). */
 const { storageEnabled } = require("./lib/mongo.cjs");
 const { isBlobConfigured, isBlobDisabled } = require("./lib/blobEnv.cjs");
-const { isS3Configured } = require("./lib/s3Upload.cjs");
+let isS3Configured = () => false;
+try {
+  ({ isS3Configured } = require("./lib/s3Upload.cjs"));
+} catch {
+  isS3Configured = () => false;
+}
 
 module.exports = async function handler(req, res) {
   res.setHeader("Access-Control-Allow-Origin", "*");
@@ -15,8 +20,6 @@ module.exports = async function handler(req, res) {
   const blob = isBlobConfigured();
   const s3 = isS3Configured();
   const mongo = storageEnabled();
-  const bucketResolved = resolveBucketName();
-
   return res.status(200).json({
     ok: true,
     api: "remakepix",

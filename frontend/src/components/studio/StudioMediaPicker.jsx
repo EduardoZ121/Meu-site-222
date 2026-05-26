@@ -7,12 +7,18 @@ import { useI18n } from "../../lib/i18n";
 import { CLIENT_BUILD_ID } from "../../lib/buildInfo";
 import { setPreviewFromFile, revokePreviewUrl } from "../../lib/studioUpload/mediaPreview";
 import {
+  compressImage,
   looksLikeImageFile,
   looksLikeVideoFile,
   IMAGE_ACCEPT,
   VIDEO_ACCEPT,
 } from "../../lib/imageCompress";
-import { validateImageUpload, validateVideoUpload } from "../../lib/videoMedia";
+import {
+  looksLikeImageUpload,
+  looksLikeVideoUpload,
+  validateVideoUpload,
+} from "../../lib/videoMedia";
+import { MAX_IMAGE_DIRECT_BYTES, MAX_IMAGE_PICKER_BYTES } from "../../lib/uploadConstants";
 
 const LAYOUT = {
   portrait: "aspect-[4/5] min-h-[200px]",
@@ -66,7 +72,8 @@ export default function StudioMediaPicker({
     syncPreview(value || null);
   }, [value, syncPreview]);
 
-  const ingest = useCallback((file) => {
+  const ingest = useCallback(async (file) => {
+    if (!file) return;
     if (isVideo) {
       const check = validateVideoUpload(file, t);
       if (!check.ok) {
@@ -76,16 +83,38 @@ export default function StudioMediaPicker({
       onChange(file);
       return;
     }
-    const check = validateImageUpload(file, t);
-    if (!check.ok) {
-      toast.error(check.message);
+
+    // --- Image flow: validate type first, then AUTO-COMPRESS before size check ---
+    if (looksLikeVideoUpload(file)) {
+      toast.error(t("vid_err_use_video_zone"));
       return;
     }
-    if (!looksLikeImageFile(file)) {
+    if (!looksLikeImageFile(file) && !looksLikeImageUpload(file)) {
       toast.error(t("img_err_invalid_type"));
       return;
     }
-    onChange(file);
+
+    // Phone cameras often deliver 8–20 MB photos. Auto-shrink so the user
+    // never sees a "imagem muito grande" toast just for taking a high-res
+    // picture. compressImage shows its own loading/success toast.
+    let workFile = file;
+    if (file.size > MAX_IMAGE_DIRECT_BYTES) {
+      try {
+        workFile = await compressImage(file, {
+          maxBytes: MAX_IMAGE_DIRECT_BYTES,
+          maxBytesIOS: MAX_IMAGE_DIRECT_BYTES,
+        });
+      } catch {
+        // compression failure → fall through with original; size check below decides.
+      }
+    }
+
+    if (workFile.size > MAX_IMAGE_PICKER_BYTES) {
+      toast.error(t("img_err_too_large"));
+      return;
+    }
+
+    onChange(workFile);
   }, [isVideo, onChange, t]);
 
   const clear = useCallback(() => {

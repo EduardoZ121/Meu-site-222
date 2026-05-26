@@ -215,18 +215,19 @@ export default function StudioMediaPicker({
       return;
     }
 
-    // Strict gate: if neither the browser nor createImageBitmap can decode
-    // this file, the backend also won't process it reliably — the AI ends up
-    // generating from prompt alone and the user thinks the upload failed
-    // silently. Reject here with a clear message including the filename.
-    const decodable = await canDecodeAsImage(workFile);
-    if (!decodable) {
-      toast.error(
-        `Não foi possível ler "${file.name || "esta foto"}" neste browser. Tenta outra foto (JPEG ou PNG da câmara/galeria).`,
-        { duration: 9000 },
-      );
-      return;
-    }
+    // Try to decode locally to know whether we can show a real preview. If
+    // the browser can't decode, we still ACCEPT the file (backend often
+    // handles formats the browser doesn't) and surface a placeholder UI +
+    // one-time toast warning the user. This avoids both the "broken
+    // thumbnail" dead-end AND the over-strict rejection of valid uploads.
+    canDecodeAsImage(workFile).then((ok) => {
+      if (!ok) {
+        toast.warning(
+          "Pré-visualização indisponível neste browser, mas o ficheiro foi aceite. Tenta gerar — se falhar, usa outra foto.",
+          { duration: 7000 },
+        );
+      }
+    }).catch(() => { /* ignore */ });
 
     onChange(workFile);
   }, [isVideo, onChange, t]);

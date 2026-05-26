@@ -20,10 +20,33 @@ export function useI18n() {
   const t = (key, vars) => {
     const raw = i18nT(key, { ...vars, defaultValue: "" });
     if (raw && raw !== key) return format(raw, vars);
+    // Try flat key in English fallback
     const enFallback = i18n.getResource("en", "translation", key);
-    if (enFallback) return format(enFallback, vars);
-    const nestedVideo = i18n.getResource(lang, "translation", `video.${key.replace(/^vid_/, "")}`);
-    if (nestedVideo) return format(nestedVideo, vars);
+    if (enFallback && typeof enFallback === "string") return format(enFallback, vars);
+    // Try nested paths for known prefixes
+    const prefixMap = {
+      vid_: "video.",
+      car_: "carousel.",
+      art_: "studio.art_",
+      gen_: "studio.gen_",
+      pro_: "studio.pro_",
+      post_: "posters.",
+      set_: "settings.",
+      gal_: "gallery.",
+      wiz_: "wizard.wiz_",
+      common_: "common.",
+      upload_: "studio.upload_",
+      tool_: "tools_grid.",
+      manga_: "studio.manga_",
+    };
+    for (const [prefix, nested] of Object.entries(prefixMap)) {
+      if (key.startsWith(prefix)) {
+        const nestedKey = nested + key.slice(prefix.length);
+        const nestedVal = i18n.getResource(lang, "translation", nestedKey)
+          || i18n.getResource("en", "translation", nestedKey);
+        if (nestedVal && typeof nestedVal === "string") return format(nestedVal, vars);
+      }
+    }
     return format(humanFallbackLabel(key, lang), vars);
   };
 

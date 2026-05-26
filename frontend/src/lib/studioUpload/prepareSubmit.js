@@ -30,6 +30,24 @@ function isImageField(key, file) {
 }
 
 /**
+ * Vercel serverless has a ~4.5 MB request body limit. If the image is too
+ * large after canvas compression (e.g. Samsung HEIF the browser can't decode),
+ * upload it to Blob and send the URL instead.
+ */
+const VERCEL_BODY_SAFE = 3_800_000;
+
+async function offloadImageToBlob(file) {
+  try {
+    const { uploadImageToBlob } = await import("../api");
+    if (typeof uploadImageToBlob !== "function") throw new Error("no uploadImageToBlob");
+    const url = await uploadImageToBlob(file);
+    return url;
+  } catch {
+    return null;
+  }
+}
+
+/**
  * Normaliza todos os ficheiros para envio fiável ao /api (sem Blob no browser para fotos normais).
  */
 export async function prepareStudioFormDataForSubmit(formData, options = {}) {
@@ -63,6 +81,21 @@ export async function prepareStudioFormDataForSubmit(formData, options = {}) {
         maxSize: 2048,
         force: true,
       });
+
+      // If the prepared image is still too large for Vercel's body limit
+      // (e.g. Samsung HEIF that the browser can't decode), upload to Blob
+      // and send the URL instead.
+      if (!skipBlob && prepared.size > VERCEL_BODY_SAFE) {
+        // eslint-disable-next-line no-await-in-loop
+        const blobUrl = await offloadImageToBlob(prepared);
+        if (blobUrl) {
+          out.append(key === "photo" ? "photo_url" : `${key}_url`, blobUrl);
+          // eslint-disable-next-line no-continue
+          continue;
+        }
+        // Blob upload failed — send the file anyway, server might handle it
+      }
+
       out.append(key, prepared);
       // eslint-disable-next-line no-continue
       continue;

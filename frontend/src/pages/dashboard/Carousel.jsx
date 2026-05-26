@@ -862,7 +862,7 @@ function CarouselViewer({ urls, aspect, panoramaUrl }) {
           data-testid="carousel-download-all"
         >
           <Download className="w-4 h-4" />
-          Baixar todas ({urls.length})
+          {t("car_download_all", { n: urls.length })}
         </button>
         <button
           type="button"
@@ -871,7 +871,7 @@ function CarouselViewer({ urls, aspect, panoramaUrl }) {
           data-testid="carousel-download-current"
         >
           <ImageIcon className="w-3.5 h-3.5" />
-          Esta
+          {t("car_download_this")}
         </button>
       </div>
     </div>

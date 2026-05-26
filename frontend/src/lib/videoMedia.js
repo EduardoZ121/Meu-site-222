@@ -29,7 +29,8 @@ export function looksLikeImageUpload(file) {
   const type = (file.type || "");
   if (type.startsWith("image/")) return true;
   if (type.startsWith("video/")) return false;
-  return /\.(jpe?g|png|webp)$/i.test(file.name || "");
+  // Also accept HEIC/HEIF by extension (Samsung saves HEIF as .jpg sometimes)
+  return /\.(jpe?g|png|webp|heic|heif)$/i.test(file.name || "");
 }
 
 export function validateVideoUpload(file, t) {

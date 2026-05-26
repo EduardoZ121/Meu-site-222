@@ -294,6 +294,15 @@ function uploadImageViaServerProxy(file, opts = {}) {
   });
 }
 
+/**
+ * Upload image to Blob storage (for large images that exceed Vercel body limit).
+ * Tries server-proxy upload route.
+ */
+export async function uploadImageToBlob(file, opts = {}) {
+  if (!file) throw new Error("Imagem em falta.");
+  return await uploadImageViaServerProxy(file, opts);
+}
+
 /** Vercel Blob e/ou S3 — substitui ficheiros por `*_url` (pedido final fica leve). */
 async function offloadFormDataMediaToCloud(formData, opts = {}) {
   const perFileMs = opts.timeoutMs ?? pickBlobOffloadTimeoutMs(formDataTotalBlobBytes(formData), false);

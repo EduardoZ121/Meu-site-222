@@ -75,7 +75,7 @@
       "tool_generating": "A gerar…",
       "tool_prompt_ph": "Descreve o que queres criar…",
       "tool_example": "Exemplo: {text}",
-      "tool_accept_formats": "JPEG, PNG, WEBP ou HEIC até 5 MB"
+      "tool_accept_formats": "JPEG, PNG, WEBP ou HEIC até 10 MB"
     },
     "clothes_changer": {
       "garment_label": "Roupa de referência (opcional)",
@@ -1443,7 +1443,7 @@
     "studio_gen_hint_person": "Envia a foto da pessoa para continuar",
     "tool_prompt_ph": "Descreve o que queres criar…",
     "tool_example": "Exemplo: {text}",
-    "tool_accept_formats": "JPEG, PNG, WEBP ou HEIC até 5 MB",
+    "tool_accept_formats": "JPEG, PNG, WEBP ou HEIC até 10 MB",
     "upload_drop_action": "Arrasta, clica ou cola",
     "upload_send": "Enviar imagem",
     "upload_loaded": "Imagem carregada",
@@ -1514,7 +1514,7 @@
     "vid_err_use_video_zone": "Usa a zona de upload de vídeo para ficheiros de vídeo.",
     "vid_preview_hevc": "Codec HEVC não suportado para preview. O vídeo será processado na mesma.",
     "vid_preview_failed": "Não foi possível pré-visualizar o vídeo. Verifique o formato ou tente novamente.",
-    "img_err_too_large": "Imagem muito grande. Máximo 5 MB.",
+    "img_err_too_large": "Imagem muito grande. Máximo 10 MB.",
     "img_err_invalid_type": "Formato de imagem não suportado. Usa PNG, JPG ou WebP.",
     "vid_edit_prompt_label": "O que mudar",
     "vid_edit_prompt_placeholder": "Trocar o casaco por uma jaqueta de couro vermelha, manter tudo o resto igual…",

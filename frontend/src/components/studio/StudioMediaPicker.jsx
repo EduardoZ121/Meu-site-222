@@ -195,7 +195,10 @@ export default function StudioMediaPicker({
     // Phone cameras often deliver 8–20 MB photos. Auto-shrink so the user
     // never sees a "imagem muito grande" toast just for taking a high-res
     // picture. compressImage shows its own loading/success toast.
+    // For HEIC files the canvas might fail — that's OK; the server has sharp
+    // and will normalize server-side. We still ACCEPT the file.
     let workFile = file;
+    const isHeicLike = isHeicByName || Boolean(sniffed);
     if (file.size > MAX_IMAGE_DIRECT_BYTES) {
       try {
         workFile = await compressImage(file, {
@@ -203,10 +206,18 @@ export default function StudioMediaPicker({
           maxBytesIOS: MAX_IMAGE_DIRECT_BYTES,
         });
       } catch {
-        // compression failure → fall through with original; size check below decides.
+        // compression failure → fall through with original.
+        // For HEIC files this is expected (browser can't decode them).
+        // The server accepts up to 12 MB and converts with sharp.
+        if (!isHeicLike) {
+          // Only warn for non-HEIC files; HEIC will be handled server-side
+          console.warn("[StudioMediaPicker] compression failed, using original", file.name, file.size);
+        }
       }
     }
 
+    // Accept files up to MAX_IMAGE_PICKER_BYTES (10 MB). The server normalizes
+    // and compresses with sharp, so even large HEIF files will work.
     if (workFile.size > MAX_IMAGE_PICKER_BYTES) {
       toast.error(t("img_err_too_large"));
       return;

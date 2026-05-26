@@ -293,21 +293,46 @@ async function normalizeUploadedImages(files) {
 
         const isHeifByMagic = sniffIsHeifLike(headBuf);
         const isHeifByName = /\.(heic|heif)$/i.test(name) || /image\/(heic|heif)/i.test(mime);
-        if (!isHeifByMagic && !isHeifByName) continue;
 
-        // Convert HEIF/HEIC → JPEG via sharp
+        // Also check if file is very large (>4 MB) — compress even if it's
+        // standard JPEG/PNG. Samsung Galaxy cameras produce 8–20 MB JPEGs and
+        // the browser canvas compression can fail silently.
+        const fileStat = await fsp.stat(file.filepath).catch(() => null);
+        const isOversized = fileStat && fileStat.size > 4 * 1024 * 1024;
+        const isImage = mime.startsWith("image/") || /\.(jpe?g|png|webp|gif|bmp|avif|heic|heif)$/i.test(name);
+
+        if (!isHeifByMagic && !isHeifByName && !isOversized) continue;
+        if (!isHeifByMagic && !isHeifByName && !isImage) continue;
+
+        // Convert HEIF/HEIC → JPEG, or compress oversized images via sharp.
+        // Always rotate (EXIF orientation) and cap at 2048px so AI models
+        // get a clean, reasonably-sized JPEG.
         const outPath = pathMod.join(
           os.tmpdir(),
           `rp-norm-${Date.now()}-${Math.random().toString(36).slice(2, 8)}.jpg`,
         );
-        await sharp(file.filepath, { failOn: "none" })
-          .rotate()
+        const pipeline = sharp(file.filepath, { failOn: "none" }).rotate();
+
+        // Only resize if oversized or HEIF (which can have huge dimensions)
+        if (isOversized || isHeifByMagic || isHeifByName) {
+          pipeline.resize({
+            width: 2048,
+            height: 2048,
+            fit: "inside",
+            withoutEnlargement: true,
+          });
+        }
+
+        await pipeline
           .jpeg({ quality: 88, mozjpeg: true })
           .toFile(outPath);
 
-        file.filepath = outPath;
-        file.mimetype = "image/jpeg";
-        file.originalFilename = name.replace(/\.[a-z0-9]{2,5}$/i, "") + ".jpg";
+        const outStat = await fsp.stat(outPath).catch(() => null);
+        if (outStat && outStat.size > 0) {
+          file.filepath = outPath;
+          file.mimetype = "image/jpeg";
+          file.originalFilename = name.replace(/\.[a-z0-9]{2,5}$/i, "") + ".jpg";
+        }
       } catch {
         /* leave file untouched on any failure */
       }
@@ -488,7 +513,7 @@ async function routeUploadImageBlob(req, res) {
     if (!bearer.startsWith("local:") && !verifySessionToken(bearer)) {
       return json(res, 401, { detail: "Sessão inválida ou expirada." });
     }
-    const maxBytes = 6 * 1024 * 1024;
+    const maxBytes = 12 * 1024 * 1024;
     const { files } = await parseBody(req, { maxFileSize: maxBytes + 512 * 1024 });
     await normalizeUploadedImages(files);
     const file = fileOf(files, "photo") || fileOf(files, "image");
@@ -498,7 +523,7 @@ async function routeUploadImageBlob(req, res) {
     const st = await fs.stat(file.filepath).catch(() => null);
     if (!st?.size) return json(res, 400, { detail: "Ficheiro de imagem inválido." });
     if (st.size > maxBytes) {
-      return json(res, 413, { detail: "Imagem muito grande. Máximo 5 MB." });
+      return json(res, 413, { detail: "Imagem muito grande. Máximo 12 MB." });
     }
     let fn = String(file.originalFilename || "photo.jpg").replace(/[^\w.\-]+/g, "_");
     if (!/\.[a-z0-9]{2,5}$/i.test(fn)) fn += ".jpg";
@@ -600,7 +625,7 @@ async function routeBlobPrepare(req, res) {
       token: blobToken,
       pathname,
       access: "public",
-      maximumSizeInBytes: isVideo ? 52 * 1024 * 1024 : 6 * 1024 * 1024,
+      maximumSizeInBytes: isVideo ? 52 * 1024 * 1024 : 12 * 1024 * 1024,
       allowedContentTypes: isVideo
         ? [
           "video/mp4",
@@ -615,6 +640,8 @@ async function routeBlobPrepare(req, res) {
           "image/gif",
           "image/avif",
           "image/bmp",
+          "image/heic",
+          "image/heif",
           "application/octet-stream",
         ],
       addRandomSuffix: true,
@@ -628,9 +655,13 @@ async function routeBlobPrepare(req, res) {
 async function parseBody(req, opts = {}) {
   const contentType = req.headers["content-type"] || "";
   if (contentType.includes("multipart/form-data")) {
+    // Samsung/iPhone HEIF files can be 8–20 MB and the browser often can't
+    // compress them (canvas fails on HEIC). Accept up to 12 MB so the server-
+    // side sharp conversion can handle them. The old 4.2 MB cap caused
+    // "Imagem muito grande" for perfectly valid phone photos.
     const form = formidable({
       multiples: true,
-      maxFileSize: opts.maxFileSize ?? 4.2 * 1024 * 1024,
+      maxFileSize: opts.maxFileSize ?? 12 * 1024 * 1024,
       maxFields: 200,
       maxFieldsSize: 4 * 1024 * 1024,
       allowEmptyFiles: true,
@@ -653,13 +684,54 @@ async function parseBody(req, opts = {}) {
 async function fileToDataUri(file) {
   if (!file) return null;
   const st = await fs.stat(file.filepath).catch(() => null);
-  if (st && st.size > 4 * 1024 * 1024) {
-    const err = new Error("Imagem recebida maior que o limite seguro (~4 MB) do alojamento.");
+  if (!st || !st.size) return null;
+
+  // If the file is too large for a data URI, try to compress it with sharp
+  // before giving up. This handles Samsung HEIF photos that survived
+  // normalizeUploadedImages (already JPEG) but are still >4 MB, and also
+  // regular large JPEGs the browser couldn't shrink enough.
+  const DATA_URI_HARD_CAP = 5.5 * 1024 * 1024;
+  const DATA_URI_COMPRESS_THRESHOLD = 4 * 1024 * 1024;
+
+  let filepath = file.filepath;
+  let mime = file.mimetype || "image/jpeg";
+
+  if (st.size > DATA_URI_COMPRESS_THRESHOLD) {
+    try {
+      const sharp = require("sharp");
+      const pathMod = require("path");
+      const os = require("os");
+      const outPath = pathMod.join(
+        os.tmpdir(),
+        `rp-duri-${Date.now()}-${Math.random().toString(36).slice(2, 8)}.jpg`,
+      );
+      await sharp(file.filepath, { failOn: "none" })
+        .rotate()
+        .resize({ width: 2048, height: 2048, fit: "inside", withoutEnlargement: true })
+        .jpeg({ quality: 82, mozjpeg: true })
+        .toFile(outPath);
+      const outSt = await fs.stat(outPath).catch(() => null);
+      if (outSt && outSt.size > 0 && outSt.size < st.size) {
+        filepath = outPath;
+        mime = "image/jpeg";
+      }
+    } catch {
+      // sharp compression failed — fall through with original
+    }
+  }
+
+  const finalSt = await fs.stat(filepath).catch(() => null);
+  if (finalSt && finalSt.size > DATA_URI_HARD_CAP) {
+    const err = new Error(
+      "Imagem ainda demasiado grande após compressão (~"
+      + Math.round(finalSt.size / 1024 / 1024)
+      + " MB). Tenta com uma foto mais pequena ou reduz a resolução.",
+    );
     err.status = 413;
     throw err;
   }
-  const mime = file.mimetype || "image/jpeg";
-  const buffer = await fs.readFile(file.filepath);
+
+  const buffer = await fs.readFile(filepath);
   return `data:${mime};base64,${buffer.toString("base64")}`;
 }
 
@@ -1971,7 +2043,9 @@ async function handlePath(path, req, res) {
     if (req.method === "POST") {
       const maxFileSize = path === "generate/video-edit"
         ? 54 * 1024 * 1024
-        : 4.2 * 1024 * 1024;
+        : path.startsWith("upload/")
+          ? 12 * 1024 * 1024
+          : 12 * 1024 * 1024; // Accept up to 12 MB — HEIF phones send 8-20 MB; sharp normalizes server-side
       const { fields, files } = await parseBody(req, { maxFileSize });
       // Normalize HEIF/HEIC → JPEG before downstream handlers consume the file
       await normalizeUploadedImages(files);
@@ -2007,7 +2081,7 @@ async function handlePath(path, req, res) {
       return json(res, 413, {
         detail: isVideoEdit
           ? "Vídeo muito grande. Máximo 50MB. Usa MP4 (H.264) ou MOV (ideal 2–10 s) ou recarrega para ativar o upload em nuvem."
-          : "O envio ultrapassou o limite (~4 MB) do servidor. Recarrega a página e tenta com uma foto em JPEG; o site comprime automaticamente.",
+          : "A imagem é demasiado grande para o servidor. Recarrega a página (Ctrl+F5) e tenta outra vez — o site comprime automaticamente antes de enviar.",
       });
     }
     return json(res, err.status || 500, { detail: err.message || "Erro no servidor de geração." });

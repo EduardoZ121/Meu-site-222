@@ -18,7 +18,7 @@ module.exports = async function handler(req, res) {
   return res.status(200).json({
     ok: true,
     api: "remakepix",
-    build: "upload-compress-on-pick-v1",
+    build: "upload-heic-fix-v2",
     ts: Date.now(),
     integrations: {
       replicate,

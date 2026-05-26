@@ -149,14 +149,13 @@ export default function StudioMediaPicker({
         maxSize: 2048,
         force: true,
       });
-      if (ready.size > 3_200_000) {
-        toast.error(
-          t("upload_heic_hint") || "Não foi possível reduzir a foto. No iPhone: Ajustes → Câmara → Formatos → Mais compatível (JPEG).",
-          { duration: 12000 },
-        );
-        return;
-      }
       onChange(ready);
+      const mb = (ready.size / (1024 * 1024)).toFixed(1);
+      if (ready.size > 3_200_000) {
+        toast.warning(t("upload_heic_hint"), { duration: 10000 });
+      } else {
+        toast.success(t("upload_loaded_size", { size: `${mb} MB` }), { duration: 2500 });
+      }
     } catch (err) {
       toast.error(err?.message || t("img_err_invalid_type"));
     } finally {
@@ -202,6 +201,14 @@ export default function StudioMediaPicker({
       data-rp-upload-build={CLIENT_BUILD_ID}
       data-testid={`${testId}-wrap`}
     >
+      <p
+        className="mb-1 text-center text-[10px] font-mono text-[#6b7280]"
+        data-testid={`${testId}-build-tag`}
+        aria-hidden
+      >
+        upload v
+        {CLIENT_BUILD_ID.replace("upload-", "")}
+      </p>
       <input
         ref={inputRef}
         id={inputId}

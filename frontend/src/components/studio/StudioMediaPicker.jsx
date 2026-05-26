@@ -64,22 +64,37 @@ export default function StudioMediaPicker({
   const resolvedHint = emptyHint ?? (isVideo ? t("vid_edit_video_hint") : t("upload_empty_hint"));
   const inputId = useId();
   const inputRef = useRef(null);
+  const previewObjectUrlRef = useRef(null);
   const [drag, setDrag] = useState(false);
   const [previewUrl, setPreviewUrl] = useState(null);
   const [previewBroken, setPreviewBroken] = useState(false);
 
-  // Generate preview URL from file
+  // Preview local — não revogar no cleanup do React (evita imagem “corrompida”)
   useEffect(() => {
     if (!value) {
+      if (previewObjectUrlRef.current) {
+        URL.revokeObjectURL(previewObjectUrlRef.current);
+        previewObjectUrlRef.current = null;
+      }
       setPreviewUrl(null);
       setPreviewBroken(false);
       return;
     }
     const url = URL.createObjectURL(value);
+    if (previewObjectUrlRef.current) {
+      URL.revokeObjectURL(previewObjectUrlRef.current);
+    }
+    previewObjectUrlRef.current = url;
     setPreviewUrl(url);
     setPreviewBroken(false);
-    return () => URL.revokeObjectURL(url);
   }, [value]);
+
+  useEffect(() => () => {
+    if (previewObjectUrlRef.current) {
+      URL.revokeObjectURL(previewObjectUrlRef.current);
+      previewObjectUrlRef.current = null;
+    }
+  }, []);
 
   const ingest = useCallback((file) => {
     if (!file) return;
@@ -144,7 +159,7 @@ export default function StudioMediaPicker({
   };
 
   const aspectClass = LAYOUT[layout] || LAYOUT.portrait;
-  const hasFile = Boolean(value && previewUrl);
+  const hasFile = Boolean(value);
 
   return (
     <div
@@ -193,7 +208,13 @@ export default function StudioMediaPicker({
           <div className="pointer-events-none absolute inset-0 z-0">{overlay}</div>
         ) : null}
 
-        {hasFile ? (
+        {hasFile && !previewUrl && !isVideo ? (
+          <div className="absolute inset-0 flex items-center justify-center bg-[#0a120e]">
+            <p className="text-sm text-[#8a8a8e]">{t("upload_preparing")}</p>
+          </div>
+        ) : null}
+
+        {hasFile && (isVideo ? Boolean(previewUrl) : (previewUrl || previewBroken)) ? (
           <>
             {isVideo ? (
               <video

@@ -135,10 +135,10 @@ function isImageFileLike(file) {
   return /\.(heic|heif|jpe?g|png|webp|gif|bmp|avif)$/i.test(file.name || "");
 }
 
-/** DISABLED — images go direct to server. Only videos use cloud offload.
- * The Blob integration for images was causing upload failures. */
+/** Fotos > ~3 MB não cabem no body do serverless Vercel (~4,5 MB) — vão para nuvem. */
 function imageNeedsCloudOffload(file) {
-  return false;
+  if (!file || !isImageFileLike(file)) return false;
+  return file.size > 3_000_000;
 }
 
 function formDataNeedsCloudOffload(fd) {
@@ -472,6 +472,30 @@ async function uploadVideoToCloudDirect(file, opts = {}) {
     if (k === "video_url" && typeof v === "string") return v;
   }
   throw new Error("Upload do vídeo terminou sem URL. Tenta MP4 mais curto.");
+}
+
+/** Envia imagem grande para nuvem (browser→Blob ou servidor→/upload/image-blob). */
+export async function uploadImageToCloud(file, opts = {}) {
+  if (!file) throw new Error("Imagem em falta.");
+  invalidateBlobUploadCache();
+  const blobOn = await isBlobUploadEnabled({ refresh: true });
+  if (!blobOn) {
+    try {
+      return await uploadImageViaServerProxy(file, { timeoutMs: opts.timeoutMs ?? 120_000 });
+    } catch (proxyErr) {
+      throw proxyErr;
+    }
+  }
+  try {
+    const result = await uploadFileToVercelBlob("photo", file, opts.timeoutMs ?? 120_000, opts.onProgress);
+    return result.url;
+  } catch (directErr) {
+    const msg = String(directErr?.message || directErr);
+    const tryServer = /fetch|network|failed|nuvem|blob|abort|timeout/i.test(msg)
+      || directErr?.code === "ERR_NETWORK";
+    if (!tryServer) throw directErr;
+    return uploadImageViaServerProxy(file, { timeoutMs: opts.timeoutMs ?? 120_000 });
+  }
 }
 
 /** Envia vídeo para nuvem; tenta browser→Blob e, se falhar, servidor→Blob. */

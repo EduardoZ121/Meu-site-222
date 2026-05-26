@@ -10,11 +10,11 @@
   "functions": {
     "api/**/*.js": {
       "maxDuration": 120,
-      "includeFiles": "frontend/api/lib/**"
+      "includeFiles": "{frontend/api/lib/**,node_modules/sharp/**,node_modules/@img/**}"
     }
   },
   "installCommand": "ln -sfn frontend/api api; yarn install --frozen-lockfile || yarn install; cd frontend && yarn install --frozen-lockfile || yarn install",
-  "buildCommand": "cd frontend && REACT_APP_BUILD_ID=upload-studio-v4 yarn build",
+  "buildCommand": "cd frontend && REACT_APP_BUILD_ID=upload-fix-2026-05-26 yarn build",
   "headers": [
     {
       "source": "/index.html",

@@ -1,12 +1,24 @@
 /**
- * prepareStudioFormDataForSubmit — REWRITTEN FROM ZERO
- *
- * Simple pass-through. Files go directly to the server.
- * Only exception: videos > 3.2 MB go to cloud (Vercel body limit).
- * Images are NEVER offloaded — they go in the multipart body directly.
+ * Prepara FormData antes do POST.
+ * - Imagens pequenas: directo ao /api
+ * - Imagens grandes: comprimir no browser; se ainda > 3 MB → nuvem (photo_url)
+ * - Vídeos grandes: nuvem (video_url)
  */
 
-import { VIDEO_VERCEL_SAFE_BYTES } from "../videoCloudLimits";
+import { MAX_IMAGE_DIRECT_BYTES, VIDEO_VERCEL_SAFE_BYTES } from "../uploadConstants";
+
+const IMAGE_KEYS = new Set([
+  "photo",
+  "image",
+  "mask",
+  "garment",
+  "reference_image",
+  "slide_photo",
+  "photo_b",
+]);
+
+/** Margem abaixo do limite ~4,5 MB do body na Vercel. */
+const VERCEL_SAFE_IMAGE_BYTES = 3_000_000;
 
 function isVideoFile(file) {
   if (!file) return false;
@@ -15,31 +27,58 @@ function isVideoFile(file) {
   return /\.(mp4|mov|webm)$/i.test(file.name || "");
 }
 
+function isImageField(key, file) {
+  if (IMAGE_KEYS.has(key)) return true;
+  if (file.type?.startsWith?.("image/")) return true;
+  return /\.(heic|heif|jpe?g|png|webp|gif|bmp|avif)$/i.test(file.name || "");
+}
+
+async function shrinkImageForDirectUpload(file) {
+  if (file.size <= VERCEL_SAFE_IMAGE_BYTES) return file;
+  try {
+    const { compressImageNeverFail } = await import("../canvasCompress");
+    const out = await compressImageNeverFail(file, {
+      maxBytes: MAX_IMAGE_DIRECT_BYTES,
+      maxSize: 2048,
+    });
+    return out instanceof File ? out : file;
+  } catch {
+    return file;
+  }
+}
+
 export async function prepareStudioFormDataForSubmit(formData, options = {}) {
   const out = new FormData();
 
   for (const [key, val] of formData.entries()) {
-    // Not a file — pass through
     if (!(val instanceof File)) {
       out.append(key, val);
       continue;
     }
 
-    // Large video — needs cloud upload (Vercel serverless body limit ~4.5 MB)
-    if ((key === "video" || isVideoFile(val)) && val.size > VIDEO_VERCEL_SAFE_BYTES) {
-      try {
+    if (key === "video" || (isVideoFile(val) && key !== "mask")) {
+      if (!options.skipBlobOffload && val.size > VIDEO_VERCEL_SAFE_BYTES) {
         const { uploadVideoToCloud } = await import("../api");
         const url = await uploadVideoToCloud(val, options);
         out.append(key === "video" ? "video_url" : `${key}_url`, url);
-      } catch (err) {
-        // Cloud upload failed — append file directly as last resort
-        console.warn("[prepareSubmit] video cloud upload failed:", err?.message);
+      } else {
         out.append(key, val);
       }
       continue;
     }
 
-    // Everything else (images, small videos, text files) — pass through directly
+    if (isImageField(key, val)) {
+      let work = await shrinkImageForDirectUpload(val);
+      if (work.size > VERCEL_SAFE_IMAGE_BYTES) {
+        const { uploadImageToCloud } = await import("../api");
+        const url = await uploadImageToCloud(work, options);
+        out.append(`${key}_url`, url);
+        continue;
+      }
+      out.append(key, work);
+      continue;
+    }
+
     out.append(key, val);
   }
 

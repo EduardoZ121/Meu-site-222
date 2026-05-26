@@ -1,0 +1,24 @@
+{
+  "name": "pre-perchance-with-sofia-ai",
+  "git_commit": "457b127",
+  "git_tag": "site-pre-perchance-ai",
+  "deployed_at": "2026-05-17",
+  "description": "Última versão estável antes de Perchance/Omni: assistente Sofia no menu, definições simplificadas, admin completo, estúdio com accordions.",
+  "must_have": [
+    "SupportChat + DashboardHeaderMenu",
+    "Settings: conta, idioma, password, formato",
+    "Admin: tabs overview, finance, users, ip, purchases, tx",
+    "StudioAccordionSection em Generate",
+    "API: support/chat, wizard/compose, suggest, generations/history, carousel-slide",
+    "Carrossel: geração por slide, brief, papéis capa/CTA, accordions dourados"
+  ],
+  "must_not_have": [
+    "/app/omni",
+    "PerchanceStudio",
+    "PremiumGate",
+    "PromptPremiumToolbar",
+    "carouselSlides per-slide experimental (unless explicitly re-approved)"
+  ],
+  "verify_command": "node scripts/verify-production-baseline.mjs",
+  "bundle_reference": "main.ac71a55c.js"
+}

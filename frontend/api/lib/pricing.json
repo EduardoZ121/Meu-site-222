@@ -1,0 +1,107 @@
+{
+  "regions": {
+    "intl": {
+      "id": "intl",
+      "currency": "eur",
+      "symbol": "€",
+      "label": "Internacional",
+      "checkoutNote": "Pagamento em euros (€).",
+      "packages": {
+        "starter": {
+          "name": "Starter",
+          "amount_cents": 500,
+          "credits": 150,
+          "tagline": "Promoção de lançamento"
+        },
+        "creator": {
+          "name": "Creator",
+          "amount_cents": 1200,
+          "credits": 250,
+          "tagline": "Para criadores ativos"
+        },
+        "studio": {
+          "name": "Studio",
+          "amount_cents": 2200,
+          "credits": 500,
+          "tagline": "Fluxos profissionais"
+        }
+      },
+      "costs": {
+        "image": 12,
+        "edit": 16,
+        "easy": 14,
+        "pro": 26,
+        "artistic": 18,
+        "video": 70,
+        "videoEdit": 95,
+        "bgRemove": 8,
+        "bgRemoveScene": 16,
+        "upscale": 20,
+        "restore": 18,
+        "colorize": 16,
+        "clothes": 24,
+        "inpaint": 28,
+        "carouselFastPerSlide": 5,
+        "carouselPremiumPerSlide": 12,
+        "mangaPanel": 15,
+        "mangaPage": 40,
+        "mangaChapter": 150,
+        "posterFast": 24,
+        "posterPro": 32,
+        "posterPremium": 45
+      }
+    },
+    "usd": {
+      "id": "usd",
+      "currency": "usd",
+      "symbol": "$",
+      "label": "Brasil e Angola",
+      "checkoutNote": "Preços em dólar (USD) para o teu país — pacotes e gerações ajustados.",
+      "countries": ["BR", "AO"],
+      "packages": {
+        "starter": {
+          "name": "Starter",
+          "amount_cents": 499,
+          "credits": 110,
+          "tagline": "Promo de lançamento"
+        },
+        "creator": {
+          "name": "Creator",
+          "amount_cents": 999,
+          "credits": 200,
+          "tagline": "Para criadores ativos"
+        },
+        "studio": {
+          "name": "Studio",
+          "amount_cents": 1799,
+          "credits": 360,
+          "tagline": "Fluxos profissionais"
+        }
+      },
+      "costs": {
+        "image": 9,
+        "edit": 12,
+        "easy": 10,
+        "pro": 19,
+        "artistic": 13,
+        "video": 50,
+        "videoEdit": 68,
+        "bgRemove": 6,
+        "bgRemoveScene": 12,
+        "upscale": 14,
+        "restore": 13,
+        "colorize": 12,
+        "clothes": 17,
+        "inpaint": 20,
+        "carouselFastPerSlide": 5,
+        "carouselPremiumPerSlide": 12,
+        "mangaPanel": 15,
+        "mangaPage": 40,
+        "mangaChapter": 150,
+        "posterFast": 17,
+        "posterPro": 23,
+        "posterPremium": 32
+      }
+    }
+  }
+}

@@ -1,0 +1,34 @@
+[
+  {
+    "content": "Import repo to /app working directory",
+    "status": "in_progress"
+  },
+  {
+    "content": "Phase 2: Fix image upload pipeline (formidable limits, fileToDataUri, HEIF handling)",
+    "status": "pending"
+  },
+  {
+    "content": "Phase 2: Fix video upload pipeline (cloud offload for >3.2MB, HEVC preview)",
+    "status": "pending"
+  },
+  {
+    "content": "Phase 2: Fix i18n - ensure no raw keys appear in UI",
+    "status": "pending"
+  },
+  {
+    "content": "Phase 2: Fix Vercel deploy (dependency conflicts, symlink/pattern)",
+    "status": "pending"
+  },
+  {
+    "content": "Phase 2: Fix additional issues found during code review",
+    "status": "pending"
+  },
+  {
+    "content": "Phase 3: End-to-end testing using testing agent",
+    "status": "pending"
+  },
+  {
+    "content": "Phase 4: Save to GitHub",
+    "status": "pending"
+  }
+]

@@ -30,6 +30,35 @@ const LAYOUT = {
 };
 
 /**
+ * Returns true only if the browser can actually decode this file into a
+ * non-empty raster image. Used as a safety net after compression so we never
+ * accept a file that would show a broken-thumbnail preview (HEIC on Chrome,
+ * corrupt JPEGs, unsupported colorspace, etc.).
+ */
+function canDecodeAsImage(file) {
+  return new Promise((resolve) => {
+    let url;
+    try {
+      url = URL.createObjectURL(file);
+    } catch {
+      resolve(false);
+      return;
+    }
+    const img = new Image();
+    const done = (ok) => {
+      try { URL.revokeObjectURL(url); } catch { /* ignore */ }
+      resolve(ok);
+    };
+    img.onload = () => done(img.naturalWidth > 0 && img.naturalHeight > 0);
+    img.onerror = () => done(false);
+    img.decoding = "async";
+    img.src = url;
+    // Hard timeout so a stuck decode never blocks the picker indefinitely.
+    setTimeout(() => done(img.naturalWidth > 0), 6000);
+  });
+}
+
+/**
  * Upload do estúdio v4 — visual distinto, preview imediato, pronto para Gerar sem “guardar”.
  */
 export default function StudioMediaPicker({
@@ -94,6 +123,25 @@ export default function StudioMediaPicker({
       return;
     }
 
+    // Reject HEIC/HEIF/AVIF up-front — most browsers (Android Chrome, older
+    // Safari, Firefox) can't decode them for preview, so the user would end
+    // up with a broken-thumbnail upload box.
+    const nameLower = (file.name || "").toLowerCase();
+    const typeLower = (file.type || "").toLowerCase();
+    const isHeic = /\.(heic|heif)$/.test(nameLower) || /image\/(heic|heif)/.test(typeLower);
+    const isAvif = /\.avif$/.test(nameLower) || /image\/avif/.test(typeLower);
+    if (isHeic) {
+      toast.error(
+        "HEIC/HEIF não é suportado neste browser. No iPhone: Definições → Câmara → Formatos → escolhe \"Mais compatível\". No Samsung: desativa \"Imagens de alta eficiência\".",
+        { duration: 9000 },
+      );
+      return;
+    }
+    if (isAvif) {
+      toast.error("AVIF ainda não é suportado. Usa JPEG, PNG ou WEBP.", { duration: 7000 });
+      return;
+    }
+
     // Phone cameras often deliver 8–20 MB photos. Auto-shrink so the user
     // never sees a "imagem muito grande" toast just for taking a high-res
     // picture. compressImage shows its own loading/success toast.
@@ -111,6 +159,19 @@ export default function StudioMediaPicker({
 
     if (workFile.size > MAX_IMAGE_PICKER_BYTES) {
       toast.error(t("img_err_too_large"));
+      return;
+    }
+
+    // Final safety net: confirm the browser can actually render this file as
+    // an image. If decode fails (corrupt file, unsupported colorspace, etc.)
+    // we abort here instead of accepting a file that would show a broken
+    // thumbnail and fail generation later.
+    const previewable = await canDecodeAsImage(workFile);
+    if (!previewable) {
+      toast.error(
+        "Não foi possível ler esta imagem neste browser. Tenta outra foto (JPEG ou PNG).",
+        { duration: 7000 },
+      );
       return;
     }
 
@@ -214,6 +275,15 @@ export default function StudioMediaPicker({
                   previewImgClassName,
                 ].filter(Boolean).join(" ")}
                 data-testid={`${testId}-preview`}
+                onError={() => {
+                  // Decoded once already (canDecodeAsImage gate), but if the
+                  // browser unexpectedly fails to render, clear the file so
+                  // the user is not left staring at a broken thumbnail.
+                  toast.error(
+                    "Não foi possível mostrar esta imagem. Tenta outra foto.",
+                  );
+                  clear();
+                }}
               />
             )}
             <div

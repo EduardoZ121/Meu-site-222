@@ -8,16 +8,12 @@
   ],
   "framework": "create-react-app",
   "functions": {
-    "frontend/api/**/*.js": {
-      "maxDuration": 120,
-      "includeFiles": "frontend/api/lib/**"
-    },
     "api/**/*.js": {
       "maxDuration": 120,
       "includeFiles": "frontend/api/lib/**"
     }
   },
-  "installCommand": "ln -sfn frontend/api api 2>/dev/null; yarn install --frozen-lockfile || yarn install && cd frontend && yarn install --frozen-lockfile || yarn install",
+  "installCommand": "ln -sfn frontend/api api; yarn install --frozen-lockfile || yarn install; cd frontend && yarn install --frozen-lockfile || yarn install",
   "buildCommand": "cd frontend && REACT_APP_BUILD_ID=upload-studio-v4 yarn build",
   "headers": [
     {

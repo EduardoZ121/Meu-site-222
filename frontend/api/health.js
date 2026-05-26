@@ -15,6 +15,7 @@ module.exports = async function handler(req, res) {
   const blob = isBlobConfigured();
   const s3 = isS3Configured();
   const mongo = storageEnabled();
+  const bucketResolved = resolveBucketName();
 
   return res.status(200).json({
     ok: true,
@@ -29,6 +30,13 @@ module.exports = async function handler(req, res) {
       blob,
       blob_disabled: blobDisabled,
       s3,
+      s3_bucket: bucketResolved,
+      s3_env: {
+        AWS_S3_BUCKET: Boolean(String(process.env.AWS_S3_BUCKET || "").trim()),
+        AWS_RESOURCE_ARN: Boolean(String(process.env.AWS_RESOURCE_ARN || "").trim()),
+        AWS_ROLE_ARN: Boolean(String(process.env.AWS_ROLE_ARN || "").trim()),
+        AWS_ACCESS_KEY_ID: Boolean(String(process.env.AWS_ACCESS_KEY_ID || "").trim()),
+      },
     },
     ready: {
       generate: replicate && mongo,

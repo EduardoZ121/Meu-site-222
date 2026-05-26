@@ -1833,12 +1833,23 @@ async function handlePath(path, req, res) {
 
     if (req.method === "GET" && path === "upload/s3/status") {
       const cfg = getS3Config();
+      const arn = String(process.env.AWS_RESOURCE_ARN || "");
+      let resourceKind = "none";
+      if (arn.includes(":s3:")) resourceKind = "s3";
+      else if (arn.includes(":rds:")) resourceKind = "rds";
+      else if (arn) resourceKind = "other";
       return json(res, 200, {
         s3: isS3Configured(),
         bucket: cfg?.bucket || null,
         region: cfg?.region || null,
         auth: cfg?.authMode || null,
         cloudFront: cfg?.cloudFront || null,
+        resource_kind: resourceKind,
+        hint: !cfg?.bucket && resourceKind === "rds"
+          ? "A integração Vercel ligou Postgres (RDS), não S3. Adiciona AWS_S3_BUCKET com o nome do teu bucket."
+          : !cfg?.bucket
+            ? "Adiciona AWS_S3_BUCKET=nome-do-bucket na Vercel (projeto remakepix) e faz Redeploy."
+            : null,
       });
     }
 

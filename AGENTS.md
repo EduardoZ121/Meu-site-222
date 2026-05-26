@@ -13,8 +13,7 @@
 
 ## Vercel
 
-- **Projeto de produção (domínio):** `meu-site-222` → https://remakepix.com
-- **Não deployar** no projeto `remakepix` (duplicado; variáveis antigas + Blob).
-- Repo: `EduardoZ121/Meu-site-222`, branch `main`, Root Directory `.`
-- Build: `vercel.json` → `frontend/build`
-- Guia utilizador: `docs/VERCEL-UNIFICAR.md`
+- **Projeto de produção:** `remakepix` → https://remakepix.com (mover domínio para aqui se estiver no clone `meu-site-222`)
+- **Clone Emergent:** `meu-site-222` — não usar; apagar depois de migrar domínio e variáveis
+- Repo: `EduardoZ121/Meu-site-222`, branch `main`, Root Directory **`.`** no projeto remakepix
+- Upload: **AWS S3** (não Blob). Guias: `docs/VERCEL-UNIFICAR.md`, `docs/AWS-S3-SETUP.md`

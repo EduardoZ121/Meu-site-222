@@ -1,104 +1,95 @@
-# Unificar Vercel — remakepix.com (um só projeto)
+# Vercel — projeto certo: **remakepix**
 
-## Situação (confirmada em 26/05/2026)
+## Quem é quem
 
-Tens **dois projetos** na mesma conta que ambos listam `https://remakepix.com`:
+| Projeto | O que é | O que fazer |
+|---------|---------|-------------|
+| **remakepix** | Site original, ligado ao GitHub `EduardoZ121/Meu-site-222` | **Este é o certo** — domínio + variáveis aqui |
+| **meu-site-222** | Clone criado no Emergent para editar | **Não usar** — tirar `remakepix.com` daqui e apagar o projeto quando puderes |
 
-| Projeto | Domínio | Variáveis (Replicate, Mongo, Stripe) | Root no repo |
-|---------|---------|--------------------------------------|--------------|
-| **meu-site-222** | **remakepix.com aponta AQUI** | Em geral **vazias ou incompletas** | `.` (correto) |
-| **remakepix** | Também ligado ao domínio no painel | **Completas** + Blob | `frontend` (antigo, errado) |
-
-O que vês em https://remakepix.com/api/health no projeto **meu-site-222**:
-
-- `replicate: false`, `mongo: false`, `stripe: false` → o site **não gera** até copiares as chaves para este projeto.
-
-Os deploys feitos pelo agente no projeto **remakepix** **não** são o que o domínio mostre se o domínio estiver só no **meu-site-222**.
+Hoje o domínio **remakepix.com** ainda pode estar no **meu-site-222** (clone sem as chaves certas). Por isso o site falha mesmo com código bom no GitHub.
 
 ---
 
-## O que fazer (ordem)
+## Plano em 6 passos (faz por esta ordem)
 
-### 1. Ficar só com **meu-site-222** (já tens o domínio aqui)
+### 1. Domínio só no **remakepix**
 
-1. [Vercel Dashboard](https://vercel.com) → projeto **meu-site-222**
-2. **Settings → Git** → repositório `EduardoZ121/Meu-site-222`, branch `main`
-3. **Settings → General → Root Directory** = **`.`** (raiz, não `frontend`)
-4. **Settings → Build** → deve usar `vercel.json` na raiz (build em `frontend/build`)
+1. Projeto **meu-site-222** → Settings → **Domains** → remove `remakepix.com` e `www`
+2. Projeto **remakepix** → Settings → **Domains** → adiciona `remakepix.com` (+ `www` se usares)
 
-### 2. Copiar variáveis do projeto **remakepix** → **meu-site-222**
+### 2. Ajustar o projeto **remakepix** (ligação ao repo)
 
-No projeto **remakepix**: Settings → Environment Variables → abre cada uma e copia para **meu-site-222** (Production + Preview).
+Settings → **General**:
 
-**Obrigatórias para o site funcionar:**
+- **Root Directory:** `.` (ponto = raiz do repo, **não** `frontend`)
+- **Git:** repositório `EduardoZ121/Meu-site-222`, branch `main`
+
+O `vercel.json` na raiz define o build (`frontend/build` + API).
+
+### 3. Apagar o Blob na Vercel (não só a variável)
+
+Enquanto existir **Storage → Blob** ligado, o painel **não deixa** apagar `BLOB_READ_WRITE_TOKEN`.
+
+1. Projeto **remakepix** → **Storage** → Blob → **Disconnect / Delete**
+2. **Settings → Environment Variables** → apagar:
+   - `BLOB_READ_WRITE_TOKEN`
+   - `BLOB_STORE_ID`
+   - `BLOB_WEBHOOK_PUBLIC_KEY`
+3. Adicionar (se ainda não existir):
+   - `DISABLE_VERCEL_BLOB` = `1` (Production, Preview, Development)
+
+Repete no **meu-site-222** se lá também tiver Blob, antes de apagares esse projeto.
+
+### 4. Configurar **AWS S3** no **remakepix** (substitui o Blob)
+
+Em **remakepix** → Environment Variables → Production:
+
+| Variável | Exemplo |
+|----------|---------|
+| `AWS_S3_BUCKET` | nome-do-bucket |
+| `AWS_S3_REGION` ou `AWS_REGION` | `eu-west-1` |
+| `AWS_ACCESS_KEY_ID` | chave IAM |
+| `AWS_SECRET_ACCESS_KEY` | segredo IAM |
+| `AWS_CLOUDFRONT_DOMAIN` | `d123abc.cloudfront.net` (opcional mas recomendado) |
+
+IAM: permissões `s3:PutObject` no bucket (e leitura pública ou CloudFront).
+
+Confirma: `https://remakepix.com/api/health` → `"s3": true`, `"blob": false`, `"blob_disabled": true`
+
+### 5. Manter as outras chaves no **remakepix**
+
+Copia do que já tens (ou do clone) para o projeto **remakepix**:
 
 - `REPLICATE_API_TOKEN`
-- `MONGO_URL` (se existir no remakepix; sem isto `mongo: false`)
+- `MONGO_URL`
 - `DB_NAME`
-- `STRIPE_SECRET_KEY` (+ chaves Stripe públicas se houver)
+- `STRIPE_SECRET_KEY`
 - `REACT_APP_GOOGLE_CLIENT_ID`
 - `ADMIN_EMAILS`
-- KV / Redis se usares
+- KV/Redis se usares
 
-**Adicionar no meu-site-222:**
+### 6. Redeploy e apagar o clone
 
-- `DISABLE_VERCEL_BLOB` = `1` (Production, Preview, Development)
-
-**Não copiar / apagar no meu-site-222:**
-
-- `BLOB_READ_WRITE_TOKEN`
-- `BLOB_STORE_ID`
-- `BLOB_WEBHOOK_PUBLIC_KEY`
-
-### 3. Apagar o Blob (quando o painel não deixa)
-
-A Vercel **bloqueia** apagar `BLOB_*` enquanto o **Blob Store** estiver ligado ao projeto.
-
-1. Projeto **remakepix** (ou meu-site-222 se tiver Storage) → **Storage**
-2. Blob store → **Disconnect** / **Delete**
-3. Depois **Settings → Environment Variables** → Remove `BLOB_READ_WRITE_TOKEN`, `BLOB_STORE_ID`, `BLOB_WEBHOOK_PUBLIC_KEY`
-
-Repete nos dois projetos se aparecer nos dois.
-
-### 4. Domínio só num projeto
-
-1. Projeto **remakepix** → **Settings → Domains** → remove `remakepix.com` e `www.remakepix.com`
-2. Projeto **meu-site-222** → **Domains** → mantém `remakepix.com` (e www se usares)
-
-### 5. Desativar o projeto duplicado (opcional)
-
-- **remakepix** → Settings → no fundo **Delete Project** (só depois de copiares as variáveis e tirares o domínio)
-
-Ou deixa parado sem domínio para não confundir.
-
-### 6. Redeploy
-
-**meu-site-222** → Deployments → **Redeploy** o último `main` (sem cache).
-
-Confirma: https://remakepix.com/api/health
-
-- `build`: `upload-no-blob-v1`
-- `blob_disabled`: `true`
-- `replicate`: `true`
-- `mongo`: `true`
-- `stripe`: `true`
+1. **remakepix** → Deployments → Redeploy **main** (sem cache)
+2. Quando `remakepix.com` responder com `replicate: true` e `mongo: true`, podes **apagar** o projeto **meu-site-222** no Vercel
 
 ---
 
-## Deploy a partir do código (agente / local)
+## Como o upload funciona (sem Blob)
 
-Na raiz do repo (com CLI ligada ao **meu-site-222**):
+- **Fotos:** comprimir no telemóvel → POST directo (~3 MB)
+- **Fotos ainda grandes / vídeos:** browser → **S3** (URL assinada) → API só recebe o link
+- **Blob:** desligado no código; não é necessário plano Blob na Vercel
+
+---
+
+## Deploy pelo terminal (projeto certo)
 
 ```bash
-cd /caminho/Meu-site-222
-vercel link --project meu-site-222
+cd Meu-site-222
+vercel link --project remakepix
 vercel deploy --prod
 ```
 
-Não uses `vercel deploy` no projeto **remakepix** se o domínio for o **meu-site-222**.
-
----
-
-## Outros projetos na conta (podes ignorar)
-
-- `remakepixel-landing`, `frontend`, `meu-site-2`, etc. — não são o site principal salvo se tiverem outro URL.
+Não uses `meu-site-222` para deploy de produção.

@@ -2,8 +2,8 @@
 
 **Repositório:** [EduardoZ121/Meu-site-222](https://github.com/EduardoZ121/Meu-site-222)  
 **Branch:** `main` (site `cursor/i18n-reorg-301a` / commit de referência `d5b396f`)  
-**Produção:** Vercel `meu-site-222` → https://remakepix.com · Root Directory = repo raiz · build = `frontend/build`  
-**Nota:** existe projeto duplicado `remakepix` na mesma conta — ver `docs/VERCEL-UNIFICAR.md`
+**Produção:** Vercel `remakepix` → https://remakepix.com · Root Directory = **`.`** · build = `frontend/build`  
+**Nota:** clone Emergent `meu-site-222` — ver `docs/VERCEL-UNIFICAR.md` · uploads = **S3**, Blob desligado
 
 ## Estrutura permitida (só isto)
 

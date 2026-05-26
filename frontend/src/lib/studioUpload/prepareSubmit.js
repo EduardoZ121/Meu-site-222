@@ -15,8 +15,11 @@ const VERCEL_SAFE = 3_000_000;
 const ERR_IMAGE_TOO_LARGE =
   "Foto ainda demasiado grande. Escolhe outra imagem ou exporta JPEG mais pequena no telemóvel.";
 
+const ERR_IMAGE_NEED_S3 =
+  "Foto grande: configura AWS S3 no projeto remakepix (Vercel) ou usa uma imagem mais pequena.";
+
 const ERR_VIDEO_TOO_LARGE =
-  "Vídeo demasiado grande para enviar sem nuvem. Usa um clip mais curto (até ~3 MB) ou ativa S3 no servidor.";
+  "Vídeo demasiado grande. Usa um clip mais curto (~3 MB) ou configura AWS S3 no projeto remakepix na Vercel.";
 
 function isVideoFile(file) {
   if (!file) return false;
@@ -52,10 +55,21 @@ async function prepareImageForPost(file, perImageMax, emergency) {
       force: true,
     });
   }
-  if (prepared.size > VERCEL_SAFE) {
-    throw new Error(ERR_IMAGE_TOO_LARGE);
-  }
   return prepared;
+}
+
+async function appendImage(out, key, prepared, options) {
+  if (prepared.size <= VERCEL_SAFE) {
+    out.append(key, prepared);
+    return;
+  }
+  const { isS3VideoUploadAvailable, uploadImageViaS3 } = await import("../s3VideoUpload");
+  if (await isS3VideoUploadAvailable()) {
+    const url = await uploadImageViaS3(prepared, { onProgress: options.onImageProgress });
+    out.append(`${key}_url`, url);
+    return;
+  }
+  throw new Error(ERR_IMAGE_NEED_S3);
 }
 
 export async function prepareStudioFormDataForSubmit(formData, options = {}) {
@@ -95,7 +109,8 @@ export async function prepareStudioFormDataForSubmit(formData, options = {}) {
         perImageMax,
         Boolean(options.emergencyCompress),
       );
-      out.append(key, prepared);
+      // eslint-disable-next-line no-await-in-loop
+      await appendImage(out, key, prepared, options);
       continue;
     }
 

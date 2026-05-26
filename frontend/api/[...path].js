@@ -243,6 +243,78 @@ function fileOf(files, key) {
   return first(files[key]);
 }
 
+/**
+ * Detects HEIC/HEIF by ISOBMFF brand (bytes 4-12 = "ftyp<brand>"). Works
+ * regardless of the file extension — Samsung "high efficiency" mode and
+ * iCloud sync routinely save HEIF with a `.jpg` name.
+ */
+function sniffIsHeifLike(headBuf) {
+  if (!headBuf || headBuf.length < 12) return false;
+  if (headBuf[4] !== 0x66 || headBuf[5] !== 0x74 || headBuf[6] !== 0x79 || headBuf[7] !== 0x70) {
+    return false;
+  }
+  const brand = headBuf.slice(8, 12).toString("ascii");
+  return /^(heic|heix|hevc|hevx|mif1|msf1|heim|heis|hevm|hevs)$/i.test(brand);
+}
+
+/**
+ * Best-effort conversion of uploaded image files to JPEG when the browser
+ * delivered something the AI model can't read (HEIC/HEIF disguised as .jpg,
+ * exotic colorspaces, etc.). Mutates `files` in place — replaces filepath,
+ * mimetype and originalFilename. Failures are swallowed so the original file
+ * is still attempted; the model just sees the original bytes in that case.
+ */
+async function normalizeUploadedImages(files) {
+  if (!files || typeof files !== "object") return;
+  let sharp;
+  try {
+    sharp = require("sharp");
+  } catch {
+    return; // sharp not available — leave files untouched
+  }
+
+  const fsp = require("fs/promises");
+  const os = require("os");
+  const pathMod = require("path");
+
+  for (const key of Object.keys(files)) {
+    const entries = Array.isArray(files[key]) ? files[key] : [files[key]];
+    for (const file of entries) {
+      if (!file || !file.filepath) continue;
+      const mime = String(file.mimetype || "").toLowerCase();
+      const name = String(file.originalFilename || "");
+      // Skip videos entirely.
+      if (mime.startsWith("video/") || /\.(mp4|mov|webm|m4v)$/i.test(name)) continue;
+      try {
+        const headFd = await fsp.open(file.filepath, "r");
+        const headBuf = Buffer.alloc(16);
+        await headFd.read(headBuf, 0, 16, 0);
+        await headFd.close();
+
+        const isHeifByMagic = sniffIsHeifLike(headBuf);
+        const isHeifByName = /\.(heic|heif)$/i.test(name) || /image\/(heic|heif)/i.test(mime);
+        if (!isHeifByMagic && !isHeifByName) continue;
+
+        // Convert HEIF/HEIC → JPEG via sharp
+        const outPath = pathMod.join(
+          os.tmpdir(),
+          `rp-norm-${Date.now()}-${Math.random().toString(36).slice(2, 8)}.jpg`,
+        );
+        await sharp(file.filepath, { failOn: "none" })
+          .rotate()
+          .jpeg({ quality: 88, mozjpeg: true })
+          .toFile(outPath);
+
+        file.filepath = outPath;
+        file.mimetype = "image/jpeg";
+        file.originalFilename = name.replace(/\.[a-z0-9]{2,5}$/i, "") + ".jpg";
+      } catch {
+        /* leave file untouched on any failure */
+      }
+    }
+  }
+}
+
 async function readJsonRequestBody(req) {
   // Vercel often pre-parses JSON; the stream is then empty and messages never arrive.
   const pre = req.body;
@@ -418,6 +490,7 @@ async function routeUploadImageBlob(req, res) {
     }
     const maxBytes = 6 * 1024 * 1024;
     const { files } = await parseBody(req, { maxFileSize: maxBytes + 512 * 1024 });
+    await normalizeUploadedImages(files);
     const file = fileOf(files, "photo") || fileOf(files, "image");
     if (!file?.filepath) {
       return json(res, 400, { detail: "Envia uma imagem (JPEG, PNG ou WEBP)." });
@@ -1900,6 +1973,8 @@ async function handlePath(path, req, res) {
         ? 54 * 1024 * 1024
         : 4.2 * 1024 * 1024;
       const { fields, files } = await parseBody(req, { maxFileSize });
+      // Normalize HEIF/HEIC → JPEG before downstream handlers consume the file
+      await normalizeUploadedImages(files);
       if (path === "auth/login" || path === "auth/register" || path === "auth/google") {
         try {
           const out = await routeAuth(path, fields, req);

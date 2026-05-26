@@ -172,23 +172,20 @@ export default function StudioMediaPicker({
       return;
     }
 
-    // Reject HEIC/HEIF/AVIF up-front — most browsers (Android Chrome, older
-    // Safari, Firefox) can't decode them for preview, and our backend can't
-    // process them either, so they would just fail at generation time.
-    // We check BOTH the filename AND the actual file content (magic bytes),
-    // because Samsung Galaxy in "high efficiency" mode saves HEIF with a
-    // `.jpg` extension — extension alone is not reliable.
+    // HEIC/HEIF detection — informational only. Backend (sharp) converts
+    // these to JPEG before sending to the AI, so we ACCEPT the file and just
+    // let the user know preview won't render in this browser.
     const nameLower = (file.name || "").toLowerCase();
     const typeLower = (file.type || "").toLowerCase();
     const isHeicByName = /\.(heic|heif)$/.test(nameLower) || /image\/(heic|heif)/.test(typeLower);
     const isAvif = /\.avif$/.test(nameLower) || /image\/avif/.test(typeLower);
     const sniffed = await sniffHeicLikeFormat(file);
     if (isHeicByName || sniffed) {
-      toast.error(
-        "Foto em formato HEIC/HEIF (alta eficiência) — não funciona neste browser. No iPhone: Definições → Câmara → Formatos → \"Mais compatível\". No Samsung: Câmara → Definições → desativa \"Imagens HEIF\" (ou \"High efficiency\").",
-        { duration: 12000 },
+      toast.info(
+        "Foto HEIC/HEIF — preview não vai aparecer, mas o servidor converte automaticamente antes de gerar.",
+        { duration: 6000 },
       );
-      return;
+      // continue without returning — file is accepted
     }
     if (isAvif) {
       toast.error("AVIF ainda não é suportado. Usa JPEG, PNG ou WEBP.", { duration: 7000 });

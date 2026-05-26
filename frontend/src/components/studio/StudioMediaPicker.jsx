@@ -7,7 +7,6 @@ import { useI18n } from "../../lib/i18n";
 import { CLIENT_BUILD_ID } from "../../lib/buildInfo";
 import { setPreviewFromFile, revokePreviewUrl } from "../../lib/studioUpload/mediaPreview";
 import {
-  compressImage,
   looksLikeImageFile,
   looksLikeVideoFile,
   IMAGE_ACCEPT,
@@ -18,7 +17,7 @@ import {
   looksLikeVideoUpload,
   validateVideoUpload,
 } from "../../lib/videoMedia";
-import { MAX_IMAGE_DIRECT_BYTES, MAX_IMAGE_PICKER_BYTES } from "../../lib/uploadConstants";
+import { MAX_IMAGE_PICKER_BYTES } from "../../lib/uploadConstants";
 
 const LAYOUT = {
   portrait: "aspect-[4/5] min-h-[200px]",
@@ -162,7 +161,7 @@ export default function StudioMediaPicker({
       return;
     }
 
-    // --- Image flow: validate type first, then AUTO-COMPRESS before size check ---
+    // --- Image flow: validate type, accept the file, let server handle the rest ---
     if (looksLikeVideoUpload(file)) {
       toast.error(t("vid_err_use_video_zone"));
       return;
@@ -172,72 +171,16 @@ export default function StudioMediaPicker({
       return;
     }
 
-    // HEIC/HEIF detection — informational only. Backend (sharp) converts
-    // these to JPEG before sending to the AI, so we ACCEPT the file and just
-    // let the user know preview won't render in this browser.
-    const nameLower = (file.name || "").toLowerCase();
-    const typeLower = (file.type || "").toLowerCase();
-    const isHeicByName = /\.(heic|heif)$/.test(nameLower) || /image\/(heic|heif)/.test(typeLower);
-    const isAvif = /\.avif$/.test(nameLower) || /image\/avif/.test(typeLower);
-    const sniffed = await sniffHeicLikeFormat(file);
-    if (isHeicByName || sniffed) {
-      toast.info(
-        "Foto HEIC/HEIF — preview não vai aparecer, mas o servidor converte automaticamente antes de gerar.",
-        { duration: 6000 },
-      );
-      // continue without returning — file is accepted
-    }
-    if (isAvif) {
-      toast.error("AVIF ainda não é suportado. Usa JPEG, PNG ou WEBP.", { duration: 7000 });
-      return;
-    }
-
-    // Phone cameras often deliver 8–20 MB photos. Auto-shrink so the user
-    // never sees a "imagem muito grande" toast just for taking a high-res
-    // picture. compressImage shows its own loading/success toast.
-    // For HEIC files the canvas might fail — that's OK; the server has sharp
-    // and will normalize server-side. We still ACCEPT the file.
-    let workFile = file;
-    const isHeicLike = isHeicByName || Boolean(sniffed);
-    if (file.size > MAX_IMAGE_DIRECT_BYTES) {
-      try {
-        workFile = await compressImage(file, {
-          maxBytes: MAX_IMAGE_DIRECT_BYTES,
-          maxBytesIOS: MAX_IMAGE_DIRECT_BYTES,
-        });
-      } catch {
-        // compression failure → fall through with original.
-        // For HEIC files this is expected (browser can't decode them).
-        // The server accepts up to 12 MB and converts with sharp.
-        if (!isHeicLike) {
-          // Only warn for non-HEIC files; HEIC will be handled server-side
-          console.warn("[StudioMediaPicker] compression failed, using original", file.name, file.size);
-        }
-      }
-    }
-
-    // Accept files up to MAX_IMAGE_PICKER_BYTES (10 MB). The server normalizes
-    // and compresses with sharp, so even large HEIF files will work.
-    if (workFile.size > MAX_IMAGE_PICKER_BYTES) {
+    // Size gate — server accepts up to 12 MB
+    if (file.size > MAX_IMAGE_PICKER_BYTES) {
       toast.error(t("img_err_too_large"));
       return;
     }
 
-    // Try to decode locally to know whether we can show a real preview. If
-    // the browser can't decode, we still ACCEPT the file (backend often
-    // handles formats the browser doesn't) and surface a placeholder UI +
-    // one-time toast warning the user. This avoids both the "broken
-    // thumbnail" dead-end AND the over-strict rejection of valid uploads.
-    canDecodeAsImage(workFile).then((ok) => {
-      if (!ok) {
-        toast.warning(
-          "Pré-visualização indisponível neste browser, mas o ficheiro foi aceite. Tenta gerar — se falhar, usa outra foto.",
-          { duration: 7000 },
-        );
-      }
-    }).catch(() => { /* ignore */ });
-
-    onChange(workFile);
+    // Accept the file as-is. The server (sharp) handles HEIF→JPEG conversion,
+    // compression, and rotation. Don't try to canvas-compress here — it was
+    // breaking uploads for Samsung HEIF files and other edge cases.
+    onChange(file);
   }, [isVideo, onChange, t]);
 
   const clear = useCallback(() => {

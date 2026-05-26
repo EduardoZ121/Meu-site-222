@@ -18,8 +18,6 @@ import { emptySlide, slideText, normalizeSlides } from "../../lib/carouselSlides
 import { getCarouselExample, getCarouselSlideRoles } from "../../lib/carouselLocales";
 import { revokePanoramaBlobUrls, splitPanoramaToSlides } from "../../lib/carouselPanorama";
 import { validateImageUpload } from "../../lib/videoMedia";
-import { compressImage } from "../../lib/imageCompress";
-import { MAX_IMAGE_DIRECT_BYTES } from "../../lib/uploadConstants";
 import { useI18n } from "../../lib/i18n";
 import { useStudioI18n } from "../../lib/useStudioI18n";
 import AspectPicker from "../../components/AspectPicker";
@@ -167,17 +165,6 @@ export default function CarouselPage() {
   const updateSlideRef = async (i, file) => {
     let workFile = file || null;
     if (workFile) {
-      // Auto-compress big phone photos before size validation
-      if (workFile.size > MAX_IMAGE_DIRECT_BYTES) {
-        try {
-          workFile = await compressImage(workFile, {
-            maxBytes: MAX_IMAGE_DIRECT_BYTES,
-            maxBytesIOS: MAX_IMAGE_DIRECT_BYTES,
-          });
-        } catch {
-          // keep original; size check below decides
-        }
-      }
       const check = validateImageUpload(workFile, t);
       if (!check.ok) {
         toast.error(check.message);

@@ -1,9 +1,13 @@
 /**
- * Prepara FormData antes do POST — imagens → JPEG seguro; vídeos grandes → nuvem.
+ * Prepara FormData antes do POST.
+ *
+ * SIMPLIFIED — only offload VIDEOS to cloud when they're too large for
+ * Vercel's body limit. Images go through directly; the server handles
+ * HEIF conversion + compression with sharp. Previous versions tried to
+ * Blob-offload images too and broke uploads.
  */
 
 import { prepareImageForUpload } from "../prepareImageForUpload";
-import { MAX_IMAGE_DIRECT_BYTES } from "../uploadConstants";
 import { VIDEO_VERCEL_SAFE_BYTES } from "../videoCloudLimits";
 
 export const STUDIO_IMAGE_FIELDS = new Set([
@@ -30,30 +34,8 @@ function isImageField(key, file) {
 }
 
 /**
- * Vercel serverless has a ~4.5 MB request body limit. If the image is too
- * large after canvas compression (e.g. Samsung HEIF the browser can't decode),
- * upload it to Blob and send the URL instead.
- *
- * Also, Samsung HEIF-as-.jpg files MUST go through Blob because the browser
- * can't compress them and the raw HEIF bytes cause the AI to ignore the photo.
- * The server's normalizeUploadedImages (sharp) converts HEIF→JPEG during the
- * Blob upload, so the stored Blob is always a clean JPEG the AI can read.
- */
-const VERCEL_BODY_SAFE = 3_800_000;
-
-async function offloadImageToBlob(file) {
-  try {
-    const { uploadImageToBlob } = await import("../api");
-    if (typeof uploadImageToBlob !== "function") throw new Error("no uploadImageToBlob");
-    const url = await uploadImageToBlob(file);
-    return url;
-  } catch {
-    return null;
-  }
-}
-
-/**
- * Normaliza todos os ficheiros para envio fiável ao /api (sem Blob no browser para fotos normais).
+ * Normaliza ficheiros para envio ao /api.
+ * Vídeos grandes → nuvem. Imagens → directo (servidor trata HEIF com sharp).
  */
 export async function prepareStudioFormDataForSubmit(formData, options = {}) {
   const skipBlob = Boolean(options.skipBlobOffload);
@@ -66,6 +48,7 @@ export async function prepareStudioFormDataForSubmit(formData, options = {}) {
       continue;
     }
 
+    // Videos > 3.2 MB need cloud upload (Vercel body limit)
     if (key === "video" || (isVideoFile(val) && key !== "mask")) {
       if (!skipBlob && val.size > VIDEO_VERCEL_SAFE_BYTES) {
         const { uploadVideoToCloud } = await import("../api");
@@ -79,37 +62,11 @@ export async function prepareStudioFormDataForSubmit(formData, options = {}) {
       continue;
     }
 
+    // Images — just normalize MIME type and send directly.
+    // Server handles HEIF→JPEG conversion with sharp.
     if (isImageField(key, val)) {
       // eslint-disable-next-line no-await-in-loop
-      const prepared = await prepareImageForUpload(val, {
-        maxBytes: MAX_IMAGE_DIRECT_BYTES,
-        maxSize: 2048,
-        force: true,
-      });
-
-      // CRITICAL: If the file is flagged as needing Blob offload (HEIF, or
-      // browser couldn't decode it), ALWAYS upload to Blob. Sending raw HEIF
-      // bytes inline causes the AI model to ignore the photo entirely.
-      const needsBlob = !skipBlob && (
-        prepared._needsBlobOffload
-        || prepared.size > VERCEL_BODY_SAFE
-      );
-
-      if (needsBlob) {
-        // eslint-disable-next-line no-await-in-loop
-        const blobUrl = await offloadImageToBlob(prepared);
-        if (blobUrl) {
-          const urlKey = key === "photo" ? "photo_url"
-            : key === "image" ? "image_url"
-            : `${key}_url`;
-          out.append(urlKey, blobUrl);
-          // eslint-disable-next-line no-continue
-          continue;
-        }
-        // Blob upload failed — send the file anyway as last resort
-        console.warn("[prepareSubmit] Blob offload failed for", key, "sending inline");
-      }
-
+      const prepared = await prepareImageForUpload(val);
       out.append(key, prepared);
       // eslint-disable-next-line no-continue
       continue;

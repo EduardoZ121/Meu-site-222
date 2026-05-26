@@ -1,7 +1,7 @@
-import StudioMediaPicker from "./studio/StudioMediaPicker";
+import ImageUploadZone from "./ImageUploadZone";
 import { IMAGE_ACCEPT } from "../lib/imageCompress";
 
-/** Upload de foto no estúdio — preview imediato, envio preparado ao carregar em Gerar. */
+/** Upload de foto no estúdio — caixa com brilho (visual original). */
 export default function PhotoUpload({
   value,
   onChange,
@@ -13,7 +13,7 @@ export default function PhotoUpload({
   emptyHint,
 }) {
   return (
-    <StudioMediaPicker
+    <ImageUploadZone
       value={value}
       onChange={onChange}
       accept={accept}
@@ -22,7 +22,7 @@ export default function PhotoUpload({
       className={className}
       emptyLabel={emptyLabel}
       emptyHint={emptyHint}
-      mediaType="image"
+      enableRemotePersist={false}
     />
   );
 }

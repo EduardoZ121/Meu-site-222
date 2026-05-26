@@ -38,46 +38,6 @@ async function convertHeicToJpeg(file) {
   }
 }
 
-/**
- * Comprime em passos até ficar abaixo do limite Vercel (evita “upload failed” em fotos difíceis).
- */
-export async function ensureFitsVercelBody(file, opts = {}) {
-  const targetCap = Math.min(
-    Number(opts.maxBytes) || VERCEL_BODY_SAFE_BYTES,
-    VERCEL_BODY_SAFE_BYTES,
-  );
-  const steps = opts.emergency
-    ? [
-      { maxBytes: Math.min(2_000_000, targetCap), maxSize: 1024 },
-      { maxBytes: Math.min(1_500_000, targetCap), maxSize: 880 },
-      { maxBytes: Math.min(1_100_000, targetCap), maxSize: 768 },
-    ]
-    : [
-      { maxBytes: Math.min(MAX_IMAGE_DIRECT_BYTES, targetCap), maxSize: 2048 },
-      { maxBytes: Math.min(2_400_000, targetCap), maxSize: 1536 },
-      { maxBytes: Math.min(2_000_000, targetCap), maxSize: 1280 },
-      { maxBytes: Math.min(1_500_000, targetCap), maxSize: 1024 },
-      { maxBytes: Math.min(1_200_000, targetCap), maxSize: 896 },
-    ];
-
-  let work = file;
-  for (const step of steps) {
-    if (work.size <= targetCap) return work;
-    work = await prepareImageForUpload(work, {
-      ...opts,
-      maxBytes: step.maxBytes,
-      maxSize: step.maxSize,
-      force: true,
-    });
-  }
-  if (work.size > targetCap) {
-    const err = new Error("compress_too_large");
-    err.code = "COMPRESS_TOO_LARGE";
-    throw err;
-  }
-  return work;
-}
-
 export async function prepareImageForUpload(file, opts = {}) {
   if (!file) return null;
 

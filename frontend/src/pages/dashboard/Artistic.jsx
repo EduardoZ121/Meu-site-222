@@ -31,6 +31,7 @@ import {
   getStyleById,
 } from "../../lib/buildArtisticStudioPrompt";
 import useTitle from "../../lib/useTitle";
+import { useStudioI18n } from "../../lib/useStudioI18n";
 
 const SECTION_ICONS = {
   light: Sun,

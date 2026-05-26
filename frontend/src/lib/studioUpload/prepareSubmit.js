@@ -1,19 +1,15 @@
 /**
- * Envio — imagem comprimida até caber no POST; nuvem só se ainda falhar depois de 4 passos.
+ * Envio ao /api — comprimir JPEG no browser; nuvem só se ainda > 3 MB.
  */
 
-import {
-  ensureFitsVercelBody,
-  VERCEL_BODY_SAFE_BYTES,
-} from "../prepareImageForUpload";
-import { formDataTotalBlobBytes, VIDEO_VERCEL_SAFE_BYTES } from "../uploadConstants";
-
-/** Limite do body multipart no Vercel (~4,5 MB) — margem para campos texto + overhead. */
-const FORM_BODY_SAFE_BYTES = 3_600_000;
+import { prepareImageForUpload } from "../prepareImageForUpload";
+import { MAX_IMAGE_DIRECT_BYTES, VIDEO_VERCEL_SAFE_BYTES } from "../uploadConstants";
 
 const IMAGE_KEYS = new Set([
   "photo", "image", "mask", "garment", "reference_image", "slide_photo", "photo_b",
 ]);
+
+const VERCEL_SAFE = 3_000_000;
 
 function isVideoFile(file) {
   if (!file) return false;
@@ -28,84 +24,19 @@ function isImageField(key, file) {
   return /\.(heic|heif|jpe?g|png|webp|gif|bmp|avif)$/i.test(file.name || "");
 }
 
-async function appendImageField(out, key, file, options) {
-  const directMax = options.directMaxBytes ?? VERCEL_BODY_SAFE_BYTES;
-  const prepared = options.alreadyPrepared
-    ? file
-    : await ensureFitsVercelBody(file, {
-      emergency: Boolean(options.emergencyCompress),
-      maxBytes: directMax,
-    });
-
-  if (prepared.size <= directMax) {
-    out.append(key, prepared);
-    return;
-  }
-
-  try {
-    const { uploadImageToCloud } = await import("../api");
-    const url = await uploadImageToCloud(prepared, options);
-    out.append(`${key}_url`, url);
-  } catch (cloudErr) {
-    const emergency = await ensureFitsVercelBody(prepared, {
-      emergency: true,
-      maxBytes: directMax,
-    });
-    if (emergency.size <= directMax) {
-      out.append(key, emergency);
-      return;
-    }
-    const detail = cloudErr?.message || "Upload da imagem falhou.";
-    const err = new Error(detail);
-    err.cause = cloudErr;
-    throw err;
-  }
-}
-
-function formImageEntries(formData) {
-  const rows = [];
+function countImageFields(formData) {
+  let n = 0;
   for (const [key, val] of formData.entries()) {
-    if (val instanceof File && isImageField(key, val)) rows.push({ key, val });
+    if (val instanceof File && isImageField(key, val)) n += 1;
   }
-  return rows;
+  return n;
 }
 
 export async function prepareStudioFormDataForSubmit(formData, options = {}) {
-  const imageRows = formImageEntries(formData);
-  const imageCount = Math.max(1, imageRows.length);
-  const perImageCap = Math.min(
-    VERCEL_BODY_SAFE_BYTES,
-    Math.floor(FORM_BODY_SAFE_BYTES / imageCount),
-  );
-
-  const preparedImages = new Map();
-  for (const { key, val } of imageRows) {
-    // eslint-disable-next-line no-await-in-loop
-    const prepared = await ensureFitsVercelBody(val, {
-      emergency: Boolean(options.emergencyCompress),
-      maxBytes: perImageCap,
-    });
-    preparedImages.set(key, prepared);
-  }
-
-  let emergency = Boolean(options.emergencyCompress);
-  let total = formDataTotalBlobBytes(
-    (() => {
-      const probe = new FormData();
-      for (const [k, v] of preparedImages) probe.append(k, v);
-      return probe;
-    })(),
-  );
-  if (total > FORM_BODY_SAFE_BYTES && !emergency) {
-    emergency = true;
-    for (const { key, val } of imageRows) {
-      // eslint-disable-next-line no-await-in-loop
-      preparedImages.set(
-        key,
-        await ensureFitsVercelBody(val, { emergency: true, maxBytes: Math.floor(FORM_BODY_SAFE_BYTES / imageCount) }),
-      );
-    }
-  }
+  const imageCount = countImageFields(formData);
+  const perImageMax = imageCount > 1
+    ? Math.min(MAX_IMAGE_DIRECT_BYTES, Math.floor(VERCEL_SAFE / imageCount))
+    : MAX_IMAGE_DIRECT_BYTES;
 
   const out = new FormData();
 
@@ -127,14 +58,25 @@ export async function prepareStudioFormDataForSubmit(formData, options = {}) {
     }
 
     if (isImageField(key, val)) {
-      const prepared = preparedImages.get(key) ?? val;
-      // eslint-disable-next-line no-await-in-loop
-      await appendImageField(out, key, prepared, {
-        ...options,
-        emergencyCompress: emergency,
-        alreadyPrepared: preparedImages.has(key),
-        directMaxBytes: perImageCap,
+      let prepared = await prepareImageForUpload(val, {
+        maxBytes: perImageMax,
+        maxSize: options.emergencyCompress ? 1280 : 2048,
+        force: true,
       });
+      if (options.emergencyCompress && prepared.size > perImageMax) {
+        prepared = await prepareImageForUpload(prepared, {
+          maxBytes: Math.floor(perImageMax * 0.75),
+          maxSize: 1024,
+          force: true,
+        });
+      }
+      if (prepared.size > VERCEL_SAFE) {
+        const { uploadImageToCloud } = await import("../api");
+        const url = await uploadImageToCloud(prepared, options);
+        out.append(`${key}_url`, url);
+      } else {
+        out.append(key, prepared);
+      }
       continue;
     }
 

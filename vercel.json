@@ -14,7 +14,7 @@
     }
   },
   "installCommand": "ln -sfn frontend/api api; yarn install --frozen-lockfile || yarn install; cd frontend && yarn install --frozen-lockfile || yarn install",
-  "buildCommand": "cd frontend && REACT_APP_BUILD_ID=upload-retry-v4 yarn build",
+  "buildCommand": "cd frontend && REACT_APP_BUILD_ID=upload-stable-v1 yarn build",
   "headers": [
     {
       "source": "/index.html",

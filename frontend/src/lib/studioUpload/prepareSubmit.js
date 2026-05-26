@@ -33,6 +33,11 @@ function isImageField(key, file) {
  * Vercel serverless has a ~4.5 MB request body limit. If the image is too
  * large after canvas compression (e.g. Samsung HEIF the browser can't decode),
  * upload it to Blob and send the URL instead.
+ *
+ * Also, Samsung HEIF-as-.jpg files MUST go through Blob because the browser
+ * can't compress them and the raw HEIF bytes cause the AI to ignore the photo.
+ * The server's normalizeUploadedImages (sharp) converts HEIF→JPEG during the
+ * Blob upload, so the stored Blob is always a clean JPEG the AI can read.
  */
 const VERCEL_BODY_SAFE = 3_800_000;
 
@@ -82,18 +87,27 @@ export async function prepareStudioFormDataForSubmit(formData, options = {}) {
         force: true,
       });
 
-      // If the prepared image is still too large for Vercel's body limit
-      // (e.g. Samsung HEIF that the browser can't decode), upload to Blob
-      // and send the URL instead.
-      if (!skipBlob && prepared.size > VERCEL_BODY_SAFE) {
+      // CRITICAL: If the file is flagged as needing Blob offload (HEIF, or
+      // browser couldn't decode it), ALWAYS upload to Blob. Sending raw HEIF
+      // bytes inline causes the AI model to ignore the photo entirely.
+      const needsBlob = !skipBlob && (
+        prepared._needsBlobOffload
+        || prepared.size > VERCEL_BODY_SAFE
+      );
+
+      if (needsBlob) {
         // eslint-disable-next-line no-await-in-loop
         const blobUrl = await offloadImageToBlob(prepared);
         if (blobUrl) {
-          out.append(key === "photo" ? "photo_url" : `${key}_url`, blobUrl);
+          const urlKey = key === "photo" ? "photo_url"
+            : key === "image" ? "image_url"
+            : `${key}_url`;
+          out.append(urlKey, blobUrl);
           // eslint-disable-next-line no-continue
           continue;
         }
-        // Blob upload failed — send the file anyway, server might handle it
+        // Blob upload failed — send the file anyway as last resort
+        console.warn("[prepareSubmit] Blob offload failed for", key, "sending inline");
       }
 
       out.append(key, prepared);

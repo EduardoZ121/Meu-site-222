@@ -17,13 +17,16 @@ export function browserCanPlayQuickTime() {
   return qt === "probably" || qt === "maybe";
 }
 
-/** Heurística: ficheiro provavelmente HEVC/H.265 (iPhone MOV). */
+/** Heurística: ficheiro provavelmente HEVC/H.265 (iPhone MOV or Samsung MP4). */
 export function isLikelyHevcFile(file) {
   if (!file) return false;
   const name = (file.name || "").toLowerCase();
   const type = (file.type || "").toLowerCase();
   if (/hevc|h265|h\.265/i.test(name)) return true;
   if (type === "video/quicktime" && !browserCanPlayQuickTime()) return true;
+  // Samsung Galaxy records in HEVC even in .mp4 container. The numbers
+  // 1000xxxxxx are Samsung file naming pattern (e.g. 1000290300.mp4).
+  if (/^1\d{9,}\.mp4$/i.test(name)) return true;
   return false;
 }
 

@@ -1,38 +1,22 @@
 [
   {
-    "content": "Import repo to /app working directory",
-    "status": "completed"
+    "content": "FIX: HEIF files always go through Blob (server converts with sharp) regardless of size",
+    "status": "in_progress"
   },
   {
-    "content": "Phase 2: Fix image upload pipeline (formidable limits, fileToDataUri, HEIF handling)",
-    "status": "completed"
+    "content": "FIX: Video preview failing for small MP4 files",
+    "status": "pending"
   },
   {
-    "content": "Phase 2: Fix video upload pipeline (cloud offload for >3.2MB, HEVC preview)",
-    "status": "completed"
+    "content": "FIX: prepareImageForUpload detects undecodable files and flags them",
+    "status": "pending"
   },
   {
-    "content": "Phase 2: Fix i18n - ensure no raw keys appear in UI",
-    "status": "completed"
+    "content": "FIX: Loading chunk 601 failed - ensure build produces correct chunks",
+    "status": "pending"
   },
   {
-    "content": "Phase 2: Fix Vercel deploy (dependency conflicts, symlink/pattern)",
-    "status": "completed"
-  },
-  {
-    "content": "Phase 2: Fix additional issues found (hardcoded PT text, missing carousel keys, limits updates)",
-    "status": "completed"
-  },
-  {
-    "content": "Phase 2: All user stories covered - build succeeds",
-    "status": "completed"
-  },
-  {
-    "content": "Phase 3: End-to-end testing using testing agent",
-    "status": "completed"
-  },
-  {
-    "content": "Phase 4: Save to GitHub",
-    "status": "completed"
+    "content": "Test all fixes end-to-end",
+    "status": "pending"
   }
 ]

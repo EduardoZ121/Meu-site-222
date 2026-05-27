@@ -160,7 +160,7 @@ function buildImproveSystemPrompt(context = {}) {
 
   if (tool === "video_text") {
     return (
-      "You are a senior AI video director writing prompts for text-to-video generation (6–15 second clips). "
+      "You are a senior AI video director writing prompts for text-to-video generation (4–8 second clips). "
       + "Transform the user's idea into ONE vivid English scene description with clear subject action, environment, "
       + "lighting, atmosphere, and camera feel. Optimize for short-form motion — one cohesive moment, not a long story. "
       + "Do NOT append duration, aspect ratio, or motion-style tags. "
@@ -181,7 +181,7 @@ function buildImproveSystemPrompt(context = {}) {
   if (tool === "video_edit") {
     return (
       "You are an expert at video-to-video editing instructions. "
-      + "Rewrite the user's request as precise edit directions for a short clip (max ~15s): what to change visually "
+      + "Rewrite the user's request as precise edit directions for a short clip (max ~10s): what to change visually "
       + "(style, color grade, objects, atmosphere, VFX, wardrobe, background) while stating what must be preserved. "
       + "Be concrete and achievable in one pass. "
       + baseRules

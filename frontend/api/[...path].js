@@ -503,7 +503,7 @@ async function resolveVideoRef(files, fields, fileKey = "video", urlKey = "video
 async function videoEditInput(fields, files) {
   const video = await resolveVideoRef(files, fields, "video", "video_url");
   if (!video) {
-    const err = new Error("Envia um vídeo (MP4/MOV, idealmente 2–15 segundos).");
+    const err = new Error("Envia um vídeo (MP4/MOV, idealmente 2–10 segundos).");
     err.status = 400;
     throw err;
   }
@@ -520,7 +520,7 @@ async function videoEditInput(fields, files) {
     audio_setting: audioSetting === "auto" ? "auto" : "origin",
   };
   const dur = Number(text(fields, "duration", ""));
-  if (Number.isFinite(dur) && dur >= 2 && dur <= 15) input.duration = Math.round(dur);
+  if (Number.isFinite(dur) && dur >= 2 && dur <= 10) input.duration = Math.round(dur);
   const ref = await resolveImageRef(files, fields, "reference_image", "reference_image_url");
   if (ref) input.reference_image = ref;
   return { input, prompt: userPrompt };
@@ -1598,7 +1598,8 @@ async function routePost(path, fields, files, req) {
   if (path === "generate/video") {
     const lang = text(fields, "lang", "en").slice(0, 2);
     const motion = text(fields, "motion_style", "cinematic").trim() || "cinematic";
-    const durationSec = text(fields, "duration_sec", "15").trim() || "15";
+    const rawDur = Math.round(Number(text(fields, "duration_sec", "6")));
+    const durationSec = [4, 6, 8].includes(rawDur) ? String(rawDur) : "6";
     const hasPhoto = Boolean(files.photo || text(fields, "photo_url", "").trim());
     let userPrompt = text(fields, "prompt", "").trim();
     if (!userPrompt) throw new Error("Descreve o vídeo.");

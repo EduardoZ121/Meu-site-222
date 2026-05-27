@@ -1,5 +1,6 @@
 import { Bell, CheckCheck, ImageIcon, Coins, Trash2 } from "lucide-react";
 import { Link } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { useNotifications } from "../../lib/NotificationContext";
 import { useI18n } from "../../lib/i18n";
 
@@ -14,10 +15,23 @@ function NotifIcon({ type }) {
 export default function NotificationListPanel({ compact = false }) {
   const { t } = useI18n();
   const { notifications, unreadCount, markRead, markAllRead, clearAll } = useNotifications();
+  const navigate = useNavigate();
+
+  const openNotification = (n) => {
+    markRead(n.id);
+    if (n.href) {
+      const qs = n.creationId ? `?focus=${encodeURIComponent(n.creationId)}` : "";
+      navigate(`${n.href}${qs}`);
+      return;
+    }
+    if (n.creationId) {
+      navigate(`/app/gallery?focus=${encodeURIComponent(n.creationId)}`);
+    }
+  };
 
   return (
-    <div className={compact ? "" : "rounded-xl border border-white/[0.08] bg-white/[0.02] overflow-hidden"}>
-      <div className="flex items-center justify-between gap-2 px-3 py-2.5 border-b border-white/[0.06]">
+    <div className={compact ? "" : "rounded-xl border border-[#7C3AED]/20 bg-gradient-to-b from-[#15131f] to-[#0f0f15] shadow-[0_0_30px_-18px_rgba(124,58,237,0.55)] overflow-hidden"}>
+      <div className="flex items-center justify-between gap-2 px-3 py-2.5 border-b border-[#7C3AED]/15">
         <div className="flex items-center gap-2 min-w-0">
           <Bell className="w-4 h-4 text-[#A855F7] shrink-0" strokeWidth={1.75} />
           <p className="text-[13px] font-semibold truncate">{t("notif_panel_title")}</p>
@@ -51,7 +65,7 @@ export default function NotificationListPanel({ compact = false }) {
         )}
       </div>
 
-      <div className={`overflow-y-auto overscroll-contain ${compact ? "max-h-[200px]" : "max-h-[220px]"}`}>
+      <div className={`overflow-y-auto overscroll-contain ${compact ? "max-h-[200px]" : "max-h-[260px]"}`}>
         {notifications.length === 0 ? (
           <p className="px-3 py-8 text-center text-[#6b6b70] text-[12px]" data-testid="notifications-empty">
             {t("notif_empty")}
@@ -62,9 +76,9 @@ export default function NotificationListPanel({ compact = false }) {
               <li key={n.id}>
                 <button
                   type="button"
-                  onClick={() => markRead(n.id)}
-                  className={`w-full text-left px-3 py-2.5 flex gap-2.5 hover:bg-white/[0.04] transition-colors ${
-                    n.read ? "opacity-70" : "bg-[#7C3AED]/5"
+                  onClick={() => openNotification(n)}
+                  className={`w-full text-left px-3 py-2.5 flex gap-2.5 hover:bg-[#7C3AED]/10 transition-colors ${
+                    n.read ? "opacity-80" : "bg-[#7C3AED]/8"
                   }`}
                   data-testid={`notification-item-${n.type}`}
                 >

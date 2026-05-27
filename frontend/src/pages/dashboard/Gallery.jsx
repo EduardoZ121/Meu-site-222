@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import {
   Heart, Trash2, Download, X, Loader2, Eye, RefreshCw,
 } from "lucide-react";
@@ -55,6 +56,7 @@ function GalleryLightbox({ item, onClose, t }) {
 
 export default function Gallery({ favoritesOnly = false }) {
   const { t } = useI18n();
+  const [searchParams, setSearchParams] = useSearchParams();
   useTitle(favoritesOnly ? t("sidebar_favorites") : t("sidebar_gallery"));
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -97,6 +99,21 @@ export default function Gallery({ favoritesOnly = false }) {
     window.addEventListener("rp:creation-succeeded", onCreation);
     return () => window.removeEventListener("rp:creation-succeeded", onCreation);
   }, [load]);
+
+  useEffect(() => {
+    const focusId = String(searchParams.get("focus") || "").trim();
+    if (!focusId || !items.length) return;
+    const target = items.find((x) => x.id === focusId);
+    if (!target) return;
+    setViewItem(target);
+    const el = document.querySelector(`[data-testid="gallery-item-${focusId}"]`);
+    if (el?.scrollIntoView) {
+      el.scrollIntoView({ behavior: "smooth", block: "center" });
+    }
+    const next = new URLSearchParams(searchParams);
+    next.delete("focus");
+    setSearchParams(next, { replace: true });
+  }, [items, searchParams, setSearchParams]);
 
   const toggleFav = async (id) => {
     setBusyId(id);

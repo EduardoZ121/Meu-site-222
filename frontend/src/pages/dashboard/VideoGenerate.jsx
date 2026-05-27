@@ -18,9 +18,8 @@ import { useStudioGenerateGate } from "../../lib/useStudioGenerateGate";
 const ASPECTS = ["16:9", "9:16", "1:1", "4:5"];
 const IDEA_KEYS = ["vid_idea_1", "vid_idea_2", "vid_idea_3", "vid_idea_4"];
 
-export default function VideoGenerate({ mode = "text", layout = "page" }) {
+export default function VideoGenerate({ mode = "text" }) {
   const { t } = useI18n();
-  const isColumn = layout === "column";
   const ideas = useMemo(() => IDEA_KEYS.map((k) => t(k)), [t]);
   const DURATIONS = useMemo(() => [
     { v: 4, label: "4s", desc: t("vid_dur_short") },
@@ -207,40 +206,31 @@ export default function VideoGenerate({ mode = "text", layout = "page" }) {
     </div>
   );
 
-  const resultInner = result ? (
-    <ResultPanel creation={result} loading={busy} onChange={setResult} emptyLabel={t("vid_loading")} />
-  ) : (
-    <div className="rounded-xl border border-[#2E2E30] bg-gradient-to-br from-[#13131A] to-[#0B0B0C] aspect-video flex flex-col items-center justify-center gap-2 p-4">
-      <Wand2 className="w-5 h-5 text-[#C4B5FD]" strokeWidth={1.5} />
-      <p className="text-[#8A8A8E] text-[12px] text-center px-2">{t("vid_empty_preview")}</p>
-      <p className="text-[#5A5A5E] text-[10px] font-mono uppercase tracking-[0.12em]">{aspect} · {duration}s</p>
-    </div>
-  );
-
-  if (isColumn) {
-    return (
-      <div className="flex flex-col gap-4 min-w-0" data-testid={`video-generate-column-${mode}`}>
-        {controls}
-        <StudioAccordionSection title={t("last_result")} defaultOpen testId={`video-${mode}-acc-result`}>
-          <StudioResultAnchor busy={busy} ready={Boolean(primaryResultUrl(result))}>
-            {resultInner}
-          </StudioResultAnchor>
-        </StudioAccordionSection>
+  const resultBlock = (
+    <StudioResultAnchor
+      busy={busy}
+      ready={Boolean(primaryResultUrl(result))}
+      className="lg:sticky lg:top-[88px] self-start space-y-3"
+    >
+      <p className="text-[10px] font-mono uppercase tracking-[0.22em] text-[#7C3AED]">{t("last_result")}</p>
+      <div className="rp-editor-panel overflow-hidden p-3 sm:p-4">
+        {result ? (
+          <ResultPanel creation={result} loading={busy} onChange={setResult} emptyLabel={t("vid_loading")} />
+        ) : (
+          <div className="rounded-xl border border-[#2E2E30] bg-gradient-to-br from-[#13131A] to-[#0B0B0C] aspect-video flex flex-col items-center justify-center gap-2 p-4">
+            <Wand2 className="w-5 h-5 text-[#C4B5FD]" strokeWidth={1.5} />
+            <p className="text-[#8A8A8E] text-[12px] text-center">{t("vid_empty_preview")}</p>
+            <p className="text-[#5A5A5E] text-[10px] font-mono uppercase tracking-[0.12em]">{aspect} · {duration}s</p>
+          </div>
+        )}
       </div>
-    );
-  }
+    </StudioResultAnchor>
+  );
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-[1fr_380px] gap-8 lg:gap-10" data-testid={`video-generate-panel-${mode}`}>
       {controls}
-      <StudioResultAnchor
-        busy={busy}
-        ready={Boolean(primaryResultUrl(result))}
-        className="lg:sticky lg:top-[88px] self-start space-y-3"
-      >
-        <p className="text-[10px] font-mono uppercase tracking-[0.22em] text-[#7C3AED]">{t("last_result")}</p>
-        <div className="rp-editor-panel overflow-hidden p-3 sm:p-4">{resultInner}</div>
-      </StudioResultAnchor>
+      {resultBlock}
     </div>
   );
 }

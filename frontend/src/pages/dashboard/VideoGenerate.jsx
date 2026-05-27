@@ -18,9 +18,8 @@ import { useStudioGenerateGate } from "../../lib/useStudioGenerateGate";
 const ASPECTS = ["16:9", "9:16", "1:1", "4:5"];
 const IDEA_KEYS = ["vid_idea_1", "vid_idea_2", "vid_idea_3", "vid_idea_4"];
 
-export default function VideoGenerate({ mode = "text", layout = "page" }) {
+export default function VideoGenerate({ mode = "text" }) {
   const { t } = useI18n();
-  const isModule = layout === "module";
   const ideas = useMemo(() => IDEA_KEYS.map((k) => t(k)), [t]);
   const DURATIONS = useMemo(() => [
     { v: 4, label: "4s", desc: t("vid_dur_short") },
@@ -211,7 +210,7 @@ export default function VideoGenerate({ mode = "text", layout = "page" }) {
     <StudioResultAnchor
       busy={busy}
       ready={Boolean(primaryResultUrl(result))}
-      className={isModule ? "mt-4 pt-4 border-t border-white/[0.06]" : "lg:sticky lg:top-[88px] self-start space-y-3"}
+      className="lg:sticky lg:top-[88px] self-start space-y-3"
     >
       <p className="text-[10px] font-mono uppercase tracking-[0.22em] text-[#7C3AED]">{t("last_result")}</p>
       <div className="rp-editor-panel overflow-hidden p-3 sm:p-4">
@@ -227,15 +226,6 @@ export default function VideoGenerate({ mode = "text", layout = "page" }) {
       </div>
     </StudioResultAnchor>
   );
-
-  if (isModule) {
-    return (
-      <div className="flex flex-col min-w-0" data-testid={`video-generate-module-${mode}`}>
-        {controls}
-        {resultBlock}
-      </div>
-    );
-  }
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-[1fr_380px] gap-8 lg:gap-10" data-testid={`video-generate-panel-${mode}`}>

@@ -484,6 +484,8 @@ const pt = {
   upload_empty_label: "Carregar imagem",
   upload_empty_hint: "Clica, arrasta ou cola (Ctrl+V)",
   upload_ready: "Pronto para gerar — sem passo de guardar",
+  upload_save_error: "Erro ao guardar na nuvem",
+  upload_retry: "Reenviar",
   art_subtitle: "Escolhe estilo artístico, combina iluminação, lente e atmosfera — gera por texto ou edita uma foto.",
   art_brand: "Remake Pixel · Estúdio Artístico",
   art_title: "Estilos + efeitos, uma receita visual",

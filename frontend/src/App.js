@@ -4,6 +4,7 @@ import { BrowserRouter, Routes, Route, Navigate, useLocation, useNavigate } from
 import { Toaster } from "sonner";
 import { toast } from "sonner";
 import { AuthProvider, useAuth } from "./lib/auth";
+import { AssistLoopProvider } from "./lib/AssistLoopContext";
 import { PricingProvider } from "./lib/PricingContext";
 import { isPwaStandalone } from "./lib/pwaMode";
 
@@ -103,6 +104,7 @@ function App() {
   return (
     <div className="App touch-manipulation min-h-screen overflow-x-hidden">
       <AuthProvider>
+        <AssistLoopProvider>
           <PricingProvider>
           <BrowserRouter>
             <Toaster position="top-center" theme="dark" toastOptions={{ style: { background: "#121217", color: "#F4F1EA", border: "1px solid rgba(244,241,234,0.08)" } }} />
@@ -157,6 +159,7 @@ function App() {
             </Routes>
           </BrowserRouter>
           </PricingProvider>
+        </AssistLoopProvider>
         </AuthProvider>
     </div>
   );

@@ -4,3 +4,13 @@
   touch-action: manipulation;
   overflow-x: hidden;
 }
+
+/* AssistLoop: abrir Sofia pelo menu do perfil, sem bolha flutuante duplicada */
+body.rp-assistloop-menu .assistloop-chat-bubble,
+body.rp-assistloop-menu .assistloop-welcome-bubble {
+  display: none !important;
+}
+
+body.rp-assistloop-menu .assistloop-iframe-container {
+  z-index: 80;
+}

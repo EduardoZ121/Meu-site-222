@@ -27,6 +27,7 @@ import { LANG_LABELS, LANG_ORDER } from "../lib/localeStrings";
 import { setLanguageAndReload } from "../lib/remakepixLanguage";
 import SupportChat from "./SupportChat";
 import NotificationListPanel from "./notifications/NotificationListPanel";
+import { useAssistLoop } from "../lib/AssistLoopContext";
 
 function MenuLink({ to, icon: Icon, label, onNavigate, testId }) {
   return (
@@ -91,9 +92,11 @@ export default function DashboardProfileMenu() {
   const { user, logout } = useAuth();
   const { t, lang } = useI18n();
   const { unreadCount } = useNotifications();
+  const { enabled: assistLoopEnabled, ready: assistLoopReady, openSofia } = useAssistLoop();
   const navigate = useNavigate();
   const [chatOpen, setChatOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+  const useAssistLoopChat = assistLoopEnabled && assistLoopReady;
 
   if (!user) return null;
 
@@ -184,6 +187,7 @@ export default function DashboardProfileMenu() {
                 type="button"
                 onClick={() => {
                   closeMenu();
+                  if (useAssistLoopChat && openSofia()) return;
                   setChatOpen(true);
                 }}
                 className="w-full flex items-center gap-3 rounded-xl px-3 py-3 text-left bg-gradient-to-r from-[#7C3AED] to-[#9333EA] text-white shadow-[0_0_28px_-8px_rgba(168,85,247,0.55)] hover:brightness-110 transition-all"
@@ -245,7 +249,9 @@ export default function DashboardProfileMenu() {
         </DropdownMenuContent>
       </DropdownMenu>
 
-      <SupportChat open={chatOpen} onClose={() => setChatOpen(false)} />
+      {!useAssistLoopChat ? (
+        <SupportChat open={chatOpen} onClose={() => setChatOpen(false)} />
+      ) : null}
     </>
   );
 }

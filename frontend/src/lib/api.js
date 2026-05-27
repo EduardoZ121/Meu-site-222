@@ -127,8 +127,21 @@ export async function uploadPost(url, formData, config = {}) {
   let emergencyCompress = false;
   if (typeof window !== "undefined") {
     const { prepareStudioFormDataForSubmit } = await import("./studioUpload/prepareSubmit");
+    const { formDataTotalBlobBytes, pickBlobOffloadTimeoutMs, VIDEO_VERCEL_SAFE_BYTES } = await import("./uploadConstants");
+    let hasLargeVideo = false;
+    for (const [key, val] of formData.entries()) {
+      if (key === "video" && val instanceof File && val.size > VIDEO_VERCEL_SAFE_BYTES) {
+        hasLargeVideo = true;
+        break;
+      }
+    }
+    const prepareTimeoutMs = config.timeoutMs
+      ?? pickBlobOffloadTimeoutMs(formDataTotalBlobBytes(formData), hasLargeVideo);
     baseFd = await prepareStudioFormDataForSubmit(cloneFormData(formData), {
       emergencyCompress,
+      onVideoProgress: config.onVideoProgress,
+      onImageProgress: config.onImageProgress,
+      timeoutMs: prepareTimeoutMs,
     });
   }
 
@@ -250,8 +263,21 @@ export async function uploadPost(url, formData, config = {}) {
       if (payloadTooLarge && !emergencyCompress && typeof window !== "undefined") {
         emergencyCompress = true;
         const { prepareStudioFormDataForSubmit } = await import("./studioUpload/prepareSubmit");
-        baseFd = await prepareStudioFormDataForSubmit(cloneFormData(formData), {
+        const { prepareStudioFormDataForSubmit: prep } = await import("./studioUpload/prepareSubmit");
+        const { formDataTotalBlobBytes, pickBlobOffloadTimeoutMs, VIDEO_VERCEL_SAFE_BYTES } = await import("./uploadConstants");
+        let hasLargeVideo = false;
+        for (const [key, val] of formData.entries()) {
+          if (key === "video" && val instanceof File && val.size > VIDEO_VERCEL_SAFE_BYTES) {
+            hasLargeVideo = true;
+            break;
+          }
+        }
+        baseFd = await prep(cloneFormData(formData), {
           emergencyCompress: true,
+          onVideoProgress: config.onVideoProgress,
+          onImageProgress: config.onImageProgress,
+          timeoutMs: config.timeoutMs
+            ?? pickBlobOffloadTimeoutMs(formDataTotalBlobBytes(formData), hasLargeVideo),
         });
         // eslint-disable-next-line no-continue
         continue;

@@ -1,7 +1,8 @@
 /**
  * Estúdio Artístico — estilos e efeitos (inspirado em Perchance / mega-lens).
- * `adminOnly` — filtrado por `canAccessNsfwArtisticStyles` (utilizadores autenticados).
+ * `adminOnly` — filtrado por `canAccessNsfwArtisticStyles` (apenas administradores).
  */
+import { isStrictAdminUser } from "./isAdmin";
 
 export const ARTISTIC_STYLE_CATEGORIES = [
   { id: "photography", label: "Fotografia", labelEn: "Photography" },
@@ -17,7 +18,7 @@ export const ARTISTIC_STYLE_CATEGORIES = [
 ];
 
 export function canAccessNsfwArtisticStyles(user) {
-  return Boolean(user);
+  return isStrictAdminUser(user);
 }
 
 export const ARTISTIC_STUDIO_STYLES = [

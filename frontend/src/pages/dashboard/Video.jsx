@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
 import { motion } from "framer-motion";
-import { Film, Clapperboard, Lock } from "lucide-react";
+import { Film, Clapperboard } from "lucide-react";
 import { useI18n } from "../../lib/i18n";
 import { useAuth } from "../../lib/auth";
-import { isAdminUser } from "../../lib/isAdmin";
+import { isStrictAdminUser } from "../../lib/isAdmin";
 import useTitle from "../../lib/useTitle";
 import VideoGenerate from "./VideoGenerate";
 import VideoEditorAdmin from "./VideoEditorAdmin";
@@ -11,7 +11,7 @@ import VideoEditorAdmin from "./VideoEditorAdmin";
 export default function Video() {
   const { t } = useI18n();
   const { user } = useAuth();
-  const canUseVideoEditor = isAdminUser(user);
+  const canUseVideoEditor = isStrictAdminUser(user);
   useTitle(t("sidebar_video"));
   const [mode, setMode] = useState("generate");
 
@@ -78,16 +78,6 @@ export default function Video() {
           );
         })}
       </div>
-
-      {!canUseVideoEditor && (
-        <p
-          className="mb-6 flex items-center gap-2 text-[13px] text-[#8A8A8E]"
-          data-testid="video-editor-locked-hint"
-        >
-          <Lock className="w-3.5 h-3.5 shrink-0 text-[#6b6b70]" />
-          {t("vid_editor_admin_only")}
-        </p>
-      )}
 
       {mode === "edit" && canUseVideoEditor ? <VideoEditorAdmin /> : <VideoGenerate />}
     </div>

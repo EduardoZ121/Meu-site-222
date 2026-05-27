@@ -7,7 +7,8 @@ import {
 } from "../../lib/api";
 import { normalizeCreation, primaryResultUrl } from "../../lib/creationUrls";
 import { useAuth } from "../../lib/auth";
-import { isAdminUser } from "../../lib/isAdmin";
+import { isStrictAdminUser } from "../../lib/isAdmin";
+import { VIDEO_VERCEL_SAFE_BYTES, pickBlobOffloadTimeoutMs } from "../../lib/uploadConstants";
 import { usePricing } from "../../lib/PricingContext";
 import { useI18n } from "../../lib/i18n";
 import { toast } from "sonner";
@@ -39,7 +40,7 @@ export default function VideoEditorAdmin() {
   const { t } = useI18n();
   const ideas = useMemo(() => EDIT_IDEAS.map((k) => t(k)), [t]);
   const { refresh, user } = useAuth();
-  const canEdit = isAdminUser(user);
+  const canEdit = isStrictAdminUser(user);
   const { costs } = usePricing();
   const cost = costs.videoEdit ?? costs.video ?? 95;
 
@@ -82,7 +83,8 @@ export default function VideoEditorAdmin() {
 
     setBusy(true);
     setProgress(0);
-    setUploadPhase("send");
+    const needsCloudUpload = video.size > VIDEO_VERCEL_SAFE_BYTES;
+    setUploadPhase(needsCloudUpload ? "cloud" : "send");
     setResult(null);
     let submitData;
     try {
@@ -95,14 +97,37 @@ export default function VideoEditorAdmin() {
       fd.append("video", video);
       if (reference) fd.append("reference_image", reference);
 
+      const offloadTimeoutMs = pickBlobOffloadTimeoutMs(video.size, true);
+
       ({ data: submitData } = await uploadPost("/generate/video-edit", fd, {
         timeout: 600_000,
+        pollTimeoutMs: 900_000,
+        timeoutMs: offloadTimeoutMs,
         headers: { "X-Skip-Auto-Poll": "1" },
+        onVideoProgress: (pct) => setProgress(pct),
       }));
 
+      setUploadPhase("send");
+      setProgress(0);
+
+      const readyCreation = submitData?.creation
+        ? normalizeCreation(submitData.creation)
+        : null;
+      if (primaryResultUrl(readyCreation)) {
+        setResult(readyCreation);
+        toast.success(t("vid_edit_success", { n: readyCreation?.credits_spent ?? cost }));
+        await refresh();
+        return;
+      }
+
+      const predictionId = submitData?.prediction_id;
+      if (!predictionId) {
+        throw new Error(t("vid_edit_fail"));
+      }
+
       setUploadPhase("processing");
-      const data = await pollPrediction(submitData.prediction_id, {
-        timeoutMs: 600_000,
+      const data = await pollPrediction(predictionId, {
+        timeoutMs: 900_000,
         credits_spent: submitData.credits_spent || cost,
         type: "video",
         onTick: (sec) => setProgress(sec),
@@ -292,9 +317,15 @@ export default function VideoEditorAdmin() {
             onClick={run}
             label={t("vid_edit_btn", { n: cost })}
             busyLabel={
-              uploadPhase === "processing" && progress > 0
-                ? `${t("vid_edit_processing")} (${progress}s)`
-                : t("vid_edit_processing")
+              uploadPhase === "cloud"
+                ? (progress > 0
+                  ? `${t("vid_edit_cloud_uploading")} ${progress}%`
+                  : t("vid_edit_cloud_uploading"))
+                : uploadPhase === "processing" && progress > 0
+                  ? `${t("vid_edit_processing")} (${progress}s)`
+                  : uploadPhase === "send"
+                    ? t("vid_edit_submitting")
+                    : t("vid_edit_processing")
             }
             hint={hint}
             testId="video-edit-submit"

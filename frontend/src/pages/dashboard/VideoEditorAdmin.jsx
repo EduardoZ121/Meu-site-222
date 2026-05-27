@@ -52,7 +52,8 @@ function selectCard(active, locked = false) {
   }`;
 }
 
-export default function VideoEditorAdmin() {
+export default function VideoEditorAdmin({ layout = "page" }) {
+  const isColumn = layout === "column";
   const { t, lang } = useI18n();
   const ideas = useMemo(() => EDIT_IDEAS.map((k) => t(k)), [t]);
   const { refresh, user } = useAuth();
@@ -396,25 +397,36 @@ export default function VideoEditorAdmin() {
     </div>
   );
 
-  const resultBlock = (
-    <StudioResultAnchor
-      busy={busy}
-      ready={Boolean(primaryResultUrl(result))}
-      className="lg:sticky lg:top-[88px] self-start space-y-3"
-    >
-      <p className="text-[10px] font-mono uppercase tracking-[0.22em] text-[#7C3AED]">
-        {t("vid_edit_result_label")}
-      </p>
-      <div className="rp-editor-panel overflow-hidden p-3 sm:p-4">
-        <ResultPanel creation={result} loading={busy} onChange={setResult} emptyLabel={t("vid_edit_result_empty")} />
-      </div>
-    </StudioResultAnchor>
+  const resultInner = (
+    <ResultPanel creation={result} loading={busy} onChange={setResult} emptyLabel={t("vid_edit_result_empty")} />
   );
+
+  if (isColumn) {
+    return (
+      <div className="flex flex-col gap-4 min-w-0" data-testid="video-editor-column">
+        {controls}
+        <StudioAccordionSection title={t("vid_edit_result_label")} defaultOpen testId="video-edit-acc-result">
+          <StudioResultAnchor busy={busy} ready={Boolean(primaryResultUrl(result))}>
+            {resultInner}
+          </StudioResultAnchor>
+        </StudioAccordionSection>
+      </div>
+    );
+  }
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-[1fr_380px] gap-8 lg:gap-10" data-testid="video-editor-admin">
       {controls}
-      {resultBlock}
+      <StudioResultAnchor
+        busy={busy}
+        ready={Boolean(primaryResultUrl(result))}
+        className="lg:sticky lg:top-[88px] self-start space-y-3"
+      >
+        <p className="text-[10px] font-mono uppercase tracking-[0.22em] text-[#7C3AED]">
+          {t("vid_edit_result_label")}
+        </p>
+        <div className="rp-editor-panel overflow-hidden p-3 sm:p-4">{resultInner}</div>
+      </StudioResultAnchor>
     </div>
   );
 }

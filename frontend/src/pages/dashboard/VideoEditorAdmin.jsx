@@ -21,7 +21,7 @@ import {
 import { toast } from "sonner";
 import ResultPanel from "../../components/ResultPanel";
 import StudioResultAnchor from "../../components/StudioResultAnchor";
-import VideoStudioSection from "../../components/VideoStudioSection";
+import StudioAccordionSection from "../../components/StudioAccordionSection";
 import ImageUploadZone from "../../components/ImageUploadZone";
 import StudioVideoUpload from "../../components/StudioVideoUpload";
 import StudioGenerateBar from "../../components/StudioGenerateBar";
@@ -52,7 +52,8 @@ function selectCard(active, locked = false) {
   }`;
 }
 
-export default function VideoEditorAdmin() {
+export default function VideoEditorAdmin({ layout = "page" }) {
+  const isModule = layout === "module";
   const { t, lang } = useI18n();
   const ideas = useMemo(() => EDIT_IDEAS.map((k) => t(k)), [t]);
   const { refresh, user } = useAuth();
@@ -203,37 +204,31 @@ export default function VideoEditorAdmin() {
     }
   };
 
-  return (
-    <div className="grid grid-cols-1 lg:grid-cols-[1fr_380px] gap-8 lg:gap-10" data-testid="video-editor-admin">
-      <div className="space-y-5">
-        {!premium && (
-          <div className="rounded-xl border border-[#FACC15]/30 bg-[#FACC15]/8 px-4 py-3 text-[12px] text-[#FDE68A] leading-relaxed max-w-[560px]">
-            {t("studio_plus_video_banner")}{" "}
-            <Link to="/app/billing" className="text-white underline underline-offset-2 font-medium">
-              {t("studio_plus_cta")}
-            </Link>
-          </div>
-        )}
+  const controls = (
+    <div className="space-y-4 min-w-0">
+      {!premium && (
+        <div className="rounded-xl border border-[#FACC15]/30 bg-[#FACC15]/8 px-3 py-2.5 text-[11px] text-[#FDE68A] leading-relaxed">
+          {t("studio_plus_video_banner")}{" "}
+          <Link to="/app/billing" className="text-white underline underline-offset-2 font-medium">
+            {t("studio_plus_cta")}
+          </Link>
+        </div>
+      )}
 
-        <VideoStudioSection title={t("vid_acc_my_video")} testId="video-edit-section-source">
-          <p className="text-[#8A8A8E] text-[13px] mb-3 leading-relaxed max-w-[560px]">
-            {t("vid_edit_desc")}
-          </p>
-          <p className="text-[#6f6f76] text-[12px] mb-4 max-w-[560px]">
-            {t("vid_edit_eta_hint", { min: eta.min, max: eta.max })}
-          </p>
-          <div className="max-w-[560px]">
-            <StudioVideoUpload
-              value={video}
-              onChange={setVideo}
-              disabled={busy}
-              maxDurationSec={10}
-              testId="video-edit-source"
-            />
-          </div>
-        </VideoStudioSection>
+      <StudioAccordionSection title={t("vid_acc_my_video")} defaultOpen testId="video-edit-acc-source">
+        <p className="text-[#6f6f76] text-[11px] mb-3">
+          {t("vid_edit_eta_hint", { min: eta.min, max: eta.max })}
+        </p>
+        <StudioVideoUpload
+          value={video}
+          onChange={setVideo}
+          disabled={busy}
+          maxDurationSec={10}
+          testId="video-edit-source"
+        />
+      </StudioAccordionSection>
 
-        <VideoStudioSection title={t("vid_edit_prompt_label")} testId="video-edit-section-prompt">
+      <StudioAccordionSection title={t("vid_edit_prompt_label")} defaultOpen testId="video-edit-acc-prompt">
           <div className="flex items-baseline justify-end mb-3 -mt-1">
             <span className="text-[#5A5A5E] text-[11px] font-mono">{prompt.length}/800</span>
           </div>
@@ -266,9 +261,9 @@ export default function VideoEditorAdmin() {
               </button>
             ))}
           </div>
-        </VideoStudioSection>
+      </StudioAccordionSection>
 
-        <VideoStudioSection title={t("vid_edit_ref_label")} testId="video-edit-section-ref">
+      <StudioAccordionSection title={t("vid_edit_ref_label")} defaultOpen={false} testId="video-edit-acc-ref">
           <p className="text-[#8A8A8E] text-[13px] mb-4">{t("vid_edit_ref_hint")}</p>
           <div className="max-w-[280px]">
             <ImageUploadZone
@@ -281,10 +276,10 @@ export default function VideoEditorAdmin() {
               emptyHint={t("upload_empty_hint")}
             />
           </div>
-        </VideoStudioSection>
+      </StudioAccordionSection>
 
-        <VideoStudioSection title={t("vid_edit_resolution")} testId="video-edit-section-resolution">
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 max-w-[480px]">
+      <StudioAccordionSection title={t("vid_edit_resolution")} defaultOpen testId="video-edit-acc-resolution">
+        <div className="grid grid-cols-1 gap-2">
             {RESOLUTIONS.map((r) => {
               const locked = r.premium && !premium;
               const extra = SURCHARGE.resolution[r.v];
@@ -310,10 +305,10 @@ export default function VideoEditorAdmin() {
               );
             })}
           </div>
-        </VideoStudioSection>
+      </StudioAccordionSection>
 
-        <VideoStudioSection title={t("vid_edit_duration")} testId="video-edit-section-duration">
-          <div className="grid grid-cols-4 gap-2.5 max-w-[360px]">
+      <StudioAccordionSection title={t("vid_edit_duration")} defaultOpen testId="video-edit-acc-duration">
+        <div className="grid grid-cols-2 gap-2">
             {DURATIONS.map((d) => {
               const locked = isPremiumDuration(d) && !premium;
               const extra = SURCHARGE.duration[d];
@@ -336,10 +331,10 @@ export default function VideoEditorAdmin() {
               );
             })}
           </div>
-        </VideoStudioSection>
+      </StudioAccordionSection>
 
-        <VideoStudioSection title={t("vid_edit_aspect")} testId="video-edit-section-aspect">
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+      <StudioAccordionSection title={t("vid_edit_aspect")} defaultOpen={false} testId="video-edit-acc-aspect">
+        <div className="grid grid-cols-2 gap-2">
             {ASPECTS.map((a) => (
               <button
                 key={a.v}
@@ -354,10 +349,10 @@ export default function VideoEditorAdmin() {
               </button>
             ))}
           </div>
-        </VideoStudioSection>
+      </StudioAccordionSection>
 
-        <VideoStudioSection title={t("vid_edit_audio")} testId="video-edit-section-audio">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 max-w-[480px]">
+      <StudioAccordionSection title={t("vid_edit_audio")} defaultOpen={false} testId="video-edit-acc-audio">
+        <div className="grid grid-cols-1 gap-2">
             <button
               type="button"
               onClick={() => setAudioSetting("origin")}
@@ -375,9 +370,9 @@ export default function VideoEditorAdmin() {
               <p className="text-[#F4F1EA] text-[13px] font-medium">{t("vid_edit_audio_auto")}</p>
             </button>
           </div>
-        </VideoStudioSection>
+      </StudioAccordionSection>
 
-        <VideoStudioSection title={t("vid_acc_generate")} testId="video-edit-section-generate">
+      <StudioAccordionSection title={t("vid_acc_generate")} defaultOpen testId="video-edit-acc-generate">
           <StudioGenerateBar
             layout="inline"
             ready={ready}
@@ -398,17 +393,38 @@ export default function VideoEditorAdmin() {
           <p className="text-[#5A5A5E] text-[11px] mt-3 text-center font-mono uppercase tracking-[0.14em]">
             {t("vid_balance", { n: user?.is_unlimited ? "∞" : (user?.credits ?? 0) })}
           </p>
-        </VideoStudioSection>
-      </div>
+      </StudioAccordionSection>
+    </div>
+  );
 
-      <StudioResultAnchor busy={busy} ready={Boolean(primaryResultUrl(result))} className="lg:sticky lg:top-[88px] self-start space-y-3">
-        <p className="text-[10px] font-mono uppercase tracking-[0.22em] text-[#7C3AED]">
-          {t("vid_edit_result_label")}
-        </p>
-        <div className="rp-editor-panel overflow-hidden p-4 sm:p-5">
-          <ResultPanel creation={result} loading={busy} onChange={setResult} emptyLabel={t("vid_edit_result_empty")} />
-        </div>
-      </StudioResultAnchor>
+  const resultBlock = (
+    <StudioResultAnchor
+      busy={busy}
+      ready={Boolean(primaryResultUrl(result))}
+      className={isModule ? "mt-4 pt-4 border-t border-white/[0.06]" : "lg:sticky lg:top-[88px] self-start space-y-3"}
+    >
+      <p className="text-[10px] font-mono uppercase tracking-[0.22em] text-[#7C3AED]">
+        {t("vid_edit_result_label")}
+      </p>
+      <div className="rp-editor-panel overflow-hidden p-3 sm:p-4">
+        <ResultPanel creation={result} loading={busy} onChange={setResult} emptyLabel={t("vid_edit_result_empty")} />
+      </div>
+    </StudioResultAnchor>
+  );
+
+  if (isModule) {
+    return (
+      <div className="flex flex-col min-w-0" data-testid="video-editor-module">
+        {controls}
+        {resultBlock}
+      </div>
+    );
+  }
+
+  return (
+    <div className="grid grid-cols-1 lg:grid-cols-[1fr_380px] gap-8 lg:gap-10" data-testid="video-editor-admin">
+      {controls}
+      {resultBlock}
     </div>
   );
 }

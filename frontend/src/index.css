@@ -561,6 +561,12 @@
     background: rgba(6, 182, 212, 0.1);
   }
 
+  .art-studio-module--pink .art-studio-module__icon {
+    color: #f9a8d4;
+    border-color: rgba(236, 72, 153, 0.35);
+    background: rgba(236, 72, 153, 0.1);
+  }
+
   .art-studio-module__head {
     display: flex;
     align-items: flex-start;

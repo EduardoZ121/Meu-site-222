@@ -148,6 +148,10 @@ export default function ArtisticPromptStudio({
             emptyLabel={t("art_upload_label")}
             emptyHint={t("art_upload_hint")}
           />
+          <StudioPhotoUploadNotice
+            status={inputMode === "image" ? photoUploadStatus : "idle"}
+            className="mt-3"
+          />
         </div>
       )}
 

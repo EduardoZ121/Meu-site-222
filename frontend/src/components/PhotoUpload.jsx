@@ -5,6 +5,7 @@ import { IMAGE_ACCEPT } from "../lib/imageCompress";
 export default function PhotoUpload({
   value,
   onChange,
+  onStatusChange,
   accept = IMAGE_ACCEPT,
   testId = "photo-upload",
   layout = "portrait",
@@ -16,6 +17,7 @@ export default function PhotoUpload({
     <ImageUploadZone
       value={value}
       onChange={onChange}
+      onStatusChange={onStatusChange}
       accept={accept}
       testId={testId}
       layout={layout}

@@ -28,7 +28,52 @@ function isLocalToken(token) {
 const RP_PREDICTION_PREFIX = "rp_prediction_";
 let backgroundWatcherStarted = false;
 let backgroundWatcherTimer = null;
+const backgroundPollInflight = new Set();
 const notifiedPredictions = new Set();
+
+function headerTruthy(headers, name) {
+  const v = headers?.[name] ?? headers?.[name.toLowerCase()];
+  return v != null && String(v).trim().length > 0;
+}
+
+function shouldAwaitPollResponse(config, data) {
+  if (config?.awaitPoll === true) return true;
+  if (typeof config?.onPollTick === "function") return true;
+  if (headerTruthy(config?.headers, "X-Await-Poll")) return true;
+  const urls = data?.creation?.result_urls;
+  return Array.isArray(urls) && urls.length > 0;
+}
+
+function shouldBackgroundPoll(config) {
+  if (config?.backgroundPoll === true) return true;
+  if (headerTruthy(config?.headers, "X-Background-Poll")) return true;
+  return false;
+}
+
+/** Inicia poll sem bloquear o pedido HTTP (notificação ao concluir). */
+export function kickOffBackgroundPredictionPoll(predictionId, opts = {}) {
+  if (typeof window === "undefined" || !predictionId) return;
+  if (backgroundPollInflight.has(predictionId)) return;
+  backgroundPollInflight.add(predictionId);
+  trackPendingPrediction(predictionId, {
+    credits_spent: opts.credits_spent,
+    type: opts.type || "image",
+  });
+  void (async () => {
+    try {
+      await pollPrediction(predictionId, opts);
+    } catch (e) {
+      if (!notifiedPredictions.has(predictionId)) {
+        notifyPredictionFailure(e?.message || "Geração falhou.", {
+          prediction_id: predictionId,
+          source: "background-kickoff",
+        });
+      }
+    } finally {
+      backgroundPollInflight.delete(predictionId);
+    }
+  })();
+}
 
 export function formatApiError(err, fallback = "Falhou.", opts) {
   return formatHttpError(err, fallback, opts);
@@ -280,18 +325,42 @@ export async function uploadPost(url, formData, config = {}) {
 
 api.interceptors.response.use(
   async (r) => {
+    const pid = r?.data?.prediction_id;
+    const skipPoll = headerTruthy(r.config?.headers, "X-Skip-Auto-Poll");
     if (
-      r?.data?.prediction_id &&
-      !r.config?.headers?.["X-Skip-Auto-Poll"] &&
-      !String(r.config?.url || "").startsWith("/predictions/")
+      pid
+      && skipPoll
+      && shouldBackgroundPoll(r.config)
+      && !String(r.config?.url || "").startsWith("/predictions/")
+    ) {
+      kickOffBackgroundPredictionPoll(pid, {
+        credits_spent: r.data.credits_spent,
+        type: r.data.type || "image",
+      });
+      return r;
+    }
+    if (
+      pid
+      && !skipPoll
+      && !String(r.config?.url || "").startsWith("/predictions/")
     ) {
       if (r.data.credits_spent) {
-        localStorage.setItem(`rp_prediction_${r.data.prediction_id}`, JSON.stringify({
+        localStorage.setItem(`${RP_PREDICTION_PREFIX}${pid}`, JSON.stringify({
           credits_spent: r.data.credits_spent,
           type: r.data.type || "image",
         }));
       }
-      const data = await pollPrediction(r.data.prediction_id);
+      if (shouldBackgroundPoll(r.config) && !shouldAwaitPollResponse(r.config, r.data)) {
+        kickOffBackgroundPredictionPoll(pid, {
+          credits_spent: r.data.credits_spent,
+          type: r.data.type || "image",
+        });
+        return r;
+      }
+      const data = await pollPrediction(pid, {
+        credits_spent: r.data.credits_spent,
+        type: r.data.type || "image",
+      });
       return { ...r, data };
     }
     return r;
@@ -431,6 +500,10 @@ export function startPendingPredictionsWatcher() {
   };
   tick();
   backgroundWatcherTimer = window.setInterval(tick, 5000);
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "visible") void tick();
+  });
+  window.addEventListener("focus", () => { void tick(); });
   window.addEventListener("beforeunload", () => {
     if (backgroundWatcherTimer) window.clearInterval(backgroundWatcherTimer);
   }, { once: true });
@@ -547,19 +620,40 @@ export async function pollPrediction(predictionId, opts = {}) {
  */
 async function maybeAwaitMultipartCreation(data, skipPollHeader, config = {}) {
   const skip = skipPollHeader != null && String(skipPollHeader).trim().length > 0;
-  if (skip || !data || typeof data !== "object") return data;
+  if (!data || typeof data !== "object") return data;
   const pid = data.prediction_id;
+  if (skip) {
+    if (pid && shouldBackgroundPoll(config) && !shouldAwaitPollResponse(config, data)) {
+      kickOffBackgroundPredictionPoll(pid, {
+        credits_spent: data.credits_spent,
+        type: data.type || "image",
+        timeoutMs: config.pollTimeoutMs ?? Math.max(240_000, Number(config.timeout) || 0),
+        intervalMs: config.pollIntervalMs,
+      });
+    }
+    return data;
+  }
   if (!pid) return data;
   const urls = data.creation?.result_urls;
   if (Array.isArray(urls) && urls.length > 0) return data;
 
   if (data.credits_spent) {
     try {
-      localStorage.setItem(`rp_prediction_${pid}`, JSON.stringify({
+      localStorage.setItem(`${RP_PREDICTION_PREFIX}${pid}`, JSON.stringify({
         credits_spent: data.credits_spent,
         type: data.type || "image",
       }));
     } catch { /* ignore */ }
+  }
+
+  if (shouldBackgroundPoll(config) && !shouldAwaitPollResponse(config, data)) {
+    kickOffBackgroundPredictionPoll(pid, {
+      credits_spent: data.credits_spent,
+      type: data.type || "image",
+      timeoutMs: config.pollTimeoutMs ?? Math.max(240_000, Number(config.timeout) || 0),
+      intervalMs: config.pollIntervalMs,
+    });
+    return data;
   }
 
   const pollTimeoutMs = config.pollTimeoutMs ?? Math.max(240_000, Number(config.timeout) || 0);

@@ -104,6 +104,28 @@ function offlineReply({ lang, user, dbUser, userText }) {
   const bal = unlimited ? "∞" : String(credits);
   const name = firstName(user, dbUser);
   const hey = name ? (lang === "en" ? `Hey ${name}` : lang === "es" ? `Hola ${name}` : lang === "fr" ? `Salut ${name}` : `Olá ${name}`) : (lang === "en" ? "Hey" : lang === "es" ? "Hola" : lang === "fr" ? "Salut" : "Olá");
+  const text = String(userText || "").toLowerCase();
+
+  if (/crédit|credit|credito|crédito/.test(text)) {
+    if (lang === "en") {
+      return `${hey}! Credits are spent when you hit Generate. Check your balance in [Billing](${origin}/app/billing) — the Creator pack (€12) also unlocks Studio Plus for 30 days.`;
+    }
+    return `${hey}! Os créditos gastam-se ao carregar em Gerar. Vê o saldo em [Faturação](${origin}/app/billing) — o pacote Creator (12€) desbloqueia Studio Plus durante 30 dias.`;
+  }
+
+  if (/vídeo|video|clip/.test(text)) {
+    if (lang === "en") {
+      return `${hey}! For video go to [Video](${origin}/app/video) — text/image clips use 4–8s.`;
+    }
+    return `${hey}! Para vídeo abre [Vídeo](${origin}/app/video) — clipe 4–8s no gerador.`;
+  }
+
+  if (/foto|imagem|image|retrato|portrait|gerar|generate|estúdio|studio/.test(text)) {
+    if (lang === "en") {
+      return `${hey}! Open [Studio](${origin}/app/generate) — upload a photo, pick a style, or describe your edit. You have ${bal} credits.\n\nIf generation seems stuck, wait for the notification bell — it keeps working in the background.`;
+    }
+    return `${hey}! Abre o [Estúdio](${origin}/app/generate) — envia foto, escolhe estilo ou descreve a edição. Tens ${bal} créditos.\n\nSe a geração parecer parada, espera pelo sino de notificações — continua em segundo plano.`;
+  }
 
   if (lang === "en") {
     return `${hey}! I'm Sofia from Remake Pixel — you have ${bal} credits.\n\nTell me what you're trying to make (portrait, poster, remove background…) and I'll point you to the right place with a direct link.`;
@@ -192,8 +214,13 @@ async function runSupportChat({ messages, lang, user, page }) {
     throw err;
   }
 
-  const dbUser = user?.id ? await getUserById(user.id) : null;
   const langCode = lang || "en";
+  let dbUser = null;
+  try {
+    dbUser = user?.id ? await getUserById(user.id) : null;
+  } catch {
+    dbUser = null;
+  }
   const { origin } = buildSiteKnowledge();
   const name = firstName(user, dbUser);
 
@@ -212,15 +239,13 @@ async function runSupportChat({ messages, lang, user, page }) {
       support_email: supportEmail(),
     };
   } catch (e) {
-    if (e.status === 503 || e.status === 502 || e.status === 429 || e.status === 504) {
-      return {
-        reply: offlineReply({ lang: langCode, user, dbUser, userText: lastUser.content }),
-        model: "offline-fallback",
-        support_email: supportEmail(),
-        fallback: true,
-      };
-    }
-    throw e;
+    return {
+      reply: offlineReply({ lang: langCode, user, dbUser, userText: lastUser.content }),
+      model: "offline-fallback",
+      support_email: supportEmail(),
+      fallback: true,
+      offline_reason: e?.message || "unavailable",
+    };
   }
 }
 

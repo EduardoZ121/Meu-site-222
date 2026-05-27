@@ -174,14 +174,17 @@ export default function SupportChat({ open, onClose }) {
         setMessages((prev) => [...prev, { role: "assistant", content: reply }]);
       } catch (err) {
         const fallback = supportFallbackReply({ lang: lang || "pt", user, userText: trimmed });
+        const errLine = formatApiError(err, t("support_error"));
         setMessages((prev) => [
           ...prev,
           {
             role: "assistant",
-            content: fallback || `${formatApiError(err, t("support_error"))}\n\n${t("support_contact_hint")}`,
+            content: fallback || `${errLine}\n\n${t("support_contact_hint")}`,
           },
         ]);
-        if (err?.response?.status === 503) toast.error(t("support_unavailable"));
+        if (!fallback && (err?.response?.status === 503 || err?.code === "ECONNABORTED")) {
+          toast.error(t("support_unavailable"));
+        }
       } finally {
         setLoading(false);
       }

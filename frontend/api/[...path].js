@@ -2123,7 +2123,7 @@ async function handlePath(path, req, res) {
       const tm = auth.match(/^Bearer\s+(.+)$/i);
       if (!tm) return json(res, 401, { detail: "Não autenticado." });
       const token = tm[1].trim();
-      const { runSupportChat, offlineReply } = require("./lib/supportAssistant.cjs");
+      const { runSupportChat, offlineReply, supportEmail } = require("./lib/supportAssistant.cjs");
       const msgs = Array.isArray(body?.messages) ? body.messages : [];
       if (token.startsWith("local:")) {
         const lastUser = [...msgs].reverse().find((m) => m?.role === "user");
@@ -2151,8 +2151,18 @@ async function handlePath(path, req, res) {
         await touchUser(sessionUser.id, req, { action: "support_chat" });
         return json(res, 200, out);
       } catch (err) {
-        return json(res, err.status || 500, {
-          detail: err.message || "Assistente indisponível.",
+        const lastUser = [...msgs].reverse().find((m) => m?.role === "user");
+        const lang = String(body?.lang || sessionUser.lang || "pt").slice(0, 2);
+        return json(res, 200, {
+          reply: offlineReply({
+            lang,
+            user: sessionUser,
+            dbUser: null,
+            userText: lastUser?.content || "",
+          }),
+          model: "offline-error",
+          fallback: true,
+          support_email: supportEmail(),
         });
       }
     }

@@ -22,6 +22,8 @@ import ArtisticPromptStudio from "../../components/artistic/ArtisticPromptStudio
 import ArtisticResultStudio from "../../components/artistic/ArtisticResultStudio";
 import ArtisticFlowSteps from "../../components/artistic/ArtisticFlowSteps";
 import { isPhotoUploadBusy } from "../../components/studio/StudioPhotoUploadNotice";
+import { generationSubmitConfig } from "../../lib/generationSubmit";
+import { useStudioBackgroundGeneration } from "../../lib/useStudioBackgroundGeneration";
 import { usePhotoAspectDefault } from "../../lib/usePhotoAspectDefault";
 import { pushArtisticPromptHistory } from "../../lib/artisticPromptHistory";
 import { localizeArtisticCatalog } from "../../lib/artisticStudioLocales";
@@ -73,6 +75,16 @@ export default function Artistic() {
   const [mobileTab, setMobileTab] = useState("generate");
   const [photoUploadStatus, setPhotoUploadStatus] = useState("idle");
   const photoUploading = isPhotoUploadBusy(photoUploadStatus);
+
+  useStudioBackgroundGeneration({
+    onComplete: (creation) => {
+      setResult(creation);
+      setMeta((prev) => ({
+        ...(prev || {}),
+        seed: creation.id?.slice?.(0, 8),
+      }));
+    },
+  });
 
   const includeNsfw = useMemo(() => canAccessNsfwArtisticStyles(user), [user]);
 
@@ -276,6 +288,7 @@ export default function Artistic() {
         imageMode: inputMode === "image",
       });
 
+      const submitCfg = generationSubmitConfig({ background: true, timeout: 240000 });
       let data;
       if (inputMode === "image" && photo) {
         const fd = new FormData();
@@ -285,7 +298,7 @@ export default function Artistic() {
         fd.append("style_id", styleId || "");
         fd.append("style_cat", styleCat || "");
         fd.append("effects_json", JSON.stringify(effects));
-        ({ data } = await uploadPost("/generate/artistic-studio", fd, { timeout: 240000 }));
+        ({ data } = await uploadPost("/generate/artistic-studio", fd, submitCfg));
       } else {
         ({ data } = await api.post("/generate/artistic-studio", {
           prompt_final: finalPrompt,
@@ -293,23 +306,33 @@ export default function Artistic() {
           style_id: styleId || "",
           style_cat: styleCat || "",
           effects_json: JSON.stringify(effects),
-        }));
+        }, submitCfg));
       }
 
-      const creation = normalizeCreation(data?.creation || data);
-      if (!primaryResultUrl(creation)) {
+      const creation = normalizeCreation(data?.creation);
+      if (primaryResultUrl(creation)) {
+        setResult(creation);
+        if (userPrompt.length >= 3) pushArtisticPromptHistory(userPrompt);
+        setMeta({
+          style: getStyleById(styleId)?.label,
+          chips: recipeChips,
+          seed: creation.id?.slice?.(0, 8),
+          lastPrompt: userPrompt,
+        });
+        toast.success(t("common_generated", { n: creation.credits_spent ?? cost }));
+        await refresh();
+      } else if (data?.prediction_id) {
+        if (userPrompt.length >= 3) pushArtisticPromptHistory(userPrompt);
+        setMeta({
+          style: getStyleById(styleId)?.label,
+          chips: recipeChips,
+          lastPrompt: userPrompt,
+        });
+        toast.message(t("gen_background_started"), { duration: 6000 });
+        await refresh();
+      } else {
         throw new Error(t("common_no_result"));
       }
-      setResult(creation);
-      if (userPrompt.length >= 3) pushArtisticPromptHistory(userPrompt);
-      setMeta({
-        style: getStyleById(styleId)?.label,
-        chips: recipeChips,
-        seed: creation.id?.slice?.(0, 8),
-        lastPrompt: userPrompt,
-      });
-      toast.success(t("common_generated", { n: creation.credits_spent ?? cost }));
-      await refresh();
     } catch (err) {
       errToast(err);
     } finally {

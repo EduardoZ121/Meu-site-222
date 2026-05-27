@@ -22,6 +22,7 @@ import { readUserSettings } from "../../lib/userSettings";
 import { usePhotoAspectDefault, ASPECT_MATCH } from "../../lib/usePhotoAspectDefault";
 import { apiAspectRatio } from "../../lib/apiAspectRatio";
 import { useStudioGenerateGate } from "../../lib/useStudioGenerateGate";
+import StudioPhotoUploadNotice, { isPhotoUploadBusy } from "../../components/studio/StudioPhotoUploadNotice";
 import PromptEnhanceToggle from "../../components/promptAssist/PromptEnhanceToggle";
 import { applyGenerationSurcharges, getSurcharges } from "../../lib/creditPricing";
 
@@ -42,6 +43,8 @@ export default function Generate() {
   const [searchParams] = useSearchParams();
 
   const [photo, setPhoto] = useState(null);
+  const [photoUploadStatus, setPhotoUploadStatus] = useState("idle");
+  const photoUploading = isPhotoUploadBusy(photoUploadStatus);
   const [prompt, setPrompt] = useState(searchParams.get("prompt") || "");
   const [improve, setImprove] = useState(false);
   const [hdQuality, setHdQuality] = useState(false);
@@ -91,6 +94,7 @@ export default function Generate() {
     busy,
     user,
     cost,
+    uploading: photoUploading,
     readyOverride: generateReady,
     hintOverride: mode === "blocked"
       ? t("studio_gen_hint_blocked")
@@ -100,6 +104,10 @@ export default function Generate() {
   });
 
   const generate = async () => {
+    if (photoUploading) {
+      toast.message(t("upload_wait_generate"), { duration: 6000 });
+      return;
+    }
     if (mode === "blocked") { toast.error(t("studio_err_blocked")); return; }
     if (mode === "text" && prompt.trim().length < 3) {
       toast.error(t("studio_err_text"));
@@ -187,7 +195,13 @@ export default function Generate() {
               )}
             </div>
             <div className="max-w-[420px]">
-              <PhotoUpload value={photo} onChange={(f) => setPhoto(f || null)} testId="gen-photo" />
+              <PhotoUpload
+                value={photo}
+                onChange={(f) => setPhoto(f || null)}
+                onStatusChange={setPhotoUploadStatus}
+                testId="gen-photo"
+              />
+              <StudioPhotoUploadNotice status={photoUploadStatus} className="mt-3" />
             </div>
           </StudioAccordionSection>
 

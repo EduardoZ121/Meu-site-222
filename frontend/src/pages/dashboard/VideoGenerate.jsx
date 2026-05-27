@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { Film, Sparkles, Wand2 } from "lucide-react";
-import { formatApiError, trackPendingPrediction, uploadPost } from "../../lib/api";
+import { formatApiError, uploadPost } from "../../lib/api";
 import { normalizeCreation, primaryResultUrl } from "../../lib/creationUrls";
 import { useAuth } from "../../lib/auth";
 import { usePricing } from "../../lib/PricingContext";
@@ -16,6 +16,9 @@ import StudioGenerateBar from "../../components/StudioGenerateBar";
 import { apiAspectRatio } from "../../lib/apiAspectRatio";
 import { usePhotoAspectDefault } from "../../lib/usePhotoAspectDefault";
 import { useStudioGenerateGate } from "../../lib/useStudioGenerateGate";
+import StudioPhotoUploadNotice, { isPhotoUploadBusy } from "../../components/studio/StudioPhotoUploadNotice";
+import { generationSubmitConfig } from "../../lib/generationSubmit";
+import { useStudioBackgroundGeneration } from "../../lib/useStudioBackgroundGeneration";
 
 const ASPECTS = ["16:9", "9:16", "1:1", "4:5"];
 const IDEA_KEYS = ["vid_idea_1", "vid_idea_2", "vid_idea_3", "vid_idea_4"];
@@ -42,9 +45,17 @@ export default function VideoGenerate({ mode = "text" }) {
   const [duration, setDuration] = useState(6);
   const [motion, setMotion] = useState("cinematic");
   const [photo, setPhoto] = useState(null);
+  const [photoUploadStatus, setPhotoUploadStatus] = useState("idle");
+  const photoUploading = isPhotoUploadBusy(photoUploadStatus);
   const [aspect, setAspect] = usePhotoAspectDefault(photo, "16:9", "match");
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState(null);
+
+  useStudioBackgroundGeneration({
+    onComplete: (creation) => {
+      setResult(creation);
+    },
+  });
 
   const cost = useMemo(
     () => computeVideoGenerateCost(costs, surcharges, { duration }),
@@ -58,9 +69,14 @@ export default function VideoGenerate({ mode = "text" }) {
     prompt,
     requirePhoto: isImageMode,
     photo,
+    uploading: photoUploading,
   });
 
   const generate = async () => {
+    if (photoUploading) {
+      toast.message(t("upload_wait_generate"), { duration: 6000 });
+      return;
+    }
     if (!ready) {
       if (prompt.trim().length < 3) toast.error(t("vid_err_short"));
       else if (isImageMode && !photo) {
@@ -78,18 +94,22 @@ export default function VideoGenerate({ mode = "text" }) {
       fd.append("duration", String(duration));
       fd.append("aspect_ratio", apiAspectRatio(aspect, { model: "video", hasPhoto: !!photo }));
       if (photo) fd.append("photo", photo);
-      const { data } = await uploadPost("/generate/video", fd, { timeout: 300000 });
-      if (data?.prediction_id && !primaryResultUrl(data?.creation)) {
-        trackPendingPrediction(data.prediction_id, {
-          credits_spent: data.credits_spent || cost,
-          type: "video",
-        });
-      }
+      const { data } = await uploadPost(
+        "/generate/video",
+        fd,
+        generationSubmitConfig({ background: true, timeout: 300000 }),
+      );
       const creation = normalizeCreation(data?.creation);
-      if (!primaryResultUrl(creation)) throw new Error(t("vid_no_result"));
-      setResult(creation);
-      toast.success(t("vid_success", { n: creation?.credits_spent ?? cost }));
-      await refresh();
+      if (primaryResultUrl(creation)) {
+        setResult(creation);
+        toast.success(t("vid_success", { n: creation?.credits_spent ?? cost }));
+        await refresh();
+      } else if (data?.prediction_id) {
+        toast.message(t("gen_background_started"), { duration: 6000 });
+        await refresh();
+      } else {
+        throw new Error(t("vid_no_result"));
+      }
     } catch (err) {
       toast.error(formatApiError(err, t("vid_fail"), { context: "video_upload", t }), { duration: 9000 });
     } finally {
@@ -104,12 +124,14 @@ export default function VideoGenerate({ mode = "text" }) {
           <ImageUploadZone
             value={photo}
             onChange={setPhoto}
+            onStatusChange={setPhotoUploadStatus}
             layout="video"
             mediaType="image"
             testId={`video-${mode}-photo`}
             emptyLabel={t("vid_start_label")}
             emptyHint={t("upload_drop")}
           />
+          <StudioPhotoUploadNotice status={photoUploadStatus} className="mt-3" />
         </StudioAccordionSection>
       )}
 

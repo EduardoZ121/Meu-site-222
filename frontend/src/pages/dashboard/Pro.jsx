@@ -19,6 +19,8 @@ import StudioGenerateCostMeta from "../../components/StudioGenerateCostMeta";
 import StudioPhotoUploadNotice, { isPhotoUploadBusy } from "../../components/studio/StudioPhotoUploadNotice";
 import { useStudioGenerateGate } from "../../lib/useStudioGenerateGate";
 import { useStudioI18n } from "../../lib/useStudioI18n";
+import { generationSubmitConfig } from "../../lib/generationSubmit";
+import { useStudioBackgroundGeneration } from "../../lib/useStudioBackgroundGeneration";
 
 function ProStep({ step, title, hint, children }) {
   return (
@@ -63,6 +65,12 @@ export default function Pro() {
   const [photoUploadStatus, setPhotoUploadStatus] = useState("idle");
   const cost = costs.pro;
   const photoUploading = isPhotoUploadBusy(photoUploadStatus);
+
+  useStudioBackgroundGeneration({
+    onComplete: (creation) => {
+      setResult(creation);
+    },
+  });
 
   useEffect(() => {
     if (photo) setAspect("match");
@@ -113,12 +121,22 @@ export default function Pro() {
       fd.append("aspect_ratio", apiAspectRatio(aspect, { model: "pro", hasPhoto: !!photo }));
       fd.append("extra_prompt", customPrompt.trim());
       fd.append("intensity", String(intensity));
-      const { data } = await uploadPost("/generate/pro", fd, { timeout: 180000 });
+      const { data } = await uploadPost(
+        "/generate/pro",
+        fd,
+        generationSubmitConfig({ background: true, timeout: 180000 }),
+      );
       const creation = normalizeCreation(data?.creation);
-      if (!primaryResultUrl(creation)) throw new Error(t("pro_no_result"));
-      setResult(creation);
-      toast.success(t("pro_success", { n: creation?.credits_spent ?? cost }));
-      await refresh();
+      if (primaryResultUrl(creation)) {
+        setResult(creation);
+        toast.success(t("pro_success", { n: creation?.credits_spent ?? cost }));
+        await refresh();
+      } else if (data?.prediction_id) {
+        toast.message(t("gen_background_started"), { duration: 6000 });
+        await refresh();
+      } else {
+        throw new Error(t("pro_no_result"));
+      }
     } catch (err) {
       errToast(err);
     } finally { setBusy(false); }

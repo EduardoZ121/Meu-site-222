@@ -68,10 +68,28 @@ export default function ImageUploadZone({
   const [persistState, setPersistState] = useState("idle");
   const lastPreparedRef = useRef(null);
   const runIdRef = useRef(0);
+  const uploadToastRef = useRef(null);
 
   const notifyStatus = useCallback((s) => {
     onStatusChange?.(s);
-  }, [onStatusChange]);
+    if (!onStatusChange) return;
+    if (s === "saving") {
+      if (!uploadToastRef.current) {
+        uploadToastRef.current = toast.loading(t("upload_image_loading_title"), {
+          description: t("upload_wait_generate"),
+          duration: 120000,
+        });
+      }
+      return;
+    }
+    if (uploadToastRef.current) {
+      toast.dismiss(uploadToastRef.current);
+      uploadToastRef.current = null;
+    }
+    if (s === "saved") {
+      toast.success(t("upload_ready"), { duration: 2800 });
+    }
+  }, [onStatusChange, t]);
 
   useEffect(() => {
     if (!value) {

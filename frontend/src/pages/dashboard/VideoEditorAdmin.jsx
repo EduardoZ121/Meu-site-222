@@ -11,10 +11,8 @@ import { readVideoDurationSeconds } from "../../lib/videoMedia";
 import { useAuth } from "../../lib/auth";
 import { usePricing } from "../../lib/PricingContext";
 import { useI18n } from "../../lib/i18n";
-import {
-  computeVideoEditCost,
-  SURCHARGE,
-} from "../../lib/videoEditPricing";
+import { computeVideoEditCost, buildVideoEditSurcharge } from "../../lib/videoEditPricing";
+import { getSurcharges } from "../../lib/creditPricing";
 import { toast } from "sonner";
 import ResultPanel from "../../components/ResultPanel";
 import StudioResultAnchor from "../../components/StudioResultAnchor";
@@ -51,8 +49,10 @@ export default function VideoEditorAdmin() {
   const { t, lang } = useI18n();
   const ideas = useMemo(() => EDIT_IDEAS.map((k) => t(k)), [t]);
   const { refresh, user } = useAuth();
-  const { costs } = usePricing();
-  const baseCost = costs.videoEdit ?? costs.video ?? 95;
+  const { costs, region } = usePricing();
+  const surcharges = useMemo(() => getSurcharges(region), [region]);
+  const videoSurcharge = useMemo(() => buildVideoEditSurcharge(region), [region]);
+  const baseCost = costs.videoEdit ?? costs.video ?? 120;
 
   const [video, setVideo] = useState(null);
   const [sourceDurationSec, setSourceDurationSec] = useState(0);
@@ -69,10 +69,10 @@ export default function VideoEditorAdmin() {
   const [result, setResult] = useState(null);
 
   const cost = useMemo(() => {
-    let total = computeVideoEditCost(baseCost, { resolution, duration });
-    if (improve) total += 5;
+    let total = computeVideoEditCost(baseCost, { resolution, duration, regionId: region });
+    if (improve) total += surcharges.enhancePrompt ?? 3;
     return total;
-  }, [baseCost, resolution, duration, improve]);
+  }, [baseCost, resolution, duration, improve, surcharges.enhancePrompt, region]);
 
   const { ready, hint } = useStudioGenerateGate({
     busy,
@@ -215,7 +215,7 @@ export default function VideoEditorAdmin() {
               locked={false}
               onLockedClick={undefined}
               testId="video-edit-improve"
-              cost={5}
+              cost={surcharges.enhancePrompt ?? 3}
             />
           </div>
           <div className="flex flex-wrap gap-2 mt-3">
@@ -250,7 +250,7 @@ export default function VideoEditorAdmin() {
       <StudioAccordionSection title={t("vid_edit_resolution")} defaultOpen testId="video-edit-acc-resolution">
         <div className="grid grid-cols-1 gap-2">
             {RESOLUTIONS.map((r) => {
-              const extra = SURCHARGE.resolution[r.v];
+              const extra = videoSurcharge.resolution[r.v];
               return (
                 <button
                   key={r.v}
@@ -277,7 +277,7 @@ export default function VideoEditorAdmin() {
       <StudioAccordionSection title={t("vid_edit_duration")} defaultOpen testId="video-edit-acc-duration">
         <div className="grid grid-cols-2 gap-2">
             {DURATIONS.map((d) => {
-              const extra = SURCHARGE.duration[d];
+              const extra = videoSurcharge.duration[d];
               return (
                 <button
                   key={d}

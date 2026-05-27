@@ -268,7 +268,8 @@ async function handlePromptAssistRoute(path, req, res, { verifySessionToken, jso
       return true;
     }
     const { getUserById, addCredits } = require("./usersDb.cjs");
-    const PROMPT_IMPROVE_COST = 5;
+    const { getSurcharges } = require("./creditPricing.cjs");
+    const PROMPT_IMPROVE_COST = getSurcharges().enhancePrompt ?? 3;
     const dbUser = await getUserById(sessionUser.id);
     const balance = Number(dbUser?.credits ?? sessionUser?.credits ?? 0);
     if (!sessionUser?.is_unlimited && balance < PROMPT_IMPROVE_COST) {

@@ -61,6 +61,16 @@ function blobDisabledResponse(res) {
 }
 const { listPosterTemplates } = require("./lib/posterTemplatesData.cjs");
 const { improvePrompt } = require("./lib/promptAssist.cjs");
+const {
+  applyGenerationSurcharges,
+  computeVideoGenerateCost,
+  computeVideoEditCostFromConfig,
+  computeArtisticEffectSurcharge,
+  restoreCostForLevel,
+  customPurchaseAmountCents,
+  getPricingMeta,
+  getSurcharges,
+} = require("./lib/creditPricing.cjs");
 
 function getPadraoStyle(styleId) {
   return PADRAO_STYLES_LIST.find((s) => s.id === String(styleId || "").trim()) || null;
@@ -1272,9 +1282,12 @@ async function routePost(path, fields, files, req) {
     if (wantsHd) {
       prompt += "\n\nUltra high detail, sharp focus, professional photography quality, 8K clarity, refined textures.";
     }
-    let imgCost = CREDIT.image;
-    if (wantsHd) imgCost += 8;
-    if (wantsImprove) imgCost += 5;
+    const surcharges = getSurcharges(region);
+    let imgCost = applyGenerationSurcharges(CREDIT.image, surcharges, {
+      improvePrompt: wantsImprove,
+      hdQuality: wantsHd,
+      hdMode: "image",
+    });
     const input = await imageInput(fields, files, "standard", prompt);
     return submitBillableGeneration(req, fields, {
       cost: imgCost,
@@ -1389,8 +1402,16 @@ async function routePost(path, fields, files, req) {
       userDoc,
     });
     const input = await imageInput(fields, files, modelKey, promptFinal, { experimental });
+    let effects = {};
+    try {
+      const rawFx = text(fields, "effects_json", "{}");
+      effects = typeof rawFx === "string" ? JSON.parse(rawFx) : rawFx;
+    } catch {
+      effects = {};
+    }
+    const artisticCost = CREDIT.artistic + computeArtisticEffectSurcharge(effects, region);
     return submitBillableGeneration(req, fields, {
-      cost: CREDIT.artistic,
+      cost: artisticCost,
       type: "artistic",
       modelId,
       input,
@@ -1584,9 +1605,12 @@ async function routePost(path, fields, files, req) {
   if (path === "generate/video") {
     const prompt = text(fields, "prompt", "").trim();
     if (!prompt) throw new Error("Descreve o vídeo.");
+    const surcharges = getSurcharges(region);
+    const duration = Number(text(fields, "duration", "6"));
+    const videoCost = computeVideoGenerateCost(CREDIT, surcharges, { duration });
     const input = await imageInput(fields, files, "video", prompt);
     return submitBillableGeneration(req, fields, {
-      cost: CREDIT.video,
+      cost: videoCost,
       type: "video",
       modelId: MODELS.video,
       input,
@@ -1606,17 +1630,16 @@ async function routePost(path, fields, files, req) {
       }
     }
     const { input, prompt } = await videoEditInput(fields, files);
-    const baseCost = CREDIT.videoEdit ?? Math.max(CREDIT.video || 70, 85);
-    const { computeVideoEditCost, validateVideoEditOptions } = require("./lib/videoEditPricing.cjs");
-    validateVideoEditOptions({
+    const surcharges = getSurcharges(region);
+    const { validateVideoEditOptions } = require("./lib/videoEditPricing.cjs");
+    const resOpts = validateVideoEditOptions({
       resolution: text(fields, "resolution", "original"),
       duration: text(fields, "duration", "6"),
     });
-    let cost = computeVideoEditCost(baseCost, {
-      resolution: text(fields, "resolution", "original"),
-      duration: text(fields, "duration", "6"),
-    });
-    if (truthyField(fields, "improve_prompt")) cost += 5;
+    let cost = computeVideoEditCostFromConfig(CREDIT, surcharges, resOpts);
+    if (truthyField(fields, "improve_prompt")) {
+      cost += surcharges.enhancePrompt ?? 3;
+    }
     return submitBillableGeneration(req, fields, {
       cost,
       type: "video",
@@ -1661,8 +1684,10 @@ async function routePost(path, fields, files, req) {
   if (path === "tools/restore") {
     const prompt = buildRestorePrompt(fields);
     const input = await imageInput(fields, files, "standard", prompt);
+    const level = text(fields, "level", "medio");
+    const restoreCost = restoreCostForLevel(CREDIT, level);
     return submitBillableGeneration(req, fields, {
-      cost: CREDIT.restore,
+      cost: restoreCost,
       type: "image",
       modelId: MODELS.standard,
       input,
@@ -1748,17 +1773,15 @@ async function routePost(path, fields, files, req) {
       err.status = 400;
       throw err;
     }
-    const starter = cfg.packages.starter || { amount_cents: 500, credits: 150 };
-    const minCredits = Math.max(150, Number(starter.credits) || 150);
+    const meta = getPricingMeta();
+    const minCredits = meta.minCustomCredits || 150;
     const credits = hasCustom ? Math.round(customCreditsRaw) : pkg.credits;
     if (credits < minCredits) {
       const err = new Error(`Mínimo de ${minCredits} créditos por compra.`);
       err.status = 400;
       throw err;
     }
-    const amountCents = hasCustom
-      ? Math.round((Number(starter.amount_cents) || 500) * (credits / minCredits))
-      : pkg.amount_cents;
+    const amountCents = hasCustom ? customPurchaseAmountCents(credits) : pkg.amount_cents;
     const packageLabel = hasCustom ? "Custom" : pkg.name;
     const packageTagline = hasCustom ? `${credits} créditos personalizados` : pkg.tagline;
     const metadataPackage = hasCustom ? "custom" : packageId;
@@ -1865,6 +1888,8 @@ async function handlePath(path, req, res) {
         label: cfg.label,
         checkout_note: cfg.checkoutNote,
         credit_costs: getCreditCostsForRegion(region),
+        surcharges: getSurcharges(region),
+        pricing_meta: getPricingMeta(),
       });
     }
 

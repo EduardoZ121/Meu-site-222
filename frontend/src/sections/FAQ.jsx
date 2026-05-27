@@ -4,7 +4,7 @@ import { ChevronDown } from "lucide-react";
 
 const faqs = [
   { q: "O que é o Remake Pixel?", a: "Um estúdio de imagem com IA que junta geração, edição, estilos, pôsteres, vídeo e ferramentas utilitárias numa única conta por créditos." },
-  { q: "Como funcionam os créditos?", a: "Cada ferramenta mostra o custo antes de gerar. Imagens simples começam em 12 créditos; vídeo, retoque Pro e ferramentas avançadas custam mais para manter qualidade e sustentabilidade." },
+  { q: "Como funcionam os créditos?", a: "Cada ferramenta mostra o custo antes de gerar. Imagem por texto desde 18 créditos; vídeo, retoque Pro e opções HD/melhorar prompt acrescentam créditos conforme o uso." },
   { q: "Recebo créditos grátis?", a: "Sim. Cada nova conta começa com 50 créditos grátis, suficientes para testar o estúdio antes de comprar." },
   { q: "Que modelos de IA usam?", a: "Usamos um stack curado de motores internos: rápido, pro, premium e utilitários especializados para edição, vídeo e tarefas técnicas." },
   { q: "Posso usar as minhas fotos?", a: "Sim. Podes enviar fotos para retoque, estilos, pôsteres, remoção de fundo, upscale, colorização e outros fluxos." },

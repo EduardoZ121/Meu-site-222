@@ -4,6 +4,7 @@ import { formatApiError, trackPendingPrediction, uploadPost } from "../../lib/ap
 import { normalizeCreation, primaryResultUrl } from "../../lib/creationUrls";
 import { useAuth } from "../../lib/auth";
 import { usePricing } from "../../lib/PricingContext";
+import { computeVideoGenerateCost, getSurcharges } from "../../lib/creditPricing";
 import { useI18n } from "../../lib/i18n";
 import { toast } from "sonner";
 import ResultPanel from "../../components/ResultPanel";
@@ -33,7 +34,8 @@ export default function VideoGenerate({ mode = "text" }) {
     { id: "static", label: t("vid_motion_static"), desc: t("vid_motion_static_desc") },
   ], [t]);
   const { refresh, user } = useAuth();
-  const { costs } = usePricing();
+  const { costs, region } = usePricing();
+  const surcharges = useMemo(() => getSurcharges(region), [region]);
   const [prompt, setPrompt] = useState("");
   const [aspect, setAspect] = useState("16:9");
   const isImageMode = mode === "image";
@@ -43,7 +45,10 @@ export default function VideoGenerate({ mode = "text" }) {
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState(null);
 
-  const cost = costs.video;
+  const cost = useMemo(
+    () => computeVideoGenerateCost(costs, surcharges, { duration }),
+    [costs, surcharges, duration],
+  );
   const { ready, hint } = useStudioGenerateGate({
     busy,
     user,
@@ -69,6 +74,7 @@ export default function VideoGenerate({ mode = "text" }) {
       const fd = new FormData();
       const composed = `${prompt.trim()} — motion style: ${motion}, duration: ${duration}s`;
       fd.append("prompt", composed);
+      fd.append("duration", String(duration));
       fd.append("aspect_ratio", apiAspectRatio(aspect, { model: "video", hasPhoto: !!photo }));
       if (photo) fd.append("photo", photo);
       const { data } = await uploadPost("/generate/video", fd, { timeout: 300000 });

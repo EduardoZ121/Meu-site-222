@@ -18,6 +18,7 @@ import StudioResultAnchor from "../../../components/StudioResultAnchor";
 import { useI18n } from "../../../lib/i18n";
 import { useStudioI18n } from "../../../lib/useStudioI18n";
 import { RESTORE_LEVEL_KEYS } from "../../../lib/toolPagesLocales";
+import { restoreCostForLevel } from "../../../lib/creditPricing";
 
 const RESTORE_PROMPT_KEYS = [1, 2, 3, 4];
 
@@ -54,7 +55,7 @@ export default function Restore() {
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState(null);
 
-  const cost = costs.restore;
+  const cost = useMemo(() => restoreCostForLevel(costs, level), [costs, level]);
 
   const { ready, hint } = useStudioGenerateGate({
     busy,

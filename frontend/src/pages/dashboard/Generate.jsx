@@ -22,6 +22,7 @@ import { readUserSettings } from "../../lib/userSettings";
 import { apiAspectRatio } from "../../lib/apiAspectRatio";
 import { useStudioGenerateGate } from "../../lib/useStudioGenerateGate";
 import PromptEnhanceToggle from "../../components/promptAssist/PromptEnhanceToggle";
+import { applyGenerationSurcharges, getSurcharges } from "../../lib/creditPricing";
 
 const SUBJECT_KEYS = [
   { value: "the man", labelKey: "studio_subj_man" },
@@ -34,7 +35,8 @@ export default function Generate() {
   const { errToast, clearUploadToast } = useStudioI18n();
   useTitle(t("sidebar_generate"));
   const { refresh, user, refundCredits } = useAuth();
-  const { costs } = usePricing();
+  const { costs, region } = usePricing();
+  const surcharges = useMemo(() => getSurcharges(region), [region]);
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
 
@@ -75,11 +77,13 @@ export default function Generate() {
     if (photo && pickedStyle) return { mode: "easy", cost: costs.easy, ctaLabel: t("studio_cta_easy", { n: costs.easy }) };
     if (photo && !pickedStyle) return { mode: "edit", cost: costs.edit, ctaLabel: t("studio_cta_edit", { n: costs.edit }) };
     if (!photo && pickedStyle) return { mode: "blocked", cost: 0, ctaLabel: t("studio_cta_blocked") };
-    let textCost = costs.image;
-    if (improve) textCost += 5;
-    if (hdQuality) textCost += 8;
+    const textCost = applyGenerationSurcharges(costs.image, surcharges, {
+      improvePrompt: improve,
+      hdQuality,
+      hdMode: "image",
+    });
     return { mode: "text", cost: textCost, ctaLabel: t("studio_cta_text", { n: textCost }) };
-  }, [photo, pickedStyle, costs, t, improve, hdQuality]);
+  }, [photo, pickedStyle, costs, surcharges, t, improve, hdQuality]);
 
   const generateReady = mode !== "blocked"
     && (mode === "easy" || prompt.trim().length >= 3);
@@ -205,7 +209,7 @@ export default function Generate() {
                 locked={false}
                 onLockedClick={undefined}
                 testId="improve-toggle"
-                cost={5}
+                cost={surcharges.enhancePrompt ?? 3}
               />
               <label className="inline-flex items-center gap-2.5 cursor-pointer group">
                 <input
@@ -220,7 +224,7 @@ export default function Generate() {
                 />
                 <span className="text-[#8A8A8E] text-[12px] font-['Inter_Tight']">
                   {t("studio_hd_quality")}{" "}
-                  <span className="text-[#A855F7] font-mono text-[10px]">+8</span>
+                  <span className="text-[#A855F7] font-mono text-[10px]">+{surcharges.hdImage ?? 8}</span>
                 </span>
               </label>
             </div>

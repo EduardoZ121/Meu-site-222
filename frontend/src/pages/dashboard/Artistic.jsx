@@ -7,6 +7,7 @@ import CreationResultMedia from "../../components/CreationResultMedia";
 import { useAuth } from "../../lib/auth";
 import { useI18n } from "../../lib/i18n";
 import { usePricing } from "../../lib/PricingContext";
+import { computeArtisticEffectSurcharge } from "../../lib/creditPricing";
 import { toast } from "sonner";
 import { apiAspectRatio } from "../../lib/apiAspectRatio";
 import ArtisticStyleCard from "../../components/artistic/ArtisticStyleCard";
@@ -46,12 +47,15 @@ export default function Artistic() {
   useTitle(t("art_page_title"));
   const [searchParams] = useSearchParams();
   const { refresh, user } = useAuth();
-  const { costs } = usePricing();
-  const cost = costs.artistic;
+  const { costs, region } = usePricing();
 
   const [styleCat, setStyleCat] = useState("photography");
   const [styleId, setStyleId] = useState(null);
   const [effects, setEffects] = useState(EMPTY_EFFECTS);
+  const cost = useMemo(
+    () => costs.artistic + computeArtisticEffectSurcharge(effects, region),
+    [costs.artistic, effects, region],
+  );
   const [inputMode, setInputMode] = useState("text");
   const [prompt, setPrompt] = useState(searchParams.get("prompt") || "");
   const [improve, setImprove] = useState(false);
@@ -221,12 +225,14 @@ export default function Artistic() {
         fd.append("prompt_final", finalPrompt);
         fd.append("aspect_ratio", apiAspectRatio(aspect, { model: "artistic", hasPhoto: true }));
         fd.append("style_id", styleId || "");
+        fd.append("effects_json", JSON.stringify(effects));
         ({ data } = await uploadPost("/generate/artistic-studio", fd, { timeout: 240000 }));
       } else {
         ({ data } = await api.post("/generate/artistic-studio", {
           prompt_final: finalPrompt,
           aspect_ratio: apiAspectRatio(aspect, { model: "artistic", hasPhoto: false }),
           style_id: styleId || "",
+          effects_json: JSON.stringify(effects),
         }));
       }
 

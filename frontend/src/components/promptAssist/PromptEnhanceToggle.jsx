@@ -7,7 +7,7 @@ export default function PromptEnhanceToggle({
   locked = false,
   onLockedClick,
   testId = "prompt-enhance",
-  cost = 5,
+  cost = 3,
 }) {
   const { t } = useI18n();
   return (

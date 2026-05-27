@@ -14,8 +14,9 @@ import { FALLBACK_PACKAGES } from "../../lib/publicFallbacks";
 import { usePricing } from "../../lib/PricingContext";
 import { setStoredPricingRegion } from "../../lib/pricingRegions";
 import { BILLING_FAQ_KEYS, BILLING_PKG_KEYS } from "../../lib/billingLocales";
+import { customPurchasePrice, getPricingMeta } from "../../lib/creditPricing";
 
-const PKG_ICONS = { starter: Sparkles, creator: Zap, studio: Rocket };
+const PKG_ICONS = { starter: Sparkles, creator: Zap, studio: Rocket, pro: Rocket };
 
 export default function Billing() {
   const { t, lang } = useI18n();
@@ -43,11 +44,8 @@ export default function Billing() {
   const [loadingTx, setLoadingTx] = useState(true);
   const [checkoutLoading, setCheckoutLoading] = useState(null);
   const [openFaq, setOpenFaq] = useState(null);
-  const starterPkg = useMemo(
-    () => pkgs.find((p) => p.id === "starter") || { credits: 150, amount_cents: 500, amount_display: 5, currency: "eur" },
-    [pkgs],
-  );
-  const minCustomCredits = Math.max(150, Number(starterPkg.credits) || 150);
+  const pricingMeta = useMemo(() => getPricingMeta(), []);
+  const minCustomCredits = pricingMeta.minCustomCredits || 150;
   const [customCredits, setCustomCredits] = useState(minCustomCredits);
 
   useEffect(() => {
@@ -55,14 +53,10 @@ export default function Billing() {
   }, [minCustomCredits]);
 
   const customQuote = useMemo(() => {
-    const credits = Math.max(minCustomCredits, Math.round(Number(customCredits) || 0));
-    const unitLabel = (starterPkg.currency || "eur") === "usd" ? "$" : "€";
-    const starterAmount = starterPkg.amount_display ?? starterPkg.amount_eur ?? (starterPkg.amount_cents / 100);
-    const starterCredits = Number(starterPkg.credits) || 150;
-    const price = Math.round((starterAmount * credits / starterCredits) * 100) / 100;
-    const perUnit = (credits / price).toFixed(1);
-    return { credits, price, perUnit, unitLabel };
-  }, [customCredits, minCustomCredits, starterPkg]);
+    const q = customPurchasePrice(customCredits);
+    const unitLabel = symbol || (region === "usd" ? "$" : "€");
+    return { ...q, unitLabel };
+  }, [customCredits, region, symbol]);
 
   useEffect(() => {
     api.get("/public/packages")
@@ -180,12 +174,14 @@ export default function Billing() {
 
       {/* === Pricing grid === */}
       <section className="mb-20">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-5">
           {pkgs.map((p) => {
             const meta = pkgMeta(p.id);
             const isPopular = p.id === "creator";
             const isPromo = p.id === "starter";
             const isStudio = p.id === "studio";
+            const isPro = p.id === "pro";
+            const bonusPct = Number(p.bonus_percent) || 0;
             const Icon = meta.icon;
             const amount = p.amount_display ?? p.amount_eur ?? (p.amount_cents / 100);
             const perUnit = (p.credits / amount).toFixed(1);
@@ -195,7 +191,7 @@ export default function Billing() {
                 className={`relative rounded-2xl border p-7 backdrop-blur-xl transition-all duration-300 flex flex-col hover:-translate-y-1
                   ${isPopular
                     ? "border-rp-purple bg-gradient-to-br from-[#1B0D3A] via-rp-surface to-rp-bg shadow-[0_0_60px_-20px_rgba(124,58,237,0.55)] md:scale-[1.03]"
-                    : isStudio
+                    : isStudio || isPro
                       ? "border-rp-purple/35 bg-gradient-to-br from-rp-surface to-rp-bg hover:border-rp-purple/50"
                       : "border-rp-border bg-rp-surface/90 hover:border-rp-mute2 hover:shadow-[0_20px_50px_-28px_rgba(124,58,237,0.2)]"}`}>
                 {isPopular && (
@@ -223,6 +219,11 @@ export default function Billing() {
                 <p className="text-[#C4B5FD] text-[14px] font-medium mb-1" data-testid={`credits-${p.id}`}>
                   {t("bill_credits_count", { n: p.credits })}
                 </p>
+                {bonusPct > 0 && (
+                  <p className="text-[#7C3AED] text-[11px] font-mono uppercase tracking-[0.12em] mb-1">
+                    {t("bill_pkg_bonus", { n: bonusPct })}
+                  </p>
+                )}
                 <p className="text-rp-mute2 text-[11px] font-mono uppercase tracking-[0.14em] mb-6">
                   {t("bill_credits_per_unit", { n: perUnit, unit: unitLabel })}
                 </p>
@@ -259,7 +260,9 @@ export default function Billing() {
           data-testid="billing-custom-credits"
         >
           <p className="text-[10px] font-mono uppercase tracking-[0.18em] text-[#7C3AED] mb-2">{t("bill_custom_title")}</p>
-          <p className="text-rp-mute text-[14px] max-w-[640px] mb-6">{t("bill_custom_subtitle")}</p>
+          <p className="text-rp-mute text-[14px] max-w-[640px] mb-6">
+            {t("bill_custom_subtitle", { rate: pricingMeta.creditsPerEuro || 30 })}
+          </p>
           <div className="flex flex-col sm:flex-row sm:items-end gap-5">
             <div className="flex-1 max-w-[280px]">
               <label htmlFor="custom-credits-input" className="block text-[11px] font-mono uppercase tracking-[0.14em] text-rp-mute2 mb-2">

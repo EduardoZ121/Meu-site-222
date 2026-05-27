@@ -1,20 +1,23 @@
+const { getCreditCostsForRegion, getRegionConfig } = require("../pricingRegions.cjs");
+const { computeVideoEditCostFromConfig } = require("./creditPricing.cjs");
+
 const PREMIUM_RESOLUTIONS = new Set(["1080p", "720p"]);
 const PREMIUM_DURATIONS = new Set([8, 10]);
 
-/** Extra credits on top of base video-edit cost. */
-const SURCHARGE = {
-  duration: { 8: 10, 10: 18 },
-  resolution: { "720p": 8, "1080p": 14 },
-};
+function getSurchargesForRegion(regionId = "intl") {
+  const cfg = getRegionConfig(regionId);
+  return cfg.surcharges || {};
+}
 
-function computeVideoEditCost(baseCost, { resolution = "original", duration = 6 } = {}) {
-  const base = Math.max(1, Number(baseCost) || 95);
-  const dur = Math.round(Number(duration));
-  const res = String(resolution || "original").trim().toLowerCase();
-  let cost = base;
-  if (SURCHARGE.duration[dur]) cost += SURCHARGE.duration[dur];
-  if (SURCHARGE.resolution[res]) cost += SURCHARGE.resolution[res];
-  return cost;
+function computeVideoEditCost(baseCost, { resolution = "original", duration = 6, regionId = "intl" } = {}) {
+  const CREDIT = getCreditCostsForRegion(regionId);
+  const surcharges = getSurchargesForRegion(regionId);
+  const fromConfig = computeVideoEditCostFromConfig(CREDIT, surcharges, { resolution, duration });
+  if (baseCost && baseCost !== CREDIT.videoEdit) {
+    const delta = fromConfig - (CREDIT.videoEdit ?? 120);
+    return Math.max(1, Number(baseCost) || 120) + delta;
+  }
+  return fromConfig;
 }
 
 function validateVideoEditOptions({ resolution, duration }) {
@@ -37,15 +40,23 @@ function validateVideoEditOptions({ resolution, duration }) {
 function mapResolutionForModel(resolution) {
   const res = String(resolution || "original").trim().toLowerCase();
   if (res === "720p") return "720p";
-  // original → keep source profile (model default high tier)
   return "1080p";
 }
 
+function buildSurchargeDisplay(regionId = "intl") {
+  const s = getSurchargesForRegion(regionId);
+  return {
+    duration: { 8: s.videoEditDuration8 ?? 25, 10: s.videoEditDuration10 ?? 50 },
+    resolution: { "720p": s.videoEditResolutionHd ?? 15, "1080p": s.videoEditResolutionHd ?? 15 },
+  };
+}
+
 module.exports = {
-  SURCHARGE,
+  SURCHARGE: buildSurchargeDisplay(),
   computeVideoEditCost,
   validateVideoEditOptions,
   mapResolutionForModel,
   PREMIUM_RESOLUTIONS,
   PREMIUM_DURATIONS,
+  buildSurchargeDisplay,
 };

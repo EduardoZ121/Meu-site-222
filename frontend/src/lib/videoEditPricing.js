@@ -1,16 +1,25 @@
-const SURCHARGE = {
-  duration: { 8: 10, 10: 18 },
-  resolution: { "720p": 8, "1080p": 14 },
-};
+import { getCreditCostsForRegion } from "./pricingRegions";
+import { computeVideoEditCostFromConfig, getSurcharges } from "./creditPricing";
 
-export function computeVideoEditCost(baseCost, { resolution = "original", duration = 6 } = {}) {
-  const base = Math.max(1, Number(baseCost) || 95);
-  const dur = Math.round(Number(duration));
-  const res = String(resolution || "original").trim().toLowerCase();
-  let cost = base;
-  if (SURCHARGE.duration[dur]) cost += SURCHARGE.duration[dur];
-  if (SURCHARGE.resolution[res]) cost += SURCHARGE.resolution[res];
-  return cost;
+export function buildVideoEditSurcharge(regionId = "intl") {
+  const s = getSurcharges(regionId);
+  return {
+    duration: { 8: s.videoEditDuration8 ?? 25, 10: s.videoEditDuration10 ?? 50 },
+    resolution: { "720p": s.videoEditResolutionHd ?? 15, "1080p": s.videoEditResolutionHd ?? 15 },
+  };
+}
+
+export const SURCHARGE = buildVideoEditSurcharge();
+
+export function computeVideoEditCost(baseCost, { resolution = "original", duration = 6, regionId = "intl" } = {}) {
+  const costs = getCreditCostsForRegion(regionId);
+  const surcharges = getSurcharges(regionId);
+  const fromConfig = computeVideoEditCostFromConfig(costs, surcharges, { resolution, duration });
+  if (baseCost && baseCost !== costs.videoEdit) {
+    const delta = fromConfig - (costs.videoEdit ?? 120);
+    return Math.max(1, Number(baseCost) || 120) + delta;
+  }
+  return fromConfig;
 }
 
 export function isPremiumResolution(resolution) {
@@ -20,5 +29,3 @@ export function isPremiumResolution(resolution) {
 export function isPremiumDuration(duration) {
   return duration === 8 || duration === 10;
 }
-
-export { SURCHARGE };

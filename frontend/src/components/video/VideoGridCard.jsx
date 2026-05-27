@@ -19,7 +19,7 @@ const ICON_STYLES = {
 
 export default function VideoGridCard({ category, index, t }) {
   const { costs } = usePricing();
-  const cost = costs[category.costKey] ?? costs.video ?? 70;
+  const cost = costs[category.costKey] ?? costs.video ?? 80;
   const Icon = ICONS[category.icon] || Type;
   const iconStyle = ICON_STYLES[category.icon] || ICON_STYLES.type;
 

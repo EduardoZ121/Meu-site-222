@@ -17,7 +17,7 @@
     }
   },
   "installCommand": "ln -sfn frontend/api api; yarn install --frozen-lockfile || yarn install; cd frontend && yarn install --frozen-lockfile || yarn install",
-  "buildCommand": "cd frontend && REACT_APP_BUILD_ID=upload-glow-blob-v1 REACT_APP_DISABLE_VERCEL_BLOB=0 yarn build",
+  "buildCommand": "cd frontend && REACT_APP_BUILD_ID=upload-glow-vid-v1 REACT_APP_DISABLE_VERCEL_BLOB=0 yarn build",
   "headers": [
     {
       "source": "/index.html",

@@ -14,7 +14,7 @@ import { toast } from "sonner";
 import ResultPanel from "../../components/ResultPanel";
 import StudioResultAnchor from "../../components/StudioResultAnchor";
 import ImageUploadZone from "../../components/ImageUploadZone";
-import StudioVideoUpload, { VIDEO_DIRECT_MAX_BYTES } from "../../components/StudioVideoUpload";
+import StudioVideoUpload from "../../components/StudioVideoUpload";
 import StudioGenerateBar from "../../components/StudioGenerateBar";
 import { useStudioGenerateGate } from "../../lib/useStudioGenerateGate";
 
@@ -55,7 +55,6 @@ export default function VideoEditorAdmin() {
   const [progress, setProgress] = useState(0);
   const [result, setResult] = useState(null);
 
-  const videoTooLarge = video && video.size > VIDEO_DIRECT_MAX_BYTES;
   const { ready, hint } = useStudioGenerateGate({
     busy,
     user,
@@ -64,19 +63,12 @@ export default function VideoEditorAdmin() {
     video,
     requirePrompt: true,
     prompt,
-    readyOverride: Boolean(video) && !videoTooLarge && prompt.trim().length >= 3,
-    hintOverride: videoTooLarge
-      ? t("vid_edit_large_hint")
-      : null,
+    readyOverride: Boolean(video) && prompt.trim().length >= 3,
   });
 
   const run = async () => {
     if (!video) {
       toast.error(t("vid_edit_err_video"));
-      return;
-    }
-    if (videoTooLarge) {
-      toast.error(t("vid_edit_large_hint"), { duration: 12000 });
       return;
     }
     if (prompt.trim().length < 3) {
@@ -104,7 +96,7 @@ export default function VideoEditorAdmin() {
       if (reference) fd.append("reference_image", reference);
 
       ({ data: submitData } = await uploadPost("/generate/video-edit", fd, {
-        timeout: 120_000,
+        timeout: 600_000,
         headers: { "X-Skip-Auto-Poll": "1" },
       }));
 
@@ -160,11 +152,6 @@ export default function VideoEditorAdmin() {
                 disabled={busy}
                 testId="video-edit-source"
               />
-              {videoTooLarge && (
-                <p className="mt-3 text-[12px] leading-relaxed text-red-400">
-                  {t("vid_edit_large_hint")}
-                </p>
-              )}
             </div>
           </section>
 

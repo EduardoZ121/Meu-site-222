@@ -1,6 +1,6 @@
 /** GET /api/health — confirma serverless + estado das integrações (sem expor segredos). */
 const { storageEnabled } = require("./lib/mongo.cjs");
-const { isBlobConfigured, isBlobDisabled } = require("./lib/blobEnv.cjs");
+const { isBlobConfigured, isBlobDisabled, getBlobReadWriteToken, getBlobStoreId } = require("./lib/blobEnv.cjs");
 
 module.exports = async function handler(req, res) {
   res.setHeader("Access-Control-Allow-Origin", "*");
@@ -25,6 +25,8 @@ module.exports = async function handler(req, res) {
       stripe,
       blob,
       blob_disabled: blobDisabled,
+      blob_store: Boolean(getBlobStoreId()),
+      blob_rw_token: Boolean(getBlobReadWriteToken()),
     },
     ready: {
       generate: replicate && mongo,

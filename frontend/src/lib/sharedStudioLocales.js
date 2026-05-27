@@ -174,6 +174,8 @@ const en = {
   upload_empty_label: "Upload image",
   upload_empty_hint: "Click, drag or paste (Ctrl+V)",
   upload_ready: "Ready to generate — no extra save step",
+  upload_save_error: "Could not save to cloud",
+  upload_retry: "Retry",
   art_subtitle: "Pick an art style, combine lighting, lens and mood — generate from text or edit a photo.",
   art_brand: "Remake Pixel · Artistic Studio",
   art_title: "Styles + effects, one visual recipe",

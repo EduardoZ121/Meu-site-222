@@ -43,6 +43,7 @@ const {
   getBlobReadWriteToken,
   isBlobConfigured,
   isBlobDisabled,
+  blobPutOptions,
 } = require("./lib/blobEnv.cjs");
 
 function blobDisabledResponse(res) {
@@ -514,8 +515,7 @@ async function resolveImageRef(files, fields, fileKey, urlKey) {
 async function routeUploadImageBlob(req, res) {
   if (isBlobDisabled()) return blobDisabledResponse(res);
   try {
-    const blobToken = getBlobReadWriteToken();
-    if (!blobToken) {
+    if (!isBlobConfigured()) {
       return json(res, 503, { detail: "Armazenamento Blob não configurado." });
     }
     const auth = req.headers.authorization || "";
@@ -543,11 +543,7 @@ async function routeUploadImageBlob(req, res) {
     const mime = file.mimetype || "image/jpeg";
     const buf = await fs.readFile(file.filepath);
     const { put } = require("@vercel/blob");
-    const blob = await put(pathname, buf, {
-      access: "public",
-      token: blobToken,
-      contentType: mime,
-    });
+    const blob = await put(pathname, buf, blobPutOptions({ contentType: mime }));
     return json(res, 200, { url: blob.url });
   } catch (err) {
     return json(res, err.status || 500, {
@@ -559,8 +555,7 @@ async function routeUploadImageBlob(req, res) {
 async function routeUploadVideoBlob(req, res) {
   if (isBlobDisabled()) return blobDisabledResponse(res);
   try {
-    const blobToken = getBlobReadWriteToken();
-    if (!blobToken) {
+    if (!isBlobConfigured()) {
       return json(res, 503, { detail: "Armazenamento Blob não configurado." });
     }
     const auth = req.headers.authorization || "";
@@ -600,11 +595,7 @@ async function routeUploadVideoBlob(req, res) {
       await fs.unlink(uploadPath).catch(() => {});
     }
     const { put } = require("@vercel/blob");
-    const blob = await put(pathname, buf, {
-      access: "public",
-      token: blobToken,
-      contentType: mime,
-    });
+    const blob = await put(pathname, buf, blobPutOptions({ contentType: mime }));
     return json(res, 200, { url: blob.url });
   } catch (err) {
     return json(res, err.status || 500, {
@@ -618,7 +609,9 @@ async function routeBlobPrepare(req, res) {
   try {
     const blobToken = getBlobReadWriteToken();
     if (!blobToken) {
-      return json(res, 503, { detail: "Armazenamento Blob não configurado neste ambiente." });
+      return json(res, 503, {
+        detail: "Blob ligado ao projeto mas falta BLOB_READ_WRITE_TOKEN. No dashboard Vercel: Storage → remakepix-blob → ligar ao projeto e criar token Read/Write.",
+      });
     }
     const auth = req.headers.authorization || "";
     const m = auth.match(/^Bearer\s+(.+)$/i);

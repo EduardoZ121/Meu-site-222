@@ -37,7 +37,7 @@ export function useStudioGenerateGate({
 
     let hint = hintOverride ?? null;
 
-    if (hint == null && uploading) hint = t("upload_preparing");
+    if (hint == null && uploading) hint = t("upload_wait_generate");
     if (hint == null && blocked) hint = t("studio_gen_hint_blocked");
     if (hint == null && missingCount > 0) hint = t("studio_gen_hint_fields");
     if (hint == null && requireVideo && !video) hint = t("studio_gen_hint_video");

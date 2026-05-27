@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Sparkles, Camera, Sliders } from "lucide-react";
 import { api, formatApiError, uploadPost } from "../../lib/api";
 import { normalizeCreation, primaryResultUrl } from "../../lib/creationUrls";
@@ -16,6 +16,7 @@ import useTitle from "../../lib/useTitle";
 import { useI18n } from "../../lib/i18n";
 import StudioGenerateBar from "../../components/StudioGenerateBar";
 import StudioGenerateCostMeta from "../../components/StudioGenerateCostMeta";
+import StudioPhotoUploadNotice, { isPhotoUploadBusy } from "../../components/studio/StudioPhotoUploadNotice";
 import { useStudioGenerateGate } from "../../lib/useStudioGenerateGate";
 import { useStudioI18n } from "../../lib/useStudioI18n";
 
@@ -59,7 +60,9 @@ export default function Pro() {
   const [customPrompt, setCustomPrompt] = useState("");
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState(null);
+  const [photoUploadStatus, setPhotoUploadStatus] = useState("idle");
   const cost = costs.pro;
+  const photoUploading = isPhotoUploadBusy(photoUploadStatus);
 
   useEffect(() => {
     if (!photo && aspect === "match") setAspect("4:5");
@@ -90,9 +93,14 @@ export default function Pro() {
     photo,
     requirePreset: true,
     preset,
+    uploading: photoUploading,
   });
 
-  const generate = async () => {
+  const generate = useCallback(async () => {
+    if (photoUploading) {
+      toast.message(t("upload_wait_generate"), { duration: 6000 });
+      return;
+    }
     if (!photo) { toast.error(t("pro_upload_photo")); return; }
     if (!preset) { toast.error(t("pro_pick_preset")); return; }
     clearUploadToast();
@@ -113,7 +121,19 @@ export default function Pro() {
     } catch (err) {
       errToast(err);
     } finally { setBusy(false); }
-  };
+  }, [
+    photoUploading,
+    photo,
+    preset,
+    clearUploadToast,
+    aspect,
+    customPrompt,
+    intensity,
+    cost,
+    refresh,
+    t,
+    errToast,
+  ]);
 
   return (
     <div className="rp-studio-shell max-w-[1400px] mx-auto pb-28" data-testid="pro-page">
@@ -139,6 +159,7 @@ export default function Pro() {
                 <ImageUploadZone
                   value={photo}
                   onChange={setPhoto}
+                  onStatusChange={setPhotoUploadStatus}
                   layout="wide"
                   testId="pro-photo"
                   compressOptions={{ maxSize: 2048 }}
@@ -272,6 +293,8 @@ export default function Pro() {
         </StudioResultAnchor>
       </div>
 
+      <StudioPhotoUploadNotice status={photoUploadStatus} className="mb-3" />
+
       <StudioGenerateBar
         variant="pro"
         ready={ready}
@@ -280,6 +303,7 @@ export default function Pro() {
         label={`${t("pro_button")} · ${cost} ${t("label_credits")}`}
         busyLabel={t("pro_loading")}
         hint={hint}
+        blockedNotify={photoUploading ? "message" : "error"}
         testId="pro-create"
         costMeta={<StudioGenerateCostMeta cost={cost} user={user} />}
       />

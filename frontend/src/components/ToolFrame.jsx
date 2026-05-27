@@ -4,6 +4,7 @@ import { useAuth } from "../lib/auth";
 import { useI18n } from "../lib/i18n";
 import StudioGenerateBar from "./StudioGenerateBar";
 import StudioGenerateCostMeta from "./StudioGenerateCostMeta";
+import StudioPhotoUploadNotice, { isPhotoUploadBusy } from "./studio/StudioPhotoUploadNotice";
 import { useStudioGenerateGate } from "../lib/useStudioGenerateGate";
 import ImageUploadZone from "./ImageUploadZone";
 import ResultPanel from "./ResultPanel";
@@ -67,6 +68,8 @@ export default function ToolFrame({
   const { t } = useI18n();
   const formatsLabel = acceptedFormats ?? t("tool_accept_formats");
   const [viewAllModels, setViewAllModels] = useState(false);
+  const [photoUploadStatus, setPhotoUploadStatus] = useState("idle");
+  const photoUploading = showPhoto && isPhotoUploadBusy(photoUploadStatus);
 
   const visibleModels = models ? (viewAllModels ? models : models.slice(0, 8)) : [];
   const resultReady = Boolean(primaryResultUrl(result));
@@ -81,6 +84,7 @@ export default function ToolFrame({
     photo,
     requirePrompt: needsPrompt,
     prompt,
+    uploading: photoUploading,
     readyOverride: generateReady,
     hintOverride: generateHint,
   });
@@ -110,6 +114,7 @@ export default function ToolFrame({
               <ImageUploadZone
                 value={photo}
                 onChange={onPhotoChange}
+                onStatusChange={setPhotoUploadStatus}
                 layout="wide"
                 testId={`${testId}-photo`}
                 compressOptions={photoCompressOptions}
@@ -240,6 +245,10 @@ export default function ToolFrame({
         </StudioResultAnchor>
       </div>
 
+      {showPhoto ? (
+        <StudioPhotoUploadNotice status={photoUploadStatus} className="mb-3" />
+      ) : null}
+
       <StudioGenerateBar
         ready={ready}
         busy={busy}
@@ -247,6 +256,7 @@ export default function ToolFrame({
         label={t("tool_generate_credits", { n: cost })}
         busyLabel={t("tool_generating")}
         hint={hint}
+        blockedNotify={photoUploading ? "message" : "error"}
         testId={`${testId}-create-btn`}
         costMeta={<StudioGenerateCostMeta cost={cost} user={user} />}
       />

@@ -21,6 +21,7 @@ import ArtisticStudioModule from "../../components/artistic/ArtisticStudioModule
 import ArtisticPromptStudio from "../../components/artistic/ArtisticPromptStudio";
 import ArtisticResultStudio from "../../components/artistic/ArtisticResultStudio";
 import ArtisticFlowSteps from "../../components/artistic/ArtisticFlowSteps";
+import { isPhotoUploadBusy } from "../../components/studio/StudioPhotoUploadNotice";
 import { pushArtisticPromptHistory } from "../../lib/artisticPromptHistory";
 import { localizeArtisticCatalog } from "../../lib/artisticStudioLocales";
 import { canAccessNsfwArtisticStyles } from "../../lib/artisticStudioData";
@@ -69,6 +70,8 @@ export default function Artistic() {
   const [result, setResult] = useState(null);
   const [meta, setMeta] = useState(null);
   const [mobileTab, setMobileTab] = useState("generate");
+  const [photoUploadStatus, setPhotoUploadStatus] = useState("idle");
+  const photoUploading = isPhotoUploadBusy(photoUploadStatus);
 
   const includeNsfw = useMemo(() => canAccessNsfwArtisticStyles(user), [user]);
 
@@ -201,6 +204,10 @@ export default function Artistic() {
   };
 
   const generate = useCallback(async () => {
+    if (photoUploading) {
+      toast.message(t("upload_wait_generate"), { duration: 6000 });
+      return;
+    }
     if (!styleId && prompt.trim().length < 3) {
       toast.error(t("studio_err_text"));
       return;
@@ -304,6 +311,7 @@ export default function Artistic() {
   }, [
     styleId,
     styleCat,
+    photoUploading,
     isLabStyle,
     isPhotoStyle,
     isPhotoCategory,
@@ -540,6 +548,8 @@ export default function Artistic() {
             isLabStyle={isLabStyle}
             isPhotoStyle={isPhotoStyle}
             isPhotoCategory={isPhotoCategory}
+            photoUploadStatus={photoUploadStatus}
+            onPhotoUploadStatusChange={setPhotoUploadStatus}
             photo={photo}
             setPhoto={setPhoto}
             prompt={prompt}

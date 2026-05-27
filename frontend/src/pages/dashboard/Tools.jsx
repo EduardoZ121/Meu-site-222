@@ -57,8 +57,8 @@ export default function Tools() {
             {t("tools_grid.page_title")}
           </h1>
 
-          <p className="max-w-[280px] text-[17px] leading-relaxed text-zinc-400">
-            {t("tools_grid.page_desc_short", { n: filtered.length })}
+          <p className="max-w-[420px] text-[15px] leading-relaxed text-zinc-400">
+            {t("tools_page_desc", { n: tools.length })}
           </p>
 
           <div
@@ -90,9 +90,6 @@ export default function Tools() {
             })}
           </div>
 
-          <p className="mt-2 text-[10px] font-mono uppercase tracking-[0.14em] text-zinc-600">
-            {t("tools_grid.count_label", { n: filtered.length })}
-          </p>
         </div>
       </motion.section>
 

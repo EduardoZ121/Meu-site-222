@@ -19,7 +19,7 @@ import ArtisticStudioTabs from "../../components/artistic/ArtisticStudioTabs";
 import ArtisticCategoryRail from "../../components/artistic/ArtisticCategoryRail";
 import ArtisticStudioModule from "../../components/artistic/ArtisticStudioModule";
 import ArtisticPromptStudio from "../../components/artistic/ArtisticPromptStudio";
-import ArtisticResultStudio from "../../components/artistic/ArtisticResultStudio";
+import ArtisticFlowSteps from "../../components/artistic/ArtisticFlowSteps";
 import { pushArtisticPromptHistory } from "../../lib/artisticPromptHistory";
 import { localizeArtisticCatalog } from "../../lib/artisticStudioLocales";
 import { canAccessNsfwArtisticStyles } from "../../lib/artisticStudioData";
@@ -67,12 +67,7 @@ export default function Artistic() {
   const [improving, setImproving] = useState(false);
   const [result, setResult] = useState(null);
   const [meta, setMeta] = useState(null);
-  const [mobileTab, setMobileTab] = useState("style");
-
-  useEffect(() => {
-    const q = searchParams.get("prompt");
-    if (q) setPrompt(q);
-  }, [searchParams]);
+  const [mobileTab, setMobileTab] = useState("generate");
 
   const includeNsfw = useMemo(() => canAccessNsfwArtisticStyles(user), [user]);
 
@@ -80,6 +75,31 @@ export default function Artistic() {
     () => localizeArtisticCatalog(lang, { includeNsfw }),
     [lang, includeNsfw],
   );
+
+  const selectedStyle = useMemo(
+    () => catalog.styles.find((s) => s.id === styleId) || null,
+    [catalog.styles, styleId],
+  );
+
+  useEffect(() => {
+    const q = searchParams.get("prompt");
+    if (q) setPrompt(q);
+  }, [searchParams]);
+
+  useEffect(() => {
+    if (!includeNsfw && styleCat === "nsfw") {
+      setStyleCat("photography");
+    }
+  }, [includeNsfw, styleCat]);
+
+  useEffect(() => {
+    if (!includeNsfw && styleId) {
+      const picked = catalog.styles.find((s) => s.id === styleId);
+      if (picked?.adminOnly || picked?.cat === "nsfw") {
+        setStyleId(null);
+      }
+    }
+  }, [includeNsfw, styleId, catalog.styles]);
 
   useEffect(() => {
     const catIds = catalog.categories.map((c) => c.id);
@@ -145,6 +165,7 @@ export default function Artistic() {
   const selectStyle = useCallback(
     (id) => {
       setStyleId(id);
+      setMobileTab("generate");
       const picked = catalog.styles.find((s) => s.id === id);
       if (picked?.cat === "nsfw" && inputMode !== "image") {
         setInputMode("image");
@@ -308,6 +329,9 @@ export default function Artistic() {
   const panelVisibility = (tab) =>
     mobileTab !== tab ? "hidden lg:block" : "";
 
+  const leftColumnVisibility =
+    mobileTab === "style" || mobileTab === "effects" ? "" : "hidden lg:block";
+
   const styleGallery = (
     <>
       <ArtisticCategoryRail
@@ -318,7 +342,7 @@ export default function Artistic() {
       />
       <p className="text-[#9CA3AF] text-[10px] font-mono uppercase tracking-[0.14em] mb-3">
         {catalog.categories.find((c) => c.id === styleCat)?.label}
-        {includeNsfw ? ` · ${t("art_nsfw_admin_badge")}` : ""}
+        {isLabCategory && includeNsfw ? ` · ${t("art_nsfw_admin_badge")}` : ""}
       </p>
       {isLabCategory && includeNsfw ? (
         <div className="art-lab-panel mb-4 rounded-xl border border-[rgba(236,72,153,0.25)] bg-gradient-to-br from-[#1a0a1f]/80 via-[#111118] to-[#0a0a0f] p-3 md:p-4 max-h-[min(calc(100dvh-12rem),720px)] overflow-y-auto overflow-x-hidden">
@@ -376,75 +400,86 @@ export default function Artistic() {
     >
       <ArtisticStudioHeader />
 
-      <p className="md:hidden text-[#9CA3AF] text-[13px] leading-relaxed mb-4 px-0.5">
-        {t("art_hero_subtitle")}
-      </p>
+      <ArtisticFlowSteps activeStep={mobileTab} styleSelected={Boolean(styleId)} />
 
       <ArtisticStudioTabs value={mobileTab} onChange={setMobileTab} />
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6 w-full min-w-0">
-        <ArtisticStudioModule
-          title={t("art_sec_style")}
-          subtitle={t("art_module_style_hint")}
-          icon={Palette}
-          className={panelVisibility("style")}
-          testId="artistic-module-style"
-        >
-          <p className="text-[#6B7280] text-[10px] mb-3">
-            {t("art_styles_count", { n: catalog.styles.length })}
-          </p>
-          {styleGallery}
-        </ArtisticStudioModule>
+      <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_420px] gap-4 md:gap-6 w-full min-w-0">
+        <div className={`space-y-4 md:space-y-6 min-w-0 ${leftColumnVisibility}`}>
+          <ArtisticStudioModule
+            title={t("art_sec_style")}
+            subtitle={t("art_module_style_hint")}
+            icon={Palette}
+            className={panelVisibility("style")}
+            testId="artistic-module-style"
+          >
+            <p className="text-[#6B7280] text-[10px] mb-3">
+              {t("art_styles_count", { n: catalog.styles.length })}
+            </p>
+            {styleGallery}
+          </ArtisticStudioModule>
 
-        <ArtisticStudioModule
-          title={t("art_sec_effects")}
-          subtitle={t("art_module_effects_hint")}
-          icon={Sliders}
-          accent="cyan"
-          className={`${panelVisibility("effects")} max-h-[min(calc(100dvh-12rem),820px)] lg:max-h-[min(88vh,820px)] overflow-y-auto`}
-          testId="artistic-module-effects"
-        >
-          <div className="space-y-6">
-            {catalog.sections.map((section) => {
-              const SecIcon = SECTION_ICONS[section.icon] || Sparkles;
-              return (
-                <div key={section.id}>
-                  <p className="text-[#9CA3AF] text-[10px] font-mono uppercase tracking-[0.16em] mb-2.5 flex items-center gap-1.5">
-                    <SecIcon className="w-3.5 h-3.5 text-[#67e8f9]" /> {section.title}
-                  </p>
-                  <div className="space-y-1">
-                    {section.options.map((opt) => {
-                      const active =
-                        section.type === "radio"
-                          ? effects[section.id] === opt.id
-                          : Boolean(effects[section.id]?.[opt.id]);
-                      return (
-                        <ArtisticEffectOption
-                          key={opt.id}
-                          section={section}
-                          opt={opt}
-                          active={active}
-                          onToggle={() => {
-                            if (section.type === "radio") setRadioEffect(section.id, opt.id);
-                            else toggleCheckboxEffect(section.id, opt.id);
-                          }}
-                        />
-                      );
-                    })}
+          <ArtisticStudioModule
+            title={t("art_sec_effects")}
+            subtitle={t("art_module_effects_hint")}
+            icon={Sliders}
+            accent="cyan"
+            className={`${panelVisibility("effects")} max-h-[min(calc(100dvh-12rem),640px)] lg:max-h-none overflow-y-auto`}
+            testId="artistic-module-effects"
+          >
+            <div className="space-y-6">
+              {catalog.sections.map((section) => {
+                const SecIcon = SECTION_ICONS[section.icon] || Sparkles;
+                return (
+                  <div key={section.id}>
+                    <p className="text-[#9CA3AF] text-[10px] font-mono uppercase tracking-[0.16em] mb-2.5 flex items-center gap-1.5">
+                      <SecIcon className="w-3.5 h-3.5 text-[#67e8f9]" /> {section.title}
+                    </p>
+                    <div className="space-y-1">
+                      {section.options.map((opt) => {
+                        const active =
+                          section.type === "radio"
+                            ? effects[section.id] === opt.id
+                            : Boolean(effects[section.id]?.[opt.id]);
+                        return (
+                          <ArtisticEffectOption
+                            key={opt.id}
+                            section={section}
+                            opt={opt}
+                            active={active}
+                            onToggle={() => {
+                              if (section.type === "radio") setRadioEffect(section.id, opt.id);
+                              else toggleCheckboxEffect(section.id, opt.id);
+                            }}
+                          />
+                        );
+                      })}
+                    </div>
                   </div>
-                </div>
-              );
-            })}
-          </div>
-        </ArtisticStudioModule>
+                );
+              })}
+            </div>
+          </ArtisticStudioModule>
+        </div>
 
         <ArtisticStudioModule
           title={t("art_sec_generate")}
           subtitle={t("art_module_prompt_hint")}
           icon={Sparkles}
-          className={`${panelVisibility("generate")} flex flex-col`}
+          accent="pink"
+          className={`${panelVisibility("generate")} lg:sticky lg:top-20 lg:self-start flex flex-col art-studio-module--generate`}
           testId="artistic-module-prompt"
         >
+          {!styleId && (
+            <div className="mb-4 rounded-xl border border-dashed border-[rgba(147,51,234,0.35)] bg-[rgba(124,58,237,0.08)] px-4 py-3">
+              <p className="text-[#C4B5FD] text-[13px] leading-relaxed">{t("art_pick_style_hint")}</p>
+            </div>
+          )}
+          {selectedStyle && (
+            <p className="mb-4 text-[11px] font-mono uppercase tracking-[0.12em] text-[#A855F7]">
+              {t("art_selected_style", { name: selectedStyle.label })}
+            </p>
+          )}
           <ArtisticPromptStudio
             inputMode={inputMode}
             setInputMode={setInputMode}

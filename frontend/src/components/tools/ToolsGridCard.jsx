@@ -101,7 +101,7 @@ export default function ToolsGridCard({ tool, index, region, t }) {
               {isFree ? t("label_free") : `${cost} ${t("label_credits")}`}
             </span>
             <span className="text-[11px] font-medium text-zinc-500 group-hover:text-violet-300/90 transition-colors duration-300">
-              {t("tools_grid.open_tool")}
+              →
             </span>
           </div>
         </div>

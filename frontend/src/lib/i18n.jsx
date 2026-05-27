@@ -36,6 +36,8 @@ export function useI18n() {
       wiz_: "wizard.wiz_",
       common_: "common.",
       upload_: "studio.upload_",
+      tools_page_: "tools_grid.",
+      tools_grid: "tools_grid.",
       tool_: "tools_grid.",
       manga_: "studio.manga_",
     };

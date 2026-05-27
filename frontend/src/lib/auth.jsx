@@ -196,8 +196,8 @@ export function AuthProvider({ children }) {
       if (!isBackendUnavailable(err)) throw err;
       const users = readLocalUsers();
       if (users[normalizedPayload.email]) {
-        const fallbackErr = new Error("Este email já existe neste navegador.");
-        fallbackErr.response = { data: { detail: fallbackErr.message } };
+        const fallbackErr = new Error("Este email já está registado. Entra em vez de criar outra conta.");
+        fallbackErr.response = { status: 409, data: { detail: fallbackErr.message, code: "EMAIL_EXISTS" } };
         throw fallbackErr;
       }
       const local = {

@@ -11,6 +11,11 @@ const {
 } = require("./pricingRegions.cjs");
 const { handleAdminRoute } = require("./lib/adminHandlers.cjs");
 const {
+  checkEmailRegistration,
+  registerEmailUser,
+  loginEmailUser,
+} = require("./lib/emailAuth.cjs");
+const {
   ADMIN_EMAILS,
   upsertGoogleUser,
   touchUser,
@@ -109,6 +114,26 @@ async function verifyGoogleCredential(credential) {
 }
 
 async function routeAuth(path, fields, req) {
+  if (path === "auth/register") {
+    const region = regionFromRequest(req, fields);
+    const user = await registerEmailUser({
+      email: text(fields, "email", ""),
+      password: text(fields, "password", ""),
+      name: text(fields, "name", ""),
+      referral_code: text(fields, "referral_code", ""),
+      pricing_region: region,
+    }, req);
+    return { token: signSession(user), user };
+  }
+
+  if (path === "auth/login") {
+    const user = await loginEmailUser({
+      email: text(fields, "email", ""),
+      password: text(fields, "password", ""),
+    }, req);
+    return { token: signSession(user), user };
+  }
+
   if (path === "auth/google") {
     const credential = fields.credential || fields.id_token;
     if (!credential) {
@@ -147,8 +172,7 @@ async function routeAuth(path, fields, req) {
     return { token: signSession(user), user };
   }
 
-  // Email/password: sem base de dados no servidorless — o cliente usa contas locais (localStorage).
-  const err = new Error("Conta por email neste servidor não está disponível; usa registo/login local no navegador.");
+  const err = new Error("Pedido de autenticação inválido.");
   err.status = 404;
   throw err;
 }
@@ -1945,6 +1969,17 @@ async function handlePath(path, req, res) {
         credits,
         pricing_region: pricingRegion,
       });
+    }
+
+    if (req.method === "GET" && path === "auth/check-email") {
+      const url = new URL(req.url, `https://${req.headers.host || "localhost"}`);
+      const email = url.searchParams.get("email") || "";
+      try {
+        const out = await checkEmailRegistration(email);
+        return json(res, 200, out);
+      } catch (err) {
+        return json(res, err.status || 500, { detail: err.message || "Erro." });
+      }
     }
 
     if (req.method === "GET" && path === "auth/me") {

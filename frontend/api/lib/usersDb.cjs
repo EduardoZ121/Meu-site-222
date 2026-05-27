@@ -316,6 +316,7 @@ module.exports = {
   UNLIMITED_CREDITS,
   isAdminEmail,
   resolveAccountAccess,
+  genReferralCode,
   storageEnabled,
   publicUser,
   upsertGoogleUser,

@@ -196,7 +196,9 @@ const functionConfig = {
 const {
   QWEN_EDIT_MODEL,
   isNsfwStyleId,
+  isPhotographyStyleId,
   resolveArtisticLabModel,
+  resolvePhotographyModel,
 } = require("./lib/artisticStudioEngines.cjs");
 
 function isArtisticExperimentalStyleId(styleId) {
@@ -218,6 +220,9 @@ function resolveArtisticStudioModel({ styleId, hasPhoto, userDoc }) {
       throw err;
     }
     return resolveArtisticLabModel();
+  }
+  if (isPhotographyStyleId(styleId)) {
+    return resolvePhotographyModel(hasPhoto);
   }
   return { modelKey: "standard", modelId: MODELS.standard, label: MODELS.standard };
 }
@@ -1103,6 +1108,9 @@ async function imageInput(fields, files, modelKey, prompt, opts = {}) {
       input.aspect_ratio = "match_input_image";
     }
   }
+  if (opts.photography && (modelKey === "kontext" || modelKey === "artistic")) {
+    input.disable_safety_checker = true;
+  }
   if (primary) {
     if (modelKey === "standard" || modelKey === "video") input.image = primary;
     else if (modelKey === "kontext") input.input_image = primary;
@@ -1401,7 +1409,8 @@ async function routePost(path, fields, files, req) {
       hasPhoto,
       userDoc,
     });
-    const input = await imageInput(fields, files, modelKey, promptFinal, { experimental });
+    const photography = isPhotographyStyleId(styleId);
+    const input = await imageInput(fields, files, modelKey, promptFinal, { experimental, photography });
     let effects = {};
     try {
       const rawFx = text(fields, "effects_json", "{}");
@@ -1420,7 +1429,9 @@ async function routePost(path, fields, files, req) {
       modelUsed: modelLabel,
       spendDescription: isArtisticExperimentalStyleId(styleId)
         ? "Estúdio artístico · AI Lab (Qwen)"
-        : "Estúdio artístico",
+        : photography
+          ? "Estúdio artístico · Fotografia"
+          : "Estúdio artístico",
     });
   }
 

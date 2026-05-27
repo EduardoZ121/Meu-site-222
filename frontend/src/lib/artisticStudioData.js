@@ -263,3 +263,7 @@ export function filterArtisticCategories(categories, includeNsfw) {
 export function filterArtisticStyles(styles, includeNsfw) {
   return styles.filter((s) => !s.adminOnly || includeNsfw);
 }
+
+export function isPhotographyStyleId(styleId) {
+  return String(styleId || "").trim().startsWith("photo_");
+}

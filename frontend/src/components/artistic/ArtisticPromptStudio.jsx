@@ -35,6 +35,7 @@ export default function ArtisticPromptStudio({
   inputMode,
   setInputMode,
   isLabStyle,
+  isPhotoStyle = false,
   photo,
   setPhoto,
   prompt,
@@ -53,7 +54,8 @@ export default function ArtisticPromptStudio({
 }) {
   const { t } = useI18n();
 
-  const needsPhoto = inputMode === "image" || isLabStyle;
+  const needsPhoto = inputMode === "image" || isLabStyle || isPhotoStyle;
+  const imageOnlyMode = isLabStyle || isPhotoStyle;
   const { ready, hint } = useStudioGenerateGate({
     busy,
     user,
@@ -103,16 +105,16 @@ export default function ArtisticPromptStudio({
       <div className="art-studio-mode-toggle">
         <button
           type="button"
-          disabled={isLabStyle}
+          disabled={imageOnlyMode}
           onClick={() => {
-            if (isLabStyle) {
-              toast.message(t("art_lab_image_hint"));
+            if (imageOnlyMode) {
+              toast.message(isLabStyle ? t("art_lab_image_hint") : t("art_photo_image_hint"));
               return;
             }
             setInputMode("text");
           }}
           className={`art-studio-mode-btn ${inputMode === "text" ? "art-studio-mode-btn--active" : ""} ${
-            isLabStyle ? "opacity-40 cursor-not-allowed" : ""
+            imageOnlyMode ? "opacity-40 cursor-not-allowed" : ""
           }`}
         >
           <Type className="w-4 h-4" /> {t("art_input_text")}

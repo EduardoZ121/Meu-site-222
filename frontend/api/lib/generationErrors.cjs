@@ -7,10 +7,17 @@ function formatGenerationError(raw, lang = "en") {
   const msg = String(raw || "").trim();
   const lower = msg.toLowerCase();
 
-  const isNsfw =
-    /nsfw|nude|nudity|sexual|explicit|adult content|porn|erotic|hentai|inappropriate|not allowed|content policy|safety filter|moderation|blocked|violat|restricted|cannot generate|refus/i.test(
+  const isExplicitContent =
+    /nsfw|nude|nudity|sexual content|explicit content|porn|erotic|hentai|adult content/i.test(
       lower,
     );
+
+  const isSafetyPolicy =
+    /content policy|safety filter|moderation|inappropriate content|violat.*content policy/i.test(
+      lower,
+    );
+
+  const isNsfw = isExplicitContent || isSafetyPolicy;
 
   const isTimeout =
     /timeout|timed out|deadline|took too long|exceeded/i.test(lower);

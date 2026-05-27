@@ -1233,6 +1233,47 @@
     }
   }
 
+  /* Fotografia fotorrealista — painel premium */
+  .art-photo-panel {
+    border-radius: 1rem;
+    border: 1px solid rgba(251, 191, 36, 0.22);
+    background: linear-gradient(145deg, rgba(28, 25, 23, 0.92) 0%, rgba(12, 12, 18, 0.98) 55%, rgba(15, 23, 42, 0.85) 100%);
+    box-shadow:
+      0 0 0 1px rgba(255, 255, 255, 0.03) inset,
+      0 24px 48px -28px rgba(251, 191, 36, 0.18);
+  }
+
+  .art-photo-panel__badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.25rem 0.55rem;
+    border-radius: 999px;
+    font-size: 9px;
+    font-weight: 600;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: #fde68a;
+    border: 1px solid rgba(251, 191, 36, 0.35);
+    background: rgba(251, 191, 36, 0.08);
+  }
+
+  .art-photo-styles-grid .art-style-card {
+    border-color: rgba(120, 113, 108, 0.45);
+  }
+
+  .art-photo-styles-grid .art-style-card:hover {
+    border-color: rgba(251, 191, 36, 0.45);
+    box-shadow: 0 16px 40px -16px rgba(251, 191, 36, 0.25);
+  }
+
+  .art-photo-styles-grid .art-style-card--selected {
+    border-color: rgba(251, 191, 36, 0.65);
+    box-shadow:
+      0 0 28px -6px rgba(251, 191, 36, 0.35),
+      inset 0 0 0 1px rgba(251, 191, 36, 0.2);
+  }
+
   .rp-studio-top-bar {
     box-sizing: border-box;
   }

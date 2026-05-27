@@ -115,6 +115,7 @@ export default function Artistic() {
   );
 
   const isLabCategory = styleCat === "nsfw";
+  const isPhotoCategory = styleCat === "photography";
   const labPresets = useMemo(
     () => stylesInCat.filter((s) => s.labPreset),
     [stylesInCat],
@@ -136,6 +137,11 @@ export default function Artistic() {
     () => isArtisticExperimentalStyle(styleId),
     [styleId],
   );
+
+  const isPhotoStyle = useMemo(() => {
+    const picked = getStyleById(styleId);
+    return picked?.cat === "photography";
+  }, [styleId]);
 
   const recipeChips = useMemo(
     () => buildRecipeChips({ styleId, effects }),
@@ -172,6 +178,10 @@ export default function Artistic() {
         setInputMode("image");
         toast.message(t("art_lab_image_hint"));
       }
+      if (picked?.cat === "photography" && inputMode !== "image") {
+        setInputMode("image");
+        toast.message(t("art_photo_image_hint"));
+      }
     },
     [catalog.styles, inputMode, t],
   );
@@ -194,6 +204,10 @@ export default function Artistic() {
     }
     if (isLabStyle && !photo) {
       toast.error(t("art_lab_need_photo"));
+      return;
+    }
+    if (isPhotoStyle && !photo) {
+      toast.error(t("art_photo_need_photo"));
       return;
     }
     if ((user?.credits ?? 0) < cost) {
@@ -280,6 +294,7 @@ export default function Artistic() {
   }, [
     styleId,
     isLabStyle,
+    isPhotoStyle,
     prompt,
     inputMode,
     photo,
@@ -333,13 +348,23 @@ export default function Artistic() {
   const leftColumnVisibility =
     mobileTab === "style" || mobileTab === "effects" ? "" : "hidden lg:block";
 
+  const selectCategory = useCallback(
+    (catId) => {
+      setStyleCat(catId);
+      if (catId === "photography") {
+        setInputMode("image");
+      }
+    },
+    [],
+  );
+
   const styleGallery = (
     <>
       <ArtisticCategoryRail
         categories={catalog.categories}
         styles={catalog.styles}
         activeId={styleCat}
-        onSelect={setStyleCat}
+        onSelect={selectCategory}
       />
       <p className="text-[#9CA3AF] text-[10px] font-mono uppercase tracking-[0.14em] mb-3">
         {catalog.categories.find((c) => c.id === styleCat)?.label}
@@ -383,6 +408,22 @@ export default function Artistic() {
               </div>
             </>
           )}
+        </div>
+      ) : isPhotoCategory ? (
+        <div className="art-photo-panel mb-4 p-3 md:p-4 max-h-[min(calc(100dvh-12rem),720px)] overflow-y-auto overflow-x-hidden">
+          <div className="flex flex-wrap items-center gap-2 mb-2">
+            <p className="text-[#fde68a] text-[11px] font-semibold">{t("art_photo_title")}</p>
+            <span className="art-photo-panel__badge">{t("art_photo_identity_badge")}</span>
+          </div>
+          <p className="text-[#6B7280] text-[9px] font-mono uppercase tracking-wider mb-1">
+            {t("art_photo_engine_note")}
+          </p>
+          <p className="text-[#9CA3AF] text-[10px] leading-snug mb-3">{t("art_photo_desc")}</p>
+          <div className="art-studio-styles-grid art-photo-styles-grid">
+            {stylesInCat.map((s) => (
+              <ArtisticStyleCard key={s.id} style={s} selected={styleId === s.id} onSelect={selectStyle} />
+            ))}
+          </div>
         </div>
       ) : (
         <div className="art-studio-styles-grid">
@@ -485,6 +526,7 @@ export default function Artistic() {
             inputMode={inputMode}
             setInputMode={setInputMode}
             isLabStyle={isLabStyle}
+            isPhotoStyle={isPhotoStyle}
             photo={photo}
             setPhoto={setPhoto}
             prompt={prompt}

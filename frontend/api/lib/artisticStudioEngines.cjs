@@ -12,6 +12,29 @@ function isNsfwStyleId(styleId) {
   return id.startsWith("lab_") || id.startsWith("nsfw_");
 }
 
+function isPhotographyStyleId(styleId) {
+  const id = String(styleId || "").trim();
+  if (!id) return false;
+  return id.startsWith("photo_");
+}
+
+function resolvePhotographyModel(hasPhoto) {
+  if (hasPhoto) {
+    return {
+      modelKey: "kontext",
+      modelId: String(process.env.ARTISTIC_PHOTO_KONTEXT_MODEL || "").trim()
+        || "black-forest-labs/flux-kontext-max",
+      label: "Flux Kontext Max",
+    };
+  }
+  return {
+    modelKey: "artistic",
+    modelId: String(process.env.ARTISTIC_PHOTO_FLUX_MODEL || "").trim()
+      || "black-forest-labs/flux-2-klein-9b",
+    label: "Flux 2 Klein",
+  };
+}
+
 function resolveArtisticLabModel() {
   return {
     modelKey: "qwen",
@@ -23,5 +46,7 @@ function resolveArtisticLabModel() {
 module.exports = {
   QWEN_EDIT_MODEL,
   isNsfwStyleId,
+  isPhotographyStyleId,
   resolveArtisticLabModel,
+  resolvePhotographyModel,
 };

@@ -18,14 +18,10 @@ function isPhotographyStyleId(styleId) {
   return id.startsWith("photo_");
 }
 
+/** Fotografia com foto → Qwen 2511 (safety off, melhor identidade). Sem foto → Flux Klein. */
 function resolvePhotographyModel(hasPhoto) {
   if (hasPhoto) {
-    return {
-      modelKey: "kontext",
-      modelId: String(process.env.ARTISTIC_PHOTO_KONTEXT_MODEL || "").trim()
-        || "black-forest-labs/flux-kontext-max",
-      label: "Flux Kontext Max",
-    };
+    return resolveArtisticLabModel();
   }
   return {
     modelKey: "artistic",
@@ -33,6 +29,11 @@ function resolvePhotographyModel(hasPhoto) {
       || "black-forest-labs/flux-2-klein-9b",
     label: "Flux 2 Klein",
   };
+}
+
+function isPhotographyRequest(styleId, styleCat) {
+  if (isPhotographyStyleId(styleId)) return true;
+  return String(styleCat || "").trim().toLowerCase() === "photography";
 }
 
 function resolveArtisticLabModel() {
@@ -47,6 +48,7 @@ module.exports = {
   QWEN_EDIT_MODEL,
   isNsfwStyleId,
   isPhotographyStyleId,
+  isPhotographyRequest,
   resolveArtisticLabModel,
   resolvePhotographyModel,
 };

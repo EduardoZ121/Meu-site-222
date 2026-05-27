@@ -197,6 +197,7 @@ const {
   QWEN_EDIT_MODEL,
   isNsfwStyleId,
   isPhotographyStyleId,
+  isPhotographyRequest,
   resolveArtisticLabModel,
   resolvePhotographyModel,
 } = require("./lib/artisticStudioEngines.cjs");
@@ -205,15 +206,9 @@ function isArtisticExperimentalStyleId(styleId) {
   return isNsfwStyleId(styleId);
 }
 
-function resolveArtisticStudioModel({ styleId, hasPhoto, userDoc }) {
+function resolveArtisticStudioModel({ styleId, hasPhoto, userDoc, styleCat }) {
   const experimental = isArtisticExperimentalStyleId(styleId);
   if (experimental) {
-    const adminOk = userDoc?.role === "admin" || userDoc?.nsfw_allowed;
-    if (!adminOk) {
-      const err = new Error("Este estilo requer permissão NSFW na conta.");
-      err.status = 403;
-      throw err;
-    }
     if (!hasPhoto) {
       const err = new Error("AI Lab exige uma foto (Qwen Image Edit edita a referência).");
       err.status = 400;
@@ -221,8 +216,12 @@ function resolveArtisticStudioModel({ styleId, hasPhoto, userDoc }) {
     }
     return resolveArtisticLabModel();
   }
-  if (isPhotographyStyleId(styleId)) {
+  if (isPhotographyRequest(styleId, styleCat)) {
     return resolvePhotographyModel(hasPhoto);
+  }
+  // Grok devolve imagens brancas "NSFW" em edições com foto — usar Qwen em vez disso.
+  if (hasPhoto) {
+    return resolvePhotographyModel(true);
   }
   return { modelKey: "standard", modelId: MODELS.standard, label: MODELS.standard };
 }
@@ -1108,8 +1107,10 @@ async function imageInput(fields, files, modelKey, prompt, opts = {}) {
       input.aspect_ratio = "match_input_image";
     }
   }
-  if (opts.photography && (modelKey === "kontext" || modelKey === "artistic")) {
-    input.disable_safety_checker = true;
+  if (modelKey === "kontext" || modelKey === "artistic" || modelKey === "pro") {
+    if (opts.photography || opts.photoEdit) {
+      input.disable_safety_checker = true;
+    }
   }
   if (primary) {
     if (modelKey === "standard" || modelKey === "video") input.image = primary;
@@ -1404,13 +1405,20 @@ async function routePost(path, fields, files, req) {
     } else if (user?.email && ADMIN_EMAILS.has(String(user.email).toLowerCase())) {
       userDoc = { email: user.email, role: "admin", nsfw_allowed: true };
     }
+    const styleCat = text(fields, "style_cat", "").trim();
+    const photography = isPhotographyRequest(styleId, styleCat);
     const { modelKey, modelId, label: modelLabel } = resolveArtisticStudioModel({
       styleId,
       hasPhoto,
       userDoc,
+      styleCat,
     });
-    const photography = isPhotographyStyleId(styleId);
-    const input = await imageInput(fields, files, modelKey, promptFinal, { experimental, photography });
+    const useQwenPhoto = modelKey === "qwen";
+    const input = await imageInput(fields, files, modelKey, promptFinal, {
+      experimental: experimental || useQwenPhoto,
+      photography: photography || useQwenPhoto,
+      photoEdit: hasPhoto && !experimental,
+    });
     let effects = {};
     try {
       const rawFx = text(fields, "effects_json", "{}");

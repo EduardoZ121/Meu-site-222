@@ -116,6 +116,12 @@ export default function Artistic() {
 
   const isLabCategory = styleCat === "nsfw";
   const isPhotoCategory = styleCat === "photography";
+
+  useEffect(() => {
+    if (isPhotoCategory && inputMode !== "image") {
+      setInputMode("image");
+    }
+  }, [isPhotoCategory, inputMode]);
   const labPresets = useMemo(
     () => stylesInCat.filter((s) => s.labPreset),
     [stylesInCat],
@@ -152,10 +158,11 @@ export default function Artistic() {
     () => buildArtisticStudioPrompt({
       userPrompt: prompt,
       styleId,
+      styleCat,
       effects,
       imageMode: inputMode === "image",
     }),
-    [prompt, styleId, effects, inputMode],
+    [prompt, styleId, styleCat, effects, inputMode],
   );
 
   const setRadioEffect = (sectionId, optionId) => {
@@ -206,7 +213,7 @@ export default function Artistic() {
       toast.error(t("art_lab_need_photo"));
       return;
     }
-    if (isPhotoStyle && !photo) {
+    if ((isPhotoStyle || isPhotoCategory) && !photo) {
       toast.error(t("art_photo_need_photo"));
       return;
     }
@@ -250,6 +257,7 @@ export default function Artistic() {
       const finalPrompt = buildArtisticStudioPrompt({
         userPrompt,
         styleId,
+        styleCat,
         effects,
         imageMode: inputMode === "image",
       });
@@ -261,6 +269,7 @@ export default function Artistic() {
         fd.append("prompt_final", finalPrompt);
         fd.append("aspect_ratio", apiAspectRatio(aspect, { model: "artistic", hasPhoto: true }));
         fd.append("style_id", styleId || "");
+        fd.append("style_cat", styleCat || "");
         fd.append("effects_json", JSON.stringify(effects));
         ({ data } = await uploadPost("/generate/artistic-studio", fd, { timeout: 240000 }));
       } else {
@@ -268,6 +277,7 @@ export default function Artistic() {
           prompt_final: finalPrompt,
           aspect_ratio: apiAspectRatio(aspect, { model: "artistic", hasPhoto: false }),
           style_id: styleId || "",
+          style_cat: styleCat || "",
           effects_json: JSON.stringify(effects),
         }));
       }
@@ -293,8 +303,10 @@ export default function Artistic() {
     }
   }, [
     styleId,
+    styleCat,
     isLabStyle,
     isPhotoStyle,
+    isPhotoCategory,
     prompt,
     inputMode,
     photo,
@@ -527,6 +539,7 @@ export default function Artistic() {
             setInputMode={setInputMode}
             isLabStyle={isLabStyle}
             isPhotoStyle={isPhotoStyle}
+            isPhotoCategory={isPhotoCategory}
             photo={photo}
             setPhoto={setPhoto}
             prompt={prompt}

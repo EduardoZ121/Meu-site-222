@@ -11,6 +11,7 @@ export function getStyleById(styleId) {
 export function buildArtisticStudioPrompt({
   userPrompt = "",
   styleId = null,
+  styleCat = null,
   effects = {},
   imageMode = false,
 }) {
@@ -28,7 +29,10 @@ export function buildArtisticStudioPrompt({
 
   const effectParts = collectEffectPromptParts(effects);
 
-  if (style?.cat === "photography" && imageMode) {
+  const isPhotography =
+    style?.cat === "photography" || styleCat === "photography";
+
+  if (isPhotography && imageMode) {
     return buildPhotographyEditPrompt({
       userPrompt: trimmed,
       styleSuffix: style?.suffix || "",

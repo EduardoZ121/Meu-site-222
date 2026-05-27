@@ -36,6 +36,7 @@ export default function ArtisticPromptStudio({
   setInputMode,
   isLabStyle,
   isPhotoStyle = false,
+  isPhotoCategory = false,
   photo,
   setPhoto,
   prompt,
@@ -54,8 +55,8 @@ export default function ArtisticPromptStudio({
 }) {
   const { t } = useI18n();
 
-  const needsPhoto = inputMode === "image" || isLabStyle || isPhotoStyle;
-  const imageOnlyMode = isLabStyle || isPhotoStyle;
+  const needsPhoto = inputMode === "image" || isLabStyle || isPhotoStyle || isPhotoCategory;
+  const imageOnlyMode = isLabStyle || isPhotoStyle || isPhotoCategory;
   const { ready, hint } = useStudioGenerateGate({
     busy,
     user,

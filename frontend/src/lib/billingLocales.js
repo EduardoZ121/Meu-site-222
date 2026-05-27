@@ -27,6 +27,13 @@ const en = {
   bill_faq_title: "Frequently asked questions",
   bill_payment_pending: "Payment not confirmed yet.",
   bill_purchase_desc: "Purchase {pkg}",
+  bill_custom_title: "Custom amount",
+  bill_custom_subtitle: "Pick how many credits you need — same rate as Starter (150 credits = €5).",
+  bill_custom_amount_label: "Credits",
+  bill_custom_min: "Minimum {n} credits",
+  bill_custom_price: "Total",
+  bill_custom_buy: "Buy {n} credits",
+  bill_custom_invalid: "Enter at least {n} credits.",
 
   bill_pkg_starter_tag: "Launch promo",
   bill_pkg_starter_blurb: "Limited-time offer for new creators: more credits to start without worry.",
@@ -34,18 +41,18 @@ const en = {
   bill_pkg_starter_b2: "Image generation",
 
   bill_pkg_creator_tag: "For active creators",
-  bill_pkg_creator_blurb: "Includes Studio Plus for 30 days — premium tools on the site today.",
+  bill_pkg_creator_blurb: "Credit-focused plan for frequent creators.",
   bill_pkg_creator_b1: "250 credits",
-  bill_pkg_creator_b2: "AI prompt enhance (Generation Studio & video)",
-  bill_pkg_creator_b3: "HD image quality in Generation Studio",
-  bill_pkg_creator_b4: "No Remake Pixel watermark on Posters & Artistic",
+  bill_pkg_creator_b2: "More generations before top-up",
+  bill_pkg_creator_b3: "Use credits on any tool",
+  bill_pkg_creator_b4: "No feature lock — pay per use",
 
   bill_pkg_studio_tag: "Pro workflows",
-  bill_pkg_studio_blurb: "For studios and power users who want every update first.",
-  bill_pkg_studio_b1: "Everything in Creator",
-  bill_pkg_studio_b2: "More credits per euro",
-  bill_pkg_studio_b3: "Early access to new styles & tools",
-  bill_pkg_studio_b4: "Ongoing style & tool updates while subscribed",
+  bill_pkg_studio_blurb: "Highest credit volume for heavy production workflows.",
+  bill_pkg_studio_b1: "500 credits",
+  bill_pkg_studio_b2: "Best value per credit",
+  bill_pkg_studio_b3: "Use credits across image/video tools",
+  bill_pkg_studio_b4: "No feature lock — pay per use",
 
   bill_faq1_q: "What are credits?",
   bill_faq1_a:
@@ -58,9 +65,9 @@ const en = {
   bill_faq4_q: "Which payment methods do you accept?",
   bill_faq4_a:
     "Secure payments via Stripe: credit/debit cards (Visa, Mastercard, Amex), Apple Pay, and Google Pay.",
-  bill_faq5_q: "Watermark on Posters & Artistic?",
+  bill_faq5_q: "Are features locked by plan?",
   bill_faq5_a:
-    "Free and Starter users get a small Remake Pixel logo on Posters and Artistic outputs. Creator unlocks 30 days without that watermark; Studio keeps early access to new styles and tools while your plan is active.",
+    "No. Features are credit-based. The more advanced options you enable (quality, prompt enhance, video edits), the more credits are charged.",
 };
 
 const pt = {
@@ -90,6 +97,13 @@ const pt = {
   bill_faq_title: "Perguntas frequentes",
   bill_payment_pending: "Pagamento ainda não confirmado.",
   bill_purchase_desc: "Compra {pkg}",
+  bill_custom_title: "Quantidade à tua escolha",
+  bill_custom_subtitle: "Escolhe quantos créditos queres — mesma tarifa do Starter (150 créditos = 5€).",
+  bill_custom_amount_label: "Créditos",
+  bill_custom_min: "Mínimo {n} créditos",
+  bill_custom_price: "Total",
+  bill_custom_buy: "Comprar {n} créditos",
+  bill_custom_invalid: "Indica pelo menos {n} créditos.",
 
   bill_pkg_starter_tag: "Promo lançamento",
   bill_pkg_starter_blurb: "Oferta temporária para novos criadores: mais créditos para começares sem medo.",
@@ -97,18 +111,18 @@ const pt = {
   bill_pkg_starter_b2: "Geração de imagem",
 
   bill_pkg_creator_tag: "Para criadores activos",
-  bill_pkg_creator_blurb: "Inclui Studio Plus 30 dias — benefícios premium actuais do site.",
+  bill_pkg_creator_blurb: "Plano focado em créditos para quem cria com frequência.",
   bill_pkg_creator_b1: "250 créditos",
-  bill_pkg_creator_b2: "Melhorar prompt com IA (Estúdio e vídeo)",
-  bill_pkg_creator_b3: "Qualidade HD no Estúdio de geração",
-  bill_pkg_creator_b4: "Sem marca de água em Pôsteres e Artístico",
+  bill_pkg_creator_b2: "Mais gerações antes de recarregar",
+  bill_pkg_creator_b3: "Usa créditos em qualquer ferramenta",
+  bill_pkg_creator_b4: "Sem bloqueio por plano — paga por uso",
 
   bill_pkg_studio_tag: "Workflows pro",
-  bill_pkg_studio_blurb: "Para estúdios e utilizadores intensivos que querem novidades em primeira mão.",
-  bill_pkg_studio_b1: "Tudo do Creator",
-  bill_pkg_studio_b2: "Mais créditos por euro",
-  bill_pkg_studio_b3: "Acesso antecipado a novos estilos e ferramentas",
-  bill_pkg_studio_b4: "Actualizações de estilos e ferramentas enquanto subscrito",
+  bill_pkg_studio_blurb: "Maior volume de créditos para fluxos de produção intensivos.",
+  bill_pkg_studio_b1: "500 créditos",
+  bill_pkg_studio_b2: "Melhor valor por crédito",
+  bill_pkg_studio_b3: "Usa créditos em imagem e vídeo",
+  bill_pkg_studio_b4: "Sem bloqueio por plano — paga por uso",
 
   bill_faq1_q: "O que são créditos?",
   bill_faq1_a:
@@ -121,9 +135,9 @@ const pt = {
   bill_faq4_q: "Que métodos de pagamento aceitam?",
   bill_faq4_a:
     "Pagamentos seguros via Stripe: cartão de crédito/débito (Visa, Mastercard, Amex), Apple Pay e Google Pay.",
-  bill_faq5_q: "Marca de água em Pôsteres e Artístico?",
+  bill_faq5_q: "As funcionalidades ficam bloqueadas por plano?",
   bill_faq5_a:
-    "Sem pacote Creator, as saídas de Pôsteres e Artístico incluem o logótipo Remake Pixel. O Creator remove a marca durante 30 dias; o Studio mantém acesso antecipado a novos estilos e ferramentas enquanto o plano estiver activo.",
+    "Não. As funcionalidades são por créditos. Quanto mais opções avançadas activares (qualidade, melhorar prompt, edição de vídeo), mais créditos são cobrados.",
 };
 
 export const BILLING_FAQ_KEYS = ["bill_faq1", "bill_faq2", "bill_faq3", "bill_faq4", "bill_faq5"];

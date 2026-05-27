@@ -43,6 +43,26 @@ export default function Billing() {
   const [loadingTx, setLoadingTx] = useState(true);
   const [checkoutLoading, setCheckoutLoading] = useState(null);
   const [openFaq, setOpenFaq] = useState(null);
+  const starterPkg = useMemo(
+    () => pkgs.find((p) => p.id === "starter") || { credits: 150, amount_cents: 500, amount_display: 5, currency: "eur" },
+    [pkgs],
+  );
+  const minCustomCredits = Math.max(150, Number(starterPkg.credits) || 150);
+  const [customCredits, setCustomCredits] = useState(minCustomCredits);
+
+  useEffect(() => {
+    setCustomCredits((n) => Math.max(minCustomCredits, n));
+  }, [minCustomCredits]);
+
+  const customQuote = useMemo(() => {
+    const credits = Math.max(minCustomCredits, Math.round(Number(customCredits) || 0));
+    const unitLabel = (starterPkg.currency || "eur") === "usd" ? "$" : "€";
+    const starterAmount = starterPkg.amount_display ?? starterPkg.amount_eur ?? (starterPkg.amount_cents / 100);
+    const starterCredits = Number(starterPkg.credits) || 150;
+    const price = Math.round((starterAmount * credits / starterCredits) * 100) / 100;
+    const perUnit = (credits / price).toFixed(1);
+    return { credits, price, perUnit, unitLabel };
+  }, [customCredits, minCustomCredits, starterPkg]);
 
   useEffect(() => {
     api.get("/public/packages")
@@ -99,6 +119,24 @@ export default function Billing() {
     setCheckoutLoading(pkgId);
     try {
       const { data } = await api.post("/stripe/checkout", { package: pkgId, origin: window.location.origin });
+      window.location.href = data.checkout_url;
+    } catch (err) {
+      toast.error(err?.response?.data?.detail || t("bill_checkout_fail"));
+      setCheckoutLoading(null);
+    }
+  };
+
+  const buyCustom = async () => {
+    if (customQuote.credits < minCustomCredits) {
+      toast.error(t("bill_custom_invalid", { n: minCustomCredits }));
+      return;
+    }
+    setCheckoutLoading("custom");
+    try {
+      const { data } = await api.post("/stripe/checkout", {
+        custom_credits: customQuote.credits,
+        origin: window.location.origin,
+      });
       window.location.href = data.checkout_url;
     } catch (err) {
       toast.error(err?.response?.data?.detail || t("bill_checkout_fail"));
@@ -214,6 +252,58 @@ export default function Billing() {
               </div>
             );
           })}
+        </div>
+
+        <div
+          className="mt-8 rounded-2xl border border-rp-purple/35 bg-gradient-to-br from-rp-surface to-rp-bg p-7 md:p-8"
+          data-testid="billing-custom-credits"
+        >
+          <p className="text-[10px] font-mono uppercase tracking-[0.18em] text-[#7C3AED] mb-2">{t("bill_custom_title")}</p>
+          <p className="text-rp-mute text-[14px] max-w-[640px] mb-6">{t("bill_custom_subtitle")}</p>
+          <div className="flex flex-col sm:flex-row sm:items-end gap-5">
+            <div className="flex-1 max-w-[280px]">
+              <label htmlFor="custom-credits-input" className="block text-[11px] font-mono uppercase tracking-[0.14em] text-rp-mute2 mb-2">
+                {t("bill_custom_amount_label")}
+              </label>
+              <input
+                id="custom-credits-input"
+                type="number"
+                min={minCustomCredits}
+                step={10}
+                value={customCredits}
+                onChange={(e) => setCustomCredits(e.target.value)}
+                onBlur={() => setCustomCredits(Math.max(minCustomCredits, Math.round(Number(customCredits) || minCustomCredits)))}
+                className="w-full rounded-xl border border-rp-border bg-rp-bg px-4 py-3 text-rp-text text-[22px] font-light tabular-nums focus:border-rp-purple/60 focus:outline-none"
+                data-testid="custom-credits-input"
+              />
+              <p className="text-rp-mute2 text-[11px] font-mono mt-2 uppercase tracking-[0.12em]">
+                {t("bill_custom_min", { n: minCustomCredits })}
+              </p>
+            </div>
+            <div className="flex-1 sm:text-right">
+              <p className="text-[11px] font-mono uppercase tracking-[0.14em] text-rp-mute2 mb-1">{t("bill_custom_price")}</p>
+              <p className="text-rp-text text-[42px] font-light leading-none tracking-tight">
+                <span className="text-rp-mute text-[18px] align-top mr-1">{symbol || customQuote.unitLabel}</span>
+                {customQuote.price}
+              </p>
+              <p className="text-rp-mute2 text-[11px] font-mono uppercase tracking-[0.14em] mt-2">
+                {t("bill_credits_per_unit", { n: customQuote.perUnit, unit: customQuote.unitLabel })}
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={buyCustom}
+              disabled={!!checkoutLoading}
+              data-testid="buy-custom-credits"
+              className="shrink-0 inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-xl text-[12px] font-mono font-semibold uppercase tracking-[0.16em] bg-gradient-to-r from-rp-purple to-[#9333ea] text-white shadow-lg shadow-rp-purple/45 hover:brightness-110 disabled:opacity-50 transition-all"
+            >
+              {checkoutLoading === "custom" ? (
+                t("bill_opening_stripe")
+              ) : (
+                <>{t("bill_custom_buy", { n: customQuote.credits })} <ArrowRight className="w-4 h-4" /></>
+              )}
+            </button>
+          </div>
         </div>
       </section>
 

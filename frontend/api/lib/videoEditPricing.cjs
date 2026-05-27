@@ -1,5 +1,3 @@
-const { isStudioPremiumActive } = require("./studioPremium.cjs");
-
 const PREMIUM_RESOLUTIONS = new Set(["1080p", "720p"]);
 const PREMIUM_DURATIONS = new Set([8, 10]);
 
@@ -19,8 +17,7 @@ function computeVideoEditCost(baseCost, { resolution = "original", duration = 6 
   return cost;
 }
 
-function validateVideoEditOptions(doc, { resolution, duration }) {
-  const premium = isStudioPremiumActive(doc) || doc?.is_unlimited || doc?.role === "admin";
+function validateVideoEditOptions({ resolution, duration }) {
   const res = String(resolution || "original").trim().toLowerCase();
   const dur = Math.round(Number(duration));
 
@@ -34,17 +31,7 @@ function validateVideoEditOptions(doc, { resolution, duration }) {
     err.status = 400;
     throw err;
   }
-  if (!premium && PREMIUM_RESOLUTIONS.has(res)) {
-    const err = new Error("1080p e 720p são Studio Plus — pacote Creator (€12) ou superior.");
-    err.status = 403;
-    throw err;
-  }
-  if (!premium && PREMIUM_DURATIONS.has(dur)) {
-    const err = new Error("Clips de 8s e 10s são Studio Plus — pacote Creator (€12) ou superior.");
-    err.status = 403;
-    throw err;
-  }
-  return { resolution: res, duration: dur, premium };
+  return { resolution: res, duration: dur };
 }
 
 function mapResolutionForModel(resolution) {

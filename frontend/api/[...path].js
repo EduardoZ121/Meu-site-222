@@ -1264,17 +1264,8 @@ async function routePost(path, fields, files, req) {
     let prompt = text(fields, "prompt", "").trim();
     if (!prompt) throw new Error("Escreve um prompt.");
     const lang = text(fields, "lang", "en").slice(0, 2);
-    const { isStudioPremiumActive } = require("./lib/studioPremium.cjs");
-    const { user: imgUser } = resolveSessionUser(req);
-    const imgDb = imgUser?.id ? await getUserById(imgUser.id) : null;
-    const imgAccess = imgDb || imgUser || {};
     const wantsImprove = truthyField(fields, "improve_prompt");
     const wantsHd = truthyField(fields, "hd_quality");
-    if ((wantsImprove || wantsHd) && !isStudioPremiumActive(imgAccess) && !imgAccess?.is_unlimited) {
-      const err = new Error("Melhorar prompt e qualidade HD são Studio Plus — pacote Creator (€12) ou superior.");
-      err.status = 403;
-      throw err;
-    }
     if (wantsImprove) {
       prompt = await improvePrompt(prompt, lang, {});
     }
@@ -1283,7 +1274,7 @@ async function routePost(path, fields, files, req) {
     }
     let imgCost = CREDIT.image;
     if (wantsHd) imgCost += 8;
-    if (wantsImprove) imgCost += 4;
+    if (wantsImprove) imgCost += 5;
     const input = await imageInput(fields, files, "standard", prompt);
     return submitBillableGeneration(req, fields, {
       cost: imgCost,
@@ -1617,23 +1608,15 @@ async function routePost(path, fields, files, req) {
     const { input, prompt } = await videoEditInput(fields, files);
     const baseCost = CREDIT.videoEdit ?? Math.max(CREDIT.video || 70, 85);
     const { computeVideoEditCost, validateVideoEditOptions } = require("./lib/videoEditPricing.cjs");
-    const { isStudioPremiumActive } = require("./lib/studioPremium.cjs");
-    const { user: sessionUser } = resolveSessionUser(req);
-    const dbUser = sessionUser?.id ? await getUserById(sessionUser.id) : null;
-    const accessDoc = dbUser || sessionUser || {};
-    validateVideoEditOptions(accessDoc, {
+    validateVideoEditOptions({
       resolution: text(fields, "resolution", "original"),
       duration: text(fields, "duration", "6"),
     });
-    if (truthyField(fields, "improve_prompt") && !isStudioPremiumActive(accessDoc) && !accessDoc?.is_unlimited) {
-      const err = new Error("Melhorar prompt (Studio Plus) — pacote Creator (€12) ou superior.");
-      err.status = 403;
-      throw err;
-    }
-    const cost = computeVideoEditCost(baseCost, {
+    let cost = computeVideoEditCost(baseCost, {
       resolution: text(fields, "resolution", "original"),
       duration: text(fields, "duration", "6"),
     });
+    if (truthyField(fields, "improve_prompt")) cost += 5;
     return submitBillableGeneration(req, fields, {
       cost,
       type: "video",
@@ -1755,14 +1738,30 @@ async function routePost(path, fields, files, req) {
 
   if (path === "stripe/checkout") {
     const packageId = text(fields, "package", "starter");
+    const customCreditsRaw = Number(text(fields, "custom_credits", 0));
     const region = regionFromRequest(req, fields);
     const cfg = getRegionConfig(region);
     const pkg = cfg.packages[packageId];
-    if (!pkg) {
-      const err = new Error("Pacote inválido.");
+    const hasCustom = Number.isFinite(customCreditsRaw) && customCreditsRaw > 0;
+    if (!pkg && !hasCustom) {
+      const err = new Error("Pacote inválido ou créditos personalizados em falta.");
       err.status = 400;
       throw err;
     }
+    const starter = cfg.packages.starter || { amount_cents: 500, credits: 150 };
+    const minCredits = Math.max(150, Number(starter.credits) || 150);
+    const credits = hasCustom ? Math.round(customCreditsRaw) : pkg.credits;
+    if (credits < minCredits) {
+      const err = new Error(`Mínimo de ${minCredits} créditos por compra.`);
+      err.status = 400;
+      throw err;
+    }
+    const amountCents = hasCustom
+      ? Math.round((Number(starter.amount_cents) || 500) * (credits / minCredits))
+      : pkg.amount_cents;
+    const packageLabel = hasCustom ? "Custom" : pkg.name;
+    const packageTagline = hasCustom ? `${credits} créditos personalizados` : pkg.tagline;
+    const metadataPackage = hasCustom ? "custom" : packageId;
     const origin = fields.origin || "https://remakepix.com";
     const stripe = stripeClient();
     const session = await stripe.checkout.sessions.create({
@@ -1771,17 +1770,17 @@ async function routePost(path, fields, files, req) {
       line_items: [{
         price_data: {
           currency: cfg.currency,
-          unit_amount: pkg.amount_cents,
+          unit_amount: amountCents,
           product_data: {
-            name: `Remake Pixel — ${pkg.name} (${pkg.credits} créditos)`,
-            description: pkg.tagline,
+            name: `Remake Pixel — ${packageLabel} (${credits} créditos)`,
+            description: packageTagline,
           },
         },
         quantity: 1,
       }],
       metadata: {
-        package: packageId,
-        credits: String(pkg.credits),
+        package: metadataPackage,
+        credits: String(credits),
         pricing_region: region,
       },
       success_url: `${origin}/app/billing?checkout=success&session_id={CHECKOUT_SESSION_ID}`,
@@ -1977,8 +1976,12 @@ async function handlePath(path, req, res) {
         const tokenUser = tm ? verifySessionToken(tm[1].trim()) : null;
         if (tokenUser?.id) {
           const cfg = getRegionConfig(pricingRegion);
-          const pkg = cfg.packages[packageId];
-          const amount = pkg ? pkg.amount_cents / 100 : 0;
+          const pkg = packageId && packageId !== "custom" ? cfg.packages[packageId] : null;
+          const amount = pkg
+            ? pkg.amount_cents / 100
+            : typeof session.amount_total === "number"
+              ? session.amount_total / 100
+              : 0;
           const currency = cfg.currency || "eur";
           await recordPurchase({
             userId: tokenUser.id,

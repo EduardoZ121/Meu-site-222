@@ -21,7 +21,6 @@ import StudioGenerateBar from "../../components/StudioGenerateBar";
 import { readUserSettings } from "../../lib/userSettings";
 import { apiAspectRatio } from "../../lib/apiAspectRatio";
 import { useStudioGenerateGate } from "../../lib/useStudioGenerateGate";
-import { hasStudioPremium } from "../../lib/studioPremium";
 import PromptEnhanceToggle from "../../components/promptAssist/PromptEnhanceToggle";
 
 const SUBJECT_KEYS = [
@@ -43,7 +42,6 @@ export default function Generate() {
   const [prompt, setPrompt] = useState(searchParams.get("prompt") || "");
   const [improve, setImprove] = useState(false);
   const [hdQuality, setHdQuality] = useState(false);
-  const premium = hasStudioPremium(user);
   const [aspect, setAspect] = useState(() => readUserSettings().aspect_ratio_default || "4:5");
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState(null);
@@ -78,10 +76,10 @@ export default function Generate() {
     if (photo && !pickedStyle) return { mode: "edit", cost: costs.edit, ctaLabel: t("studio_cta_edit", { n: costs.edit }) };
     if (!photo && pickedStyle) return { mode: "blocked", cost: 0, ctaLabel: t("studio_cta_blocked") };
     let textCost = costs.image;
-    if (improve && premium) textCost += 4;
-    if (hdQuality && premium) textCost += 8;
+    if (improve) textCost += 5;
+    if (hdQuality) textCost += 8;
     return { mode: "text", cost: textCost, ctaLabel: t("studio_cta_text", { n: textCost }) };
-  }, [photo, pickedStyle, costs, t, improve, hdQuality, premium]);
+  }, [photo, pickedStyle, costs, t, improve, hdQuality]);
 
   const generateReady = mode !== "blocked"
     && (mode === "easy" || prompt.trim().length >= 3);
@@ -139,8 +137,8 @@ export default function Generate() {
           mode: "advanced",
           aspect_ratio: apiAspectRatio(aspect, { model: "standard", hasPhoto: false }),
           num_outputs: 1,
-          improve_prompt: improve && premium,
-          hd_quality: hdQuality && premium,
+          improve_prompt: improve,
+          hd_quality: hdQuality,
           lang: lang || "en",
         }, { timeout: 60000, headers: { "X-Skip-Auto-Poll": "1" } }));
       }
@@ -204,20 +202,17 @@ export default function Generate() {
               <PromptEnhanceToggle
                 checked={improve}
                 onChange={setImprove}
-                locked={!premium}
-                onLockedClick={() => toast.info(t("studio_plus_locked_toast"))}
+                locked={false}
+                onLockedClick={undefined}
                 testId="improve-toggle"
+                cost={5}
               />
-              <label className={`inline-flex items-center gap-2.5 cursor-pointer group ${!premium ? "opacity-80" : ""}`}>
+              <label className="inline-flex items-center gap-2.5 cursor-pointer group">
                 <input
                   type="checkbox"
                   checked={hdQuality}
-                  disabled={!premium}
+                  disabled={false}
                   onChange={(e) => {
-                    if (!premium) {
-                      toast.info(t("studio_plus_locked_toast"));
-                      return;
-                    }
                     setHdQuality(e.target.checked);
                   }}
                   className="accent-[#7C3AED] w-3.5 h-3.5 rounded border-[#2E2E30]"

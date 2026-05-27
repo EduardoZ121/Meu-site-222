@@ -3,7 +3,7 @@ const { getDb, ensureIndexes, storageEnabled } = require("./mongo.cjs");
 const { requestMeta } = require("./requestMeta.cjs");
 const { purchaseEconomics } = require("./financeModel.cjs");
 const { consumeAccountPreset, findAccountPreset } = require("./accountPresets.cjs");
-const { isStudioPremiumActive, packageGrantsStudioPremium, grantStudioPremium } = require("./studioPremium.cjs");
+const { isStudioPremiumActive } = require("./studioPremium.cjs");
 
 const ADMIN_EMAILS = new Set(
   String(process.env.ADMIN_EMAILS || "eduardozola1998@gmail.com,eduardozola121998@gmail.com,eduardozola11998@gmail.com")
@@ -300,9 +300,6 @@ async function recordPurchase({
     await db.collection("purchases").insertOne(doc);
   } catch (e) {
     if (e?.code !== 11000) throw e;
-  }
-  if (packageGrantsStudioPremium(packageId)) {
-    await grantStudioPremium(userId);
   }
 }
 

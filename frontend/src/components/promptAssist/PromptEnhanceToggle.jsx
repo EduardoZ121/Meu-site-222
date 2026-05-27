@@ -7,6 +7,7 @@ export default function PromptEnhanceToggle({
   locked = false,
   onLockedClick,
   testId = "prompt-enhance",
+  cost = 5,
 }) {
   const { t } = useI18n();
   return (
@@ -35,7 +36,7 @@ export default function PromptEnhanceToggle({
             <Lock className="w-3 h-3" /> Studio Plus
           </span>
         ) : (
-          <span className="text-[#5A5A5E]">{t("studio_plus_active")}</span>
+          <span className="text-[#5A5A5E]">+{cost} {t("credits")}</span>
         )}
       </span>
     </label>

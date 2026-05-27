@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Clapperboard, Lock, Sparkles } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Clapperboard, Sparkles } from "lucide-react";
 import {
   formatApiError,
   pollPrediction,
@@ -12,10 +11,8 @@ import { readVideoDurationSeconds } from "../../lib/videoMedia";
 import { useAuth } from "../../lib/auth";
 import { usePricing } from "../../lib/PricingContext";
 import { useI18n } from "../../lib/i18n";
-import { hasStudioPremium } from "../../lib/studioPremium";
 import {
   computeVideoEditCost,
-  isPremiumDuration,
   SURCHARGE,
 } from "../../lib/videoEditPricing";
 import { toast } from "sonner";
@@ -42,13 +39,11 @@ const ASPECTS = [
   { v: "1:1", label: "1:1" },
 ];
 
-function selectCard(active, locked = false) {
+function selectCard(active) {
   return `text-left px-4 py-3 rounded-xl border transition-all ${
-    locked
-      ? "border-[#2E2E30]/80 bg-[#0B0B0C] opacity-75"
-      : active
-        ? "border-[#7C3AED] bg-gradient-to-br from-[#7C3AED]/15 to-[#7C3AED]/5 shadow-[0_0_28px_-10px_rgba(124,58,237,0.6)]"
-        : "border-[#2E2E30] bg-[#0F0F12] hover:border-[#5A5A5E]"
+    active
+      ? "border-[#7C3AED] bg-gradient-to-br from-[#7C3AED]/15 to-[#7C3AED]/5 shadow-[0_0_28px_-10px_rgba(124,58,237,0.6)]"
+      : "border-[#2E2E30] bg-[#0F0F12] hover:border-[#5A5A5E]"
   }`;
 }
 
@@ -58,7 +53,6 @@ export default function VideoEditorAdmin() {
   const { refresh, user } = useAuth();
   const { costs } = usePricing();
   const baseCost = costs.videoEdit ?? costs.video ?? 95;
-  const premium = hasStudioPremium(user);
 
   const [video, setVideo] = useState(null);
   const [sourceDurationSec, setSourceDurationSec] = useState(0);
@@ -74,10 +68,11 @@ export default function VideoEditorAdmin() {
   const [progress, setProgress] = useState(0);
   const [result, setResult] = useState(null);
 
-  const cost = useMemo(
-    () => computeVideoEditCost(baseCost, { resolution, duration }),
-    [baseCost, resolution, duration],
-  );
+  const cost = useMemo(() => {
+    let total = computeVideoEditCost(baseCost, { resolution, duration });
+    if (improve) total += 5;
+    return total;
+  }, [baseCost, resolution, duration, improve]);
 
   const { ready, hint } = useStudioGenerateGate({
     busy,
@@ -113,28 +108,11 @@ export default function VideoEditorAdmin() {
     return () => { mounted = false; };
   }, [video]);
 
-  const premiumLocked = () => {
-    toast.info(t("studio_plus_locked_toast"), {
-      action: {
-        label: t("studio_plus_cta"),
-        onClick: () => { window.location.href = "/app/billing"; },
-      },
-    });
-  };
-
   const pickResolution = (r) => {
-    if (r.premium && !premium) {
-      premiumLocked();
-      return;
-    }
     setResolution(r.v);
   };
 
   const pickDuration = (d) => {
-    if (isPremiumDuration(d) && !premium) {
-      premiumLocked();
-      return;
-    }
     setDuration(d);
   };
 
@@ -165,7 +143,7 @@ export default function VideoEditorAdmin() {
       fd.append("aspect_ratio", aspect);
       fd.append("audio_setting", audioSetting);
       fd.append("lang", lang || "pt");
-      if (improve && premium) fd.append("improve_prompt", "1");
+      if (improve) fd.append("improve_prompt", "1");
       fd.append("video", video);
       if (reference) fd.append("reference_image", reference);
 
@@ -205,15 +183,6 @@ export default function VideoEditorAdmin() {
 
   const controls = (
     <div className="space-y-4 min-w-0">
-      {!premium && (
-        <div className="rounded-xl border border-[#FACC15]/30 bg-[#FACC15]/8 px-3 py-2.5 text-[11px] text-[#FDE68A] leading-relaxed">
-          {t("studio_plus_video_banner")}{" "}
-          <Link to="/app/billing" className="text-white underline underline-offset-2 font-medium">
-            {t("studio_plus_cta")}
-          </Link>
-        </div>
-      )}
-
       <StudioAccordionSection title={t("vid_acc_my_video")} defaultOpen testId="video-edit-acc-source">
         <p className="text-[#6f6f76] text-[11px] mb-3">
           {t("vid_edit_eta_hint", { min: eta.min, max: eta.max })}
@@ -243,9 +212,10 @@ export default function VideoEditorAdmin() {
             <PromptEnhanceToggle
               checked={improve}
               onChange={setImprove}
-              locked={!premium}
-              onLockedClick={premiumLocked}
+              locked={false}
+              onLockedClick={undefined}
               testId="video-edit-improve"
+              cost={5}
             />
           </div>
           <div className="flex flex-wrap gap-2 mt-3">
@@ -280,19 +250,17 @@ export default function VideoEditorAdmin() {
       <StudioAccordionSection title={t("vid_edit_resolution")} defaultOpen testId="video-edit-acc-resolution">
         <div className="grid grid-cols-1 gap-2">
             {RESOLUTIONS.map((r) => {
-              const locked = r.premium && !premium;
               const extra = SURCHARGE.resolution[r.v];
               return (
                 <button
                   key={r.v}
                   type="button"
                   onClick={() => pickResolution(r)}
-                  className={selectCard(resolution === r.v, locked)}
+                  className={selectCard(resolution === r.v)}
                   data-testid={`video-edit-res-${r.v}`}
                 >
                   <p className="text-[#F4F1EA] text-[14px] font-medium flex items-center gap-1.5">
                     {r.labelKey ? t(r.labelKey) : r.label}
-                    {locked && <Lock className="w-3 h-3 text-[#FACC15]" />}
                   </p>
                   {r.labelKey && (
                     <p className="text-[#8A8A8E] text-[10px] mt-1">{t("vid_res_original_hint")}</p>
@@ -309,19 +277,17 @@ export default function VideoEditorAdmin() {
       <StudioAccordionSection title={t("vid_edit_duration")} defaultOpen testId="video-edit-acc-duration">
         <div className="grid grid-cols-2 gap-2">
             {DURATIONS.map((d) => {
-              const locked = isPremiumDuration(d) && !premium;
               const extra = SURCHARGE.duration[d];
               return (
                 <button
                   key={d}
                   type="button"
                   onClick={() => pickDuration(d)}
-                  className={selectCard(duration === d, locked)}
+                  className={selectCard(duration === d)}
                   data-testid={`video-edit-dur-${d}`}
                 >
                   <p className="text-[#F4F1EA] text-[16px] font-light flex items-center gap-1">
                     {d}s
-                    {locked && <Lock className="w-3 h-3 text-[#FACC15]" />}
                   </p>
                   {extra > 0 && (
                     <p className="text-[#A855F7] text-[10px] font-mono mt-1">+{extra}</p>

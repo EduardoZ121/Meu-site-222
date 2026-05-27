@@ -267,11 +267,12 @@ async function handlePromptAssistRoute(path, req, res, { verifySessionToken, jso
       json(res, 400, { detail: "Prompt demasiado curto." });
       return true;
     }
-    const { getUserById } = require("./usersDb.cjs");
-    const { isStudioPremiumActive } = require("./studioPremium.cjs");
+    const { getUserById, addCredits } = require("./usersDb.cjs");
+    const PROMPT_IMPROVE_COST = 5;
     const dbUser = await getUserById(sessionUser.id);
-    if (!isStudioPremiumActive(dbUser || sessionUser) && !sessionUser?.is_unlimited) {
-      json(res, 403, { detail: "Melhorar prompt é Studio Plus — pacote Creator (€12) ou superior." });
+    const balance = Number(dbUser?.credits ?? sessionUser?.credits ?? 0);
+    if (!sessionUser?.is_unlimited && balance < PROMPT_IMPROVE_COST) {
+      json(res, 402, { detail: `Créditos insuficientes para melhorar prompt (custo: ${PROMPT_IMPROVE_COST}).` });
       return true;
     }
     const lang = String(body.lang || sessionUser.lang || "en").slice(0, 2);
@@ -282,10 +283,40 @@ async function handlePromptAssistRoute(path, req, res, { verifySessionToken, jso
       style_suffix: String(body.style_suffix || "").trim(),
       image_mode: body.image_mode === true || body.image_mode === "true" || body.image_mode === 1,
     };
-    const improved = await improvePrompt(raw, lang, context);
-    const changed = improved.trim() !== raw.trim();
-    await touchUser(sessionUser.id, req, { action: "prompt_improve" });
-    json(res, 200, { prompt: improved, enhanced: changed, tool: context.tool || null });
+    let newBalance = balance;
+    if (!sessionUser?.is_unlimited) {
+      const updated = await addCredits(
+        sessionUser.id,
+        -PROMPT_IMPROVE_COST,
+        "spend",
+        "Melhorar prompt",
+        { action: "prompt_improve", tool: context.tool || "generic" },
+      );
+      if (updated != null) newBalance = updated;
+    }
+    try {
+      const improved = await improvePrompt(raw, lang, context);
+      const changed = improved.trim() !== raw.trim();
+      await touchUser(sessionUser.id, req, { action: "prompt_improve" });
+      json(res, 200, {
+        prompt: improved,
+        enhanced: changed,
+        tool: context.tool || null,
+        credits_spent: sessionUser?.is_unlimited ? 0 : PROMPT_IMPROVE_COST,
+        new_balance: sessionUser?.is_unlimited ? null : newBalance,
+      });
+    } catch (err) {
+      if (!sessionUser?.is_unlimited) {
+        await addCredits(
+          sessionUser.id,
+          PROMPT_IMPROVE_COST,
+          "refund",
+          "Refund: prompt improve failed",
+          { action: "prompt_improve", reason: "failed" },
+        );
+      }
+      throw err;
+    }
     return true;
   }
 

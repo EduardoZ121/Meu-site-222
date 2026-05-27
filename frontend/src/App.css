@@ -4,3 +4,16 @@
   touch-action: manipulation;
   overflow-x: hidden;
 }
+
+.studio-customize-title {
+  font-family: "Inter Tight", "Playfair Display", "Cormorant Garamond", serif;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  text-shadow: 0 0 16px rgba(250, 204, 21, 0.18);
+}
+
+.studio-customize-title::first-letter {
+  color: #f59e0b;
+  font-size: 1.22em;
+  filter: drop-shadow(0 0 10px rgba(245, 158, 11, 0.35));
+}

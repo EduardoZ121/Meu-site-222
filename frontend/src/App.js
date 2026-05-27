@@ -62,30 +62,19 @@ function PwaStartupRedirect() {
 }
 
 function BackgroundGenerationRedirect() {
-  const navigate = useNavigate();
   const location = useLocation();
 
   useEffect(() => {
-    const onFinished = (event) => {
-      const detail = event?.detail || {};
-      if (detail.source !== "background") return;
-      if (detail.status !== "succeeded") return;
-      if (location.pathname !== "/app/gallery") {
-        navigate("/app/gallery");
-      }
-    };
     const onFailed = (event) => {
       const detail = event?.detail || {};
       if (detail.source !== "background") return;
       toast.error(detail.error || "A geração falhou.");
     };
-    window.addEventListener("rp:prediction-finished", onFinished);
     window.addEventListener("rp:prediction-failed", onFailed);
     return () => {
-      window.removeEventListener("rp:prediction-finished", onFinished);
       window.removeEventListener("rp:prediction-failed", onFailed);
     };
-  }, [location.pathname, navigate]);
+  }, [location.pathname]);
 
   return null;
 }

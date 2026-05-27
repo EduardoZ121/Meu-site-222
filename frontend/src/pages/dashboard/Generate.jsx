@@ -242,7 +242,12 @@ export default function Generate() {
             </div>
           </StudioAccordionSection>
 
-          <StudioAccordionSection title={t("studio_acc_styles")} defaultOpen={false} testId="studio-acc-styles">
+          <StudioAccordionSection
+            title={t("studio_acc_styles")}
+            defaultOpen={false}
+            testId="studio-acc-styles"
+            titleClassName="studio-customize-title"
+          >
             <button type="button" onClick={() => setShowStyles(!showStyles)} className="flex items-center gap-2 w-full text-left rp-editor-section-cap !text-[#a89bc9] hover:!text-[#c4b8e6] transition-colors mb-4" data-testid="toggle-styles">
               {t("studio_styles_toggle")} <span className="text-[#5A5A5E] font-['Inter_Tight'] normal-case tracking-normal text-[12px] font-normal">{t("studio_styles_optional")}</span>
               <span className="text-[#5A5A5E] ml-auto font-mono text-[11px]">{showStyles ? "−" : "+"}</span>

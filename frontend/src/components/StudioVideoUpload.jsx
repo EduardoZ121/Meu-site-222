@@ -14,7 +14,7 @@ export default function StudioVideoUpload({
   emptyLabel,
   emptyHint,
   className = "",
-  maxDurationSec = 15,
+  maxDurationSec = 10,
 }) {
   const { t } = useI18n();
   return (

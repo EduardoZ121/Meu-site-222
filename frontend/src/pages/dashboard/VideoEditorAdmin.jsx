@@ -20,7 +20,7 @@ import StudioGenerateBar from "../../components/StudioGenerateBar";
 import { useStudioGenerateGate } from "../../lib/useStudioGenerateGate";
 
 const EDIT_IDEAS = ["vid_edit_idea_1", "vid_edit_idea_2", "vid_edit_idea_3"];
-const EDIT_FIXED_DURATION = 15;
+const DURATIONS = [4, 6, 8, 10];
 const ASPECTS = [
   { v: "auto", labelKey: "vid_edit_aspect_auto" },
   { v: "16:9", label: "16:9" },
@@ -47,6 +47,8 @@ export default function VideoEditorAdmin() {
   const [sourceDurationSec, setSourceDurationSec] = useState(0);
   const [reference, setReference] = useState(null);
   const [prompt, setPrompt] = useState("");
+  const [resolution, setResolution] = useState("1080p");
+  const [duration, setDuration] = useState(6);
   const [aspect, setAspect] = useState("auto");
   const [audioSetting, setAudioSetting] = useState("origin");
   const [busy, setBusy] = useState(false);
@@ -110,8 +112,8 @@ export default function VideoEditorAdmin() {
     try {
       const fd = new FormData();
       fd.append("prompt", prompt.trim());
-      fd.append("resolution", "1080p");
-      fd.append("duration", String(EDIT_FIXED_DURATION));
+      fd.append("resolution", resolution);
+      fd.append("duration", String(duration));
       fd.append("aspect_ratio", aspect);
       fd.append("audio_setting", audioSetting);
       fd.append("video", video);
@@ -171,7 +173,7 @@ export default function VideoEditorAdmin() {
                 value={video}
                 onChange={setVideo}
                 disabled={busy}
-                maxDurationSec={15}
+                maxDurationSec={10}
                 testId="video-edit-source"
               />
             </div>
@@ -228,9 +230,18 @@ export default function VideoEditorAdmin() {
             <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[#A78BFA] mb-3">
               {t("vid_edit_resolution")}
             </p>
-            <div className="max-w-[360px] rounded-xl border border-[#7C3AED]/35 bg-gradient-to-br from-[#7C3AED]/12 to-[#0F0F12] px-4 py-3">
-              <p className="text-[#F4F1EA] text-[15px] font-medium">{t("vid_quality_original")}</p>
-              <p className="text-[#8A8A8E] text-[11px] mt-1">{t("vid_quality_original_hint")}</p>
+            <div className="grid grid-cols-2 gap-2.5 max-w-[280px]">
+              {["1080p", "720p"].map((r) => (
+                <button
+                  key={r}
+                  type="button"
+                  onClick={() => setResolution(r)}
+                  className={selectCard(resolution === r)}
+                  data-testid={`video-edit-res-${r}`}
+                >
+                  <p className="text-[#F4F1EA] text-[15px] font-medium">{r}</p>
+                </button>
+              ))}
             </div>
           </section>
 
@@ -238,9 +249,18 @@ export default function VideoEditorAdmin() {
             <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[#A78BFA] mb-3">
               {t("vid_edit_duration")}
             </p>
-            <div className="max-w-[360px] rounded-xl border border-[#7C3AED]/35 bg-gradient-to-br from-[#7C3AED]/12 to-[#0F0F12] px-4 py-3">
-              <p className="text-[#F4F1EA] text-[16px] font-light">15s</p>
-              <p className="text-[#8A8A8E] text-[11px] mt-1">{t("vid_duration_fixed_hint")}</p>
+            <div className="grid grid-cols-4 gap-2.5 max-w-[360px]">
+              {DURATIONS.map((d) => (
+                <button
+                  key={d}
+                  type="button"
+                  onClick={() => setDuration(d)}
+                  className={selectCard(duration === d)}
+                  data-testid={`video-edit-dur-${d}`}
+                >
+                  <p className="text-[#F4F1EA] text-[16px] font-light">{d}s</p>
+                </button>
+              ))}
             </div>
           </section>
 

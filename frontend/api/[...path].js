@@ -503,7 +503,7 @@ async function resolveVideoRef(files, fields, fileKey = "video", urlKey = "video
 async function videoEditInput(fields, files) {
   const video = await resolveVideoRef(files, fields, "video", "video_url");
   if (!video) {
-    const err = new Error("Envia um vídeo (MP4/MOV, idealmente 2–15 segundos).");
+    const err = new Error("Envia um vídeo (MP4/MOV, idealmente 2–10 segundos).");
     err.status = 400;
     throw err;
   }
@@ -520,7 +520,7 @@ async function videoEditInput(fields, files) {
     audio_setting: audioSetting === "auto" ? "auto" : "origin",
   };
   const dur = Number(text(fields, "duration", ""));
-  if (Number.isFinite(dur) && dur >= 2 && dur <= 15) input.duration = Math.round(dur);
+  if (Number.isFinite(dur) && dur >= 2 && dur <= 10) input.duration = Math.round(dur);
   const ref = await resolveImageRef(files, fields, "reference_image", "reference_image_url");
   if (ref) input.reference_image = ref;
   return { input, prompt: userPrompt };

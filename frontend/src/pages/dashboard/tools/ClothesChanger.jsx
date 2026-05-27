@@ -12,8 +12,6 @@ import ImageUploadZone from "../../../components/ImageUploadZone";
 import CollapsibleSection from "../../../components/CollapsibleSection";
 import StudioResultAnchor from "../../../components/StudioResultAnchor";
 import useTitle from "../../../lib/useTitle";
-import { revokePreviewUrl } from "../../../lib/studioUpload/mediaPreview";
-import { compressImageNeverFail } from "../../../lib/canvasCompress";
 import { useI18n } from "../../../lib/i18n";
 import { useStudioI18n } from "../../../lib/useStudioI18n";
 
@@ -27,53 +25,6 @@ const STYLE_PRESETS = [
   { id: "vintage",     label: "Vintage",     desc: "70s vintage fashion, retro pattern, classic tailoring" },
   { id: "business",    label: "Business",    desc: "navy blazer, crisp shirt, tailored trousers" },
 ];
-
-async function loadImageFromFile(file) {
-  const url = URL.createObjectURL(file);
-  try {
-    return await new Promise((resolve, reject) => {
-      const img = new Image();
-      img.decoding = "async";
-      img.onload = () => resolve(img);
-      img.onerror = () => reject(new Error("decode"));
-      img.src = url;
-    });
-  } finally {
-    revokePreviewUrl(url);
-  }
-}
-
-async function composeSideBySideInBrowser(leftFile, rightFile, opts = {}) {
-  const targetH = opts.targetHeight || 1024;
-  const gap = opts.gap ?? 24;
-
-  const leftImg = await loadImageFromFile(leftFile);
-  const rightImg = await loadImageFromFile(rightFile);
-
-  const lw = Math.max(1, Math.round(leftImg.naturalWidth * (targetH / Math.max(1, leftImg.naturalHeight))));
-  const rw = Math.max(1, Math.round(rightImg.naturalWidth * (targetH / Math.max(1, rightImg.naturalHeight))));
-
-  const canvas = document.createElement("canvas");
-  canvas.width = lw + gap + rw;
-  canvas.height = targetH;
-
-  const ctx = canvas.getContext("2d", { alpha: false });
-  ctx.fillStyle = "#0f0f0f";
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
-  ctx.drawImage(leftImg, 0, 0, lw, targetH);
-  ctx.drawImage(rightImg, lw + gap, 0, rw, targetH);
-
-  const blob = await new Promise((resolve) => canvas.toBlob((b) => resolve(b), "image/jpeg", 0.92));
-  if (!blob) throw new Error("toBlob");
-
-  const composed = new File([blob], `clothes-merge.jpg`, { type: "image/jpeg", lastModified: Date.now() });
-  // Mantém dentro do limite seguro para o endpoint serverless.
-  return compressImageNeverFail(composed, {
-    maxSize: 1280,
-    maxBytes: 900 * 1024,
-    maxBytesIOS: 1.2 * 1024 * 1024,
-  });
-}
 
 function PhotoBox({ photo, onChange, label, helper, emptyLabel, testId }) {
   return (
@@ -142,41 +93,12 @@ export default function ClothesChanger() {
     try {
       const fd = new FormData();
 
-      // Quando há roupa de referência, evitamos prompt genérico e forçamos a “composição”
-      // (LEFT = pessoa, RIGHT = roupa) para o Grok entender exatamente o que deve vestir.
-      let finalPrompt = prompt.trim();
+      const finalPrompt = prompt.trim();
       if (garment) {
-        let composedPhoto = null;
-        try {
-          composedPhoto = await composeSideBySideInBrowser(photo, garment);
-        } catch (e) {
-          // Se falhar a composição no browser, cai de volta para o envio normal.
-          console.warn("[ClothesChanger] composeSideBySideInBrowser failed", e);
-        }
-
-        if (composedPhoto) {
-          fd.append("photo", composedPhoto);
-          fd.append("composed", "true");
-          fd.append("prompt", [
-            "The provided image contains TWO panels side-by-side:",
-            "LEFT panel = the person photo.",
-            "RIGHT panel = the clothing/outfit reference.",
-            "Output a single photo of ONLY the person (LEFT) now wearing EXACTLY the outfit from the RIGHT panel.",
-            "Preserve the person's face, identity and pose.",
-            "Match clothing details precisely: colors, fabric texture, collar/sleeves, patterns/logos, buttons, and overall silhouette.",
-            finalPrompt ? `Additional notes: ${finalPrompt}.` : "Use the right panel outfit as the single source of truth."
-          ].join(" "));
-          fd.append("change_type", changeType);
-        } else {
-          fd.append("photo", photo);
-          fd.append("garment", garment);
-          fd.append("prompt", [
-            "The right image (garment reference) must define the outfit.",
-            "Preserve the person's face and pose and dress them with the EXACT outfit from the reference.",
-            finalPrompt ? `Additional notes: ${finalPrompt}.` : "Use the reference outfit as the single source of truth."
-          ].join(" "));
-          fd.append("change_type", changeType);
-        }
+        fd.append("photo", photo);
+        fd.append("garment", garment);
+        if (finalPrompt) fd.append("prompt", finalPrompt);
+        fd.append("change_type", changeType);
       } else {
         const prefixes = {
           full:  "Replace all clothing with:",

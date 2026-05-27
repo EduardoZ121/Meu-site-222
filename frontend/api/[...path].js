@@ -1013,12 +1013,12 @@ function buildClothesPrompt(fields, hasGarment) {
   const changeType = text(fields, "change_type", "full");
   if (hasGarment) {
     let p = (
-      "The image shows TWO photos side by side: a person on the LEFT and a clothing/outfit reference on the RIGHT. "
-      + "Output a single photo of ONLY the person from the LEFT, now wearing the outfit shown on the RIGHT. "
-      + "Preserve the person's identity, face, hair, body proportions and pose. "
-      + "Match the clothing's style, color, fabric and details precisely. "
-      + "Discard the garment-side panel and any background from the right photo. "
-      + "Photorealistic, natural lighting, clean background."
+      "Two reference images: (1) the person, (2) the clothing/outfit to wear. "
+      + "Generate exactly ONE photorealistic photo of that same person now wearing the outfit from image 2. "
+      + "Preserve face, identity, hair, body proportions and pose from image 1. "
+      + "Copy style, color, fabric, cut, patterns and details from the garment reference. "
+      + "Do NOT output a collage, split screen, diptych, or side-by-side comparison. "
+      + "Do NOT show both source images in the result — only the dressed person."
     );
     if (userPrompt) p += ` Additional notes: ${userPrompt}`;
     return p;
@@ -1708,23 +1708,27 @@ async function routePost(path, fields, files, req) {
   if (path === "tools/clothes") {
     const person = await resolveImageRef(files, fields, "photo", "photo_url");
     const garment = await resolveImageRef(files, fields, "garment", "garment_url");
-    const composed = truthyField(fields, "composed");
-    const hasGarment = Boolean(garment) && !composed;
+    const hasGarment = Boolean(person && garment);
     const prompt = buildClothesPrompt(fields, hasGarment);
-    const input = { prompt };
-    if (composed || !garment) {
-      if (person) input.image = person;
-    } else if (person && garment) {
+    const input = { prompt, aspect_ratio: "match_input_image" };
+    let modelId = MODELS.standard;
+    let modelUsed = MODELS.standard;
+
+    if (hasGarment) {
       input.images = [person, garment];
+      modelId = MODELS.pro;
+      modelUsed = MODELS.pro;
     } else if (person) {
       input.image = person;
     }
+
     return submitBillableGeneration(req, fields, {
       cost: CREDIT.clothes,
       type: "image",
-      modelId: MODELS.standard,
+      modelId,
       input,
       prompt,
+      modelUsed,
       spendDescription: "Trocar roupa",
     });
   }

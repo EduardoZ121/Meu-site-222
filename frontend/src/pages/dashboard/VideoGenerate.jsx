@@ -8,7 +8,7 @@ import { useI18n } from "../../lib/i18n";
 import { toast } from "sonner";
 import ResultPanel from "../../components/ResultPanel";
 import StudioResultAnchor from "../../components/StudioResultAnchor";
-import StudioAccordionSection from "../../components/StudioAccordionSection";
+import VideoStudioSection from "../../components/VideoStudioSection";
 import ImageUploadZone from "../../components/ImageUploadZone";
 import AspectPicker from "../../components/AspectPicker";
 import StudioGenerateBar from "../../components/StudioGenerateBar";
@@ -92,9 +92,9 @@ export default function VideoGenerate({ mode = "text" }) {
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-[1fr_380px] gap-8 lg:gap-10" data-testid={`video-generate-panel-${mode}`}>
-      <div className="space-y-4">
+      <div className="space-y-5">
         {isImageMode && (
-          <StudioAccordionSection title={t("vid_step_frame")} defaultOpen testId="video-acc-frame">
+          <VideoStudioSection title={t("vid_step_frame")} testId="video-section-frame">
             <div className="max-w-[420px]">
               <ImageUploadZone
                 value={photo}
@@ -106,11 +106,11 @@ export default function VideoGenerate({ mode = "text" }) {
                 emptyHint={t("upload_drop")}
               />
             </div>
-          </StudioAccordionSection>
+          </VideoStudioSection>
         )}
 
-        <StudioAccordionSection title={t("vid_step_prompt")} defaultOpen testId="video-acc-prompt">
-          <div className="flex items-baseline justify-end mb-3 -mt-1">
+        <VideoStudioSection title={t("vid_step_prompt")} testId="video-section-prompt">
+          <div className="flex items-baseline justify-end mb-3">
             <span className="text-[#5A5A5E] text-[11px] font-mono">{prompt.length}/600</span>
           </div>
           <textarea
@@ -134,9 +134,9 @@ export default function VideoGenerate({ mode = "text" }) {
               </button>
             ))}
           </div>
-        </StudioAccordionSection>
+        </VideoStudioSection>
 
-        <StudioAccordionSection title={t("vid_step_format")} defaultOpen testId="video-acc-format">
+        <VideoStudioSection title={t("vid_step_format")} testId="video-section-format">
           <AspectPicker
             value={aspect}
             onChange={setAspect}
@@ -145,9 +145,9 @@ export default function VideoGenerate({ mode = "text" }) {
             columns="grid grid-cols-2 sm:grid-cols-4 gap-2.5"
             testIdPrefix="vid-ar"
           />
-        </StudioAccordionSection>
+        </VideoStudioSection>
 
-        <StudioAccordionSection title={t("vid_step_duration")} defaultOpen testId="video-acc-duration">
+        <VideoStudioSection title={t("vid_step_duration")} testId="video-section-duration">
           <div className="grid grid-cols-3 gap-2.5 max-w-[480px]">
             {DURATIONS.map((d) => (
               <button
@@ -166,9 +166,9 @@ export default function VideoGenerate({ mode = "text" }) {
               </button>
             ))}
           </div>
-        </StudioAccordionSection>
+        </VideoStudioSection>
 
-        <StudioAccordionSection title={t("vid_step_motion")} defaultOpen={false} testId="video-acc-motion">
+        <VideoStudioSection title={t("vid_step_motion")} testId="video-section-motion">
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
             {MOTIONS.map((m) => (
               <button
@@ -187,9 +187,9 @@ export default function VideoGenerate({ mode = "text" }) {
               </button>
             ))}
           </div>
-        </StudioAccordionSection>
+        </VideoStudioSection>
 
-        <StudioAccordionSection title={t("vid_acc_generate")} defaultOpen testId="video-acc-generate">
+        <VideoStudioSection title={t("vid_acc_generate")} testId="video-section-generate">
           <StudioGenerateBar
             layout="inline"
             ready={ready}
@@ -205,7 +205,7 @@ export default function VideoGenerate({ mode = "text" }) {
           <p className="text-[#5A5A5E] text-[11px] mt-3 text-center font-mono uppercase tracking-[0.14em]">
             {t("vid_balance", { n: user?.is_unlimited ? "∞" : (user?.credits ?? 0) })}
           </p>
-        </StudioAccordionSection>
+        </VideoStudioSection>
       </div>
 
       <StudioResultAnchor busy={busy} ready={Boolean(primaryResultUrl(result))} className="lg:sticky lg:top-[88px] self-start space-y-3">

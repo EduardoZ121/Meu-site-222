@@ -21,7 +21,7 @@ import {
 import { toast } from "sonner";
 import ResultPanel from "../../components/ResultPanel";
 import StudioResultAnchor from "../../components/StudioResultAnchor";
-import StudioAccordionSection from "../../components/StudioAccordionSection";
+import VideoStudioSection from "../../components/VideoStudioSection";
 import ImageUploadZone from "../../components/ImageUploadZone";
 import StudioVideoUpload from "../../components/StudioVideoUpload";
 import StudioGenerateBar from "../../components/StudioGenerateBar";
@@ -205,7 +205,7 @@ export default function VideoEditorAdmin() {
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-[1fr_380px] gap-8 lg:gap-10" data-testid="video-editor-admin">
-      <div className="space-y-4">
+      <div className="space-y-5">
         {!premium && (
           <div className="rounded-xl border border-[#FACC15]/30 bg-[#FACC15]/8 px-4 py-3 text-[12px] text-[#FDE68A] leading-relaxed max-w-[560px]">
             {t("studio_plus_video_banner")}{" "}
@@ -215,7 +215,10 @@ export default function VideoEditorAdmin() {
           </div>
         )}
 
-        <StudioAccordionSection title={t("vid_acc_my_video")} defaultOpen testId="video-edit-acc-source">
+        <VideoStudioSection title={t("vid_acc_my_video")} testId="video-edit-section-source">
+          <p className="text-[#8A8A8E] text-[13px] mb-3 leading-relaxed max-w-[560px]">
+            {t("vid_edit_desc")}
+          </p>
           <p className="text-[#6f6f76] text-[12px] mb-4 max-w-[560px]">
             {t("vid_edit_eta_hint", { min: eta.min, max: eta.max })}
           </p>
@@ -228,9 +231,9 @@ export default function VideoEditorAdmin() {
               testId="video-edit-source"
             />
           </div>
-        </StudioAccordionSection>
+        </VideoStudioSection>
 
-        <StudioAccordionSection title={t("vid_edit_prompt_label")} defaultOpen testId="video-edit-acc-prompt">
+        <VideoStudioSection title={t("vid_edit_prompt_label")} testId="video-edit-section-prompt">
           <div className="flex items-baseline justify-end mb-3 -mt-1">
             <span className="text-[#5A5A5E] text-[11px] font-mono">{prompt.length}/800</span>
           </div>
@@ -263,9 +266,9 @@ export default function VideoEditorAdmin() {
               </button>
             ))}
           </div>
-        </StudioAccordionSection>
+        </VideoStudioSection>
 
-        <StudioAccordionSection title={t("vid_edit_ref_label")} defaultOpen={false} testId="video-edit-acc-ref">
+        <VideoStudioSection title={t("vid_edit_ref_label")} testId="video-edit-section-ref">
           <p className="text-[#8A8A8E] text-[13px] mb-4">{t("vid_edit_ref_hint")}</p>
           <div className="max-w-[280px]">
             <ImageUploadZone
@@ -278,9 +281,9 @@ export default function VideoEditorAdmin() {
               emptyHint={t("upload_empty_hint")}
             />
           </div>
-        </StudioAccordionSection>
+        </VideoStudioSection>
 
-        <StudioAccordionSection title={t("vid_edit_resolution")} defaultOpen testId="video-edit-acc-resolution">
+        <VideoStudioSection title={t("vid_edit_resolution")} testId="video-edit-section-resolution">
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 max-w-[480px]">
             {RESOLUTIONS.map((r) => {
               const locked = r.premium && !premium;
@@ -307,9 +310,9 @@ export default function VideoEditorAdmin() {
               );
             })}
           </div>
-        </StudioAccordionSection>
+        </VideoStudioSection>
 
-        <StudioAccordionSection title={t("vid_edit_duration")} defaultOpen testId="video-edit-acc-duration">
+        <VideoStudioSection title={t("vid_edit_duration")} testId="video-edit-section-duration">
           <div className="grid grid-cols-4 gap-2.5 max-w-[360px]">
             {DURATIONS.map((d) => {
               const locked = isPremiumDuration(d) && !premium;
@@ -333,9 +336,9 @@ export default function VideoEditorAdmin() {
               );
             })}
           </div>
-        </StudioAccordionSection>
+        </VideoStudioSection>
 
-        <StudioAccordionSection title={t("vid_edit_aspect")} defaultOpen={false} testId="video-edit-acc-aspect">
+        <VideoStudioSection title={t("vid_edit_aspect")} testId="video-edit-section-aspect">
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
             {ASPECTS.map((a) => (
               <button
@@ -351,9 +354,9 @@ export default function VideoEditorAdmin() {
               </button>
             ))}
           </div>
-        </StudioAccordionSection>
+        </VideoStudioSection>
 
-        <StudioAccordionSection title={t("vid_edit_audio")} defaultOpen={false} testId="video-edit-acc-audio">
+        <VideoStudioSection title={t("vid_edit_audio")} testId="video-edit-section-audio">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 max-w-[480px]">
             <button
               type="button"
@@ -372,9 +375,9 @@ export default function VideoEditorAdmin() {
               <p className="text-[#F4F1EA] text-[13px] font-medium">{t("vid_edit_audio_auto")}</p>
             </button>
           </div>
-        </StudioAccordionSection>
+        </VideoStudioSection>
 
-        <StudioAccordionSection title={t("vid_acc_generate")} defaultOpen testId="video-edit-acc-generate">
+        <VideoStudioSection title={t("vid_acc_generate")} testId="video-edit-section-generate">
           <StudioGenerateBar
             layout="inline"
             ready={ready}
@@ -395,7 +398,7 @@ export default function VideoEditorAdmin() {
           <p className="text-[#5A5A5E] text-[11px] mt-3 text-center font-mono uppercase tracking-[0.14em]">
             {t("vid_balance", { n: user?.is_unlimited ? "∞" : (user?.credits ?? 0) })}
           </p>
-        </StudioAccordionSection>
+        </VideoStudioSection>
       </div>
 
       <StudioResultAnchor busy={busy} ready={Boolean(primaryResultUrl(result))} className="lg:sticky lg:top-[88px] self-start space-y-3">

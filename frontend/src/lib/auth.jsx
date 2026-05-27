@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useState } from "react";
 import { api } from "./api";
-import { ADMIN_EMAILS, isAdminUser as checkAdminUser } from "./isAdmin";
+import { ADMIN_EMAILS } from "./isAdmin";
 
 const AuthCtx = createContext(null);
 const LOCAL_USERS_KEY = "rp_local_users";
@@ -41,7 +41,7 @@ function decodeJwtPayload(token) {
 }
 
 function publicLocalUser(user) {
-  const unlimited = isUnlimitedEmail(user.email) || checkAdminUser({ email: user.email, role: user.role });
+  const unlimited = isUnlimitedEmail(user.email);
   let pricing_region = user.pricing_region;
   try {
     if (!pricing_region) {

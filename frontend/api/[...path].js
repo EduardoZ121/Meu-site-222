@@ -15,6 +15,8 @@ const {
   upsertGoogleUser,
   touchUser,
   getUserById,
+  repairUserAccountIfNeeded,
+  isAdminEmail,
   addCredits,
   recordPurchase,
   storageEnabled,
@@ -57,10 +59,6 @@ const { improvePrompt } = require("./lib/promptAssist.cjs");
 
 function getPadraoStyle(styleId) {
   return PADRAO_STYLES_LIST.find((s) => s.id === String(styleId || "").trim()) || null;
-}
-
-function isAdminEmail(email) {
-  return ADMIN_EMAILS.has(String(email || "").trim().toLowerCase());
 }
 
 function sessionSecret() {
@@ -126,7 +124,7 @@ async function routeAuth(path, fields, req) {
     }
     const region = regionFromRequest(req, fields);
     const dbUser = await upsertGoogleUser(g, req, { pricing_region: region });
-    const unlimited = isAdminEmail(g.email) || Boolean(dbUser?.is_unlimited);
+    const unlimited = isAdminEmail(g.email);
     const user = dbUser || {
       id: `google_${g.sub}`,
       email: g.email,
@@ -842,7 +840,7 @@ async function submitBillableGeneration(req, fields, {
       err.status = 403;
       throw err;
     }
-    if (dbUser?.is_unlimited) {
+    if (isAdminEmail(dbUser?.email)) {
       const prediction = await createPrediction(modelId, input);
       const pending = await createPending({
         id: newPendingId(),
@@ -1960,10 +1958,9 @@ async function handlePath(path, req, res) {
       const sessionUser = verifySessionToken(token);
       if (!sessionUser) return json(res, 401, { detail: "Sessão inválida ou expirada." });
       await touchUser(sessionUser.id, req, { action: "me" });
+      await repairUserAccountIfNeeded(sessionUser.id);
       const dbUser = await getUserById(sessionUser.id);
-      const user = dbUser
-        ? { ...sessionUser, ...dbUser, is_unlimited: dbUser.is_unlimited || isAdminEmail(dbUser.email) }
-        : sessionUser;
+      const user = dbUser || sessionUser;
       return json(res, 200, user);
     }
 

@@ -26,7 +26,7 @@ export default function Settings() {
   const { t, lang } = useI18n();
   useTitle(t("sidebar_settings"));
 
-  const [aspect, setAspect] = useState("4:5");
+  const [aspect, setAspect] = useState(() => readUserSettings().aspect_ratio_default || "match");
   const [pwCurrent, setPwCurrent] = useState("");
   const [pwNew, setPwNew] = useState("");
   const [pwConfirm, setPwConfirm] = useState("");
@@ -178,7 +178,10 @@ export default function Settings() {
           <AspectPicker
             value={aspect}
             onChange={pickAspect}
-            options={ASPECTS}
+            items={[
+              { key: "match", label: t("aspect_original"), hint: t("aspect_original_hint") },
+              ...ASPECTS.map((k) => ({ key: k, label: k })),
+            ]}
             columns="grid grid-cols-3 sm:grid-cols-5 gap-2.5 max-w-md"
             testIdPrefix="settings-ar"
           />

@@ -39,6 +39,7 @@ import StudioResultAnchor from "../../components/StudioResultAnchor";
 import StudioGenerateBar from "../../components/StudioGenerateBar";
 import StudioGenerateCostMeta from "../../components/StudioGenerateCostMeta";
 import { useStudioGenerateGate } from "../../lib/useStudioGenerateGate";
+import { usePhotoAspectDefault } from "../../lib/usePhotoAspectDefault";
 import { useI18n } from "../../lib/i18n";
 import { useStudioI18n } from "../../lib/useStudioI18n";
 import { posterFieldLabel, POSTER_CAT_KEYS } from "../../lib/posterFieldLocales";
@@ -103,7 +104,7 @@ export default function Posters() {
   const [values, setValues] = useState({});
   const [photo, setPhoto] = useState(null);
   const [modelKey, setModelKey] = useState("grok");
-  const [aspect, setAspect] = useState("");      // empty = template default (4:5)
+  const [aspect, setAspect] = usePhotoAspectDefault(photo, "4:5", "match");
   const [numOutputs, setNumOutputs] = useState(1);
   const [mood, setMood] = useState("");
   const [paletteColors, setPaletteColors] = useState([]);
@@ -162,12 +163,14 @@ export default function Posters() {
     setMood("");
     setPaletteColors([]);
     setNumOutputs(1);
-    // Default aspect ratio from prompt text (Vertical 4:5 / Square 1:1 etc.)
-    const p = (tpl.prompt || "").toLowerCase();
-    if (p.includes("9:16")) setAspect("9:16");
-    else if (p.includes("16:9")) setAspect("16:9");
-    else if (p.includes("1:1") || p.includes("square")) setAspect("1:1");
-    else setAspect("4:5");
+    // Sem foto: proporção sugerida pelo template; com foto o hook mantém "match".
+    if (!photo) {
+      const p = (tpl.prompt || "").toLowerCase();
+      if (p.includes("9:16")) setAspect("9:16");
+      else if (p.includes("16:9")) setAspect("16:9");
+      else if (p.includes("1:1") || p.includes("square")) setAspect("1:1");
+      else setAspect("4:5");
+    }
   };
 
   const generate = async () => {
@@ -196,7 +199,10 @@ export default function Posters() {
     fd.append("placeholders", JSON.stringify(values));
     fd.append("custom_blocks", JSON.stringify(customBlocks));
     fd.append("model_key", modelKey);
-    fd.append("aspect_ratio", apiAspectRatio(aspect || picked.aspect || "4:5", { model: "standard" }));
+    fd.append("aspect_ratio", apiAspectRatio(aspect || picked.aspect || "4:5", {
+      model: "standard",
+      hasPhoto: Boolean(photo),
+    }));
     fd.append("num_outputs", String(numOutputs));
     fd.append("mood", mood || "");
     fd.append("palette_colors", JSON.stringify(paletteColors));
@@ -451,6 +457,15 @@ function Editor(props) {
     }
   }, [picked, values, mood, paletteColors, customBlocks, photo]);
 
+  const posterFormatItems = useMemo(() => {
+    const mapped = FORMATS.map(({ key, label, hint }) => ({ key, label, hint }));
+    if (!photo) return mapped;
+    return [
+      { key: "match", label: t("aspect_original"), hint: t("aspect_original_hint") },
+      ...mapped,
+    ];
+  }, [photo, t]);
+
   const { ready: genReady, hint: genHint } = useStudioGenerateGate({
     busy,
     user,
@@ -648,7 +663,7 @@ function Editor(props) {
             <AspectPicker
               value={aspect || picked?.aspect || "4:5"}
               onChange={setAspect}
-              items={FORMATS.map(({ key, label, hint }) => ({ key, label, hint }))}
+              items={posterFormatItems}
               columns="grid grid-cols-2 sm:grid-cols-5 gap-2.5 mb-5"
               testIdPrefix="poster-format"
             />

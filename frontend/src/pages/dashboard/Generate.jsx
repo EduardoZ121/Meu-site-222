@@ -19,6 +19,7 @@ import useTitle from "../../lib/useTitle";
 import StudioAccordionSection from "../../components/StudioAccordionSection";
 import StudioGenerateBar from "../../components/StudioGenerateBar";
 import { readUserSettings } from "../../lib/userSettings";
+import { usePhotoAspectDefault, ASPECT_MATCH } from "../../lib/usePhotoAspectDefault";
 import { apiAspectRatio } from "../../lib/apiAspectRatio";
 import { useStudioGenerateGate } from "../../lib/useStudioGenerateGate";
 import PromptEnhanceToggle from "../../components/promptAssist/PromptEnhanceToggle";
@@ -44,7 +45,11 @@ export default function Generate() {
   const [prompt, setPrompt] = useState(searchParams.get("prompt") || "");
   const [improve, setImprove] = useState(false);
   const [hdQuality, setHdQuality] = useState(false);
-  const [aspect, setAspect] = useState(() => readUserSettings().aspect_ratio_default || "4:5");
+  const settingsFallback = (() => {
+    const d = readUserSettings().aspect_ratio_default || "4:5";
+    return d === ASPECT_MATCH ? "4:5" : d;
+  })();
+  const [aspect, setAspect] = usePhotoAspectDefault(photo, settingsFallback, settingsFallback);
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState(null);
   const [progress, setProgress] = useState(0);
@@ -60,12 +65,6 @@ export default function Generate() {
       .then((r) => setPadrao(r.data.styles?.length ? r.data.styles : FALLBACK_PADRAO_STYLES))
       .catch(() => setPadrao(FALLBACK_PADRAO_STYLES));
   }, []);
-
-  useEffect(() => {
-    if (photo) setAspect("match");
-    else if (aspect === "match") setAspect("4:5");
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [photo]);
 
   const padraoCats = useMemo(() => Array.from(new Set(padrao.map((s) => s.cat))), [padrao]);
   const padraoFiltered = padrao.filter((s) => s.cat === padraoCat);

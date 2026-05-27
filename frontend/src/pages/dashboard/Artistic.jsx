@@ -22,6 +22,7 @@ import ArtisticPromptStudio from "../../components/artistic/ArtisticPromptStudio
 import ArtisticResultStudio from "../../components/artistic/ArtisticResultStudio";
 import ArtisticFlowSteps from "../../components/artistic/ArtisticFlowSteps";
 import { isPhotoUploadBusy } from "../../components/studio/StudioPhotoUploadNotice";
+import { usePhotoAspectDefault } from "../../lib/usePhotoAspectDefault";
 import { pushArtisticPromptHistory } from "../../lib/artisticPromptHistory";
 import { localizeArtisticCatalog } from "../../lib/artisticStudioLocales";
 import { canAccessNsfwArtisticStyles } from "../../lib/artisticStudioData";
@@ -64,7 +65,7 @@ export default function Artistic() {
   const [wizardOpen, setWizardOpen] = useState(false);
   const [suggestOpen, setSuggestOpen] = useState(false);
   const [photo, setPhoto] = useState(null);
-  const [aspect, setAspect] = useState("3:4");
+  const [aspect, setAspect] = usePhotoAspectDefault(photo, "3:4", "match");
   const [busy, setBusy] = useState(false);
   const [improving, setImproving] = useState(false);
   const [result, setResult] = useState(null);
@@ -125,6 +126,12 @@ export default function Artistic() {
       setInputMode("image");
     }
   }, [isPhotoCategory, inputMode]);
+
+  useEffect(() => {
+    if (inputMode === "text" && aspect === "match") {
+      setAspect("3:4");
+    }
+  }, [inputMode, aspect, setAspect]);
   const labPresets = useMemo(
     () => stylesInCat.filter((s) => s.labPreset),
     [stylesInCat],

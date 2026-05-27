@@ -65,7 +65,8 @@ export default function Pro() {
   const photoUploading = isPhotoUploadBusy(photoUploadStatus);
 
   useEffect(() => {
-    if (!photo && aspect === "match") setAspect("4:5");
+    if (photo) setAspect("match");
+    else if (aspect === "match") setAspect("4:5");
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [photo]);
 

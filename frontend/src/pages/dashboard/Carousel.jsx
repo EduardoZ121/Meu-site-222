@@ -25,6 +25,7 @@ import { apiAspectRatio } from "../../lib/apiAspectRatio";
 import StudioGenerateBar from "../../components/StudioGenerateBar";
 import StudioGenerateCostMeta from "../../components/StudioGenerateCostMeta";
 import { useStudioGenerateGate } from "../../lib/useStudioGenerateGate";
+import { usePhotoAspectDefault } from "../../lib/usePhotoAspectDefault";
 
 const COST_PER_SLIDE = 5;
 const MIN_SLIDES = 2;
@@ -95,8 +96,8 @@ export default function CarouselPage() {
     setSlides([...ex.slides]);
   }, [lang]);
   const [styleSuffix, setStyleSuffix] = useState(STYLE_PRESETS[0]);
-  const [aspect, setAspect] = useState("4:5");
   const [photo, setPhoto] = useState(null);
+  const [aspect, setAspect] = usePhotoAspectDefault(photo, "4:5", "match");
 
   const [keepCharacter, setKeepCharacter] = useState(true);
   const [keepLighting, setKeepLighting] = useState(true);
@@ -193,7 +194,7 @@ export default function CarouselPage() {
     }))));
     fd.append("campaign_brief", campaignBrief.trim());
     fd.append("style_suffix", styleSuffix);
-    fd.append("aspect_ratio", apiAspectRatio(aspect, { model: "standard" }));
+    fd.append("aspect_ratio", apiAspectRatio(aspect, { model: "standard", hasPhoto: Boolean(photo) }));
     fd.append("keep_character", keepCharacter ? "true" : "false");
     fd.append("keep_lighting", keepLighting ? "true" : "false");
     fd.append("keep_palette", keepPalette ? "true" : "false");
@@ -290,7 +291,7 @@ export default function CarouselPage() {
         fd.append("slide_role", slide.role || "content");
         fd.append("campaign_brief", campaignBrief.trim());
         fd.append("style_suffix", styleSuffix);
-        fd.append("aspect_ratio", apiAspectRatio(aspect, { model: "standard" }));
+        fd.append("aspect_ratio", apiAspectRatio(aspect, { model: "standard", hasPhoto: Boolean(photo) }));
         fd.append("keep_character", keepCharacter ? "true" : "false");
         fd.append("keep_lighting", keepLighting ? "true" : "false");
         fd.append("keep_palette", keepPalette ? "true" : "false");
@@ -605,7 +606,8 @@ export default function CarouselPage() {
             <AspectPicker
               value={aspect}
               onChange={setAspect}
-              items={ASPECTS.map(({ key, label }) => ({ key, label }))}
+              hasPhoto={!!photo}
+              options={ASPECTS.map(({ key }) => key)}
               columns="grid grid-cols-2 sm:grid-cols-4 gap-2.5"
               testIdPrefix="carousel-format"
             />

@@ -14,6 +14,7 @@ import ImageUploadZone from "../../components/ImageUploadZone";
 import AspectPicker from "../../components/AspectPicker";
 import StudioGenerateBar from "../../components/StudioGenerateBar";
 import { apiAspectRatio } from "../../lib/apiAspectRatio";
+import { usePhotoAspectDefault } from "../../lib/usePhotoAspectDefault";
 import { useStudioGenerateGate } from "../../lib/useStudioGenerateGate";
 
 const ASPECTS = ["16:9", "9:16", "1:1", "4:5"];
@@ -37,11 +38,11 @@ export default function VideoGenerate({ mode = "text" }) {
   const { costs, region } = usePricing();
   const surcharges = useMemo(() => getSurcharges(region), [region]);
   const [prompt, setPrompt] = useState("");
-  const [aspect, setAspect] = useState("16:9");
   const isImageMode = mode === "image";
   const [duration, setDuration] = useState(6);
   const [motion, setMotion] = useState("cinematic");
   const [photo, setPhoto] = useState(null);
+  const [aspect, setAspect] = usePhotoAspectDefault(photo, "16:9", "match");
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState(null);
 

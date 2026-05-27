@@ -109,12 +109,6 @@ export default function VideoGenerate({ mode = "text" }) {
           </StudioAccordionSection>
         )}
 
-        {!isImageMode && (
-          <StudioAccordionSection title={t("vid_mode_text_hint_title")} defaultOpen={false} testId="video-acc-text-hint">
-            <p className="text-[#8A8A8E] text-[13px] leading-relaxed">{t("vid_mode_text_hint_desc")}</p>
-          </StudioAccordionSection>
-        )}
-
         <StudioAccordionSection title={t("vid_step_prompt")} defaultOpen testId="video-acc-prompt">
           <div className="flex items-baseline justify-end mb-3 -mt-1">
             <span className="text-[#5A5A5E] text-[11px] font-mono">{prompt.length}/600</span>

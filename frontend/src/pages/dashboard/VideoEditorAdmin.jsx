@@ -17,6 +17,8 @@ import StudioResultAnchor from "../../components/StudioResultAnchor";
 import ImageUploadZone from "../../components/ImageUploadZone";
 import StudioVideoUpload from "../../components/StudioVideoUpload";
 import StudioGenerateBar from "../../components/StudioGenerateBar";
+import PromptEnhanceToggle from "../../components/promptAssist/PromptEnhanceToggle";
+import { appendImproveLang, appendImprovePrompt } from "../../lib/promptEnhance";
 import { useStudioGenerateGate } from "../../lib/useStudioGenerateGate";
 
 const EDIT_IDEAS = ["vid_edit_idea_1", "vid_edit_idea_2", "vid_edit_idea_3"];
@@ -37,7 +39,7 @@ function selectCard(active) {
 }
 
 export default function VideoEditorAdmin() {
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
   const ideas = useMemo(() => EDIT_IDEAS.map((k) => t(k)), [t]);
   const { refresh, user } = useAuth();
   const { costs } = usePricing();
@@ -47,6 +49,7 @@ export default function VideoEditorAdmin() {
   const [sourceDurationSec, setSourceDurationSec] = useState(0);
   const [reference, setReference] = useState(null);
   const [prompt, setPrompt] = useState("");
+  const [improve, setImprove] = useState(false);
   const [aspect, setAspect] = useState("auto");
   const [audioSetting, setAudioSetting] = useState("origin");
   const [busy, setBusy] = useState(false);
@@ -114,6 +117,8 @@ export default function VideoEditorAdmin() {
       fd.append("duration", String(EDIT_FIXED_DURATION));
       fd.append("aspect_ratio", aspect);
       fd.append("audio_setting", audioSetting);
+      appendImproveLang(fd, lang);
+      appendImprovePrompt(fd, improve);
       fd.append("video", video);
       if (reference) fd.append("reference_image", reference);
 
@@ -192,6 +197,14 @@ export default function VideoEditorAdmin() {
               className="rp-editor-textarea min-h-[140px]"
               data-testid="video-edit-prompt"
             />
+            <div className="mt-3">
+              <PromptEnhanceToggle
+                checked={improve}
+                onChange={setImprove}
+                testId="video-edit-improve"
+                premiumSoon
+              />
+            </div>
             <div className="flex flex-wrap gap-2 mt-3">
               {ideas.map((idea) => (
                 <button

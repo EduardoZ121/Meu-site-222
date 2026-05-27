@@ -11,6 +11,8 @@ import StudioResultAnchor from "../../components/StudioResultAnchor";
 import ImageUploadZone from "../../components/ImageUploadZone";
 import AspectPicker from "../../components/AspectPicker";
 import StudioGenerateBar from "../../components/StudioGenerateBar";
+import PromptEnhanceToggle from "../../components/promptAssist/PromptEnhanceToggle";
+import { appendImproveLang, appendImprovePrompt } from "../../lib/promptEnhance";
 import { apiAspectRatio } from "../../lib/apiAspectRatio";
 import { useStudioGenerateGate } from "../../lib/useStudioGenerateGate";
 
@@ -18,7 +20,7 @@ const ASPECTS = ["16:9", "9:16", "1:1", "4:5"];
 const IDEA_KEYS = ["vid_idea_1", "vid_idea_2", "vid_idea_3", "vid_idea_4"];
 
 export default function VideoGenerate({ mode = "text" }) {
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
   const ideas = useMemo(() => IDEA_KEYS.map((k) => t(k)), [t]);
   const MOTIONS = useMemo(() => [
     { id: "cinematic", label: "Cinematic", desc: t("vid_motion_cinematic_desc") },
@@ -34,6 +36,7 @@ export default function VideoGenerate({ mode = "text" }) {
   const effectiveDuration = 15;
   const [motion, setMotion] = useState("cinematic");
   const [photo, setPhoto] = useState(null);
+  const [improve, setImprove] = useState(false);
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState(null);
 
@@ -61,9 +64,12 @@ export default function VideoGenerate({ mode = "text" }) {
     setBusy(true); setResult(null);
     try {
       const fd = new FormData();
-      const composed = `${prompt.trim()} — motion style: ${motion}, duration: ${effectiveDuration}s`;
-      fd.append("prompt", composed);
+      fd.append("prompt", prompt.trim());
+      fd.append("motion_style", motion);
+      fd.append("duration_sec", String(effectiveDuration));
       fd.append("aspect_ratio", apiAspectRatio(aspect, { model: "video", hasPhoto: !!photo }));
+      appendImproveLang(fd, lang);
+      appendImprovePrompt(fd, improve);
       if (photo) fd.append("photo", photo);
       const { data } = await uploadPost("/generate/video", fd, { timeout: 300000 });
       if (data?.prediction_id && !primaryResultUrl(data?.creation)) {
@@ -124,6 +130,14 @@ export default function VideoGenerate({ mode = "text" }) {
             className="rp-editor-textarea min-h-[130px]"
             data-testid="video-prompt"
           />
+          <div className="mt-3">
+            <PromptEnhanceToggle
+              checked={improve}
+              onChange={setImprove}
+              testId="video-improve"
+              premiumSoon
+            />
+          </div>
           <div className="flex flex-wrap gap-2 mt-3">
             {ideas.map((idea) => (
               <button

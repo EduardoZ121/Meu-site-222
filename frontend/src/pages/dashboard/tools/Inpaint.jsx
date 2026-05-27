@@ -10,13 +10,14 @@ import { Brush, Eraser } from "lucide-react";
 import { useStudioMediaPreview } from "../../../hooks/useStudioMediaPreview";
 import { useI18n } from "../../../lib/i18n";
 import { useLocalizedTools } from "../../../lib/useLocalizedTools";
+import { appendImproveLang, appendImprovePrompt } from "../../../lib/promptEnhance";
 
 /**
  * Inpaint tool — user uploads photo, paints over the region they want changed,
  * then provides a prompt describing the replacement.
  */
 export default function Inpaint() {
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
   const tools = useLocalizedTools();
   const tool = tools.find((x) => x.id === "inpaint");
   const { errToast, clearUploadToast } = useStudioI18n();
@@ -25,6 +26,7 @@ export default function Inpaint() {
   const [photo, setPhoto] = useState(null);
   const { previewUrl: photoUrl } = useStudioMediaPreview(photo);
   const [prompt, setPrompt] = useState("");
+  const [improve, setImprove] = useState(false);
   const [aspect, setAspect] = useState(null);
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState(null);
@@ -84,6 +86,8 @@ export default function Inpaint() {
       fd.append("photo", photo);
       fd.append("mask", new File([maskBlob], "mask.png", { type: "image/png" }));
       fd.append("prompt", prompt.trim());
+      appendImproveLang(fd, lang);
+      appendImprovePrompt(fd, improve);
       const { data } = await uploadPost("/tools/inpaint", fd, { timeout: 240000 });
       const creation = normalizeCreation(data?.creation);
       if (!primaryResultUrl(creation)) throw new Error(t("pro_no_result"));
@@ -102,6 +106,8 @@ export default function Inpaint() {
       photo={photo} onPhotoChange={setPhoto}
       photoCompressOptions={{ maxSize: 1600 }}
       prompt={prompt} onPromptChange={setPrompt}
+      improvePrompt={improve}
+      onImproveChange={setImprove}
       promptLabel={t("inpaint_prompt_label")}
       ideas={["background", "blue sky", "wooden floor", "natural grass", "remove object"]}
       aspectRatios={null}

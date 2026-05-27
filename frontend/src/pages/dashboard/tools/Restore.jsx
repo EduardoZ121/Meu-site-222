@@ -17,13 +17,15 @@ import CollapsibleSection from "../../../components/CollapsibleSection";
 import StudioResultAnchor from "../../../components/StudioResultAnchor";
 import { useI18n } from "../../../lib/i18n";
 import { useStudioI18n } from "../../../lib/useStudioI18n";
+import { appendImproveLang, appendImprovePrompt } from "../../../lib/promptEnhance";
+import PromptEnhanceToggle from "../../../components/promptAssist/PromptEnhanceToggle";
 import { RESTORE_LEVEL_KEYS } from "../../../lib/toolPagesLocales";
 
 const RESTORE_PROMPT_KEYS = [1, 2, 3, 4];
 
 export default function Restore() {
   const { t, errToast, clearUploadToast } = useStudioI18n();
-  const { t: tCat } = useI18n();
+  const { t: tCat, lang } = useI18n();
   const navigate = useNavigate();
   const { user, refresh } = useAuth();
   const { costs } = usePricing();
@@ -50,6 +52,7 @@ export default function Restore() {
   const [removeNoise, setRemoveNoise] = useState(true);
   const [sharpen, setSharpen] = useState(true);
   const [customPrompt, setCustomPrompt] = useState("");
+  const [improve, setImprove] = useState(false);
 
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState(null);
@@ -82,6 +85,8 @@ export default function Restore() {
       fd.append("remove_noise", removeNoise ? "true" : "false");
       fd.append("sharpen", sharpen ? "true" : "false");
       fd.append("custom_prompt", customPrompt);
+      appendImproveLang(fd, lang);
+      appendImprovePrompt(fd, improve && customPrompt.trim().length >= 3);
       const { data } = await uploadPost("/tools/restore", fd, { timeout: 240000 });
       const creation = data?.creation;
       const url = creation?.result_urls?.[0];
@@ -212,6 +217,13 @@ export default function Restore() {
               className="w-full bg-[#13131A] border border-[#2E2E30] focus:border-[#7C3AED] text-[#F4F1EA] text-[14px] placeholder:text-[#5A5A5E] px-4 py-3 rounded-lg focus:outline-none resize-none font-['Inter_Tight'] transition-colors"
               data-testid="restore-custom-prompt"
             />
+            <div className="mt-3">
+              <PromptEnhanceToggle
+                checked={improve}
+                onChange={setImprove}
+                testId="restore-improve"
+              />
+            </div>
             <div className="flex flex-wrap gap-2 mt-2.5">
               {promptIdeas.map((s) => (
                 <button

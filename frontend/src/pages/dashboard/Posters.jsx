@@ -39,6 +39,8 @@ import StudioResultAnchor from "../../components/StudioResultAnchor";
 import StudioGenerateBar from "../../components/StudioGenerateBar";
 import StudioGenerateCostMeta from "../../components/StudioGenerateCostMeta";
 import { useStudioGenerateGate } from "../../lib/useStudioGenerateGate";
+import PromptEnhanceToggle from "../../components/promptAssist/PromptEnhanceToggle";
+import { appendImprovePrompt } from "../../lib/promptEnhance";
 import { useI18n } from "../../lib/i18n";
 import { useStudioI18n } from "../../lib/useStudioI18n";
 import { posterFieldLabel, POSTER_CAT_KEYS } from "../../lib/posterFieldLocales";
@@ -108,6 +110,7 @@ export default function Posters() {
   const [mood, setMood] = useState("");
   const [paletteColors, setPaletteColors] = useState([]);
   const [customBlocks, setCustomBlocks] = useState([]);
+  const [improve, setImprove] = useState(false);
 
   const [busy, setBusy] = useState(false);
   const [genPhase, setGenPhase] = useState("");
@@ -201,6 +204,7 @@ export default function Posters() {
     fd.append("mood", mood || "");
     fd.append("palette_colors", JSON.stringify(paletteColors));
     fd.append("lang", lang || "en");
+    appendImprovePrompt(fd, improve);
     if (photo) fd.append("photo", photo);
 
     setBusy(true);
@@ -690,6 +694,13 @@ function Editor(props) {
             >
               {promptPreview}
             </p>
+            <div className="mt-3">
+              <PromptEnhanceToggle
+                checked={improve}
+                onChange={setImprove}
+                testId="poster-improve"
+              />
+            </div>
           </PosterSection>
         </motion.div>
 

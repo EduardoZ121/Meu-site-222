@@ -16,6 +16,8 @@ import useTitle from "../../lib/useTitle";
 import { useI18n } from "../../lib/i18n";
 import StudioGenerateBar from "../../components/StudioGenerateBar";
 import StudioGenerateCostMeta from "../../components/StudioGenerateCostMeta";
+import PromptEnhanceToggle from "../../components/promptAssist/PromptEnhanceToggle";
+import { appendImproveLang, appendImprovePrompt } from "../../lib/promptEnhance";
 import { useStudioGenerateGate } from "../../lib/useStudioGenerateGate";
 import { useStudioI18n } from "../../lib/useStudioI18n";
 
@@ -35,7 +37,7 @@ function ProStep({ step, title, hint, children }) {
 }
 
 export default function Pro() {
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
   const { errToast, clearUploadToast } = useStudioI18n();
   useTitle(t("pro_page_title"));
   const { refresh, user } = useAuth();
@@ -57,6 +59,7 @@ export default function Pro() {
   const [photo, setPhoto] = useState(null);
   const [intensity, setIntensity] = useState(70);
   const [customPrompt, setCustomPrompt] = useState("");
+  const [improve, setImprove] = useState(false);
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState(null);
   const cost = costs.pro;
@@ -104,6 +107,8 @@ export default function Pro() {
       fd.append("aspect_ratio", apiAspectRatio(aspect, { model: "pro", hasPhoto: !!photo }));
       fd.append("extra_prompt", customPrompt.trim());
       fd.append("intensity", String(intensity));
+      appendImproveLang(fd, lang);
+      appendImprovePrompt(fd, improve && customPrompt.trim().length >= 3);
       const { data } = await uploadPost("/generate/pro", fd, { timeout: 180000 });
       const creation = normalizeCreation(data?.creation);
       if (!primaryResultUrl(creation)) throw new Error(t("pro_no_result"));
@@ -248,6 +253,13 @@ export default function Pro() {
                 className="rp-editor-textarea min-h-[88px] text-[14px] max-w-[560px]"
                 data-testid="pro-custom"
               />
+              <div className="mt-3">
+                <PromptEnhanceToggle
+                  checked={improve}
+                  onChange={setImprove}
+                  testId="pro-improve"
+                />
+              </div>
             </ProStep>
 
             <ProStep step="6" title={t("pro_step_format")}>

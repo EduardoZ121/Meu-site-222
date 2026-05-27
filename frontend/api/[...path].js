@@ -60,7 +60,7 @@ function blobDisabledResponse(res) {
   });
 }
 const { listPosterTemplates } = require("./lib/posterTemplatesData.cjs");
-const { improvePrompt } = require("./lib/promptAssist.cjs");
+const { improvePrompt, maybeImprovePrompt } = require("./lib/promptAssist.cjs");
 
 function getPadraoStyle(styleId) {
   return PADRAO_STYLES_LIST.find((s) => s.id === String(styleId || "").trim()) || null;
@@ -1263,9 +1263,10 @@ async function routePost(path, fields, files, req) {
     let prompt = text(fields, "prompt", "").trim();
     if (!prompt) throw new Error("Escreve um prompt.");
     const lang = text(fields, "lang", "en").slice(0, 2);
-    if (truthyField(fields, "improve_prompt")) {
-      prompt = await improvePrompt(prompt, lang, {});
-    }
+    prompt = await maybeImprovePrompt(prompt, truthyField(fields, "improve_prompt"), lang, {
+      tool: "studio",
+      aspect_ratio: text(fields, "aspect_ratio", ""),
+    });
     const input = await imageInput(fields, files, "standard", prompt);
     return submitBillableGeneration(req, fields, {
       cost: CREDIT.image,
@@ -1280,7 +1281,11 @@ async function routePost(path, fields, files, req) {
   }
 
   if (path === "generate/edit") {
-    const prompt = text(fields, "prompt", "professional photo edit, preserve identity");
+    const lang = text(fields, "lang", "en").slice(0, 2);
+    let prompt = text(fields, "prompt", "professional photo edit, preserve identity");
+    prompt = await maybeImprovePrompt(prompt, truthyField(fields, "improve_prompt"), lang, {
+      tool: "studio_edit",
+    });
     const input = await imageInput(fields, files, "standard", prompt);
     return submitBillableGeneration(req, fields, {
       cost: CREDIT.edit,
@@ -1298,7 +1303,11 @@ async function routePost(path, fields, files, req) {
     const styleId = text(fields, "style_id", "").trim();
     const padrao = getPadraoStyle(styleId);
     const subject = text(fields, "subject", "the person").trim() || padrao?.subject || "the person";
-    const extra = text(fields, "extra_prompt", "").trim();
+    const lang = text(fields, "lang", "en").slice(0, 2);
+    let extra = text(fields, "extra_prompt", "").trim();
+    if (extra && truthyField(fields, "improve_prompt")) {
+      extra = await improvePrompt(extra, lang, { tool: "studio_edit" });
+    }
     let prompt;
     if (padrao?.prompt) {
       prompt = padrao.prompt.replace(/\[subject\]/gi, subject);
@@ -1322,7 +1331,14 @@ async function routePost(path, fields, files, req) {
   if (path === "generate/pro") {
     const presetId = text(fields, "preset_id", "ultra_real");
     const preset = getProPreset(presetId);
-    const extra = text(fields, "extra_prompt", "").trim();
+    const lang = text(fields, "lang", "en").slice(0, 2);
+    let extra = text(fields, "extra_prompt", "").trim();
+    if (extra && truthyField(fields, "improve_prompt")) {
+      extra = await improvePrompt(extra, lang, {
+        tool: "pro",
+        preset_label: preset?.nome || preset?.label || presetId,
+      });
+    }
     const intensity = Number(text(fields, "intensity", "70"));
     let prompt = preset?.prompt
       || "Professional portrait retouch. Preserve identity and natural facial features.";
@@ -1412,12 +1428,19 @@ async function routePost(path, fields, files, req) {
       }
       prompt += " Legible typography, strong hierarchy, print quality.";
     }
+    const lang = text(fields, "lang", "en").slice(0, 2);
+    const templateId = text(fields, "template_id", "");
+    const templateCategory = text(fields, "template_category", "").trim().toLowerCase();
+    if (truthyField(fields, "improve_prompt")) {
+      prompt = await improvePrompt(prompt, lang, {
+        tool: "poster",
+        template_category: templateCategory,
+      });
+    }
     const selected = text(fields, "model_key", "grok");
     const modelKey = selected === "flux2" || selected === "gpt_image" ? "pro" : "standard";
     const perImage = selected === "gpt_image" ? CREDIT.posterPremium : selected === "flux2" ? CREDIT.posterPro : CREDIT.posterFast;
     const count = Number(text(fields, "num_outputs", 1)) || 1;
-    const templateId = text(fields, "template_id", "");
-    const templateCategory = text(fields, "template_category", "").trim().toLowerCase();
     const posterFood = templateCategory === "food" || String(templateId).startsWith("food_");
     const photoRef = await resolveImageRef(files, fields, "photo", "photo_url");
     const hasPersonPhoto = Boolean(photoRef) && !posterFood;
@@ -1573,8 +1596,19 @@ async function routePost(path, fields, files, req) {
   }
 
   if (path === "generate/video") {
-    const prompt = text(fields, "prompt", "").trim();
-    if (!prompt) throw new Error("Descreve o vídeo.");
+    const lang = text(fields, "lang", "en").slice(0, 2);
+    const motion = text(fields, "motion_style", "cinematic").trim() || "cinematic";
+    const durationSec = text(fields, "duration_sec", "15").trim() || "15";
+    const hasPhoto = Boolean(files.photo || text(fields, "photo_url", "").trim());
+    let userPrompt = text(fields, "prompt", "").trim();
+    if (!userPrompt) throw new Error("Descreve o vídeo.");
+    userPrompt = await maybeImprovePrompt(userPrompt, truthyField(fields, "improve_prompt"), lang, {
+      tool: hasPhoto ? "video_image" : "video_text",
+      motion,
+      duration_sec: durationSec,
+      aspect_ratio: text(fields, "aspect_ratio", ""),
+    });
+    const prompt = `${userPrompt} — motion style: ${motion}, duration: ${durationSec}s`;
     const input = await imageInput(fields, files, "video", prompt);
     return submitBillableGeneration(req, fields, {
       cost: CREDIT.video,
@@ -1589,6 +1623,13 @@ async function routePost(path, fields, files, req) {
   }
 
   if (path === "generate/video-edit") {
+    const lang = text(fields, "lang", "en").slice(0, 2);
+    if (truthyField(fields, "improve_prompt")) {
+      const raw = text(fields, "prompt", "").trim();
+      if (raw.length >= 3) {
+        fields.prompt = await improvePrompt(raw, lang, { tool: "video_edit" });
+      }
+    }
     const { input, prompt } = await videoEditInput(fields, files);
     const cost = CREDIT.videoEdit ?? Math.max(CREDIT.video || 70, 85);
     return submitBillableGeneration(req, fields, {
@@ -1633,6 +1674,13 @@ async function routePost(path, fields, files, req) {
   }
 
   if (path === "tools/restore") {
+    const lang = text(fields, "lang", "en").slice(0, 2);
+    if (truthyField(fields, "improve_prompt")) {
+      const raw = text(fields, "custom_prompt", "").trim();
+      if (raw.length >= 3) {
+        fields.custom_prompt = await improvePrompt(raw, lang, { tool: "restore" });
+      }
+    }
     const prompt = buildRestorePrompt(fields);
     const input = await imageInput(fields, files, "standard", prompt);
     return submitBillableGeneration(req, fields, {
@@ -1667,6 +1715,16 @@ async function routePost(path, fields, files, req) {
     const garment = await resolveImageRef(files, fields, "garment", "garment_url");
     const composed = truthyField(fields, "composed");
     const hasGarment = Boolean(garment) && !composed;
+    const lang = text(fields, "lang", "en").slice(0, 2);
+    if (truthyField(fields, "improve_prompt")) {
+      const raw = text(fields, "prompt", "").trim();
+      if (raw.length >= 3) {
+        fields.prompt = await improvePrompt(raw, lang, {
+          tool: "clothes",
+          change_type: text(fields, "change_type", "full"),
+        });
+      }
+    }
     const prompt = buildClothesPrompt(fields, hasGarment);
     const input = { prompt };
     if (composed || !garment) {
@@ -1689,7 +1747,9 @@ async function routePost(path, fields, files, req) {
   if (path === "tools/inpaint") {
     const image = await resolveImageRef(files, fields, "photo", "photo_url");
     const mask = await resolveImageRef(files, fields, "mask", "mask_url");
-    const prompt = text(fields, "prompt", "background");
+    const lang = text(fields, "lang", "en").slice(0, 2);
+    let prompt = text(fields, "prompt", "background");
+    prompt = await maybeImprovePrompt(prompt, truthyField(fields, "improve_prompt"), lang, { tool: "inpaint" });
     const input = {
       image,
       mask,

@@ -11,6 +11,7 @@ import CollapsibleSection from "./CollapsibleSection";
 import StudioResultAnchor from "./StudioResultAnchor";
 import { primaryResultUrl } from "../lib/creationUrls";
 import { AspectRatioShape } from "./AspectRatioShape";
+import PromptEnhanceToggle from "./promptAssist/PromptEnhanceToggle";
 
 /**
  * Unified studio frame — Pollo-style.
@@ -62,6 +63,9 @@ export default function ToolFrame({
   testId = "tool",
   generateReady,
   generateHint,
+  improvePrompt: improveEnabled,
+  onImproveChange,
+  improvePremiumSoon = false,
 }) {
   const { user } = useAuth();
   const { t } = useI18n();
@@ -177,6 +181,16 @@ export default function ToolFrame({
                 />
                 <span className="absolute bottom-3 right-3 text-[#5A5A5E] text-[10px] font-mono tracking-wide">{prompt.length} / {promptMax}</span>
               </div>
+              {typeof improveEnabled === "boolean" && onImproveChange && (
+                <div className="mt-3">
+                  <PromptEnhanceToggle
+                    checked={improveEnabled}
+                    onChange={onImproveChange}
+                    testId={`${testId}-improve`}
+                    premiumSoon={improvePremiumSoon}
+                  />
+                </div>
+              )}
               {ideas && ideas.length > 0 && (
                 <div className="flex items-start gap-2 mt-3 flex-wrap">
                   <span className="text-[#6b6b70] text-[10px] font-mono uppercase tracking-[0.14em] shrink-0 mt-2">{t("tool_suggestions")}</span>

@@ -3,7 +3,7 @@ import { ArrowLeft, Loader2, Sparkles, Shirt } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
-import { formatApiError, uploadPost } from "../../../lib/api";
+import { formatApiError, uploadPost, api } from "../../../lib/api";
 import { normalizeCreation, primaryResultUrl } from "../../../lib/creationUrls";
 import { useAuth } from "../../../lib/auth";
 import { usePricing } from "../../../lib/PricingContext";
@@ -16,6 +16,8 @@ import { revokePreviewUrl } from "../../../lib/studioUpload/mediaPreview";
 import { compressImageNeverFail } from "../../../lib/canvasCompress";
 import { useI18n } from "../../../lib/i18n";
 import { useStudioI18n } from "../../../lib/useStudioI18n";
+import { appendImproveLang, appendImprovePrompt } from "../../../lib/promptEnhance";
+import PromptEnhanceToggle from "../../../components/promptAssist/PromptEnhanceToggle";
 
 const STYLE_PRESETS = [
   { id: "casual",      label: "Casual",      desc: "white t-shirt, blue jeans, sneakers" },
@@ -98,7 +100,7 @@ function PhotoBox({ photo, onChange, label, helper, emptyLabel, testId }) {
 
 export default function ClothesChanger() {
   const { t, errToast, clearUploadToast } = useStudioI18n();
-  const { t: tCat } = useI18n();
+  const { t: tCat, lang } = useI18n();
   useTitle(tCat("tool_clothes_name"));
   const { refresh, user } = useAuth();
   const { costs } = usePricing();
@@ -106,6 +108,7 @@ export default function ClothesChanger() {
   const [photo, setPhoto] = useState(null);
   const [garment, setGarment] = useState(null);
   const [prompt, setPrompt] = useState("");
+  const [improve, setImprove] = useState(false);
   const [changeType, setChangeType] = useState("full");
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState(null);
@@ -145,6 +148,19 @@ export default function ClothesChanger() {
       // Quando há roupa de referência, evitamos prompt genérico e forçamos a “composição”
       // (LEFT = pessoa, RIGHT = roupa) para o Grok entender exatamente o que deve vestir.
       let finalPrompt = prompt.trim();
+      if (improve && finalPrompt.length >= 3) {
+        try {
+          const { data: imp } = await api.post("/prompt/improve", {
+            prompt: finalPrompt,
+            lang: lang || "en",
+            tool: "clothes",
+            change_type: changeType,
+          });
+          if (imp?.prompt?.trim()) finalPrompt = imp.prompt.trim();
+        } catch {
+          /* use original */
+        }
+      }
       if (garment) {
         let composedPhoto = null;
         try {
@@ -292,6 +308,13 @@ export default function ClothesChanger() {
                   data-testid="clothes-prompt"
                 />
                 <span className="absolute bottom-3 right-3 text-[#5A5A5E] text-[11px] font-mono">{prompt.length}/500</span>
+              </div>
+              <div className="mt-3">
+                <PromptEnhanceToggle
+                  checked={improve}
+                  onChange={setImprove}
+                  testId="clothes-improve"
+                />
               </div>
             </CollapsibleSection>
           )}

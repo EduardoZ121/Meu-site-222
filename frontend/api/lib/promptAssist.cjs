@@ -65,7 +65,19 @@ function openAiKey() {
   return String(process.env.OPENAI_API_KEY || "").trim();
 }
 
-async function chatJson({ system, user, maxTokens = 520, temperature = 0.9 }) {
+function improveModelId() {
+  return String(process.env.PROMPT_ENHANCE_MODEL || process.env.SUPPORT_AI_MODEL || "gpt-4o").trim();
+}
+
+function improveMaxTokens(tool) {
+  if (tool.startsWith("video")) return 380;
+  if (tool === "poster") return 420;
+  if (tool === "pro") return 240;
+  if (tool === "inpaint" || tool === "clothes" || tool === "restore") return 260;
+  return 320;
+}
+
+async function chatJson({ system, user, maxTokens = 520, temperature = 0.9, model = "gpt-4o-mini" }) {
   const key = openAiKey();
   if (!key) {
     const err = new Error("OPENAI_API_KEY em falta no servidor.");
@@ -79,7 +91,7 @@ async function chatJson({ system, user, maxTokens = 520, temperature = 0.9 }) {
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      model: "gpt-4o-mini",
+      model,
       messages: [
         { role: "system", content: system },
         { role: "user", content: user },
@@ -98,7 +110,7 @@ async function chatJson({ system, user, maxTokens = 520, temperature = 0.9 }) {
   return data.choices?.[0]?.message?.content?.trim() || "";
 }
 
-async function chatText({ system, user, maxTokens = 420, temperature = 0.85 }) {
+async function chatText({ system, user, maxTokens = 420, temperature = 0.85, model = "gpt-4o-mini" }) {
   const key = openAiKey();
   if (!key) {
     const err = new Error("OPENAI_API_KEY em falta no servidor.");
@@ -112,7 +124,7 @@ async function chatText({ system, user, maxTokens = 420, temperature = 0.85 }) {
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      model: "gpt-4o-mini",
+      model,
       messages: [
         { role: "system", content: system },
         { role: "user", content: user },
@@ -128,6 +140,169 @@ async function chatText({ system, user, maxTokens = 420, temperature = 0.85 }) {
   }
   const data = await res.json();
   return data.choices?.[0]?.message?.content?.trim().replace(/^["']|["']$/g, "") || "";
+}
+
+function buildImproveSystemPrompt(context = {}) {
+  const tool = String(context.tool || "studio").trim();
+  const styleLabel = String(context.style_label || "").trim();
+  const styleSuffix = String(context.style_suffix || "").trim();
+  const imageMode = Boolean(context.image_mode);
+  const motion = String(context.motion || "").trim();
+  const durationSec = String(context.duration_sec || "").trim();
+  const aspectRatio = String(context.aspect_ratio || "").trim();
+  const presetLabel = String(context.preset_label || "").trim();
+  const changeType = String(context.change_type || "").trim();
+  const templateCategory = String(context.template_category || "").trim();
+
+  const baseRules =
+    "Keep ALL user-requested subjects, wardrobe (bikini, lingerie, swimwear, etc.), poses, actions, and intent — never remove or censor them. "
+    + "Respond ONLY with the improved English prompt — no quotes, labels, or explanations.";
+
+  if (tool === "video_text") {
+    return (
+      "You are a senior AI video director writing prompts for text-to-video generation (6–15 second clips). "
+      + "Transform the user's idea into ONE vivid English scene description with clear subject action, environment, "
+      + "lighting, atmosphere, and camera feel. Optimize for short-form motion — one cohesive moment, not a long story. "
+      + "Do NOT append duration, aspect ratio, or motion-style tags. "
+      + baseRules
+    );
+  }
+
+  if (tool === "video_image") {
+    return (
+      "You are a senior AI video director writing prompts for image-to-video animation. "
+      + "The user uploaded a reference frame — describe how that scene should MOVE and evolve: subtle motion, "
+      + "camera drift, environmental animation, subject gestures. Preserve the identity and composition of the frame. "
+      + "Do NOT append duration, aspect ratio, or motion-style tags. "
+      + baseRules
+    );
+  }
+
+  if (tool === "video_edit") {
+    return (
+      "You are an expert at video-to-video editing instructions. "
+      + "Rewrite the user's request as precise edit directions for a short clip (max ~15s): what to change visually "
+      + "(style, color grade, objects, atmosphere, VFX, wardrobe, background) while stating what must be preserved. "
+      + "Be concrete and achievable in one pass. "
+      + baseRules
+    );
+  }
+
+  if (tool === "poster") {
+    return (
+      "You are a world-class graphic designer writing prompts for AI poster generation. "
+      + "Enhance layout intent, typography hierarchy, mood, color story, and visual impact while keeping every "
+      + "user-specified text, brand, and subject. Legible text and print-quality finish. "
+      + (templateCategory ? `Category: ${templateCategory}. ` : "")
+      + baseRules
+    );
+  }
+
+  if (tool === "pro") {
+    return (
+      "You are a professional photo retouching director. "
+      + "Turn the user's extra instructions into precise English retouch notes for an identity-preserving edit. "
+      + "Focus on skin, lighting, color, wardrobe, background cleanup — never change the person's identity. "
+      + (presetLabel ? `Active preset: ${presetLabel}. ` : "")
+      + baseRules
+    );
+  }
+
+  if (tool === "edit" || tool === "studio_edit") {
+    return (
+      "You are an expert at image-edit prompts. "
+      + "Describe ONLY the changes to apply to the uploaded photo. Start with preserving the same person, face, body, and pose. "
+      + "Then specify wardrobe, background, lighting, or object changes clearly. "
+      + baseRules
+    );
+  }
+
+  if (tool === "inpaint") {
+    return (
+      "You are an expert inpainting prompt writer. "
+      + "Describe what should appear ONLY inside the masked region — background replacement, object removal, or texture fill. "
+      + "Keep instructions local to the painted area; preserve the rest of the photo. "
+      + baseRules
+    );
+  }
+
+  if (tool === "clothes") {
+    return (
+      "You are a fashion styling prompt expert. "
+      + "Clarify the outfit change: garment type, fabric, color, fit, and style. "
+      + "The person's face, body, and pose must stay the same. "
+      + (changeType ? `Change type: ${changeType}. ` : "")
+      + baseRules
+    );
+  }
+
+  if (tool === "restore") {
+    return (
+      "You are a photo restoration expert. "
+      + "Turn the user's notes into precise restoration instructions: damage removal, face recovery, color recovery, sharpness. "
+      + "Natural, archival look — no artificial plastic skin. "
+      + baseRules
+    );
+  }
+
+  if (tool === "artistic") {
+    let system =
+      "You are an expert at crafting image generation prompts for Remake Pixel Artistic Studio. "
+      + "The visual style preset is applied separately — sharpen the USER's intent (subject, outfit, action, environment). "
+      + baseRules;
+    if (styleLabel) system += ` Active style name: ${styleLabel}.`;
+    if (styleSuffix) {
+      system += ` Align mood with this style recipe (do not repeat verbatim): ${styleSuffix.slice(0, 400)}.`;
+    }
+    if (imageMode) {
+      system +=
+        " Mode: IMAGE EDIT on a reference photo — output ONLY the list of changes to apply. "
+        + "Start with 'Keep the same person, face, body, and pose.'";
+    } else {
+      system += " Mode: TEXT-TO-IMAGE — describe the full scene to generate.";
+    }
+    return system;
+  }
+
+  let system =
+    "You are a senior creative director crafting world-class AI image prompts. "
+    + "Transform the user's text (any language) into one vivid English prompt with subject, environment, "
+    + "lighting, lens/framing, palette, and quality boosters (photorealistic, 8k, cinematic when appropriate). "
+    + baseRules;
+
+  if (motion) system += ` (Motion style ${motion} is added separately — do not mention it.)`;
+  if (durationSec) system += ` (Duration ${durationSec}s is added separately — do not mention it.)`;
+  if (aspectRatio) system += ` (Aspect ${aspectRatio} is set separately — do not mention it.)`;
+
+  return system;
+}
+
+async function improvePrompt(prompt, lang = "en", context = {}) {
+  const trimmed = String(prompt || "").trim();
+  if (trimmed.length < 3) return trimmed;
+  const tool = String(context.tool || "studio").trim();
+  const system = buildImproveSystemPrompt(context);
+  try {
+    const improved = await chatText({
+      system,
+      user: trimmed,
+      maxTokens: improveMaxTokens(tool),
+      temperature: 0.78,
+      model: improveModelId(),
+    });
+    if (!improved || improved.length < 3) return trimmed;
+    return improved;
+  } catch (err) {
+    if (process.env.NODE_ENV !== "production") {
+      console.warn("[prompt/improve]", err?.message || err);
+    }
+    return trimmed;
+  }
+}
+
+async function maybeImprovePrompt(prompt, enabled, lang, context = {}) {
+  if (!enabled) return String(prompt || "").trim();
+  return improvePrompt(prompt, lang, context);
 }
 
 async function suggestPrompts(theme, lang) {
@@ -153,61 +328,6 @@ async function suggestPrompts(theme, lang) {
     .map((l) => l.replace(/^[-*\d.]+\s*/, "").trim())
     .filter(Boolean)
     .slice(0, 8);
-}
-
-function buildImproveSystemPrompt(context = {}) {
-  const tool = String(context.tool || "").trim();
-  const styleLabel = String(context.style_label || "").trim();
-  const styleSuffix = String(context.style_suffix || "").trim();
-  const imageMode = Boolean(context.image_mode);
-
-  let system =
-    "You are an expert at crafting image generation prompts. "
-    + "Take the user's prompt in any language and transform it into a single concise, "
-    + "vivid English prompt for AI image generation. Include lighting, composition, "
-    + "style cues, and quality descriptors. Keep ALL user-requested subjects, wardrobe "
-    + "(bikini, lingerie, swimwear, etc.), poses, and actions — never remove or censor them. "
-    + "Respond ONLY with the improved English prompt, no quotes, no explanations.";
-
-  if (tool === "artistic") {
-    system +=
-      " Context: Remake Pixel Artistic Studio. The chosen visual style preset is applied separately; "
-      + "your job is to sharpen the USER's intent (subject, outfit, action, environment).";
-    if (styleLabel) system += ` Active style name: ${styleLabel}.`;
-    if (styleSuffix) {
-      system += ` Align mood with this style recipe (do not repeat verbatim): ${styleSuffix.slice(0, 400)}.`;
-    }
-    if (imageMode) {
-      system +=
-        " Mode: IMAGE EDIT on a reference photo — output ONLY the list of changes to apply. "
-        + "Start with 'Keep the same person, face, body, and pose.' Then describe wardrobe, "
-        + "skin treatment, lighting, or background changes. Never ask for a new character.";
-    } else {
-      system += " Mode: TEXT-TO-IMAGE — describe the full scene to generate.";
-    }
-  }
-  return system;
-}
-
-async function improvePrompt(prompt, lang = "en", context = {}) {
-  const trimmed = String(prompt || "").trim();
-  if (trimmed.length < 3) return trimmed;
-  const system = buildImproveSystemPrompt(context);
-  try {
-    const improved = await chatText({
-      system,
-      user: trimmed,
-      maxTokens: 280,
-      temperature: 0.8,
-    });
-    if (!improved || improved.length < 3) return trimmed;
-    return improved;
-  } catch (err) {
-    if (process.env.NODE_ENV !== "production") {
-      console.warn("[prompt/improve]", err?.message || err);
-    }
-    return trimmed;
-  }
 }
 
 async function wizardCompose(answers) {
@@ -269,11 +389,17 @@ async function handlePromptAssistRoute(path, req, res, { verifySessionToken, jso
     }
     const lang = String(body.lang || sessionUser.lang || "en").slice(0, 2);
     const context = {
-      tool: String(body.tool || "").trim(),
+      tool: String(body.tool || "studio").trim(),
       style_id: String(body.style_id || "").trim(),
       style_label: String(body.style_label || "").trim(),
       style_suffix: String(body.style_suffix || "").trim(),
       image_mode: body.image_mode === true || body.image_mode === "true" || body.image_mode === 1,
+      motion: String(body.motion || "").trim(),
+      duration_sec: String(body.duration_sec || "").trim(),
+      aspect_ratio: String(body.aspect_ratio || "").trim(),
+      preset_label: String(body.preset_label || "").trim(),
+      change_type: String(body.change_type || "").trim(),
+      template_category: String(body.template_category || "").trim(),
     };
     const improved = await improvePrompt(raw, lang, context);
     const changed = improved.trim() !== raw.trim();
@@ -353,5 +479,6 @@ module.exports = {
   wizardCompose,
   suggestPrompts,
   improvePrompt,
+  maybeImprovePrompt,
   composeMangaPrompt: () => require("./mangaPrompt.cjs").composeMangaPrompt,
 };

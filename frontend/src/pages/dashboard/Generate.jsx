@@ -21,6 +21,8 @@ import StudioGenerateBar from "../../components/StudioGenerateBar";
 import { readUserSettings } from "../../lib/userSettings";
 import { apiAspectRatio } from "../../lib/apiAspectRatio";
 import { useStudioGenerateGate } from "../../lib/useStudioGenerateGate";
+import PromptEnhanceToggle from "../../components/promptAssist/PromptEnhanceToggle";
+import { appendImproveLang, appendImprovePrompt } from "../../lib/promptEnhance";
 
 const SUBJECT_KEYS = [
   { value: "the man", labelKey: "studio_subj_man" },
@@ -118,6 +120,7 @@ export default function Generate() {
         fd.append("aspect_ratio", apiAspectRatio(aspect, { model: "standard", hasPhoto: true }));
         fd.append("lang", lang || "en");
         if (prompt.trim()) fd.append("extra_prompt", prompt.trim());
+        appendImprovePrompt(fd, improve && prompt.trim().length >= 3);
         ({ data: submitData } = await uploadPost("/generate/easy", fd, { timeout: 120000, headers: { "X-Skip-Auto-Poll": "1" } }));
       } else if (mode === "edit") {
         const fd = new FormData();
@@ -125,6 +128,7 @@ export default function Generate() {
         fd.append("prompt", prompt.trim());
         fd.append("aspect_ratio", apiAspectRatio(aspect, { model: "standard", hasPhoto: true }));
         fd.append("lang", lang || "en");
+        appendImprovePrompt(fd, improve);
         ({ data: submitData } = await uploadPost("/generate/edit", fd, { timeout: 120000, headers: { "X-Skip-Auto-Poll": "1" } }));
       } else {
         ({ data: submitData } = await api.post("/generate/image", {
@@ -193,13 +197,14 @@ export default function Generate() {
               data-testid="prompt-input"
             />
             <div className="flex items-center justify-between mt-3 gap-3 flex-wrap">
-              <label className="flex items-center gap-2.5 cursor-pointer group">
-                <input type="checkbox" checked={improve} onChange={(e) => setImprove(e.target.checked)} className="accent-[#7C3AED] w-3.5 h-3.5 rounded border-[#2E2E30]" data-testid="improve-toggle" />
-                <span className="text-[#8A8A8E] text-[12px] font-['Inter_Tight'] group-hover:text-[#b5b5ba] transition-colors">
-                  {t("studio_improve")} <span className="text-[#5A5A5E]">{t("studio_improve_free")}</span>
-                </span>
-              </label>
-              <span className="text-[#5A5A5E] text-[10px] font-mono tabular-nums">{prompt.length}/800</span>
+              {(mode === "text" || mode === "edit" || mode === "easy") && (
+                <PromptEnhanceToggle
+                  checked={improve}
+                  onChange={setImprove}
+                  testId="improve-toggle"
+                />
+              )}
+              <span className="text-[#5A5A5E] text-[10px] font-mono tabular-nums ml-auto">{prompt.length}/800</span>
             </div>
             <div className="flex flex-wrap gap-2 mt-4">
               <button type="button" onClick={() => navigate("/app/wizard")} className="rp-btn-surface" data-testid="open-wizard">

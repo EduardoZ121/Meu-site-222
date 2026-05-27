@@ -11,10 +11,17 @@ const {
 } = require("./pricingRegions.cjs");
 const { handleAdminRoute } = require("./lib/adminHandlers.cjs");
 const {
+  checkEmailRegistration,
+  registerEmailUser,
+  loginEmailUser,
+} = require("./lib/emailAuth.cjs");
+const {
   ADMIN_EMAILS,
   upsertGoogleUser,
   touchUser,
   getUserById,
+  repairUserAccountIfNeeded,
+  isAdminEmail,
   addCredits,
   recordPurchase,
   storageEnabled,
@@ -57,10 +64,6 @@ const { improvePrompt } = require("./lib/promptAssist.cjs");
 
 function getPadraoStyle(styleId) {
   return PADRAO_STYLES_LIST.find((s) => s.id === String(styleId || "").trim()) || null;
-}
-
-function isAdminEmail(email) {
-  return ADMIN_EMAILS.has(String(email || "").trim().toLowerCase());
 }
 
 function sessionSecret() {
@@ -111,6 +114,26 @@ async function verifyGoogleCredential(credential) {
 }
 
 async function routeAuth(path, fields, req) {
+  if (path === "auth/register") {
+    const region = regionFromRequest(req, fields);
+    const user = await registerEmailUser({
+      email: text(fields, "email", ""),
+      password: text(fields, "password", ""),
+      name: text(fields, "name", ""),
+      referral_code: text(fields, "referral_code", ""),
+      pricing_region: region,
+    }, req);
+    return { token: signSession(user), user };
+  }
+
+  if (path === "auth/login") {
+    const user = await loginEmailUser({
+      email: text(fields, "email", ""),
+      password: text(fields, "password", ""),
+    }, req);
+    return { token: signSession(user), user };
+  }
+
   if (path === "auth/google") {
     const credential = fields.credential || fields.id_token;
     if (!credential) {
@@ -126,7 +149,7 @@ async function routeAuth(path, fields, req) {
     }
     const region = regionFromRequest(req, fields);
     const dbUser = await upsertGoogleUser(g, req, { pricing_region: region });
-    const unlimited = isAdminEmail(g.email) || Boolean(dbUser?.is_unlimited);
+    const unlimited = isAdminEmail(g.email);
     const user = dbUser || {
       id: `google_${g.sub}`,
       email: g.email,
@@ -149,8 +172,7 @@ async function routeAuth(path, fields, req) {
     return { token: signSession(user), user };
   }
 
-  // Email/password: sem base de dados no servidorless — o cliente usa contas locais (localStorage).
-  const err = new Error("Conta por email neste servidor não está disponível; usa registo/login local no navegador.");
+  const err = new Error("Pedido de autenticação inválido.");
   err.status = 404;
   throw err;
 }
@@ -842,7 +864,7 @@ async function submitBillableGeneration(req, fields, {
       err.status = 403;
       throw err;
     }
-    if (dbUser?.is_unlimited) {
+    if (isAdminEmail(dbUser?.email)) {
       const prediction = await createPrediction(modelId, input);
       const pending = await createPending({
         id: newPendingId(),
@@ -1949,6 +1971,17 @@ async function handlePath(path, req, res) {
       });
     }
 
+    if (req.method === "GET" && path === "auth/check-email") {
+      const url = new URL(req.url, `https://${req.headers.host || "localhost"}`);
+      const email = url.searchParams.get("email") || "";
+      try {
+        const out = await checkEmailRegistration(email);
+        return json(res, 200, out);
+      } catch (err) {
+        return json(res, err.status || 500, { detail: err.message || "Erro." });
+      }
+    }
+
     if (req.method === "GET" && path === "auth/me") {
       const auth = req.headers.authorization || "";
       const m = auth.match(/^Bearer\s+(.+)$/i);
@@ -1960,10 +1993,9 @@ async function handlePath(path, req, res) {
       const sessionUser = verifySessionToken(token);
       if (!sessionUser) return json(res, 401, { detail: "Sessão inválida ou expirada." });
       await touchUser(sessionUser.id, req, { action: "me" });
+      await repairUserAccountIfNeeded(sessionUser.id);
       const dbUser = await getUserById(sessionUser.id);
-      const user = dbUser
-        ? { ...sessionUser, ...dbUser, is_unlimited: dbUser.is_unlimited || isAdminEmail(dbUser.email) }
-        : sessionUser;
+      const user = dbUser || sessionUser;
       return json(res, 200, user);
     }
 

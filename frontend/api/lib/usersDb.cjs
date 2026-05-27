@@ -11,8 +11,40 @@ const ADMIN_EMAILS = new Set(
     .filter(Boolean),
 );
 
+const STARTER_CREDITS = 50;
+const UNLIMITED_CREDITS = 999999999;
+const ABUSE_CREDITS_THRESHOLD = 500_000;
+
 function nowIso() {
   return new Date().toISOString();
+}
+
+function isAdminEmail(email) {
+  return ADMIN_EMAILS.has(String(email || "").trim().toLowerCase());
+}
+
+function abuseCredits(credits) {
+  return Number(credits) >= ABUSE_CREDITS_THRESHOLD;
+}
+
+/** Só emails admin têm créditos ilimitados; restantes começam/ ficam com saldo finito. */
+function resolveAccountAccess(doc) {
+  const email = String(doc?.email || "").trim().toLowerCase();
+  if (isAdminEmail(email)) {
+    return { role: "admin", is_unlimited: true, credits: UNLIMITED_CREDITS };
+  }
+  let credits = Number(doc?.credits);
+  if (!Number.isFinite(credits) || credits < 0) credits = STARTER_CREDITS;
+  if (doc?.is_unlimited || abuseCredits(credits)) credits = STARTER_CREDITS;
+  return { role: "user", is_unlimited: false, credits };
+}
+
+function accountNeedsRepair(doc) {
+  if (!doc) return false;
+  const access = resolveAccountAccess(doc);
+  return doc.role !== access.role
+    || Boolean(doc.is_unlimited) !== access.is_unlimited
+    || Number(doc.credits) !== access.credits;
 }
 
 function genReferralCode() {
@@ -22,16 +54,17 @@ function genReferralCode() {
 function publicUser(doc) {
   if (!doc) return null;
   const email = String(doc.email || "").trim().toLowerCase();
-  const isAdmin = doc.role === "admin" || ADMIN_EMAILS.has(email);
+  const access = resolveAccountAccess(doc);
+  const isAdmin = access.is_unlimited;
   return {
     id: doc.id,
     email: doc.email,
     name: doc.name,
     avatar_url: doc.avatar_url || null,
-    role: doc.role || "user",
+    role: access.role,
     lang: doc.lang || "en",
-    credits: doc.credits ?? 0,
-    is_unlimited: Boolean(doc.is_unlimited),
+    credits: access.credits,
+    is_unlimited: access.is_unlimited,
     referral_code: doc.referral_code || "",
     email_verified: Boolean(doc.email_verified),
     created_at: doc.created_at,
@@ -68,7 +101,7 @@ async function upsertGoogleUser(googleProfile, req, opts = {}) {
   const meta = requestMeta(req);
   const email = String(googleProfile.email || "").trim().toLowerCase();
   const userId = `google_${googleProfile.sub}`;
-  const isAdmin = ADMIN_EMAILS.has(email);
+  const isAdmin = isAdminEmail(email);
   const existing = await db.collection("users").findOne({ id: userId });
 
   const base = {
@@ -89,8 +122,8 @@ async function upsertGoogleUser(googleProfile, req, opts = {}) {
   if (!existing) {
     const preset = await findAccountPreset(db, email);
     const startCredits = isAdmin
-      ? 999999999
-      : (Number.isFinite(preset?.credits) ? preset.credits : 50);
+      ? UNLIMITED_CREDITS
+      : (Number.isFinite(preset?.credits) ? preset.credits : STARTER_CREDITS);
     const startLang = preset?.lang || "en";
     const doc = {
       ...base,
@@ -121,19 +154,17 @@ async function upsertGoogleUser(googleProfile, req, opts = {}) {
     return publicUser(doc);
   }
 
-  await db.collection("users").updateOne(
-    { id: userId },
-    {
-      $set: {
-        ...base,
-        name: base.name,
-        avatar_url: base.avatar_url,
-        role: isAdmin ? "admin" : existing.role,
-        is_unlimited: isAdmin || existing.is_unlimited,
-        ...(isAdmin ? { nsfw_allowed: true } : {}),
-      },
-    },
-  );
+  const access = resolveAccountAccess(existing);
+  const $set = {
+    ...base,
+    name: base.name,
+    avatar_url: base.avatar_url,
+    role: access.role,
+    is_unlimited: access.is_unlimited,
+    credits: access.credits,
+    ...(isAdmin ? { nsfw_allowed: true } : {}),
+  };
+  await db.collection("users").updateOne({ id: userId }, { $set });
   await logIpEvent(db, userId, meta, "login");
   const updated = await db.collection("users").findOne({ id: userId });
   return publicUser(updated);
@@ -150,6 +181,20 @@ async function touchUser(userId, req, extra = {}) {
   }
   await db.collection("users").updateOne({ id: userId }, { $set });
   if (meta.ip) await logIpEvent(db, userId, meta, extra.action || "activity");
+}
+
+async function repairUserAccountIfNeeded(userId) {
+  if (!storageEnabled() || !userId) return null;
+  const db = await getDb();
+  const doc = await db.collection("users").findOne({ id: userId }, { projection: { _id: 0, password_hash: 0 } });
+  if (!doc || !accountNeedsRepair(doc)) return publicUser(doc);
+  const access = resolveAccountAccess(doc);
+  await db.collection("users").updateOne(
+    { id: userId },
+    { $set: { role: access.role, is_unlimited: access.is_unlimited, credits: access.credits } },
+  );
+  const updated = await db.collection("users").findOne({ id: userId }, { projection: { _id: 0, password_hash: 0 } });
+  return publicUser(updated);
 }
 
 async function getUserById(userId) {
@@ -267,10 +312,16 @@ async function recordCreation(userId, creation) {
 
 module.exports = {
   ADMIN_EMAILS,
+  STARTER_CREDITS,
+  UNLIMITED_CREDITS,
+  isAdminEmail,
+  resolveAccountAccess,
+  genReferralCode,
   storageEnabled,
   publicUser,
   upsertGoogleUser,
   touchUser,
+  repairUserAccountIfNeeded,
   getUserById,
   getUserByEmail,
   setUserAccountByEmail,

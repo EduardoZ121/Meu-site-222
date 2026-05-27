@@ -3,7 +3,7 @@ import { useI18n } from "./i18n";
 
 export function hasStudioCredits(user, cost = 0) {
   if (!cost) return true;
-  if (user?.is_unlimited || user?.role === "admin") return true;
+  if (user?.is_unlimited) return true;
   return (user?.credits ?? 0) >= cost;
 }
 

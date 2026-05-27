@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Loader2, Sparkles, ImagePlus, Wand2, Lightbulb } from "lucide-react";
 import { useSearchParams, useNavigate } from "react-router-dom";
-import { api, pollPrediction, uploadPost } from "../../lib/api";
+import { api, pollPrediction, trackPendingPrediction, uploadPost } from "../../lib/api";
 import { normalizeCreation, primaryResultUrl } from "../../lib/creationUrls";
 import { useAuth } from "../../lib/auth";
 import { usePricing } from "../../lib/PricingContext";
@@ -137,6 +137,10 @@ export default function Generate() {
         }, { timeout: 60000, headers: { "X-Skip-Auto-Poll": "1" } }));
       }
 
+      trackPendingPrediction(submitData.prediction_id, {
+        credits_spent: submitData.credits_spent || cost,
+        type: "image",
+      });
       const data = await pollPrediction(submitData.prediction_id, {
         onTick: (sec) => setProgress(sec),
         credits_spent: submitData.credits_spent || cost,

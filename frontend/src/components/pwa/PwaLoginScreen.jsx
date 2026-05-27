@@ -7,6 +7,7 @@ import { useI18n } from "../../lib/i18n";
 import { toast } from "sonner";
 import useTitle from "../../lib/useTitle";
 import GoogleAuthButton from "../GoogleAuthButton";
+import PasswordField from "../PasswordField";
 import PublicLanguageBar from "../PublicLanguageBar";
 
 export default function PwaLoginScreen() {
@@ -110,15 +111,12 @@ export default function PwaLoginScreen() {
                 data-testid="pwa-login-email"
               />
               <label className="pwa-login__label">{t("login_password")}</label>
-              <input
+              <PasswordField
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                type="password"
-                required
-                minLength={6}
                 autoComplete="current-password"
                 className="field-input pwa-login__input"
-                data-testid="pwa-login-password"
+                testId="pwa-login-password"
               />
               <button
                 type="submit"

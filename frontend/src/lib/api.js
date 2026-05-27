@@ -25,6 +25,11 @@ function isLocalToken(token) {
   return token?.startsWith("local:");
 }
 
+const RP_PREDICTION_PREFIX = "rp_prediction_";
+let backgroundWatcherStarted = false;
+let backgroundWatcherTimer = null;
+const notifiedPredictions = new Set();
+
 export function formatApiError(err, fallback = "Falhou.", opts) {
   return formatHttpError(err, fallback, opts);
 }
@@ -307,6 +312,130 @@ function notifyCreationSucceeded(creation) {
   notifyGenerationComplete(creation);
 }
 
+function notifyPredictionFailure(error, detail = {}) {
+  if (typeof window === "undefined") return;
+  window.dispatchEvent(new CustomEvent("rp:prediction-failed", {
+    detail: {
+      error: String(error || "Geração falhou."),
+      ...detail,
+    },
+  }));
+}
+
+export function trackPendingPrediction(predictionId, meta = {}) {
+  if (typeof window === "undefined" || !predictionId) return;
+  try {
+    localStorage.setItem(`${RP_PREDICTION_PREFIX}${predictionId}`, JSON.stringify({
+      credits_spent: Number(meta.credits_spent || 0) || 0,
+      type: meta.type || "image",
+      started_at: Date.now(),
+    }));
+  } catch {
+    /* ignore */
+  }
+}
+
+function removeTrackedPrediction(predictionId) {
+  if (typeof window === "undefined" || !predictionId) return;
+  try { localStorage.removeItem(`${RP_PREDICTION_PREFIX}${predictionId}`); } catch { /* ignore */ }
+}
+
+function readTrackedPredictions() {
+  if (typeof window === "undefined") return [];
+  try {
+    return Object.keys(localStorage)
+      .filter((k) => k.startsWith(RP_PREDICTION_PREFIX))
+      .map((k) => {
+        const predictionId = k.slice(RP_PREDICTION_PREFIX.length);
+        let meta = {};
+        try { meta = JSON.parse(localStorage.getItem(k) || "{}"); } catch { meta = {}; }
+        return { predictionId, meta };
+      })
+      .filter((x) => x.predictionId);
+  } catch {
+    return [];
+  }
+}
+
+async function pollTrackedPredictionOnce(predictionId, meta = {}) {
+  let res;
+  try {
+    res = await api.get(`/predictions/${predictionId}`);
+  } catch (e) {
+    const status = e?.response?.status;
+    if (status && status >= 400 && status < 500 && status !== 429) {
+      removeTrackedPrediction(predictionId);
+      notifyPredictionFailure(e?.response?.data?.detail || e?.message || "Geração falhou.", {
+        prediction_id: predictionId,
+        source: "background",
+      });
+    }
+    return;
+  }
+  const data = res?.data || {};
+  if (data.status === "succeeded") {
+    if (data.creation && !notifiedPredictions.has(predictionId)) {
+      if (meta?.credits_spent && !data.creation.credits_spent) data.creation.credits_spent = meta.credits_spent;
+      if (meta?.type && !data.creation.type) data.creation.type = meta.type;
+      const creation = normalizeCreation(data.creation);
+      if (creation?.result_urls?.length) {
+        notifiedPredictions.add(predictionId);
+        notifyCreationSucceeded({
+          ...creation,
+          ...(data.new_balance != null ? { new_balance: data.new_balance } : {}),
+        });
+        window.dispatchEvent(new CustomEvent("rp:prediction-finished", {
+          detail: { status: "succeeded", prediction_id: predictionId, source: "background" },
+        }));
+      }
+    }
+    if (data.new_balance != null && typeof window !== "undefined") {
+      window.dispatchEvent(new CustomEvent("rp:credits-sync", { detail: { credits: data.new_balance } }));
+    }
+    removeTrackedPrediction(predictionId);
+    return;
+  }
+  if (data.status === "failed") {
+    if (data.refunded) {
+      notifyCreditsUpdate({
+        balance: data.new_balance,
+        refunded: true,
+        spent: meta?.credits_spent,
+      });
+    }
+    notifyPredictionFailure(data.error || "Geração falhou.", {
+      prediction_id: predictionId,
+      source: "background",
+    });
+    window.dispatchEvent(new CustomEvent("rp:prediction-finished", {
+      detail: {
+        status: "failed",
+        prediction_id: predictionId,
+        source: "background",
+        error: data.error || "Geração falhou.",
+      },
+    }));
+    removeTrackedPrediction(predictionId);
+  }
+}
+
+export function startPendingPredictionsWatcher() {
+  if (typeof window === "undefined" || backgroundWatcherStarted) return;
+  backgroundWatcherStarted = true;
+  const tick = async () => {
+    const pending = readTrackedPredictions();
+    for (const item of pending) {
+      // eslint-disable-next-line no-await-in-loop
+      await pollTrackedPredictionOnce(item.predictionId, item.meta);
+    }
+  };
+  tick();
+  backgroundWatcherTimer = window.setInterval(tick, 5000);
+  window.addEventListener("beforeunload", () => {
+    if (backgroundWatcherTimer) window.clearInterval(backgroundWatcherTimer);
+  }, { once: true });
+}
+
 /**
  * Poll a long-running prediction until it completes.
  *
@@ -323,6 +452,10 @@ function notifyCreationSucceeded(creation) {
  * @throws Error on failure or timeout. Backend has already refunded credits.
  */
 export async function pollPrediction(predictionId, opts = {}) {
+  trackPendingPrediction(predictionId, {
+    credits_spent: opts.credits_spent,
+    type: opts.type,
+  });
   const intervalMs = opts.intervalMs ?? 2500;
   const timeoutMs  = opts.timeoutMs  ?? 240000;
   const onTick     = opts.onTick;
@@ -348,7 +481,7 @@ export async function pollPrediction(predictionId, opts = {}) {
           data.creation.credits_spent = spent;
           data.creation.type = data.creation.type || meta.type || opts.type;
         }
-        localStorage.removeItem(`rp_prediction_${predictionId}`);
+        removeTrackedPrediction(predictionId);
       } catch { /* ignore */ }
       if (data.new_balance != null && typeof window !== "undefined") {
         window.dispatchEvent(new CustomEvent("rp:credits-sync", { detail: { credits: data.new_balance } }));
@@ -369,6 +502,9 @@ export async function pollPrediction(predictionId, opts = {}) {
         throw err;
       }
       notifyCreationSucceeded(data.creation);
+      window.dispatchEvent(new CustomEvent("rp:prediction-finished", {
+        detail: { status: "succeeded", prediction_id: predictionId, source: "foreground" },
+      }));
       return data;
     }
     if (data.status === "failed") {
@@ -387,6 +523,15 @@ export async function pollPrediction(predictionId, opts = {}) {
       const err = new Error(data.error || "Geração falhou.");
       err.new_balance = data.new_balance;
       err.refunded = data.refunded;
+      removeTrackedPrediction(predictionId);
+      window.dispatchEvent(new CustomEvent("rp:prediction-finished", {
+        detail: {
+          status: "failed",
+          prediction_id: predictionId,
+          source: "foreground",
+          error: err.message,
+        },
+      }));
       throw err;
     }
     if (onTick) onTick(data.elapsed_seconds || Math.floor((Date.now() - start) / 1000));

@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useState } from "react";
-import { api } from "./api";
-import { ADMIN_EMAILS, isAdminUser as checkAdminUser } from "./isAdmin";
+import { api, startPendingPredictionsWatcher } from "./api";
+import { ADMIN_EMAILS } from "./isAdmin";
 
 const AuthCtx = createContext(null);
 const LOCAL_USERS_KEY = "rp_local_users";
@@ -41,7 +41,7 @@ function decodeJwtPayload(token) {
 }
 
 function publicLocalUser(user) {
-  const unlimited = isUnlimitedEmail(user.email) || checkAdminUser({ email: user.email, role: user.role });
+  const unlimited = isUnlimitedEmail(user.email);
   let pricing_region = user.pricing_region;
   try {
     if (!pricing_region) {
@@ -93,6 +93,10 @@ export function AuthProvider({ children }) {
     try { return JSON.parse(localStorage.getItem("rp_user") || "null"); } catch { return null; }
   });
   const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    startPendingPredictionsWatcher();
+  }, []);
 
   useEffect(() => {
     const token = localStorage.getItem("rp_token");
@@ -196,8 +200,8 @@ export function AuthProvider({ children }) {
       if (!isBackendUnavailable(err)) throw err;
       const users = readLocalUsers();
       if (users[normalizedPayload.email]) {
-        const fallbackErr = new Error("Este email já existe neste navegador.");
-        fallbackErr.response = { data: { detail: fallbackErr.message } };
+        const fallbackErr = new Error("Este email já está registado. Entra em vez de criar outra conta.");
+        fallbackErr.response = { status: 409, data: { detail: fallbackErr.message, code: "EMAIL_EXISTS" } };
         throw fallbackErr;
       }
       const local = {

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   Heart, Trash2, Download, X, Loader2, Eye, RefreshCw,
 } from "lucide-react";
@@ -60,8 +60,11 @@ export default function Gallery({ favoritesOnly = false }) {
   const [loading, setLoading] = useState(true);
   const [busyId, setBusyId] = useState(null);
   const [viewItem, setViewItem] = useState(null);
+  const loadingRef = useRef(false);
 
   const load = useCallback(() => {
+    if (loadingRef.current) return Promise.resolve();
+    loadingRef.current = true;
     setLoading(true);
     return api
       .get(`/generations/history?limit=60${favoritesOnly ? "&only_favorites=true" : ""}`)
@@ -70,11 +73,20 @@ export default function Gallery({ favoritesOnly = false }) {
         toast.error(formatApiError(err, t("gal_load_fail")));
         setItems([]);
       })
-      .finally(() => setLoading(false));
+      .finally(() => {
+        loadingRef.current = false;
+        setLoading(false);
+      });
   }, [favoritesOnly, t]);
 
   useEffect(() => {
     load();
+  }, [load]);
+
+  useEffect(() => {
+    const onCreation = () => load();
+    window.addEventListener("rp:creation-succeeded", onCreation);
+    return () => window.removeEventListener("rp:creation-succeeded", onCreation);
   }, [load]);
 
   const toggleFav = async (id) => {

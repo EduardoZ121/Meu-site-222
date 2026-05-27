@@ -5,7 +5,13 @@ import {
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
-import { api, formatApiError, pollPrediction, uploadPost } from "../../lib/api";
+import {
+  api,
+  formatApiError,
+  pollPrediction,
+  trackPendingPrediction,
+  uploadPost,
+} from "../../lib/api";
 import { normalizeCreation, primaryResultUrl } from "../../lib/creationUrls";
 import { useAuth } from "../../lib/auth";
 import { usePricing } from "../../lib/PricingContext";
@@ -216,6 +222,10 @@ export default function Posters() {
       }
 
       setGenPhase("work");
+      trackPendingPrediction(submitData.prediction_id, {
+        credits_spent: submitData.credits_spent ?? totalCost,
+        type: "poster",
+      });
       const polled = await pollPrediction(submitData.prediction_id, {
         onTick: (sec) => setGenProgress(sec),
         timeoutMs: 300_000,

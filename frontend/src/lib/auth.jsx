@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useState } from "react";
-import { api } from "./api";
+import { api, startPendingPredictionsWatcher } from "./api";
 import { ADMIN_EMAILS } from "./isAdmin";
 
 const AuthCtx = createContext(null);
@@ -93,6 +93,10 @@ export function AuthProvider({ children }) {
     try { return JSON.parse(localStorage.getItem("rp_user") || "null"); } catch { return null; }
   });
   const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    startPendingPredictionsWatcher();
+  }, []);
 
   useEffect(() => {
     const token = localStorage.getItem("rp_token");

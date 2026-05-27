@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { Film, Loader2, Sparkles, Wand2 } from "lucide-react";
-import { formatApiError, uploadPost } from "../../lib/api";
+import { formatApiError, trackPendingPrediction, uploadPost } from "../../lib/api";
 import { normalizeCreation, primaryResultUrl } from "../../lib/creationUrls";
 import { useAuth } from "../../lib/auth";
 import { usePricing } from "../../lib/PricingContext";
@@ -66,6 +66,12 @@ export default function VideoGenerate() {
       fd.append("aspect_ratio", apiAspectRatio(aspect, { model: "video", hasPhoto: !!photo }));
       if (photo) fd.append("photo", photo);
       const { data } = await uploadPost("/generate/video", fd, { timeout: 300000 });
+      if (data?.prediction_id && !primaryResultUrl(data?.creation)) {
+        trackPendingPrediction(data.prediction_id, {
+          credits_spent: data.credits_spent || cost,
+          type: "video",
+        });
+      }
       const creation = normalizeCreation(data?.creation);
       if (!primaryResultUrl(creation)) throw new Error(t("vid_no_result"));
       setResult(creation);

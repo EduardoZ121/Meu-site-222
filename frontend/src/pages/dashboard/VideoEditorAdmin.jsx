@@ -3,6 +3,7 @@ import { Clapperboard, Sparkles } from "lucide-react";
 import {
   formatApiError,
   pollPrediction,
+  trackPendingPrediction,
   uploadPost,
 } from "../../lib/api";
 import { normalizeCreation, primaryResultUrl } from "../../lib/creationUrls";
@@ -100,6 +101,10 @@ export default function VideoEditorAdmin() {
         headers: { "X-Skip-Auto-Poll": "1" },
       }));
 
+      trackPendingPrediction(submitData.prediction_id, {
+        credits_spent: submitData.credits_spent || cost,
+        type: "video",
+      });
       setUploadPhase("processing");
       const data = await pollPrediction(submitData.prediction_id, {
         timeoutMs: 600_000,

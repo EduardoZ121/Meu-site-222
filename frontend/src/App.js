@@ -2,6 +2,7 @@ import "./App.css";
 import { useEffect } from "react";
 import { BrowserRouter, Routes, Route, Navigate, useLocation, useNavigate } from "react-router-dom";
 import { Toaster } from "sonner";
+import { toast } from "sonner";
 import { AuthProvider, useAuth } from "./lib/auth";
 import { PricingProvider } from "./lib/PricingContext";
 import { isPwaStandalone } from "./lib/pwaMode";
@@ -60,6 +61,35 @@ function PwaStartupRedirect() {
   return null;
 }
 
+function BackgroundGenerationRedirect() {
+  const navigate = useNavigate();
+  const location = useLocation();
+
+  useEffect(() => {
+    const onFinished = (event) => {
+      const detail = event?.detail || {};
+      if (detail.source !== "background") return;
+      if (detail.status !== "succeeded") return;
+      if (location.pathname !== "/app/gallery") {
+        navigate("/app/gallery");
+      }
+    };
+    const onFailed = (event) => {
+      const detail = event?.detail || {};
+      if (detail.source !== "background") return;
+      toast.error(detail.error || "A geração falhou.");
+    };
+    window.addEventListener("rp:prediction-finished", onFinished);
+    window.addEventListener("rp:prediction-failed", onFailed);
+    return () => {
+      window.removeEventListener("rp:prediction-finished", onFinished);
+      window.removeEventListener("rp:prediction-failed", onFailed);
+    };
+  }, [location.pathname, navigate]);
+
+  return null;
+}
+
 function RequireAuth({ children, adminOnly = false }) {
   const { user, loading } = useAuth();
   const loc = useLocation();
@@ -78,6 +108,7 @@ function App() {
             <Toaster position="top-center" theme="dark" toastOptions={{ style: { background: "#121217", color: "#F4F1EA", border: "1px solid rgba(244,241,234,0.08)" } }} />
             <BuildVersionGuard />
             <PwaStartupRedirect />
+            <BackgroundGenerationRedirect />
             <Routes>
               <Route path="/" element={<Landing />} />
               <Route path="/discover" element={<Discover />} />

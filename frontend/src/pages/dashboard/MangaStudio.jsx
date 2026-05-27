@@ -3,7 +3,13 @@ import {
   BookOpen, FolderOpen, Loader2, Plus, AlertCircle,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { api, formatApiError, pollPrediction, uploadPost } from "../../lib/api";
+import {
+  api,
+  formatApiError,
+  pollPrediction,
+  trackPendingPrediction,
+  uploadPost,
+} from "../../lib/api";
 import { useAuth } from "../../lib/auth";
 import { usePricing } from "../../lib/PricingContext";
 import { useI18n } from "../../lib/i18n";
@@ -213,6 +219,10 @@ export default function MangaStudio() {
     }
 
     setStatusLine(t("manga_status_generating"));
+    trackPendingPrediction(submitData.prediction_id, {
+      credits_spent: submitData.credits_spent ?? cost,
+      type: "manga",
+    });
     const polled = await pollPrediction(submitData.prediction_id, {
       credits_spent: submitData.credits_spent ?? cost,
       type: "manga",
@@ -355,6 +365,10 @@ export default function MangaStudio() {
         res = { url: direct, spent: submitData?.credits_spent ?? cost };
       } else {
         setStatusLine(t("manga_status_generating"));
+        trackPendingPrediction(submitData.prediction_id, {
+          credits_spent: submitData.credits_spent ?? cost,
+          type: "manga",
+        });
         const polled = await pollPrediction(submitData.prediction_id, {
           credits_spent: submitData.credits_spent ?? cost,
           type: "manga",

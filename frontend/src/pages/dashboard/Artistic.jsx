@@ -19,6 +19,7 @@ import ArtisticStudioTabs from "../../components/artistic/ArtisticStudioTabs";
 import ArtisticCategoryRail from "../../components/artistic/ArtisticCategoryRail";
 import ArtisticStudioModule from "../../components/artistic/ArtisticStudioModule";
 import ArtisticPromptStudio from "../../components/artistic/ArtisticPromptStudio";
+import ArtisticResultStudio from "../../components/artistic/ArtisticResultStudio";
 import ArtisticFlowSteps from "../../components/artistic/ArtisticFlowSteps";
 import { pushArtisticPromptHistory } from "../../lib/artisticPromptHistory";
 import { localizeArtisticCatalog } from "../../lib/artisticStudioLocales";

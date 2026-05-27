@@ -32,20 +32,20 @@ const en = {
   bill_pkg_starter_blurb: "Limited-time offer for new creators: more credits to start without worry.",
   bill_pkg_starter_b1: "150 credits",
   bill_pkg_starter_b2: "Image generation",
-  bill_pkg_starter_b3: "Artistic styles",
 
   bill_pkg_creator_tag: "For active creators",
-  bill_pkg_creator_blurb: "The balanced pack for weekly content creators.",
+  bill_pkg_creator_blurb: "Includes Studio Plus for 30 days — premium tools on the site today.",
   bill_pkg_creator_b1: "250 credits",
-  bill_pkg_creator_b2: "Studio Plus 30 days (1080p/720p video, 8–10s, prompt enhance, HD images)",
-  bill_pkg_creator_b3: "Posters + IG Carousel + Pro retouch",
+  bill_pkg_creator_b2: "AI prompt enhance (Generation Studio & video)",
+  bill_pkg_creator_b3: "HD image quality in Generation Studio",
+  bill_pkg_creator_b4: "No Remake Pixel watermark on Posters & Artistic",
 
   bill_pkg_studio_tag: "Pro workflows",
-  bill_pkg_studio_blurb: "For studios, freelancers, and frequent client work.",
+  bill_pkg_studio_blurb: "For studios and power users who want every update first.",
   bill_pkg_studio_b1: "Everything in Creator",
   bill_pkg_studio_b2: "More credits per euro",
-  bill_pkg_studio_b3: "AI video",
-  bill_pkg_studio_b4: "No watermark",
+  bill_pkg_studio_b3: "Early access to new styles & tools",
+  bill_pkg_studio_b4: "Ongoing style & tool updates while subscribed",
 
   bill_faq1_q: "What are credits?",
   bill_faq1_a:
@@ -58,6 +58,9 @@ const en = {
   bill_faq4_q: "Which payment methods do you accept?",
   bill_faq4_a:
     "Secure payments via Stripe: credit/debit cards (Visa, Mastercard, Amex), Apple Pay, and Google Pay.",
+  bill_faq5_q: "Watermark on Posters & Artistic?",
+  bill_faq5_a:
+    "Free and Starter users get a small Remake Pixel logo on Posters and Artistic outputs. Creator unlocks 30 days without that watermark; Studio keeps early access to new styles and tools while your plan is active.",
 };
 
 const pt = {
@@ -92,20 +95,20 @@ const pt = {
   bill_pkg_starter_blurb: "Oferta temporária para novos criadores: mais créditos para começares sem medo.",
   bill_pkg_starter_b1: "150 créditos",
   bill_pkg_starter_b2: "Geração de imagem",
-  bill_pkg_starter_b3: "Estilos artísticos",
 
   bill_pkg_creator_tag: "Para criadores activos",
-  bill_pkg_creator_blurb: "O pacote equilibrado para quem cria conteúdo todas as semanas.",
+  bill_pkg_creator_blurb: "Inclui Studio Plus 30 dias — benefícios premium actuais do site.",
   bill_pkg_creator_b1: "250 créditos",
-  bill_pkg_creator_b2: "Studio Plus 30 dias (vídeo 1080p/720p, 8–10s, melhorar prompt, imagens HD)",
-  bill_pkg_creator_b3: "Pôsteres + Carrossel IG + Retoque Pro",
+  bill_pkg_creator_b2: "Melhorar prompt com IA (Estúdio e vídeo)",
+  bill_pkg_creator_b3: "Qualidade HD no Estúdio de geração",
+  bill_pkg_creator_b4: "Sem marca de água em Pôsteres e Artístico",
 
   bill_pkg_studio_tag: "Workflows pro",
-  bill_pkg_studio_blurb: "Para estúdios, freelancers e clientes com uso frequente.",
+  bill_pkg_studio_blurb: "Para estúdios e utilizadores intensivos que querem novidades em primeira mão.",
   bill_pkg_studio_b1: "Tudo do Creator",
   bill_pkg_studio_b2: "Mais créditos por euro",
-  bill_pkg_studio_b3: "Vídeo IA",
-  bill_pkg_studio_b4: "Sem marca de água",
+  bill_pkg_studio_b3: "Acesso antecipado a novos estilos e ferramentas",
+  bill_pkg_studio_b4: "Actualizações de estilos e ferramentas enquanto subscrito",
 
   bill_faq1_q: "O que são créditos?",
   bill_faq1_a:
@@ -118,25 +121,38 @@ const pt = {
   bill_faq4_q: "Que métodos de pagamento aceitam?",
   bill_faq4_a:
     "Pagamentos seguros via Stripe: cartão de crédito/débito (Visa, Mastercard, Amex), Apple Pay e Google Pay.",
+  bill_faq5_q: "Marca de água em Pôsteres e Artístico?",
+  bill_faq5_a:
+    "Sem pacote Creator, as saídas de Pôsteres e Artístico incluem o logótipo Remake Pixel. O Creator remove a marca durante 30 dias; o Studio mantém acesso antecipado a novos estilos e ferramentas enquanto o plano estiver activo.",
 };
 
-export const BILLING_FAQ_KEYS = ["bill_faq1", "bill_faq2", "bill_faq3", "bill_faq4"];
+export const BILLING_FAQ_KEYS = ["bill_faq1", "bill_faq2", "bill_faq3", "bill_faq4", "bill_faq5"];
 
 export const BILLING_PKG_KEYS = {
   starter: {
     tag: "bill_pkg_starter_tag",
     blurb: "bill_pkg_starter_blurb",
-    bullets: ["bill_pkg_starter_b1", "bill_pkg_starter_b2", "bill_pkg_starter_b3"],
+    bullets: ["bill_pkg_starter_b1", "bill_pkg_starter_b2"],
   },
   creator: {
     tag: "bill_pkg_creator_tag",
     blurb: "bill_pkg_creator_blurb",
-    bullets: ["bill_pkg_creator_b1", "bill_pkg_creator_b2", "bill_pkg_creator_b3"],
+    bullets: [
+      "bill_pkg_creator_b1",
+      "bill_pkg_creator_b2",
+      "bill_pkg_creator_b3",
+      "bill_pkg_creator_b4",
+    ],
   },
   studio: {
     tag: "bill_pkg_studio_tag",
     blurb: "bill_pkg_studio_blurb",
-    bullets: ["bill_pkg_studio_b1", "bill_pkg_studio_b2", "bill_pkg_studio_b3", "bill_pkg_studio_b4"],
+    bullets: [
+      "bill_pkg_studio_b1",
+      "bill_pkg_studio_b2",
+      "bill_pkg_studio_b3",
+      "bill_pkg_studio_b4",
+    ],
   },
 };
 

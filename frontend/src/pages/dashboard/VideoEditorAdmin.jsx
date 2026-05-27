@@ -20,7 +20,7 @@ import StudioGenerateBar from "../../components/StudioGenerateBar";
 import { useStudioGenerateGate } from "../../lib/useStudioGenerateGate";
 
 const EDIT_IDEAS = ["vid_edit_idea_1", "vid_edit_idea_2", "vid_edit_idea_3"];
-const DURATIONS = [4, 6, 8, 10];
+const EDIT_FIXED_DURATION = 15;
 const ASPECTS = [
   { v: "auto", labelKey: "vid_edit_aspect_auto" },
   { v: "16:9", label: "16:9" },
@@ -48,7 +48,6 @@ export default function VideoEditorAdmin() {
   const [reference, setReference] = useState(null);
   const [prompt, setPrompt] = useState("");
   const [resolution, setResolution] = useState("1080p");
-  const [duration, setDuration] = useState(6);
   const [aspect, setAspect] = useState("auto");
   const [audioSetting, setAudioSetting] = useState("origin");
   const [busy, setBusy] = useState(false);
@@ -90,7 +89,7 @@ export default function VideoEditorAdmin() {
       const fd = new FormData();
       fd.append("prompt", prompt.trim());
       fd.append("resolution", resolution);
-      fd.append("duration", String(duration));
+      fd.append("duration", String(EDIT_FIXED_DURATION));
       fd.append("aspect_ratio", aspect);
       fd.append("audio_setting", audioSetting);
       fd.append("video", video);
@@ -155,6 +154,7 @@ export default function VideoEditorAdmin() {
                 value={video}
                 onChange={setVideo}
                 disabled={busy}
+                maxDurationSec={15}
                 testId="video-edit-source"
               />
             </div>
@@ -230,18 +230,9 @@ export default function VideoEditorAdmin() {
             <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[#A78BFA] mb-3">
               {t("vid_edit_duration")}
             </p>
-            <div className="grid grid-cols-4 gap-2.5 max-w-[360px]">
-              {DURATIONS.map((d) => (
-                <button
-                  key={d}
-                  type="button"
-                  onClick={() => setDuration(d)}
-                  className={selectCard(duration === d)}
-                  data-testid={`video-edit-dur-${d}`}
-                >
-                  <p className="text-[#F4F1EA] text-[16px] font-light">{d}s</p>
-                </button>
-              ))}
+            <div className="max-w-[360px] rounded-xl border border-[#7C3AED]/35 bg-gradient-to-br from-[#7C3AED]/12 to-[#0F0F12] px-4 py-3">
+              <p className="text-[#F4F1EA] text-[16px] font-light">15s</p>
+              <p className="text-[#8A8A8E] text-[11px] mt-1">{t("vid_duration_fixed_hint")}</p>
             </div>
           </section>
 

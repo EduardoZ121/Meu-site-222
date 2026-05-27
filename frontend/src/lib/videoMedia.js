@@ -46,6 +46,30 @@ export function validateVideoUpload(file, t) {
   return { ok: true, message: null };
 }
 
+export function readVideoDurationSeconds(file) {
+  return new Promise((resolve, reject) => {
+    if (typeof document === "undefined" || !file) {
+      reject(new Error("no_dom"));
+      return;
+    }
+    const url = URL.createObjectURL(file);
+    const v = document.createElement("video");
+    const done = (fn) => {
+      URL.revokeObjectURL(url);
+      v.removeAttribute("src");
+      v.load();
+      fn();
+    };
+    v.preload = "metadata";
+    v.onloadedmetadata = () => {
+      const dur = Number(v.duration || 0);
+      done(() => resolve(Number.isFinite(dur) ? dur : 0));
+    };
+    v.onerror = () => done(() => reject(new Error("duration_read_failed")));
+    v.src = url;
+  });
+}
+
 export function validateImageUpload(file, t) {
   if (!file) {
     return { ok: false, message: t("common_upload_first") };

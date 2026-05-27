@@ -14,6 +14,7 @@ export default function StudioVideoUpload({
   emptyLabel,
   emptyHint,
   className = "",
+  maxDurationSec = 15,
 }) {
   const { t } = useI18n();
   return (
@@ -28,6 +29,7 @@ export default function StudioVideoUpload({
       enableRemotePersist
       emptyLabel={emptyLabel ?? t("vid_upload_title")}
       emptyHint={emptyHint ?? t("vid_edit_video_hint")}
+      maxVideoDurationSec={maxDurationSec}
     />
   );
 }

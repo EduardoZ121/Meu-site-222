@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { motion } from "framer-motion";
-import { Film, Clapperboard, Lock } from "lucide-react";
+import { Clapperboard, ImageIcon, Type } from "lucide-react";
 import { useI18n } from "../../lib/i18n";
 import { useAuth } from "../../lib/auth";
 import { isAdminUser } from "../../lib/isAdmin";
@@ -13,15 +13,16 @@ export default function Video() {
   const { user } = useAuth();
   const canUseVideoEditor = isAdminUser(user);
   useTitle(t("sidebar_video"));
-  const [mode, setMode] = useState("generate");
+  const [mode, setMode] = useState("text");
 
   useEffect(() => {
-    if (!canUseVideoEditor && mode === "edit") setMode("generate");
+    if (!canUseVideoEditor && mode === "edit") setMode("text");
   }, [canUseVideoEditor, mode]);
 
   const tabs = useMemo(() => {
     const list = [
-      { id: "generate", label: t("vid_tab_generate"), icon: Film, testId: "video-tab-generate" },
+      { id: "text", label: t("vid_tab_text"), icon: Type, testId: "video-tab-text" },
+      { id: "image", label: t("vid_tab_image"), icon: ImageIcon, testId: "video-tab-image" },
     ];
     if (canUseVideoEditor) {
       list.push({
@@ -42,7 +43,7 @@ export default function Video() {
           {t("vid_title_a")} <span className="italic text-[#C4B5FD]">{t("vid_title_b")}</span>{t("vid_title_dot")}
         </h1>
         <p className="text-[#8A8A8E] text-[15px] max-w-[640px]">
-          {mode === "edit" ? t("vid_edit_desc") : t("vid_desc_body")}
+          {mode === "edit" ? t("vid_edit_desc") : mode === "image" ? t("vid_desc_image_mode") : t("vid_desc_text_mode")}
         </p>
       </header>
 
@@ -79,17 +80,7 @@ export default function Video() {
         })}
       </div>
 
-      {!canUseVideoEditor && (
-        <p
-          className="mb-6 flex items-center gap-2 text-[13px] text-[#8A8A8E]"
-          data-testid="video-editor-locked-hint"
-        >
-          <Lock className="w-3.5 h-3.5 shrink-0 text-[#6b6b70]" />
-          {t("vid_editor_admin_only")}
-        </p>
-      )}
-
-      {mode === "edit" && canUseVideoEditor ? <VideoEditorAdmin /> : <VideoGenerate />}
+      {mode === "edit" && canUseVideoEditor ? <VideoEditorAdmin /> : <VideoGenerate mode={mode} />}
     </div>
   );
 }

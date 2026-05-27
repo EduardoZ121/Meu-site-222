@@ -8,6 +8,7 @@ import { prepareImageForUpload } from "../lib/prepareImageForUpload";
 import { looksLikeImageFile, IMAGE_ACCEPT } from "../lib/imageCompress";
 import {
   looksLikeVideoUpload,
+  readVideoDurationSeconds,
   validateVideoUpload,
   VIDEO_UPLOAD_ACCEPT,
 } from "../lib/videoMedia";
@@ -50,6 +51,7 @@ export default function ImageUploadZone({
   previewImgStyle,
   previewImgClassName = "",
   mediaType = "image",
+  maxVideoDurationSec = null,
   disabled = false,
 }) {
   const { t } = useI18n();
@@ -199,7 +201,7 @@ export default function ImageUploadZone({
     }
   }, [value, isVideo, enableRemotePersist, notifyStatus, t]);
 
-  const ingestFile = useCallback((file) => {
+  const ingestFile = useCallback(async (file) => {
     if (!file) return;
 
     if (isVideo) {
@@ -207,6 +209,17 @@ export default function ImageUploadZone({
       if (!check.ok) {
         toast.error(check.message);
         return;
+      }
+      if (Number.isFinite(maxVideoDurationSec) && maxVideoDurationSec > 0) {
+        try {
+          const dur = await readVideoDurationSeconds(file);
+          if (dur > maxVideoDurationSec) {
+            toast.error(t("vid_err_too_long", { n: Math.round(maxVideoDurationSec) }));
+            return;
+          }
+        } catch {
+          // If metadata can't be read, keep flow working and let upload continue.
+        }
       }
       if (looksLikeImageFile(file) && !looksLikeVideoUpload(file)) {
         toast.error(t("vid_err_use_video_zone"));
@@ -237,7 +250,7 @@ export default function ImageUploadZone({
     notifyStatus("saving");
     onChange(file);
     void runBackgroundImage(file, rid);
-  }, [isVideo, runBackgroundImage, runBackgroundVideo, onChange, notifyStatus, t]);
+  }, [isVideo, maxVideoDurationSec, runBackgroundImage, runBackgroundVideo, onChange, notifyStatus, t]);
 
   const clear = useCallback(() => {
     runIdRef.current += 1;
@@ -252,7 +265,7 @@ export default function ImageUploadZone({
 
   const onPick = (e) => {
     const f = e.target.files?.[0];
-    if (f) void ingestFile(f);
+      if (f) void ingestFile(f);
   };
 
   const onDrop = (e) => {

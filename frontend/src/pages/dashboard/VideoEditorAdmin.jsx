@@ -216,9 +216,6 @@ export default function VideoEditorAdmin() {
         )}
 
         <StudioAccordionSection title={t("vid_acc_my_video")} defaultOpen testId="video-edit-acc-source">
-          <p className="text-[#8A8A8E] text-[13px] mb-3 leading-relaxed max-w-[560px]">
-            {t("vid_edit_desc")}
-          </p>
           <p className="text-[#6f6f76] text-[12px] mb-4 max-w-[560px]">
             {t("vid_edit_eta_hint", { min: eta.min, max: eta.max })}
           </p>

@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Clapperboard, Sparkles } from "lucide-react";
 import {
   formatApiError,
@@ -7,8 +7,8 @@ import {
   uploadPost,
 } from "../../lib/api";
 import { normalizeCreation, primaryResultUrl } from "../../lib/creationUrls";
+import { readVideoDurationSeconds } from "../../lib/videoMedia";
 import { useAuth } from "../../lib/auth";
-import { isAdminUser } from "../../lib/isAdmin";
 import { usePricing } from "../../lib/PricingContext";
 import { useI18n } from "../../lib/i18n";
 import { toast } from "sonner";
@@ -40,14 +40,13 @@ export default function VideoEditorAdmin() {
   const { t } = useI18n();
   const ideas = useMemo(() => EDIT_IDEAS.map((k) => t(k)), [t]);
   const { refresh, user } = useAuth();
-  const canEdit = isAdminUser(user);
   const { costs } = usePricing();
   const cost = costs.videoEdit ?? costs.video ?? 95;
 
   const [video, setVideo] = useState(null);
+  const [sourceDurationSec, setSourceDurationSec] = useState(0);
   const [reference, setReference] = useState(null);
   const [prompt, setPrompt] = useState("");
-  const [resolution, setResolution] = useState("1080p");
   const [aspect, setAspect] = useState("auto");
   const [audioSetting, setAudioSetting] = useState("origin");
   const [busy, setBusy] = useState(false);
@@ -65,6 +64,29 @@ export default function VideoEditorAdmin() {
     prompt,
     readyOverride: Boolean(video) && prompt.trim().length >= 3,
   });
+
+  const eta = useMemo(() => {
+    if (!sourceDurationSec) return { min: 3, max: 8 };
+    if (sourceDurationSec <= 5) return { min: 2, max: 6 };
+    if (sourceDurationSec <= 10) return { min: 4, max: 9 };
+    return { min: 6, max: 12 };
+  }, [sourceDurationSec]);
+
+  useEffect(() => {
+    let mounted = true;
+    if (!video) {
+      setSourceDurationSec(0);
+      return undefined;
+    }
+    readVideoDurationSeconds(video)
+      .then((s) => {
+        if (mounted) setSourceDurationSec(Math.max(0, Math.round(s)));
+      })
+      .catch(() => {
+        if (mounted) setSourceDurationSec(0);
+      });
+    return () => { mounted = false; };
+  }, [video]);
 
   const run = async () => {
     if (!video) {
@@ -88,7 +110,7 @@ export default function VideoEditorAdmin() {
     try {
       const fd = new FormData();
       fd.append("prompt", prompt.trim());
-      fd.append("resolution", resolution);
+      fd.append("resolution", "1080p");
       fd.append("duration", String(EDIT_FIXED_DURATION));
       fd.append("aspect_ratio", aspect);
       fd.append("audio_setting", audioSetting);
@@ -129,14 +151,6 @@ export default function VideoEditorAdmin() {
     }
   };
 
-  if (!canEdit) {
-    return (
-      <p className="text-[#8A8A8E] text-sm" data-testid="video-editor-forbidden">
-        {t("vid_editor_admin_only")}
-      </p>
-    );
-  }
-
   return (
     <div className="grid grid-cols-1 lg:grid-cols-[1fr_400px] gap-10" data-testid="video-editor-admin">
       <div className="rp-editor-panel overflow-hidden">
@@ -148,6 +162,9 @@ export default function VideoEditorAdmin() {
             </p>
             <p className="text-[#8A8A8E] text-[13px] mb-4 leading-relaxed max-w-[560px]">
               {t("vid_edit_desc")}
+            </p>
+            <p className="text-[#6f6f76] text-[12px] mb-4 max-w-[560px]">
+              {t("vid_edit_eta_hint", { min: eta.min, max: eta.max })}
             </p>
             <div className="max-w-[560px]">
               <StudioVideoUpload
@@ -211,18 +228,9 @@ export default function VideoEditorAdmin() {
             <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[#A78BFA] mb-3">
               {t("vid_edit_resolution")}
             </p>
-            <div className="grid grid-cols-2 gap-2.5 max-w-[280px]">
-              {["1080p", "720p"].map((r) => (
-                <button
-                  key={r}
-                  type="button"
-                  onClick={() => setResolution(r)}
-                  className={selectCard(resolution === r)}
-                  data-testid={`video-edit-res-${r}`}
-                >
-                  <p className="text-[#F4F1EA] text-[15px] font-medium">{r}</p>
-                </button>
-              ))}
+            <div className="max-w-[360px] rounded-xl border border-[#7C3AED]/35 bg-gradient-to-br from-[#7C3AED]/12 to-[#0F0F12] px-4 py-3">
+              <p className="text-[#F4F1EA] text-[15px] font-medium">{t("vid_quality_original")}</p>
+              <p className="text-[#8A8A8E] text-[11px] mt-1">{t("vid_quality_original_hint")}</p>
             </div>
           </section>
 
@@ -290,7 +298,9 @@ export default function VideoEditorAdmin() {
             busyLabel={
               uploadPhase === "processing" && progress > 0
                 ? `${t("vid_edit_processing")} (${progress}s)`
-                : t("vid_edit_processing")
+                : uploadPhase === "processing"
+                  ? t("vid_edit_processing_eta", { min: eta.min, max: eta.max })
+                  : t("vid_edit_processing")
             }
             hint={hint}
             testId="video-edit-submit"

@@ -1,39 +1,23 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { motion } from "framer-motion";
 import { Clapperboard, ImageIcon, Type } from "lucide-react";
 import { useI18n } from "../../lib/i18n";
-import { useAuth } from "../../lib/auth";
-import { isAdminUser } from "../../lib/isAdmin";
 import useTitle from "../../lib/useTitle";
 import VideoGenerate from "./VideoGenerate";
 import VideoEditorAdmin from "./VideoEditorAdmin";
 
 export default function Video() {
   const { t } = useI18n();
-  const { user } = useAuth();
-  const canUseVideoEditor = isAdminUser(user);
   useTitle(t("sidebar_video"));
   const [mode, setMode] = useState("text");
 
-  useEffect(() => {
-    if (!canUseVideoEditor && mode === "edit") setMode("text");
-  }, [canUseVideoEditor, mode]);
-
   const tabs = useMemo(() => {
-    const list = [
+    return [
       { id: "text", label: t("vid_tab_text"), icon: Type, testId: "video-tab-text" },
       { id: "image", label: t("vid_tab_image"), icon: ImageIcon, testId: "video-tab-image" },
+      { id: "edit", label: t("vid_tab_editor"), icon: Clapperboard, testId: "video-tab-editor" },
     ];
-    if (canUseVideoEditor) {
-      list.push({
-        id: "edit",
-        label: t("vid_tab_editor"),
-        icon: Clapperboard,
-        testId: "video-tab-editor",
-      });
-    }
-    return list;
-  }, [canUseVideoEditor, t]);
+  }, [t]);
 
   return (
     <div className="max-w-[1200px] mx-auto pb-20" data-testid="video-page">
@@ -80,7 +64,7 @@ export default function Video() {
         })}
       </div>
 
-      {mode === "edit" && canUseVideoEditor ? <VideoEditorAdmin /> : <VideoGenerate mode={mode} />}
+      {mode === "edit" ? <VideoEditorAdmin /> : <VideoGenerate mode={mode} />}
     </div>
   );
 }

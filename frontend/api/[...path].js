@@ -509,13 +509,14 @@ async function videoEditInput(fields, files) {
   }
   const userPrompt = text(fields, "prompt", "").trim();
   const prompt = buildVideoEditPrompt(userPrompt);
-  const resolution = text(fields, "resolution", "1080p");
+  const resolution = text(fields, "resolution", "original");
   const aspectRatio = text(fields, "aspect_ratio", "auto");
   const audioSetting = text(fields, "audio_setting", "origin");
+  const { mapResolutionForModel } = require("./lib/videoEditPricing.cjs");
   const input = {
     video,
     prompt,
-    resolution: resolution === "720p" ? "720p" : "1080p",
+    resolution: mapResolutionForModel(resolution),
     aspect_ratio: aspectRatio || "auto",
     audio_setting: audioSetting === "auto" ? "auto" : "origin",
   };
@@ -1263,12 +1264,29 @@ async function routePost(path, fields, files, req) {
     let prompt = text(fields, "prompt", "").trim();
     if (!prompt) throw new Error("Escreve um prompt.");
     const lang = text(fields, "lang", "en").slice(0, 2);
-    if (truthyField(fields, "improve_prompt")) {
+    const { isStudioPremiumActive } = require("./lib/studioPremium.cjs");
+    const { user: imgUser } = resolveSessionUser(req);
+    const imgDb = imgUser?.id ? await getUserById(imgUser.id) : null;
+    const imgAccess = imgDb || imgUser || {};
+    const wantsImprove = truthyField(fields, "improve_prompt");
+    const wantsHd = truthyField(fields, "hd_quality");
+    if ((wantsImprove || wantsHd) && !isStudioPremiumActive(imgAccess) && !imgAccess?.is_unlimited) {
+      const err = new Error("Melhorar prompt e qualidade HD são Studio Plus — pacote Creator (€12) ou superior.");
+      err.status = 403;
+      throw err;
+    }
+    if (wantsImprove) {
       prompt = await improvePrompt(prompt, lang, {});
     }
+    if (wantsHd) {
+      prompt += "\n\nUltra high detail, sharp focus, professional photography quality, 8K clarity, refined textures.";
+    }
+    let imgCost = CREDIT.image;
+    if (wantsHd) imgCost += 8;
+    if (wantsImprove) imgCost += 4;
     const input = await imageInput(fields, files, "standard", prompt);
     return submitBillableGeneration(req, fields, {
-      cost: CREDIT.image,
+      cost: imgCost,
       type: "image",
       modelId: MODELS.standard,
       input,
@@ -1589,8 +1607,33 @@ async function routePost(path, fields, files, req) {
   }
 
   if (path === "generate/video-edit") {
+    const lang = text(fields, "lang", "en").slice(0, 2);
+    if (truthyField(fields, "improve_prompt")) {
+      const raw = text(fields, "prompt", "").trim();
+      if (raw.length >= 3) {
+        fields.prompt = await improvePrompt(raw, lang, { tool: "video_edit" });
+      }
+    }
     const { input, prompt } = await videoEditInput(fields, files);
-    const cost = CREDIT.videoEdit ?? Math.max(CREDIT.video || 70, 85);
+    const baseCost = CREDIT.videoEdit ?? Math.max(CREDIT.video || 70, 85);
+    const { computeVideoEditCost, validateVideoEditOptions } = require("./lib/videoEditPricing.cjs");
+    const { isStudioPremiumActive } = require("./lib/studioPremium.cjs");
+    const { user: sessionUser } = resolveSessionUser(req);
+    const dbUser = sessionUser?.id ? await getUserById(sessionUser.id) : null;
+    const accessDoc = dbUser || sessionUser || {};
+    validateVideoEditOptions(accessDoc, {
+      resolution: text(fields, "resolution", "original"),
+      duration: text(fields, "duration", "6"),
+    });
+    if (truthyField(fields, "improve_prompt") && !isStudioPremiumActive(accessDoc) && !accessDoc?.is_unlimited) {
+      const err = new Error("Melhorar prompt (Studio Plus) — pacote Creator (€12) ou superior.");
+      err.status = 403;
+      throw err;
+    }
+    const cost = computeVideoEditCost(baseCost, {
+      resolution: text(fields, "resolution", "original"),
+      duration: text(fields, "duration", "6"),
+    });
     return submitBillableGeneration(req, fields, {
       cost,
       type: "video",
@@ -2029,17 +2072,27 @@ async function handlePath(path, req, res) {
       const tm = auth.match(/^Bearer\s+(.+)$/i);
       if (!tm) return json(res, 401, { detail: "Não autenticado." });
       const token = tm[1].trim();
+      const { runSupportChat, offlineReply } = require("./lib/supportAssistant.cjs");
+      const msgs = Array.isArray(body?.messages) ? body.messages : [];
       if (token.startsWith("local:")) {
-        return json(res, 503, {
-          detail: "O assistente precisa de conta ligada ao servidor. Entra com Google ou envia email ao suporte.",
+        const lastUser = [...msgs].reverse().find((m) => m?.role === "user");
+        const lang = String(body?.lang || "pt").slice(0, 2);
+        return json(res, 200, {
+          reply: offlineReply({
+            lang,
+            user: { name: "Utilizador", credits: 0 },
+            dbUser: null,
+            userText: lastUser?.content || "",
+          }),
+          model: "offline-local",
+          fallback: true,
         });
       }
       const sessionUser = verifySessionToken(token);
       if (!sessionUser) return json(res, 401, { detail: "Sessão inválida ou expirada." });
-      const { runSupportChat } = require("./lib/supportAssistant.cjs");
       try {
         const out = await runSupportChat({
-          messages: body.messages,
+          messages: msgs,
           lang: body.lang || sessionUser.lang || "en",
           user: sessionUser,
           page: body.page || "",

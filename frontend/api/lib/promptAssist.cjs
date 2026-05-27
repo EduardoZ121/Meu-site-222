@@ -267,6 +267,13 @@ async function handlePromptAssistRoute(path, req, res, { verifySessionToken, jso
       json(res, 400, { detail: "Prompt demasiado curto." });
       return true;
     }
+    const { getUserById } = require("./usersDb.cjs");
+    const { isStudioPremiumActive } = require("./studioPremium.cjs");
+    const dbUser = await getUserById(sessionUser.id);
+    if (!isStudioPremiumActive(dbUser || sessionUser) && !sessionUser?.is_unlimited) {
+      json(res, 403, { detail: "Melhorar prompt é Studio Plus — pacote Creator (€12) ou superior." });
+      return true;
+    }
     const lang = String(body.lang || sessionUser.lang || "en").slice(0, 2);
     const context = {
       tool: String(body.tool || "").trim(),

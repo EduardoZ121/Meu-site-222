@@ -125,21 +125,36 @@ async function openAiChat(messages) {
     throw err;
   }
 
-  const res = await fetch("https://api.openai.com/v1/chat/completions", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${key}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      model: modelId(),
-      messages,
-      max_tokens: MAX_OUTPUT_TOKENS,
-      temperature: 0.82,
-      presence_penalty: 0.15,
-      frequency_penalty: 0.2,
-    }),
-  });
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 28000);
+  let res;
+  try {
+    res = await fetch("https://api.openai.com/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${key}`,
+        "Content-Type": "application/json",
+      },
+      signal: controller.signal,
+      body: JSON.stringify({
+        model: modelId(),
+        messages,
+        max_tokens: MAX_OUTPUT_TOKENS,
+        temperature: 0.82,
+        presence_penalty: 0.15,
+        frequency_penalty: 0.2,
+      }),
+    });
+  } catch (e) {
+    if (e?.name === "AbortError") {
+      const err = new Error("OpenAI timeout");
+      err.status = 504;
+      throw err;
+    }
+    throw e;
+  } finally {
+    clearTimeout(timer);
+  }
 
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {
@@ -197,7 +212,7 @@ async function runSupportChat({ messages, lang, user, page }) {
       support_email: supportEmail(),
     };
   } catch (e) {
-    if (e.status === 503 || e.status === 502 || e.status === 429) {
+    if (e.status === 503 || e.status === 502 || e.status === 429 || e.status === 504) {
       return {
         reply: offlineReply({ lang: langCode, user, dbUser, userText: lastUser.content }),
         model: "offline-fallback",

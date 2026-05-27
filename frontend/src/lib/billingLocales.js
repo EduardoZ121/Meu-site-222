@@ -37,8 +37,8 @@ const en = {
   bill_pkg_creator_tag: "For active creators",
   bill_pkg_creator_blurb: "The balanced pack for weekly content creators.",
   bill_pkg_creator_b1: "250 credits",
-  bill_pkg_creator_b2: "Posters + IG Carousel",
-  bill_pkg_creator_b3: "Pro retouch",
+  bill_pkg_creator_b2: "Studio Plus 30 days (1080p/720p video, 8–10s, prompt enhance, HD images)",
+  bill_pkg_creator_b3: "Posters + IG Carousel + Pro retouch",
 
   bill_pkg_studio_tag: "Pro workflows",
   bill_pkg_studio_blurb: "For studios, freelancers, and frequent client work.",
@@ -97,8 +97,8 @@ const pt = {
   bill_pkg_creator_tag: "Para criadores activos",
   bill_pkg_creator_blurb: "O pacote equilibrado para quem cria conteúdo todas as semanas.",
   bill_pkg_creator_b1: "250 créditos",
-  bill_pkg_creator_b2: "Pôsteres + Carrossel IG",
-  bill_pkg_creator_b3: "Retoque Pro",
+  bill_pkg_creator_b2: "Studio Plus 30 dias (vídeo 1080p/720p, 8–10s, melhorar prompt, imagens HD)",
+  bill_pkg_creator_b3: "Pôsteres + Carrossel IG + Retoque Pro",
 
   bill_pkg_studio_tag: "Workflows pro",
   bill_pkg_studio_blurb: "Para estúdios, freelancers e clientes com uso frequente.",

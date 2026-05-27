@@ -5,6 +5,7 @@ import { X, Send, Loader2, RotateCcw } from "lucide-react";
 import { useI18n } from "../lib/i18n";
 import { api, formatApiError } from "../lib/api";
 import { useAuth } from "../lib/auth";
+import { isLocalAuthToken, supportFallbackReply } from "../lib/supportClientFallback";
 import { toast } from "sonner";
 
 const STORAGE_KEY = "rp_support_chat_v3";
@@ -151,28 +152,33 @@ export default function SupportChat({ open, onClose }) {
       setInput("");
       setLoading(true);
 
+      const useLocalFallback = isLocalAuthToken();
       try {
-        const { data } = await api.post(
-          "/support/chat",
-          {
-            messages: toApiMessages(withUser),
-            lang: lang || "en",
-            page: location.pathname,
-          },
-          { timeout: 90000 },
-        );
-
-        const reply = String(data?.reply || "").trim();
-        if (!reply) throw new Error(t("support_error"));
+        let reply;
+        if (useLocalFallback) {
+          reply = supportFallbackReply({ lang: lang || "pt", user, userText: trimmed });
+        } else {
+          const { data } = await api.post(
+            "/support/chat",
+            {
+              messages: toApiMessages(withUser),
+              lang: lang || "en",
+              page: location.pathname,
+            },
+            { timeout: 32000 },
+          );
+          reply = String(data?.reply || "").trim();
+          if (!reply) throw new Error(t("support_error"));
+        }
 
         setMessages((prev) => [...prev, { role: "assistant", content: reply }]);
       } catch (err) {
-        const detail = formatApiError(err, t("support_error"));
+        const fallback = supportFallbackReply({ lang: lang || "pt", user, userText: trimmed });
         setMessages((prev) => [
           ...prev,
           {
             role: "assistant",
-            content: `${detail}\n\n${t("support_contact_hint")}`,
+            content: fallback || `${formatApiError(err, t("support_error"))}\n\n${t("support_contact_hint")}`,
           },
         ]);
         if (err?.response?.status === 503) toast.error(t("support_unavailable"));
@@ -180,7 +186,7 @@ export default function SupportChat({ open, onClose }) {
         setLoading(false);
       }
     },
-    [loading, lang, t, location.pathname],
+    [loading, lang, t, location.pathname, user],
   );
 
   const quickPrompts = [

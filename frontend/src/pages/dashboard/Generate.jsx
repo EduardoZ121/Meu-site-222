@@ -21,6 +21,8 @@ import StudioGenerateBar from "../../components/StudioGenerateBar";
 import { readUserSettings } from "../../lib/userSettings";
 import { apiAspectRatio } from "../../lib/apiAspectRatio";
 import { useStudioGenerateGate } from "../../lib/useStudioGenerateGate";
+import { hasStudioPremium } from "../../lib/studioPremium";
+import PromptEnhanceToggle from "../../components/promptAssist/PromptEnhanceToggle";
 
 const SUBJECT_KEYS = [
   { value: "the man", labelKey: "studio_subj_man" },
@@ -40,6 +42,8 @@ export default function Generate() {
   const [photo, setPhoto] = useState(null);
   const [prompt, setPrompt] = useState(searchParams.get("prompt") || "");
   const [improve, setImprove] = useState(false);
+  const [hdQuality, setHdQuality] = useState(false);
+  const premium = hasStudioPremium(user);
   const [aspect, setAspect] = useState(() => readUserSettings().aspect_ratio_default || "4:5");
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState(null);
@@ -73,8 +77,11 @@ export default function Generate() {
     if (photo && pickedStyle) return { mode: "easy", cost: costs.easy, ctaLabel: t("studio_cta_easy", { n: costs.easy }) };
     if (photo && !pickedStyle) return { mode: "edit", cost: costs.edit, ctaLabel: t("studio_cta_edit", { n: costs.edit }) };
     if (!photo && pickedStyle) return { mode: "blocked", cost: 0, ctaLabel: t("studio_cta_blocked") };
-    return { mode: "text", cost: costs.image, ctaLabel: t("studio_cta_text", { n: costs.image }) };
-  }, [photo, pickedStyle, costs, t]);
+    let textCost = costs.image;
+    if (improve && premium) textCost += 4;
+    if (hdQuality && premium) textCost += 8;
+    return { mode: "text", cost: textCost, ctaLabel: t("studio_cta_text", { n: textCost }) };
+  }, [photo, pickedStyle, costs, t, improve, hdQuality, premium]);
 
   const generateReady = mode !== "blocked"
     && (mode === "easy" || prompt.trim().length >= 3);
@@ -132,7 +139,8 @@ export default function Generate() {
           mode: "advanced",
           aspect_ratio: apiAspectRatio(aspect, { model: "standard", hasPhoto: false }),
           num_outputs: 1,
-          improve_prompt: improve,
+          improve_prompt: improve && premium,
+          hd_quality: hdQuality && premium,
           lang: lang || "en",
         }, { timeout: 60000, headers: { "X-Skip-Auto-Poll": "1" } }));
       }
@@ -192,13 +200,36 @@ export default function Generate() {
               className="rp-editor-textarea min-h-[120px]"
               data-testid="prompt-input"
             />
-            <div className="flex items-center justify-between mt-3 gap-3 flex-wrap">
-              <label className="flex items-center gap-2.5 cursor-pointer group">
-                <input type="checkbox" checked={improve} onChange={(e) => setImprove(e.target.checked)} className="accent-[#7C3AED] w-3.5 h-3.5 rounded border-[#2E2E30]" data-testid="improve-toggle" />
-                <span className="text-[#8A8A8E] text-[12px] font-['Inter_Tight'] group-hover:text-[#b5b5ba] transition-colors">
-                  {t("studio_improve")} <span className="text-[#5A5A5E]">{t("studio_improve_free")}</span>
+            <div className="flex flex-col gap-2.5 mt-3">
+              <PromptEnhanceToggle
+                checked={improve}
+                onChange={setImprove}
+                locked={!premium}
+                onLockedClick={() => toast.info(t("studio_plus_locked_toast"))}
+                testId="improve-toggle"
+              />
+              <label className={`inline-flex items-center gap-2.5 cursor-pointer group ${!premium ? "opacity-80" : ""}`}>
+                <input
+                  type="checkbox"
+                  checked={hdQuality}
+                  disabled={!premium}
+                  onChange={(e) => {
+                    if (!premium) {
+                      toast.info(t("studio_plus_locked_toast"));
+                      return;
+                    }
+                    setHdQuality(e.target.checked);
+                  }}
+                  className="accent-[#7C3AED] w-3.5 h-3.5 rounded border-[#2E2E30]"
+                  data-testid="hd-quality-toggle"
+                />
+                <span className="text-[#8A8A8E] text-[12px] font-['Inter_Tight']">
+                  {t("studio_hd_quality")}{" "}
+                  <span className="text-[#A855F7] font-mono text-[10px]">+8</span>
                 </span>
               </label>
+            </div>
+            <div className="flex justify-end mt-2">
               <span className="text-[#5A5A5E] text-[10px] font-mono tabular-nums">{prompt.length}/800</span>
             </div>
             <div className="flex flex-wrap gap-2 mt-4">

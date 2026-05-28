@@ -12,6 +12,7 @@ import { apiAspectRatio } from "../../lib/apiAspectRatio";
 import StyleCover from "../../components/StyleCover";
 import ImageUploadZone from "../../components/ImageUploadZone";
 import { FALLBACK_PRO_PRESETS } from "../../lib/publicFallbacks";
+import { proPresetCoverSrc } from "../../lib/proPresetCovers";
 import useTitle from "../../lib/useTitle";
 import { useI18n } from "../../lib/i18n";
 import StudioGenerateBar from "../../components/StudioGenerateBar";
@@ -216,6 +217,8 @@ export default function Pro() {
                         eyebrow={CAT_LABELS[p.category] || p.category}
                         selected={active}
                         compact
+                        coverSrc={proPresetCoverSrc(p.id)}
+                        className="pro-preset-card__cover"
                       />
                     </button>
                   );

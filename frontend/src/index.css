@@ -1636,13 +1636,23 @@
 
   .pro-preset-card {
     position: relative;
+    display: block;
+    width: 100%;
     text-align: left;
     border-radius: 0.875rem;
     overflow: hidden;
     border: 1px solid rgba(244, 241, 234, 0.08);
     background: rgba(11, 11, 12, 0.85);
     transition: border-color 0.25s, box-shadow 0.25s, transform 0.25s var(--rp-ease);
-    min-height: 7.5rem;
+  }
+
+  .pro-preset-card__cover {
+    aspect-ratio: 4 / 5;
+    width: 100%;
+  }
+
+  .pro-preset-card__cover img {
+    object-position: center 20%;
   }
   .pro-preset-card:hover {
     border-color: rgba(168, 85, 247, 0.4);

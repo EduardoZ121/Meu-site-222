@@ -14,6 +14,7 @@ const REPO_RAW =
   "https://raw.githubusercontent.com/EduardoZ121/Meu-site-222/main/scripts/assets";
 
 export const OUT_DIR = path.join(ROOT, "frontend/public/images/artistic-covers");
+export const PRO_OUT_DIR = path.join(ROOT, "frontend/public/images/pro-covers");
 export const REF_WOMAN_GITHUB = `${REPO_RAW}/ref_woman.jpg`;
 export const REF_MAN_GITHUB = `${REPO_RAW}/ref_man.jpg`;
 /** @deprecated use REF_WOMAN_GITHUB */
@@ -74,12 +75,12 @@ export function seedFromId(id) {
 export async function generateCovers(
   styles,
   promptById,
-  { force = false, delayMs = 4500, negativePrompt, refById = {} },
+  { force = false, delayMs = 4500, negativePrompt, refById = {}, outDir = OUT_DIR },
 ) {
-  await fs.mkdir(OUT_DIR, { recursive: true });
+  await fs.mkdir(outDir, { recursive: true });
 
   for (const style of styles) {
-    const dest = path.join(OUT_DIR, `${style.id}.jpg`);
+    const dest = path.join(outDir, `${style.id}.jpg`);
     if (!force) {
       try {
         await fs.access(dest);

@@ -15,8 +15,8 @@ const REPO_RAW =
 
 export const OUT_DIR = path.join(ROOT, "frontend/public/images/artistic-covers");
 export const PRO_OUT_DIR = path.join(ROOT, "frontend/public/images/pro-covers");
-export const REF_WOMAN_GITHUB = `${REPO_RAW}/ref_woman.jpg`;
-export const REF_MAN_GITHUB = `${REPO_RAW}/ref_man.jpg`;
+export const REF_WOMAN_GITHUB = `${REPO_RAW}/ref_user_woman.jpg`;
+export const REF_MAN_GITHUB = `${REPO_RAW}/ref_user_man.jpg`;
 /** @deprecated use REF_WOMAN_GITHUB */
 export const REF_GITHUB = REF_WOMAN_GITHUB;
 

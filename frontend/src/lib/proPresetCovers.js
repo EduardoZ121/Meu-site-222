@@ -2,7 +2,7 @@
  * Previews da grelha Pro (/app/pro — Refinamento fotorrealista).
  * Gerar: `node scripts/generate-pro-covers.mjs [--force]`
  */
-export const PRO_PRESET_COVER_VERSION = "20260528-2";
+export const PRO_PRESET_COVER_VERSION = "20260528-3";
 
 const BASE = "/images/pro-covers";
 

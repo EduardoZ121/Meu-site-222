@@ -9,7 +9,7 @@ import {
   FilePlus2, X, Trash2, LayoutGrid, Wand2, ChevronDown, Copy,
   Pencil, FileText, Check, LayoutTemplate, History,
   Variable, List, Maximize2, Minimize2, Eye, EyeOff,
-  Download, Upload, BarChart3, Search, Keyboard,
+  Download, Upload, BarChart3, Search, Keyboard, Sparkles,
 } from "lucide-react";
 import PersonNode from "./nodes/PersonNode";
 import ScenarioNode from "./nodes/ScenarioNode";
@@ -135,19 +135,36 @@ export default function MangaFlowEditor() {
 
   /* ---- Load on mount ---- */
   useEffect(() => {
-    const saved = loadFlowProject();
-    if (saved) {
-      setProject(saved);
-      const pg = saved.pages.find((p) => p.id === saved.activePageId) || saved.pages[0];
-      if (pg) { setActivePageId(pg.id); setNodes(pg.nodes || []); setEdges(pg.edges || []); }
-    } else {
+    try {
+      const saved = loadFlowProject();
+      if (saved?.pages?.length) {
+        setProject(saved);
+        const pg = saved.pages.find((p) => p.id === saved.activePageId) || saved.pages[0];
+        if (pg) {
+          setActivePageId(pg.id);
+          setNodes(pg.nodes || []);
+          setEdges(pg.edges || []);
+        }
+      } else {
+        const fresh = createDefaultProject();
+        setProject(fresh);
+        const pg = fresh.pages[0];
+        setActivePageId(pg.id);
+        setNodes(pg.nodes || []);
+        setEdges(pg.edges || []);
+        saveFlowProject(fresh);
+      }
+      if (!localStorage.getItem("manga_flow_tutorial_done")) setShowTutorial(true);
+    } catch (err) {
+      console.error("[MangaFlow] load failed:", err);
       const fresh = createDefaultProject();
       setProject(fresh);
       const pg = fresh.pages[0];
-      setActivePageId(pg.id); setNodes(pg.nodes); setEdges(pg.edges);
-      saveFlowProject(fresh);
+      setActivePageId(pg.id);
+      setNodes(pg.nodes || []);
+      setEdges(pg.edges || []);
+      toast.error("Could not load saved project — started fresh.");
     }
-    if (!localStorage.getItem("manga_flow_tutorial_done")) setShowTutorial(true);
   }, [setNodes, setEdges]);
 
   /* ---- Auto-save ---- */
@@ -515,6 +532,16 @@ export default function MangaFlowEditor() {
     toast.message(`"${name}" deleted`);
   };
 
+  if (!project) {
+    return (
+      <div className="manga-flow-root manga-flow-root--loading" data-testid="manga-flow-loading">
+        <div className="manga-flow-loading__inner">
+          <p className="manga-flow-loading__text">Loading Manga Studio…</p>
+        </div>
+      </div>
+    );
+  }
+
   /* ---- Render ---- */
   return (
     <div className="manga-flow-root" data-testid="manga-flow-editor">
@@ -643,8 +670,8 @@ export default function MangaFlowEditor() {
       {showAddMenu && <AddNodeMenu onAdd={addNode} onClose={() => setShowAddMenu(false)} />}
       {(pendingConnection || editingEdge) && (
         <ConnectionPromptModal
-          source={editingEdge ? editingEdge._srcNode : nodes.find((n) => n.id === pendingConnection.source)}
-          target={editingEdge ? editingEdge._tgtNode : nodes.find((n) => n.id === pendingConnection.target)}
+          source={editingEdge ? editingEdge._srcNode : nodes.find((n) => n.id === pendingConnection?.source)}
+          target={editingEdge ? editingEdge._tgtNode : nodes.find((n) => n.id === pendingConnection?.target)}
           initialPrompt={editingEdge?.data?.prompt || ""}
           initialCondition={editingEdge?.data?.condition || null}
           isEditing={Boolean(editingEdge)}

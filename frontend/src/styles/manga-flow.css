@@ -1,11 +1,64 @@
 /* ===== MANGA FLOW STUDIO — Complete Styles ===== */
 
+/* Manga Studio page shell (inside StudioWorkspaceLayout) */
+.manga-studio-page {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+  height: 100%;
+  width: 100%;
+  background: #0A0A0F;
+}
+
+.manga-studio-fallback {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  padding: 32px;
+  background: #0A0A0F;
+  color: #F5F5F7;
+  text-align: center;
+  min-height: 320px;
+}
+.manga-studio-fallback__title { font-size: 18px; font-weight: 700; font-family: 'Inter Tight', sans-serif; }
+.manga-studio-fallback__msg { font-size: 13px; color: #9CA3AF; max-width: 420px; line-height: 1.5; }
+
 /* Root */
 .manga-flow-root {
   background: #0A0A0F;
-  min-height: calc(100vh - 64px);
+  flex: 1 1 auto;
+  min-height: 0;
+  height: 100%;
+  width: 100%;
   display: flex;
   flex-direction: column;
+}
+.manga-flow-root--loading {
+  align-items: center;
+  justify-content: center;
+}
+.manga-flow-loading__inner {
+  padding: 24px 32px;
+  border-radius: 12px;
+  border: 1px solid rgba(168,85,247,0.25);
+  background: rgba(17,17,24,0.9);
+}
+.manga-flow-loading__text {
+  font-size: 14px;
+  color: #C4B5FD;
+  font-family: 'Inter Tight', sans-serif;
+}
+
+/* Workspace layout: manga studio fills viewport below top bar */
+.rp-workspace-main:has(.manga-studio-page) {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  padding: 0;
 }
 
 /* Top bar */
@@ -197,9 +250,10 @@
   overflow: hidden;
 }
 .manga-flow-canvas {
-  flex: 1;
-  height: calc(100vh - 130px);
-  min-height: 400px;
+  flex: 1 1 auto;
+  min-height: 360px;
+  height: 100%;
+  width: 100%;
 }
 .manga-flow-canvas .react-flow__renderer { background: #0A0A0F !important; }
 .manga-flow-hint-panel {

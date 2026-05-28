@@ -1274,6 +1274,11 @@
       inset 0 0 0 1px rgba(251, 191, 36, 0.2);
   }
 
+  .art-photo-styles-grid .art-style-card__img {
+    object-fit: cover;
+    object-position: center 20%;
+  }
+
   .rp-studio-top-bar {
     box-sizing: border-box;
   }

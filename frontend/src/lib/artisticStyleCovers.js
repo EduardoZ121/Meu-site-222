@@ -1,7 +1,7 @@
 /**
  * Capas JPG para a grelha do Estúdio Artístico.
  * AI Lab: `node scripts/download-artistic-covers-nsfw.mjs` (prompts únicos por card)
- * Fotografia (6 estilos): `node scripts/generate-artistic-covers-photography.mjs` — ref mulher + prompt (Pollinations Flux)
+ * Fotografia (12 estilos): `node scripts/generate-artistic-covers-photography.mjs` — ref mulher + homem (Pollinations Flux)
  * Anime & Manga: `node scripts/generate-artistic-covers-anime.mjs` — ref mulher estilizada por card
  * Cartoon & 3D: `node scripts/generate-artistic-covers-cartoon.mjs` — ref mulher estilizada por card
  * Ilustração & Comic: `node scripts/generate-artistic-covers-illustration.mjs`

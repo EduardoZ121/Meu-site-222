@@ -10,9 +10,14 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 export const ROOT = path.resolve(__dirname, "../..");
 const require = createRequire(import.meta.url);
 
+const REPO_RAW =
+  "https://raw.githubusercontent.com/EduardoZ121/Meu-site-222/main/scripts/assets";
+
 export const OUT_DIR = path.join(ROOT, "frontend/public/images/artistic-covers");
-export const REF_GITHUB =
-  "https://raw.githubusercontent.com/EduardoZ121/Meu-site-222/main/scripts/assets/ref_woman.jpg";
+export const REF_WOMAN_GITHUB = `${REPO_RAW}/ref_woman.jpg`;
+export const REF_MAN_GITHUB = `${REPO_RAW}/ref_man.jpg`;
+/** @deprecated use REF_WOMAN_GITHUB */
+export const REF_GITHUB = REF_WOMAN_GITHUB;
 
 /** 4:5 — igual ao aspect-[4/5] do ArtisticStyleCard */
 export const COVER_WIDTH = "640";
@@ -20,15 +25,21 @@ export const COVER_HEIGHT = "800";
 
 export const FRAMING =
   "Centered portrait composition, face and shoulders fully visible, comfortable headroom and side margins, "
-  + "subject fills the vertical 4:5 frame naturally, no awkward crop of head or chin.";
+  + "subject fills the vertical 4:5 frame naturally, no awkward crop of head or chin, "
+  + "professional photography crop, sharp focus on face.";
 
-export const BASE_IDENTITY =
-  "Same woman from the reference photo as the subject, keep her recognizable face, hair color and likeness. "
-  + "She may be seated as in the reference. Single character, clean composition, "
-  + "correct anatomy, no extra limbs, no deformed hands. ";
+const IDENTITY_BY_SUBJECT = {
+  woman:
+    "Same woman from the reference photo as the subject, keep her recognizable face, hair color and likeness. "
+    + "Single woman, clean composition, correct anatomy, no extra limbs, no deformed hands. ",
+  man:
+    "Same man from the reference photo as the subject, keep his recognizable face, hair and likeness. "
+    + "Single man, clean composition, correct anatomy, no extra limbs, no deformed hands. ",
+};
 
-export function identityWithFraming() {
-  return BASE_IDENTITY + FRAMING;
+export function identityWithFraming(subject = "woman") {
+  const base = IDENTITY_BY_SUBJECT[subject] || IDENTITY_BY_SUBJECT.woman;
+  return base + FRAMING;
 }
 
 export function loadStylesByCat(cat, promptById) {
@@ -60,8 +71,11 @@ export function seedFromId(id) {
   return id.split("").reduce((a, c) => a + c.charCodeAt(0), 0) % 999999;
 }
 
-export async function generateCovers(styles, promptById, { force = false, delayMs = 4500, negativePrompt }) {
-  console.log(`Referência: ${REF_GITHUB} (${COVER_WIDTH}x${COVER_HEIGHT})\n`);
+export async function generateCovers(
+  styles,
+  promptById,
+  { force = false, delayMs = 4500, negativePrompt, refById = {} },
+) {
   await fs.mkdir(OUT_DIR, { recursive: true });
 
   for (const style of styles) {
@@ -77,8 +91,9 @@ export async function generateCovers(styles, promptById, { force = false, delayM
     }
 
     const prompt = promptById[style.id];
-    const url = pollinationsUrl(prompt, REF_GITHUB, seedFromId(style.id), negativePrompt);
-    console.log(`→ ${style.id} (${style.label})`);
+    const refImage = refById[style.id] || REF_WOMAN_GITHUB;
+    const url = pollinationsUrl(prompt, refImage, seedFromId(style.id), negativePrompt);
+    console.log(`→ ${style.id} (${style.label}) ref=${refImage.includes("ref_man") ? "man" : "woman"}`);
 
     let ok = false;
     for (let attempt = 0; attempt < 3; attempt++) {

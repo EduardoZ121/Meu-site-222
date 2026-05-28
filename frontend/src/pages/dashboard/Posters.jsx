@@ -43,6 +43,7 @@ import { usePhotoAspectDefault } from "../../lib/usePhotoAspectDefault";
 import { useI18n } from "../../lib/i18n";
 import { useStudioI18n } from "../../lib/useStudioI18n";
 import { posterFieldLabel, POSTER_CAT_KEYS } from "../../lib/posterFieldLocales";
+import { normalizePosterModels } from "../../lib/posterModels";
 
 /* ------------------------------------------------------------------ */
 /*  Constants                                                          */
@@ -120,15 +121,17 @@ export default function Posters() {
       .then((r) => setTemplates(r.data.templates?.length ? r.data.templates : FALLBACK_POSTER_TEMPLATES))
       .catch(() => setTemplates(FALLBACK_POSTER_TEMPLATES));
     api.get("/public/poster-models")
-      .then((r) => setModels(r.data.models?.length ? r.data.models : FALLBACK_POSTER_MODELS))
-      .catch(() => setModels(FALLBACK_POSTER_MODELS));
+      .then((r) => setModels(
+        normalizePosterModels(r.data.models?.length ? r.data.models : FALLBACK_POSTER_MODELS),
+      ))
+      .catch(() => setModels(normalizePosterModels(FALLBACK_POSTER_MODELS)));
   }, []);
 
   useEffect(() => {
     const pc = posterModelCosts(region);
     setModels((prev) => {
       const base = prev.length ? prev : FALLBACK_POSTER_MODELS;
-      return base.map((m) => ({ ...m, cost: pc[m.key] ?? m.cost }));
+      return normalizePosterModels(base.map((m) => ({ ...m, cost: pc[m.key] ?? m.cost })));
     });
   }, [region]);
 

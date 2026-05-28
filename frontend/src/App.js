@@ -40,6 +40,9 @@ import Colorize from "./pages/dashboard/tools/Colorize";
 import Inpaint from "./pages/dashboard/tools/Inpaint";
 import ClothesChanger from "./pages/dashboard/tools/ClothesChanger";
 import BuildVersionGuard from "./components/BuildVersionGuard";
+import CookieConsentBar from "./components/legal/CookieConsentBar";
+import WhatsAppGenerationListener from "./components/legal/WhatsAppGenerationListener";
+import Legal from "./pages/Legal";
 
 /** App instalado (Chrome): abre login em vez da landing; sessão autenticada vai ao estúdio. */
 function PwaStartupRedirect() {
@@ -97,6 +100,8 @@ function App() {
           <BrowserRouter>
             <Toaster position="top-center" theme="dark" toastOptions={{ style: { background: "#121217", color: "#F4F1EA", border: "1px solid rgba(244,241,234,0.08)" } }} />
             <BuildVersionGuard />
+            <CookieConsentBar />
+            <WhatsAppGenerationListener />
             <PwaStartupRedirect />
             <BackgroundGenerationRedirect />
             <Routes>
@@ -107,6 +112,8 @@ function App() {
               <Route path="/forgot-password" element={<ForgotPassword />} />
               <Route path="/reset-password" element={<ResetPassword />} />
               <Route path="/explore" element={<Explore />} />
+              <Route path="/legal/:section" element={<Legal />} />
+              <Route path="/legal" element={<Navigate to="/legal/terms" replace />} />
               <Route path="/studio" element={<Navigate to="/app/studio" replace />} />
 
               <Route path="/app" element={<RequireAuth><DashboardLayout /></RequireAuth>}>

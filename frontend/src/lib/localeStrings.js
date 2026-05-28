@@ -6,6 +6,7 @@ import { mergeToolPagesLocales } from "./toolPagesLocales";
 import { mergeExtendedPageLocales } from "./extendedPageLocales";
 import { mergeBillingLocales } from "./billingLocales";
 import { mergeCarouselLocales } from "./carouselLocales";
+import { mergeLegalLocales } from "./legalLocales";
 
 const loginEn = {
   login_welcome: "Welcome back",
@@ -499,5 +500,6 @@ export function mergeLocaleStrings(dict) {
   mergeExtendedPageLocales(dict);
   mergeBillingLocales(dict);
   mergeCarouselLocales(dict);
+  mergeLegalLocales(dict);
   // ES/FR inherit missing keys from English at lookup time (see i18n.jsx t())
 }

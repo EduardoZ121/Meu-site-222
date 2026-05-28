@@ -9,11 +9,13 @@ import {
   ChevronRight,
   Image as ImageIcon,
   Mail,
+  MessageCircle,
 } from "lucide-react";
 import { useAuth } from "../../lib/auth";
 import { useI18n } from "../../lib/i18n";
 import { LANG_LABELS, LANG_ORDER } from "../../lib/localeStrings";
 import { readUserSettings, writeUserSettings } from "../../lib/userSettings";
+import { normalizeWhatsAppPhone } from "../../lib/whatsappNotify";
 import { setLanguageAndReload } from "../../lib/remakepixLanguage";
 import useTitle from "../../lib/useTitle";
 import { toast } from "sonner";
@@ -31,12 +33,23 @@ export default function Settings() {
   const [pwNew, setPwNew] = useState("");
   const [pwConfirm, setPwConfirm] = useState("");
   const [pwSaving, setPwSaving] = useState(false);
+  const [waPhone, setWaPhone] = useState("");
+  const [waNotify, setWaNotify] = useState(false);
   const isGoogle = String(user?.id || "").startsWith("google_");
 
   useEffect(() => {
     const s = readUserSettings();
     if (s.aspect_ratio_default) setAspect(s.aspect_ratio_default);
+    setWaPhone(s.whatsapp_phone || "");
+    setWaNotify(Boolean(s.whatsapp_notify));
   }, []);
+
+  const saveWhatsApp = (patch) => {
+    const next = writeUserSettings(patch);
+    setWaPhone(next.whatsapp_phone || "");
+    setWaNotify(Boolean(next.whatsapp_notify));
+    toast.success(t("wa_saved"));
+  };
 
   const pickLang = (code) => {
     if (code === lang) return;
@@ -173,6 +186,52 @@ export default function Settings() {
           )}
         </Section>
 
+        <Section title={t("wa_settings_title")} icon={MessageCircle}>
+          <p className="text-xs text-[#8A8A8E] mb-4 leading-relaxed">{t("wa_settings_desc")}</p>
+          <Field
+            label={t("wa_phone_label")}
+            type="tel"
+            value={waPhone}
+            onChange={setWaPhone}
+            testId="settings-whatsapp-phone"
+            autoComplete="tel"
+            placeholder={t("wa_phone_ph")}
+          />
+          <label className="mt-4 flex items-start gap-3 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={waNotify}
+              onChange={(e) => {
+                const on = e.target.checked;
+                const phone = normalizeWhatsAppPhone(waPhone);
+                if (on && !phone) {
+                  toast.error(t("wa_invalid_phone"));
+                  return;
+                }
+                saveWhatsApp({ whatsapp_notify: on, whatsapp_phone: phone || waPhone });
+              }}
+              className="mt-1 accent-[#7C3AED] w-4 h-4 rounded"
+              data-testid="settings-whatsapp-enable"
+            />
+            <span className="text-sm text-[#C4C4C8] leading-snug">{t("wa_enable")}</span>
+          </label>
+          <button
+            type="button"
+            onClick={() => {
+              const phone = normalizeWhatsAppPhone(waPhone);
+              if (!phone) {
+                toast.error(t("wa_invalid_phone"));
+                return;
+              }
+              saveWhatsApp({ whatsapp_phone: phone, whatsapp_notify: waNotify });
+            }}
+            className="w-full mt-4 rounded-xl border border-[#9333EA]/35 text-[#D8B4FE] text-sm font-medium py-2.5 hover:bg-[#7C3AED]/10 transition-colors"
+            data-testid="settings-whatsapp-save"
+          >
+            {t("wa_save_btn")}
+          </button>
+        </Section>
+
         <Section title={t("set_section_studio")} icon={ImageIcon}>
           <p className="text-xs text-[#8A8A8E] mb-3">{t("set_aspect_hint")}</p>
           <AspectPicker
@@ -190,6 +249,8 @@ export default function Settings() {
         <Section title={t("set_section_links")} icon={CreditCard}>
           <LinkRow to="/app/billing" label={t("sidebar_billing")} testId="settings-link-billing" />
           <LinkRow to="/app/referrals" label={t("sidebar_referrals")} testId="settings-link-referrals" />
+          <LinkRow to="/legal/terms" label={t("consent_terms")} testId="settings-link-terms" />
+          <LinkRow to="/legal/privacy" label={t("consent_privacy")} testId="settings-link-privacy" />
         </Section>
       </div>
     </div>
@@ -233,7 +294,7 @@ function LinkRow({ to, label, testId }) {
   );
 }
 
-function Field({ label, type, value, onChange, testId, autoComplete }) {
+function Field({ label, type, value, onChange, testId, autoComplete, placeholder }) {
   return (
     <label className="block">
       <span className="text-[11px] font-mono uppercase tracking-wider text-[#8A8A8E] mb-1.5 block">
@@ -245,6 +306,7 @@ function Field({ label, type, value, onChange, testId, autoComplete }) {
         onChange={(e) => onChange(e.target.value)}
         data-testid={testId}
         autoComplete={autoComplete}
+        placeholder={placeholder}
         className="w-full rounded-xl border border-[#2E2E30] bg-[#0B0B0C] px-3 py-2.5 text-sm text-white placeholder:text-[#555] focus:outline-none focus:border-[#7C3AED]/60"
       />
     </label>

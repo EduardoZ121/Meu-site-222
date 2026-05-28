@@ -1,27 +1,13 @@
-import { User, MapPin, Box, X } from "lucide-react";
+import { User, MapPin, Box, MessageCircle, Sparkles, Camera, Square, X } from "lucide-react";
 
 const NODE_TYPES = [
-  {
-    type: "person",
-    icon: User,
-    label: "Person / Character",
-    desc: "A character with pose, emotion, speech bubbles, clothing, and reference photo.",
-    color: "#9333EA",
-  },
-  {
-    type: "scenario",
-    icon: MapPin,
-    label: "Scenario / Place",
-    desc: "A location with time of day, weather, mood, and reference image.",
-    color: "#14B8A6",
-  },
-  {
-    type: "object",
-    icon: Box,
-    label: "Object / Item",
-    desc: "An item like a weapon, letter, phone — with description and size.",
-    color: "#FACC15",
-  },
+  { type: "person", icon: User, label: "Person / Character", desc: "Name, pose, emotion, speech, clothing, reference photo.", color: "#9333EA", emoji: "👤" },
+  { type: "scenario", icon: MapPin, label: "Scenario / Place", desc: "Location with time, weather, mood, lighting.", color: "#14B8A6", emoji: "🌆" },
+  { type: "object", icon: Box, label: "Object / Item", desc: "Item with description, size, state.", color: "#FACC15", emoji: "📦" },
+  { type: "speech", icon: MessageCircle, label: "Speech Bubble / Dialogue", desc: "Dialogue text, bubble type, style, tail direction.", color: "#60A5FA", emoji: "💬" },
+  { type: "effect", icon: Sparkles, label: "Effect / SFX", desc: "Motion lines, explosion, sparkles, impact.", color: "#FB923C", emoji: "✨" },
+  { type: "camera", icon: Camera, label: "Camera Shot", desc: "Angle, framing, focus target.", color: "#F472B6", emoji: "📷" },
+  { type: "panel", icon: Square, label: "Panel / Frame", desc: "Define a manga panel size, format, borders.", color: "#A3A3A3", emoji: "▢" },
 ];
 
 export default function AddNodeMenu({ onAdd, onClose }) {
@@ -33,19 +19,15 @@ export default function AddNodeMenu({ onAdd, onClose }) {
           <button onClick={onClose} className="manga-flow-modal__close"><X className="w-4 h-4" /></button>
         </div>
         <div className="manga-flow-add-grid">
-          {NODE_TYPES.map(({ type, icon: Icon, label, desc, color }) => (
-            <button
-              key={type}
-              onClick={() => onAdd(type)}
-              className="manga-flow-add-card"
-              style={{ borderColor: `${color}40` }}
-              data-testid={`add-node-${type}`}
-            >
+          {NODE_TYPES.map(({ type, icon: Icon, label, desc, color, emoji }) => (
+            <button key={type} onClick={() => onAdd(type)} className="manga-flow-add-card" style={{ borderColor: `${color}40` }} data-testid={`add-node-${type}`}>
               <div className="manga-flow-add-card__icon" style={{ background: `${color}20`, borderColor: `${color}50` }}>
-                <Icon className="w-6 h-6" style={{ color }} />
+                <span className="text-xl">{emoji}</span>
               </div>
-              <p className="manga-flow-add-card__label">{label}</p>
-              <p className="manga-flow-add-card__desc">{desc}</p>
+              <div className="manga-flow-add-card__text">
+                <p className="manga-flow-add-card__label">{label}</p>
+                <p className="manga-flow-add-card__desc">{desc}</p>
+              </div>
             </button>
           ))}
         </div>

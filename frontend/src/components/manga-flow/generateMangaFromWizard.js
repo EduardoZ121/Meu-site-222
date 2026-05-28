@@ -1,76 +1,26 @@
 /** Generates manga pages/cards/edges from wizard answers */
 
 import { uid } from "./mangaFlowData";
-
-const NODE_COLORS = {
-  person: { bg: "rgba(147,51,234,0.15)", border: "#9333EA" },
-  scenario: { bg: "rgba(20,184,166,0.15)", border: "#14B8A6" },
-  object: { bg: "rgba(250,204,21,0.15)", border: "#FACC15" },
-};
-
-const NODE_DEFAULTS = {
-  person: {
-    name: "",
-    pose: "standing",
-    emotion: "normal",
-    speech: "",
-    speechType: "speech",
-    clothing: "",
-    refImage: null,
-    refImageUrl: null,
-  },
-  scenario: {
-    name: "",
-    timeOfDay: "day",
-    weather: "clear",
-    mood: "neutral",
-    description: "",
-    refImage: null,
-    refImageUrl: null,
-  },
-  object: {
-    name: "",
-    description: "",
-    size: "medium",
-    refImage: null,
-    refImageUrl: null,
-  },
-};
+import { NODE_DEFAULTS, NODE_COLORS } from "./nodeDefaults";
 
 function makeNode(type, x, y, overrides = {}) {
-  const flowType = ["person", "scenario", "object"].includes(type) ? type : "object";
-  const data = { ...NODE_DEFAULTS[flowType], _color: NODE_COLORS[flowType], ...overrides };
-  if (type === "panel") {
-    data.name = overrides.name || "Panel";
-    data.description = `Size: ${overrides.panelSize || "medium"}, format: ${overrides.format || "rectangle"}`;
-    data.size = overrides.panelSize === "small" ? "small" : overrides.panelSize === "large" ? "large" : "medium";
-  } else if (type === "speech") {
-    data.name = "Speech bubble";
-    data.description = overrides.text || "";
-  } else if (type === "effect") {
-    data.name = `SFX: ${overrides.effectType || "impact"}`;
-    data.description = `Intensity: ${overrides.intensity || "medium"}`;
-  } else if (type === "camera") {
-    data.name = `Camera: ${overrides.shotType || "medium"}`;
-    data.description = `Angle: ${overrides.angle || "eye_level"}, focus: ${overrides.focusTarget || ""}`;
-  }
   return {
-    id: uid(flowType.slice(0, 4)),
-    type: flowType,
+    id: uid(type.slice(0, 4)),
+    type,
     position: { x, y },
-    data,
+    data: { ...NODE_DEFAULTS[type], _color: NODE_COLORS[type], ...overrides },
   };
 }
 
-function makeEdge(sourceId, targetId, prompt) {
+function makeEdge(sourceId, targetId, prompt, condition) {
   return {
-    id: `e_${sourceId}_${targetId}_${Date.now()}_${Math.random().toString(36).slice(2, 5)}`,
+    id: `e_${sourceId}_${targetId}_${Date.now()}_${Math.random().toString(36).slice(2,5)}`,
     source: sourceId,
     target: targetId,
     type: "smoothstep",
     animated: true,
-    data: { prompt },
-    label: prompt ? (prompt.length > 28 ? `${prompt.slice(0, 26)}…` : prompt) : "",
+    data: { prompt, condition: condition || null },
+    label: prompt ? (prompt.length > 28 ? prompt.slice(0, 26) + "…" : prompt) : "",
     labelStyle: { fill: "#C4B5FD", fontSize: 11, fontFamily: "'Inter Tight', sans-serif" },
     labelBgStyle: { fill: "#111118", fillOpacity: 0.92 },
     labelBgPadding: [6, 4],
@@ -117,31 +67,23 @@ const GENRE_ACTIONS = {
 };
 
 const EMOTION_MAP = {
-  epic: "determined",
-  dark: "serious",
-  cute: "happy",
-  humor: "surprised",
-  dramatic: "sad",
-  romantic: "blushing",
-  tense: "scared",
-  cheerful: "happy",
+  epic: "determined", dark: "serious", cute: "happy", humor: "surprised",
+  dramatic: "sad", romantic: "blushing", tense: "scared", cheerful: "happy",
 };
 
 const STYLE_POSES = {
   shonen: ["fighting", "running", "jumping", "standing"],
-  shojo: ["standing", "sitting", "walking", "looking back"],
+  shojo: ["standing", "sitting", "walking", "looking_back"],
   seinen: ["standing", "leaning", "sitting", "crouching"],
-  disney: ["standing", "waving", "jumping"],
-  ghibli: ["standing", "walking", "sitting"],
-  dark: ["crouching", "standing", "leaning"],
-  realistic: ["standing", "walking", "sitting"],
-  retro: ["standing", "pointing", "running"],
 };
 
-function pickRandom(arr) {
-  return arr[Math.floor(Math.random() * arr.length)];
-}
+function pickRandom(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
 
+/**
+ * Generate complete manga pages from wizard answers.
+ * @param {object} answers - Wizard answers
+ * @returns {{ pages: Array<{id, name, nodes, edges}> }}
+ */
 export function generateMangaFromWizard(answers) {
   const {
     format = "manga",
@@ -154,9 +96,12 @@ export function generateMangaFromWizard(answers) {
     location = "",
     era = "",
     climate = "",
+    artStyle = "manga",
+    subStyle = "bw",
+    quality = "ultra",
   } = answers;
 
-  const numPages = Math.min(Math.max(1, Number(pageCount) || 4), 20);
+  const numPages = Math.min(Math.max(1, Number(pageCount)), 20);
   const panelsPerPage = format === "webtoon" ? 3 : format === "graphic_novel" ? 3 : 4;
   const panelLayout = PANEL_LAYOUTS[panelsPerPage] || PANEL_LAYOUTS[4];
   const genreActions = GENRE_ACTIONS[genre] || GENRE_ACTIONS.action;
@@ -171,6 +116,7 @@ export function generateMangaFromWizard(answers) {
     const nodes = [];
     const edges = [];
 
+    // Create panels
     const panelNodes = panelLayout.map((layout, i) => {
       const node = makeNode("panel", layout.x, layout.y, {
         panelSize: layout.size,
@@ -181,15 +127,18 @@ export function generateMangaFromWizard(answers) {
       return node;
     });
 
+    // Create scenario for this page
     const sceneNode = makeNode("scenario", 560, 60, {
       name: location || "Scene",
       timeOfDay: p === 0 ? "day" : p === numPages - 1 ? "sunset" : pickRandom(["day", "night", "sunset", "dawn"]),
       weather: climate || "clear",
       mood: tone || "neutral",
-      description: era ? `${era} setting. ${synopsis ? synopsis.slice(0, 80) : ""}` : synopsis?.slice(0, 120) || "",
+      lighting: tone === "dark" ? "dark" : tone === "romantic" ? "soft" : "dramatic",
+      description: era ? `${era} setting. ${synopsis ? synopsis.slice(0, 80) : ""}` : "",
     });
     nodes.push(sceneNode);
 
+    // Create characters for this page
     const charNodes = [];
     const charsForPage = characters.length ? characters : [{ name: "Protagonist", appearance: "", personality: "" }];
     const maxChars = Math.min(charsForPage.length, 3);
@@ -202,24 +151,28 @@ export function generateMangaFromWizard(answers) {
         pose: pickRandom(stylePoses),
         emotion: c === 0 ? defaultEmotion : pickRandom(["normal", "happy", "surprised", defaultEmotion]),
         clothing: char.appearance || "",
-        speech: c === 0 && p === 0 ? "..." : "",
+        actionDesc: char.personality ? `Personality: ${char.personality}` : "",
       });
       nodes.push(charNode);
       charNodes.push(charNode);
 
+      // Connect character to scenario
       edges.push(makeEdge(charNode.id, sceneNode.id, c === 0 ? "Standing in the scene" : "Also present here"));
 
+      // Connect character to a panel
       if (panelNodes[c]) {
         edges.push(makeEdge(charNode.id, panelNodes[c].id, "Featured in this panel"));
       }
     }
 
+    // Character interactions
     if (charNodes.length >= 2) {
       const action = pickRandom(genreActions);
       edges.push(makeEdge(charNodes[0].id, charNodes[1].id, action));
 
+      // Add speech bubble for first character
       const speechNode = makeNode("speech", 800, 180, {
-        text: p === 0 ? "..." : pickRandom(["!", "...", "Hey!", "No way!"]),
+        text: p === 0 ? "..." : "",
         bubbleType: "speech",
         style: "normal",
       });
@@ -227,10 +180,11 @@ export function generateMangaFromWizard(answers) {
       edges.push(makeEdge(charNodes[0].id, speechNode.id, "Saying this"));
     }
 
+    // Add effect on action pages
     if (genre === "action" || genre === "fantasy") {
       if (p % 2 === 1) {
         const fxNode = makeNode("effect", 800, 380, {
-          effectType: genre === "action" ? pickRandom(["impact", "speed_lines", "explosion"]) : pickRandom(["sparkle", "aura", "glow"]),
+          effectType: genre === "action" ? pickRandom(["impact", "speed_lines", "shockwave"]) : pickRandom(["aura", "sparkle", "lightning"]),
           intensity: "strong",
         });
         nodes.push(fxNode);
@@ -238,6 +192,7 @@ export function generateMangaFromWizard(answers) {
       }
     }
 
+    // Add camera for key pages
     if (p === 0 || p === numPages - 1) {
       const camNode = makeNode("camera", 800, 60, {
         shotType: p === 0 ? "establishing" : "close_up",
@@ -245,7 +200,6 @@ export function generateMangaFromWizard(answers) {
         focusTarget: charNodes[0]?.data?.name || "Main character",
       });
       nodes.push(camNode);
-      if (charNodes[0]) edges.push(makeEdge(camNode.id, charNodes[0].id, "Focusing on this character"));
     }
 
     pages.push({ id: pageId, name: pageName, nodes, edges });

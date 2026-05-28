@@ -1,7 +1,7 @@
 /**
  * Capas JPG para a grelha do Estúdio Artístico.
  * AI Lab: `node scripts/download-artistic-covers-nsfw.mjs` (prompts únicos por card)
- * Fotografia (12 estilos): `node scripts/generate-artistic-covers-photography.mjs` — ref mulher + homem (Pollinations Flux)
+ * Fotografia (6 estilos): `node scripts/generate-artistic-covers-photography.mjs` — ref mulher + prompt (Pollinations Flux)
  * Anime & Manga: `node scripts/generate-artistic-covers-anime.mjs` — ref mulher estilizada por card
  * Cartoon & 3D: `node scripts/generate-artistic-covers-cartoon.mjs` — ref mulher estilizada por card
  * Ilustração & Comic: `node scripts/generate-artistic-covers-illustration.mjs`
@@ -136,15 +136,3 @@ export const ARTISTIC_STYLE_COVER_BY_ID = {
   vin_film_grain: "/images/artistic-covers/vin_film_grain.jpg",
   vin_retro_comic: "/images/artistic-covers/vin_retro_comic.jpg",
 };
-
-/** Increment when Fotografia grid JPGs change — forces CDN/browser refresh. */
-export const ARTISTIC_PHOTO_COVER_VERSION = "20260528-1";
-
-export function artisticStyleCoverSrc(styleId) {
-  const path = ARTISTIC_STYLE_COVER_BY_ID[styleId];
-  if (!path) return "";
-  if (String(styleId).startsWith("photo_")) {
-    return `${path}?v=${ARTISTIC_PHOTO_COVER_VERSION}`;
-  }
-  return path;
-}

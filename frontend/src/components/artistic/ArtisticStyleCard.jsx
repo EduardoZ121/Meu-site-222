@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Check } from "lucide-react";
-import { artisticStyleCoverSrc } from "../../lib/artisticStyleCovers";
+import { ARTISTIC_STYLE_COVER_BY_ID } from "../../lib/artisticStyleCovers";
 import { getArtisticStyleBadge } from "../../lib/artisticStyleBadges";
 import { useI18n } from "../../lib/i18n";
 import {
@@ -66,7 +66,7 @@ export default function ArtisticStyleCard({ style, selected, onSelect }) {
   const { t } = useI18n();
   const Icon = ICONS[style.icon] || Sparkles;
   const [a, b, c] = style.gradient || ["#111118", "#9333EA", "#06B6D4"];
-  const coverSrc = artisticStyleCoverSrc(style.id);
+  const coverSrc = ARTISTIC_STYLE_COVER_BY_ID[style.id];
   const [coverFailed, setCoverFailed] = useState(false);
   const showCover = coverSrc && !coverFailed;
   const badge = getArtisticStyleBadge(style);

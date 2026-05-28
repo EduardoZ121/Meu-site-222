@@ -136,3 +136,15 @@ export const ARTISTIC_STYLE_COVER_BY_ID = {
   vin_film_grain: "/images/artistic-covers/vin_film_grain.jpg",
   vin_retro_comic: "/images/artistic-covers/vin_retro_comic.jpg",
 };
+
+/** Increment when Fotografia grid JPGs change — forces CDN/browser refresh. */
+export const ARTISTIC_PHOTO_COVER_VERSION = "20250528";
+
+export function artisticStyleCoverSrc(styleId) {
+  const path = ARTISTIC_STYLE_COVER_BY_ID[styleId];
+  if (!path) return "";
+  if (String(styleId).startsWith("photo_")) {
+    return `${path}?v=${ARTISTIC_PHOTO_COVER_VERSION}`;
+  }
+  return path;
+}

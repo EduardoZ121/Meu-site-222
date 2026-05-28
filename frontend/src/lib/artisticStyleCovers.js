@@ -138,7 +138,7 @@ export const ARTISTIC_STYLE_COVER_BY_ID = {
 };
 
 /** Increment when Fotografia grid JPGs change — forces CDN/browser refresh. */
-export const ARTISTIC_PHOTO_COVER_VERSION = "20250528";
+export const ARTISTIC_PHOTO_COVER_VERSION = "20260528-1";
 
 export function artisticStyleCoverSrc(styleId) {
   const path = ARTISTIC_STYLE_COVER_BY_ID[styleId];

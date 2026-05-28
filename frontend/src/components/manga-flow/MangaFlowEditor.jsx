@@ -11,7 +11,10 @@ import {
   Panel,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
-import { Plus, HelpCircle, Save, FolderOpen, Undo2, Redo2, Grid3X3 } from "lucide-react";
+import {
+  Plus, HelpCircle, Save, FolderOpen, Undo2, Redo2, Grid3X3,
+  Sparkles, ChevronDown, FileText, Check, Pencil, Copy, Trash2,
+} from "lucide-react";
 import PersonNode from "./nodes/PersonNode";
 import ScenarioNode from "./nodes/ScenarioNode";
 import ObjectNode from "./nodes/ObjectNode";
@@ -19,6 +22,7 @@ import NodeInspector from "./NodeInspector";
 import ConnectionPromptModal from "./ConnectionPromptModal";
 import AddNodeMenu from "./AddNodeMenu";
 import TutorialOverlay from "./TutorialOverlay";
+import AIWizardModal from "./AIWizardModal";
 import { uid, createDefaultProject, saveFlowProject, loadFlowProject } from "./mangaFlowData";
 import { toast } from "sonner";
 
@@ -33,19 +37,48 @@ const defaultEdgeOptions = {
 
 const MAX_HISTORY = 40;
 
+function createEmptyPage(name) {
+  return { id: uid("pg"), name, nodes: [], edges: [] };
+}
+
+function toPagesProject(raw) {
+  if (!raw) return null;
+  if (raw.pages?.length) return raw;
+  const pageId = uid("pg");
+  return {
+    id: raw.id,
+    name: raw.name || "Page 1",
+    activePageId: pageId,
+    pages: [{ id: pageId, name: raw.name || "Page 1", nodes: raw.nodes || [], edges: raw.edges || [] }],
+  };
+}
+
+function freshPagesProject(name = "Page 1") {
+  return toPagesProject(createDefaultProject(name));
+}
+
 export default function MangaFlowEditor() {
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
+  const [project, setProject] = useState(null);
+  const [activePageId, setActivePageId] = useState(null);
   const [selectedNode, setSelectedNode] = useState(null);
   const [showAddMenu, setShowAddMenu] = useState(false);
   const [pendingConnection, setPendingConnection] = useState(null);
   const [editingEdge, setEditingEdge] = useState(null);
   const [showTutorial, setShowTutorial] = useState(false);
-  const [projectName, setProjectName] = useState("Page 1");
-  const [projectId, setProjectId] = useState(null);
+  const [showAIWizard, setShowAIWizard] = useState(false);
+  const [showPageDropdown, setShowPageDropdown] = useState(false);
   const [snapToGrid, setSnapToGrid] = useState(false);
   const historyRef = useRef({ past: [], future: [] });
   const skipHistoryRef = useRef(false);
+  const pageDropRef = useRef(null);
+
+  const pages = useMemo(() => project?.pages || [], [project?.pages]);
+  const activePage = pages.find((p) => p.id === activePageId) || pages[0] || null;
+  const activePageIndex = pages.findIndex((p) => p.id === activePageId);
+  const projectName = project?.name || "Page 1";
+  const projectId = project?.id || null;
 
   const pushHistory = useCallback(() => {
     if (skipHistoryRef.current) {
@@ -82,74 +115,216 @@ export default function MangaFlowEditor() {
     setEditingEdge(null);
   }, [nodes, edges, setNodes, setEdges]);
 
+  const savePageState = useCallback(() => {
+    if (!project || !activePageId) return project;
+    const updatedPages = pages.map((pg) =>
+      pg.id === activePageId ? { ...pg, nodes, edges } : pg
+    );
+    return { ...project, pages: updatedPages, activePageId };
+  }, [project, activePageId, nodes, edges, pages]);
+
   useEffect(() => {
-    const saved = loadFlowProject();
+    const saved = toPagesProject(loadFlowProject());
     if (saved) {
-      setNodes(saved.nodes || []);
-      setEdges(saved.edges || []);
-      setProjectName(saved.name || "Page 1");
-      setProjectId(saved.id);
+      setProject(saved);
+      const pg = saved.pages.find((p) => p.id === saved.activePageId) || saved.pages[0];
+      if (pg) {
+        setActivePageId(pg.id);
+        setNodes(pg.nodes || []);
+        setEdges(pg.edges || []);
+      }
     } else {
-      const fresh = createDefaultProject();
-      setNodes(fresh.nodes);
-      setEdges(fresh.edges);
-      setProjectName(fresh.name);
-      setProjectId(fresh.id);
+      const fresh = freshPagesProject();
+      setProject(fresh);
+      const pg = fresh.pages[0];
+      setActivePageId(pg.id);
+      setNodes(pg.nodes);
+      setEdges(pg.edges);
+      saveFlowProject(fresh);
     }
-    if (!localStorage.getItem("manga_flow_tutorial_done")) {
-      setShowTutorial(true);
-    }
+    if (!localStorage.getItem("manga_flow_tutorial_done")) setShowTutorial(true);
   }, [setNodes, setEdges]);
 
   useEffect(() => {
     const timer = setTimeout(() => {
-      if (projectId) {
-        saveFlowProject({ id: projectId, name: projectName, nodes, edges });
+      const updated = savePageState();
+      if (updated) {
+        setProject(updated);
+        saveFlowProject(updated);
       }
     }, 1000);
     return () => clearTimeout(timer);
-  }, [nodes, edges, projectId, projectName]);
+  }, [nodes, edges, savePageState]);
+
+  useEffect(() => {
+    if (!showPageDropdown) return;
+    const handler = (e) => {
+      if (pageDropRef.current && !pageDropRef.current.contains(e.target)) setShowPageDropdown(false);
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [showPageDropdown]);
+
+  const switchToPage = useCallback(
+    (pageId) => {
+      if (pageId === activePageId) {
+        setShowPageDropdown(false);
+        return;
+      }
+      const updated = savePageState();
+      if (!updated) return;
+      const target = updated.pages.find((p) => p.id === pageId);
+      if (!target) return;
+      const next = { ...updated, activePageId: pageId };
+      setProject(next);
+      setActivePageId(pageId);
+      setNodes(target.nodes || []);
+      setEdges(target.edges || []);
+      historyRef.current = { past: [], future: [] };
+      setSelectedNode(null);
+      saveFlowProject(next);
+      setShowPageDropdown(false);
+    },
+    [activePageId, savePageState, setNodes, setEdges]
+  );
+
+  const addPage = useCallback(() => {
+    const updated = savePageState();
+    if (!updated) return;
+    const num = updated.pages.length + 1;
+    const pg = createEmptyPage(`Page ${num}`);
+    const next = { ...updated, pages: [...updated.pages, pg], activePageId: pg.id };
+    setProject(next);
+    setActivePageId(pg.id);
+    setNodes([]);
+    setEdges([]);
+    historyRef.current = { past: [], future: [] };
+    saveFlowProject(next);
+    toast.success(`Page ${num} created`);
+  }, [savePageState, setNodes, setEdges]);
+
+  const duplicatePage = useCallback(() => {
+    const updated = savePageState();
+    const current = updated?.pages.find((p) => p.id === activePageId);
+    if (!updated || !current) return;
+    const dup = {
+      ...createEmptyPage(`${current.name} (copy)`),
+      nodes: JSON.parse(JSON.stringify(current.nodes)),
+      edges: JSON.parse(JSON.stringify(current.edges)),
+    };
+    const next = { ...updated, pages: [...updated.pages, dup], activePageId: dup.id };
+    setProject(next);
+    setActivePageId(dup.id);
+    setNodes(dup.nodes);
+    setEdges(dup.edges);
+    saveFlowProject(next);
+    toast.success("Page duplicated");
+  }, [savePageState, activePageId, setNodes, setEdges]);
+
+  const deletePage = useCallback(
+    (pageId) => {
+      if (pages.length <= 1) {
+        toast.error("Must have at least 1 page");
+        return;
+      }
+      const updated = savePageState();
+      if (!updated) return;
+      const remaining = updated.pages.filter((p) => p.id !== pageId);
+      const newActive = pageId === activePageId ? remaining[0] : remaining.find((p) => p.id === activePageId) || remaining[0];
+      const next = { ...updated, pages: remaining, activePageId: newActive.id };
+      setProject(next);
+      setActivePageId(newActive.id);
+      setNodes(newActive.nodes || []);
+      setEdges(newActive.edges || []);
+      saveFlowProject(next);
+      toast.message("Page deleted");
+    },
+    [pages.length, savePageState, activePageId, setNodes, setEdges]
+  );
+
+  const renamePage = useCallback(
+    (pageId) => {
+      const pg = pages.find((p) => p.id === pageId);
+      const name = window.prompt("Page name:", pg?.name || "Page");
+      if (name === null || !name.trim()) return;
+      const updated = savePageState();
+      if (!updated) return;
+      const next = {
+        ...updated,
+        pages: updated.pages.map((p) => (p.id === pageId ? { ...p, name: name.trim() } : p)),
+      };
+      setProject(next);
+      saveFlowProject(next);
+    },
+    [pages, savePageState]
+  );
+
+  const handleWizardResult = useCallback(
+    (result) => {
+      if (!result?.pages?.length) return;
+      pushHistory();
+      const newProject = {
+        id: projectId || uid("proj"),
+        name: projectName || "AI Manga",
+        pages: result.pages,
+        activePageId: result.pages[0].id,
+      };
+      setProject(newProject);
+      setActivePageId(result.pages[0].id);
+      setNodes(result.pages[0].nodes || []);
+      setEdges(result.pages[0].edges || []);
+      historyRef.current = { past: [], future: [] };
+      setSelectedNode(null);
+      saveFlowProject(newProject);
+      setShowAIWizard(false);
+      toast.success(`${result.pages.length} pages ready — edit freely on the canvas`);
+    },
+    [projectId, projectName, setNodes, setEdges, pushHistory]
+  );
 
   const onConnect = useCallback((params) => {
     pushHistory();
     setPendingConnection(params);
   }, [pushHistory]);
 
-  const confirmConnection = useCallback((prompt) => {
-    if (editingEdge) {
-      pushHistory();
-      setEdges((eds) =>
-        eds.map((e) =>
-          e.id === editingEdge.id
-            ? {
-                ...e,
-                data: { ...e.data, prompt: prompt || "" },
-                label: prompt ? (prompt.length > 30 ? `${prompt.slice(0, 28)}…` : prompt) : "",
-                labelStyle: { fill: "#C4B5FD", fontSize: 11, fontFamily: "'Inter Tight', sans-serif" },
-                labelBgStyle: { fill: "#111118", fillOpacity: 0.92 },
-                labelBgPadding: [6, 4],
-                labelBgBorderRadius: 6,
-              }
-            : e
-        )
-      );
-      setEditingEdge(null);
-      return;
-    }
-    if (!pendingConnection) return;
-    const edge = {
-      ...pendingConnection,
-      id: `e_${pendingConnection.source}_${pendingConnection.target}_${Date.now()}`,
-      data: { prompt: prompt || "" },
-      label: prompt ? (prompt.length > 30 ? `${prompt.slice(0, 28)}…` : prompt) : "",
-      labelStyle: { fill: "#C4B5FD", fontSize: 11, fontFamily: "'Inter Tight', sans-serif" },
-      labelBgStyle: { fill: "#111118", fillOpacity: 0.92 },
-      labelBgPadding: [6, 4],
-      labelBgBorderRadius: 6,
-    };
-    setEdges((eds) => addEdge(edge, eds));
-    setPendingConnection(null);
-  }, [pendingConnection, editingEdge, setEdges, pushHistory]);
+  const confirmConnection = useCallback(
+    (prompt) => {
+      if (editingEdge) {
+        pushHistory();
+        setEdges((eds) =>
+          eds.map((e) =>
+            e.id === editingEdge.id
+              ? {
+                  ...e,
+                  data: { ...e.data, prompt: prompt || "" },
+                  label: prompt ? (prompt.length > 30 ? `${prompt.slice(0, 28)}…` : prompt) : "",
+                  labelStyle: { fill: "#C4B5FD", fontSize: 11, fontFamily: "'Inter Tight', sans-serif" },
+                  labelBgStyle: { fill: "#111118", fillOpacity: 0.92 },
+                  labelBgPadding: [6, 4],
+                  labelBgBorderRadius: 6,
+                }
+              : e
+          )
+        );
+        setEditingEdge(null);
+        return;
+      }
+      if (!pendingConnection) return;
+      const edge = {
+        ...pendingConnection,
+        id: `e_${pendingConnection.source}_${pendingConnection.target}_${Date.now()}`,
+        data: { prompt: prompt || "" },
+        label: prompt ? (prompt.length > 30 ? `${prompt.slice(0, 28)}…` : prompt) : "",
+        labelStyle: { fill: "#C4B5FD", fontSize: 11, fontFamily: "'Inter Tight', sans-serif" },
+        labelBgStyle: { fill: "#111118", fillOpacity: 0.92 },
+        labelBgPadding: [6, 4],
+        labelBgBorderRadius: 6,
+      };
+      setEdges((eds) => addEdge(edge, eds));
+      setPendingConnection(null);
+    },
+    [pendingConnection, editingEdge, setEdges, pushHistory]
+  );
 
   const onEdgeClick = useCallback(
     (_, edge) => {
@@ -234,17 +409,9 @@ export default function MangaFlowEditor() {
     setNodes((nds) => nds.map((n) => (n.id === id ? { ...n, data: { ...n.data, ...data } } : n)));
   }, [setNodes]);
 
-  const onNodeClick = useCallback((_, node) => {
-    setSelectedNode(node.id);
-  }, []);
-
-  const onPaneClick = useCallback(() => {
-    setSelectedNode(null);
-  }, []);
-
-  const onNodeDragStop = useCallback(() => {
-    pushHistory();
-  }, [pushHistory]);
+  const onNodeClick = useCallback((_, node) => setSelectedNode(node.id), []);
+  const onPaneClick = useCallback(() => setSelectedNode(null), []);
+  const onNodeDragStop = useCallback(() => pushHistory(), [pushHistory]);
 
   const selectedNodeObj = useMemo(() => nodes.find((n) => n.id === selectedNode), [nodes, selectedNode]);
   const connectedEdges = useMemo(() => {
@@ -254,20 +421,27 @@ export default function MangaFlowEditor() {
 
   const handleNewProject = () => {
     pushHistory();
-    const name = window.prompt("Project name:", "New Page");
+    const name = window.prompt("Project name:", "New Manga");
     if (name === null) return;
-    const fresh = createDefaultProject(name || "New Page");
-    setNodes(fresh.nodes);
-    setEdges(fresh.edges);
-    setProjectName(fresh.name);
-    setProjectId(fresh.id);
+    const fresh = freshPagesProject(name || "New Manga");
+    setProject(fresh);
+    const pg = fresh.pages[0];
+    setActivePageId(pg.id);
+    setNodes(pg.nodes);
+    setEdges(pg.edges);
+    historyRef.current = { past: [], future: [] };
     setSelectedNode(null);
+    saveFlowProject(fresh);
     toast.success("New project created");
   };
 
   const handleSave = () => {
-    saveFlowProject({ id: projectId, name: projectName, nodes, edges });
-    toast.success("Project saved");
+    const updated = savePageState();
+    if (updated) {
+      setProject(updated);
+      saveFlowProject(updated);
+      toast.success("Project saved");
+    }
   };
 
   return (
@@ -278,7 +452,7 @@ export default function MangaFlowEditor() {
           <div className="min-w-0">
             <input
               value={projectName}
-              onChange={(e) => setProjectName(e.target.value)}
+              onChange={(e) => setProject((p) => (p ? { ...p, name: e.target.value } : p))}
               className="manga-flow-project-name"
               data-testid="manga-flow-project-name"
             />
@@ -288,6 +462,9 @@ export default function MangaFlowEditor() {
         <div className="flex items-center gap-1.5 flex-wrap">
           <button type="button" onClick={() => setShowAddMenu(true)} className="manga-flow-btn manga-flow-btn-primary" data-testid="manga-flow-add-btn">
             <Plus className="w-4 h-4" /> Add Card
+          </button>
+          <button type="button" onClick={() => setShowAIWizard(true)} className="aiw-trigger-btn" data-testid="manga-flow-ai-wizard">
+            <Sparkles className="w-4 h-4" /> Create with AI
           </button>
           <button type="button" onClick={undo} className="manga-flow-btn" title="Undo" data-testid="manga-flow-undo">
             <Undo2 className="w-4 h-4" />
@@ -313,6 +490,46 @@ export default function MangaFlowEditor() {
           <button type="button" onClick={() => setShowTutorial(true)} className="manga-flow-btn manga-flow-btn-help" data-testid="manga-flow-help" title="Help">
             <HelpCircle className="w-4 h-4" />
           </button>
+        </div>
+      </div>
+
+      <div className="manga-flow-pagebar">
+        <div className="manga-flow-pagebar__nav" ref={pageDropRef}>
+          <button type="button" onClick={() => setShowPageDropdown(!showPageDropdown)} className="manga-flow-pagebar__current" data-testid="page-selector">
+            <FileText className="w-3.5 h-3.5 text-[#A855F7]" />
+            <span>{activePage?.name || "Page 1"}</span>
+            <span className="manga-flow-pagebar__count">{activePageIndex + 1} / {pages.length}</span>
+            <ChevronDown className={`w-3.5 h-3.5 transition-transform ${showPageDropdown ? "rotate-180" : ""}`} />
+          </button>
+          {showPageDropdown && (
+            <div className="manga-flow-pagebar__dropdown" data-testid="page-dropdown">
+              {pages.map((pg, i) => (
+                <div key={pg.id} className={`manga-flow-pagebar__item ${pg.id === activePageId ? "manga-flow-pagebar__item--active" : ""}`}>
+                  <button type="button" onClick={() => switchToPage(pg.id)} className="manga-flow-pagebar__item-main">
+                    <span className="manga-flow-pagebar__item-num">{i + 1}</span>
+                    <span className="manga-flow-pagebar__item-name">{pg.name}</span>
+                    {pg.id === activePageId && <Check className="w-3 h-3 text-[#A855F7] shrink-0" />}
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+        <div className="manga-flow-pagebar__actions">
+          <button type="button" onClick={addPage} className="manga-flow-pagebar__btn" title="New page" data-testid="page-add">
+            <Plus className="w-3.5 h-3.5" /> New
+          </button>
+          <button type="button" onClick={() => renamePage(activePageId)} className="manga-flow-pagebar__btn" title="Rename">
+            <Pencil className="w-3.5 h-3.5" />
+          </button>
+          <button type="button" onClick={duplicatePage} className="manga-flow-pagebar__btn" title="Duplicate">
+            <Copy className="w-3.5 h-3.5" />
+          </button>
+          {pages.length > 1 && (
+            <button type="button" onClick={() => deletePage(activePageId)} className="manga-flow-pagebar__btn manga-flow-pagebar__btn--danger" title="Delete page">
+              <Trash2 className="w-3.5 h-3.5" />
+            </button>
+          )}
         </div>
       </div>
 
@@ -351,7 +568,7 @@ export default function MangaFlowEditor() {
             />
             <Panel position="bottom-center" className="manga-flow-hint-panel">
               <p className="text-[11px] text-[#5A5A5E] font-mono">
-                Drag cards • Connect handles • Click a link to edit • Tap card to configure
+                {activePage?.name} • {nodes.length} cards • {edges.length} links • Click link to edit
               </p>
             </Panel>
           </ReactFlow>
@@ -380,6 +597,7 @@ export default function MangaFlowEditor() {
           onCancel={cancelConnectionModal}
         />
       )}
+      {showAIWizard && <AIWizardModal onGenerate={handleWizardResult} onClose={() => setShowAIWizard(false)} />}
       {showTutorial && (
         <TutorialOverlay
           onClose={() => {

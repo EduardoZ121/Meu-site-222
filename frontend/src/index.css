@@ -1654,6 +1654,11 @@
   .pro-preset-card__cover img {
     object-position: center 20%;
   }
+
+  .pro-poster-card__cover img {
+    object-fit: cover;
+    object-position: center 22%;
+  }
   .pro-preset-card:hover {
     border-color: rgba(168, 85, 247, 0.4);
     transform: translateY(-2px);

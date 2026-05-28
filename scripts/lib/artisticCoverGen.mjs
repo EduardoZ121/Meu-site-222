@@ -94,7 +94,8 @@ export async function generateCovers(
     const prompt = promptById[style.id];
     const refImage = refById[style.id] || REF_WOMAN_GITHUB;
     const url = pollinationsUrl(prompt, refImage, seedFromId(style.id), negativePrompt);
-    console.log(`→ ${style.id} (${style.label}) ref=${refImage.includes("ref_man") ? "man" : "woman"}`);
+    const refLabel = /(?:^|[_/])(?:ref_)?(?:user_)?man(?:\.|$)/.test(refImage) ? "man" : "woman";
+    console.log(`→ ${style.id} (${style.label}) ref=${refLabel}`);
 
     let ok = false;
     for (let attempt = 0; attempt < 3; attempt++) {

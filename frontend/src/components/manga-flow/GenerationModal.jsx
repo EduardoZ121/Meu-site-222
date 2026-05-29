@@ -5,9 +5,9 @@ import { uploadPost, api, pollPrediction, trackPendingPrediction } from "../../l
 import { toast } from "sonner";
 
 const MODELS = [
-  { id: "grok", name: "Fast Engine", desc: "Quick, good quality", apiModel: "standard" },
-  { id: "flux", name: "Flux Pro (Recommended)", desc: "Best consistency", badge: "★", apiModel: "pro" },
-  { id: "gpt_image", name: "Premium", desc: "Maximum quality", apiModel: "gpt_image" },
+  { id: "grok", name: "Fast", desc: "Quick", apiModel: "standard" },
+  { id: "flux", name: "Flux Pro ★", desc: "Best", badge: null, apiModel: "pro" },
+  { id: "gpt_image", name: "Premium", desc: "Max", apiModel: "gpt_image" },
 ];
 const QUALITY = [
   { id: "medium", label: "Medium" },

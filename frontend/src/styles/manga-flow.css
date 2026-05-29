@@ -1,6 +1,6 @@
 /* ===== MANGA FLOW STUDIO — Complete Styles ===== */
 
-/* Manga Studio page shell (inside StudioWorkspaceLayout) */
+/* Page shell (StudioWorkspaceLayout) */
 .manga-studio-page {
   display: flex;
   flex-direction: column;
@@ -10,7 +10,6 @@
   width: 100%;
   background: #0A0A0F;
 }
-
 .manga-studio-fallback {
   flex: 1;
   display: flex;
@@ -26,6 +25,12 @@
 }
 .manga-studio-fallback__title { font-size: 18px; font-weight: 700; font-family: 'Inter Tight', sans-serif; }
 .manga-studio-fallback__msg { font-size: 13px; color: #9CA3AF; max-width: 420px; line-height: 1.5; }
+.rp-workspace-main:has(.manga-studio-page) {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  padding: 0;
+}
 
 /* Root */
 .manga-flow-root {
@@ -51,14 +56,6 @@
   font-size: 14px;
   color: #C4B5FD;
   font-family: 'Inter Tight', sans-serif;
-}
-
-/* Workspace layout: manga studio fills viewport below top bar */
-.rp-workspace-main:has(.manga-studio-page) {
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-  padding: 0;
 }
 
 /* Top bar */
@@ -611,7 +608,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 100;
+  z-index: 300;
   padding: 16px;
   animation: fadeIn 0.15s ease;
 }
@@ -1047,7 +1044,7 @@
 .mfg-trigger-btn:hover { box-shadow: 0 4px 20px rgba(147,51,234,0.5); transform: translateY(-1px); }
 
 /* ===== GENERATION MODAL ===== */
-.mfg-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.85); z-index: 200; display: flex; align-items: stretch; justify-content: center; padding: 0; }
+.mfg-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.85); z-index: 300; display: flex; align-items: stretch; justify-content: center; padding: 0; }
 .mfg-modal { width: 100%; max-width: 1200px; background: #0A0A0F; display: flex; flex-direction: column; overflow: hidden; }
 @media (min-width: 768px) { .mfg-overlay { padding: 20px; } .mfg-modal { border-radius: 16px; border: 1px solid rgba(255,255,255,0.08); max-height: 95vh; } }
 
@@ -1156,7 +1153,7 @@
 .aiw-trigger-btn:hover { box-shadow: 0 4px 20px rgba(20,184,166,0.5); transform: translateY(-1px); }
 
 /* ===== AI WIZARD MODAL ===== */
-.aiw-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.85); z-index: 200; display: flex; align-items: stretch; justify-content: center; padding: 0; }
+.aiw-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.85); z-index: 300; display: flex; align-items: stretch; justify-content: center; padding: 0; }
 .aiw-modal { width: 100%; max-width: 700px; background: #0A0A0F; display: flex; flex-direction: column; overflow: hidden; }
 @media (min-width: 768px) { .aiw-overlay { padding: 20px; } .aiw-modal { border-radius: 16px; border: 1px solid rgba(255,255,255,0.08); max-height: 95vh; } }
 
@@ -1221,6 +1218,11 @@
 .aiw-generating { text-align: center; padding: 40px 20px; }
 .aiw-generating__text { font-size: 14px; color: #5EEAD4; margin-top: 16px; font-family: 'Inter Tight', sans-serif; }
 
+/* Toggle row */
+.aiw-toggle-row { display: flex; align-items: center; gap: 8px; margin-top: 8px; cursor: pointer; }
+.aiw-checkbox { width: 16px; height: 16px; accent-color: #14B8A6; cursor: pointer; }
+.aiw-toggle-label { font-size: 12px; color: #9CA3AF; }
+
 /* Summary */
 .aiw-summary { border-radius: 12px; border: 1px solid rgba(255,255,255,0.06); background: rgba(17,17,24,0.5); padding: 16px; }
 .aiw-summary__row { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid rgba(255,255,255,0.03); font-size: 13px; }
@@ -1236,11 +1238,34 @@
 
 /* Mobile responsive */
 @media (max-width: 768px) {
-  .manga-flow-topbar { padding: 10px 12px; }
+  .manga-flow-topbar { padding: 8px 10px; gap: 6px; }
+  .manga-flow-topbar > div:first-child { display: none; } /* Hide logo on mobile */
   .manga-flow-project-name { font-size: 14px; width: 140px; }
-  .manga-flow-btn { padding: 7px 10px; font-size: 12px; }
-  .manga-flow-canvas { height: calc(100vh - 120px); }
-  .manga-flow-inspector { width: 100%; max-width: 100%; position: fixed; top: auto; bottom: 0; height: 60vh; border-left: none; border-top: 1px solid rgba(255,255,255,0.1); border-radius: 16px 16px 0 0; }
-  .manga-flow-node { min-width: 150px; max-width: 180px; }
+  /* Collapse toolbar buttons to smaller size + scrollable row */
+  .manga-flow-topbar > div:last-child,
+  .manga-flow-topbar > .flex:last-child {
+    display: flex; flex-wrap: nowrap; overflow-x: auto; gap: 4px;
+    -webkit-overflow-scrolling: touch; scrollbar-width: none;
+    max-width: 100%; padding-bottom: 2px;
+  }
+  .manga-flow-topbar > div:last-child::-webkit-scrollbar,
+  .manga-flow-topbar > .flex:last-child::-webkit-scrollbar { display: none; }
+  .manga-flow-btn { padding: 6px 8px; font-size: 11px; flex-shrink: 0; }
+  .mfg-trigger-btn { padding: 6px 12px; font-size: 11px; flex-shrink: 0; }
+  .aiw-trigger-btn { padding: 6px 12px; font-size: 11px; flex-shrink: 0; }
+  .manga-flow-btn-primary { padding: 6px 10px; font-size: 11px; }
+  .manga-flow-pagebar { padding: 4px 10px; gap: 4px; }
+  .manga-flow-pagebar__btn { padding: 4px 8px; font-size: 10px; }
+  .manga-flow-canvas { height: calc(100vh - 160px); min-height: 300px; }
+  .manga-flow-inspector { width: 100%; max-width: 100%; position: fixed; top: auto; bottom: 0; height: 55vh; border-left: none; border-top: 1px solid rgba(255,255,255,0.1); border-radius: 16px 16px 0 0; z-index: 80; }
+  .mfn { min-width: 140px; max-width: 170px; }
   .manga-flow-add-grid { grid-template-columns: 1fr; }
+  /* Fix modals on mobile */
+  .mfg-overlay, .aiw-overlay { z-index: 300 !important; }
+  .mfg-modal, .aiw-modal { max-height: 100vh !important; border-radius: 0 !important; }
+  .mfg-body { flex-direction: column !important; }
+  .mfg-settings { max-height: 40vh; overflow-y: auto; border-right: none !important; border-bottom: 1px solid rgba(255,255,255,0.04); }
+  .mfg-preview { width: 100% !important; }
+  .mfg-chip { padding: 6px 10px; font-size: 11px; }
+  .mfg-generate-btn { font-size: 14px; padding: 12px 16px; }
 }

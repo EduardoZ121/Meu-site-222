@@ -65,31 +65,68 @@ export function buildPromptFromFlow(nodes, edges) {
     lines.push("## CHARACTERS");
     byType.person.forEach((n, i) => {
       const d = n.data;
-      const parts = [];
-      parts.push(d.name || `Character ${i + 1}`);
-      parts.push(`${(d.pose || "standing").replace(/_/g, " ")} pose`);
-      parts.push(`${(d.emotion || "normal").replace(/_/g, " ")} expression`);
-      if (d.cameraAngle && d.cameraAngle !== "medium") parts.push(`${d.cameraAngle.replace(/_/g, " ")} framing`);
-      if (d.clothing) parts.push(`wearing ${d.clothing}`);
-      if (d.actionDesc) parts.push(d.actionDesc);
-      if (d.layer && d.layer !== "midground") parts.push(`${d.layer} layer`);
-      lines.push(`${d.name || "Character"}: ${parts.join(", ")}.`);
-      if (d.speech) lines.push(`  [${(d.speechType || "speech").toUpperCase()} BUBBLE]: "${d.speech}"`);
-      if (d.promptOverride) lines.push(`  ↳ ${d.promptOverride}`);
+      const name = d.name || `Character ${i + 1}`;
+      const pose = (d.pose || "standing").replace(/_/g, " ");
+      const emotion = (d.emotion || "normal").replace(/_/g, " ");
+      const angle = d.cameraAngle ? d.cameraAngle.replace(/_/g, " ") : "medium shot";
+
+      lines.push(`### ${name}`);
+      lines.push(`- Body pose: ${pose} (the character MUST be in this exact pose, not just standing)`);
+      lines.push(`- Facial expression: ${emotion}`);
+      lines.push(`- Camera framing: ${angle}`);
+      if (d.clothing) lines.push(`- Outfit: ${d.clothing}`);
+      if (d.actionDesc) lines.push(`- Action: ${d.actionDesc}`);
+      if (d.layer && d.layer !== "midground") lines.push(`- Layer depth: ${d.layer}`);
+
+      // Check what this character is connected to
+      const charEdges = edges.filter(e => e.source === n.id || e.target === n.id);
+      charEdges.forEach(e => {
+        const otherId = e.source === n.id ? e.target : e.source;
+        const other = nodes.find(nd => nd.id === otherId);
+        if (other?.type === "object" && e.data?.prompt) {
+          lines.push(`- HOLDING/USING: ${other.data?.name || "object"} — ${e.data.prompt}. The ${other.data?.name || "object"} must be clearly visible in the character's hands or near them.`);
+        }
+        if (other?.type === "scenario" && e.data?.prompt) {
+          lines.push(`- LOCATION: ${e.data.prompt} in ${other.data?.name || "the scene"}`);
+        }
+        if (other?.type === "person" && e.data?.prompt) {
+          lines.push(`- INTERACTION with ${other.data?.name || "other character"}: ${e.data.prompt}`);
+        }
+      });
+
+      if (d.speech) lines.push(`- [${(d.speechType || "speech").toUpperCase()} BUBBLE]: "${d.speech}"`);
+      if (d.promptOverride) lines.push(`- OVERRIDE: ${d.promptOverride}`);
+      lines.push("");
     });
-    lines.push("");
   }
 
   // ── OBJECTS ──
   if (byType.object?.length) {
-    lines.push("## OBJECTS");
+    lines.push("## OBJECTS (must be clearly visible in the scene)");
     byType.object.forEach((n) => {
       const d = n.data;
-      const parts = [d.name || "Object"];
+      const name = d.name || "Object";
+      const parts = [name];
       if (d.size && d.size !== "medium") parts.push(`${d.size} size`);
       if (d.state && d.state !== "normal") parts.push(d.state.replace(/_/g, " "));
       if (d.description) parts.push(d.description);
-      lines.push(`Object: ${parts.join(", ")}.`);
+
+      // Check who holds this object
+      const objEdges = edges.filter(e => e.source === n.id || e.target === n.id);
+      const holder = objEdges.find(e => {
+        const otherId = e.source === n.id ? e.target : e.source;
+        const other = nodes.find(nd => nd.id === otherId);
+        return other?.type === "person";
+      });
+      if (holder) {
+        const holderId = holder.source === n.id ? holder.target : holder.source;
+        const holderNode = nodes.find(nd => nd.id === holderId);
+        parts.push(`held/used by ${holderNode?.data?.name || "character"}`);
+        if (holder.data?.prompt) parts.push(`(${holder.data.prompt})`);
+      }
+
+      lines.push(`${name}: ${parts.join(", ")}.`);
+      lines.push(`  IMPORTANT: This object must be clearly rendered and visible, not just implied.`);
       if (d.promptOverride) lines.push(`  ↳ ${d.promptOverride}`);
     });
     lines.push("");

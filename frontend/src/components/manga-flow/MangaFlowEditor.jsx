@@ -135,36 +135,19 @@ export default function MangaFlowEditor() {
 
   /* ---- Load on mount ---- */
   useEffect(() => {
-    try {
-      const saved = loadFlowProject();
-      if (saved?.pages?.length) {
-        setProject(saved);
-        const pg = saved.pages.find((p) => p.id === saved.activePageId) || saved.pages[0];
-        if (pg) {
-          setActivePageId(pg.id);
-          setNodes(pg.nodes || []);
-          setEdges(pg.edges || []);
-        }
-      } else {
-        const fresh = createDefaultProject();
-        setProject(fresh);
-        const pg = fresh.pages[0];
-        setActivePageId(pg.id);
-        setNodes(pg.nodes || []);
-        setEdges(pg.edges || []);
-        saveFlowProject(fresh);
-      }
-      if (!localStorage.getItem("manga_flow_tutorial_done")) setShowTutorial(true);
-    } catch (err) {
-      console.error("[MangaFlow] load failed:", err);
+    const saved = loadFlowProject();
+    if (saved) {
+      setProject(saved);
+      const pg = saved.pages.find((p) => p.id === saved.activePageId) || saved.pages[0];
+      if (pg) { setActivePageId(pg.id); setNodes(pg.nodes || []); setEdges(pg.edges || []); }
+    } else {
       const fresh = createDefaultProject();
       setProject(fresh);
       const pg = fresh.pages[0];
-      setActivePageId(pg.id);
-      setNodes(pg.nodes || []);
-      setEdges(pg.edges || []);
-      toast.error("Could not load saved project — started fresh.");
+      setActivePageId(pg.id); setNodes(pg.nodes); setEdges(pg.edges);
+      saveFlowProject(fresh);
     }
+    if (!localStorage.getItem("manga_flow_tutorial_done")) setShowTutorial(true);
   }, [setNodes, setEdges]);
 
   /* ---- Auto-save ---- */
@@ -473,11 +456,7 @@ export default function MangaFlowEditor() {
 
   const handleSave = useCallback(() => {
     const updated = savePageState();
-    if (updated) {
-      setProject(updated);
-      saveFlowProject(updated);
-      toast.success(`"${updated.name}" saved`);
-    }
+    if (updated) { setProject(updated); saveFlowProject(updated); toast.success(`"${updated.name}" saved`); }
   }, [savePageState]);
 
   /* ---- Keyboard Shortcuts ---- */

@@ -33,9 +33,7 @@ class MangaStudioErrorBoundary extends Component {
   }
 }
 
-/**
- * Manga Studio — visual flow editor for manga pages.
- */
+/** Manga Studio — visual flow editor (TUDO-FINAL). */
 export default function MangaStudio() {
   return (
     <MangaStudioErrorBoundary>

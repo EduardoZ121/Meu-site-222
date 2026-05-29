@@ -56,18 +56,22 @@ function upgradePadraoPrompt(prompt) {
 }
 
 /** Qwen manga-interaction: two reference images = two different characters. */
-function buildMangaDualCharacterBlock(nameA, nameB) {
+function buildMangaDualCharacterBlock(nameA, nameB, descA = "", descB = "") {
   const a = String(nameA || "Character A").trim() || "Character A";
   const b = String(nameB || "Character B").trim() || "Character B";
-  return [
+  const lines = [
     "DUAL CHARACTER REFERENCE — MANDATORY (read before scene description):",
     `- Input reference image 1 is ONLY "${a}". ${a} must have the EXACT face, hairstyle, hair color, skin tone, ethnicity, body type and outfit from image 1.`,
     `- Input reference image 2 is ONLY "${b}". ${b} must have the EXACT face, hairstyle, hair color, skin tone, ethnicity, body type and outfit from image 2.`,
     `- ${a} and ${b} are DIFFERENT people. Do NOT swap identities. Do NOT use image 1's face on ${b}. Do NOT use image 2's face on ${a}.`,
-    `- Do NOT invent random NPCs. Both referenced characters must appear with correct identities when the scene includes them.`,
+    `- Do NOT invent random NPCs, generic anime gym extras, or stock characters. Only ${a} and ${b} when the panel lists them.`,
     "- Seamless in-place compositing: unified lighting, natural skin blend, no sticker/cutout look.",
     "- Only pose, expression and camera angle may change — never face, hair or skin identity.",
-  ].join("\n");
+    "- Each manga panel section is isolated: do not merge unrelated beats or characters into one panel.",
+  ];
+  if (descA) lines.push(`- ${a} visual notes: ${String(descA).slice(0, 300)}`);
+  if (descB) lines.push(`- ${b} visual notes: ${String(descB).slice(0, 300)}`);
+  return lines.join("\n");
 }
 
 module.exports = {

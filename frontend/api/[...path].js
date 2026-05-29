@@ -1511,7 +1511,9 @@ async function routePost(path, fields, files, req) {
     }
     const nameA = text(fields, "ref_a_name", "Character 1");
     const nameB = text(fields, "ref_b_name", "Character 2");
-    const dualBlock = buildMangaDualCharacterBlock(nameA, nameB);
+    const descA = text(fields, "ref_a_desc", "");
+    const descB = text(fields, "ref_b_desc", "");
+    const dualBlock = buildMangaDualCharacterBlock(nameA, nameB, descA, descB);
     promptFinal = `${dualBlock}\n\n${promptFinal}`;
     const cost = Math.max(1, Number(CREDIT.mangaPanel) || 15);
     const aspect = normalizeRatio(text(fields, "aspect_ratio", "4:5"), "qwen");
@@ -1544,7 +1546,9 @@ async function routePost(path, fields, files, req) {
     if (photoAEarly && photoBEarly) {
       const nameA = text(fields, "ref_a_name", "Character 1");
       const nameB = text(fields, "ref_b_name", "Character 2");
-      const dualBlock = buildMangaDualCharacterBlock(nameA, nameB);
+      const descA = text(fields, "ref_a_desc", "");
+      const descB = text(fields, "ref_b_desc", "");
+      const dualBlock = buildMangaDualCharacterBlock(nameA, nameB, descA, descB);
       promptFinal = `${dualBlock}\n\n${promptFinal}`;
       const cost = Math.max(1, Number(CREDIT.mangaPanel) || 15);
       const aspect = normalizeRatio(text(fields, "aspect_ratio", "4:5"), "qwen");

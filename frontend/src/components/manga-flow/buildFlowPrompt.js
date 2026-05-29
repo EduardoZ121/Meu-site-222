@@ -2,7 +2,7 @@
  *  Includes strong character reference instructions when ref images exist. */
 
 import { buildReferenceSlotPromptSection, sortNodesForRefs } from "../../lib/mangaGenerationRefs";
-import { buildPagePromptFromFlow } from "./buildFlowPagePrompt";
+import { buildPagePromptFromFlow, shouldUseGraphPrompt } from "./buildFlowPagePrompt";
 
 export function buildPromptFromFlow(nodes, edges) {
   if (!nodes.length) return "// No cards on canvas. Add characters, scenarios and objects to generate a prompt.";
@@ -14,10 +14,11 @@ export function buildPromptFromFlow(nodes, edges) {
   }
 
   const lines = [];
-  const hasAnyRef = nodes.some(n => n.data?.refImageUrl);
-  const personRefs = sortNodesForRefs(byType.person || []).filter((n) => n.data?.refImageUrl);
-  const sceneRefs = sortNodesForRefs(byType.scenario || []).filter((n) => n.data?.refImageUrl);
-  const objectRefs = sortNodesForRefs(byType.object || []).filter((n) => n.data?.refImageUrl);
+  const hasRef = (n) => Boolean(n.data?.refImageUrl || n.data?.refPersistUrl || n.data?.refImage);
+  const hasAnyRef = nodes.some(hasRef);
+  const personRefs = sortNodesForRefs(byType.person || []).filter(hasRef);
+  const sceneRefs = sortNodesForRefs(byType.scenario || []).filter(hasRef);
+  const objectRefs = sortNodesForRefs(byType.object || []).filter(hasRef);
 
   lines.push("=== MANGA PANEL — AI IMAGE PROMPT ===\n");
 
@@ -293,7 +294,9 @@ function appendFinalStyleSections(lines, settings, nodes) {
     lines.push(extraInstructions.trim());
   }
 
-  const hasRefs = nodes.some((n) => n.data?.refImageUrl);
+  const hasRefs = nodes.some(
+    (n) => n.data?.refImageUrl || n.data?.refPersistUrl || n.data?.refImage,
+  );
   if (hasRefs) {
     lines.push("");
     lines.push("## CHARACTER REFERENCE CONSISTENCY");
@@ -314,7 +317,7 @@ function appendFinalStyleSections(lines, settings, nodes) {
  */
 export function buildFinalPagePrompt(nodes, edges, settings = {}) {
   const { model, quality, aspect, style, pageContext = {}, refSlots } = settings;
-  const pageBody = buildPagePromptFromFlow(nodes, edges, pageContext);
+  const pageBody = buildPagePromptFromFlow(nodes, edges, pageContext, refSlots);
   if (!pageBody) return buildFinalPrompt(nodes, edges, settings);
 
   const lines = [];
@@ -340,14 +343,9 @@ export function countPanelNodes(nodes) {
  * Builds the FINAL prompt for AI generation, combining canvas data with generation settings.
  */
 export function buildFinalPrompt(nodes, edges, settings = {}) {
-  const { model, quality, aspect, style, subStyle, detailLevel, lighting, mood, extraInstructions, refSlots } = settings;
-
-  // Start with the full canvas prompt
-  const canvasPrompt = buildPromptFromFlow(nodes, edges);
+  const { model, quality, aspect, style, subStyle, detailLevel, lighting, mood, extraInstructions, refSlots, pageContext = {} } = settings;
 
   const lines = [];
-
-  // Quality prefix
   lines.push(QUALITY_PROMPTS[quality] || QUALITY_PROMPTS.high);
   lines.push("");
 
@@ -356,11 +354,16 @@ export function buildFinalPrompt(nodes, edges, settings = {}) {
     if (slotSection) lines.push(slotSection);
   }
 
-  // Add canvas content (without the old style section)
-  const canvasLines = canvasPrompt.split("\n");
-  const styleIdx = canvasLines.findIndex(l => l.startsWith("## STYLE"));
-  const contentLines = styleIdx >= 0 ? canvasLines.slice(0, styleIdx) : canvasLines;
-  lines.push(contentLines.join("\n"));
+  if (shouldUseGraphPrompt(nodes, edges)) {
+    const graphBody = buildPagePromptFromFlow(nodes, edges, pageContext, refSlots);
+    if (graphBody) lines.push(graphBody);
+  } else {
+    const canvasPrompt = buildPromptFromFlow(nodes, edges);
+    const canvasLines = canvasPrompt.split("\n");
+    const styleIdx = canvasLines.findIndex((l) => l.startsWith("## STYLE"));
+    const contentLines = styleIdx >= 0 ? canvasLines.slice(0, styleIdx) : canvasLines;
+    lines.push(contentLines.join("\n"));
+  }
 
   appendFinalStyleSections(lines, settings, nodes);
   return lines.join("\n");

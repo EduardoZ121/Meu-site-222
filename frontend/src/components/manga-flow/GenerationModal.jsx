@@ -6,6 +6,7 @@ import {
   planMangaGeneration,
   appendMangaRefsToFormData,
 } from "../../lib/mangaGenerationRefs";
+import { validateGraphForGeneration } from "../../lib/mangaFlowGraph";
 import { toast } from "sonner";
 
 const MODELS = [
@@ -65,9 +66,10 @@ export default function GenerationModal({ nodes, edges, onClose, onResult, pageC
   const [progress, setProgress] = useState(0);
   const [showPrompt, setShowPrompt] = useState(false);
 
-  const genPlan = planMangaGeneration(nodes);
+  const genPlan = planMangaGeneration(nodes, edges);
   const panelCount = countPanelNodes(nodes);
   const isMultiPanelPage = panelCount >= 2;
+  const dualCharRefs = genPlan.refSlots.filter((s) => s.role === "character").length >= 2;
   const promptSettings = {
     model,
     quality,
@@ -77,11 +79,11 @@ export default function GenerationModal({ nodes, edges, onClose, onResult, pageC
     refSlots: genPlan.refSlots,
     pageContext: pageContext || {},
   };
-  const finalPrompt = isMultiPanelPage
-    ? buildFinalPagePrompt(nodes, edges, promptSettings)
-    : buildFinalPrompt(nodes, edges, promptSettings);
+  const finalPrompt =
+    isMultiPanelPage || dualCharRefs
+      ? buildFinalPagePrompt(nodes, edges, promptSettings)
+      : buildFinalPrompt(nodes, edges, promptSettings);
   const modelDef = MODELS.find(m => m.id === model) || MODELS[0];
-  const dualCharRefs = genPlan.refSlots.filter((s) => s.role === "character").length >= 2;
   const usesDualRef = dualCharRefs || genPlan.endpoint === "/generate/manga-interaction";
   const generateEndpoint = genPlan.error
     ? null
@@ -135,6 +137,9 @@ export default function GenerationModal({ nodes, edges, onClose, onResult, pageC
       }
 
       if (genPlan.warning) toast.info(genPlan.warning);
+
+      const graphWarnings = validateGraphForGeneration(nodes, edges);
+      graphWarnings.forEach((w) => toast.warning(w, { duration: 8000 }));
 
       setProgress(15);
 

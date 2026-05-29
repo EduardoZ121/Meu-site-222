@@ -3,9 +3,15 @@
  * Supports: 2 character refs → manga-interaction; single ref → manga-panel.
  */
 
+import { orderPersonsWithRefs } from "./mangaFlowGraph";
+
 function hasRef(node) {
   const d = node?.data;
-  return Boolean(d?.refImage instanceof File || d?.refImageUrl);
+  return Boolean(
+    d?.refImage instanceof File ||
+    d?.refImageUrl ||
+    d?.refPersistUrl,
+  );
 }
 
 function nodeLabel(node, fallback) {
@@ -26,10 +32,13 @@ export function sortNodesForRefs(nodes) {
   });
 }
 
-export function collectMangaRefNodes(nodes) {
+export function collectMangaRefNodes(nodes, edges = []) {
+  const personsOrdered = orderPersonsWithRefs(nodes, edges);
   const sorted = sortNodesForRefs(nodes);
   return {
-    persons: sorted.filter((n) => n.type === "person" && hasRef(n)),
+    persons: personsOrdered.length
+      ? personsOrdered
+      : sorted.filter((n) => n.type === "person" && hasRef(n)),
     scenarios: sorted.filter((n) => n.type === "scenario" && hasRef(n)),
     objects: sorted.filter((n) => n.type === "object" && hasRef(n)),
   };
@@ -81,8 +90,8 @@ async function appendRefToFormData(fd, fieldName, node, filenameBase) {
 /**
  * @returns {{ endpoint: string, refSlots: Array<{ slot: number, role: string, label: string }>, warning?: string, error?: string }}
  */
-export function planMangaGeneration(nodes) {
-  const { persons, scenarios, objects } = collectMangaRefNodes(nodes);
+export function planMangaGeneration(nodes, edges = []) {
+  const { persons, scenarios, objects } = collectMangaRefNodes(nodes, edges);
   const refSlots = [];
 
   if (persons.length > 2) {
@@ -193,8 +202,18 @@ export async function appendMangaRefsToFormData(fd, refSlots) {
     const ok = await appendRefToFormData(fd, slot.field, slot.node, `manga-ref-${slot.slot}`);
     if (!ok) missing.push(slot.label);
   }
-  if (charSlots[0]?.characterName) fd.append("ref_a_name", charSlots[0].characterName);
-  if (charSlots[1]?.characterName) fd.append("ref_b_name", charSlots[1].characterName);
+  if (charSlots[0]?.characterName) {
+    fd.append("ref_a_name", charSlots[0].characterName);
+    const d0 = charSlots[0].node?.data;
+    const desc0 = [d0?.clothing, d0?.refInstructions, d0?.actionDesc].filter(Boolean).join("; ");
+    if (desc0) fd.append("ref_a_desc", desc0.slice(0, 400));
+  }
+  if (charSlots[1]?.characterName) {
+    fd.append("ref_b_name", charSlots[1].characterName);
+    const d1 = charSlots[1].node?.data;
+    const desc1 = [d1?.clothing, d1?.refInstructions, d1?.actionDesc].filter(Boolean).join("; ");
+    if (desc1) fd.append("ref_b_desc", desc1.slice(0, 400));
+  }
   return missing;
 }
 

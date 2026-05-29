@@ -13,7 +13,7 @@ export default function ArtisticStudioTabs({ value, onChange, className = "" }) 
 
   return (
     <div
-      className={`art-studio-tabs lg:hidden ${className}`}
+      className={`art-studio-tabs lg:hidden sticky top-[64px] z-[20] mx-[-4px] px-1 py-1 backdrop-blur-md bg-[#0B0B0C]/85 border-y border-white/[0.06] ${className}`}
       role="tablist"
       data-testid="artistic-mobile-tabs"
     >

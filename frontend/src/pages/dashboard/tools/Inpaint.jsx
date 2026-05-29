@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import { toast } from "sonner";
 import { uploadPost } from "../../../lib/api";
+import { ensureBackgroundSlot } from "../../../lib/bgGeneration";
 import { useStudioI18n } from "../../../lib/useStudioI18n";
 import { normalizeCreation, primaryResultUrl } from "../../../lib/creationUrls";
 import { useAuth } from "../../../lib/auth";
@@ -66,6 +67,7 @@ export default function Inpaint() {
     if (prompt.trim().length < 3) { toast.error(t("tool_prompt_ph")); return; }
       const c = canvasRef.current;
       if (!c) { toast.error(t("inpaint_paint_first")); return; }
+      try { ensureBackgroundSlot(); } catch { return; }
       clearUploadToast();
       setBusy(true); setResult(null);
       try {
@@ -85,6 +87,10 @@ export default function Inpaint() {
       fd.append("mask", new File([maskBlob], "mask.png", { type: "image/png" }));
       fd.append("prompt", prompt.trim());
       const { data } = await uploadPost("/tools/inpaint", fd, { timeout: 240000 });
+      if (data?.deferred) {
+        await refresh();
+        return;
+      }
       const creation = normalizeCreation(data?.creation);
       if (!primaryResultUrl(creation)) throw new Error(t("pro_no_result"));
       setResult(creation);

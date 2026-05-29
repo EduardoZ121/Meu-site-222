@@ -1,8 +1,10 @@
+import { useEffect, useState } from "react";
 import { Bell, CheckCheck, ImageIcon, Coins, Trash2 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useNavigate } from "react-router-dom";
 import { useNotifications } from "../../lib/NotificationContext";
 import { useI18n } from "../../lib/i18n";
+import { activeBackgroundJobsCount, MAX_CONCURRENT_BG_JOBS } from "../../lib/bgGeneration";
 
 function NotifIcon({ type }) {
   if (type === "generation") {
@@ -16,6 +18,20 @@ export default function NotificationListPanel({ compact = false }) {
   const { t } = useI18n();
   const { notifications, unreadCount, markRead, markAllRead, clearAll } = useNotifications();
   const navigate = useNavigate();
+  const [bgJobs, setBgJobs] = useState(() => activeBackgroundJobsCount());
+
+  useEffect(() => {
+    const sync = () => setBgJobs(activeBackgroundJobsCount());
+    sync();
+    window.addEventListener("storage", sync);
+    window.addEventListener("rp:credits-sync", sync);
+    const id = window.setInterval(sync, 2500);
+    return () => {
+      window.removeEventListener("storage", sync);
+      window.removeEventListener("rp:credits-sync", sync);
+      window.clearInterval(id);
+    };
+  }, []);
 
   const openNotification = (n) => {
     markRead(n.id);
@@ -35,6 +51,15 @@ export default function NotificationListPanel({ compact = false }) {
         <div className="flex items-center gap-2 min-w-0">
           <Bell className="w-4 h-4 text-[#A855F7] shrink-0" strokeWidth={1.75} />
           <p className="text-[13px] font-semibold truncate">{t("notif_panel_title")}</p>
+          {bgJobs > 0 && (
+            <span
+              className="shrink-0 px-1.5 py-0.5 rounded-full bg-[#9333EA]/25 text-[10px] font-mono font-semibold text-[#C4B5FD]"
+              title="Gerações em segundo plano"
+              data-testid="bg-jobs-badge"
+            >
+              {bgJobs}/{MAX_CONCURRENT_BG_JOBS}
+            </span>
+          )}
           {unreadCount > 0 && (
             <span className="shrink-0 px-1.5 py-0.5 rounded-full bg-[#7C3AED]/30 text-[10px] font-semibold text-[#C4B5FD]">
               {unreadCount > 9 ? "9+" : unreadCount}

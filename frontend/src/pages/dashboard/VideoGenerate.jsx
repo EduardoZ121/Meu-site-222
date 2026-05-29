@@ -79,6 +79,10 @@ export default function VideoGenerate({ mode = "text" }) {
       fd.append("aspect_ratio", apiAspectRatio(aspect, { model: "video", hasPhoto: !!photo }));
       if (photo) fd.append("photo", photo);
       const { data } = await uploadPost("/generate/video", fd, { timeout: 300000 });
+      if (data?.deferred) {
+        await refresh().catch(() => {});
+        return;
+      }
       if (data?.prediction_id && !primaryResultUrl(data?.creation)) {
         trackPendingPrediction(data.prediction_id, {
           credits_spent: data.credits_spent || cost,

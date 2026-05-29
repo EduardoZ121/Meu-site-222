@@ -8,10 +8,10 @@ import { useNavigate } from "react-router-dom";
 import {
   api,
   formatApiError,
-  pollPrediction,
   trackPendingPrediction,
   uploadPost,
 } from "../../lib/api";
+import { dispatchBackgroundJob, ensureBackgroundSlot } from "../../lib/bgGeneration";
 import { normalizeCreation, primaryResultUrl } from "../../lib/creationUrls";
 import { useAuth } from "../../lib/auth";
 import { usePricing } from "../../lib/PricingContext";
@@ -220,6 +220,7 @@ export default function Posters() {
     setResult(null);
     setGenProgress(0);
     setGenPhase("upload");
+    try { ensureBackgroundSlot(); } catch { setBusy(false); setGenPhase(""); return; }
 
     let submitData;
     try {
@@ -239,18 +240,13 @@ export default function Posters() {
         credits_spent: submitData.credits_spent ?? totalCost,
         type: "poster",
       });
-      const polled = await pollPrediction(submitData.prediction_id, {
-        onTick: (sec) => setGenProgress(sec),
-        timeoutMs: 300_000,
-        credits_spent: submitData.credits_spent ?? totalCost,
+      dispatchBackgroundJob(submitData, {
         type: "poster",
+        creditsSpent: submitData.credits_spent ?? totalCost,
+        label: t("post_title") || "Poster",
       });
-
-      const normalized = normalizeCreation(polled?.creation);
-      if (!primaryResultUrl(normalized)) throw new Error(t("common_no_result"));
-      setResult(normalized);
-      toast.success(t("post_success", { n: normalized?.credits_spent ?? submitData.credits_spent ?? totalCost }));
       await refresh();
+      // Result lands automatically in gallery + notifications when ready.
     } catch (err) {
       const msg = formatApiError(err, t("post_fail"), { context: "image_upload", t });
       console.error("[Posters] generate failed", err);

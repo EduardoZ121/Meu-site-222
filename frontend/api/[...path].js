@@ -868,6 +868,7 @@ async function submitBillableGeneration(req, fields, {
   aspectRatio,
   modelUsed,
   spendDescription,
+  notifyEmail,
 }) {
   const { user, isLocal } = resolveSessionUser(req);
   const lang = userLang(req, fields);
@@ -892,6 +893,7 @@ async function submitBillableGeneration(req, fields, {
         credits_spent: 0,
         balance_after_spend: dbUser.credits ?? 999999999,
         lang,
+        notify_email: notifyEmail || null,
       });
       return {
         prediction_id: pending.id,
@@ -930,6 +932,7 @@ async function submitBillableGeneration(req, fields, {
       credits_spent: cost,
       balance_after_spend: newBalance,
       lang,
+      notify_email: notifyEmail || null,
     });
 
     return {
@@ -1668,6 +1671,7 @@ async function routePost(path, fields, files, req) {
       aspectRatio: input.aspect_ratio,
       modelUsed: MODELS.video_edit,
       spendDescription: "Editor vídeo",
+      notifyEmail: text(fields, "notify_email", "").trim() || null,
     });
   }
 

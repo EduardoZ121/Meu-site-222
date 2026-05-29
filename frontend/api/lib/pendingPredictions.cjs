@@ -3,6 +3,7 @@ const { getDb, storageEnabled, ensureIndexes } = require("./mongo.cjs");
 const { addCredits, recordCreation } = require("./usersDb.cjs");
 const { formatGenerationError } = require("./generationErrors.cjs");
 const { extractUrls, mirrorUrlsToBlob } = require("./creationMedia.cjs");
+const { sendResendEmail } = require("./emailReport.cjs");
 
 function nowIso() {
   return new Date().toISOString();
@@ -30,6 +31,7 @@ async function createPending(doc) {
     error: null,
     balance_after_spend: doc.balance_after_spend ?? null,
     lang: doc.lang || "en",
+    notify_email: doc.notify_email || null,
     polled_count: 0,
     created_at: nowIso(),
     completed_at: null,
@@ -120,6 +122,26 @@ async function finalizePending(pending, replicateInfo) {
       result_urls: urls,
       completed_at: now,
     });
+
+    if (pending.type === "video" && pending.notify_email) {
+      const videoUrl = urls[0];
+      const galleryUrl = `https://remakepix.com/app/gallery?focus=${encodeURIComponent(creation.id)}`;
+      sendResendEmail({
+        to: pending.notify_email,
+        subject: "O teu vídeo está pronto — Remake Pixel",
+        html: [
+          "<p>O teu vídeo editado está pronto.</p>",
+          videoUrl ? `<p><a href="${videoUrl}">Ver vídeo</a></p>` : "",
+          `<p><a href="${galleryUrl}">Abrir na galeria</a></p>`,
+        ].join(""),
+        text: [
+          "O teu vídeo editado está pronto.",
+          videoUrl ? `Ver: ${videoUrl}` : "",
+          `Galeria: ${galleryUrl}`,
+        ].filter(Boolean).join("\n"),
+      }).catch(() => {});
+    }
+
     const db = await getDb();
     const user = await db.collection("users").findOne({ id: userId }, { projection: { credits: 1 } });
     return {

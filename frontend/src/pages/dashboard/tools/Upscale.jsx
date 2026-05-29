@@ -8,6 +8,7 @@ import {
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { uploadPost } from "../../../lib/api";
+import { ensureBackgroundSlot } from "../../../lib/bgGeneration";
 import { useAuth } from "../../../lib/auth";
 import { usePricing } from "../../../lib/PricingContext";
 import ImageUploadZone from "../../../components/ImageUploadZone";
@@ -61,6 +62,7 @@ export default function Upscale() {
 
   const run = async () => {
     if (!photo) { toast.error(t("common_upload_first")); return; }
+    try { ensureBackgroundSlot(); } catch { return; }
     clearUploadToast();
     setBusy(true); setResult(null);
     try {
@@ -71,6 +73,10 @@ export default function Upscale() {
       fd.append("denoise", denoise ? "true" : "false");
       fd.append("preserve_colors", preserveColors ? "true" : "false");
       const { data } = await uploadPost("/tools/upscale", fd, { timeout: 240000 });
+      if (data?.deferred) {
+        await refresh();
+        return;
+      }
       const creation = data?.creation;
       const url = creation?.result_urls?.[0];
       if (!url) throw new Error(t("common_no_result"));

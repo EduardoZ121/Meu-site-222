@@ -9,6 +9,7 @@ import StudioGenerateCostMeta from "../../../components/StudioGenerateCostMeta";
 import { useStudioGenerateGate } from "../../../lib/useStudioGenerateGate";
 import { useNavigate } from "react-router-dom";
 import { formatApiError, uploadPost } from "../../../lib/api";
+import { ensureBackgroundSlot } from "../../../lib/bgGeneration";
 import { useAuth } from "../../../lib/auth";
 import { usePricing } from "../../../lib/PricingContext";
 import { useStudioMediaPreview } from "../../../hooks/useStudioMediaPreview";
@@ -72,6 +73,7 @@ export default function Restore() {
 
   const run = async () => {
     if (!photo) { toast.error(t("restore_err_upload")); return; }
+    try { ensureBackgroundSlot(); } catch { return; }
     clearUploadToast();
     setBusy(true); setResult(null);
     try {
@@ -84,6 +86,10 @@ export default function Restore() {
       fd.append("sharpen", sharpen ? "true" : "false");
       fd.append("custom_prompt", customPrompt);
       const { data } = await uploadPost("/tools/restore", fd, { timeout: 240000 });
+      if (data?.deferred) {
+        await refresh();
+        return;
+      }
       const creation = data?.creation;
       const url = creation?.result_urls?.[0];
       if (!url) throw new Error(t("common_no_result"));

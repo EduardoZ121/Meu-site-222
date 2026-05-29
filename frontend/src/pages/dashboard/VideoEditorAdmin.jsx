@@ -2,10 +2,10 @@ import { useEffect, useMemo, useState } from "react";
 import { Clapperboard, Sparkles } from "lucide-react";
 import {
   formatApiError,
-  pollPrediction,
   trackPendingPrediction,
   uploadPost,
 } from "../../lib/api";
+import { dispatchBackgroundJob, ensureBackgroundSlot } from "../../lib/bgGeneration";
 import { normalizeCreation, primaryResultUrl } from "../../lib/creationUrls";
 import { readVideoDurationSeconds } from "../../lib/videoMedia";
 import { useAuth } from "../../lib/auth";
@@ -63,6 +63,7 @@ export default function VideoEditorAdmin() {
   const [improve, setImprove] = useState(false);
   const [aspect, setAspect] = useState("auto");
   const [audioSetting, setAudioSetting] = useState("origin");
+  const [notifyByEmail, setNotifyByEmail] = useState(false);
   const [busy, setBusy] = useState(false);
   const [uploadPhase, setUploadPhase] = useState("");
   const [progress, setProgress] = useState(0);
@@ -134,6 +135,7 @@ export default function VideoEditorAdmin() {
     setProgress(0);
     setUploadPhase("send");
     setResult(null);
+    try { ensureBackgroundSlot(); } catch { setBusy(false); setUploadPhase(""); return; }
     let submitData;
     try {
       const fd = new FormData();
@@ -146,6 +148,7 @@ export default function VideoEditorAdmin() {
       if (improve) fd.append("improve_prompt", "1");
       fd.append("video", video);
       if (reference) fd.append("reference_image", reference);
+      if (notifyByEmail && user?.email) fd.append("notify_email", user.email);
 
       ({ data: submitData } = await uploadPost("/generate/video-edit", fd, {
         timeout: 600_000,
@@ -157,18 +160,15 @@ export default function VideoEditorAdmin() {
         type: "video",
       });
       setUploadPhase("processing");
-      const data = await pollPrediction(submitData.prediction_id, {
-        timeoutMs: 600_000,
-        credits_spent: submitData.credits_spent || cost,
+      dispatchBackgroundJob(submitData, {
         type: "video",
-        onTick: (sec) => setProgress(sec),
+        creditsSpent: submitData.credits_spent || cost,
+        label: t("vid_edit_title") || "Vídeo",
       });
-
-      const creation = normalizeCreation(data?.creation);
-      if (!primaryResultUrl(creation)) throw new Error(t("vid_no_result"));
-      setResult(creation);
-      toast.success(t("vid_edit_success", { n: creation?.credits_spent ?? cost }));
       await refresh();
+      // Result lands in gallery + notifications when ready (also via email
+      // for video edits, if the backend so chooses — opt-in via `notify_email`
+      // field which we forward when present).
     } catch (err) {
       toast.error(formatApiError(err, t("vid_edit_fail"), { context: "video_upload", t }), { duration: 12000 });
       if (err?.refunded && submitData?.credits_spent) {
@@ -335,6 +335,26 @@ export default function VideoEditorAdmin() {
               <p className="text-[#F4F1EA] text-[13px] font-medium">{t("vid_edit_audio_auto")}</p>
             </button>
           </div>
+      </StudioAccordionSection>
+
+      <StudioAccordionSection title={t("vid_edit_notify") || "Notificação"} defaultOpen={false} testId="video-edit-acc-notify">
+        <label className="flex items-start gap-3 cursor-pointer group">
+          <input
+            type="checkbox"
+            checked={notifyByEmail}
+            onChange={(e) => setNotifyByEmail(e.target.checked)}
+            className="mt-1 rounded border-[#2E2E30] bg-[#0F0F12] text-[#7C3AED] focus:ring-[#7C3AED]"
+            data-testid="video-edit-notify-email"
+          />
+          <span>
+            <span className="block text-[#F4F1EA] text-[13px] font-medium group-hover:text-white transition-colors">
+              {t("vid_edit_notify_email") || "Notificar-me por email"}
+            </span>
+            <span className="block text-[#8A8A8E] text-[11px] mt-0.5 leading-snug">
+              {t("vid_edit_notify_email_hint") || "Recebes um email quando o vídeo editado estiver pronto (podes sair da página)."}
+            </span>
+          </span>
+        </label>
       </StudioAccordionSection>
 
       <StudioAccordionSection title={t("vid_acc_generate")} defaultOpen testId="video-edit-acc-generate">

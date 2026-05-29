@@ -4,6 +4,7 @@ import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
 import { formatApiError, uploadPost } from "../../../lib/api";
+import { ensureBackgroundSlot } from "../../../lib/bgGeneration";
 import { normalizeCreation, primaryResultUrl } from "../../../lib/creationUrls";
 import { useAuth } from "../../../lib/auth";
 import { usePricing } from "../../../lib/PricingContext";
@@ -88,6 +89,7 @@ export default function ClothesChanger() {
       toast.error(t("common_need_credits", { need: cost, have: user?.credits ?? 0 }));
       return;
     }
+    try { ensureBackgroundSlot(); } catch { return; }
     clearUploadToast();
     setBusy(true); setResult(null);
     try {
@@ -113,6 +115,10 @@ export default function ClothesChanger() {
       }
 
       const { data } = await uploadPost("/tools/clothes", fd, { timeout: 240000 });
+      if (data?.deferred) {
+        await refresh();
+        return;
+      }
       const creation = normalizeCreation(data?.creation);
       if (!primaryResultUrl(creation)) throw new Error(t("common_no_result"));
       setResult(creation);

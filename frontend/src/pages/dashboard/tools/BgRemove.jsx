@@ -15,6 +15,7 @@ import StudioGenerateCostMeta from "../../../components/StudioGenerateCostMeta";
 import { useStudioGenerateGate } from "../../../lib/useStudioGenerateGate";
 import { useNavigate } from "react-router-dom";
 import { uploadPost } from "../../../lib/api";
+import { ensureBackgroundSlot } from "../../../lib/bgGeneration";
 import { useAuth } from "../../../lib/auth";
 import { usePricing } from "../../../lib/PricingContext";
 import { useStudioMediaPreview } from "../../../hooks/useStudioMediaPreview";
@@ -106,6 +107,7 @@ export default function BgRemove() {
     if (mode === "custom" && customPrompt.trim().length < 4) {
       toast.error(t("bg_err_describe")); return;
     }
+    try { ensureBackgroundSlot(); } catch { return; }
     clearUploadToast();
     setBusy(true); setResult(null);
     try {
@@ -117,6 +119,10 @@ export default function BgRemove() {
       fd.append("keep_shadow", keepShadow ? "true" : "false");
       fd.append("refine_hair", refineHair ? "true" : "false");
       const { data } = await uploadPost("/tools/bg-remove", fd, { timeout: 180000 });
+      if (data?.deferred) {
+        await refresh();
+        return;
+      }
       const creation = data?.creation;
       const url = creation?.result_urls?.[0];
       if (!url) throw new Error(t("common_no_result"));

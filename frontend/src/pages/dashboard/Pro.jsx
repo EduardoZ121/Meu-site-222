@@ -115,6 +115,10 @@ export default function Pro() {
       fd.append("extra_prompt", customPrompt.trim());
       fd.append("intensity", String(intensity));
       const { data } = await uploadPost("/generate/pro", fd, { timeout: 180000 });
+      if (data?.deferred) {
+        await refresh().catch(() => {});
+        return;
+      }
       const creation = normalizeCreation(data?.creation);
       if (!primaryResultUrl(creation)) throw new Error(t("pro_no_result"));
       setResult(creation);

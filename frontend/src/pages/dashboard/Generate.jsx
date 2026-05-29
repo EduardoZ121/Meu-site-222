@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { Loader2, Sparkles, ImagePlus, Wand2, Lightbulb } from "lucide-react";
 import { useSearchParams, useNavigate } from "react-router-dom";
-import { api, pollPrediction, trackPendingPrediction, uploadPost } from "../../lib/api";
+import { api, trackPendingPrediction, uploadPost } from "../../lib/api";
+import { dispatchBackgroundJob, ensureBackgroundSlot } from "../../lib/bgGeneration";
 import { normalizeCreation, primaryResultUrl } from "../../lib/creationUrls";
 import { useAuth } from "../../lib/auth";
 import { usePricing } from "../../lib/PricingContext";
@@ -113,6 +114,7 @@ export default function Generate() {
       toast.error(t("studio_err_credits", { need: cost, have: user?.credits ?? 0 }));
       return;
     }
+    try { ensureBackgroundSlot(); } catch { return; }
 
     clearUploadToast();
     setBusy(true); setResult(null); setProgress(0);
@@ -150,16 +152,13 @@ export default function Generate() {
         credits_spent: submitData.credits_spent || cost,
         type: "image",
       });
-      const data = await pollPrediction(submitData.prediction_id, {
-        onTick: (sec) => setProgress(sec),
-        credits_spent: submitData.credits_spent || cost,
+      dispatchBackgroundJob(submitData, {
         type: "image",
+        creditsSpent: submitData.credits_spent || cost,
+        label: t("studio_eyebrow") || "Geração",
       });
-      const creation = normalizeCreation(data?.creation);
-      if (!primaryResultUrl(creation)) throw new Error(t("common_no_result"));
-      setResult(creation);
-      toast.success(t("studio_success", { n: creation?.credits_spent ?? cost }));
       await refresh();
+      // Result lands automatically in gallery + notifications when ready.
     } catch (err) {
       errToast(err);
       if (err?.refunded && submitData?.credits_spent && !submitData?.server_billing) {

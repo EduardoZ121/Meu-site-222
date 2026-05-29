@@ -85,6 +85,59 @@ export default function AIWizardModal({ onGenerate, onClose }) {
   const removeChar = (i) => { if (a.characters.length > 1) set("characters", a.characters.filter((_, idx) => idx !== i)); };
   const updateChar = (i, f, v) => { set("characters", a.characters.map((c, idx) => idx === i ? { ...c, [f]: v } : c)); };
 
+  /**
+   * Generate a full story prompt using AI based on every wizard answer.
+   * Lets the user skip writing the story manually — fills storyPrompt textarea.
+   */
+  const [aiStoryLoading, setAiStoryLoading] = useState(false);
+  const generateStoryWithAI = async () => {
+    setAiStoryLoading(true);
+    try {
+      const characterList = a.characters
+        .filter((c) => c.name)
+        .map((c) =>
+          `${c.name} (${c.role}, ${c.age || "?"} y/o): ${c.personality || "?"}; appearance: ${c.appearance || "?"}; powers: ${c.powers || "none"}; weapon: ${c.weapon || "none"}; catchphrase: ${c.catchphrase || "none"}`,
+        )
+        .join("\n");
+      const fallback = `Write a complete ${a.genre.replace(/_/g, " ")} ${a.format} story in ${a.tone} tone with ${a.pacing} pacing (${a.pageCount} pages, ${a.panelsPerPage} panels each = ${Number(a.pageCount) * Number(a.panelsPerPage)} beats).
+Style: ${a.mainStyle}/${a.artStyle.replace(/_/g, " ")}, narration: ${a.narration.replace(/_/g, " ")}.
+Setting: ${a.location || "unspecified"}, era ${a.era.replace(/_/g, " ")}, weather ${a.weather}.
+${a.worldDetails ? `World details: ${a.worldDetails}\n` : ""}Characters:\n${characterList}\n
+${a.synopsis ? `Brief synopsis to expand: ${a.synopsis}\n` : ""}${a.keyMoments ? `Key moments to hit: ${a.keyMoments}\n` : ""}${a.sampleDialogue ? `Sample dialogue style: ${a.sampleDialogue}\n` : ""}
+Output a vivid scene-by-scene story with action, emotion and dialogue. Keep characters consistent. Make every page advance the plot.`;
+
+      const res = await Promise.race([
+        api.post(
+          "/prompt/manga-compose",
+          {
+            mode: "chapter",
+            lang: "en",
+            fallback_prompt: fallback,
+            project: {
+              characters: a.characters.filter((c) => c.name).map((c) => ({
+                name: c.name,
+                description: `${c.appearance}. ${c.personality}. ${c.powers || ""} ${c.weapon || ""}`,
+              })),
+              scenarios: [{ name: a.location, description: `${a.era} ${a.weather} ${a.worldDetails || ""}` }],
+            },
+          },
+          { timeout: 20000 },
+        ),
+        new Promise((_, rej) => setTimeout(() => rej(new Error("timeout")), 22000)),
+      ]);
+      if (res?.data?.prompt) {
+        set("storyPrompt", res.data.prompt);
+        toast.success("História gerada com IA — podes editar antes de gerar.");
+      } else {
+        toast.error("A IA não devolveu texto. Tenta novamente.");
+      }
+    } catch (err) {
+      toast.error("Falha ao gerar história: " + (err.message || "erro"));
+    } finally {
+      setAiStoryLoading(false);
+    }
+  };
+
   const handleGenerate = async () => {
     setGenerating(true);
     setStatusMsg("Building manga structure...");
@@ -170,11 +223,24 @@ export default function AIWizardModal({ onGenerate, onClose }) {
             <div className="aiw-field"><label className="aiw-label">Narration type</label><Chips options={NARRATION} value={a.narration} onChange={v => set("narration", v)} /></div>
             <div className="aiw-field"><label className="aiw-label">Synopsis (brief)</label>
               <textarea value={a.synopsis} onChange={e => set("synopsis", e.target.value)} placeholder="Brief plot summary..." className="aiw-textarea" rows={3} /></div>
-            <div className="aiw-field"><label className="aiw-label">Full story prompt (optional — more detail = better result)</label>
-              <textarea value={a.storyPrompt} onChange={e => set("storyPrompt", e.target.value)} placeholder="Write the full story here with as much detail as you want. Describe scenes, dialogue, actions, emotions, plot twists..." className="aiw-textarea" rows={5} />
+            <div className="aiw-field">
+              <div className="flex items-center justify-between gap-2 flex-wrap">
+                <label className="aiw-label">Full story prompt (opcional — quanto mais detalhe, melhor)</label>
+                <button
+                  type="button"
+                  onClick={generateStoryWithAI}
+                  disabled={aiStoryLoading}
+                  className="manga-flow-btn manga-flow-btn-primary"
+                  style={{ padding: "6px 12px", fontSize: 12 }}
+                  data-testid="wizard-generate-story-btn"
+                >
+                  {aiStoryLoading ? <><Loader2 className="w-3.5 h-3.5 animate-spin" /> A gerar…</> : <><Sparkles className="w-3.5 h-3.5" /> Gerar história com IA</>}
+                </button>
+              </div>
+              <textarea value={a.storyPrompt} onChange={e => set("storyPrompt", e.target.value)} placeholder="Escreve a história completa aqui, ou clica em 'Gerar história com IA' para que a IA escreva uma baseada nas tuas escolhas. Podes editar livremente depois." className="aiw-textarea" rows={6} />
               <label className="aiw-toggle-row">
                 <input type="checkbox" checked={a.enhanceStory} onChange={e => set("enhanceStory", e.target.checked)} className="aiw-checkbox" />
-                <span className="aiw-toggle-label">Enhance with AI (GPT improves your story)</span>
+                <span className="aiw-toggle-label">Refinar com IA antes de gerar (GPT melhora a tua história)</span>
               </label>
             </div>
           </div>)}
@@ -274,10 +340,39 @@ export default function AIWizardModal({ onGenerate, onClose }) {
                 <div className="aiw-summary__row"><span>Dialogue:</span><strong>{a.dialogueStyle} · {a.bubbleStyle} bubbles · SFX: {a.sfxStyle}</strong></div>
                 <div className="aiw-summary__row"><span>Visual:</span><strong>{a.detailLevel.replace(/_/g," ")} · {a.lighting} · {a.colorPalette} · {a.quality}</strong></div>
                 {a.synopsis && <div className="aiw-summary__synopsis"><span>Synopsis:</span><p>{a.synopsis}</p></div>}
-                {a.storyPrompt && <div className="aiw-summary__synopsis"><span>Story prompt:</span><p>{a.storyPrompt.slice(0,200)}{a.storyPrompt.length>200?"...":""}</p></div>}
+
+                <div className="aiw-field" style={{ marginTop: 16, padding: 12, border: "1px solid rgba(168,85,247,0.3)", borderRadius: 10, background: "rgba(168,85,247,0.05)" }}>
+                  <div className="flex items-center justify-between gap-2 flex-wrap">
+                    <label className="aiw-label" style={{ margin: 0 }}>📖 História final (opcional — em vez de escrever manualmente, deixa a IA criar tudo)</label>
+                    <button
+                      type="button"
+                      onClick={generateStoryWithAI}
+                      disabled={aiStoryLoading}
+                      className="manga-flow-btn manga-flow-btn-primary"
+                      style={{ padding: "6px 12px", fontSize: 12 }}
+                      data-testid="wizard-confirm-generate-story-btn"
+                    >
+                      {aiStoryLoading ? <><Loader2 className="w-3.5 h-3.5 animate-spin" /> A gerar…</> : <><Sparkles className="w-3.5 h-3.5" /> Gerar história completa</>}
+                    </button>
+                  </div>
+                  <textarea
+                    value={a.storyPrompt}
+                    onChange={e => set("storyPrompt", e.target.value)}
+                    placeholder="Clica em 'Gerar história completa' para a IA escrever uma história tailored às tuas escolhas, ou escreve aqui livremente. Esta história alimenta toda a geração."
+                    className="aiw-textarea"
+                    rows={8}
+                    style={{ marginTop: 8 }}
+                    data-testid="wizard-confirm-story-textarea"
+                  />
+                  <label className="aiw-toggle-row" style={{ marginTop: 6 }}>
+                    <input type="checkbox" checked={a.enhanceStory} onChange={e => set("enhanceStory", e.target.checked)} className="aiw-checkbox" />
+                    <span className="aiw-toggle-label">Refinar com GPT antes de gerar painéis</span>
+                  </label>
+                </div>
+
                 <p className="text-[11px] text-[#14B8A6] mt-3">
-                  Creates {a.pageCount} storyboard pages with {a.panelsPerPage} panel cards each ({Number(a.pageCount) * Number(a.panelsPerPage)} beats).
-                  Use <strong>Generate Page</strong> on each page to render the comic art (one image per page with distinct panels).
+                  Cria {a.pageCount} páginas de storyboard com {a.panelsPerPage} painéis cada ({Number(a.pageCount) * Number(a.panelsPerPage)} momentos no total).
+                  Usa <strong>Generate Page</strong> em cada página para renderizar a arte do comic (uma imagem por página com painéis distintos).
                 </p>
               </div>
             )}

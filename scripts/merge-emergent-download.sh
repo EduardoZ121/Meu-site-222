@@ -6,8 +6,13 @@ URL="${1:-https://f7ff41d4-db82-4dcc-89d9-033ad23f2f70.preview.emergentagent.com
 TMP="$(mktemp -d)"
 ZIP="$TMP/emergent.zip"
 
-echo "Downloading $URL ..."
-curl -fsSL "$URL" -o "$ZIP"
+if [[ -f "$URL" ]]; then
+  echo "Using local zip: $URL"
+  cp "$URL" "$ZIP"
+else
+  echo "Downloading $URL ..."
+  curl -fsSL "$URL" -o "$ZIP"
+fi
 unzip -q "$ZIP" -d "$TMP/src"
 
 PROTECT=(
@@ -34,10 +39,11 @@ for f in "${PROTECT[@]}"; do
 done
 
 echo "Merging into $ROOT (excluding node_modules, build, .git) ..."
-rsync -a --delete \
+rsync -a \
   --exclude node_modules \
   --exclude build \
   --exclude .git \
+  --exclude api \
   --exclude .env.local \
   --exclude .env.production.local \
   --exclude .env.assistloop \

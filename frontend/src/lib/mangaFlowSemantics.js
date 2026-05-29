@@ -27,15 +27,25 @@ export function connectionTypeId(sourceType, targetType) {
  * Default hidden semantic prompt for AI (always applied even if user leaves prompt empty).
  */
 export function getDefaultSemanticPrompt(sourceNode, targetNode) {
-  const s = sourceNode?.type;
-  const t = targetNode?.type;
+  // Treat "support" (suporte) as a character variant of "person" for semantic matching.
+  const norm = (t) => (t === "support" ? "person" : t);
+  const sRaw = sourceNode?.type;
+  const tRaw = targetNode?.type;
+  const s = norm(sRaw);
+  const t = norm(tRaw);
   const a = nodeName(sourceNode);
   const b = nodeName(targetNode);
+  const aRole = sRaw === "support" ? " (suporte)" : "";
+  const bRole = tRaw === "support" ? " (suporte)" : "";
 
   if (s === "person" && t === "person") {
+    const supportNote =
+      sRaw === "support" || tRaw === "support"
+        ? ` "${a}"${aRole} and "${b}"${bRole} keep INDEPENDENT identities — primary uses reference 1, support uses reference 2; never blend their faces, hair or outfits.`
+        : "";
     return (
       relationSemanticBlock("talking_to", a, b) +
-      ` MUST appear together in the SAME panel/scene — both visible, both interacting. Never draw them in separate panels unless another connection says so.`
+      ` MUST appear together in the SAME panel/scene — both visible, both interacting. Never draw them in separate panels unless another connection says so.${supportNote}`
     );
   }
 
@@ -175,8 +185,11 @@ export function combineSemanticAndUser(semanticPrompt, userPrompt) {
  */
 export function buildEdgeSemanticData(sourceNode, targetNode, userPrompt = "", relationType = null) {
   const connectionType = connectionTypeId(sourceNode?.type, targetNode?.type);
+  const isCharPair =
+    ["person", "support"].includes(sourceNode?.type) &&
+    ["person", "support"].includes(targetNode?.type);
   let semanticPrompt = getDefaultSemanticPrompt(sourceNode, targetNode);
-  if (sourceNode?.type === "person" && targetNode?.type === "person" && relationType) {
+  if (isCharPair && relationType) {
     const a = nodeName(sourceNode);
     const b = nodeName(targetNode);
     semanticPrompt = relationSemanticBlock(relationType, a, b);
@@ -202,7 +215,9 @@ export function resolveEdgeSemantics(edge, nodes) {
     edge?.data?.connectionType || connectionTypeId(src?.type, tgt?.type);
   let semanticPrompt = edge?.data?.semanticPrompt?.trim();
   if (!semanticPrompt) {
-    if (src?.type === "person" && tgt?.type === "person") {
+    const isCharPair =
+      ["person", "support"].includes(src?.type) && ["person", "support"].includes(tgt?.type);
+    if (isCharPair) {
       const rel = inferCharacterRelation(edge, src, tgt);
       semanticPrompt = relationSemanticBlock(rel, nodeName(src), nodeName(tgt));
     } else {

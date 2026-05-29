@@ -1,14 +1,14 @@
 import { Handle, Position, NodeResizer } from "@xyflow/react";
 import { Users } from "lucide-react";
-import { getMangaRefDisplayUrl, hasMangaRef } from "../../../lib/mangaFlowRefStorage";
 
 /**
  * SupportNode — secondary character ("suporte").
- * Same data shape as PersonNode but visually and semantically distinct.
+ * Same data shape as PersonNode but visually and semantically distinct so the
+ * AI treats it as the SECONDARY character (always reference slot 2 when paired
+ * with a primary Person). No conflicts with the primary node.
  */
 export default function SupportNode({ data, selected }) {
-  const displayUrl = getMangaRefDisplayUrl(data);
-  const hasRef = hasMangaRef(data);
+  const hasRef = Boolean(data.refImageUrl || data.refImage);
   return (
     <div
       className={`mfn mfn--support ${selected ? "mfn--sel" : ""}`}
@@ -31,9 +31,9 @@ export default function SupportNode({ data, selected }) {
         <Users className="w-3.5 h-3.5" />
         <span>Suporte</span>
       </div>
-      {hasRef && displayUrl && (
+      {hasRef && (
         <div className="mfn__img">
-          <img src={displayUrl} alt="" crossOrigin="anonymous" />
+          <img src={data.refImageUrl || data.refImage} alt="" />
         </div>
       )}
       <div className="mfn__body">

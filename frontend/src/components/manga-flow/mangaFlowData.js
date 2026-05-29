@@ -1,7 +1,5 @@
 /** Manga Flow Studio — data helpers with MULTI-PAGE support */
 
-import { hydrateFlowNodes, sanitizeNodeRefData } from "../../lib/mangaFlowRefStorage";
-
 const STORAGE_KEY = "rp_manga_flow_projects";
 const ACTIVE_KEY = "rp_manga_flow_active";
 const ACTIVE_PAGE_KEY = "rp_manga_flow_active_page";
@@ -59,20 +57,7 @@ function cleanForStorage(project) {
     updatedAt: Date.now(),
     pages: (project.pages || []).map((pg) => ({
       ...pg,
-      nodes: (pg.nodes || []).map((n) => ({
-        ...n,
-        data: sanitizeNodeRefData(n.data || {}),
-      })),
-    })),
-  };
-}
-
-function hydrateProjectPages(project) {
-  return {
-    ...project,
-    pages: (project.pages || []).map((pg) => ({
-      ...pg,
-      nodes: hydrateFlowNodes(pg.nodes),
+      nodes: (pg.nodes || []).map((n) => ({ ...n, data: { ...n.data, refImage: undefined } })),
     })),
   };
 }
@@ -103,7 +88,7 @@ export function loadFlowProject() {
     } else if (!migrated.activePageId && migrated.pages.length) {
       migrated.activePageId = migrated.pages[0].id;
     }
-    return hydrateProjectPages(migrated);
+    return migrated;
   } catch { return null; }
 }
 
@@ -112,7 +97,7 @@ export function loadAllProjects() {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return [];
     const list = JSON.parse(raw);
-    return Array.isArray(list) ? list.map((p) => hydrateProjectPages(migrateProject(p))) : [];
+    return Array.isArray(list) ? list.map(migrateProject) : [];
   } catch { return []; }
 }
 
@@ -126,7 +111,7 @@ export function loadFlowProjectById(id) {
   try {
     const all = loadAllProjects();
     const found = all.find((p) => p.id === id);
-    return found ? hydrateProjectPages(migrateProject(found)) : null;
+    return found ? migrateProject(found) : null;
   } catch { return null; }
 }
 

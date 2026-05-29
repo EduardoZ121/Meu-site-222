@@ -25,14 +25,23 @@ export function sortPanels(nodes) {
     });
 }
 
-export function isCastNode(node) {
-  return node?.type === "person" || node?.type === "support";
+/** True for any character-style node (primary or support). */
+export const CHARACTER_TYPES = ["person", "support"];
+export function isCharacterNode(n) {
+  return Boolean(n && CHARACTER_TYPES.includes(n.type));
+}
+export function isCharacterType(t) {
+  return CHARACTER_TYPES.includes(t);
 }
 
 export function sortPersons(nodes) {
   return [...nodes]
-    .filter((n) => isCastNode(n))
+    .filter(isCharacterNode)
     .sort((a, b) => {
+      // Primary "person" always comes before "support" (so slot 1 = primary).
+      const ra = a.type === "person" ? 0 : 1;
+      const rb = b.type === "person" ? 0 : 1;
+      if (ra !== rb) return ra - rb;
       const ay = a.position?.y ?? 0;
       const by = b.position?.y ?? 0;
       if (ay !== by) return ay - by;
@@ -68,9 +77,9 @@ export function getEdgePrompt(aId, bId, edges, nodes = []) {
   return e?.data?.aiInstruction?.trim() || e?.data?.prompt?.trim() || "";
 }
 
-/** Persons with a direct edge to this panel (either direction). */
+/** Persons (and supports) with a direct edge to this panel. */
 export function personsForPanel(panelId, nodes, edges) {
-  return getLinked(panelId, nodes, edges, ["person", "support"]).map((x) => x.node);
+  return getLinked(panelId, nodes, edges, CHARACTER_TYPES).map((x) => x.node);
 }
 
 export function scenarioForPanel(panelId, nodes, edges) {
@@ -117,13 +126,13 @@ export function objectsForPerson(personId, nodes, edges) {
   return getLinked(personId, nodes, edges, ["object"]).map((x) => x.node);
 }
 
-/** Person ↔ person interactions (semantic + user prompt). */
+/** Character ↔ character interactions (semantic + user prompt). */
 export function personInteractions(nodes, edges) {
   const lines = [];
   for (const e of edges) {
     const src = nodes.find((n) => n.id === e.source);
     const tgt = nodes.find((n) => n.id === e.target);
-    if (src?.type === "person" && tgt?.type === "person") {
+    if (isCharacterNode(src) && isCharacterNode(tgt)) {
       const r = resolveEdgeSemantics(e, nodes);
       lines.push({
         a: src.data?.name || "A",
@@ -250,12 +259,12 @@ export function buildSceneGraphSummary(nodes, edges) {
 
   const rules = [];
 
-  // Person ↔ Person — together in scene
+  // Person/Support ↔ Person/Support — together in scene
   const pairsSeen = new Set();
   for (const e of edges || []) {
     const src = nodes.find((n) => n.id === e.source);
     const tgt = nodes.find((n) => n.id === e.target);
-    if (isCastNode(src) && isCastNode(tgt)) {
+    if (isCharacterNode(src) && isCharacterNode(tgt)) {
       const key = [src.id, tgt.id].sort().join("|");
       if (pairsSeen.has(key)) continue;
       pairsSeen.add(key);

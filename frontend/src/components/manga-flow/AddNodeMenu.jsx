@@ -1,14 +1,14 @@
 import { User, Users, MapPin, Box, MessageCircle, Sparkles, Camera, Square, X } from "lucide-react";
 
 const NODE_TYPES = [
-  { type: "person", icon: User, label: "Person / Character", desc: "Name, pose, emotion, speech, clothing, reference photo.", color: "#9333EA", emoji: "👤" },
-  { type: "support", icon: Users, label: "Support (secondary)", desc: "Secondary character with own identity (ref slot 2). Use instead of a second Person card.", color: "#D946EF", emoji: "🧑‍🤝‍🧑" },
-  { type: "scenario", icon: MapPin, label: "Scenario / Place", desc: "Location with time, weather, mood, lighting.", color: "#14B8A6", emoji: "🌆" },
-  { type: "object", icon: Box, label: "Object / Item", desc: "Item with description, size, state.", color: "#FACC15", emoji: "📦" },
-  { type: "speech", icon: MessageCircle, label: "Speech Bubble / Dialogue", desc: "Dialogue text, bubble type, style, tail direction.", color: "#60A5FA", emoji: "💬" },
-  { type: "effect", icon: Sparkles, label: "Effect / SFX", desc: "Motion lines, explosion, sparkles, impact.", color: "#FB923C", emoji: "✨" },
-  { type: "camera", icon: Camera, label: "Camera Shot", desc: "Angle, framing, focus target.", color: "#F472B6", emoji: "📷" },
-  { type: "panel", icon: Square, label: "Panel / Frame", desc: "Define a manga panel size, format, borders.", color: "#A3A3A3", emoji: "▢" },
+  { type: "person", icon: User, label: "Personagem principal", desc: "Personagem principal: nome, pose, emoção, foto de referência (slot 1).", color: "#9333EA", emoji: "👤" },
+  { type: "support", icon: Users, label: "Suporte (secundário)", desc: "Personagem secundário com identidade própria (slot 2). Evita conflitos entre duas caixas Person.", color: "#D946EF", emoji: "🧑‍🤝‍🧑" },
+  { type: "scenario", icon: MapPin, label: "Cenário / Local", desc: "Local com hora, clima, humor, iluminação.", color: "#14B8A6", emoji: "🌆" },
+  { type: "object", icon: Box, label: "Objeto / Item", desc: "Item com descrição, tamanho, estado.", color: "#FACC15", emoji: "📦" },
+  { type: "speech", icon: MessageCircle, label: "Balão / Diálogo", desc: "Texto, tipo de balão, estilo, direção da cauda.", color: "#60A5FA", emoji: "💬" },
+  { type: "effect", icon: Sparkles, label: "Efeito / SFX", desc: "Linhas de movimento, explosão, brilhos, impacto.", color: "#FB923C", emoji: "✨" },
+  { type: "camera", icon: Camera, label: "Câmara", desc: "Ângulo, enquadramento, alvo do foco.", color: "#F472B6", emoji: "📷" },
+  { type: "panel", icon: Square, label: "Painel / Quadradinho", desc: "Define um painel da página: tamanho, formato, bordas.", color: "#A3A3A3", emoji: "▢" },
 ];
 
 export default function AddNodeMenu({ onAdd, onClose }) {

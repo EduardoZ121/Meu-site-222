@@ -139,16 +139,18 @@ export function buildPagePromptFromFlow(nodes, edges, context = {}, refSlots = [
   const orchestration = orchestrateMangaGeneration(nodes, edges, context, refSlots);
   const lines = [];
 
+  // Wizard context — chip selections + story prompt from "Create with AI".
+  // Goes at the very top so the AI anchors every panel to the user's wizard intent.
+  if (context?.wizardContext?.hiddenDirective) {
+    lines.push("## WIZARD CONTEXT (binding directives from the Create-with-AI questionnaire)");
+    lines.push(context.wizardContext.hiddenDirective);
+    lines.push("");
+  }
+
   // Scene-graph binding rules go FIRST so the AI cannot miss them.
   const sceneGraphBlock = buildSceneGraphSummary(nodes, orchestration.semanticEdges);
   if (sceneGraphBlock) {
     lines.push(sceneGraphBlock);
-    lines.push("");
-  }
-
-  if (context?.wizardContext?.hiddenDirective) {
-    lines.push("## WIZARD ANCHOR (binding for this project)");
-    lines.push(context.wizardContext.hiddenDirective);
     lines.push("");
   }
 

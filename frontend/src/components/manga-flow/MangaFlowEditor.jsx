@@ -35,7 +35,6 @@ import {
   uid, createDefaultProject, createEmptyPage, saveFlowProject,
   loadFlowProject, listFlowProjects, loadFlowProjectById, deleteFlowProject,
 } from "./mangaFlowData";
-import { projectHasPendingRefUploads } from "../../lib/mangaFlowRefStorage";
 import { NODE_DEFAULTS, NODE_COLORS } from "./nodeDefaults";
 import { buildPromptFromFlow } from "./buildFlowPrompt";
 import { toast } from "sonner";
@@ -179,11 +178,9 @@ export default function MangaFlowEditor() {
     });
   }, [nodes, setEdges]);
 
-  /* ---- Auto-save (skip while reference images are still uploading) ---- */
+  /* ---- Auto-save ---- */
   useEffect(() => {
-    if (projectHasPendingRefUploads(nodes)) return undefined;
     const timer = setTimeout(() => {
-      if (projectHasPendingRefUploads(nodes)) return;
       const updated = savePageState();
       if (updated) { setProject(updated); saveFlowProject(updated); }
     }, 1500);

@@ -3,7 +3,7 @@
  * Supports: 2 character refs → manga-interaction; single ref → manga-panel.
  */
 
-import { orderPersonsWithRefs, isCastNode } from "./mangaFlowGraph";
+import { orderPersonsWithRefs, isCharacterNode } from "./mangaFlowGraph";
 import { getCharacterIdentityTag } from "./mangaCharacterRef";
 
 function hasRef(node) {
@@ -39,7 +39,7 @@ export function collectMangaRefNodes(nodes, edges = []) {
   return {
     persons: personsOrdered.length
       ? personsOrdered
-      : sorted.filter((n) => isCastNode(n) && hasRef(n)),
+      : sorted.filter((n) => isCharacterNode(n) && hasRef(n)),
     scenarios: sorted.filter((n) => n.type === "scenario" && hasRef(n)),
     objects: sorted.filter((n) => n.type === "object" && hasRef(n)),
   };
@@ -113,18 +113,18 @@ export function planMangaGeneration(nodes, edges = []) {
     refSlots.push({
       slot: 1,
       role: "character",
+      characterRole: roleA,
       label: labelA,
       characterName: labelA,
-      characterRole: roleA,
       node: persons[0],
       field: "photo",
     });
     refSlots.push({
       slot: 2,
       role: "character",
+      characterRole: roleB,
       label: labelB,
       characterName: labelB,
-      characterRole: roleB,
       node: persons[1],
       field: "photo_b",
     });
@@ -213,17 +213,17 @@ export async function appendMangaRefsToFormData(fd, refSlots) {
   }
   if (charSlots[0]?.characterName) {
     fd.append("ref_a_name", charSlots[0].characterName);
+    fd.append("ref_a_role", charSlots[0].characterRole || "primary");
     const d0 = charSlots[0].node?.data;
     const desc0 = [d0?.clothing, d0?.refInstructions, d0?.actionDesc].filter(Boolean).join("; ");
     if (desc0) fd.append("ref_a_desc", desc0.slice(0, 400));
-    fd.append("ref_a_role", charSlots[0].characterRole || "primary");
   }
   if (charSlots[1]?.characterName) {
     fd.append("ref_b_name", charSlots[1].characterName);
+    fd.append("ref_b_role", charSlots[1].characterRole || "support");
     const d1 = charSlots[1].node?.data;
     const desc1 = [d1?.clothing, d1?.refInstructions, d1?.actionDesc].filter(Boolean).join("; ");
     if (desc1) fd.append("ref_b_desc", desc1.slice(0, 400));
-    fd.append("ref_b_role", charSlots[1].characterRole || "support");
   }
   return missing;
 }

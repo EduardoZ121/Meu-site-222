@@ -333,10 +333,6 @@ export function buildFinalPagePrompt(nodes, edges, settings = {}) {
   if (!pageBody) return buildFinalPrompt(nodes, edges, settings);
 
   const lines = [];
-  if (pageContext?.wizardContext?.hiddenDirective) {
-    lines.push(pageContext.wizardContext.hiddenDirective);
-    lines.push("");
-  }
   lines.push(QUALITY_PROMPTS[quality] || QUALITY_PROMPTS.high);
   if (shouldUseComicSheetMode(nodes)) {
     lines.push(
@@ -371,6 +367,13 @@ export function buildFinalPrompt(nodes, edges, settings = {}) {
   const lines = [];
   lines.push(QUALITY_PROMPTS[quality] || QUALITY_PROMPTS.high);
   lines.push("");
+
+  // Wizard context binds chip selections + AI-generated story at the top of every prompt.
+  if (pageContext?.wizardContext?.hiddenDirective) {
+    lines.push("## WIZARD CONTEXT (binding directives from Create-with-AI)");
+    lines.push(pageContext.wizardContext.hiddenDirective);
+    lines.push("");
+  }
 
   if (refSlots?.length) {
     const slotSection = buildReferenceSlotPromptSection(refSlots);

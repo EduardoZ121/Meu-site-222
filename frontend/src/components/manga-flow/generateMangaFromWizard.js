@@ -455,6 +455,8 @@ export function generateMangaFromWizard(answers) {
       transitions,
       characters: charsWithNames,
     },
+    // Hidden wizard context — gets prepended to every panel/page generation as
+    // anchor directives so chip selections never get diluted by generic AI output.
     wizardContext: {
       hiddenDirective: [
         `WIZARD CONTEXT (binding for every panel of this project):`,
@@ -463,8 +465,8 @@ export function generateMangaFromWizard(answers) {
         `- Visual: ${detailLevel?.replace(/_/g, " ") || "detailed"} detail, ${lighting || "dramatic"} lighting, ${colorPalette?.replace(/_/g, " ") || "monochrome"} palette, ${quality || "ultra"} quality.`,
         `- Dialogue style: ${dialogueStyle || "natural"}; bubbles: ${bubbleStyle || "normal"} at ${bubblePosition || "auto"}; SFX: ${sfxStyle || "japanese"}.`,
         `- World: ${location || "unspecified"}, ${era?.replace(/_/g, " ") || "modern"} era, ${weather || "clear"} weather.${worldDetails ? ` Notes: ${worldDetails}.` : ""}`,
-        charsWithNames.length
-          ? `- Locked cast (use ONLY these characters, never invent NPCs): ${charsWithNames.map((c) => `${c.name} [${c.role || "cast"}]`).join(", ")}.`
+        characters?.filter((c) => c.name).length
+          ? `- Locked cast (use ONLY these characters, never invent NPCs): ${characters.filter((c) => c.name).map((c) => `${c.name} [${c.role}]`).join(", ")}.`
           : "",
         storyPrompt ? `- Story (must follow plot beats): ${String(storyPrompt).slice(0, 600)}` : "",
         keyMoments ? `- Key moments to hit: ${String(keyMoments).slice(0, 300)}` : "",
@@ -472,6 +474,13 @@ export function generateMangaFromWizard(answers) {
       ]
         .filter(Boolean)
         .join("\n"),
+      raw: {
+        format, mainStyle, genre, tone, pacing, narration,
+        artStyle, detailLevel, lighting, colorPalette, quality,
+        dialogueStyle, bubbleStyle, bubblePosition, sfxStyle,
+        location, era, weather, worldDetails,
+        storyPrompt, synopsis, keyMoments, extraInstructions,
+      },
     },
   };
 }

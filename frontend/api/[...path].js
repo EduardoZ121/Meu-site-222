@@ -1119,7 +1119,7 @@ async function imageInput(fields, files, modelKey, prompt, opts = {}) {
     }
   }
   if (modelKey === "kontext" || modelKey === "artistic" || modelKey === "pro") {
-    if (opts.photography || opts.photoEdit) {
+    if (opts.photography || opts.photoEdit || opts.artisticPhotoEdit) {
       input.disable_safety_checker = true;
     }
   }
@@ -1566,6 +1566,7 @@ async function routePost(path, fields, files, req) {
       const dualBlock = buildMangaDualCharacterBlock(nameA, nameB, descA, descB, roleA, roleB);
       promptFinal = `${dualBlock}\n\n${promptFinal}`;
       const cost = Math.max(1, Number(CREDIT.mangaPanel) || 15);
+      // Comic sheets force portrait 3:4 (standard manga page) so the AI lays out vertical panels.
       const requestedAspect = text(fields, "aspect_ratio", isComicSheet ? "3:4" : "4:5");
       const aspect = normalizeRatio(isComicSheet ? "3:4" : requestedAspect, "qwen");
       const input = {
@@ -1608,6 +1609,7 @@ async function routePost(path, fields, files, req) {
 
     const aspectDefault = mode === "chapter" ? "9:16" : mode === "page" ? "3:4" : text(fields, "aspect_ratio", "4:5");
     const input = await imageInput(fields, files, modelKey, promptFinal);
+    // Comic sheets always force portrait 3:4 regardless of user choice (manga page format).
     input.aspect_ratio = normalizeRatio(
       isComicSheet ? "3:4" : (text(fields, "aspect_ratio", "").trim() || aspectDefault),
       modelKey,

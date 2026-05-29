@@ -1,10 +1,8 @@
 import { Handle, Position, NodeResizer } from "@xyflow/react";
 import { MapPin } from "lucide-react";
-import { getMangaRefDisplayUrl, hasMangaRef } from "../../../lib/mangaFlowRefStorage";
 
 export default function ScenarioNode({ data, selected }) {
-  const displayUrl = getMangaRefDisplayUrl(data);
-  const hasRef = hasMangaRef(data);
+  const hasRef = Boolean(data.refImageUrl || data.refImage);
   return (
     <div className={`mfn mfn--scenario ${selected ? "mfn--sel" : ""}`} data-testid="scenario-node">
       <NodeResizer minWidth={160} minHeight={100} maxWidth={400} maxHeight={500} isVisible={selected} lineClassName="mfn-resize-line mfn-resize-line--scenario" handleClassName="mfn-resize-handle mfn-resize-handle--scenario" />
@@ -13,7 +11,7 @@ export default function ScenarioNode({ data, selected }) {
       <Handle type="target" position={Position.Top} className="mfn-h mfn-h--scenario" />
       <Handle type="source" position={Position.Bottom} className="mfn-h mfn-h--scenario" />
       <div className="mfn__head mfn__head--scenario"><MapPin className="w-3.5 h-3.5" /><span>Scenario</span></div>
-      {hasRef && displayUrl && <div className="mfn__img"><img src={displayUrl} alt="" crossOrigin="anonymous" /></div>}
+      {hasRef && <div className="mfn__img"><img src={data.refImageUrl||data.refImage} alt="" /></div>}
       <div className="mfn__body">
         <p className="mfn__name">{data.name||"Unnamed place"}</p>
         <div className="mfn__tags">

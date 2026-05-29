@@ -61,6 +61,8 @@ export function buildCharacterIdentityCard(node, slot = null) {
   const name = (d.name && String(d.name).trim()) || "Character";
   const hasRef = Boolean(d.refImage || d.refImageUrl || d.refPersistUrl);
   const tag = getCharacterIdentityTag(node);
+  const isSupport = node.type === "support";
+  const roleLabel = isSupport ? "SUPPORT (secondary)" : "PRIMARY";
   const traits = [];
   if (d.clothing) traits.push(`outfit: ${String(d.clothing).slice(0, 160)}`);
   if (d.refInstructions) traits.push(String(d.refInstructions).slice(0, 200));
@@ -70,16 +72,20 @@ export function buildCharacterIdentityCard(node, slot = null) {
     nodeId: node.id,
     name,
     tag,
+    role: isSupport ? "support" : "primary",
     slot,
     hasRef,
     lockedIdentity: true,
     visualTraits: traits,
     /** Hidden semantic block — used by the prompt composer, never UI. */
     identityBlock: [
-      `• ${name} [${tag}]${slot ? ` → reference image ${slot} ONLY` : " → described identity only"}.`,
+      `• ${name} [${tag}] (${roleLabel})${slot ? ` → reference image ${slot} ONLY` : " → described identity only"}.`,
       slot
         ? `  Bind image ${slot} as the sole visual source for ${name}: same face shape, eyes, nose, mouth, hair color, hair style, skin tone, ethnicity, body proportions and outfit. Never reuse this image for any other character.`
         : `  ${name} has no reference photo: do NOT invent a generic anime face. Use only the textual traits below; if no traits, keep ${name} OUT of the panel rather than guess.`,
+      isSupport
+        ? `  Role: secondary/support — present with own independent identity, never blends with the primary, but composition centers on the primary.`
+        : `  Role: primary — main focus of compositions and action.`,
       traits.length ? `  Visual traits (locked): ${traits.join("; ")}.` : "",
     ]
       .filter(Boolean)

@@ -27,18 +27,9 @@ import {
 
 /** Hidden semantic metadata per node type (UI + generation). */
 export const NODE_SEMANTIC_PROFILES = {
-  support: {
-    type: "character",
-    semantic_role: "support_actor",
-    persistent_identity: true,
-    maintain_reference_consistency: true,
-    track_across_panels: true,
-    reference_priority: "maximum",
-    secondary_cast: true,
-  },
   person: {
     type: "character",
-    semantic_role: "actor",
+    semantic_role: "primary_actor",
     persistent_identity: true,
     maintain_reference_consistency: true,
     track_across_panels: true,
@@ -49,6 +40,22 @@ export const NODE_SEMANTIC_PROFILES = {
     hairstyle_lock: true,
     body_structure_lock: true,
     reference_priority: "maximum",
+  },
+  support: {
+    type: "character",
+    semantic_role: "secondary_actor",
+    character_role: "support",
+    persistent_identity: true,
+    maintain_reference_consistency: true,
+    independent_identity_from_primary: true,
+    track_across_panels: true,
+    track_across_pages: true,
+    visual_memory_enabled: true,
+    face_lock: true,
+    outfit_lock: true,
+    hairstyle_lock: true,
+    body_structure_lock: true,
+    reference_priority: "high",
   },
   scenario: {
     type: "environment",
@@ -130,7 +137,7 @@ export function getNodeSemanticProfile(node) {
     };
   }
   if (node?.type === "person" || node?.type === "support") {
-    return { ...base, name: d.name || "Character" };
+    return { ...base, name: d.name || "Character", role: node.type === "support" ? "support" : "primary" };
   }
   return base;
 }

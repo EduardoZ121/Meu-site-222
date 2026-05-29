@@ -15,11 +15,13 @@ export const NODE_DEFAULTS = {
   person: {
     name: "", pose: "standing", emotion: "normal", cameraAngle: "medium",
     clothing: "", speech: "", speechType: "speech", actionDesc: "",
+    role: "primary",
     refImage: null, refImageUrl: null, refPersistUrl: null, refUploading: false,
   },
   support: {
     name: "", pose: "standing", emotion: "normal", cameraAngle: "medium",
-    clothing: "", speech: "", speechType: "speech", actionDesc: "", role: "support",
+    clothing: "", speech: "", speechType: "speech", actionDesc: "",
+    role: "support",
     refImage: null, refImageUrl: null, refPersistUrl: null, refUploading: false,
   },
   scenario: {

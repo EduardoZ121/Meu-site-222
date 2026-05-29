@@ -1,10 +1,8 @@
 import { Handle, Position, NodeResizer } from "@xyflow/react";
 import { User } from "lucide-react";
-import { getMangaRefDisplayUrl, hasMangaRef } from "../../../lib/mangaFlowRefStorage";
 
 export default function PersonNode({ data, selected }) {
-  const displayUrl = getMangaRefDisplayUrl(data);
-  const hasRef = hasMangaRef(data);
+  const hasRef = Boolean(data.refImageUrl || data.refImage);
   return (
     <div className={`mfn mfn--person ${selected ? "mfn--sel" : ""}`} data-testid="person-node">
       <NodeResizer minWidth={160} minHeight={100} maxWidth={400} maxHeight={500} isVisible={selected} lineClassName="mfn-resize-line mfn-resize-line--person" handleClassName="mfn-resize-handle mfn-resize-handle--person" />
@@ -13,7 +11,7 @@ export default function PersonNode({ data, selected }) {
       <Handle type="target" position={Position.Top} className="mfn-h mfn-h--person" />
       <Handle type="source" position={Position.Bottom} className="mfn-h mfn-h--person" />
       <div className="mfn__head mfn__head--person"><User className="w-3.5 h-3.5" /><span>Person</span></div>
-      {hasRef && displayUrl && <div className="mfn__img"><img src={displayUrl} alt="" crossOrigin="anonymous" /></div>}
+      {hasRef && <div className="mfn__img"><img src={data.refImageUrl||data.refImage} alt="" /></div>}
       <div className="mfn__body">
         <p className="mfn__name">{data.name||"Unnamed character"}</p>
         <div className="mfn__tags">

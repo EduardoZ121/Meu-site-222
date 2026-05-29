@@ -38,6 +38,7 @@ const { handleCreationsRoute } = require("./lib/creationsRoutes.cjs");
 const { handlePromptAssistRoute } = require("./lib/promptAssist.cjs");
 const PADRAO_STYLES_LIST = require("./lib/padraoStylesData.cjs");
 const { finalizeImagePrompt } = require("./lib/imageQualityPrompts.cjs");
+const { appendPhotoEditIdentity, upgradePadraoPrompt } = require("./lib/identityPrompts.cjs");
 const { getProPreset, listProPresets } = require("./lib/proPresetsData.cjs");
 const {
   isS3Configured,
@@ -1335,12 +1336,12 @@ async function routePost(path, fields, files, req) {
     const extra = text(fields, "extra_prompt", "").trim();
     let prompt;
     if (padrao?.prompt) {
-      prompt = padrao.prompt.replace(/\[subject\]/gi, subject);
+      prompt = upgradePadraoPrompt(padrao.prompt.replace(/\[subject\]/gi, subject));
       if (extra) prompt = `${prompt}\n\n${extra}`;
     } else {
       prompt = `Apply the ${styleId || "editorial"} style to ${subject}. Preserve identity, face, pose and expression. ${extra}`;
     }
-    const input = await imageInput(fields, files, "standard", prompt);
+    const input = await imageInput(fields, files, "standard", appendPhotoEditIdentity(prompt));
     return submitBillableGeneration(req, fields, {
       cost: CREDIT.easy,
       type: "image",
@@ -1365,6 +1366,7 @@ async function routePost(path, fields, files, req) {
       if (intensity < 34) prompt += "\n\nApply a very subtle, gentle enhancement.";
       else if (intensity > 66) prompt += "\n\nApply a stronger visible enhancement while strictly preserving identity.";
     }
+    prompt = appendPhotoEditIdentity(prompt);
     const input = await imageInput(fields, files, "pro", prompt);
     return submitBillableGeneration(req, fields, {
       cost: CREDIT.pro,

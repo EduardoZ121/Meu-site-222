@@ -1,5 +1,23 @@
 /** Espelha a lógica do backend (poster_templates.py) para o editor Vercel. */
 
+import {
+  LEGACY_POSTER_REFERENCE_FOOD,
+  LEGACY_POSTER_REFERENCE_PERSON,
+  POSTER_REFERENCE_FOOD,
+  POSTER_REFERENCE_PERSON,
+} from "./identityPrompts";
+
+function normalizeTemplateReferencePrompt(raw) {
+  let out = String(raw || "");
+  if (out.includes(LEGACY_POSTER_REFERENCE_PERSON)) {
+    out = out.split(LEGACY_POSTER_REFERENCE_PERSON).join(POSTER_REFERENCE_PERSON);
+  }
+  if (out.includes(LEGACY_POSTER_REFERENCE_FOOD)) {
+    out = out.split(LEGACY_POSTER_REFERENCE_FOOD).join(POSTER_REFERENCE_FOOD);
+  }
+  return out;
+}
+
 export const POSTER_DIRECTOR = (
   "Professional design poster, 8K resolution, magazine print quality, "
   + "perfectly legible typography rendered as crisp vector-like text with sharp edges, "
@@ -13,7 +31,14 @@ export const POSTER_DIRECTOR = (
 export const POSTER_TYPOGRAPHY_GUARD = (
   "TYPOGRAPHY (mandatory): render every headline, subhead, CTA, date and label razor-sharp, "
   + "perfectly spelled character-by-character as written in the brief, high contrast, "
-  + "no blurry, melted, warped, duplicated or invented letters; crisp vector-like type edges."
+  + "no blurry, melted, warped, duplicated or invented letters; crisp vector-like type edges. "
+  + "Layer text in dedicated zones — never overlap, cut through or sit behind the subject's face."
+);
+
+export const POSTER_COMPOSITE_GUARD = (
+  "COMPOSITING (mandatory): single unified poster artwork — subject, background, graphics and typography "
+  + "must share consistent lighting, color grading and depth. No floating cutout, sticker overlay, "
+  + "disconnected face layer or mismatched shadows. Professional photo-manipulation finish."
 );
 
 export const TEMPLATE_COLOR_GUARD = (
@@ -105,9 +130,10 @@ const STYLE_HINTS = {
 };
 
 export const POSTER_IDENTITY_GUARD = (
-  "CRITICAL — Preserve the reference person's exact face, facial structure, skin tone, "
-  + "body shape, proportions and pose fidelity. Do not change identity, age, or ethnicity. "
-  + "Only adapt outfit, lighting and poster styling as the template describes."
+  "CRITICAL — Preserve the reference person's exact face, facial structure, bone structure, skin tone, "
+  + "ethnicity, hair texture, body shape, proportions and likeness. Do not change identity, age, race "
+  + "or undertones. Only adapt outfit, lighting, pose within the template context and poster styling. "
+  + "Integrate seamlessly — not a pasted face."
 );
 
 export const POSTER_FOOD_GUARD = (
@@ -191,7 +217,8 @@ export function formatCustomBlocks(blocks = []) {
   return (
     "Additional custom typography layers (mandatory — render all legibly in the final poster):\n"
     + `${lines.join("\n")}\n`
-    + "Integrate these layers into the hierarchy without overlapping faces; respect positions and colors."
+    + "Integrate these layers into the hierarchy without overlapping faces; respect positions and colors. "
+    + "Keep all type fully readable and in front of background layers, never cutting through the subject's face."
   );
 }
 
@@ -243,7 +270,7 @@ export function buildPosterPrompt(template, values = {}, options = {}) {
     return `${POSTER_DIRECTOR}Professional premium poster design.\n\n${POSTER_TYPOGRAPHY_GUARD}`;
   }
 
-  let raw = template.prompt;
+  let raw = normalizeTemplateReferencePrompt(template.prompt);
 
   for (const [field, original] of Object.entries(template.replacements || {})) {
     const userValue = String(values[field] || "").trim();
@@ -295,9 +322,9 @@ export function buildPosterPrompt(template, values = {}, options = {}) {
 
   const hasPhoto = Boolean(options.hasPhoto);
   if (hasPhoto && isPosterFoodTemplate(template)) {
-    out = `${out}\n\n${POSTER_FOOD_GUARD}`;
+    out = `${out}\n\n${POSTER_FOOD_GUARD}\n\n${POSTER_COMPOSITE_GUARD}`;
   } else if (posterNeedsIdentityGuard(template, hasPhoto)) {
-    out = `${out}\n\n${POSTER_IDENTITY_GUARD}`;
+    out = `${out}\n\n${POSTER_IDENTITY_GUARD}\n\n${POSTER_COMPOSITE_GUARD}`;
   }
 
   return out;

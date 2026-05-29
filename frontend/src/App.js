@@ -43,6 +43,7 @@ import BuildVersionGuard from "./components/BuildVersionGuard";
 import CookieConsentBar from "./components/legal/CookieConsentBar";
 import WhatsAppGenerationListener from "./components/legal/WhatsAppGenerationListener";
 import Legal from "./pages/Legal";
+import GlobalSiteMeta from "./components/GlobalSiteMeta";
 
 /** App instalado (Chrome): abre login em vez da landing; sessão autenticada vai ao estúdio. */
 function PwaStartupRedirect() {
@@ -98,6 +99,7 @@ function App() {
       <AuthProvider>
           <PricingProvider>
           <BrowserRouter>
+            <GlobalSiteMeta />
             <Toaster position="top-center" theme="dark" toastOptions={{ style: { background: "#121217", color: "#F4F1EA", border: "1px solid rgba(244,241,234,0.08)" } }} />
             <BuildVersionGuard />
             <CookieConsentBar />

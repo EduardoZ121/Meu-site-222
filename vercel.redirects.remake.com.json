@@ -1,0 +1,20 @@
+[
+  {
+    "source": "/:path*",
+    "has": [{ "type": "host", "value": "remakepix.com" }],
+    "destination": "https://www.remake.com/:path*",
+    "permanent": true
+  },
+  {
+    "source": "/:path*",
+    "has": [{ "type": "host", "value": "www.remakepix.com" }],
+    "destination": "https://www.remake.com/:path*",
+    "permanent": true
+  },
+  {
+    "source": "/:path*",
+    "has": [{ "type": "host", "value": "remake.com" }],
+    "destination": "https://www.remake.com/:path*",
+    "permanent": true
+  }
+]

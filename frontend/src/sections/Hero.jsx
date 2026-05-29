@@ -94,20 +94,9 @@ export default function Hero() {
             </Link>
           </div>
         </motion.div>
-
-        {/* Subtle trust strip — no cumulative numbers required, just a vibe */}
-        <motion.p
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 1.0, duration: 0.6 }}
-          className="mt-10 text-[10px] font-mono uppercase tracking-[0.22em] text-[#52525B]"
-        >
-          {t("hero_trust_strip")}
-        </motion.p>
       </div>
 
-      {/* Single scroll cue (replaces the duplicate "See creations / Learn more / Scroll" stack) */}
-      <div className="absolute bottom-6 inset-x-0 z-10 flex justify-center pointer-events-none">
+      <div className="absolute bottom-8 inset-x-0 z-10 flex justify-center pointer-events-none">
         <motion.div
           initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}

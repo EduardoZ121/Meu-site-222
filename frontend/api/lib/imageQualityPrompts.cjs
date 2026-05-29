@@ -1,17 +1,10 @@
 /** Sufixos de qualidade aplicados automaticamente a gerações de imagem. */
 
 const POSITIVE_SUFFIX =
-  ", same person, exact same face, preserve face identity 100%, preserve exact skin tone and ethnicity, "
-  + "no skin tone shift, no lightening or darkening of skin, consistent age, highly detailed face, sharp eyes, "
-  + "natural skin texture with accurate undertones for all ethnicities including melanin-rich skin, "
-  + "anatomically correct body, perfect proportions, symmetric natural features, seamless compositing, "
-  + "no deformations, no morphing artifacts";
+  ", same person, exact same face, preserve face identity 100%, consistent age, highly detailed face, sharp eyes, natural skin texture, anatomically correct body, perfect proportions, no deformations";
 
 const NEGATIVE_PROMPT =
-  "deformed, ugly, bad anatomy, extra limbs, fused fingers, mutated hands, deformed face, warped face, "
-  + "asymmetrical face, melted face, wrong skin tone, bleached skin, ashy skin, skin tone shift, "
-  + "different person, old, wrinkled, bad proportions, floating head, pasted cutout, sticker overlay, "
-  + "disjointed face, text overlapping face, letters through face";
+  "deformed, ugly, bad anatomy, extra limbs, fused fingers, mutated hands, deformed face, old, wrinkled, different person, bad proportions";
 
 const NEGATIVE_INLINE = ` Avoid: ${NEGATIVE_PROMPT}.`;
 

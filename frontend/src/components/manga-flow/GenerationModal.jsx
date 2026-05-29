@@ -1,7 +1,11 @@
 import { useState, useCallback } from "react";
 import { X, Wand2, Download, Copy, Loader2, Sparkles, Image as ImageIcon, AlertCircle } from "lucide-react";
 import { buildFinalPrompt } from "./buildFlowPrompt";
-import { uploadPost, api, pollPrediction, trackPendingPrediction } from "../../lib/api";
+import { uploadPost, pollPrediction, trackPendingPrediction } from "../../lib/api";
+import {
+  planMangaGeneration,
+  appendMangaRefsToFormData,
+} from "../../lib/mangaGenerationRefs";
 import { toast } from "sonner";
 
 const MODELS = [
@@ -61,8 +65,17 @@ export default function GenerationModal({ nodes, edges, onClose, onResult }) {
   const [progress, setProgress] = useState(0);
   const [showPrompt, setShowPrompt] = useState(false);
 
-  const finalPrompt = buildFinalPrompt(nodes, edges, { model, quality, aspect, style, extraInstructions });
+  const genPlan = planMangaGeneration(nodes);
+  const finalPrompt = buildFinalPrompt(nodes, edges, {
+    model,
+    quality,
+    aspect,
+    style,
+    extraInstructions,
+    refSlots: genPlan.refSlots,
+  });
   const modelDef = MODELS.find(m => m.id === model) || MODELS[0];
+  const usesDualRef = genPlan.endpoint === "/generate/manga-interaction";
 
   const copyPrompt = () => {
     navigator.clipboard.writeText(finalPrompt).then(() => toast.success("Prompt copied!")).catch(() => toast.error("Copy failed"));
@@ -75,22 +88,33 @@ export default function GenerationModal({ nodes, edges, onClose, onResult }) {
     setProgress(5);
 
     try {
-      // Build FormData for the API
+      if (genPlan.error) {
+        setError(genPlan.error);
+        toast.error(genPlan.error);
+        return;
+      }
+
       const fd = new FormData();
       fd.append("prompt_final", finalPrompt);
       fd.append("aspect_ratio", aspect);
-      fd.append("model_key", modelDef.apiModel || "standard");
-
-      // Attach first character reference image if available
-      const personNode = nodes.find(n => n.type === "person" && n.data?.refImageUrl);
-      if (personNode?.data?.refImage instanceof File) {
-        fd.append("photo", personNode.data.refImage, "character-ref.png");
+      if (!usesDualRef) {
+        fd.append("model_key", modelDef.apiModel || "standard");
       }
+
+      const missingRefs = await appendMangaRefsToFormData(fd, genPlan.refSlots);
+      if (missingRefs.length) {
+        const msg = `Não foi possível ler a foto de: ${missingRefs.join(", ")}. Volta a carregar a imagem de referência.`;
+        setError(msg);
+        toast.error(msg);
+        return;
+      }
+
+      if (genPlan.warning) toast.info(genPlan.warning);
 
       setProgress(15);
 
-      // Submit to API
-      const { data: submitData } = await uploadPost("/generate/manga-panel", fd, {
+      const endpoint = genPlan.endpoint || "/generate/manga-panel";
+      const { data: submitData } = await uploadPost(endpoint, fd, {
         timeout: 120000,
         headers: { "X-Skip-Auto-Poll": "1" },
       });
@@ -141,7 +165,7 @@ export default function GenerationModal({ nodes, edges, onClose, onResult }) {
     } finally {
       setGenerating(false);
     }
-  }, [finalPrompt, aspect, modelDef, nodes, onResult]);
+  }, [finalPrompt, aspect, modelDef, genPlan, usesDualRef, onResult]);
 
   return (
     <div className="mfg-overlay" data-testid="generation-modal">
@@ -151,7 +175,12 @@ export default function GenerationModal({ nodes, edges, onClose, onResult }) {
             <div className="mfg-header__icon"><Sparkles className="w-5 h-5" /></div>
             <div>
               <h2 className="mfg-header__title">Generate Manga Page</h2>
-              <p className="mfg-header__sub">{nodes.length} cards · {edges.length} connections</p>
+              <p className="mfg-header__sub">
+                {nodes.length} cards · {edges.length} connections
+                {genPlan.refSlots.length > 0 && (
+                  <> · {genPlan.refSlots.length} ref{genPlan.refSlots.length > 1 ? "s" : ""}{usesDualRef ? " (2-image mode)" : ""}</>
+                )}
+              </p>
             </div>
           </div>
           <button onClick={onClose} className="mfg-close"><X className="w-5 h-5" /></button>

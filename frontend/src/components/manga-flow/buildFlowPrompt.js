@@ -1,6 +1,8 @@
 /** Builds a detailed AI image prompt from the flow canvas nodes + edges.
  *  Includes strong character reference instructions when ref images exist. */
 
+import { buildReferenceSlotPromptSection, sortNodesForRefs } from "../../lib/mangaGenerationRefs";
+
 export function buildPromptFromFlow(nodes, edges) {
   if (!nodes.length) return "// No cards on canvas. Add characters, scenarios and objects to generate a prompt.";
 
@@ -12,9 +14,9 @@ export function buildPromptFromFlow(nodes, edges) {
 
   const lines = [];
   const hasAnyRef = nodes.some(n => n.data?.refImageUrl);
-  const personRefs = (byType.person || []).filter(n => n.data?.refImageUrl);
-  const sceneRefs = (byType.scenario || []).filter(n => n.data?.refImageUrl);
-  const objectRefs = (byType.object || []).filter(n => n.data?.refImageUrl);
+  const personRefs = sortNodesForRefs(byType.person || []).filter((n) => n.data?.refImageUrl);
+  const sceneRefs = sortNodesForRefs(byType.scenario || []).filter((n) => n.data?.refImageUrl);
+  const objectRefs = sortNodesForRefs(byType.object || []).filter((n) => n.data?.refImageUrl);
 
   lines.push("=== MANGA PANEL — AI IMAGE PROMPT ===\n");
 
@@ -176,10 +178,11 @@ export function buildPromptFromFlow(nodes, edges) {
     lines.push("CRITICAL: The following characters have reference images attached.");
     lines.push("The AI MUST preserve exact identity from the reference:");
     lines.push("");
-    personRefs.forEach((n) => {
+    personRefs.forEach((n, idx) => {
       const d = n.data;
       const name = d.name || "Character";
-      lines.push(`### ${name} — REFERENCE IMAGE PROVIDED`);
+      const slotHint = personRefs.length > 1 ? ` (maps to reference Image ${idx + 1} in API)` : "";
+      lines.push(`### ${name} — REFERENCE IMAGE PROVIDED${slotHint}`);
       lines.push(`- Use the EXACT SAME character from the reference image.`);
       lines.push(`- IDENTICAL face: same facial features, same eye shape, same eye color, same nose, same lips.`);
       lines.push(`- IDENTICAL hairstyle: same hair color, same hair length, same hair style, do NOT change hair.`);
@@ -197,9 +200,10 @@ export function buildPromptFromFlow(nodes, edges) {
   // ── SCENARIO REFERENCE ──
   if (sceneRefs.length) {
     lines.push("## SCENARIO REFERENCE IMAGES");
-    sceneRefs.forEach((n) => {
+    sceneRefs.forEach((n, idx) => {
       const d = n.data;
-      lines.push(`${d.name || "Scenario"}: Use the reference image as strong visual guide.`);
+      const slotHint = sceneRefs.length > 1 ? ` (reference Image ${idx + 1} if sent to API)` : "";
+      lines.push(`${d.name || "Scenario"}${slotHint}: Use the reference image as strong visual guide.`);
       lines.push(`  Match the style, lighting, color palette, architecture and atmosphere from the reference.`);
       if (d.refInstructions) lines.push(`  USER INSTRUCTIONS: ${d.refInstructions}`);
     });
@@ -271,9 +275,10 @@ const LIGHTING_PROMPTS = {
 
 /**
  * Builds the FINAL prompt for AI generation, combining canvas data with generation settings.
+ * @param {object} settings
  */
 export function buildFinalPrompt(nodes, edges, settings = {}) {
-  const { model, quality, aspect, style, subStyle, detailLevel, lighting, mood, extraInstructions } = settings;
+  const { model, quality, aspect, style, subStyle, detailLevel, lighting, mood, extraInstructions, refSlots } = settings;
 
   // Start with the full canvas prompt
   const canvasPrompt = buildPromptFromFlow(nodes, edges);
@@ -283,6 +288,11 @@ export function buildFinalPrompt(nodes, edges, settings = {}) {
   // Quality prefix
   lines.push(QUALITY_PROMPTS[quality] || QUALITY_PROMPTS.high);
   lines.push("");
+
+  if (refSlots?.length) {
+    const slotSection = buildReferenceSlotPromptSection(refSlots);
+    if (slotSection) lines.push(slotSection);
+  }
 
   // Add canvas content (without the old style section)
   const canvasLines = canvasPrompt.split("\n");

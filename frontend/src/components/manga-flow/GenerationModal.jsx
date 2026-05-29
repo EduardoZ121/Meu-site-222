@@ -81,11 +81,12 @@ export default function GenerationModal({ nodes, edges, onClose, onResult, pageC
     ? buildFinalPagePrompt(nodes, edges, promptSettings)
     : buildFinalPrompt(nodes, edges, promptSettings);
   const modelDef = MODELS.find(m => m.id === model) || MODELS[0];
-  const usesDualRef = genPlan.endpoint === "/generate/manga-interaction";
+  const dualCharRefs = genPlan.refSlots.filter((s) => s.role === "character").length >= 2;
+  const usesDualRef = dualCharRefs || genPlan.endpoint === "/generate/manga-interaction";
   const generateEndpoint = genPlan.error
     ? null
     : usesDualRef
-      ? genPlan.endpoint
+      ? "/generate/manga-interaction"
       : isMultiPanelPage
         ? "/generate/manga-page"
         : genPlan.endpoint || "/generate/manga-panel";
@@ -112,9 +113,20 @@ export default function GenerationModal({ nodes, edges, onClose, onResult, pageC
       fd.append("aspect_ratio", aspect);
       if (!usesDualRef) {
         fd.append("model_key", modelDef.apiModel || "standard");
+      } else {
+        toast.info(
+          `Modo 2 personagens: ${genPlan.refSlots.map((s) => s.label).join(" + ")} (Qwen, identidade bloqueada)`,
+          { duration: 5000 },
+        );
       }
 
       const missingRefs = await appendMangaRefsToFormData(fd, genPlan.refSlots);
+      if (dualCharRefs && missingRefs.length) {
+        const msg = `Falta a foto de referência: ${missingRefs.join(", ")}. Volta a carregar em cada card Personagem.`;
+        setError(msg);
+        toast.error(msg);
+        return;
+      }
       if (missingRefs.length) {
         const msg = `Não foi possível ler a foto de: ${missingRefs.join(", ")}. Volta a carregar a imagem de referência.`;
         setError(msg);
@@ -178,7 +190,7 @@ export default function GenerationModal({ nodes, edges, onClose, onResult, pageC
     } finally {
       setGenerating(false);
     }
-  }, [finalPrompt, aspect, modelDef, genPlan, usesDualRef, generateEndpoint, onResult]);
+  }, [finalPrompt, aspect, modelDef, genPlan, usesDualRef, dualCharRefs, generateEndpoint, onResult]);
 
   return (
     <div className="mfg-overlay" data-testid="generation-modal">

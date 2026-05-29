@@ -14,7 +14,7 @@ export const NODE_DEFAULTS = {
   person: {
     name: "", pose: "standing", emotion: "normal", cameraAngle: "medium",
     clothing: "", speech: "", speechType: "speech", actionDesc: "",
-    refImage: null, refImageUrl: null,
+    refImage: null, refImageUrl: null, refPersistUrl: null, refUploading: false,
   },
   scenario: {
     name: "", timeOfDay: "day", weather: "clear", mood: "neutral",

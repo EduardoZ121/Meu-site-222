@@ -40,6 +40,9 @@ export function collectMangaRefNodes(nodes) {
  */
 export async function resolveNodeRefFile(node, filenameBase = "ref") {
   const d = node?.data || {};
+  if (d.refPersistUrl && typeof d.refPersistUrl === "string") {
+    return { remoteUrl: d.refPersistUrl };
+  }
   if (d.refImage instanceof File) return d.refImage;
 
   const url = d.refImageUrl;
@@ -92,17 +95,21 @@ export function planMangaGeneration(nodes) {
   }
 
   if (persons.length >= 2) {
+    const labelA = nodeLabel(persons[0], "Personagem 1");
+    const labelB = nodeLabel(persons[1], "Personagem 2");
     refSlots.push({
       slot: 1,
       role: "character",
-      label: nodeLabel(persons[0], "Personagem 1"),
+      label: labelA,
+      characterName: labelA,
       node: persons[0],
       field: "photo",
     });
     refSlots.push({
       slot: 2,
       role: "character",
-      label: nodeLabel(persons[1], "Personagem 2"),
+      label: labelB,
+      characterName: labelB,
       node: persons[1],
       field: "photo_b",
     });
@@ -181,10 +188,13 @@ export function planMangaGeneration(nodes) {
 
 export async function appendMangaRefsToFormData(fd, refSlots) {
   const missing = [];
+  const charSlots = refSlots.filter((s) => s.role === "character");
   for (const slot of refSlots) {
     const ok = await appendRefToFormData(fd, slot.field, slot.node, `manga-ref-${slot.slot}`);
     if (!ok) missing.push(slot.label);
   }
+  if (charSlots[0]?.characterName) fd.append("ref_a_name", charSlots[0].characterName);
+  if (charSlots[1]?.characterName) fd.append("ref_b_name", charSlots[1].characterName);
   return missing;
 }
 
@@ -194,8 +204,9 @@ export function buildReferenceSlotPromptSection(refSlots) {
   const lines = ["## REFERENCE IMAGE SLOTS (API — follow exactly)", ""];
   for (const s of refSlots) {
     if (s.role === "character") {
+      const who = s.characterName || s.label;
       lines.push(
-        `Image ${s.slot} (${s.label}): CHARACTER reference — preserve EXACT face, hair, body, skin tone and outfit from this image. This is NOT a random person.`,
+        `Image ${s.slot} = "${who}" ONLY: use this image as the sole identity source for ${who}. Preserve EXACT face, hair color, hair style, skin tone, ethnicity, body proportions and outfit. Never assign this face to any other character.`,
       );
     } else if (s.role === "scenario") {
       lines.push(
@@ -209,8 +220,10 @@ export function buildReferenceSlotPromptSection(refSlots) {
   }
   if (refSlots.length === 2 && refSlots.every((s) => s.role === "character")) {
     lines.push("");
+    const a = refSlots[0].characterName || refSlots[0].label;
+    const b = refSlots[1].characterName || refSlots[1].label;
     lines.push(
-      "Both reference images are different characters. Do NOT merge or swap identities. Character in Image 1 must look like Image 1 only; Character in Image 2 must look like Image 2 only.",
+      `Identity lock: "${a}" (image 1) and "${b}" (image 2) are different people in the same scene. Do NOT merge or swap faces. ${a} must look exactly like image 1; ${b} must look exactly like image 2. No random NPCs.`,
     );
   }
   lines.push("");

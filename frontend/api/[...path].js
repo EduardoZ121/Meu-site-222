@@ -38,7 +38,11 @@ const { handleCreationsRoute } = require("./lib/creationsRoutes.cjs");
 const { handlePromptAssistRoute } = require("./lib/promptAssist.cjs");
 const PADRAO_STYLES_LIST = require("./lib/padraoStylesData.cjs");
 const { finalizeImagePrompt } = require("./lib/imageQualityPrompts.cjs");
-const { appendPhotoEditIdentity, upgradePadraoPrompt } = require("./lib/identityPrompts.cjs");
+const {
+  appendPhotoEditIdentity,
+  upgradePadraoPrompt,
+  buildMangaDualCharacterBlock,
+} = require("./lib/identityPrompts.cjs");
 const { getProPreset, listProPresets } = require("./lib/proPresetsData.cjs");
 const {
   isS3Configured,
@@ -1505,10 +1509,14 @@ async function routePost(path, fields, files, req) {
       err.status = 400;
       throw err;
     }
+    const nameA = text(fields, "ref_a_name", "Character 1");
+    const nameB = text(fields, "ref_b_name", "Character 2");
+    const dualBlock = buildMangaDualCharacterBlock(nameA, nameB);
+    promptFinal = `${dualBlock}\n\n${promptFinal}`;
     const cost = Math.max(1, Number(CREDIT.mangaPanel) || 15);
     const aspect = normalizeRatio(text(fields, "aspect_ratio", "4:5"), "qwen");
     const input = {
-      prompt: finalizeImagePrompt(promptFinal, { modelKey: "qwen" }),
+      prompt: finalizeImagePrompt(promptFinal, { modelKey: "qwen", hasPersonPhoto: true }),
       image: [photoA, photoB],
       aspect_ratio: aspect === "match_input_image" ? "3:4" : aspect,
       go_fast: false,
@@ -1531,6 +1539,41 @@ async function routePost(path, fields, files, req) {
   if (path === "generate/manga-panel" || path === "generate/manga-page" || path === "generate/manga-chapter") {
     let promptFinal = text(fields, "prompt_final", "").trim();
     if (!promptFinal) throw new Error("Prompt em falta.");
+    const photoAEarly = await resolveImageRef(files, fields, "photo", "photo_url");
+    const photoBEarly = await resolveImageRef(files, fields, "photo_b", "photo_b_url");
+    if (photoAEarly && photoBEarly) {
+      const nameA = text(fields, "ref_a_name", "Character 1");
+      const nameB = text(fields, "ref_b_name", "Character 2");
+      const dualBlock = buildMangaDualCharacterBlock(nameA, nameB);
+      promptFinal = `${dualBlock}\n\n${promptFinal}`;
+      const cost = Math.max(1, Number(CREDIT.mangaPanel) || 15);
+      const aspect = normalizeRatio(text(fields, "aspect_ratio", "4:5"), "qwen");
+      const input = {
+        prompt: finalizeImagePrompt(promptFinal, { modelKey: "qwen", hasPersonPhoto: true }),
+        image: [photoAEarly, photoBEarly],
+        aspect_ratio: aspect === "match_input_image" ? "3:4" : aspect,
+        go_fast: false,
+        disable_safety_checker: true,
+        output_format: "webp",
+        output_quality: 95,
+      };
+      const mode = path.replace("generate/manga-", "");
+      const spendLabels = {
+        panel: "MANGA STUDIO · painel (2 refs)",
+        page: "MANGA STUDIO · página (2 refs)",
+        chapter: "MANGA STUDIO · capítulo (2 refs)",
+      };
+      return submitBillableGeneration(req, fields, {
+        cost,
+        type: "manga",
+        modelId: QWEN_EDIT_MODEL,
+        input,
+        prompt: promptFinal,
+        aspectRatio: input.aspect_ratio,
+        modelUsed: "Qwen Image Edit 2511",
+        spendDescription: spendLabels[mode] || "MANGA STUDIO · 2 refs",
+      });
+    }
     const mode = path.replace("generate/manga-", "");
     const costMap = {
       panel: CREDIT.mangaPanel ?? 15,

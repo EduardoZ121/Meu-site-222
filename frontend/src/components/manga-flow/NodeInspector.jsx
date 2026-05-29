@@ -1,4 +1,6 @@
 import { useRef, useState } from "react";
+import { uploadImageToCloud } from "../../lib/blobUploadClient";
+import { toast } from "sonner";
 import {
   X, Trash2, ImagePlus, Link2, User, MapPin, Box, MessageCircle,
   Sparkles, Camera, Square, ChevronDown, Plus, Eye, EyeOff, Variable, Wand2,
@@ -38,12 +40,24 @@ function Section({ title, icon, defaultOpen = true, children, badge }) {
   );
 }
 
-function ImageUpload({ value, onChange }) {
+function ImageUpload({ value, onChange, uploading }) {
   const inputRef = useRef(null);
-  const handleFile = (e) => {
+  const handleFile = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    onChange({ refImage: file, refImageUrl: URL.createObjectURL(file) });
+    const localUrl = URL.createObjectURL(file);
+    onChange({ refImage: file, refImageUrl: localUrl, refPersistUrl: null, refUploading: true });
+    try {
+      const persistUrl = await uploadImageToCloud(file);
+      onChange({ refImage: file, refImageUrl: localUrl, refPersistUrl: persistUrl, refUploading: false });
+      toast.success("Referência guardada para geração");
+    } catch (err) {
+      onChange({ refImage: file, refImageUrl: localUrl, refPersistUrl: null, refUploading: false });
+      toast.warning(
+        err?.message || "Pré-visualização OK; gera nesta sessão ou tenta upload outra vez.",
+      );
+    }
+    e.target.value = "";
   };
   return (
     <div className="mfi-field">
@@ -53,10 +67,12 @@ function ImageUpload({ value, onChange }) {
         <div className="mfi-ref-preview">
           <img src={value} alt="" className="mfi-ref-preview__img" />
           <div className="mfi-ref-preview__actions">
-            <button onClick={() => inputRef.current?.click()} className="mfi-ref-preview__btn" type="button">Change</button>
-            <button onClick={() => onChange({ refImage: null, refImageUrl: null })} className="mfi-ref-preview__btn mfi-ref-preview__btn--danger" type="button">Remove</button>
+            <button onClick={() => inputRef.current?.click()} className="mfi-ref-preview__btn" type="button" disabled={uploading}>Change</button>
+            <button onClick={() => onChange({ refImage: null, refImageUrl: null, refPersistUrl: null, refUploading: false })} className="mfi-ref-preview__btn mfi-ref-preview__btn--danger" type="button">Remove</button>
           </div>
-          <p className="mfi-ref-preview__hint">AI will use this as identity/style reference</p>
+          <p className="mfi-ref-preview__hint">
+            {uploading ? "A guardar referência na nuvem…" : "AI uses this face/body as locked identity"}
+          </p>
         </div>
       ) : (
         <button onClick={() => inputRef.current?.click()} className="mfi-upload-btn" data-testid="inspector-upload-ref">
@@ -214,7 +230,7 @@ function PersonInspector({ data, onUpdate }) {
   return (<>
     <Section title="Identity" icon={<User className="w-3.5 h-3.5 text-[#C4B5FD]" />}>
       <Field label="Name" value={data.name} onChange={(v) => onUpdate({ name: v })} placeholder="Hiro, Sakura, Kai..." />
-      <ImageUpload value={data.refImageUrl} onChange={onUpdate} />
+      <ImageUpload value={data.refImageUrl} uploading={data.refUploading} onChange={onUpdate} />
       {data.refImageUrl && (
         <Field label="Reference instructions" value={data.refInstructions} onChange={(v) => onUpdate({ refInstructions: v })}
           placeholder="e.g. keep pink hair, scar on left cheek, torn sleeve on left arm..." multiline

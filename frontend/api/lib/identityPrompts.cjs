@@ -55,6 +55,21 @@ function upgradePadraoPrompt(prompt) {
   return out;
 }
 
+/** Qwen manga-interaction: two reference images = two different characters. */
+function buildMangaDualCharacterBlock(nameA, nameB) {
+  const a = String(nameA || "Character A").trim() || "Character A";
+  const b = String(nameB || "Character B").trim() || "Character B";
+  return [
+    "DUAL CHARACTER REFERENCE — MANDATORY (read before scene description):",
+    `- Input reference image 1 is ONLY "${a}". ${a} must have the EXACT face, hairstyle, hair color, skin tone, ethnicity, body type and outfit from image 1.`,
+    `- Input reference image 2 is ONLY "${b}". ${b} must have the EXACT face, hairstyle, hair color, skin tone, ethnicity, body type and outfit from image 2.`,
+    `- ${a} and ${b} are DIFFERENT people. Do NOT swap identities. Do NOT use image 1's face on ${b}. Do NOT use image 2's face on ${a}.`,
+    `- Do NOT invent random NPCs. Both referenced characters must appear with correct identities when the scene includes them.`,
+    "- Seamless in-place compositing: unified lighting, natural skin blend, no sticker/cutout look.",
+    "- Only pose, expression and camera angle may change — never face, hair or skin identity.",
+  ].join("\n");
+}
+
 module.exports = {
   PADRAO_IDENTITY_TRAIL,
   LEGACY_PADRAO_IDENTITY_TRAIL,
@@ -65,4 +80,5 @@ module.exports = {
   LEGACY_POSTER_REFERENCE_FOOD,
   appendPhotoEditIdentity,
   upgradePadraoPrompt,
+  buildMangaDualCharacterBlock,
 };

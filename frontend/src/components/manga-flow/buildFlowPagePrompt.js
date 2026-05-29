@@ -214,11 +214,18 @@ export function buildPagePromptFromFlow(nodes, edges, context = {}) {
     (n) => n.data?.refImageUrl,
   );
   if (personRefs.length) {
-    lines.push("## CHARACTER IDENTITY (all panels)");
-    lines.push("Keep the same character designs in every panel; only pose, angle and expression change.");
+    lines.push("## CHARACTER IDENTITY (all panels — do not swap)");
     personRefs.forEach((n, idx) => {
-      lines.push(`- ${n.data?.name || "Character"}: match reference image ${idx + 1} exactly.`);
+      const who = n.data?.name || `Character ${idx + 1}`;
+      lines.push(
+        `- "${who}" = reference image ${idx + 1} ONLY: exact face, hair, skin tone, body, outfit. Never use this face for other characters.`,
+      );
     });
+    if (personRefs.length >= 2) {
+      const a = personRefs[0].data?.name || "Character 1";
+      const b = personRefs[1].data?.name || "Character 2";
+      lines.push(`- ${a} and ${b} are different people; both must appear with correct identities when in scene.`);
+    }
     lines.push("");
   }
 

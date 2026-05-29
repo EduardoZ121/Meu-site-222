@@ -74,7 +74,7 @@
       "tool_generating": "Generating…",
       "tool_prompt_ph": "Describe what you want to create…",
       "tool_example": "Example: {text}",
-      "tool_accept_formats": "JPEG, PNG, WEBP or HEIC up to 5 MB"
+      "tool_accept_formats": "JPEG, PNG, WEBP or HEIC up to 10 MB"
     },
     "clothes_changer": {
       "garment_label": "Reference outfit (optional)",
@@ -1113,7 +1113,7 @@
     "studio_gen_hint_person": "Upload the person photo to continue",
     "tool_prompt_ph": "Describe what you want to create…",
     "tool_example": "Example: {text}",
-    "tool_accept_formats": "JPEG, PNG, WEBP or HEIC up to 5 MB",
+    "tool_accept_formats": "JPEG, PNG, WEBP or HEIC up to 10 MB",
     "upload_drop": "Drop here",
     "upload_drop_action": "Drag, click or paste",
     "upload_send": "Upload image",
@@ -1185,7 +1185,7 @@
     "vid_err_use_video_zone": "Use the video upload area for video files.",
     "vid_preview_hevc": "HEVC codec is not supported for preview. Your video will still be processed.",
     "vid_preview_failed": "Could not preview the video. Check the format or try again.",
-    "img_err_too_large": "Image too large. Maximum 5 MB.",
+    "img_err_too_large": "Image too large. Maximum 10 MB.",
     "img_err_invalid_type": "Unsupported image format. Use PNG, JPG, or WebP.",
     "vid_edit_prompt_label": "What to change",
     "vid_edit_prompt_placeholder": "Change her jacket to a red leather biker jacket, keep everything else identical…",

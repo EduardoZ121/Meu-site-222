@@ -9,6 +9,9 @@ export default function Footer() {
     { label: t("nav_pricing"), to: "/discover#pricing" },
     { label: t("nav_gallery"), to: "/explore" },
     { label: t("faq_title"), to: "/discover#faq" },
+    { label: t("footer_terms"), to: "/legal/terms" },
+    { label: t("footer_privacy"), to: "/legal/privacy" },
+    { label: t("footer_cookies"), to: "/legal/cookies" },
     { label: t("nav_login"), to: "/login" },
   ];
   return (

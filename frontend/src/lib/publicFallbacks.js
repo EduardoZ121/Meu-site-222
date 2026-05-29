@@ -1633,24 +1633,36 @@ export const FALLBACK_PACKAGES = [
     "name": "Starter",
     "amount_cents": 500,
     "credits": 150,
+    "bonus_percent": 0,
     "tagline": "Promoção de lançamento",
     "amount_eur": 5.0
   },
   {
     "id": "creator",
     "name": "Creator",
-    "amount_cents": 1200,
-    "credits": 250,
-    "tagline": "A month of consistent output",
-    "amount_eur": 12.0
+    "amount_cents": 1000,
+    "credits": 345,
+    "bonus_percent": 15,
+    "tagline": "Para criadores activos",
+    "amount_eur": 10.0
   },
   {
     "id": "studio",
     "name": "Studio",
-    "amount_cents": 2200,
-    "credits": 500,
-    "tagline": "Pro workflows, no ceiling",
-    "amount_eur": 22.0
+    "amount_cents": 2000,
+    "credits": 780,
+    "bonus_percent": 30,
+    "tagline": "Melhor valor por crédito",
+    "amount_eur": 20.0
+  },
+  {
+    "id": "pro",
+    "name": "Pro",
+    "amount_cents": 5000,
+    "credits": 2100,
+    "bonus_percent": 40,
+    "tagline": "Volume máximo + 40% bónus",
+    "amount_eur": 50.0
   }
 ];
 

@@ -2,11 +2,6 @@ import axios from "axios";
 
 import { formatHttpError } from "./uploadErrors";
 import { isBrowserOnlineFlag } from "./uploadReachability";
-import {
-  formDataTotalBlobBytes,
-  pickBlobOffloadTimeoutMs,
-  VIDEO_VERCEL_SAFE_BYTES,
-} from "./uploadConstants";
 import { normalizeCreation } from "./creationUrls";
 import { notifyCreditsUpdate, notifyGenerationComplete } from "./notifyUser";
 
@@ -29,6 +24,11 @@ export const API = BASE ? `${BASE}/api` : "/api";
 function isLocalToken(token) {
   return token?.startsWith("local:");
 }
+
+const RP_PREDICTION_PREFIX = "rp_prediction_";
+let backgroundWatcherStarted = false;
+let backgroundWatcherTimer = null;
+const notifiedPredictions = new Set();
 
 export function formatApiError(err, fallback = "Falhou.", opts) {
   return formatHttpError(err, fallback, opts);
@@ -102,425 +102,12 @@ function pickUploadTimeoutMs(fd) {
   return 180_000;
 }
 
-let blobUploadEnabledCache = null;
-
-export function invalidateBlobUploadCache() {
-  blobUploadEnabledCache = null;
-}
-
-function isVideoFileLike(file) {
-  return file?.type?.startsWith?.("video/") || /\.(mp4|mov|webm)$/i.test(file?.name || "");
-}
-
-function formDataHasVideoFile(fd) {
-  if (!fd?.entries) return false;
-  for (const [, v] of fd.entries()) {
-    if (v instanceof File && isVideoFileLike(v)) return true;
-  }
-  return false;
-}
-
-function formDataHasLargeVideo(fd) {
-  if (!fd?.entries) return false;
-  for (const [, v] of fd.entries()) {
-    if (!(v instanceof File)) continue;
-    if (isVideoFileLike(v) && v.size > VIDEO_DIRECT_MAX) return true;
-  }
-  return false;
-}
-
-function isImageFileLike(file) {
-  if (!file) return false;
-  if (file.type?.startsWith?.("image/")) return true;
-  return /\.(heic|heif|jpe?g|png|webp|gif|bmp|avif)$/i.test(file.name || "");
-}
-
-/** Só fotos grandes ou HEIC vão para Blob/S3 — fotos normais vão directo ao /api (mais fiável). */
-function imageNeedsCloudOffload(file) {
-  if (!file || !isImageFileLike(file)) return false;
-  if (file.size > DIRECT_UPLOAD_MAX) return true;
-  if (/\.(heic|heif)$/i.test(file.name || "")) return true;
-  if (!/^image\/jpe?g$/i.test(file.type || "") && file.size > 1_200_000) return true;
-  return false;
-}
-
-function formDataNeedsCloudOffload(fd) {
-  if (!fd?.entries) return false;
-  for (const [, v] of fd.entries()) {
-    if (!(v instanceof File)) continue;
-    if (isVideoFileLike(v) && v.size > VIDEO_DIRECT_MAX) return true;
-    if (imageNeedsCloudOffload(v)) return true;
-  }
-  return false;
-}
-
-export async function isBlobUploadEnabled(opts = {}) {
-  if (!opts.refresh && blobUploadEnabledCache !== null) return blobUploadEnabledCache;
-  if (typeof window === "undefined" || typeof fetch === "undefined") {
-    return false;
-  }
-  try {
-    const r = await fetch(joinApiPath("/blob/status"), { method: "GET", credentials: "same-origin" });
-    if (!r.ok) return false;
-    const j = await r.json();
-    blobUploadEnabledCache = Boolean(j.blob);
-    return blobUploadEnabledCache;
-  } catch {
-    return false;
-  }
-}
-
-function withTimeout(promise, ms, label = "Operação") {
-  return Promise.race([
-    promise,
-    new Promise((_, reject) => {
-      setTimeout(() => reject(new Error(`${label} demorou demasiado (${Math.round(ms / 1000)}s).`)), ms);
-    }),
-  ]);
-}
-
-const BLOB_OFFLOAD_KEYS = new Set(["photo", "image", "mask", "garment", "video", "reference_image"]);
-/** Acima disto o vídeo nunca vai no body do serverless — só `video_url` após Blob/S3. */
-const VIDEO_DIRECT_MAX = VIDEO_VERCEL_SAFE_BYTES;
-
-async function uploadFileToVercelBlob(key, fileLike, perFileMs, onProgress) {
-  const { put } = await import("@vercel/blob/client");
-  const isVideo = key === "video";
-  let data;
-  try {
-    ({ data } = await api.post(
-      "/blob/prepare",
-      {
-        filename: fileLike.name || `${key}.${isVideo ? "mp4" : "jpg"}`,
-        kind: isVideo ? "video" : undefined,
-      },
-      { timeout: isVideo ? 90_000 : 45_000 },
-    ));
-  } catch (err) {
-    invalidateBlobUploadCache();
-    const detail = err?.response?.data?.detail;
-    if (typeof detail === "string" && detail.trim()) {
-      throw new Error(detail.trim());
-    }
-    throw err;
-  }
-  const { clientToken, pathname } = data || {};
-  if (!clientToken || !pathname) {
-    invalidateBlobUploadCache();
-    throw new Error("Armazenamento em nuvem indisponível. Tenta um ficheiro mais pequeno ou mais tarde.");
-  }
-  const label = isVideo ? "Upload do vídeo (nuvem)" : "Upload em nuvem";
-  try {
-    return await withTimeout(
-      put(pathname, fileLike, {
-        access: "public",
-        token: clientToken,
-        contentType: fileLike.type || (isVideo ? "video/mp4" : "image/jpeg"),
-        multipart: fileLike.size > (isVideo ? 8_000_000 : 4_500_000),
-        onUploadProgress: onProgress
-          ? (ev) => {
-            const pct = Number(ev?.percentage);
-            if (Number.isFinite(pct)) onProgress(Math.round(pct));
-            else if (ev?.loaded && ev?.total) {
-              onProgress(Math.round((ev.loaded / ev.total) * 100));
-            }
-          }
-          : undefined,
-      }),
-      perFileMs,
-      label,
-    );
-  } catch (err) {
-    const msg = String(err?.message || err);
-    if (!isVideo && /fetch|network|failed|abort/i.test(msg)) {
-      try {
-        const url = await uploadImageViaServerProxy(fileLike, { timeoutMs: perFileMs });
-        return { url };
-      } catch (proxyErr) {
-        throw proxyErr;
-      }
-    }
-    if (/fetch|network|failed|abort/i.test(msg)) {
-      throw new Error(
-        isBrowserOnlineFlag()
-          ? "Falhou o envio para a nuvem. Recarrega (Ctrl+F5) ou usa um ficheiro mais pequeno."
-          : "Sem ligação à rede. Verifica Wi‑Fi ou dados móveis.",
-      );
-    }
-    throw err;
-  }
-}
-
-function uploadImageViaServerProxy(file, opts = {}) {
-  const timeoutMs = opts.timeoutMs ?? 120_000;
-  return new Promise((resolve, reject) => {
-    const fd = new FormData();
-    fd.append("photo", file);
-    const xhr = new XMLHttpRequest();
-    xhr.open("POST", joinApiPath("/upload/image-blob"));
-    xhr.timeout = timeoutMs;
-    const token = typeof localStorage !== "undefined" ? localStorage.getItem("rp_token") : null;
-    if (token) xhr.setRequestHeader("Authorization", `Bearer ${token}`);
-    xhr.onload = () => {
-      let data = {};
-      try {
-        data = xhr.responseText ? JSON.parse(xhr.responseText) : {};
-      } catch {
-        data = { detail: xhr.responseText?.slice(0, 200) || "Resposta inválida." };
-      }
-      if (xhr.status >= 200 && xhr.status < 300 && data.url) {
-        resolve(String(data.url));
-        return;
-      }
-      const err = new Error(typeof data.detail === "string" ? data.detail : "Upload da imagem falhou.");
-      err.response = { status: xhr.status, data };
-      reject(err);
-    };
-    xhr.onerror = () => {
-      const err = new Error(
-        isBrowserOnlineFlag()
-          ? "Falhou o envio da imagem. Tenta outra vez ou recarrega (Ctrl+F5)."
-          : "Sem ligação à rede. Verifica Wi‑Fi ou dados móveis.",
-      );
-      err.code = "ERR_NETWORK";
-      reject(err);
-    };
-    xhr.ontimeout = () => {
-      const err = new Error("Timeout ao enviar a imagem.");
-      err.code = "ECONNABORTED";
-      reject(err);
-    };
-    xhr.send(fd);
-  });
-}
-
-/** Vercel Blob e/ou S3 — substitui ficheiros por `*_url` (pedido final fica leve). */
-async function offloadFormDataMediaToCloud(formData, opts = {}) {
-  const perFileMs = opts.timeoutMs ?? pickBlobOffloadTimeoutMs(formDataTotalBlobBytes(formData), false);
-  const blobEnabled = await isBlobUploadEnabled();
-  const {
-    uploadVideoViaS3,
-    uploadImageViaS3,
-    isS3VideoUploadAvailable,
-  } = await import("./s3VideoUpload");
-  const s3Enabled = await isS3VideoUploadAvailable();
-  const out = new FormData();
-
-  for (const [key, val] of formData.entries()) {
-    const isBlobLike = val instanceof File || (typeof Blob !== "undefined" && val instanceof Blob);
-    if (!isBlobLike || !BLOB_OFFLOAD_KEYS.has(key)) {
-      out.append(key, val);
-      // eslint-disable-next-line no-continue
-      continue;
-    }
-
-    const fileLike = val instanceof File
-      ? val
-      : new File([val], `${key}.bin`, { type: val.type || "application/octet-stream" });
-    const isVideo = key === "video";
-    const isImage = !isVideo && isImageFileLike(fileLike);
-    const isLargeVideo = isVideo && fileLike.size > VIDEO_DIRECT_MAX;
-    const cloudImage = isImage && imageNeedsCloudOffload(fileLike);
-
-    if (!isVideo && isImage && !cloudImage) {
-      const { prepareImageForUpload } = await import("./prepareImageForUpload");
-      // eslint-disable-next-line no-await-in-loop
-      const prepared = await prepareImageForUpload(fileLike, {
-        maxBytes: DIRECT_UPLOAD_MAX,
-        maxSize: 2048,
-      });
-      out.append(key, prepared);
-      // eslint-disable-next-line no-continue
-      continue;
-    }
-
-    if (isImage && s3Enabled && fileLike.size > DIRECT_UPLOAD_MAX) {
-      // eslint-disable-next-line no-await-in-loop
-      const url = await withTimeout(
-        uploadImageViaS3(fileLike, { onProgress: opts.onImageProgress }),
-        perFileMs,
-        "Upload da foto (S3)",
-      );
-      out.append(`${key}_url`, url);
-      // eslint-disable-next-line no-continue
-      continue;
-    }
-
-    if (isLargeVideo && s3Enabled) {
-      // eslint-disable-next-line no-await-in-loop
-      const url = await withTimeout(
-        uploadVideoViaS3(fileLike, { onProgress: opts.onVideoProgress }),
-        perFileMs,
-        "Upload do vídeo (S3)",
-      );
-      out.append(`${key}_url`, url);
-      // eslint-disable-next-line no-continue
-      continue;
-    }
-
-    if (blobEnabled && (isVideo ? isLargeVideo : cloudImage)) {
-      const progressCb = isVideo ? opts.onVideoProgress : opts.onImageProgress;
-      // eslint-disable-next-line no-await-in-loop
-      const result = await uploadFileToVercelBlob(key, fileLike, perFileMs, progressCb);
-      out.append(`${key}_url`, result.url);
-      // eslint-disable-next-line no-continue
-      continue;
-    }
-
-    if (
-      !isVideo
-      && fileLike.size > DIRECT_UPLOAD_MAX
-      && String(fileLike.type || "").startsWith("image/")
-    ) {
-      const { compressImageNeverFail } = await import("./canvasCompress");
-      // eslint-disable-next-line no-await-in-loop
-      const shrunk = await compressImageNeverFail(fileLike, {
-        maxBytes: DIRECT_UPLOAD_MAX,
-        maxSize: 2048,
-      });
-      out.append(key, shrunk);
-      // eslint-disable-next-line no-await-in-loop
-      continue;
-    }
-
-    if (isLargeVideo) {
-      throw new Error(
-        "Vídeo grande sem armazenamento em nuvem. Na Vercel adiciona BLOB_READ_WRITE_TOKEN ou as variáveis AWS (S3).",
-      );
-    }
-
-    out.append(key, val);
-  }
-  return out;
-}
-
-function uploadVideoViaServerProxy(file, opts = {}) {
-  const timeoutMs = opts.timeoutMs ?? 600_000;
-  return new Promise((resolve, reject) => {
-    const fd = new FormData();
-    fd.append("video", file);
-    const xhr = new XMLHttpRequest();
-    xhr.open("POST", joinApiPath("/upload/video-blob"));
-    xhr.timeout = timeoutMs;
-    const token = typeof localStorage !== "undefined" ? localStorage.getItem("rp_token") : null;
-    if (token) xhr.setRequestHeader("Authorization", `Bearer ${token}`);
-    xhr.upload.onprogress = (e) => {
-      if (e.lengthComputable && opts.onProgress) {
-        opts.onProgress(Math.round((e.loaded / e.total) * 100));
-      }
-    };
-    xhr.onload = () => {
-      let data = {};
-      try {
-        data = xhr.responseText ? JSON.parse(xhr.responseText) : {};
-      } catch {
-        data = { detail: xhr.responseText?.slice(0, 200) || "Resposta inválida." };
-      }
-      if (xhr.status >= 200 && xhr.status < 300 && data.url) {
-        resolve(String(data.url));
-        return;
-      }
-      const err = new Error(typeof data.detail === "string" ? data.detail : "Upload do vídeo falhou.");
-      err.response = { status: xhr.status, data };
-      reject(err);
-    };
-    xhr.onerror = () => {
-      const err = new Error(
-        isBrowserOnlineFlag()
-          ? "Falhou o envio do vídeo ao servidor. Tenta outra vez ou recarrega (Ctrl+F5)."
-          : "Sem ligação à rede. Verifica Wi‑Fi ou dados móveis.",
-      );
-      err.code = "ERR_NETWORK";
-      reject(err);
-    };
-    xhr.ontimeout = () => {
-      const err = new Error("Timeout ao enviar o vídeo ao servidor.");
-      err.code = "ECONNABORTED";
-      reject(err);
-    };
-    xhr.send(fd);
-  });
-}
-
-async function uploadVideoToCloudDirect(file, opts = {}) {
-  invalidateBlobUploadCache();
-  const blobOn = await isBlobUploadEnabled({ refresh: true });
-  const { isS3VideoUploadAvailable } = await import("./s3VideoUpload");
-  const s3On = await isS3VideoUploadAvailable();
-  if (!blobOn && !s3On) {
-    throw new Error(
-      "Vídeos grandes precisam de armazenamento em nuvem. Recarrega a página (Ctrl+F5).",
-    );
-  }
-  const fd = new FormData();
-  fd.append("video", file);
-  const out = await offloadFormDataMediaToCloud(fd, {
-    timeoutMs: opts.timeoutMs ?? 600_000,
-    onVideoProgress: opts.onProgress,
-  });
-  if (typeof out.get === "function") {
-    const url = out.get("video_url");
-    if (url) return String(url);
-  }
-  for (const [k, v] of out.entries()) {
-    if (k === "video_url" && typeof v === "string") return v;
-  }
-  throw new Error("Upload do vídeo terminou sem URL. Tenta MP4 mais curto.");
-}
-
-/** Envia vídeo para nuvem; tenta browser→Blob e, se falhar, servidor→Blob. */
-export async function uploadVideoToCloud(file, opts = {}) {
-  if (!file) throw new Error("Vídeo em falta.");
-  try {
-    return await uploadVideoToCloudDirect(file, opts);
-  } catch (directErr) {
-    const msg = String(directErr?.message || directErr);
-    const tryServer = /fetch|network|failed|nuvem|blob|interrompida|abort|timeout|ligação/i.test(msg)
-      || directErr?.code === "ERR_NETWORK";
-    if (!tryServer) throw directErr;
-    try {
-      return await uploadVideoViaServerProxy(file, opts);
-    } catch (proxyErr) {
-      const proxyMsg = formatHttpError(proxyErr, "Upload falhou.");
-      throw new Error(`${proxyMsg} (também falhou envio direto à nuvem.)`);
-    }
-  }
-}
-
-const IMAGE_OFFLOAD_KEYS = new Set(["photo", "image", "mask", "garment", "reference_image"]);
-const DIRECT_UPLOAD_MAX = 3_500_000;
-
-/** Prepara imagens para POST directo (JPEG, <4 MB) — HEIC e ficheiros grandes incluídos. */
-async function shrinkFormDataForDirectUpload(formData) {
-  const { prepareImageForUpload } = await import("./prepareImageForUpload");
-  const out = new FormData();
-  for (const [key, val] of formData.entries()) {
-    const isFile = val instanceof File || (typeof Blob !== "undefined" && val instanceof Blob);
-    const isImageField = isFile && IMAGE_OFFLOAD_KEYS.has(key)
-      && (String(val.type || "").startsWith("image/") || /\.(heic|heif|jpe?g|png|webp)$/i.test(val.name || ""));
-    if (isImageField) {
-      const fileLike = val instanceof File
-        ? val
-        : new File([val], `${key}.jpg`, { type: val.type || "image/jpeg" });
-      const needsPrep = fileLike.size > DIRECT_UPLOAD_MAX * 0.92
-        || !/^image\/jpe?g$/i.test(fileLike.type || "")
-        || /\.(heic|heif)$/i.test(fileLike.name || "");
-      if (needsPrep) {
-        // eslint-disable-next-line no-await-in-loop
-        const prepared = await prepareImageForUpload(fileLike, {
-          maxBytes: DIRECT_UPLOAD_MAX,
-          maxSize: 2048,
-        });
-        out.append(key, prepared);
-      } else {
-        out.append(key, val);
-      }
-    } else {
-      out.append(key, val);
-    }
-  }
-  return out;
-}
+export {
+  invalidateBlobUploadCache,
+  isBlobUploadEnabled,
+  uploadImageToCloud,
+  uploadVideoToCloud,
+} from "./blobUploadClient";
 
 /**
  * Multipart POST com várias tentativas. Usa XMLHttpRequest no browser (melhor em
@@ -542,12 +129,11 @@ export async function uploadPost(url, formData, config = {}) {
   let lastErr;
 
   let baseFd = cloneFormData(formData);
+  let emergencyCompress = false;
   if (typeof window !== "undefined") {
     const { prepareStudioFormDataForSubmit } = await import("./studioUpload/prepareSubmit");
     baseFd = await prepareStudioFormDataForSubmit(cloneFormData(formData), {
-      skipBlobOffload: config.skipBlobOffload,
-      onProgress: config.onVideoProgress,
-      timeoutMs: config.blobOffloadTimeoutMs,
+      emergencyCompress,
     });
   }
 
@@ -581,7 +167,7 @@ export async function uploadPost(url, formData, config = {}) {
         );
         const err = new Error(
           payloadTooLarge
-            ? "O vídeo é demasiado grande para enviar num único pedido. Aguarda o upload para a nuvem ou usa um clip mais curto."
+            ? "Ficheiro demasiado grande. Usa uma foto mais pequena ou um vídeo mais curto."
             : (detailStr || xhr.statusText || "Pedido falhou."),
         );
         err.response = { status: payloadTooLarge ? 413 : xhr.status, data };
@@ -649,7 +235,7 @@ export async function uploadPost(url, formData, config = {}) {
         );
         const err = new Error(
           payloadTooLarge
-            ? "O vídeo é demasiado grande para enviar num único pedido. Aguarda o upload para a nuvem ou usa um clip mais curto."
+            ? "Ficheiro demasiado grande. Usa uma foto mais pequena ou um vídeo mais curto."
             : (detailStr || res.statusText || "Pedido falhou."),
         );
         err.response = { status: payloadTooLarge ? 413 : res.status, data };
@@ -664,6 +250,17 @@ export async function uploadPost(url, formData, config = {}) {
       return { data: merged, status: res.status, config: { url, ...config } };
     } catch (e) {
       lastErr = e;
+      const payloadTooLarge = e?.response?.status === 413
+        || /FUNCTION_PAYLOAD_TOO_LARGE|Request Entity Too Large|demasiado grande/i.test(String(e?.message || ""));
+      if (payloadTooLarge && !emergencyCompress && typeof window !== "undefined") {
+        emergencyCompress = true;
+        const { prepareStudioFormDataForSubmit } = await import("./studioUpload/prepareSubmit");
+        baseFd = await prepareStudioFormDataForSubmit(cloneFormData(formData), {
+          emergencyCompress: true,
+        });
+        // eslint-disable-next-line no-continue
+        continue;
+      }
       const aborted = e?.name === "AbortError" || e?.code === "ECONNABORTED";
       const noResponse = !e?.response;
       const net =
@@ -673,6 +270,7 @@ export async function uploadPost(url, formData, config = {}) {
         || /network|fetch|Failed to fetch|Load failed|Ligação interrompida/i.test(String(e?.message || ""));
       const retryable = net;
       if (!retryable || i === attempts - 1) throw e;
+      invalidateBlobUploadCache();
       // eslint-disable-next-line no-await-in-loop
       await new Promise((r) => setTimeout(r, 400 * 2 ** i));
     }
@@ -682,11 +280,45 @@ export async function uploadPost(url, formData, config = {}) {
 
 api.interceptors.response.use(
   async (r) => {
+    const urlStr = String(r.config?.url || "");
+    // Carousel routes must keep synchronous polling (multi-step flow needs
+    // the result URL inline to split the panorama into slides).
+    const isMultiStep = /\/generate\/carousel/.test(urlStr);
     if (
       r?.data?.prediction_id &&
       !r.config?.headers?.["X-Skip-Auto-Poll"] &&
-      !String(r.config?.url || "").startsWith("/predictions/")
+      !urlStr.startsWith("/predictions/") &&
+      !isMultiStep
     ) {
+      // Background mode: track the job and notify the user. The global
+      // watcher (startPendingPredictionsWatcher) handles completion via
+      // notifications + bell sound + gallery. The response is returned as
+      // `{ ...originalData, deferred: true }` so callers can detect that no
+      // synchronous `creation` will be present.
+      if (r.data.credits_spent) {
+        localStorage.setItem(`rp_prediction_${r.data.prediction_id}`, JSON.stringify({
+          credits_spent: r.data.credits_spent,
+          type: r.data.type || "image",
+        }));
+      }
+      try {
+        // Lazy import to avoid circular dep with bgGeneration.
+        // eslint-disable-next-line global-require
+        const { dispatchBackgroundJob } = await import("./bgGeneration");
+        dispatchBackgroundJob(r.data, {
+          type: r.data.type || "image",
+          creditsSpent: r.data.credits_spent || 0,
+        });
+      } catch { /* ignore notification failures */ }
+      return { ...r, data: { ...r.data, deferred: true } };
+    }
+    if (
+      r?.data?.prediction_id &&
+      !r.config?.headers?.["X-Skip-Auto-Poll"] &&
+      !String(r.config?.url || "").startsWith("/predictions/") &&
+      /\/generate\/carousel/.test(String(r.config?.url || ""))
+    ) {
+      // Carousel keeps the original synchronous auto-poll behaviour.
       if (r.data.credits_spent) {
         localStorage.setItem(`rp_prediction_${r.data.prediction_id}`, JSON.stringify({
           credits_spent: r.data.credits_spent,
@@ -714,6 +346,130 @@ function notifyCreationSucceeded(creation) {
   notifyGenerationComplete(creation);
 }
 
+function notifyPredictionFailure(error, detail = {}) {
+  if (typeof window === "undefined") return;
+  window.dispatchEvent(new CustomEvent("rp:prediction-failed", {
+    detail: {
+      error: String(error || "Geração falhou."),
+      ...detail,
+    },
+  }));
+}
+
+export function trackPendingPrediction(predictionId, meta = {}) {
+  if (typeof window === "undefined" || !predictionId) return;
+  try {
+    localStorage.setItem(`${RP_PREDICTION_PREFIX}${predictionId}`, JSON.stringify({
+      credits_spent: Number(meta.credits_spent || 0) || 0,
+      type: meta.type || "image",
+      started_at: Date.now(),
+    }));
+  } catch {
+    /* ignore */
+  }
+}
+
+function removeTrackedPrediction(predictionId) {
+  if (typeof window === "undefined" || !predictionId) return;
+  try { localStorage.removeItem(`${RP_PREDICTION_PREFIX}${predictionId}`); } catch { /* ignore */ }
+}
+
+function readTrackedPredictions() {
+  if (typeof window === "undefined") return [];
+  try {
+    return Object.keys(localStorage)
+      .filter((k) => k.startsWith(RP_PREDICTION_PREFIX))
+      .map((k) => {
+        const predictionId = k.slice(RP_PREDICTION_PREFIX.length);
+        let meta = {};
+        try { meta = JSON.parse(localStorage.getItem(k) || "{}"); } catch { meta = {}; }
+        return { predictionId, meta };
+      })
+      .filter((x) => x.predictionId);
+  } catch {
+    return [];
+  }
+}
+
+async function pollTrackedPredictionOnce(predictionId, meta = {}) {
+  let res;
+  try {
+    res = await api.get(`/predictions/${predictionId}`);
+  } catch (e) {
+    const status = e?.response?.status;
+    if (status && status >= 400 && status < 500 && status !== 429) {
+      removeTrackedPrediction(predictionId);
+      notifyPredictionFailure(e?.response?.data?.detail || e?.message || "Geração falhou.", {
+        prediction_id: predictionId,
+        source: "background",
+      });
+    }
+    return;
+  }
+  const data = res?.data || {};
+  if (data.status === "succeeded") {
+    if (data.creation && !notifiedPredictions.has(predictionId)) {
+      if (meta?.credits_spent && !data.creation.credits_spent) data.creation.credits_spent = meta.credits_spent;
+      if (meta?.type && !data.creation.type) data.creation.type = meta.type;
+      const creation = normalizeCreation(data.creation);
+      if (creation?.result_urls?.length) {
+        notifiedPredictions.add(predictionId);
+        notifyCreationSucceeded({
+          ...creation,
+          ...(data.new_balance != null ? { new_balance: data.new_balance } : {}),
+        });
+        window.dispatchEvent(new CustomEvent("rp:prediction-finished", {
+          detail: { status: "succeeded", prediction_id: predictionId, source: "background" },
+        }));
+      }
+    }
+    if (data.new_balance != null && typeof window !== "undefined") {
+      window.dispatchEvent(new CustomEvent("rp:credits-sync", { detail: { credits: data.new_balance } }));
+    }
+    removeTrackedPrediction(predictionId);
+    return;
+  }
+  if (data.status === "failed") {
+    if (data.refunded) {
+      notifyCreditsUpdate({
+        balance: data.new_balance,
+        refunded: true,
+        spent: meta?.credits_spent,
+      });
+    }
+    notifyPredictionFailure(data.error || "Geração falhou.", {
+      prediction_id: predictionId,
+      source: "background",
+    });
+    window.dispatchEvent(new CustomEvent("rp:prediction-finished", {
+      detail: {
+        status: "failed",
+        prediction_id: predictionId,
+        source: "background",
+        error: data.error || "Geração falhou.",
+      },
+    }));
+    removeTrackedPrediction(predictionId);
+  }
+}
+
+export function startPendingPredictionsWatcher() {
+  if (typeof window === "undefined" || backgroundWatcherStarted) return;
+  backgroundWatcherStarted = true;
+  const tick = async () => {
+    const pending = readTrackedPredictions();
+    for (const item of pending) {
+      // eslint-disable-next-line no-await-in-loop
+      await pollTrackedPredictionOnce(item.predictionId, item.meta);
+    }
+  };
+  tick();
+  backgroundWatcherTimer = window.setInterval(tick, 5000);
+  window.addEventListener("beforeunload", () => {
+    if (backgroundWatcherTimer) window.clearInterval(backgroundWatcherTimer);
+  }, { once: true });
+}
+
 /**
  * Poll a long-running prediction until it completes.
  *
@@ -730,6 +486,10 @@ function notifyCreationSucceeded(creation) {
  * @throws Error on failure or timeout. Backend has already refunded credits.
  */
 export async function pollPrediction(predictionId, opts = {}) {
+  trackPendingPrediction(predictionId, {
+    credits_spent: opts.credits_spent,
+    type: opts.type,
+  });
   const intervalMs = opts.intervalMs ?? 2500;
   const timeoutMs  = opts.timeoutMs  ?? 240000;
   const onTick     = opts.onTick;
@@ -755,7 +515,7 @@ export async function pollPrediction(predictionId, opts = {}) {
           data.creation.credits_spent = spent;
           data.creation.type = data.creation.type || meta.type || opts.type;
         }
-        localStorage.removeItem(`rp_prediction_${predictionId}`);
+        removeTrackedPrediction(predictionId);
       } catch { /* ignore */ }
       if (data.new_balance != null && typeof window !== "undefined") {
         window.dispatchEvent(new CustomEvent("rp:credits-sync", { detail: { credits: data.new_balance } }));
@@ -776,6 +536,9 @@ export async function pollPrediction(predictionId, opts = {}) {
         throw err;
       }
       notifyCreationSucceeded(data.creation);
+      window.dispatchEvent(new CustomEvent("rp:prediction-finished", {
+        detail: { status: "succeeded", prediction_id: predictionId, source: "foreground" },
+      }));
       return data;
     }
     if (data.status === "failed") {
@@ -794,6 +557,15 @@ export async function pollPrediction(predictionId, opts = {}) {
       const err = new Error(data.error || "Geração falhou.");
       err.new_balance = data.new_balance;
       err.refunded = data.refunded;
+      removeTrackedPrediction(predictionId);
+      window.dispatchEvent(new CustomEvent("rp:prediction-finished", {
+        detail: {
+          status: "failed",
+          prediction_id: predictionId,
+          source: "foreground",
+          error: err.message,
+        },
+      }));
       throw err;
     }
     if (onTick) onTick(data.elapsed_seconds || Math.floor((Date.now() - start) / 1000));

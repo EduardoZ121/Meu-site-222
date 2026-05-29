@@ -82,19 +82,30 @@ export async function compressImage(file, opts = {}) {
     return work;
   }
 
+  // For HEIC/HEIF files, the browser canvas often can't decode them.
+  // Don't show a loading toast that will never resolve — just return
+  // the original and let the server handle conversion with sharp.
+  if (HEIC_EXTENSIONS.test(work.name || "") || /image\/(heic|heif)/i.test(work.type || "")) {
+    const out = await compressImageNeverFail(work, {
+      maxSize: maxDim,
+      maxBytes,
+      maxBytesIOS,
+    });
+    // If compressImageNeverFail returned the same file, it couldn't decode it
+    if (out === work || out.size >= before) {
+      // Return original — server will convert with sharp
+      return work;
+    }
+    toast.success(`A otimizar… ${formatSize(before)} → ${formatSize(out.size)}`, { duration: 4000 });
+    return out;
+  }
+
   const tid = toast.loading(`A otimizar… ${formatSize(before)}`);
   const out = await compressImageNeverFail(work, {
     maxSize: maxDim,
     maxBytes,
     maxBytesIOS,
   });
-  if (HEIC_EXTENSIONS.test(work.name || "") && out === work) {
-    toast.warning(
-      "HEIC pode não abrir neste browser. Se falhar, exporta JPEG no iPhone (Câmara → Formatos → Mais compatível).",
-      { id: tid, duration: 6000 },
-    );
-    return out;
-  }
   toast.success(`A otimizar… ${formatSize(before)} → ${formatSize(out.size)}`, { id: tid, duration: 4000 });
   return out;
 }

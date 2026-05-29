@@ -12,6 +12,30 @@ function isNsfwStyleId(styleId) {
   return id.startsWith("lab_") || id.startsWith("nsfw_");
 }
 
+function isPhotographyStyleId(styleId) {
+  const id = String(styleId || "").trim();
+  if (!id) return false;
+  return id.startsWith("photo_");
+}
+
+/** Fotografia com foto → Qwen 2511 (safety off, melhor identidade). Sem foto → Flux Klein. */
+function resolvePhotographyModel(hasPhoto) {
+  if (hasPhoto) {
+    return resolveArtisticLabModel();
+  }
+  return {
+    modelKey: "artistic",
+    modelId: String(process.env.ARTISTIC_PHOTO_FLUX_MODEL || "").trim()
+      || "black-forest-labs/flux-2-klein-9b",
+    label: "Flux 2 Klein",
+  };
+}
+
+function isPhotographyRequest(styleId, styleCat) {
+  if (isPhotographyStyleId(styleId)) return true;
+  return String(styleCat || "").trim().toLowerCase() === "photography";
+}
+
 function resolveArtisticLabModel() {
   return {
     modelKey: "qwen",
@@ -23,5 +47,8 @@ function resolveArtisticLabModel() {
 module.exports = {
   QWEN_EDIT_MODEL,
   isNsfwStyleId,
+  isPhotographyStyleId,
+  isPhotographyRequest,
   resolveArtisticLabModel,
+  resolvePhotographyModel,
 };

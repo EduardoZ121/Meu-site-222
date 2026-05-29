@@ -29,7 +29,8 @@ export function looksLikeImageUpload(file) {
   const type = (file.type || "");
   if (type.startsWith("image/")) return true;
   if (type.startsWith("video/")) return false;
-  return /\.(jpe?g|png|webp)$/i.test(file.name || "");
+  // Also accept HEIC/HEIF by extension (Samsung saves HEIF as .jpg sometimes)
+  return /\.(jpe?g|png|webp|heic|heif)$/i.test(file.name || "");
 }
 
 export function validateVideoUpload(file, t) {
@@ -43,6 +44,30 @@ export function validateVideoUpload(file, t) {
     return { ok: false, message: t("vid_err_too_large") };
   }
   return { ok: true, message: null };
+}
+
+export function readVideoDurationSeconds(file) {
+  return new Promise((resolve, reject) => {
+    if (typeof document === "undefined" || !file) {
+      reject(new Error("no_dom"));
+      return;
+    }
+    const url = URL.createObjectURL(file);
+    const v = document.createElement("video");
+    const done = (fn) => {
+      URL.revokeObjectURL(url);
+      v.removeAttribute("src");
+      v.load();
+      fn();
+    };
+    v.preload = "metadata";
+    v.onloadedmetadata = () => {
+      const dur = Number(v.duration || 0);
+      done(() => resolve(Number.isFinite(dur) ? dur : 0));
+    };
+    v.onerror = () => done(() => reject(new Error("duration_read_failed")));
+    v.src = url;
+  });
 }
 
 export function validateImageUpload(file, t) {

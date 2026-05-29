@@ -6,6 +6,7 @@ import { mergeToolPagesLocales } from "./toolPagesLocales";
 import { mergeExtendedPageLocales } from "./extendedPageLocales";
 import { mergeBillingLocales } from "./billingLocales";
 import { mergeCarouselLocales } from "./carouselLocales";
+import { mergeLegalLocales } from "./legalLocales";
 
 const loginEn = {
   login_welcome: "Welcome back",
@@ -84,7 +85,15 @@ const studioEn = {
   studio_placeholder_photo: "e.g. sunset beach background, dark elegant suit, softer light…",
   studio_placeholder_text: "e.g. futuristic city at sunset, blue and pink neon, cinematic atmosphere…",
   studio_improve: "Refine prompt with AI",
-  studio_improve_free: "· 0 credits",
+  studio_improve_free: "+3 credits",
+  studio_plus_active: "· Studio Plus",
+  studio_plus_cta: "Creator pack €12",
+  studio_plus_locked_toast: "Studio Plus — 30 days with the Creator pack (€12): 1080p/720p video, 8–10s clips, prompt enhance & HD images.",
+  studio_plus_video_banner: "1080p, 720p, 8–10s and AI prompt enhance unlock with Studio Plus (Creator €12 / month).",
+  studio_hd_quality: "HD image quality",
+  credits: "cr",
+  vid_res_original: "Source quality",
+  vid_res_original_hint: "Keeps your clip's profile (recommended).",
   studio_wizard: "Wizard",
   studio_suggest: "Suggestions",
   studio_styles_toggle: "3 · Ready-made style",
@@ -133,7 +142,15 @@ const studioPt = {
   studio_placeholder_photo: "Ex.: fundo praia ao pôr do sol, fato elegante escuro, luz mais suave…",
   studio_placeholder_text: "Ex.: cidade futurista ao pôr do sol, néon azul e rosa, atmosfera cinematográfica…",
   studio_improve: "Refinar prompt com IA",
-  studio_improve_free: "· 0 créditos",
+  studio_improve_free: "+3 créditos",
+  studio_plus_active: "· Studio Plus",
+  studio_plus_cta: "Pacote Creator 12€",
+  studio_plus_locked_toast: "Studio Plus — 30 dias com o pacote Creator (12€): vídeo 1080p/720p, clips 8–10s, melhorar prompt e imagens HD.",
+  studio_plus_video_banner: "1080p, 720p, 8–10s e melhorar prompt desbloqueiam com Studio Plus (Creator 12€ / 30 dias).",
+  studio_hd_quality: "Qualidade HD na imagem",
+  credits: "cr",
+  vid_res_original: "Qualidade do vídeo",
+  vid_res_original_hint: "Mantém o perfil do teu clip (recomendado).",
   studio_wizard: "Assistente",
   studio_suggest: "Sugestões",
   studio_styles_toggle: "3 · Estilo pronto",
@@ -182,7 +199,7 @@ const studioEs = {
   studio_placeholder_photo: "ej.: fondo playa al atardecer, traje elegante oscuro…",
   studio_placeholder_text: "ej.: ciudad futurista al atardecer, neón azul y rosa…",
   studio_improve: "Refinar prompt con IA",
-  studio_improve_free: "· 0 créditos",
+  studio_improve_free: "+3 créditos",
   studio_wizard: "Asistente",
   studio_suggest: "Sugerencias",
   studio_styles_toggle: "3 · Estilo listo",
@@ -483,5 +500,6 @@ export function mergeLocaleStrings(dict) {
   mergeExtendedPageLocales(dict);
   mergeBillingLocales(dict);
   mergeCarouselLocales(dict);
+  mergeLegalLocales(dict);
   // ES/FR inherit missing keys from English at lookup time (see i18n.jsx t())
 }

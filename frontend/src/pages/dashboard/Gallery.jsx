@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import {
   Heart, Trash2, Download, X, Loader2, Eye, RefreshCw,
 } from "lucide-react";
@@ -55,27 +56,64 @@ function GalleryLightbox({ item, onClose, t }) {
 
 export default function Gallery({ favoritesOnly = false }) {
   const { t } = useI18n();
+  const [searchParams, setSearchParams] = useSearchParams();
   useTitle(favoritesOnly ? t("sidebar_favorites") : t("sidebar_gallery"));
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [busyId, setBusyId] = useState(null);
   const [viewItem, setViewItem] = useState(null);
+  const loadingRef = useRef(false);
+  const tRef = useRef(t);
 
-  const load = useCallback(() => {
-    setLoading(true);
+  useEffect(() => {
+    tRef.current = t;
+  }, [t]);
+
+  const load = useCallback((opts = {}) => {
+    if (loadingRef.current) return Promise.resolve();
+    loadingRef.current = true;
+    const isBackground = Boolean(opts.background);
+    if (!isBackground) setLoading(true);
+    if (isBackground) setRefreshing(true);
     return api
       .get(`/generations/history?limit=60${favoritesOnly ? "&only_favorites=true" : ""}`)
       .then((r) => setItems(r.data.creations || []))
       .catch((err) => {
-        toast.error(formatApiError(err, t("gal_load_fail")));
+        if (!isBackground) toast.error(formatApiError(err, tRef.current("gal_load_fail")));
         setItems([]);
       })
-      .finally(() => setLoading(false));
-  }, [favoritesOnly, t]);
+      .finally(() => {
+        loadingRef.current = false;
+        if (!isBackground) setLoading(false);
+        if (isBackground) setRefreshing(false);
+      });
+  }, [favoritesOnly]);
 
   useEffect(() => {
     load();
   }, [load]);
+
+  useEffect(() => {
+    const onCreation = () => load({ background: true });
+    window.addEventListener("rp:creation-succeeded", onCreation);
+    return () => window.removeEventListener("rp:creation-succeeded", onCreation);
+  }, [load]);
+
+  useEffect(() => {
+    const focusId = String(searchParams.get("focus") || "").trim();
+    if (!focusId || !items.length) return;
+    const target = items.find((x) => x.id === focusId);
+    if (!target) return;
+    setViewItem(target);
+    const el = document.querySelector(`[data-testid="gallery-item-${focusId}"]`);
+    if (el?.scrollIntoView) {
+      el.scrollIntoView({ behavior: "smooth", block: "center" });
+    }
+    const next = new URLSearchParams(searchParams);
+    next.delete("focus");
+    setSearchParams(next, { replace: true });
+  }, [items, searchParams, setSearchParams]);
 
   const toggleFav = async (id) => {
     setBusyId(id);
@@ -141,11 +179,11 @@ export default function Gallery({ favoritesOnly = false }) {
         </div>
         <button
           type="button"
-          onClick={() => load()}
+          onClick={() => load({ background: true })}
           disabled={loading}
           className="btn-secondary !py-2 !px-3 text-xs flex items-center gap-2"
         >
-          <RefreshCw className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} />
+          <RefreshCw className={`w-3.5 h-3.5 ${loading || refreshing ? "animate-spin" : ""}`} />
           Atualizar
         </button>
       </div>

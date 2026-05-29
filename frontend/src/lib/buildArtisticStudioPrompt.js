@@ -2,7 +2,7 @@ import {
   ARTISTIC_STUDIO_STYLES,
   ARTISTIC_EFFECT_SECTIONS,
 } from "./artisticStudioData";
-import { buildAiLabEditPrompt } from "./artisticLabPrompt";
+import { buildAiLabEditPrompt, buildPhotographyEditPrompt } from "./artisticLabPrompt";
 
 export function getStyleById(styleId) {
   return ARTISTIC_STUDIO_STYLES.find((s) => s.id === styleId) || null;
@@ -11,17 +11,12 @@ export function getStyleById(styleId) {
 export function buildArtisticStudioPrompt({
   userPrompt = "",
   styleId = null,
+  styleCat = null,
   effects = {},
   imageMode = false,
 }) {
   const parts = [];
   const trimmed = String(userPrompt || "").trim();
-
-  if (imageMode) {
-    parts.push(
-      "Edit and transform the provided reference image. Preserve the subject identity, face, and overall composition unless the edit explicitly requires change.",
-    );
-  }
 
   const style = getStyleById(styleId);
 
@@ -30,6 +25,25 @@ export function buildArtisticStudioPrompt({
       userPrompt: trimmed,
       styleSuffix: style?.suffix || "",
     });
+  }
+
+  const effectParts = collectEffectPromptParts(effects);
+
+  const isPhotography =
+    style?.cat === "photography" || styleCat === "photography";
+
+  if (isPhotography && imageMode) {
+    return buildPhotographyEditPrompt({
+      userPrompt: trimmed,
+      styleSuffix: style?.suffix || "",
+      extras: effectParts,
+    });
+  }
+
+  if (imageMode) {
+    parts.push(
+      "Edit and transform the provided reference image. Preserve the subject identity, face, and overall composition unless the edit explicitly requires change.",
+    );
   }
 
   if (trimmed) parts.push(trimmed);
@@ -42,18 +56,7 @@ export function buildArtisticStudioPrompt({
   }
   if (style?.suffix) parts.push(style.suffix);
 
-  for (const section of ARTISTIC_EFFECT_SECTIONS) {
-    const value = effects[section.id];
-    if (section.type === "radio" && value) {
-      const opt = section.options.find((o) => o.id === value);
-      if (opt?.prompt) parts.push(opt.prompt);
-    }
-    if (section.type === "checkbox" && value && typeof value === "object") {
-      for (const opt of section.options) {
-        if (value[opt.id] && opt.prompt) parts.push(opt.prompt);
-      }
-    }
-  }
+  parts.push(...effectParts);
 
   parts.push(
     "Ultra high quality, professional art direction, cohesive visual recipe, 8K detail where applicable.",
@@ -80,6 +83,23 @@ export function buildRecipeChips({ styleId, effects = {} }) {
     }
   }
   return chips;
+}
+
+function collectEffectPromptParts(effects = {}) {
+  const effectParts = [];
+  for (const section of ARTISTIC_EFFECT_SECTIONS) {
+    const value = effects[section.id];
+    if (section.type === "radio" && value) {
+      const opt = section.options.find((o) => o.id === value);
+      if (opt?.prompt) effectParts.push(opt.prompt);
+    }
+    if (section.type === "checkbox" && value && typeof value === "object") {
+      for (const opt of section.options) {
+        if (value[opt.id] && opt.prompt) effectParts.push(opt.prompt);
+      }
+    }
+  }
+  return effectParts;
 }
 
 function sectionEmoji(sectionId) {

@@ -18,8 +18,6 @@ import { emptySlide, slideText, normalizeSlides } from "../../lib/carouselSlides
 import { getCarouselExample, getCarouselSlideRoles } from "../../lib/carouselLocales";
 import { revokePanoramaBlobUrls, splitPanoramaToSlides } from "../../lib/carouselPanorama";
 import { validateImageUpload } from "../../lib/videoMedia";
-import { compressImage } from "../../lib/imageCompress";
-import { MAX_IMAGE_DIRECT_BYTES } from "../../lib/uploadConstants";
 import { useI18n } from "../../lib/i18n";
 import { useStudioI18n } from "../../lib/useStudioI18n";
 import AspectPicker from "../../components/AspectPicker";
@@ -27,6 +25,7 @@ import { apiAspectRatio } from "../../lib/apiAspectRatio";
 import StudioGenerateBar from "../../components/StudioGenerateBar";
 import StudioGenerateCostMeta from "../../components/StudioGenerateCostMeta";
 import { useStudioGenerateGate } from "../../lib/useStudioGenerateGate";
+import { usePhotoAspectDefault } from "../../lib/usePhotoAspectDefault";
 
 const COST_PER_SLIDE = 5;
 const MIN_SLIDES = 2;
@@ -63,9 +62,8 @@ const GENERATION_MODES = [
 /* ------------------------------------------------------------------ */
 
 export default function CarouselPage() {
-  const { t, lang } = useStudioI18n();
+  const { t, lang, errMsg, errToast, clearUploadToast } = useStudioI18n();
   const slideRoles = useMemo(() => getCarouselSlideRoles(t), [t]);
-  const errMsg = (err) => formatApiError(err, t("common_fail"), { context: "image_upload", t });
   useTitle(t("car_page_title"));
   const navigate = useNavigate();
   const { refresh, user } = useAuth();
@@ -98,8 +96,8 @@ export default function CarouselPage() {
     setSlides([...ex.slides]);
   }, [lang]);
   const [styleSuffix, setStyleSuffix] = useState(STYLE_PRESETS[0]);
-  const [aspect, setAspect] = useState("4:5");
   const [photo, setPhoto] = useState(null);
+  const [aspect, setAspect] = usePhotoAspectDefault(photo, "4:5", "match");
 
   const [keepCharacter, setKeepCharacter] = useState(true);
   const [keepLighting, setKeepLighting] = useState(true);
@@ -167,17 +165,6 @@ export default function CarouselPage() {
   const updateSlideRef = async (i, file) => {
     let workFile = file || null;
     if (workFile) {
-      // Auto-compress big phone photos before size validation
-      if (workFile.size > MAX_IMAGE_DIRECT_BYTES) {
-        try {
-          workFile = await compressImage(workFile, {
-            maxBytes: MAX_IMAGE_DIRECT_BYTES,
-            maxBytesIOS: MAX_IMAGE_DIRECT_BYTES,
-          });
-        } catch {
-          // keep original; size check below decides
-        }
-      }
       const check = validateImageUpload(workFile, t);
       if (!check.ok) {
         toast.error(check.message);
@@ -207,7 +194,7 @@ export default function CarouselPage() {
     }))));
     fd.append("campaign_brief", campaignBrief.trim());
     fd.append("style_suffix", styleSuffix);
-    fd.append("aspect_ratio", apiAspectRatio(aspect, { model: "standard" }));
+    fd.append("aspect_ratio", apiAspectRatio(aspect, { model: "standard", hasPhoto: Boolean(photo) }));
     fd.append("keep_character", keepCharacter ? "true" : "false");
     fd.append("keep_lighting", keepLighting ? "true" : "false");
     fd.append("keep_palette", keepPalette ? "true" : "false");
@@ -265,6 +252,7 @@ export default function CarouselPage() {
 
     const effectiveModel = modelKey;
 
+    clearUploadToast();
     setBusy(true);
     clearBlobUrls();
     setResult(null);
@@ -303,7 +291,7 @@ export default function CarouselPage() {
         fd.append("slide_role", slide.role || "content");
         fd.append("campaign_brief", campaignBrief.trim());
         fd.append("style_suffix", styleSuffix);
-        fd.append("aspect_ratio", apiAspectRatio(aspect, { model: "standard" }));
+        fd.append("aspect_ratio", apiAspectRatio(aspect, { model: "standard", hasPhoto: Boolean(photo) }));
         fd.append("keep_character", keepCharacter ? "true" : "false");
         fd.append("keep_lighting", keepLighting ? "true" : "false");
         fd.append("keep_palette", keepPalette ? "true" : "false");
@@ -361,7 +349,7 @@ export default function CarouselPage() {
           { duration: 12000 },
         );
       } else {
-        toast.error(errMsg(err), { duration: 8000 });
+        errToast(err);
       }
     } finally {
       lastPanoramaRef.current = null;
@@ -618,7 +606,8 @@ export default function CarouselPage() {
             <AspectPicker
               value={aspect}
               onChange={setAspect}
-              items={ASPECTS.map(({ key, label }) => ({ key, label }))}
+              hasPhoto={!!photo}
+              options={ASPECTS.map(({ key }) => key)}
               columns="grid grid-cols-2 sm:grid-cols-4 gap-2.5"
               testIdPrefix="carousel-format"
             />
@@ -862,7 +851,7 @@ function CarouselViewer({ urls, aspect, panoramaUrl }) {
           data-testid="carousel-download-all"
         >
           <Download className="w-4 h-4" />
-          Baixar todas ({urls.length})
+          {t("car_download_all", { n: urls.length })}
         </button>
         <button
           type="button"
@@ -871,7 +860,7 @@ function CarouselViewer({ urls, aspect, panoramaUrl }) {
           data-testid="carousel-download-current"
         >
           <ImageIcon className="w-3.5 h-3.5" />
-          Esta
+          {t("car_download_this")}
         </button>
       </div>
     </div>

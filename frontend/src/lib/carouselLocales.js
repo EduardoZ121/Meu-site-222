@@ -35,6 +35,7 @@ const en = {
   car_gen_slides: "Rendering {n} slides…",
   car_start_panorama: "Starting panoramic…",
   car_start: "Starting…",
+  car_generating: "Generating…",
   car_no_panorama: "Panoramic image missing.",
   car_split_failed:
     'Panoramic generated but failed to split into slides: {err} Open "View original panoramic" and crop manually, or try again.',
@@ -51,6 +52,8 @@ const en = {
   car_open_panorama: "Open full-size panoramic",
   car_view_original: "View original panoramic (before crop)",
   car_download_fail: "Download failed.",
+  car_download_all: "Download all ({n})",
+  car_download_this: "This one",
   car_role_cover: "Cover",
   car_role_cover_hint: "Hook — first image of the post",
   car_role_content: "Content",
@@ -94,6 +97,7 @@ const pt = {
   car_gen_slides: "A renderizar {n} slides…",
   car_start_panorama: "A iniciar panorâmica…",
   car_start: "A iniciar…",
+  car_generating: "A gerar…",
   car_no_panorama: "Panorâmica sem imagem.",
   car_split_failed:
     'Panorâmica gerada, mas falhou ao dividir em slides: {err} Abre "Ver panorâmica original" e corta manualmente, ou tenta de novo.',
@@ -110,6 +114,8 @@ const pt = {
   car_open_panorama: "Abrir panorâmica em tamanho completo",
   car_view_original: "Ver panorâmica original (antes do corte)",
   car_download_fail: "Falha ao baixar.",
+  car_download_all: "Baixar todas ({n})",
+  car_download_this: "Esta",
   car_role_cover: "Capa",
   car_role_cover_hint: "Gancho — primeira imagem do post",
   car_role_content: "Conteúdo",

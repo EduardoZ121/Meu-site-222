@@ -1,0 +1,22 @@
+[
+  {
+    "content": "FIX: HEIF files always go through Blob (server converts with sharp) regardless of size",
+    "status": "completed"
+  },
+  {
+    "content": "FIX: Video preview failing for small MP4 files",
+    "status": "completed"
+  },
+  {
+    "content": "FIX: prepareImageForUpload detects undecodable files and flags them",
+    "status": "completed"
+  },
+  {
+    "content": "FIX: Loading chunk 601 failed - ensure build produces correct chunks",
+    "status": "completed"
+  },
+  {
+    "content": "All fixes applied and build verified",
+    "status": "completed"
+  }
+]

@@ -18,13 +18,13 @@ import StudioResultAnchor from "../../../components/StudioResultAnchor";
 import { useI18n } from "../../../lib/i18n";
 import { useStudioI18n } from "../../../lib/useStudioI18n";
 import { RESTORE_LEVEL_KEYS } from "../../../lib/toolPagesLocales";
+import { restoreCostForLevel } from "../../../lib/creditPricing";
 
 const RESTORE_PROMPT_KEYS = [1, 2, 3, 4];
 
 export default function Restore() {
-  const { t } = useStudioI18n();
+  const { t, errToast, clearUploadToast } = useStudioI18n();
   const { t: tCat } = useI18n();
-  const errMsg = (err) => formatApiError(err, t("common_fail"), { context: "image_upload", t });
   const navigate = useNavigate();
   const { user, refresh } = useAuth();
   const { costs } = usePricing();
@@ -55,7 +55,7 @@ export default function Restore() {
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState(null);
 
-  const cost = costs.restore;
+  const cost = useMemo(() => restoreCostForLevel(costs, level), [costs, level]);
 
   const { ready, hint } = useStudioGenerateGate({
     busy,
@@ -72,6 +72,7 @@ export default function Restore() {
 
   const run = async () => {
     if (!photo) { toast.error(t("restore_err_upload")); return; }
+    clearUploadToast();
     setBusy(true); setResult(null);
     try {
       const fd = new FormData();
@@ -90,7 +91,7 @@ export default function Restore() {
       toast.success(t("restore_success", { n: creation?.credits_spent ?? cost }));
       await refresh();
     } catch (err) {
-      toast.error(errMsg(err), { duration: 8000 });
+      errToast(err);
     } finally { setBusy(false); }
   };
 

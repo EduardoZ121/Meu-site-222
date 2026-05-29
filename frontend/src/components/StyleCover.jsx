@@ -72,6 +72,7 @@ export default function StyleCover({
   compact = false,
   /** URL pública (ex.: /images/padrao-covers/men_underwater.jpg) — substitui o gradiente. */
   coverSrc = "",
+  coverObjectPosition = "center center",
 }) {
   const visual = pickVisual(prompt, category, id || title);
   const [a, b, c] = visual.colors;
@@ -98,6 +99,7 @@ export default function StyleCover({
           decoding="async"
           loading="lazy"
           className="absolute inset-0 h-full w-full object-cover"
+          style={{ objectPosition: coverObjectPosition }}
         />
       )}
 

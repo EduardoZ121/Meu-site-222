@@ -1,5 +1,6 @@
 import { Check } from "lucide-react";
 import { cn } from "../lib/utils";
+import { useI18n } from "../lib/i18n";
 import { AspectRatioShape } from "./AspectRatioShape";
 
 const DEFAULT_OPTIONS = ["1:1", "4:5", "3:4", "9:16", "16:9", "21:9"];
@@ -24,10 +25,14 @@ export default function AspectPicker({
   premium = false,
   columns,
 }) {
+  const { t } = useI18n();
   const items = customItems?.length
     ? customItems
     : hasPhoto
-      ? [{ key: "match", label: "Original", hint: "Manter a da foto" }, ...options.map((k) => ({ key: k, label: k }))]
+      ? [
+          { key: "match", label: t("aspect_original"), hint: t("aspect_original_hint") },
+          ...options.map((k) => ({ key: k, label: k })),
+        ]
       : options.map((k) => ({ key: k, label: k }));
 
   const gridClass =

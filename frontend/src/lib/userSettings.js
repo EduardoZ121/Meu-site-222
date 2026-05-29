@@ -3,7 +3,7 @@ import { getSavedLanguage } from "./remakepixLanguage";
 const STORAGE_KEY = "rp_settings";
 
 const DEFAULTS = {
-  aspect_ratio_default: "4:5",
+  aspect_ratio_default: "match",
   lang: "en",
 };
 

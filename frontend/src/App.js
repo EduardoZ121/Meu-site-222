@@ -2,6 +2,7 @@ import "./App.css";
 import { useEffect } from "react";
 import { BrowserRouter, Routes, Route, Navigate, useLocation, useNavigate } from "react-router-dom";
 import { Toaster } from "sonner";
+import { toast } from "sonner";
 import { AuthProvider, useAuth } from "./lib/auth";
 import { PricingProvider } from "./lib/PricingContext";
 import { isPwaStandalone } from "./lib/pwaMode";
@@ -21,6 +22,7 @@ import Generate from "./pages/dashboard/Generate";
 import Pro from "./pages/dashboard/Pro";
 import Artistic from "./pages/dashboard/Artistic";
 import Video from "./pages/dashboard/Video";
+import VideoFlow from "./pages/dashboard/VideoFlow";
 import Posters from "./pages/dashboard/Posters";
 import MangaStudioGate from "./pages/dashboard/MangaStudioGate";
 import Wizard from "./pages/dashboard/Wizard";
@@ -38,6 +40,9 @@ import Colorize from "./pages/dashboard/tools/Colorize";
 import Inpaint from "./pages/dashboard/tools/Inpaint";
 import ClothesChanger from "./pages/dashboard/tools/ClothesChanger";
 import BuildVersionGuard from "./components/BuildVersionGuard";
+import CookieConsentBar from "./components/legal/CookieConsentBar";
+import WhatsAppGenerationListener from "./components/legal/WhatsAppGenerationListener";
+import Legal from "./pages/Legal";
 
 /** App instalado (Chrome): abre login em vez da landing; sessão autenticada vai ao estúdio. */
 function PwaStartupRedirect() {
@@ -60,6 +65,24 @@ function PwaStartupRedirect() {
   return null;
 }
 
+function BackgroundGenerationRedirect() {
+  const location = useLocation();
+
+  useEffect(() => {
+    const onFailed = (event) => {
+      const detail = event?.detail || {};
+      if (detail.source !== "background") return;
+      toast.error(detail.error || "A geração falhou.");
+    };
+    window.addEventListener("rp:prediction-failed", onFailed);
+    return () => {
+      window.removeEventListener("rp:prediction-failed", onFailed);
+    };
+  }, [location.pathname]);
+
+  return null;
+}
+
 function RequireAuth({ children, adminOnly = false }) {
   const { user, loading } = useAuth();
   const loc = useLocation();
@@ -77,7 +100,10 @@ function App() {
           <BrowserRouter>
             <Toaster position="top-center" theme="dark" toastOptions={{ style: { background: "#121217", color: "#F4F1EA", border: "1px solid rgba(244,241,234,0.08)" } }} />
             <BuildVersionGuard />
+            <CookieConsentBar />
+            <WhatsAppGenerationListener />
             <PwaStartupRedirect />
+            <BackgroundGenerationRedirect />
             <Routes>
               <Route path="/" element={<Landing />} />
               <Route path="/discover" element={<Discover />} />
@@ -86,6 +112,8 @@ function App() {
               <Route path="/forgot-password" element={<ForgotPassword />} />
               <Route path="/reset-password" element={<ResetPassword />} />
               <Route path="/explore" element={<Explore />} />
+              <Route path="/legal/:section" element={<Legal />} />
+              <Route path="/legal" element={<Navigate to="/legal/terms" replace />} />
               <Route path="/studio" element={<Navigate to="/app/studio" replace />} />
 
               <Route path="/app" element={<RequireAuth><DashboardLayout /></RequireAuth>}>
@@ -115,6 +143,7 @@ function App() {
                   <Route path="pro" element={<Pro />} />
                   <Route path="artistic" element={<Artistic />} />
                   <Route path="video" element={<Video />} />
+                  <Route path="video/:mode" element={<VideoFlow />} />
                   <Route path="posters" element={<Posters />} />
                   <Route path="manga-studio" element={<MangaStudioGate />} />
                   <Route path="carousel" element={<Navigate to="/app/manga-studio" replace />} />

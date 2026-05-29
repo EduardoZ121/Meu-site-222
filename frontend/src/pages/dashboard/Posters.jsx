@@ -5,7 +5,14 @@ import {
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
-import { api, formatApiError, pollPrediction, uploadPost } from "../../lib/api";
+import {
+  api,
+  formatApiError,
+  pollPrediction,
+  trackPendingPrediction,
+  uploadPost,
+} from "../../lib/api";
+import { dispatchBackgroundJob, ensureBackgroundSlot } from "../../lib/bgGeneration";
 import { normalizeCreation, primaryResultUrl } from "../../lib/creationUrls";
 import { useAuth } from "../../lib/auth";
 import { usePricing } from "../../lib/PricingContext";
@@ -33,15 +40,21 @@ import StudioResultAnchor from "../../components/StudioResultAnchor";
 import StudioGenerateBar from "../../components/StudioGenerateBar";
 import StudioGenerateCostMeta from "../../components/StudioGenerateCostMeta";
 import { useStudioGenerateGate } from "../../lib/useStudioGenerateGate";
+import { usePhotoAspectDefault } from "../../lib/usePhotoAspectDefault";
 import { useI18n } from "../../lib/i18n";
 import { useStudioI18n } from "../../lib/useStudioI18n";
 import { posterFieldLabel, POSTER_CAT_KEYS } from "../../lib/posterFieldLocales";
+import { normalizePosterModels } from "../../lib/posterModels";
 
 /* ------------------------------------------------------------------ */
 /*  Constants                                                          */
 /* ------------------------------------------------------------------ */
 
 const CAT_ORDER = ["music", "food", "fitness", "motivational", "flyers"];
+
+/** Grelha compacta — 2 colunas no telemóvel (igual /app/tools). */
+const POSTER_GRID_CLASS =
+  "grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-2.5 sm:gap-3";
 
 // Gradient backgrounds per category — gives visual hierarchy to template cards
 const CAT_GRADIENTS = {
@@ -97,7 +110,7 @@ export default function Posters() {
   const [values, setValues] = useState({});
   const [photo, setPhoto] = useState(null);
   const [modelKey, setModelKey] = useState("grok");
-  const [aspect, setAspect] = useState("");      // empty = template default (4:5)
+  const [aspect, setAspect] = usePhotoAspectDefault(photo, "4:5", "match");
   const [numOutputs, setNumOutputs] = useState(1);
   const [mood, setMood] = useState("");
   const [paletteColors, setPaletteColors] = useState([]);
@@ -113,15 +126,17 @@ export default function Posters() {
       .then((r) => setTemplates(r.data.templates?.length ? r.data.templates : FALLBACK_POSTER_TEMPLATES))
       .catch(() => setTemplates(FALLBACK_POSTER_TEMPLATES));
     api.get("/public/poster-models")
-      .then((r) => setModels(r.data.models?.length ? r.data.models : FALLBACK_POSTER_MODELS))
-      .catch(() => setModels(FALLBACK_POSTER_MODELS));
+      .then((r) => setModels(
+        normalizePosterModels(r.data.models?.length ? r.data.models : FALLBACK_POSTER_MODELS),
+      ))
+      .catch(() => setModels(normalizePosterModels(FALLBACK_POSTER_MODELS)));
   }, []);
 
   useEffect(() => {
     const pc = posterModelCosts(region);
     setModels((prev) => {
       const base = prev.length ? prev : FALLBACK_POSTER_MODELS;
-      return base.map((m) => ({ ...m, cost: pc[m.key] ?? m.cost }));
+      return normalizePosterModels(base.map((m) => ({ ...m, cost: pc[m.key] ?? m.cost })));
     });
   }, [region]);
 
@@ -156,12 +171,14 @@ export default function Posters() {
     setMood("");
     setPaletteColors([]);
     setNumOutputs(1);
-    // Default aspect ratio from prompt text (Vertical 4:5 / Square 1:1 etc.)
-    const p = (tpl.prompt || "").toLowerCase();
-    if (p.includes("9:16")) setAspect("9:16");
-    else if (p.includes("16:9")) setAspect("16:9");
-    else if (p.includes("1:1") || p.includes("square")) setAspect("1:1");
-    else setAspect("4:5");
+    // Sem foto: proporção sugerida pelo template; com foto o hook mantém "match".
+    if (!photo) {
+      const p = (tpl.prompt || "").toLowerCase();
+      if (p.includes("9:16")) setAspect("9:16");
+      else if (p.includes("16:9")) setAspect("16:9");
+      else if (p.includes("1:1") || p.includes("square")) setAspect("1:1");
+      else setAspect("4:5");
+    }
   };
 
   const generate = async () => {
@@ -190,7 +207,10 @@ export default function Posters() {
     fd.append("placeholders", JSON.stringify(values));
     fd.append("custom_blocks", JSON.stringify(customBlocks));
     fd.append("model_key", modelKey);
-    fd.append("aspect_ratio", apiAspectRatio(aspect || picked.aspect || "4:5", { model: "standard" }));
+    fd.append("aspect_ratio", apiAspectRatio(aspect || picked.aspect || "4:5", {
+      model: "standard",
+      hasPhoto: Boolean(photo),
+    }));
     fd.append("num_outputs", String(numOutputs));
     fd.append("mood", mood || "");
     fd.append("palette_colors", JSON.stringify(paletteColors));
@@ -201,6 +221,7 @@ export default function Posters() {
     setResult(null);
     setGenProgress(0);
     setGenPhase("upload");
+    try { ensureBackgroundSlot(); } catch { setBusy(false); setGenPhase(""); return; }
 
     let submitData;
     try {
@@ -216,18 +237,17 @@ export default function Posters() {
       }
 
       setGenPhase("work");
-      const polled = await pollPrediction(submitData.prediction_id, {
-        onTick: (sec) => setGenProgress(sec),
-        timeoutMs: 300_000,
+      trackPendingPrediction(submitData.prediction_id, {
         credits_spent: submitData.credits_spent ?? totalCost,
         type: "poster",
       });
-
-      const normalized = normalizeCreation(polled?.creation);
-      if (!primaryResultUrl(normalized)) throw new Error(t("common_no_result"));
-      setResult(normalized);
-      toast.success(t("post_success", { n: normalized?.credits_spent ?? submitData.credits_spent ?? totalCost }));
+      dispatchBackgroundJob(submitData, {
+        type: "poster",
+        creditsSpent: submitData.credits_spent ?? totalCost,
+        label: t("post_title") || "Poster",
+      });
       await refresh();
+      // Result lands automatically in gallery + notifications when ready.
     } catch (err) {
       const msg = formatApiError(err, t("post_fail"), { context: "image_upload", t });
       console.error("[Posters] generate failed", err);
@@ -310,7 +330,7 @@ export default function Posters() {
       </div>
 
       {/* Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4" data-testid="poster-templates-grid">
+      <div className={POSTER_GRID_CLASS} data-testid="poster-templates-grid">
         {filtered.map((tpl, i) => (
           <TemplateCard key={tpl.id} tpl={tpl} index={i} onClick={() => openTemplate(tpl)} catLabel={catLabel} />
         ))}
@@ -327,14 +347,15 @@ function TemplateCard({ tpl, index, onClick, catLabel }) {
   const gradient = CAT_GRADIENTS[tpl.category] || CAT_GRADIENTS.editorial;
   return (
     <motion.button
+      type="button"
       onClick={onClick}
-      initial={{ opacity: 0, y: 14 }}
+      initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.35, delay: index * 0.025, ease: [0.16, 1, 0.3, 1] }}
-      className="group relative bg-[#13131A] border border-[#2E2E30] hover:border-[#7C3AED]/60 rounded-xl overflow-hidden text-left transition-all hover:-translate-y-1 hover:shadow-[0_10px_40px_-10px_rgba(124,58,237,0.45)]"
+      transition={{ duration: 0.35, delay: Math.min(index * 0.04, 0.4), ease: [0.16, 1, 0.3, 1] }}
+      className="group relative flex h-full flex-col overflow-hidden rounded-xl border border-[rgba(147,51,234,0.2)] bg-[#13131A] text-left shadow-md transition-all duration-300 hover:-translate-y-0.5 hover:border-[#A855F7]/45 hover:shadow-[0_12px_32px_-14px_rgba(124,58,237,0.4)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500/50"
       data-testid={`tpl-${tpl.id}`}
     >
-      <div className="relative aspect-[3/4] overflow-hidden" style={{ background: gradient }}>
+      <div className="relative aspect-[4/5] overflow-hidden" style={{ background: gradient }}>
         <StyleCover
           id={tpl.id}
           title={tpl.label || tpl.id}
@@ -343,27 +364,29 @@ function TemplateCard({ tpl, index, onClick, catLabel }) {
           eyebrow={catLabel(tpl.category)}
           compact
           coverSrc={POSTER_TEMPLATE_COVER_BY_ID[tpl.id] || ""}
+          className="pro-poster-card__cover"
         />
         {tpl.subtag && (
-          <div className="absolute left-3 top-14 rounded-full border border-white/20 bg-black/25 px-2 py-1 font-['JetBrains_Mono'] text-[8px] uppercase tracking-[0.14em] text-white/70 backdrop-blur-sm">
+          <div className="absolute left-2 top-9 sm:left-3 sm:top-12 max-w-[85%] rounded-full border border-white/20 bg-black/30 px-1.5 py-0.5 sm:px-2 sm:py-1 font-['JetBrains_Mono'] text-[7px] sm:text-[8px] uppercase tracking-[0.12em] text-white/75 backdrop-blur-sm truncate z-[2]">
             {tpl.subtag}
           </div>
         )}
-        <div className="absolute bottom-3 right-3 font-['JetBrains_Mono'] text-[9px] uppercase tracking-[0.18em] text-white/70">
+        <div className="absolute bottom-2 right-2 sm:bottom-3 sm:right-3 z-[2] font-['JetBrains_Mono'] text-[8px] sm:text-[9px] uppercase tracking-[0.14em] text-white/70">
           {tpl.placeholders?.length ? `${tpl.placeholders.length} campos` : "Pronto"}
         </div>
 
-        <div className="absolute inset-0 flex items-center justify-center bg-[#7C3AED]/85 backdrop-blur-md opacity-0 group-hover:opacity-100 transition-opacity">
-          <span className="text-white text-[12px] font-medium uppercase tracking-[0.15em] px-5 py-2.5 border border-white/50 rounded-full">
+        <div className="absolute inset-0 z-[3] hidden sm:flex items-center justify-center bg-[#7C3AED]/85 backdrop-blur-md opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+          <span className="text-white text-[11px] font-medium uppercase tracking-[0.12em] px-4 py-2 border border-white/50 rounded-full">
             Abrir editor →
           </span>
         </div>
       </div>
 
-      {/* Footer strip */}
-      <div className="px-4 py-3 flex items-center justify-between">
-        <p className="text-[#F4F1EA] text-[13px] font-medium font-['Inter_Tight'] truncate">{tpl.label || tpl.id}</p>
-        <Layers className="w-3.5 h-3.5 text-[#5A5A5E] shrink-0" />
+      <div className="flex items-center justify-between gap-1 border-t border-[#2E2E30]/80 px-2 py-2 sm:px-3 sm:py-2.5">
+        <p className="text-[#F4F1EA] text-xs sm:text-[13px] font-medium font-['Inter_Tight'] truncate leading-snug">
+          {tpl.label || tpl.id}
+        </p>
+        <Layers className="hidden sm:block w-3.5 h-3.5 text-[#5A5A5E] shrink-0" />
       </div>
     </motion.button>
   );
@@ -440,6 +463,15 @@ function Editor(props) {
       return "";
     }
   }, [picked, values, mood, paletteColors, customBlocks, photo]);
+
+  const posterFormatItems = useMemo(() => {
+    const mapped = FORMATS.map(({ key, label, hint }) => ({ key, label, hint }));
+    if (!photo) return mapped;
+    return [
+      { key: "match", label: t("aspect_original"), hint: t("aspect_original_hint") },
+      ...mapped,
+    ];
+  }, [photo, t]);
 
   const { ready: genReady, hint: genHint } = useStudioGenerateGate({
     busy,
@@ -638,7 +670,7 @@ function Editor(props) {
             <AspectPicker
               value={aspect || picked?.aspect || "4:5"}
               onChange={setAspect}
-              items={FORMATS.map(({ key, label, hint }) => ({ key, label, hint }))}
+              items={posterFormatItems}
               columns="grid grid-cols-2 sm:grid-cols-5 gap-2.5 mb-5"
               testIdPrefix="poster-format"
             />

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Sparkles, Camera, Sliders } from "lucide-react";
 import { api, formatApiError, uploadPost } from "../../lib/api";
 import { normalizeCreation, primaryResultUrl } from "../../lib/creationUrls";
@@ -12,11 +12,14 @@ import { apiAspectRatio } from "../../lib/apiAspectRatio";
 import StyleCover from "../../components/StyleCover";
 import ImageUploadZone from "../../components/ImageUploadZone";
 import { FALLBACK_PRO_PRESETS } from "../../lib/publicFallbacks";
+import { proPresetCoverSrc } from "../../lib/proPresetCovers";
 import useTitle from "../../lib/useTitle";
 import { useI18n } from "../../lib/i18n";
 import StudioGenerateBar from "../../components/StudioGenerateBar";
 import StudioGenerateCostMeta from "../../components/StudioGenerateCostMeta";
+import StudioPhotoUploadNotice, { isPhotoUploadBusy } from "../../components/studio/StudioPhotoUploadNotice";
 import { useStudioGenerateGate } from "../../lib/useStudioGenerateGate";
+import { useStudioI18n } from "../../lib/useStudioI18n";
 
 function ProStep({ step, title, hint, children }) {
   return (
@@ -35,7 +38,7 @@ function ProStep({ step, title, hint, children }) {
 
 export default function Pro() {
   const { t } = useI18n();
-  const errMsg = (err) => formatApiError(err, t("common_fail"), { context: "image_upload", t });
+  const { errToast, clearUploadToast } = useStudioI18n();
   useTitle(t("pro_page_title"));
   const { refresh, user } = useAuth();
   const { costs } = usePricing();
@@ -58,10 +61,13 @@ export default function Pro() {
   const [customPrompt, setCustomPrompt] = useState("");
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState(null);
+  const [photoUploadStatus, setPhotoUploadStatus] = useState("idle");
   const cost = costs.pro;
+  const photoUploading = isPhotoUploadBusy(photoUploadStatus);
 
   useEffect(() => {
-    if (!photo && aspect === "match") setAspect("4:5");
+    if (photo) setAspect("match");
+    else if (aspect === "match") setAspect("4:5");
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [photo]);
 
@@ -89,11 +95,17 @@ export default function Pro() {
     photo,
     requirePreset: true,
     preset,
+    uploading: photoUploading,
   });
 
-  const generate = async () => {
+  const generate = useCallback(async () => {
+    if (photoUploading) {
+      toast.message(t("upload_wait_generate"), { duration: 6000 });
+      return;
+    }
     if (!photo) { toast.error(t("pro_upload_photo")); return; }
     if (!preset) { toast.error(t("pro_pick_preset")); return; }
+    clearUploadToast();
     setBusy(true); setResult(null);
     try {
       const fd = new FormData();
@@ -103,15 +115,31 @@ export default function Pro() {
       fd.append("extra_prompt", customPrompt.trim());
       fd.append("intensity", String(intensity));
       const { data } = await uploadPost("/generate/pro", fd, { timeout: 180000 });
+      if (data?.deferred) {
+        await refresh().catch(() => {});
+        return;
+      }
       const creation = normalizeCreation(data?.creation);
       if (!primaryResultUrl(creation)) throw new Error(t("pro_no_result"));
       setResult(creation);
       toast.success(t("pro_success", { n: creation?.credits_spent ?? cost }));
       await refresh();
     } catch (err) {
-      toast.error(errMsg(err), { duration: 8000 });
+      errToast(err);
     } finally { setBusy(false); }
-  };
+  }, [
+    photoUploading,
+    photo,
+    preset,
+    clearUploadToast,
+    aspect,
+    customPrompt,
+    intensity,
+    cost,
+    refresh,
+    t,
+    errToast,
+  ]);
 
   return (
     <div className="rp-studio-shell max-w-[1400px] mx-auto pb-28" data-testid="pro-page">
@@ -137,6 +165,7 @@ export default function Pro() {
                 <ImageUploadZone
                   value={photo}
                   onChange={setPhoto}
+                  onStatusChange={setPhotoUploadStatus}
                   layout="wide"
                   testId="pro-photo"
                   compressOptions={{ maxSize: 2048 }}
@@ -192,6 +221,8 @@ export default function Pro() {
                         eyebrow={CAT_LABELS[p.category] || p.category}
                         selected={active}
                         compact
+                        coverSrc={proPresetCoverSrc(p.id)}
+                        className="pro-preset-card__cover"
                       />
                     </button>
                   );
@@ -270,6 +301,8 @@ export default function Pro() {
         </StudioResultAnchor>
       </div>
 
+      <StudioPhotoUploadNotice status={photoUploadStatus} className="mb-3" />
+
       <StudioGenerateBar
         variant="pro"
         ready={ready}
@@ -278,6 +311,7 @@ export default function Pro() {
         label={`${t("pro_button")} · ${cost} ${t("label_credits")}`}
         busyLabel={t("pro_loading")}
         hint={hint}
+        blockedNotify={photoUploading ? "message" : "error"}
         testId="pro-create"
         costMeta={<StudioGenerateCostMeta cost={cost} user={user} />}
       />

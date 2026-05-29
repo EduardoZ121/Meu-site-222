@@ -1,6 +1,9 @@
 /** Limites únicos de upload — UI, compressão e API devem alinhar aqui. */
 
-export const MAX_IMAGE_PICKER_BYTES = 5 * 1024 * 1024;
+// After auto-compression the file must be under this to go via multipart.
+// The server accepts up to 12 MB (for HEIF the browser can't compress) but
+// the frontend tries hard to stay under 3.5 MB first.
+export const MAX_IMAGE_PICKER_BYTES = 10 * 1024 * 1024;
 export const MAX_IMAGE_DIRECT_BYTES = 3_500_000;
 export const MAX_IMAGE_S3_BYTES = 12 * 1024 * 1024;
 

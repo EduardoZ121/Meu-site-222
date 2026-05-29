@@ -1,107 +1,200 @@
 {
+  "meta": {
+    "creditsPerEuro": 30,
+    "minCustomCredits": 150,
+    "marginTargetPct": 75
+  },
   "regions": {
     "intl": {
       "id": "intl",
       "currency": "eur",
       "symbol": "€",
       "label": "Internacional",
-      "checkoutNote": "Pagamento em euros (€).",
+      "checkoutNote": "Pagamento em euros (€). Pacotes maiores incluem bónus de créditos.",
       "packages": {
         "starter": {
           "name": "Starter",
           "amount_cents": 500,
           "credits": 150,
-          "tagline": "Promoção de lançamento"
+          "credits_base": 150,
+          "bonus_percent": 0,
+          "tagline": "Promoção de lançamento",
+          "badge": "promo"
         },
         "creator": {
           "name": "Creator",
-          "amount_cents": 1200,
-          "credits": 250,
-          "tagline": "Para criadores ativos"
+          "amount_cents": 1000,
+          "credits": 345,
+          "credits_base": 300,
+          "bonus_percent": 15,
+          "tagline": "Para criadores activos",
+          "badge": "popular"
         },
         "studio": {
           "name": "Studio",
-          "amount_cents": 2200,
-          "credits": 500,
-          "tagline": "Fluxos profissionais"
+          "amount_cents": 2000,
+          "credits": 780,
+          "credits_base": 600,
+          "bonus_percent": 30,
+          "tagline": "Melhor valor por crédito",
+          "badge": "value"
+        },
+        "pro": {
+          "name": "Pro",
+          "amount_cents": 5000,
+          "credits": 2100,
+          "credits_base": 1500,
+          "bonus_percent": 40,
+          "tagline": "Volume máximo + 40% bónus",
+          "badge": "bonus40"
         }
       },
       "costs": {
-        "image": 12,
-        "edit": 16,
-        "easy": 14,
-        "pro": 26,
-        "artistic": 18,
-        "video": 70,
-        "videoEdit": 95,
+        "image": 18,
+        "edit": 18,
+        "easy": 18,
+        "pro": 35,
+        "artistic": 25,
+        "video": 80,
+        "videoEdit": 120,
         "bgRemove": 8,
-        "bgRemoveScene": 16,
-        "upscale": 20,
-        "restore": 18,
-        "colorize": 16,
-        "clothes": 24,
-        "inpaint": 28,
+        "bgRemoveScene": 12,
+        "upscale": 12,
+        "restoreLight": 12,
+        "restoreMedium": 15,
+        "restoreDeep": 22,
+        "restore": 15,
+        "colorize": 15,
+        "clothes": 28,
+        "inpaint": 25,
         "carouselFastPerSlide": 5,
-        "carouselPremiumPerSlide": 12,
-        "mangaPanel": 15,
-        "mangaPage": 40,
-        "mangaChapter": 150,
-        "posterFast": 24,
-        "posterPro": 32,
-        "posterPremium": 45
-      }
+        "carouselPremiumPerSlide": 10,
+        "mangaPanel": 20,
+        "mangaPage": 45,
+        "mangaChapter": 160,
+        "posterFast": 25,
+        "posterPro": 40,
+        "posterPremium": 40
+      },
+      "surcharges": {
+        "enhancePrompt": 3,
+        "hdImage": 8,
+        "hdSimple": 5,
+        "hdVideo": 15,
+        "videoDuration8": 25,
+        "videoDuration10": 50,
+        "videoEditResolutionHd": 15,
+        "videoEditDuration8": 25,
+        "videoEditDuration10": 50,
+        "artisticEffectPremium": 4,
+        "artisticEffectPremiumMax": 8,
+        "upscaleHd": 5,
+        "colorizeHd": 5
+      },
+      "premiumArtisticEffects": [
+        "color:neon_mood",
+        "color:teal_orange",
+        "atmosphere:godrays",
+        "atmosphere:flare",
+        "atmosphere:fog_dense",
+        "lens:anamorphic"
+      ]
     },
     "usd": {
       "id": "usd",
       "currency": "usd",
       "symbol": "$",
       "label": "Brasil e Angola",
-      "checkoutNote": "Preços em dólar (USD) para o teu país — pacotes e gerações ajustados.",
+      "checkoutNote": "Preços em dólar (USD). Pacotes maiores incluem bónus de créditos.",
       "countries": ["BR", "AO"],
       "packages": {
         "starter": {
           "name": "Starter",
           "amount_cents": 499,
-          "credits": 110,
-          "tagline": "Promo de lançamento"
+          "credits": 150,
+          "credits_base": 150,
+          "bonus_percent": 0,
+          "tagline": "Promo de lançamento",
+          "badge": "promo"
         },
         "creator": {
           "name": "Creator",
           "amount_cents": 999,
-          "credits": 200,
-          "tagline": "Para criadores ativos"
+          "credits": 345,
+          "credits_base": 300,
+          "bonus_percent": 15,
+          "tagline": "Para criadores activos",
+          "badge": "popular"
         },
         "studio": {
           "name": "Studio",
-          "amount_cents": 1799,
-          "credits": 360,
-          "tagline": "Fluxos profissionais"
+          "amount_cents": 1999,
+          "credits": 780,
+          "credits_base": 600,
+          "bonus_percent": 30,
+          "tagline": "Melhor valor por crédito",
+          "badge": "value"
+        },
+        "pro": {
+          "name": "Pro",
+          "amount_cents": 4999,
+          "credits": 2100,
+          "credits_base": 1500,
+          "bonus_percent": 40,
+          "tagline": "Volume máximo + 40% bónus",
+          "badge": "bonus40"
         }
       },
       "costs": {
-        "image": 9,
-        "edit": 12,
-        "easy": 10,
-        "pro": 19,
-        "artistic": 13,
-        "video": 50,
-        "videoEdit": 68,
-        "bgRemove": 6,
+        "image": 18,
+        "edit": 18,
+        "easy": 18,
+        "pro": 35,
+        "artistic": 25,
+        "video": 80,
+        "videoEdit": 120,
+        "bgRemove": 8,
         "bgRemoveScene": 12,
-        "upscale": 14,
-        "restore": 13,
-        "colorize": 12,
-        "clothes": 17,
-        "inpaint": 20,
+        "upscale": 12,
+        "restoreLight": 12,
+        "restoreMedium": 15,
+        "restoreDeep": 22,
+        "restore": 15,
+        "colorize": 15,
+        "clothes": 28,
+        "inpaint": 25,
         "carouselFastPerSlide": 5,
-        "carouselPremiumPerSlide": 12,
-        "mangaPanel": 15,
-        "mangaPage": 40,
-        "mangaChapter": 150,
-        "posterFast": 17,
-        "posterPro": 23,
-        "posterPremium": 32
-      }
+        "carouselPremiumPerSlide": 10,
+        "mangaPanel": 20,
+        "mangaPage": 45,
+        "mangaChapter": 160,
+        "posterFast": 25,
+        "posterPro": 40,
+        "posterPremium": 40
+      },
+      "surcharges": {
+        "enhancePrompt": 3,
+        "hdImage": 8,
+        "hdSimple": 5,
+        "hdVideo": 15,
+        "videoDuration8": 25,
+        "videoDuration10": 50,
+        "videoEditResolutionHd": 15,
+        "videoEditDuration8": 25,
+        "videoEditDuration10": 50,
+        "artisticEffectPremium": 4,
+        "artisticEffectPremiumMax": 8,
+        "upscaleHd": 5,
+        "colorizeHd": 5
+      },
+      "premiumArtisticEffects": [
+        "color:neon_mood",
+        "color:teal_orange",
+        "atmosphere:godrays",
+        "atmosphere:flare",
+        "atmosphere:fog_dense",
+        "lens:anamorphic"
+      ]
     }
   }
 }

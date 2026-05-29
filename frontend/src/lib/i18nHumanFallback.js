@@ -26,11 +26,11 @@ export function humanFallbackLabel(key, lang = "en") {
   return humanizeKey(key);
 }
 
-/** Converte vid_edit_desc → "Edit desc" como último recurso */
+/** Converte vid_edit_desc → "Edit desc", car_generating → "Generating" como último recurso */
 function humanizeKey(key) {
   if (!key || typeof key !== "string") return "";
   const stripped = key
-    .replace(/^(vid|img|upload|tool|studio|common)_/i, "")
+    .replace(/^(vid|img|upload|tool|studio|common|car|art|gen|pro|post|wiz|sug|set|gal|fav|bill|prof|ref|adm|manga|inpaint)_/i, "")
     .replace(/_/g, " ")
     .trim();
   if (!stripped) return key;

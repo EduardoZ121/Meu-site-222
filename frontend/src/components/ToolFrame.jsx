@@ -4,14 +4,14 @@ import { useAuth } from "../lib/auth";
 import { useI18n } from "../lib/i18n";
 import StudioGenerateBar from "./StudioGenerateBar";
 import StudioGenerateCostMeta from "./StudioGenerateCostMeta";
+import StudioPhotoUploadNotice, { isPhotoUploadBusy } from "./studio/StudioPhotoUploadNotice";
 import { useStudioGenerateGate } from "../lib/useStudioGenerateGate";
+import AspectPicker from "./AspectPicker";
 import ImageUploadZone from "./ImageUploadZone";
 import ResultPanel from "./ResultPanel";
 import CollapsibleSection from "./CollapsibleSection";
 import StudioResultAnchor from "./StudioResultAnchor";
 import { primaryResultUrl } from "../lib/creationUrls";
-import { AspectRatioShape } from "./AspectRatioShape";
-
 /**
  * Unified studio frame — Pollo-style.
  *
@@ -67,6 +67,8 @@ export default function ToolFrame({
   const { t } = useI18n();
   const formatsLabel = acceptedFormats ?? t("tool_accept_formats");
   const [viewAllModels, setViewAllModels] = useState(false);
+  const [photoUploadStatus, setPhotoUploadStatus] = useState("idle");
+  const photoUploading = showPhoto && isPhotoUploadBusy(photoUploadStatus);
 
   const visibleModels = models ? (viewAllModels ? models : models.slice(0, 8)) : [];
   const resultReady = Boolean(primaryResultUrl(result));
@@ -81,6 +83,7 @@ export default function ToolFrame({
     photo,
     requirePrompt: needsPrompt,
     prompt,
+    uploading: photoUploading,
     readyOverride: generateReady,
     hintOverride: generateHint,
   });
@@ -110,6 +113,7 @@ export default function ToolFrame({
               <ImageUploadZone
                 value={photo}
                 onChange={onPhotoChange}
+                onStatusChange={setPhotoUploadStatus}
                 layout="wide"
                 testId={`${testId}-photo`}
                 compressOptions={photoCompressOptions}
@@ -203,26 +207,14 @@ export default function ToolFrame({
 
           {aspectRatios && aspectRatios.length > 0 && onAspectChange && (
             <CollapsibleSection title={t("tool_output_format")} variant="inset" testId={`${testId}-section-aspect`}>
-              <div className="grid grid-cols-3 sm:grid-cols-6 gap-2.5" data-testid={`${testId}-aspect-ratios`}>
-                {aspectRatios.map((a) => (
-                  <button
-                    type="button"
-                    key={a}
-                    onClick={() => onAspectChange(a)}
-                    className={`py-3 rounded-xl text-[11px] font-medium transition-all flex flex-col items-center gap-1 border font-['Inter_Tight'] ${
-                      aspect === a
-                        ? "border-[#7C3AED] bg-[rgba(124,58,237,0.1)] text-[#E9E4DC] shadow-[inset_0_0_0_1px_rgba(124,58,237,0.12)]"
-                        : "border-[rgba(244,241,234,0.08)] text-[#8A8A8E] hover:border-[rgba(124,58,237,0.35)] hover:text-[#F4F1EA]"
-                    }`}
-                    data-testid={`${testId}-aspect-${a}`}
-                  >
-                    <span className="flex h-6 items-center justify-center">
-                      <AspectRatioShape ratio={a} active={aspect === a} maxSize={22} />
-                    </span>
-                    <span>{a}</span>
-                  </button>
-                ))}
-              </div>
+              <AspectPicker
+                value={aspect || aspectRatios[0]}
+                onChange={onAspectChange}
+                hasPhoto={needsPhoto && Boolean(photo)}
+                options={aspectRatios}
+                columns="grid grid-cols-3 sm:grid-cols-6 gap-2.5"
+                testIdPrefix={`${testId}-aspect`}
+              />
             </CollapsibleSection>
           )}
           </div>
@@ -240,6 +232,10 @@ export default function ToolFrame({
         </StudioResultAnchor>
       </div>
 
+      {showPhoto ? (
+        <StudioPhotoUploadNotice status={photoUploadStatus} className="mb-3" />
+      ) : null}
+
       <StudioGenerateBar
         ready={ready}
         busy={busy}
@@ -247,6 +243,7 @@ export default function ToolFrame({
         label={t("tool_generate_credits", { n: cost })}
         busyLabel={t("tool_generating")}
         hint={hint}
+        blockedNotify={photoUploading ? "message" : "error"}
         testId={`${testId}-create-btn`}
         costMeta={<StudioGenerateCostMeta cost={cost} user={user} />}
       />

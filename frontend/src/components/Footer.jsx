@@ -18,6 +18,8 @@ export default function Footer() {
             { label: "Studio", to: "/app/generate" },
             { label: "Pricing", to: "/#pricing" },
             { label: "FAQ", to: "/#faq" },
+            { label: t("footer_terms"), to: "/legal/terms" },
+            { label: t("footer_privacy"), to: "/legal/privacy" },
             { label: "Login", to: "/login" },
             { label: "Sign up", to: "/register" },
           ].map((l) => (

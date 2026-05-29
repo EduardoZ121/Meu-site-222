@@ -1,11 +1,13 @@
 import { useEffect, useMemo, useState } from "react";
 import { Loader2, Sparkles, ImagePlus, Wand2, Lightbulb } from "lucide-react";
 import { useSearchParams, useNavigate } from "react-router-dom";
-import { api, formatApiError, pollPrediction, uploadPost } from "../../lib/api";
+import { api, pollPrediction, trackPendingPrediction, uploadPost } from "../../lib/api";
+import { dispatchBackgroundJob, ensureBackgroundSlot } from "../../lib/bgGeneration";
 import { normalizeCreation, primaryResultUrl } from "../../lib/creationUrls";
 import { useAuth } from "../../lib/auth";
 import { usePricing } from "../../lib/PricingContext";
 import { useI18n } from "../../lib/i18n";
+import { useStudioI18n } from "../../lib/useStudioI18n";
 import { toast } from "sonner";
 import PhotoUpload from "../../components/PhotoUpload";
 import AspectPicker from "../../components/AspectPicker";
@@ -18,8 +20,11 @@ import useTitle from "../../lib/useTitle";
 import StudioAccordionSection from "../../components/StudioAccordionSection";
 import StudioGenerateBar from "../../components/StudioGenerateBar";
 import { readUserSettings } from "../../lib/userSettings";
+import { usePhotoAspectDefault, ASPECT_MATCH } from "../../lib/usePhotoAspectDefault";
 import { apiAspectRatio } from "../../lib/apiAspectRatio";
 import { useStudioGenerateGate } from "../../lib/useStudioGenerateGate";
+import PromptEnhanceToggle from "../../components/promptAssist/PromptEnhanceToggle";
+import { applyGenerationSurcharges, getSurcharges } from "../../lib/creditPricing";
 
 const SUBJECT_KEYS = [
   { value: "the man", labelKey: "studio_subj_man" },
@@ -29,16 +34,23 @@ const SUBJECT_KEYS = [
 
 export default function Generate() {
   const { t, lang } = useI18n();
+  const { errToast, clearUploadToast } = useStudioI18n();
   useTitle(t("sidebar_generate"));
   const { refresh, user, refundCredits } = useAuth();
-  const { costs } = usePricing();
+  const { costs, region } = usePricing();
+  const surcharges = useMemo(() => getSurcharges(region), [region]);
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
 
   const [photo, setPhoto] = useState(null);
   const [prompt, setPrompt] = useState(searchParams.get("prompt") || "");
   const [improve, setImprove] = useState(false);
-  const [aspect, setAspect] = useState(() => readUserSettings().aspect_ratio_default || "4:5");
+  const [hdQuality, setHdQuality] = useState(false);
+  const settingsFallback = (() => {
+    const d = readUserSettings().aspect_ratio_default || "4:5";
+    return d === ASPECT_MATCH ? "4:5" : d;
+  })();
+  const [aspect, setAspect] = usePhotoAspectDefault(photo, settingsFallback, settingsFallback);
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState(null);
   const [progress, setProgress] = useState(0);
@@ -55,12 +67,6 @@ export default function Generate() {
       .catch(() => setPadrao(FALLBACK_PADRAO_STYLES));
   }, []);
 
-  useEffect(() => {
-    if (photo) setAspect("match");
-    else if (aspect === "match") setAspect("4:5");
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [photo]);
-
   const padraoCats = useMemo(() => Array.from(new Set(padrao.map((s) => s.cat))), [padrao]);
   const padraoFiltered = padrao.filter((s) => s.cat === padraoCat);
   const picked = padrao.find((s) => s.id === pickedStyle);
@@ -71,8 +77,13 @@ export default function Generate() {
     if (photo && pickedStyle) return { mode: "easy", cost: costs.easy, ctaLabel: t("studio_cta_easy", { n: costs.easy }) };
     if (photo && !pickedStyle) return { mode: "edit", cost: costs.edit, ctaLabel: t("studio_cta_edit", { n: costs.edit }) };
     if (!photo && pickedStyle) return { mode: "blocked", cost: 0, ctaLabel: t("studio_cta_blocked") };
-    return { mode: "text", cost: costs.image, ctaLabel: t("studio_cta_text", { n: costs.image }) };
-  }, [photo, pickedStyle, costs, t]);
+    const textCost = applyGenerationSurcharges(costs.image, surcharges, {
+      improvePrompt: improve,
+      hdQuality,
+      hdMode: "image",
+    });
+    return { mode: "text", cost: textCost, ctaLabel: t("studio_cta_text", { n: textCost }) };
+  }, [photo, pickedStyle, costs, surcharges, t, improve, hdQuality]);
 
   const generateReady = mode !== "blocked"
     && (mode === "easy" || prompt.trim().length >= 3);
@@ -103,7 +114,9 @@ export default function Generate() {
       toast.error(t("studio_err_credits", { need: cost, have: user?.credits ?? 0 }));
       return;
     }
+    try { ensureBackgroundSlot(); } catch { return; }
 
+    clearUploadToast();
     setBusy(true); setResult(null); setProgress(0);
     let submitData;
     try {
@@ -130,23 +143,24 @@ export default function Generate() {
           aspect_ratio: apiAspectRatio(aspect, { model: "standard", hasPhoto: false }),
           num_outputs: 1,
           improve_prompt: improve,
+          hd_quality: hdQuality,
           lang: lang || "en",
         }, { timeout: 60000, headers: { "X-Skip-Auto-Poll": "1" } }));
       }
 
-      const data = await pollPrediction(submitData.prediction_id, {
-        onTick: (sec) => setProgress(sec),
+      trackPendingPrediction(submitData.prediction_id, {
         credits_spent: submitData.credits_spent || cost,
         type: "image",
       });
-      const creation = normalizeCreation(data?.creation);
-      if (!primaryResultUrl(creation)) throw new Error(t("common_no_result"));
-      setResult(creation);
-      toast.success(t("studio_success", { n: creation?.credits_spent ?? cost }));
+      dispatchBackgroundJob(submitData, {
+        type: "image",
+        creditsSpent: submitData.credits_spent || cost,
+        label: t("studio_eyebrow") || "Geração",
+      });
       await refresh();
+      // Result lands automatically in gallery + notifications when ready.
     } catch (err) {
-      const msg = formatApiError(err, t("studio_fail"), { context: "image_upload", t });
-      toast.error(msg, { duration: 9000 });
+      errToast(err);
       if (err?.refunded && submitData?.credits_spent && !submitData?.server_billing) {
         refundCredits?.(submitData.credits_spent, t("studio_refund_desc"));
       }
@@ -186,13 +200,33 @@ export default function Generate() {
               className="rp-editor-textarea min-h-[120px]"
               data-testid="prompt-input"
             />
-            <div className="flex items-center justify-between mt-3 gap-3 flex-wrap">
-              <label className="flex items-center gap-2.5 cursor-pointer group">
-                <input type="checkbox" checked={improve} onChange={(e) => setImprove(e.target.checked)} className="accent-[#7C3AED] w-3.5 h-3.5 rounded border-[#2E2E30]" data-testid="improve-toggle" />
-                <span className="text-[#8A8A8E] text-[12px] font-['Inter_Tight'] group-hover:text-[#b5b5ba] transition-colors">
-                  {t("studio_improve")} <span className="text-[#5A5A5E]">{t("studio_improve_free")}</span>
+            <div className="flex flex-col gap-2.5 mt-3">
+              <PromptEnhanceToggle
+                checked={improve}
+                onChange={setImprove}
+                locked={false}
+                onLockedClick={undefined}
+                testId="improve-toggle"
+                cost={surcharges.enhancePrompt ?? 3}
+              />
+              <label className="inline-flex items-center gap-2.5 cursor-pointer group">
+                <input
+                  type="checkbox"
+                  checked={hdQuality}
+                  disabled={false}
+                  onChange={(e) => {
+                    setHdQuality(e.target.checked);
+                  }}
+                  className="accent-[#7C3AED] w-3.5 h-3.5 rounded border-[#2E2E30]"
+                  data-testid="hd-quality-toggle"
+                />
+                <span className="text-[#8A8A8E] text-[12px] font-['Inter_Tight']">
+                  {t("studio_hd_quality")}{" "}
+                  <span className="text-[#A855F7] font-mono text-[10px]">+{surcharges.hdImage ?? 8}</span>
                 </span>
               </label>
+            </div>
+            <div className="flex justify-end mt-2">
               <span className="text-[#5A5A5E] text-[10px] font-mono tabular-nums">{prompt.length}/800</span>
             </div>
             <div className="flex flex-wrap gap-2 mt-4">
@@ -205,7 +239,12 @@ export default function Generate() {
             </div>
           </StudioAccordionSection>
 
-          <StudioAccordionSection title={t("studio_acc_styles")} defaultOpen={false} testId="studio-acc-styles">
+          <StudioAccordionSection
+            title={t("studio_acc_styles")}
+            defaultOpen={false}
+            testId="studio-acc-styles"
+            titleClassName="studio-customize-title"
+          >
             <button type="button" onClick={() => setShowStyles(!showStyles)} className="flex items-center gap-2 w-full text-left rp-editor-section-cap !text-[#a89bc9] hover:!text-[#c4b8e6] transition-colors mb-4" data-testid="toggle-styles">
               {t("studio_styles_toggle")} <span className="text-[#5A5A5E] font-['Inter_Tight'] normal-case tracking-normal text-[12px] font-normal">{t("studio_styles_optional")}</span>
               <span className="text-[#5A5A5E] ml-auto font-mono text-[11px]">{showStyles ? "−" : "+"}</span>

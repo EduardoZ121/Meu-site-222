@@ -14,7 +14,7 @@ import StudioGenerateBar from "../../../components/StudioGenerateBar";
 import StudioGenerateCostMeta from "../../../components/StudioGenerateCostMeta";
 import { useStudioGenerateGate } from "../../../lib/useStudioGenerateGate";
 import { useNavigate } from "react-router-dom";
-import { formatApiError, uploadPost } from "../../../lib/api";
+import { uploadPost } from "../../../lib/api";
 import { useAuth } from "../../../lib/auth";
 import { usePricing } from "../../../lib/PricingContext";
 import { useStudioMediaPreview } from "../../../hooks/useStudioMediaPreview";
@@ -48,12 +48,11 @@ const SOLID_COLORS = [
 /* ------------------------------------------------------------------ */
 
 export default function BgRemove() {
-  const { t } = useStudioI18n();
+  const { t, errToast, clearUploadToast } = useStudioI18n();
   const { t: tCatalogue } = useI18n();
   const navigate = useNavigate();
   const { user, refresh } = useAuth();
   const { costs } = usePricing();
-  const errMsg = (err) => formatApiError(err, t("common_fail"), { context: "image_upload", t });
   const scenePresets = useMemo(
     () => BG_SCENE_KEYS.map((key) => ({
       key,
@@ -107,6 +106,7 @@ export default function BgRemove() {
     if (mode === "custom" && customPrompt.trim().length < 4) {
       toast.error(t("bg_err_describe")); return;
     }
+    clearUploadToast();
     setBusy(true); setResult(null);
     try {
       const fd = new FormData();
@@ -124,7 +124,7 @@ export default function BgRemove() {
       toast.success(t("bg_success", { n: creation?.credits_spent ?? cost }));
       await refresh();
     } catch (err) {
-      toast.error(errMsg(err), { duration: 8000 });
+      errToast(err);
     } finally { setBusy(false); }
   };
 

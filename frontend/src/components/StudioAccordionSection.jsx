@@ -12,6 +12,7 @@ export default function StudioAccordionSection({
   children,
   testId,
   className,
+  titleClassName,
 }) {
   const headerId = useId();
   const panelId = useId();
@@ -68,7 +69,7 @@ export default function StudioAccordionSection({
         aria-controls={panelId}
         onClick={() => setOpen((v) => !v)}
       >
-        <span className="text-[11px] sm:text-[12px] font-mono font-semibold uppercase tracking-[0.12em] text-[#FACC15]">
+        <span className={cn("text-[11px] sm:text-[12px] font-mono font-semibold uppercase tracking-[0.12em] text-[#FACC15]", titleClassName)}>
           {title}
         </span>
         <ChevronDown

@@ -21,11 +21,16 @@ export default function StudioGenerateBar({
   buttonClassName = "",
   alignHint = "end",
   icon: Icon = Sparkles,
+  /** Quando o botão está bloqueado (ex.: upload), usar toast.message em vez de error. */
+  blockedNotify = "error",
 }) {
   const handleClick = async () => {
     if (busy) return;
     if (!ready) {
-      if (hint) toast.error(hint, { duration: 7000 });
+      if (hint) {
+        const notify = blockedNotify === "message" ? toast.message : toast.error;
+        notify(hint, { duration: 7000 });
+      }
       return;
     }
     try {

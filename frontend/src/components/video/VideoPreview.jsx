@@ -150,7 +150,7 @@ export default function VideoPreview({
         <p className="studio-video-upload__cloud-note flex items-start gap-2 mt-2">
           <AlertCircle className="w-3.5 h-3.5 shrink-0 mt-0.5 text-[#FACC15]" />
           <span>
-            {analysis?.likelyHevc ? t("vid_preview_hevc") : t("vid_preview_failed")}
+            {t("vid_preview_codec_hint")}
           </span>
         </p>
       ) : null}

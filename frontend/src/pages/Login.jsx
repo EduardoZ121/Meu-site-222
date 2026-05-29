@@ -1,36 +1,57 @@
-import { useState } from "react";
-import { Link, useNavigate, useLocation } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { Link, useNavigate, useLocation, useSearchParams } from "react-router-dom";
 import { motion } from "framer-motion";
 import { useAuth } from "../lib/auth";
 import { useI18n } from "../lib/i18n";
 import { isPwaStandalone } from "../lib/pwaMode";
+import { useAuthEmailStatus } from "../lib/useAuthEmailStatus";
 import { toast } from "sonner";
 import useTitle from "../lib/useTitle";
 import GoogleAuthButton from "../components/GoogleAuthButton";
 import Logo from "../components/Logo";
+import PasswordField from "../components/PasswordField";
+import AuthModeTabs from "../components/AuthModeTabs";
 import PwaLoginScreen from "../components/pwa/PwaLoginScreen";
 import PublicLanguageBar from "../components/PublicLanguageBar";
 
 function BrowserLogin() {
   const { t } = useI18n();
   useTitle(t("nav_login"));
-  const [email, setEmail] = useState("");
+  const [params] = useSearchParams();
+  const [email, setEmail] = useState(params.get("email") || "");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const { login, loginWithGoogle } = useAuth();
   const navigate = useNavigate();
   const loc = useLocation();
   const from = loc.state?.from || "/app/tools";
+  const { status: emailStatus, info: emailInfo } = useAuthEmailStatus(email);
+
+  useEffect(() => {
+    const q = params.get("email");
+    if (q) setEmail(q);
+  }, [params]);
 
   const onSubmit = async (e) => {
     e.preventDefault();
+    if (emailStatus === "new") {
+      toast.message(t("auth_email_new_hint"));
+      navigate(`/register?email=${encodeURIComponent(email.trim().toLowerCase())}`);
+      return;
+    }
     setLoading(true);
     try {
       await login(email, password);
       toast.success(t("login_success"));
       navigate(from);
     } catch (err) {
-      toast.error(err?.response?.data?.detail || "Login failed");
+      const detail = err?.response?.data?.detail || err?.message;
+      if (err?.response?.data?.code === "NOT_FOUND" || /não encontrada|not found/i.test(String(detail))) {
+        toast.error(t("auth_email_new_hint"));
+        navigate(`/register?email=${encodeURIComponent(email.trim().toLowerCase())}`);
+      } else {
+        toast.error(detail || t("auth_login_fail"));
+      }
     } finally {
       setLoading(false);
     }
@@ -43,7 +64,7 @@ function BrowserLogin() {
       toast.success(t("login_success"));
       navigate(from);
     } catch (err) {
-      toast.error(err?.message || "Google sign-in failed");
+      toast.error(err?.message || t("auth_google_fail"));
     } finally {
       setLoading(false);
     }
@@ -59,27 +80,65 @@ function BrowserLogin() {
       <div className="flex-1 flex items-center justify-center px-6 py-16">
         <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.7 }} className="w-full max-w-[420px]">
           <p className="eyebrow mb-5">{t("login_welcome")}</p>
-          <h1 className="heading-lg mb-10">
+          <h1 className="heading-lg mb-6">
             {t("login_title")} <span className="italic text-rp-lavender">{t("login_title_accent")}</span>.
           </h1>
+
+          <AuthModeTabs active="login" />
 
           <div className="mb-5">
             <GoogleAuthButton onCredential={onGoogle} />
           </div>
 
+          <div className="flex items-center gap-3 mb-5">
+            <div className="h-px flex-1 bg-white/10" />
+            <span className="text-[11px] font-mono uppercase tracking-[0.18em] text-rp-mute2">{t("auth_or_email")}</span>
+            <div className="h-px flex-1 bg-white/10" />
+          </div>
+
           <form onSubmit={onSubmit} className="space-y-5" data-testid="login-form">
             <div>
-              <label className="block text-[11px] font-mono uppercase tracking-[0.2em] text-rp-mute2 mb-3">{t("login_email")}</label>
-              <input value={email} onChange={(e) => setEmail(e.target.value)} type="email" required placeholder="you@studio.com" className="field-input" data-testid="login-email" />
+              <label htmlFor="login-email" className="block text-[11px] font-mono uppercase tracking-[0.2em] text-rp-mute2 mb-3">{t("login_email")}</label>
+              <input
+                id="login-email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                type="email"
+                required
+                autoComplete="email"
+                placeholder="you@studio.com"
+                className="field-input"
+                data-testid="login-email"
+              />
+              {emailStatus === "checking" && (
+                <p className="mt-2 text-[12px] text-rp-mute2">{t("auth_email_checking")}</p>
+              )}
+              {emailStatus === "new" && (
+                <p className="mt-2 text-[12px] text-amber-200/90" data-testid="login-email-new-hint">
+                  {t("auth_email_new_hint")}{" "}
+                  <Link to={`/register?email=${encodeURIComponent(email.trim().toLowerCase())}`} className="text-rp-lavender underline">
+                    {t("auth_tab_register")}
+                  </Link>
+                </p>
+              )}
+              {emailStatus === "exists" && emailInfo?.provider === "google" && (
+                <p className="mt-2 text-[12px] text-rp-mute">{t("auth_email_google_hint")}</p>
+              )}
             </div>
             <div>
               <div className="flex items-center justify-between mb-3">
-                <label className="block text-[11px] font-mono uppercase tracking-[0.2em] text-rp-mute2">{t("login_password")}</label>
+                <label htmlFor="login-password" className="block text-[11px] font-mono uppercase tracking-[0.2em] text-rp-mute2">{t("login_password")}</label>
                 <Link to="/forgot-password" className="text-[11px] text-rp-lavender hover:underline">{t("login_forgot")}</Link>
               </div>
-              <input value={password} onChange={(e) => setPassword(e.target.value)} type="password" required minLength={6} className="field-input" data-testid="login-password" />
+              <PasswordField
+                id="login-password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                autoComplete="current-password"
+                testId="login-password"
+              />
             </div>
-            <button type="submit" disabled={loading} className="btn-primary w-full disabled:opacity-50" data-testid="login-submit">
+            <button type="submit" disabled={loading || emailStatus === "checking"} className="btn-primary w-full disabled:opacity-50" data-testid="login-submit">
               {loading ? t("login_loading") : t("login_submit")}
             </button>
           </form>

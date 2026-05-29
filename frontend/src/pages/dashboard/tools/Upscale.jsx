@@ -7,7 +7,7 @@ import {
   Check, Move, RotateCcw, ZoomIn,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { formatApiError, uploadPost } from "../../../lib/api";
+import { uploadPost } from "../../../lib/api";
 import { useAuth } from "../../../lib/auth";
 import { usePricing } from "../../../lib/PricingContext";
 import ImageUploadZone from "../../../components/ImageUploadZone";
@@ -20,9 +20,8 @@ import { useI18n } from "../../../lib/i18n";
 import { useStudioI18n } from "../../../lib/useStudioI18n";
 
 export default function Upscale() {
-  const { t } = useStudioI18n();
+  const { t, errToast, clearUploadToast } = useStudioI18n();
   const { t: tCat } = useI18n();
-  const errMsg = (err) => formatApiError(err, t("common_fail"), { context: "image_upload", t });
   const navigate = useNavigate();
   const { user, refresh } = useAuth();
   const { costs } = usePricing();
@@ -62,6 +61,7 @@ export default function Upscale() {
 
   const run = async () => {
     if (!photo) { toast.error(t("common_upload_first")); return; }
+    clearUploadToast();
     setBusy(true); setResult(null);
     try {
       const fd = new FormData();
@@ -78,7 +78,7 @@ export default function Upscale() {
       toast.success(t("upscale_success", { scale, n: creation?.credits_spent ?? cost }));
       await refresh();
     } catch (err) {
-      toast.error(errMsg(err), { duration: 8000 });
+      errToast(err);
     } finally { setBusy(false); }
   };
 

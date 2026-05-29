@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import { toast } from "sonner";
-import { formatApiError, uploadPost } from "../../../lib/api";
+import { uploadPost } from "../../../lib/api";
+import { useStudioI18n } from "../../../lib/useStudioI18n";
 import { normalizeCreation, primaryResultUrl } from "../../../lib/creationUrls";
 import { useAuth } from "../../../lib/auth";
 import { usePricing } from "../../../lib/PricingContext";
@@ -18,7 +19,7 @@ export default function Inpaint() {
   const { t } = useI18n();
   const tools = useLocalizedTools();
   const tool = tools.find((x) => x.id === "inpaint");
-  const errMsg = (err) => formatApiError(err, t("common_fail"), { context: "image_upload", t });
+  const { errToast, clearUploadToast } = useStudioI18n();
   const { refresh } = useAuth();
   const { costs } = usePricing();
   const [photo, setPhoto] = useState(null);
@@ -65,6 +66,7 @@ export default function Inpaint() {
     if (prompt.trim().length < 3) { toast.error(t("tool_prompt_ph")); return; }
       const c = canvasRef.current;
       if (!c) { toast.error(t("inpaint_paint_first")); return; }
+      clearUploadToast();
       setBusy(true); setResult(null);
       try {
         const maxSide = 640;
@@ -88,7 +90,7 @@ export default function Inpaint() {
       setResult(creation);
       toast.success(t("studio_success", { n: creation?.credits_spent ?? 28 }));
       await refresh();
-    } catch (err) { toast.error(errMsg(err), { duration: 8000 }); }
+    } catch (err) { errToast(err); }
     finally { setBusy(false); }
   };
 

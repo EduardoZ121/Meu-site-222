@@ -23,6 +23,30 @@ function formatNotifText(t, key, vars) {
   return t(key, vars);
 }
 
+function playNotificationBeep() {
+  if (typeof window === "undefined") return;
+  const AudioCtx = window.AudioContext || window.webkitAudioContext;
+  if (!AudioCtx) return;
+  try {
+    const ctx = new AudioCtx();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = "sine";
+    osc.frequency.value = 1046; // C6-like "bing"
+    gain.gain.value = 0.0001;
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    const now = ctx.currentTime;
+    gain.gain.exponentialRampToValueAtTime(0.08, now + 0.01);
+    gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.18);
+    osc.start(now);
+    osc.stop(now + 0.19);
+    osc.onended = () => ctx.close().catch(() => {});
+  } catch {
+    /* ignore audio failures */
+  }
+}
+
 export function NotificationProvider({ children }) {
   const { t } = useI18n();
   const [items, setItems] = useState(() => loadNotifications());
@@ -36,6 +60,7 @@ export function NotificationProvider({ children }) {
     if (!detail?.type) return null;
     const entry = pushStoredNotification(detail);
     setItems(loadNotifications());
+    if (document.visibilityState === "visible") playNotificationBeep();
     return entry;
   }, []);
 

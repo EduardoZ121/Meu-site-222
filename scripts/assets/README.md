@@ -4,6 +4,8 @@ Coloca aqui as fotos base:
 
 - `ref_woman.jpg` — rosto/corpo da mulher
 - `ref_man.jpg` — rosto/corpo do homem
+- `ref_user_woman.jpg` — referência enviada pelo utilizador (mulher)
+- `ref_user_man.jpg` — referência enviada pelo utilizador (homem)
 
 Depois corre na raiz do projeto:
 

@@ -11,10 +11,17 @@ const {
 } = require("./pricingRegions.cjs");
 const { handleAdminRoute } = require("./lib/adminHandlers.cjs");
 const {
+  checkEmailRegistration,
+  registerEmailUser,
+  loginEmailUser,
+} = require("./lib/emailAuth.cjs");
+const {
   ADMIN_EMAILS,
   upsertGoogleUser,
   touchUser,
   getUserById,
+  repairUserAccountIfNeeded,
+  isAdminEmail,
   addCredits,
   recordPurchase,
   storageEnabled,
@@ -39,16 +46,34 @@ const {
   createImagePresignedUpload,
   getS3Config,
 } = require("./lib/s3Upload.cjs");
-const { getBlobReadWriteToken, isBlobConfigured } = require("./lib/blobEnv.cjs");
+const {
+  getBlobReadWriteToken,
+  isBlobConfigured,
+  isBlobDisabled,
+  blobPutOptions,
+} = require("./lib/blobEnv.cjs");
+
+function blobDisabledResponse(res) {
+  return json(res, 410, {
+    detail: "Vercel Blob está desligado neste projeto. Uploads usam POST directo (fotos comprimidas).",
+    blob_disabled: true,
+  });
+}
 const { listPosterTemplates } = require("./lib/posterTemplatesData.cjs");
 const { improvePrompt } = require("./lib/promptAssist.cjs");
+const {
+  applyGenerationSurcharges,
+  computeVideoGenerateCost,
+  computeVideoEditCostFromConfig,
+  computeArtisticEffectSurcharge,
+  restoreCostForLevel,
+  customPurchaseAmountCents,
+  getPricingMeta,
+  getSurcharges,
+} = require("./lib/creditPricing.cjs");
 
 function getPadraoStyle(styleId) {
   return PADRAO_STYLES_LIST.find((s) => s.id === String(styleId || "").trim()) || null;
-}
-
-function isAdminEmail(email) {
-  return ADMIN_EMAILS.has(String(email || "").trim().toLowerCase());
 }
 
 function sessionSecret() {
@@ -99,6 +124,26 @@ async function verifyGoogleCredential(credential) {
 }
 
 async function routeAuth(path, fields, req) {
+  if (path === "auth/register") {
+    const region = regionFromRequest(req, fields);
+    const user = await registerEmailUser({
+      email: text(fields, "email", ""),
+      password: text(fields, "password", ""),
+      name: text(fields, "name", ""),
+      referral_code: text(fields, "referral_code", ""),
+      pricing_region: region,
+    }, req);
+    return { token: signSession(user), user };
+  }
+
+  if (path === "auth/login") {
+    const user = await loginEmailUser({
+      email: text(fields, "email", ""),
+      password: text(fields, "password", ""),
+    }, req);
+    return { token: signSession(user), user };
+  }
+
   if (path === "auth/google") {
     const credential = fields.credential || fields.id_token;
     if (!credential) {
@@ -114,7 +159,7 @@ async function routeAuth(path, fields, req) {
     }
     const region = regionFromRequest(req, fields);
     const dbUser = await upsertGoogleUser(g, req, { pricing_region: region });
-    const unlimited = isAdminEmail(g.email) || Boolean(dbUser?.is_unlimited);
+    const unlimited = isAdminEmail(g.email);
     const user = dbUser || {
       id: `google_${g.sub}`,
       email: g.email,
@@ -137,8 +182,7 @@ async function routeAuth(path, fields, req) {
     return { token: signSession(user), user };
   }
 
-  // Email/password: sem base de dados no servidorless — o cliente usa contas locais (localStorage).
-  const err = new Error("Conta por email neste servidor não está disponível; usa registo/login local no navegador.");
+  const err = new Error("Pedido de autenticação inválido.");
   err.status = 404;
   throw err;
 }
@@ -152,28 +196,32 @@ const functionConfig = {
 const {
   QWEN_EDIT_MODEL,
   isNsfwStyleId,
+  isPhotographyStyleId,
+  isPhotographyRequest,
   resolveArtisticLabModel,
+  resolvePhotographyModel,
 } = require("./lib/artisticStudioEngines.cjs");
 
 function isArtisticExperimentalStyleId(styleId) {
   return isNsfwStyleId(styleId);
 }
 
-function resolveArtisticStudioModel({ styleId, hasPhoto, userDoc }) {
+function resolveArtisticStudioModel({ styleId, hasPhoto, userDoc, styleCat }) {
   const experimental = isArtisticExperimentalStyleId(styleId);
   if (experimental) {
-    const adminOk = userDoc?.role === "admin" || userDoc?.nsfw_allowed;
-    if (!adminOk) {
-      const err = new Error("Este estilo requer permissão NSFW na conta.");
-      err.status = 403;
-      throw err;
-    }
     if (!hasPhoto) {
       const err = new Error("AI Lab exige uma foto (Qwen Image Edit edita a referência).");
       err.status = 400;
       throw err;
     }
     return resolveArtisticLabModel();
+  }
+  if (isPhotographyRequest(styleId, styleCat)) {
+    return resolvePhotographyModel(hasPhoto);
+  }
+  // Grok devolve imagens brancas "NSFW" em edições com foto — usar Qwen em vez disso.
+  if (hasPhoto) {
+    return resolvePhotographyModel(true);
   }
   return { modelKey: "standard", modelId: MODELS.standard, label: MODELS.standard };
 }
@@ -293,21 +341,46 @@ async function normalizeUploadedImages(files) {
 
         const isHeifByMagic = sniffIsHeifLike(headBuf);
         const isHeifByName = /\.(heic|heif)$/i.test(name) || /image\/(heic|heif)/i.test(mime);
-        if (!isHeifByMagic && !isHeifByName) continue;
 
-        // Convert HEIF/HEIC → JPEG via sharp
+        // Also check if file is very large (>4 MB) — compress even if it's
+        // standard JPEG/PNG. Samsung Galaxy cameras produce 8–20 MB JPEGs and
+        // the browser canvas compression can fail silently.
+        const fileStat = await fsp.stat(file.filepath).catch(() => null);
+        const isOversized = fileStat && fileStat.size > 4 * 1024 * 1024;
+        const isImage = mime.startsWith("image/") || /\.(jpe?g|png|webp|gif|bmp|avif|heic|heif)$/i.test(name);
+
+        if (!isHeifByMagic && !isHeifByName && !isOversized) continue;
+        if (!isHeifByMagic && !isHeifByName && !isImage) continue;
+
+        // Convert HEIF/HEIC → JPEG, or compress oversized images via sharp.
+        // Always rotate (EXIF orientation) and cap at 2048px so AI models
+        // get a clean, reasonably-sized JPEG.
         const outPath = pathMod.join(
           os.tmpdir(),
           `rp-norm-${Date.now()}-${Math.random().toString(36).slice(2, 8)}.jpg`,
         );
-        await sharp(file.filepath, { failOn: "none" })
-          .rotate()
+        const pipeline = sharp(file.filepath, { failOn: "none" }).rotate();
+
+        // Only resize if oversized or HEIF (which can have huge dimensions)
+        if (isOversized || isHeifByMagic || isHeifByName) {
+          pipeline.resize({
+            width: 2048,
+            height: 2048,
+            fit: "inside",
+            withoutEnlargement: true,
+          });
+        }
+
+        await pipeline
           .jpeg({ quality: 88, mozjpeg: true })
           .toFile(outPath);
 
-        file.filepath = outPath;
-        file.mimetype = "image/jpeg";
-        file.originalFilename = name.replace(/\.[a-z0-9]{2,5}$/i, "") + ".jpg";
+        const outStat = await fsp.stat(outPath).catch(() => null);
+        if (outStat && outStat.size > 0) {
+          file.filepath = outPath;
+          file.mimetype = "image/jpeg";
+          file.originalFilename = name.replace(/\.[a-z0-9]{2,5}$/i, "") + ".jpg";
+        }
       } catch {
         /* leave file untouched on any failure */
       }
@@ -450,13 +523,14 @@ async function videoEditInput(fields, files) {
   }
   const userPrompt = text(fields, "prompt", "").trim();
   const prompt = buildVideoEditPrompt(userPrompt);
-  const resolution = text(fields, "resolution", "1080p");
+  const resolution = text(fields, "resolution", "original");
   const aspectRatio = text(fields, "aspect_ratio", "auto");
   const audioSetting = text(fields, "audio_setting", "origin");
+  const { mapResolutionForModel } = require("./lib/videoEditPricing.cjs");
   const input = {
     video,
     prompt,
-    resolution: resolution === "720p" ? "720p" : "1080p",
+    resolution: mapResolutionForModel(resolution),
     aspect_ratio: aspectRatio || "auto",
     audio_setting: audioSetting === "auto" ? "auto" : "origin",
   };
@@ -476,9 +550,9 @@ async function resolveImageRef(files, fields, fileKey, urlKey) {
 /** Upload de vídeo pelo servidor → Vercel Blob (fallback quando o browser não consegue PUT direto). */
 /** Upload de imagem pelo servidor → Vercel Blob (fallback quando o browser não consegue PUT directo). */
 async function routeUploadImageBlob(req, res) {
+  if (isBlobDisabled()) return blobDisabledResponse(res);
   try {
-    const blobToken = getBlobReadWriteToken();
-    if (!blobToken) {
+    if (!isBlobConfigured()) {
       return json(res, 503, { detail: "Armazenamento Blob não configurado." });
     }
     const auth = req.headers.authorization || "";
@@ -488,7 +562,7 @@ async function routeUploadImageBlob(req, res) {
     if (!bearer.startsWith("local:") && !verifySessionToken(bearer)) {
       return json(res, 401, { detail: "Sessão inválida ou expirada." });
     }
-    const maxBytes = 6 * 1024 * 1024;
+    const maxBytes = 12 * 1024 * 1024;
     const { files } = await parseBody(req, { maxFileSize: maxBytes + 512 * 1024 });
     await normalizeUploadedImages(files);
     const file = fileOf(files, "photo") || fileOf(files, "image");
@@ -498,7 +572,7 @@ async function routeUploadImageBlob(req, res) {
     const st = await fs.stat(file.filepath).catch(() => null);
     if (!st?.size) return json(res, 400, { detail: "Ficheiro de imagem inválido." });
     if (st.size > maxBytes) {
-      return json(res, 413, { detail: "Imagem muito grande. Máximo 5 MB." });
+      return json(res, 413, { detail: "Imagem muito grande. Máximo 12 MB." });
     }
     let fn = String(file.originalFilename || "photo.jpg").replace(/[^\w.\-]+/g, "_");
     if (!/\.[a-z0-9]{2,5}$/i.test(fn)) fn += ".jpg";
@@ -506,11 +580,7 @@ async function routeUploadImageBlob(req, res) {
     const mime = file.mimetype || "image/jpeg";
     const buf = await fs.readFile(file.filepath);
     const { put } = require("@vercel/blob");
-    const blob = await put(pathname, buf, {
-      access: "public",
-      token: blobToken,
-      contentType: mime,
-    });
+    const blob = await put(pathname, buf, blobPutOptions({ contentType: mime }));
     return json(res, 200, { url: blob.url });
   } catch (err) {
     return json(res, err.status || 500, {
@@ -520,9 +590,9 @@ async function routeUploadImageBlob(req, res) {
 }
 
 async function routeUploadVideoBlob(req, res) {
+  if (isBlobDisabled()) return blobDisabledResponse(res);
   try {
-    const blobToken = getBlobReadWriteToken();
-    if (!blobToken) {
+    if (!isBlobConfigured()) {
       return json(res, 503, { detail: "Armazenamento Blob não configurado." });
     }
     const auth = req.headers.authorization || "";
@@ -562,11 +632,7 @@ async function routeUploadVideoBlob(req, res) {
       await fs.unlink(uploadPath).catch(() => {});
     }
     const { put } = require("@vercel/blob");
-    const blob = await put(pathname, buf, {
-      access: "public",
-      token: blobToken,
-      contentType: mime,
-    });
+    const blob = await put(pathname, buf, blobPutOptions({ contentType: mime }));
     return json(res, 200, { url: blob.url });
   } catch (err) {
     return json(res, err.status || 500, {
@@ -576,10 +642,13 @@ async function routeUploadVideoBlob(req, res) {
 }
 
 async function routeBlobPrepare(req, res) {
+  if (isBlobDisabled()) return blobDisabledResponse(res);
   try {
     const blobToken = getBlobReadWriteToken();
     if (!blobToken) {
-      return json(res, 503, { detail: "Armazenamento Blob não configurado neste ambiente." });
+      return json(res, 503, {
+        detail: "Blob ligado ao projeto mas falta BLOB_READ_WRITE_TOKEN. No dashboard Vercel: Storage → remakepix-blob → ligar ao projeto e criar token Read/Write.",
+      });
     }
     const auth = req.headers.authorization || "";
     const m = auth.match(/^Bearer\s+(.+)$/i);
@@ -600,7 +669,7 @@ async function routeBlobPrepare(req, res) {
       token: blobToken,
       pathname,
       access: "public",
-      maximumSizeInBytes: isVideo ? 52 * 1024 * 1024 : 6 * 1024 * 1024,
+      maximumSizeInBytes: isVideo ? 52 * 1024 * 1024 : 12 * 1024 * 1024,
       allowedContentTypes: isVideo
         ? [
           "video/mp4",
@@ -615,6 +684,8 @@ async function routeBlobPrepare(req, res) {
           "image/gif",
           "image/avif",
           "image/bmp",
+          "image/heic",
+          "image/heif",
           "application/octet-stream",
         ],
       addRandomSuffix: true,
@@ -628,9 +699,13 @@ async function routeBlobPrepare(req, res) {
 async function parseBody(req, opts = {}) {
   const contentType = req.headers["content-type"] || "";
   if (contentType.includes("multipart/form-data")) {
+    // Samsung/iPhone HEIF files can be 8–20 MB and the browser often can't
+    // compress them (canvas fails on HEIC). Accept up to 12 MB so the server-
+    // side sharp conversion can handle them. The old 4.2 MB cap caused
+    // "Imagem muito grande" for perfectly valid phone photos.
     const form = formidable({
       multiples: true,
-      maxFileSize: opts.maxFileSize ?? 4.2 * 1024 * 1024,
+      maxFileSize: opts.maxFileSize ?? 12 * 1024 * 1024,
       maxFields: 200,
       maxFieldsSize: 4 * 1024 * 1024,
       allowEmptyFiles: true,
@@ -653,13 +728,54 @@ async function parseBody(req, opts = {}) {
 async function fileToDataUri(file) {
   if (!file) return null;
   const st = await fs.stat(file.filepath).catch(() => null);
-  if (st && st.size > 4 * 1024 * 1024) {
-    const err = new Error("Imagem recebida maior que o limite seguro (~4 MB) do alojamento.");
+  if (!st || !st.size) return null;
+
+  // If the file is too large for a data URI, try to compress it with sharp
+  // before giving up. This handles Samsung HEIF photos that survived
+  // normalizeUploadedImages (already JPEG) but are still >4 MB, and also
+  // regular large JPEGs the browser couldn't shrink enough.
+  const DATA_URI_HARD_CAP = 5.5 * 1024 * 1024;
+  const DATA_URI_COMPRESS_THRESHOLD = 4 * 1024 * 1024;
+
+  let filepath = file.filepath;
+  let mime = file.mimetype || "image/jpeg";
+
+  if (st.size > DATA_URI_COMPRESS_THRESHOLD) {
+    try {
+      const sharp = require("sharp");
+      const pathMod = require("path");
+      const os = require("os");
+      const outPath = pathMod.join(
+        os.tmpdir(),
+        `rp-duri-${Date.now()}-${Math.random().toString(36).slice(2, 8)}.jpg`,
+      );
+      await sharp(file.filepath, { failOn: "none" })
+        .rotate()
+        .resize({ width: 2048, height: 2048, fit: "inside", withoutEnlargement: true })
+        .jpeg({ quality: 82, mozjpeg: true })
+        .toFile(outPath);
+      const outSt = await fs.stat(outPath).catch(() => null);
+      if (outSt && outSt.size > 0 && outSt.size < st.size) {
+        filepath = outPath;
+        mime = "image/jpeg";
+      }
+    } catch {
+      // sharp compression failed — fall through with original
+    }
+  }
+
+  const finalSt = await fs.stat(filepath).catch(() => null);
+  if (finalSt && finalSt.size > DATA_URI_HARD_CAP) {
+    const err = new Error(
+      "Imagem ainda demasiado grande após compressão (~"
+      + Math.round(finalSt.size / 1024 / 1024)
+      + " MB). Tenta com uma foto mais pequena ou reduz a resolução.",
+    );
     err.status = 413;
     throw err;
   }
-  const mime = file.mimetype || "image/jpeg";
-  const buffer = await fs.readFile(file.filepath);
+
+  const buffer = await fs.readFile(filepath);
   return `data:${mime};base64,${buffer.toString("base64")}`;
 }
 
@@ -763,7 +879,7 @@ async function submitBillableGeneration(req, fields, {
       err.status = 403;
       throw err;
     }
-    if (dbUser?.is_unlimited) {
+    if (isAdminEmail(dbUser?.email)) {
       const prediction = await createPrediction(modelId, input);
       const pending = await createPending({
         id: newPendingId(),
@@ -911,12 +1027,12 @@ function buildClothesPrompt(fields, hasGarment) {
   const changeType = text(fields, "change_type", "full");
   if (hasGarment) {
     let p = (
-      "The image shows TWO photos side by side: a person on the LEFT and a clothing/outfit reference on the RIGHT. "
-      + "Output a single photo of ONLY the person from the LEFT, now wearing the outfit shown on the RIGHT. "
-      + "Preserve the person's identity, face, hair, body proportions and pose. "
-      + "Match the clothing's style, color, fabric and details precisely. "
-      + "Discard the garment-side panel and any background from the right photo. "
-      + "Photorealistic, natural lighting, clean background."
+      "Two reference images: (1) the person, (2) the clothing/outfit to wear. "
+      + "Generate exactly ONE photorealistic photo of that same person now wearing the outfit from image 2. "
+      + "Preserve face, identity, hair, body proportions and pose from image 1. "
+      + "Copy style, color, fabric, cut, patterns and details from the garment reference. "
+      + "Do NOT output a collage, split screen, diptych, or side-by-side comparison. "
+      + "Do NOT show both source images in the result — only the dressed person."
     );
     if (userPrompt) p += ` Additional notes: ${userPrompt}`;
     return p;
@@ -989,6 +1105,11 @@ async function imageInput(fields, files, modelKey, prompt, opts = {}) {
       input.aspect_ratio = "match_input_image";
     } else if (!input.aspect_ratio || input.aspect_ratio === "1:1") {
       input.aspect_ratio = "match_input_image";
+    }
+  }
+  if (modelKey === "kontext" || modelKey === "artistic" || modelKey === "pro") {
+    if (opts.photography || opts.photoEdit) {
+      input.disable_safety_checker = true;
     }
   }
   if (primary) {
@@ -1162,12 +1283,23 @@ async function routePost(path, fields, files, req) {
     let prompt = text(fields, "prompt", "").trim();
     if (!prompt) throw new Error("Escreve um prompt.");
     const lang = text(fields, "lang", "en").slice(0, 2);
-    if (truthyField(fields, "improve_prompt")) {
+    const wantsImprove = truthyField(fields, "improve_prompt");
+    const wantsHd = truthyField(fields, "hd_quality");
+    if (wantsImprove) {
       prompt = await improvePrompt(prompt, lang, {});
     }
+    if (wantsHd) {
+      prompt += "\n\nUltra high detail, sharp focus, professional photography quality, 8K clarity, refined textures.";
+    }
+    const surcharges = getSurcharges(region);
+    let imgCost = applyGenerationSurcharges(CREDIT.image, surcharges, {
+      improvePrompt: wantsImprove,
+      hdQuality: wantsHd,
+      hdMode: "image",
+    });
     const input = await imageInput(fields, files, "standard", prompt);
     return submitBillableGeneration(req, fields, {
-      cost: CREDIT.image,
+      cost: imgCost,
       type: "image",
       modelId: MODELS.standard,
       input,
@@ -1273,14 +1405,30 @@ async function routePost(path, fields, files, req) {
     } else if (user?.email && ADMIN_EMAILS.has(String(user.email).toLowerCase())) {
       userDoc = { email: user.email, role: "admin", nsfw_allowed: true };
     }
+    const styleCat = text(fields, "style_cat", "").trim();
+    const photography = isPhotographyRequest(styleId, styleCat);
     const { modelKey, modelId, label: modelLabel } = resolveArtisticStudioModel({
       styleId,
       hasPhoto,
       userDoc,
+      styleCat,
     });
-    const input = await imageInput(fields, files, modelKey, promptFinal, { experimental });
+    const useQwenPhoto = modelKey === "qwen";
+    const input = await imageInput(fields, files, modelKey, promptFinal, {
+      experimental: experimental || useQwenPhoto,
+      photography: photography || useQwenPhoto,
+      photoEdit: hasPhoto && !experimental,
+    });
+    let effects = {};
+    try {
+      const rawFx = text(fields, "effects_json", "{}");
+      effects = typeof rawFx === "string" ? JSON.parse(rawFx) : rawFx;
+    } catch {
+      effects = {};
+    }
+    const artisticCost = CREDIT.artistic + computeArtisticEffectSurcharge(effects, region);
     return submitBillableGeneration(req, fields, {
-      cost: CREDIT.artistic,
+      cost: artisticCost,
       type: "artistic",
       modelId,
       input,
@@ -1289,7 +1437,9 @@ async function routePost(path, fields, files, req) {
       modelUsed: modelLabel,
       spendDescription: isArtisticExperimentalStyleId(styleId)
         ? "Estúdio artístico · AI Lab (Qwen)"
-        : "Estúdio artístico",
+        : photography
+          ? "Estúdio artístico · Fotografia"
+          : "Estúdio artístico",
     });
   }
 
@@ -1474,9 +1624,12 @@ async function routePost(path, fields, files, req) {
   if (path === "generate/video") {
     const prompt = text(fields, "prompt", "").trim();
     if (!prompt) throw new Error("Descreve o vídeo.");
+    const surcharges = getSurcharges(region);
+    const duration = Number(text(fields, "duration", "6"));
+    const videoCost = computeVideoGenerateCost(CREDIT, surcharges, { duration });
     const input = await imageInput(fields, files, "video", prompt);
     return submitBillableGeneration(req, fields, {
-      cost: CREDIT.video,
+      cost: videoCost,
       type: "video",
       modelId: MODELS.video,
       input,
@@ -1488,9 +1641,24 @@ async function routePost(path, fields, files, req) {
   }
 
   if (path === "generate/video-edit") {
-    await requireAdminSession(req);
+    const lang = text(fields, "lang", "en").slice(0, 2);
+    if (truthyField(fields, "improve_prompt")) {
+      const raw = text(fields, "prompt", "").trim();
+      if (raw.length >= 3) {
+        fields.prompt = await improvePrompt(raw, lang, { tool: "video_edit" });
+      }
+    }
     const { input, prompt } = await videoEditInput(fields, files);
-    const cost = CREDIT.videoEdit ?? Math.max(CREDIT.video || 70, 85);
+    const surcharges = getSurcharges(region);
+    const { validateVideoEditOptions } = require("./lib/videoEditPricing.cjs");
+    const resOpts = validateVideoEditOptions({
+      resolution: text(fields, "resolution", "original"),
+      duration: text(fields, "duration", "6"),
+    });
+    let cost = computeVideoEditCostFromConfig(CREDIT, surcharges, resOpts);
+    if (truthyField(fields, "improve_prompt")) {
+      cost += surcharges.enhancePrompt ?? 3;
+    }
     return submitBillableGeneration(req, fields, {
       cost,
       type: "video",
@@ -1535,8 +1703,10 @@ async function routePost(path, fields, files, req) {
   if (path === "tools/restore") {
     const prompt = buildRestorePrompt(fields);
     const input = await imageInput(fields, files, "standard", prompt);
+    const level = text(fields, "level", "medio");
+    const restoreCost = restoreCostForLevel(CREDIT, level);
     return submitBillableGeneration(req, fields, {
-      cost: CREDIT.restore,
+      cost: restoreCost,
       type: "image",
       modelId: MODELS.standard,
       input,
@@ -1565,23 +1735,27 @@ async function routePost(path, fields, files, req) {
   if (path === "tools/clothes") {
     const person = await resolveImageRef(files, fields, "photo", "photo_url");
     const garment = await resolveImageRef(files, fields, "garment", "garment_url");
-    const composed = truthyField(fields, "composed");
-    const hasGarment = Boolean(garment) && !composed;
+    const hasGarment = Boolean(person && garment);
     const prompt = buildClothesPrompt(fields, hasGarment);
-    const input = { prompt };
-    if (composed || !garment) {
-      if (person) input.image = person;
-    } else if (person && garment) {
+    const input = { prompt, aspect_ratio: "match_input_image" };
+    let modelId = MODELS.standard;
+    let modelUsed = MODELS.standard;
+
+    if (hasGarment) {
       input.images = [person, garment];
+      modelId = MODELS.pro;
+      modelUsed = MODELS.pro;
     } else if (person) {
       input.image = person;
     }
+
     return submitBillableGeneration(req, fields, {
       cost: CREDIT.clothes,
       type: "image",
-      modelId: MODELS.standard,
+      modelId,
       input,
       prompt,
+      modelUsed,
       spendDescription: "Trocar roupa",
     });
   }
@@ -1608,14 +1782,28 @@ async function routePost(path, fields, files, req) {
 
   if (path === "stripe/checkout") {
     const packageId = text(fields, "package", "starter");
+    const customCreditsRaw = Number(text(fields, "custom_credits", 0));
     const region = regionFromRequest(req, fields);
     const cfg = getRegionConfig(region);
     const pkg = cfg.packages[packageId];
-    if (!pkg) {
-      const err = new Error("Pacote inválido.");
+    const hasCustom = Number.isFinite(customCreditsRaw) && customCreditsRaw > 0;
+    if (!pkg && !hasCustom) {
+      const err = new Error("Pacote inválido ou créditos personalizados em falta.");
       err.status = 400;
       throw err;
     }
+    const meta = getPricingMeta();
+    const minCredits = meta.minCustomCredits || 150;
+    const credits = hasCustom ? Math.round(customCreditsRaw) : pkg.credits;
+    if (credits < minCredits) {
+      const err = new Error(`Mínimo de ${minCredits} créditos por compra.`);
+      err.status = 400;
+      throw err;
+    }
+    const amountCents = hasCustom ? customPurchaseAmountCents(credits) : pkg.amount_cents;
+    const packageLabel = hasCustom ? "Custom" : pkg.name;
+    const packageTagline = hasCustom ? `${credits} créditos personalizados` : pkg.tagline;
+    const metadataPackage = hasCustom ? "custom" : packageId;
     const origin = fields.origin || "https://remakepix.com";
     const stripe = stripeClient();
     const session = await stripe.checkout.sessions.create({
@@ -1624,17 +1812,17 @@ async function routePost(path, fields, files, req) {
       line_items: [{
         price_data: {
           currency: cfg.currency,
-          unit_amount: pkg.amount_cents,
+          unit_amount: amountCents,
           product_data: {
-            name: `Remake Pixel — ${pkg.name} (${pkg.credits} créditos)`,
-            description: pkg.tagline,
+            name: `Remake Pixel — ${packageLabel} (${credits} créditos)`,
+            description: packageTagline,
           },
         },
         quantity: 1,
       }],
       metadata: {
-        package: packageId,
-        credits: String(pkg.credits),
+        package: metadataPackage,
+        credits: String(credits),
         pricing_region: region,
       },
       success_url: `${origin}/app/billing?checkout=success&session_id={CHECKOUT_SESSION_ID}`,
@@ -1719,6 +1907,8 @@ async function handlePath(path, req, res) {
         label: cfg.label,
         checkout_note: cfg.checkoutNote,
         credit_costs: getCreditCostsForRegion(region),
+        surcharges: getSurcharges(region),
+        pricing_meta: getPricingMeta(),
       });
     }
 
@@ -1739,55 +1929,30 @@ async function handlePath(path, req, res) {
     }
 
     if (req.method === "GET" && path === "blob/status") {
-      return json(res, 200, { blob: isBlobConfigured() });
+      return json(res, 200, {
+        blob: isBlobConfigured(),
+        blob_disabled: isBlobDisabled(),
+      });
     }
 
     if (req.method === "GET" && path === "upload/s3/status") {
-      const cfg = getS3Config();
-      return json(res, 200, {
-        s3: isS3Configured(),
-        cloudFront: cfg?.cloudFront || null,
+      return json(res, 410, {
+        s3: false,
+        disabled: true,
+        detail: "Upload AWS S3 desligado. Usa fotos comprimidas e vídeos até ~3 MB.",
       });
     }
 
     if (req.method === "POST" && path === "upload/s3/presign-video") {
-      const { user, isLocal } = resolveSessionUser(req);
-      if (!user?.id || isLocal) {
-        return json(res, 401, { detail: "Inicia sessão para enviar vídeos." });
-      }
-      const body = await readJsonRequestBody(req);
-      try {
-        const out = await createVideoPresignedUpload({
-          filename: body.filename,
-          contentType: body.contentType,
-          contentLength: body.contentLength,
-          userId: user.id,
-        });
-        await touchUser(user.id, req, { action: "s3_presign_video" });
-        return json(res, 200, out);
-      } catch (err) {
-        return json(res, err.status || 500, { detail: err.message || "Falha ao preparar upload." });
-      }
+      return json(res, 410, {
+        detail: "Upload AWS S3 desligado. Usa um vídeo mais curto (~3 MB).",
+      });
     }
 
     if (req.method === "POST" && path === "upload/s3/presign-image") {
-      const { user, isLocal } = resolveSessionUser(req);
-      if (!user?.id || isLocal) {
-        return json(res, 401, { detail: "Inicia sessão para enviar fotos." });
-      }
-      const body = await readJsonRequestBody(req);
-      try {
-        const out = await createImagePresignedUpload({
-          filename: body.filename,
-          contentType: body.contentType,
-          contentLength: body.contentLength,
-          userId: user.id,
-        });
-        await touchUser(user.id, req, { action: "s3_presign_image" });
-        return json(res, 200, out);
-      } catch (err) {
-        return json(res, err.status || 500, { detail: err.message || "Falha ao preparar upload." });
-      }
+      return json(res, 410, {
+        detail: "Upload AWS S3 desligado. Comprime a foto no browser.",
+      });
     }
 
     if (req.method === "GET" && path === "carousel/panorama-image") {
@@ -1855,8 +2020,12 @@ async function handlePath(path, req, res) {
         const tokenUser = tm ? verifySessionToken(tm[1].trim()) : null;
         if (tokenUser?.id) {
           const cfg = getRegionConfig(pricingRegion);
-          const pkg = cfg.packages[packageId];
-          const amount = pkg ? pkg.amount_cents / 100 : 0;
+          const pkg = packageId && packageId !== "custom" ? cfg.packages[packageId] : null;
+          const amount = pkg
+            ? pkg.amount_cents / 100
+            : typeof session.amount_total === "number"
+              ? session.amount_total / 100
+              : 0;
           const currency = cfg.currency || "eur";
           await recordPurchase({
             userId: tokenUser.id,
@@ -1895,6 +2064,17 @@ async function handlePath(path, req, res) {
       });
     }
 
+    if (req.method === "GET" && path === "auth/check-email") {
+      const url = new URL(req.url, `https://${req.headers.host || "localhost"}`);
+      const email = url.searchParams.get("email") || "";
+      try {
+        const out = await checkEmailRegistration(email);
+        return json(res, 200, out);
+      } catch (err) {
+        return json(res, err.status || 500, { detail: err.message || "Erro." });
+      }
+    }
+
     if (req.method === "GET" && path === "auth/me") {
       const auth = req.headers.authorization || "";
       const m = auth.match(/^Bearer\s+(.+)$/i);
@@ -1906,10 +2086,9 @@ async function handlePath(path, req, res) {
       const sessionUser = verifySessionToken(token);
       if (!sessionUser) return json(res, 401, { detail: "Sessão inválida ou expirada." });
       await touchUser(sessionUser.id, req, { action: "me" });
+      await repairUserAccountIfNeeded(sessionUser.id);
       const dbUser = await getUserById(sessionUser.id);
-      const user = dbUser
-        ? { ...sessionUser, ...dbUser, is_unlimited: dbUser.is_unlimited || isAdminEmail(dbUser.email) }
-        : sessionUser;
+      const user = dbUser || sessionUser;
       return json(res, 200, user);
     }
 
@@ -1944,17 +2123,27 @@ async function handlePath(path, req, res) {
       const tm = auth.match(/^Bearer\s+(.+)$/i);
       if (!tm) return json(res, 401, { detail: "Não autenticado." });
       const token = tm[1].trim();
+      const { runSupportChat, offlineReply } = require("./lib/supportAssistant.cjs");
+      const msgs = Array.isArray(body?.messages) ? body.messages : [];
       if (token.startsWith("local:")) {
-        return json(res, 503, {
-          detail: "O assistente precisa de conta ligada ao servidor. Entra com Google ou envia email ao suporte.",
+        const lastUser = [...msgs].reverse().find((m) => m?.role === "user");
+        const lang = String(body?.lang || "pt").slice(0, 2);
+        return json(res, 200, {
+          reply: offlineReply({
+            lang,
+            user: { name: "Utilizador", credits: 0 },
+            dbUser: null,
+            userText: lastUser?.content || "",
+          }),
+          model: "offline-local",
+          fallback: true,
         });
       }
       const sessionUser = verifySessionToken(token);
       if (!sessionUser) return json(res, 401, { detail: "Sessão inválida ou expirada." });
-      const { runSupportChat } = require("./lib/supportAssistant.cjs");
       try {
         const out = await runSupportChat({
-          messages: body.messages,
+          messages: msgs,
           lang: body.lang || sessionUser.lang || "en",
           user: sessionUser,
           page: body.page || "",
@@ -1971,7 +2160,9 @@ async function handlePath(path, req, res) {
     if (req.method === "POST") {
       const maxFileSize = path === "generate/video-edit"
         ? 54 * 1024 * 1024
-        : 4.2 * 1024 * 1024;
+        : path.startsWith("upload/")
+          ? 12 * 1024 * 1024
+          : 12 * 1024 * 1024; // Accept up to 12 MB — HEIF phones send 8-20 MB; sharp normalizes server-side
       const { fields, files } = await parseBody(req, { maxFileSize });
       // Normalize HEIF/HEIC → JPEG before downstream handlers consume the file
       await normalizeUploadedImages(files);
@@ -2007,7 +2198,7 @@ async function handlePath(path, req, res) {
       return json(res, 413, {
         detail: isVideoEdit
           ? "Vídeo muito grande. Máximo 50MB. Usa MP4 (H.264) ou MOV (ideal 2–10 s) ou recarrega para ativar o upload em nuvem."
-          : "O envio ultrapassou o limite (~4 MB) do servidor. Recarrega a página e tenta com uma foto em JPEG; o site comprime automaticamente.",
+          : "A imagem é demasiado grande para o servidor. Recarrega a página (Ctrl+F5) e tenta outra vez — o site comprime automaticamente antes de enviar.",
       });
     }
     return json(res, err.status || 500, { detail: err.message || "Erro no servidor de geração." });

@@ -1,7 +1,5 @@
 /** Offline Sofia replies when API is unavailable or account is local-only. */
 
-import { SITE_ORIGIN } from "./siteConfig";
-
 function firstName(user) {
   const raw = String(user?.name || "").trim();
   if (raw.length > 1) return raw.split(/\s+/)[0];
@@ -18,7 +16,7 @@ function replyFor(lang, user, userText) {
     ? (lang === "en" ? `Hey ${name}` : lang === "es" ? `Hola ${name}` : lang === "fr" ? `Salut ${name}` : `Olá ${name}`)
     : (lang === "en" ? "Hey" : lang === "es" ? "Hola" : lang === "fr" ? "Salut" : "Olá");
   const text = String(userText || "").toLowerCase();
-  const origin = typeof window !== "undefined" ? window.location.origin : SITE_ORIGIN;
+  const origin = typeof window !== "undefined" ? window.location.origin : "https://www.remakepix.com";
 
   if (/crédit|credit|credito|crédito/.test(text)) {
     if (lang === "en") {

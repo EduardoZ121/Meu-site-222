@@ -1,6 +1,5 @@
 import { readUserSettings } from "./userSettings";
 import { primaryResultUrl } from "./creationUrls";
-import { SITE_ORIGIN } from "./siteConfig";
 
 /** Apenas dígitos, com código de país (ex.: 351912345678). */
 export function normalizeWhatsAppPhone(raw) {
@@ -21,7 +20,7 @@ export function buildGenerationWhatsAppUrl(creation, { lang = "pt", siteOrigin }
   const { enabled, phone } = readWhatsAppPrefs();
   if (!enabled || !phone) return null;
 
-  const origin = siteOrigin || (typeof window !== "undefined" ? window.location.origin : SITE_ORIGIN);
+  const origin = siteOrigin || (typeof window !== "undefined" ? window.location.origin : "https://www.remakepix.com");
   const url = primaryResultUrl(creation);
   const type = creation?.type || "image";
   const spent = creation?.credits_spent;

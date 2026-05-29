@@ -19,12 +19,12 @@ export const NODE_DEFAULTS = {
   scenario: {
     name: "", timeOfDay: "day", weather: "clear", mood: "neutral",
     lighting: "bright", description: "",
-    refImage: null, refImageUrl: null,
+    refImage: null, refImageUrl: null, refPersistUrl: null, refUploading: false,
   },
   object: {
     name: "", description: "", size: "medium", state: "normal",
     interaction: "",
-    refImage: null, refImageUrl: null,
+    refImage: null, refImageUrl: null, refPersistUrl: null, refUploading: false,
   },
   speech: {
     text: "", bubbleType: "speech", style: "normal", tailDirection: "left",

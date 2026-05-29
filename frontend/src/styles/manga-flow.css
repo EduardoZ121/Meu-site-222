@@ -498,6 +498,14 @@
 .mfi-ref-preview__btn--danger:hover { color: #EF4444; background: rgba(239,68,68,0.08); }
 .mfi-ref-preview__hint { padding: 6px 10px; font-size: 10px; color: #4B5563; text-align: center; background: rgba(168,85,247,0.04); }
 
+/* Upload com brilho (ImageUploadZone) no inspector lateral */
+.manga-flow-ref-upload-wrap .manga-flow-ref-upload label {
+  min-height: 11rem;
+}
+.manga-flow-ref-upload-wrap .manga-flow-ref-upload label.min-h-\[12rem\] {
+  min-height: 11rem;
+}
+
 /* Legacy compat */
 .mfi-img-wrap { position: relative; border-radius: 8px; overflow: hidden; }
 .mfi-img { width: 100%; height: 110px; object-fit: cover; border-radius: 8px; display: block; }

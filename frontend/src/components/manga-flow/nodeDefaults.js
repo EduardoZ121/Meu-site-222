@@ -47,7 +47,7 @@ export const NODE_DEFAULTS = {
 
 export const PERSON_POSES = ["standing","running","sitting","jumping","fighting","hugging","looking_back","kneeling","leaning","crouching","walking","flying","falling","dancing","sleeping","pointing"];
 export const PERSON_EMOTIONS = ["normal","happy","angry","sad","surprised","serious","blushing","crying","laughing","scared","disgusted","confused","determined","smirking","embarrassed","exhausted"];
-export const PERSON_CAMERA = ["extreme_close_up","close_up","medium_close","medium","medium_full","full_body","wide","low_angle","high_angle","dutch_angle","over_shoulder","birds_eye"];
+export const PERSON_CAMERA = ["extreme_close_up","close_up","medium_close","medium","medium_full","full_body","wide","front_view","side_view","back_view","three_quarter_view","top_view","low_angle","high_angle","dutch_angle","over_shoulder","birds_eye","worms_eye","dynamic_perspective"];
 
 export const SCENARIO_TIME = ["day","sunset","night","dawn","midnight","noon","golden_hour","twilight"];
 export const SCENARIO_WEATHER = ["clear","rain","storm","snow","fog","windy","hail","cloudy"];
@@ -65,7 +65,7 @@ export const EFFECT_TYPES = ["motion_lines","impact","sparkle","explosion","spee
 export const EFFECT_INTENSITY = ["subtle","medium","strong","extreme"];
 
 export const CAMERA_SHOTS = ["extreme_close_up","close_up","medium","wide","establishing","panoramic"];
-export const CAMERA_ANGLES = ["eye_level","low_angle","high_angle","dutch_angle","birds_eye","worms_eye","over_shoulder"];
+export const CAMERA_ANGLES = ["eye_level","front_view","side_view","back_view","three_quarter_view","top_view","low_angle","high_angle","dutch_angle","birds_eye","worms_eye","over_shoulder","dynamic_perspective"];
 
 export const PANEL_SIZES = ["small","medium","large","full_page","double_spread"];
 export const PANEL_FORMATS = ["square","rectangle","tall","wide","dynamic","circle","diagonal"];

@@ -1544,7 +1544,8 @@ async function routePost(path, fields, files, req) {
     if (!promptFinal) throw new Error("Prompt em falta.");
     const generationMode = text(fields, "generation_mode", "").trim();
     const panelCountField = parseInt(text(fields, "panel_count", "0"), 10) || 0;
-    if (path === "generate/manga-page" || generationMode === "comic_sheet") {
+    const isComicSheet = path === "generate/manga-page" || generationMode === "comic_sheet";
+    if (isComicSheet) {
       const sheetBlock = buildMangaComicSheetBlock(panelCountField || 4);
       promptFinal = `${sheetBlock}\n\n${promptFinal}`;
     }
@@ -1558,7 +1559,8 @@ async function routePost(path, fields, files, req) {
       const dualBlock = buildMangaDualCharacterBlock(nameA, nameB, descA, descB);
       promptFinal = `${dualBlock}\n\n${promptFinal}`;
       const cost = Math.max(1, Number(CREDIT.mangaPanel) || 15);
-      const aspect = normalizeRatio(text(fields, "aspect_ratio", "4:5"), "qwen");
+      const requestedAspect = text(fields, "aspect_ratio", isComicSheet ? "3:4" : "4:5");
+      const aspect = normalizeRatio(isComicSheet ? "3:4" : requestedAspect, "qwen");
       const input = {
         prompt: finalizeImagePrompt(promptFinal, { modelKey: "qwen", hasPersonPhoto: true }),
         image: [photoAEarly, photoBEarly],
@@ -1600,7 +1602,7 @@ async function routePost(path, fields, files, req) {
     const aspectDefault = mode === "chapter" ? "9:16" : mode === "page" ? "3:4" : text(fields, "aspect_ratio", "4:5");
     const input = await imageInput(fields, files, modelKey, promptFinal);
     input.aspect_ratio = normalizeRatio(
-      text(fields, "aspect_ratio", "").trim() || aspectDefault,
+      isComicSheet ? "3:4" : (text(fields, "aspect_ratio", "").trim() || aspectDefault),
       modelKey,
     );
     const spendLabels = {

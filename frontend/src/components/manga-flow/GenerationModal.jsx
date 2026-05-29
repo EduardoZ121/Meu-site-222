@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo } from "react";
+import { useState, useCallback, useMemo, useEffect } from "react";
 import { X, Wand2, Download, Copy, Loader2, Sparkles, Image as ImageIcon, AlertCircle, BookOpen } from "lucide-react";
 import { buildFinalPrompt, buildFinalPagePrompt, countPanelNodes } from "./buildFlowPrompt";
 import { uploadPost, pollPrediction, trackPendingPrediction } from "../../lib/api";
@@ -77,6 +77,14 @@ export default function GenerationModal({ nodes, edges, onClose, onResult, pageC
   const isComicSheet = shouldUseComicSheetMode(nodes);
   const isMultiPanelPage = panelCount >= 2;
   const dualCharRefs = genPlan.refSlots.filter((s) => s.role === "character").length >= 2;
+
+  // Force portrait 3:4 aspect when generating a comic sheet (standard manga page format).
+  // Keeps the UI in sync with the server which already locks comic-sheet aspect.
+  useEffect(() => {
+    if (isComicSheet && aspect !== "3:4") {
+      setAspect("3:4");
+    }
+  }, [isComicSheet, aspect]);
   const promptSettings = {
     model,
     quality,

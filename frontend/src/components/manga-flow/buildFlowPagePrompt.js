@@ -14,10 +14,12 @@ import {
   personInteractions,
   getEdgePrompt,
   buildCastIdentitySection,
+  buildSceneGraphSummary,
   hasNodeRef,
 } from "../../lib/mangaFlowGraph";
 import { buildSemanticGraphSection } from "../../lib/mangaFlowSemantics";
 import { orchestrateMangaGeneration } from "../../lib/mangaFlowOrchestrator";
+import { getCharacterIdentityTag } from "../../lib/mangaCharacterRef";
 
 const ANTI_PORTRAIT = [
   "NOT a centered passport photo or ID portrait.",
@@ -57,8 +59,9 @@ function formatPersonInPanel(person, panelId, nodes, edges, refSlotByNodeId) {
   const d = person.data || {};
   const name = d.name || "Character";
   const slot = refSlotByNodeId.get(person.id);
+  const tag = getCharacterIdentityTag(person);
   const lines = [
-    `  • ${name}${slot ? ` [identity = reference image ${slot}]` : ""}:`,
+    `  • ${name} [${tag}]${slot ? ` [identity = reference image ${slot}]` : " [no reference photo]"}:`,
     `    Pose: ${(d.pose || "standing").replace(/_/g, " ")} | Expression: ${(d.emotion || "normal").replace(/_/g, " ")}`,
   ];
   const panelLink = getEdgePrompt(person.id, panelId, edges, nodes);
@@ -67,7 +70,9 @@ function formatPersonInPanel(person, panelId, nodes, edges, refSlotByNodeId) {
 
   if (d.clothing) lines.push(`    Outfit: ${d.clothing}`);
   if (slot) {
-    lines.push(`    MUST match reference image ${slot} exactly — same face, hair, skin, body. NOT a different person.`);
+    lines.push(`    IDENTITY LOCK: ${name} [${tag}] must match reference image ${slot} exactly — same face, hair, skin, body, outfit. NEVER reuse image ${slot} for any other character; NEVER place ${name}'s face on anyone else.`);
+  } else {
+    lines.push(`    NO-REFERENCE RULE: ${name} [${tag}] has no reference photo. Do NOT invent a generic anime face. Use ONLY the described traits above; if there are none, keep ${name} OUT of this panel rather than fabricate identity.`);
   }
 
   for (const obj of objectsForPerson(person.id, nodes, edges)) {
@@ -132,7 +137,16 @@ function refSlotMap(refSlots) {
  */
 export function buildPagePromptFromFlow(nodes, edges, context = {}, refSlots = []) {
   const orchestration = orchestrateMangaGeneration(nodes, edges, context, refSlots);
-  const lines = [orchestration.hiddenPrompt, ""];
+  const lines = [];
+
+  // Scene-graph binding rules go FIRST so the AI cannot miss them.
+  const sceneGraphBlock = buildSceneGraphSummary(nodes, orchestration.semanticEdges);
+  if (sceneGraphBlock) {
+    lines.push(sceneGraphBlock);
+    lines.push("");
+  }
+
+  lines.push(orchestration.hiddenPrompt, "");
 
   const semanticBlock = buildSemanticGraphSection(nodes, orchestration.semanticEdges);
   if (semanticBlock) lines.push(semanticBlock);
@@ -157,7 +171,7 @@ export function buildPagePromptFromFlow(nodes, edges, context = {}, refSlots = [
   }
 
   lines.push(
-    "Negative: duplicate panel content, identical panels, wrong faces, random anime extras, passport portraits, identity swap, watermark.",
+    "Negative: duplicate panel content, identical panels, wrong faces, random anime extras, NPCs not listed in CAST, passport portraits, identity swap between characters, blended/averaged faces, watermark.",
   );
 
   return lines.join("\n");

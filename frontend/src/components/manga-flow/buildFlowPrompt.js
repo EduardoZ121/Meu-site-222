@@ -6,6 +6,7 @@ import { buildSemanticGraphSection } from "../../lib/mangaFlowSemantics";
 import { buildPagePromptFromFlow, shouldUseGraphPrompt } from "./buildFlowPagePrompt";
 import { shouldUseComicSheetMode } from "../../lib/mangaFlowOrchestrator";
 import { resolveEdgeSemantics } from "../../lib/mangaFlowSemantics";
+import { buildSceneGraphSummary } from "../../lib/mangaFlowGraph";
 
 export function buildPromptFromFlow(nodes, edges) {
   if (!nodes.length) return "// No cards on canvas. Add characters, scenarios and objects to generate a prompt.";
@@ -24,6 +25,14 @@ export function buildPromptFromFlow(nodes, edges) {
   const objectRefs = sortNodesForRefs(byType.object || []).filter(hasRef);
 
   lines.push("=== MANGA PANEL — AI IMAGE PROMPT ===\n");
+
+  // Scene-graph binding rules go FIRST: the user's connections control everything.
+  if (edges?.length) {
+    const sceneGraphBlock = buildSceneGraphSummary(nodes, edges);
+    if (sceneGraphBlock) {
+      lines.push(sceneGraphBlock);
+    }
+  }
 
   // ── COMPOSITION ──
   if (byType.panel?.length) {

@@ -55,36 +55,159 @@ function upgradePadraoPrompt(prompt) {
   return out;
 }
 
-/** Qwen manga-interaction: two reference images = two different characters. */
+/** Explicit visual grid layouts so the AI knows WHERE each panel sits on the page. */
+const GRID_LAYOUTS = {
+  2: [
+    "Vertical 2-panel layout (3:4 portrait page):",
+    "  • Panel 1 — TOP HALF of the page (full width).",
+    "  • Panel 2 — BOTTOM HALF of the page (full width).",
+    "  • Visible thick black gutter between them.",
+  ],
+  3: [
+    "3-panel manga layout (3:4 portrait page):",
+    "  • Panel 1 — TOP HALF, full width (wide establishing).",
+    "  • Panel 2 — BOTTOM-LEFT half.",
+    "  • Panel 3 — BOTTOM-RIGHT half.",
+    "  • Visible black gutters between every panel.",
+  ],
+  4: [
+    "Classic 4-panel manga page layout (3:4 portrait):",
+    "  • Panel 1 — TOP-LEFT quadrant.",
+    "  • Panel 2 — TOP-RIGHT quadrant.",
+    "  • Panel 3 — BOTTOM-LEFT quadrant.",
+    "  • Panel 4 — BOTTOM-RIGHT quadrant.",
+    "  • Thick black gutters between all four panels forming a clean cross.",
+    "  • Read order: top-left → top-right → bottom-left → bottom-right.",
+  ],
+  5: [
+    "5-panel manga layout (3:4 portrait):",
+    "  • Panel 1 — TOP, full width.",
+    "  • Panels 2 & 3 — MIDDLE row, two equal halves.",
+    "  • Panels 4 & 5 — BOTTOM row, two equal halves.",
+  ],
+  6: [
+    "6-panel manga grid (3:4 portrait):",
+    "  • 3 rows × 2 columns of panels (top-row L/R, mid-row L/R, bottom-row L/R).",
+    "  • Read order: row by row, left-to-right.",
+    "  • Visible black gutters between every cell.",
+  ],
+};
+
+function buildGridLayoutLines(panelCount) {
+  const n = Math.max(2, Number(panelCount) || 4);
+  if (GRID_LAYOUTS[n]) return GRID_LAYOUTS[n];
+  return [
+    `${n}-panel manga page layout (3:4 portrait):`,
+    `  • Arrange ${n} panels in a clean grid with visible black gutters.`,
+    "  • Vary panel sizes for visual rhythm; read order left-to-right, top-to-bottom.",
+  ];
+}
+
+/** Server-side comic sheet block — enforces narrative variety per panel. */
 function buildMangaComicSheetBlock(panelCount = 4) {
   const n = Math.max(2, Number(panelCount) || 4);
-  return [
-    "COMIC SHEET GENERATION — MANDATORY:",
-    `- Output ONE complete manga PAGE with exactly ${n} DISTINCT panel regions (comic sheet layout).`,
-    "- Each panel shows a DIFFERENT story moment — different pose, action, camera and composition.",
-    "- FORBIDDEN: one image duplicated into identical panels; grid of same face; passport mugshots.",
-    "- Read panels left-to-right, top-to-bottom for narrative sequence.",
-    "- Maintain character identity from reference images across ALL panels — no face swap, no random NPCs.",
-    "- Respect per-panel cast: only characters linked to that panel beat appear in that panel.",
-    "- Cinematic dynamic framing per panel — not flat front-facing stock poses.",
-  ].join("\n");
+  // Stable rotation of shot sizes and camera angles so panels can never clone each other.
+  const SHOTS = [
+    "wide establishing shot showing full scene context",
+    "medium two-shot in 3/4 angle (NOT a front portrait)",
+    "extreme close-up on face/eyes for emotion",
+    "over-the-shoulder reaction shot",
+    "low-angle dynamic action shot (worm's-eye style)",
+    "high-angle wide reaction showing spatial layout",
+    "Dutch-angle tension shot with tilted horizon",
+    "side-view profile shot — body turned 90° to camera",
+  ];
+  const ANGLES = [
+    "eye-level cinematic with 3/4 body turn",
+    "low angle heroic, towering perspective",
+    "high angle vulnerable, looking down",
+    "dutch tilt — diagonal horizon",
+    "over-shoulder cinematic — foreground shoulder visible",
+    "bird's eye spatial top-down",
+    "worm's eye dramatic from the ground",
+    "back-view from behind, face hidden",
+  ];
+  const BEATS = [
+    "INTRODUCTION — establish scene, location and characters present",
+    "DEVELOPMENT — first action or reveal advances the story",
+    "REACTION — emotional response close-up; reaction to prior beat",
+    "DIALOGUE — characters speak; staged for legible balloons",
+    "TRANSITION — movement, time pass or location shift; visible change",
+    "TENSION — held suspense before release; dramatic shadow",
+    "CLIMAX — strongest dramatic peak of the page; maximum impact",
+    "AFTERMATH — quiet wind-down or consequence; resolves the beat",
+  ];
+  const lines = [
+    "COMIC SHEET GENERATION — MANDATORY PAGE LAYOUT:",
+    `- Output ONE manga PAGE composed of EXACTLY ${n} DIFFERENT panel regions with visible black gutters between them.`,
+    "- Panel sizes/shapes must VARY across the page (e.g. one wide cinematic panel, one tall close-up, two medium beats).",
+    "- Read order: left-to-right, top-to-bottom — panels form a clear sequential narrative.",
+    "- FORBIDDEN: outputting ONE single big image instead of a multi-panel page; splitting ONE image into equal squares without real different content; duplicating the same composition into multiple panels; identical poses or framings across adjacent panels; mirrored clone panels; static repeat of the same shot.",
+    "- FORBIDDEN: passport portraits, repeated mugshots, generic anime grid, single full-bleed illustration when multiple panels are requested.",
+    "- Each panel is a DIFFERENT story moment — different beat, different camera, different pose, different action.",
+    "- Maintain character identity (face, hair, skin, body, outfit) and scenario continuity ACROSS all panels — only beat/pose/camera change.",
+    "",
+    "VISUAL GRID (the AI MUST follow this physical layout):",
+    ...buildGridLayoutLines(n),
+    "",
+    "PER-PANEL NARRATIVE PLAN (use these beats in order — assign each to one panel of the page):",
+  ];
+  for (let i = 0; i < n; i += 1) {
+    const beat = BEATS[i % BEATS.length];
+    const shot = SHOTS[i % SHOTS.length];
+    const angle = ANGLES[(i + 1) % ANGLES.length];
+    lines.push(
+      `  Panel ${i + 1} → ${beat}. Shot: ${shot}. Camera angle: ${angle}. Composition must be unique to this panel — NEVER reuse the same framing as any other panel on this page.`,
+    );
+  }
+  lines.push(
+    "",
+    "CAMERA AUTHORITY (mandatory):",
+    "- Each panel's camera is HIGH PRIORITY — apply shot, angle and perspective literally.",
+    "- Body orientation MUST follow the camera (profile for side_view, from-behind for back_view, towering for low_angle, from-above for high_angle/birds_eye, tilted for dutch_angle, foreshortened for worms_eye, foreground shoulder for over_shoulder).",
+    "- Characters ACT inside the scene — never pose for the camera, no flat front mugshots, no selfies, no model stances.",
+    "",
+    "CONTINUITY RULES:",
+    "- Same characters keep the same face, hair, skin, outfit through every panel.",
+    "- Same location keeps the same architecture, lighting and color palette unless a panel explicitly transitions.",
+    "- Story progresses panel by panel; no panel is a duplicate of another.",
+  );
+  return lines.join("\n");
 }
 
 function buildMangaDualCharacterBlock(nameA, nameB, descA = "", descB = "") {
   const a = String(nameA || "Character A").trim() || "Character A";
   const b = String(nameB || "Character B").trim() || "Character B";
+  // Short stable per-name tags so the model has anchors that never collide.
+  const tagOf = (s) => {
+    let h = 5381;
+    const str = String(s);
+    for (let i = 0; i < str.length; i += 1) h = ((h << 5) + h) ^ str.charCodeAt(i);
+    return `ID:${(h >>> 0).toString(36).toUpperCase().padStart(4, "0").slice(-4)}`;
+  };
+  const tagA = tagOf(`A|${a}|${descA}`);
+  const tagB = tagOf(`B|${b}|${descB}`);
   const lines = [
     "DUAL CHARACTER REFERENCE — MANDATORY (read before scene description):",
-    `- Input reference image 1 is ONLY "${a}". ${a} must have the EXACT face, hairstyle, hair color, skin tone, ethnicity, body type and outfit from image 1.`,
-    `- Input reference image 2 is ONLY "${b}". ${b} must have the EXACT face, hairstyle, hair color, skin tone, ethnicity, body type and outfit from image 2.`,
-    `- ${a} and ${b} are DIFFERENT people. Do NOT swap identities. Do NOT use image 1's face on ${b}. Do NOT use image 2's face on ${a}.`,
-    `- Do NOT invent random NPCs, generic anime gym extras, or stock characters. Only ${a} and ${b} when the panel lists them.`,
-    "- Seamless in-place compositing: unified lighting, natural skin blend, no sticker/cutout look.",
-    "- Only pose, expression and camera angle may change — never face, hair or skin identity.",
-    "- Each manga panel section is isolated: do not merge unrelated beats or characters into one panel.",
-  ];
-  if (descA) lines.push(`- ${a} visual notes: ${String(descA).slice(0, 300)}`);
-  if (descB) lines.push(`- ${b} visual notes: ${String(descB).slice(0, 300)}`);
+    `EXCLUSIVE CAST: exactly 2 named characters exist: "${a}" [${tagA}] and "${b}" [${tagB}]. No other people, no random NPCs, no generic anime extras, no gym/crowd faces.`,
+    "",
+    `=== ${a} [${tagA}] — locked identity card ===`,
+    `- Reference image 1 is "${a}" ONLY. ${a}'s face, hairstyle, hair color, skin tone, ethnicity, body type and outfit must be taken EXACTLY from image 1.`,
+    `- Image 1 may NEVER be used as a source for any other character. ${a}'s face may NEVER appear on anyone else.`,
+    descA ? `- ${a} visual notes (locked): ${String(descA).slice(0, 300)}` : "",
+    "",
+    `=== ${b} [${tagB}] — locked identity card ===`,
+    `- Reference image 2 is "${b}" ONLY. ${b}'s face, hairstyle, hair color, skin tone, ethnicity, body type and outfit must be taken EXACTLY from image 2.`,
+    `- Image 2 may NEVER be used as a source for any other character. ${b}'s face may NEVER appear on anyone else.`,
+    descB ? `- ${b} visual notes (locked): ${String(descB).slice(0, 300)}` : "",
+    "",
+    "NON-MIXING RULES:",
+    `- ${a} [${tagA}] is NOT ${b} [${tagB}]. Do NOT swap, merge, blend or average their faces, hair, skin or outfits.`,
+    `- Do NOT use image 1's face on ${b}. Do NOT use image 2's face on ${a}.`,
+    `- Across all panels of this sheet: ${a} keeps the same face/hair/skin/outfit as image 1; ${b} keeps the same face/hair/skin/outfit as image 2. Only pose, expression and camera angle may change.`,
+    "- Seamless in-place compositing: unified lighting, natural skin blend, no sticker/cutout look, no face-swap artefacts.",
+    "- Each manga panel section is isolated: only the characters linked to that panel beat may appear in it.",
+  ].filter(Boolean);
   return lines.join("\n");
 }
 

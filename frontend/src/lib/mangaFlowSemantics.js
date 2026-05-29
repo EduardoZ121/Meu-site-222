@@ -33,48 +33,60 @@ export function getDefaultSemanticPrompt(sourceNode, targetNode) {
   const b = nodeName(targetNode);
 
   if (s === "person" && t === "person") {
-    return relationSemanticBlock("talking_to", a, b);
+    return (
+      relationSemanticBlock("talking_to", a, b) +
+      ` MUST appear together in the SAME panel/scene — both visible, both interacting. Never draw them in separate panels unless another connection says so.`
+    );
   }
 
   if (s === "person" && t === "scenario") {
     return (
-      `CHARACTER→SCENARIO: Place "${a}" inside environment "${b}". ` +
+      `CHARACTER→SCENARIO: "${a}" MUST be physically placed inside environment "${b}". ` +
       `The action happens in this specific location. Match scenario lighting, weather, mood and architecture. ` +
-      `"${a}" must be composited naturally into "${b}", not floating on a generic background.`
+      `"${a}" must be composited naturally into "${b}" — feet grounded, scale correct — not floating on a generic background. ` +
+      `The background of every panel showing "${a}" MUST be "${b}" unless another scenario link overrides it.`
     );
   }
 
   if (s === "scenario" && t === "person") {
     return (
-      `SCENARIO→CHARACTER: Environment "${a}" hosts character "${b}". ` +
-      `"${b}" belongs in this setting. Background must match "${a}" description.`
+      `SCENARIO→CHARACTER: Environment "${a}" MUST host character "${b}". ` +
+      `"${b}" belongs in this setting. Background of every panel with "${b}" must match "${a}".`
     );
   }
 
   if (s === "person" && t === "camera") {
+    const cd = targetNode?.data || {};
     return (
-      `CHARACTER→CAMERA: Frame "${a}" using camera setup "${b}" (${cameraDesc(targetNode)}). ` +
-      `"${a}" is the compositional focus. Apply shot size, angle and perspective to "${a}" — not a flat passport photo.`
+      `CHARACTER→CAMERA (HIGH PRIORITY): "${a}" is framed by camera "${b}" (${cameraDesc(targetNode)}). ` +
+      `This camera node is AUTHORITATIVE — it overrides any default front-facing portrait. ` +
+      `Apply the camera literally: shot size = ${cd.shotType || "medium"}, angle = ${cd.angle || "eye_level"}. ` +
+      `"${a}"'s body MUST be oriented to match this angle (side angle → profile body, back angle → from behind, over-shoulder → foreground shoulder of someone, low angle → towering up, etc.). ` +
+      `"${a}" is the compositional focus but must be acting inside the scene — NEVER posing for the camera.`
     );
   }
 
   if (s === "camera" && t === "person") {
+    const cd = sourceNode?.data || {};
     return (
-      `CAMERA→CHARACTER: When drawing "${b}", use camera "${a}" (${cameraDesc(sourceNode)}). ` +
-      `Cinematic framing, correct perspective and distance for "${b}".`
+      `CAMERA→CHARACTER (HIGH PRIORITY): Render "${b}" using camera "${a}" (${cameraDesc(sourceNode)}). ` +
+      `Camera is authoritative: shot = ${cd.shotType || "medium"}, angle = ${cd.angle || "eye_level"}. ` +
+      `"${b}"'s body orientation MUST follow this camera (profile for side, from-behind for back, foreshortened for low/worms-eye, tilted with dutch). ` +
+      `No default eye-level mugshot. No model-pose stance.`
     );
   }
 
   if (s === "person" && t === "object") {
     return (
-      `CHARACTER→OBJECT: "${a}" is holding, using or interacting with "${b}". ` +
-      `The object must be clearly visible and physically connected to "${a}" (hands, belt, ground nearby).`
+      `CHARACTER→OBJECT: "${a}" MUST be visibly holding, wielding, wearing or interacting with "${b}". ` +
+      `"${b}" must appear in "${a}"'s hand, belt, body or immediate reach — physically connected, not a separate floating prop. ` +
+      `Never omit "${b}" from any panel where "${a}" appears, unless another link removes it.`
     );
   }
 
   if (s === "object" && t === "person") {
     return (
-      `OBJECT→CHARACTER: "${b}" possesses or uses "${a}". Show "${a}" with "${b}" in the same frame.`
+      `OBJECT→CHARACTER: "${b}" MUST possess, hold or use "${a}". Show "${a}" together with "${b}" in the same frame, physically connected.`
     );
   }
 

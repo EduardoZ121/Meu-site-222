@@ -4,6 +4,7 @@
  */
 
 import { orderPersonsWithRefs } from "./mangaFlowGraph";
+import { getCharacterIdentityTag } from "./mangaCharacterRef";
 
 function hasRef(node) {
   const d = node?.data;
@@ -91,16 +92,17 @@ async function appendRefToFormData(fd, fieldName, node, filenameBase) {
  * @returns {{ endpoint: string, refSlots: Array<{ slot: number, role: string, label: string }>, warning?: string, error?: string }}
  */
 export function planMangaGeneration(nodes, edges = []) {
-  const { persons, scenarios, objects } = collectMangaRefNodes(nodes, edges);
+  const { persons: personsRaw, scenarios, objects } = collectMangaRefNodes(nodes, edges);
   const refSlots = [];
+  let extraWarning = "";
 
-  if (persons.length > 2) {
-    return {
-      endpoint: null,
-      refSlots: [],
-      error:
-        "Máximo de 2 imagens de referência por geração (personagens). Remove uma foto ou gera em duas etapas.",
-    };
+  // 3+ persons with refs: take the first two (graph reading order) and warn.
+  let persons = personsRaw;
+  if (personsRaw.length > 2) {
+    const dropped = personsRaw.slice(2).map((p) => p.data?.name || "Personagem").join(", ");
+    persons = personsRaw.slice(0, 2);
+    extraWarning =
+      `A API aceita 2 fotos por geração. Vou usar "${persons[0]?.data?.name || "Personagem 1"}" e "${persons[1]?.data?.name || "Personagem 2"}". Os restantes (${dropped}) não terão imagem ligada nesta geração — gera em duas etapas para incluí-los com identidade preservada.`;
   }
 
   if (persons.length >= 2) {
@@ -126,6 +128,9 @@ export function planMangaGeneration(nodes, edges = []) {
     if (scenarios.length > 0) {
       warning =
         "Dois personagens com foto: o cenário usa apenas o texto do prompt (a API aceita 2 imagens).";
+    }
+    if (extraWarning) {
+      warning = warning ? `${warning} ${extraWarning}` : extraWarning;
     }
     return { endpoint: "/generate/manga-interaction", refSlots, warning };
   }
@@ -221,11 +226,13 @@ export function buildReferenceSlotPromptSection(refSlots) {
   if (!refSlots?.length) return "";
 
   const lines = ["## REFERENCE IMAGE SLOTS (API — follow exactly)", ""];
+  const charSlots = refSlots.filter((s) => s.role === "character");
   for (const s of refSlots) {
     if (s.role === "character") {
       const who = s.characterName || s.label;
+      const tag = s.node ? getCharacterIdentityTag(s.node) : `ID:CH${s.slot}`;
       lines.push(
-        `Image ${s.slot} = "${who}" ONLY: use this image as the sole identity source for ${who}. Preserve EXACT face, hair color, hair style, skin tone, ethnicity, body proportions and outfit. Never assign this face to any other character.`,
+        `Image ${s.slot} = "${who}" [${tag}] ONLY. This image is the sole identity source for ${who}: exact face shape, eyes, nose, mouth, hair color, hair style, skin tone, ethnicity, body proportions and outfit. Image ${s.slot} must NEVER be used for any other character, and ${who}'s face must NEVER appear on anyone else.`,
       );
     } else if (s.role === "scenario") {
       lines.push(
@@ -237,12 +244,24 @@ export function buildReferenceSlotPromptSection(refSlots) {
       );
     }
   }
-  if (refSlots.length === 2 && refSlots.every((s) => s.role === "character")) {
+
+  if (charSlots.length >= 2) {
     lines.push("");
-    const a = refSlots[0].characterName || refSlots[0].label;
-    const b = refSlots[1].characterName || refSlots[1].label;
+    lines.push("## PER-CHARACTER ISOLATION (mandatory)");
+    charSlots.forEach((s) => {
+      const who = s.characterName || s.label;
+      const tag = s.node ? getCharacterIdentityTag(s.node) : `ID:CH${s.slot}`;
+      lines.push(
+        `- ${who} [${tag}] uses reference image ${s.slot} EXCLUSIVELY. Lock face, hair, skin, body and outfit from image ${s.slot}. Pose, expression and camera may change between panels — identity may NOT.`,
+      );
+    });
+    lines.push("");
+    const a = charSlots[0].characterName || charSlots[0].label;
+    const b = charSlots[1].characterName || charSlots[1].label;
+    const tagA = charSlots[0].node ? getCharacterIdentityTag(charSlots[0].node) : "ID:CHA";
+    const tagB = charSlots[1].node ? getCharacterIdentityTag(charSlots[1].node) : "ID:CHB";
     lines.push(
-      `Identity lock: "${a}" (image 1) and "${b}" (image 2) are different people in the same scene. Do NOT merge or swap faces. ${a} must look exactly like image 1; ${b} must look exactly like image 2. No random NPCs.`,
+      `Identity lock: "${a}" [${tagA}] (image ${charSlots[0].slot}) and "${b}" [${tagB}] (image ${charSlots[1].slot}) are DIFFERENT people sharing the same scene. Do NOT merge, swap, blend or average their faces. ${a} must look exactly like image ${charSlots[0].slot}; ${b} must look exactly like image ${charSlots[1].slot}. No random NPCs, no generic anime extras, no background faces.`,
     );
   }
   lines.push("");

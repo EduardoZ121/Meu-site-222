@@ -5,6 +5,12 @@
 
 import { enrichEdgesSemantics, resolveEdgeSemantics } from "./mangaFlowSemantics";
 import {
+  buildSceneState,
+  renderSceneStateBlock,
+  renderHiddenNodePromptsBlock,
+  PRIORITY_BLOCK,
+} from "./mangaSceneMemory";
+import {
   sortPanels,
   sortPersons,
   personsForPanel,
@@ -81,18 +87,26 @@ export { CHARACTER_RELATIONS, inferCharacterRelation, relationSemanticBlock };
 
 const ANTI_PORTRAIT = [
   "NOT a centered passport photo or ID portrait.",
-  "NO flat front-facing mugshot unless narrative role explicitly requires it.",
-  "Use cinematic manga framing: 3/4 turn, dynamic pose, scene-directed eyelines.",
+  "NO flat front-facing mugshot unless the camera is explicitly front_view AND the beat requires it.",
+  "Characters MUST NOT pose for the camera — they must act inside the scene (walking, fighting, talking, reacting).",
+  "Use cinematic manga framing: 3/4 turn, dynamic body, scene-directed eyelines.",
+  "Avoid stock-photo symmetry, model-pose stance, or selfie composition.",
 ];
 
 const ANGLE_DIRECTIVES = {
-  low_angle: "Camera below — heroic, imposing.",
-  high_angle: "Camera above — vulnerable, distant.",
-  dutch_angle: "Tilted horizon — tension, kinetic energy.",
-  birds_eye: "Top-down — spatial layout.",
-  over_shoulder: "Over-the-shoulder — cinematic dialogue or action.",
-  worms_eye: "Extreme low from ground.",
-  eye_level: "Eye-level cinematic — still avoid flat symmetry.",
+  eye_level: "Camera at eye-level — still use 3/4 turn, not flat mugshot.",
+  front_view: "Camera DIRECTLY in front — character faces camera, but with natural in-scene action (not posing for a photo).",
+  side_view: "Camera at character's SIDE — body MUST be turned 90° in profile. Show the character from the side; do not rotate them to face camera.",
+  back_view: "Camera BEHIND the character — show the character from the BACK. Face is hidden or barely visible; render hair, shoulders, back of outfit. Do not flip them to face camera.",
+  three_quarter_view: "Camera at 3/4 angle — body angled, one shoulder closer to camera; cinematic depth.",
+  top_view: "Camera DIRECTLY ABOVE looking down — top-down view of the character and ground around them.",
+  low_angle: "Camera BELOW the subject looking UP — heroic, imposing; chin and underside visible, towering perspective.",
+  high_angle: "Camera ABOVE the subject looking DOWN — vulnerable, distant; top of head and shoulders dominate.",
+  dutch_angle: "Camera tilted — visible horizon tilt, kinetic tension energy; characters lean with the tilt, never centered upright.",
+  birds_eye: "Top-down bird's-eye view — show spatial layout from far above.",
+  worms_eye: "Extreme low from the ground looking up — exaggerated perspective, feet and underside dominate.",
+  over_shoulder: "Over-the-shoulder framing — foreground shoulder/back visible, subject in mid-ground; cinematic dialogue or action staging.",
+  dynamic_perspective: "Dynamic dramatic perspective — strong foreshortening, diagonal composition, motion lines; never a flat front portrait.",
 };
 
 export function getNodeSemanticProfile(node) {
@@ -139,27 +153,56 @@ const NARRATIVE_ROLE_DIRECTIVES = {
   aftermath: "Resolution or quiet beat; wind-down composition, consequence visible.",
 };
 
-function formatCameraState(cameraNode, personNames = []) {
+function bodyDirectionForAngle(angle) {
+  switch (angle) {
+    case "side_view": return "Body MUST be in profile (90° turned). Do not flip character to face camera.";
+    case "back_view": return "Render character from BEHIND. Face hidden or barely visible; do not rotate them frontwards.";
+    case "three_quarter_view": return "Body angled 3/4 to camera; one shoulder closer than the other.";
+    case "over_shoulder": return "Foreground shoulder/back of one character visible; subject is in mid-ground.";
+    case "low_angle":
+    case "worms_eye": return "Body towering from below; underside of chin/objects visible.";
+    case "high_angle":
+    case "birds_eye":
+    case "top_view": return "Body seen from above; top of head, shoulders dominate.";
+    case "dutch_angle": return "Body leans with the tilt; never upright centered.";
+    case "dynamic_perspective": return "Strong foreshortening (a limb closer to camera than rest of body); diagonal action stance.";
+    case "front_view": return "Character can face camera, but in active scene posture (not posing).";
+    default: return "Natural in-scene body angle; do not face camera unless beat requires it.";
+  }
+}
+
+function formatCameraState(cameraNode, personNames = [], variety = null) {
   if (!cameraNode) {
+    const shot = variety?.shot || "medium";
+    const angle = variety?.angle || "eye_level";
     return {
-      shot: "medium",
-      angle: "eye_level",
-      directive: "Cinematic manga framing with dynamic composition.",
+      shot,
+      angle,
+      directive: [
+        `Camera (panel-specific, auto-assigned for variety): ${shot.replace(/_/g, " ")} shot, ${angle.replace(/_/g, " ")}.`,
+        ANGLE_DIRECTIVES[angle] || ANGLE_DIRECTIVES.eye_level,
+        bodyDirectionForAngle(angle),
+        "Composition must be UNIQUE to this panel — never copy framing from another panel.",
+        ...ANTI_PORTRAIT,
+      ].join(" "),
       antiPortrait: ANTI_PORTRAIT,
     };
   }
   const d = cameraNode.data || {};
   const shot = (d.shotType || "medium").replace(/_/g, " ");
   const angle = (d.angle || "eye_level").replace(/_/g, " ");
+  const angleKey = d.angle || "eye_level";
   const focus = d.focusTarget || (personNames[0] || "subject");
   return {
     shot,
     angle,
     focus,
     directive: [
-      `Apply ${shot} shot, ${angle}.`,
-      ANGLE_DIRECTIVES[d.angle] || ANGLE_DIRECTIVES.eye_level,
+      `CAMERA AUTHORITY (HIGH PRIORITY — must dominate composition): ${shot} shot, ${angle}.`,
+      ANGLE_DIRECTIVES[angleKey] || ANGLE_DIRECTIVES.eye_level,
+      bodyDirectionForAngle(angleKey),
       `Compositional focus: ${focus}.`,
+      "The connected camera node OVERRIDES any default front-facing portrait. Use this framing literally.",
       ...ANTI_PORTRAIT,
     ].join(" "),
   };
@@ -192,6 +235,22 @@ function enrichCharacterNode(person, panelId, nodes, edges, refSlotByNodeId) {
   };
 }
 
+/** Auto-variety rotation so no two panels share the same shot/angle/distance. */
+const PANEL_VARIETY_TABLE = [
+  { shot: "wide", angle: "eye_level", distance: "far", composition: "wide establishing — full bodies and environment" },
+  { shot: "medium", angle: "low_angle", distance: "medium", composition: "medium two-shot — characters in scene context" },
+  { shot: "close_up", angle: "eye_level", distance: "close", composition: "tight close-up — face/eyes intensity" },
+  { shot: "over_shoulder", angle: "over_shoulder", distance: "medium", composition: "over-the-shoulder reaction" },
+  { shot: "extreme_close_up", angle: "dutch_angle", distance: "very_close", composition: "extreme close-up on a key detail (hand, eye, prop)" },
+  { shot: "wide_action", angle: "high_angle", distance: "far", composition: "high-angle wide showing spatial layout" },
+  { shot: "medium", angle: "dutch_angle", distance: "medium", composition: "dutch-tilt tension medium shot" },
+  { shot: "full_body", angle: "worms_eye", distance: "medium", composition: "low worm's-eye dramatic full-body" },
+];
+
+function pickVariety(index) {
+  return PANEL_VARIETY_TABLE[index % PANEL_VARIETY_TABLE.length];
+}
+
 /**
  * Build isolated context per panel (no cross-panel contamination).
  */
@@ -211,6 +270,7 @@ export function buildPanelContexts(nodes, edges, refSlots = []) {
     const scenario = scenarioForPanel(panel.id, nodes, edges);
     const camera = cameraForPanel(panel.id, nodes, edges);
     const narrativeRole = inferNarrativeRole(index, panels.length, d);
+    const variety = pickVariety(index);
 
     const activeCharacters = persons.map((p) =>
       enrichCharacterNode(p, panel.id, nodes, edges, refMap),
@@ -224,10 +284,12 @@ export function buildPanelContexts(nodes, edges, refSlots = []) {
       narrative_role: narrativeRole,
       narrative_directive: NARRATIVE_ROLE_DIRECTIVES[narrativeRole] || "",
       momentDesc: d.momentDesc || d.promptOverride || "",
+      variety,
       isolation_rules: [
         "This panel is a sealed narrative container.",
         "Only listed characters appear here — no cast from other panels.",
-        "Do not duplicate the same pose/shot as adjacent panels.",
+        `This panel MUST use a DIFFERENT composition than adjacent panels: ${variety.composition}.`,
+        "Never reuse the same pose/shot/angle/framing as any other panel on this page.",
       ],
       continuation_memory: continuationSummary || null,
       active_characters: activeCharacters,
@@ -248,6 +310,7 @@ export function buildPanelContexts(nodes, edges, refSlots = []) {
       camera_state: formatCameraState(
         camera,
         activeCharacters.map((c) => c.name),
+        variety,
       ),
       speeches: speechesForPanel(panel.id, nodes, edges).map((s) => s.data?.text).filter(Boolean),
       effects: effectsForPanel(panel.id, nodes, edges).map(
@@ -289,11 +352,13 @@ export function buildComicSheetSpec(nodes, edges, context = {}, refSlots = []) {
     },
     interactions: personInteractions(nodes, semanticEdges),
     continuity_rules: [
-      "Generate ONE complete manga page / comic sheet with distinct panels.",
-      "Each panel shows a DIFFERENT story beat — never four identical copies.",
-      "Maintain character identity across all panels from reference slots.",
-      "Environment and lighting stay coherent unless the story changes setting.",
-      "Read panels left-to-right, top-to-bottom for narrative order.",
+      "Generate ONE complete manga page / comic sheet with multiple DISTINCT panels separated by clear gutters.",
+      "Each panel shows a DIFFERENT story beat — never duplicate a composition across panels.",
+      "Panels must vary in shot size, camera angle, distance and pose — no clone panels.",
+      "Maintain character identity (face, hair, skin, outfit) across all panels from reference slots.",
+      "Environment and lighting stay coherent unless the story explicitly changes setting.",
+      "Read panels left-to-right, top-to-bottom — the page tells ONE continuous story.",
+      "Do NOT split a single image into equal squares; build a real comic page with varied panel sizes.",
     ],
     semanticEdges,
   };
@@ -305,6 +370,11 @@ function renderPanelContextBlock(ctx) {
   lines.push(`Narrative role: ${ctx.narrative_directive}`);
   if (ctx.momentDesc) lines.push(`Beat: ${ctx.momentDesc}`);
   if (ctx.continuation_memory) lines.push(`Continuity from prior: ${ctx.continuation_memory}`);
+  if (ctx.variety) {
+    lines.push(
+      `Required composition (panel-unique): ${ctx.variety.composition}. Shot=${ctx.variety.shot.replace(/_/g, " ")}, angle=${ctx.variety.angle.replace(/_/g, " ")}, distance=${ctx.variety.distance.replace(/_/g, " ")}. NEVER repeat this framing in another panel.`,
+    );
+  }
   lines.push(`Camera: ${ctx.camera_state.directive}`);
 
   if (ctx.active_environment) {
@@ -328,7 +398,7 @@ function renderPanelContextBlock(ctx) {
 
   ctx.speeches.forEach((t) => lines.push(`Dialogue: "${t}"`));
   if (ctx.effects.length) lines.push(`FX: ${ctx.effects.join(", ")}`);
-  lines.push("ISOLATION: Do not import action, cast or background from other panels.");
+  lines.push("ISOLATION: Do not import action, cast or background from other panels. This panel is one unique beat in the page sequence.");
   lines.push("");
   return lines.join("\n");
 }
@@ -343,6 +413,18 @@ export function composeOrchestratedPrompt(sheet, refSlots = [], nodes = []) {
   lines.push("OUTPUT: ONE unified manga page (comic sheet) with multiple DISTINCT panels.");
   lines.push("FORBIDDEN: splitting one image into identical panels; passport portraits; random NPCs.");
   lines.push("");
+
+  // Priority order — resolves conflicts deterministically.
+  lines.push(PRIORITY_BLOCK);
+
+  // Hidden directives auto-generated from every node.
+  const hiddenBlock = renderHiddenNodePromptsBlock(nodes);
+  if (hiddenBlock) lines.push(hiddenBlock);
+
+  // Persistent scene memory across panels.
+  const sceneState = buildSceneState(sheet.panels, nodes);
+  const memoryBlock = renderSceneStateBlock(sceneState);
+  if (memoryBlock) lines.push(memoryBlock);
 
   sheet.continuity_rules.forEach((r) => lines.push(`• ${r}`));
   lines.push("");
@@ -368,8 +450,30 @@ export function composeOrchestratedPrompt(sheet, refSlots = [], nodes = []) {
 
   if (sheet.panel_count >= 2) {
     lines.push("## COMIC SHEET LAYOUT — SEQUENTIAL PANELS");
-    lines.push("Draw a professional manga page with clear panel gutters/borders.");
-    lines.push("Each section below is a SEPARATE panel with unique content:\n");
+    lines.push(
+      `Draw a professional manga PAGE with ${sheet.panel_count} DIFFERENT panels separated by visible black gutters/borders.`,
+    );
+    lines.push("Panel sizes/shapes VARY across the page (mix wide cinematic panels, tall close-ups, medium beats).");
+    lines.push("Read order: left-to-right, top-to-bottom — panels form a clear sequential STORY, not a grid of copies.");
+    lines.push("");
+    lines.push("### PAGE VARIETY MATRIX (each panel must use a different framing)");
+    sheet.panels.forEach((ctx, i) => {
+      if (ctx.variety) {
+        lines.push(
+          `- Panel ${i + 1}: ${ctx.variety.composition} (shot=${ctx.variety.shot.replace(/_/g, " ")}, angle=${ctx.variety.angle.replace(/_/g, " ")}).`,
+        );
+      } else {
+        lines.push(`- Panel ${i + 1}: unique composition required.`);
+      }
+    });
+    lines.push("");
+    lines.push("### NARRATIVE FLOW (sequence — do not break order)");
+    sheet.panels.forEach((ctx, i) => {
+      const beat = ctx.momentDesc || ctx.narrative_directive || ctx.narrative_role;
+      lines.push(`- Panel ${i + 1} [${ctx.narrative_role}]: ${beat}`);
+    });
+    lines.push("");
+    lines.push("### PER-PANEL DETAIL (each section = ONE separate panel with unique content)");
     sheet.panels.forEach((ctx) => lines.push(renderPanelContextBlock(ctx)));
   } else if (sheet.panel_count === 1) {
     lines.push("## SINGLE PANEL SCENE\n");
@@ -380,6 +484,24 @@ export function composeOrchestratedPrompt(sheet, refSlots = [], nodes = []) {
   lines.push("- Reference slot 1 and 2 map to specific characters — never cross-assign faces.");
   lines.push("- Secondary characters are NOT generic extras — use graph cast only.");
   lines.push("- Track outfit, hair and face across every panel on this sheet.");
+  lines.push("");
+
+  if (sheet.panel_count >= 2) {
+    lines.push("## ANTI-REPETITION (mandatory)");
+    lines.push("- Do NOT duplicate the same image across panels.");
+    lines.push("- Do NOT split a single composition into equal squares.");
+    lines.push("- Do NOT use the same pose, framing, distance, or background crop in adjacent panels.");
+    lines.push("- Each panel must visibly advance the story.");
+    lines.push("");
+  }
+
+  // Camera authority — make sure connected/auto cameras dominate composition.
+  lines.push("## CAMERA AUTHORITY (mandatory)");
+  lines.push("- Every camera node connected to a character has HIGH PRIORITY over the default eye-level portrait.");
+  lines.push("- Apply the camera literally: shot size, angle and perspective control the panel composition.");
+  lines.push("- Body orientation MUST follow the camera (profile for side_view, from-behind for back_view, towering for low_angle, foreshortened for worms_eye/dynamic_perspective, tilted for dutch_angle, over-shoulder framing for over_shoulder).");
+  lines.push("- Characters ACT inside the scene — they never pose for the camera, no selfies, no model stances, no flat mugshots.");
+  lines.push("- When no camera node is connected, use the auto-assigned variety camera from the page matrix above (still never default to front portrait).");
   lines.push("");
 
   return lines.join("\n");

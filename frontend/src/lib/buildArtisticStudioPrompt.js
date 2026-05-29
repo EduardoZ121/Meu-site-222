@@ -3,10 +3,14 @@ import {
   ARTISTIC_EFFECT_SECTIONS,
 } from "./artisticStudioData";
 import {
-  buildAiLabEditPrompt,
-  buildPhotoStyleEditPrompt,
-  buildPhotographyEditPrompt,
+  buildArtisticPhotoEditPrompt,
+  buildArtisticTextPrompt,
 } from "./artisticLabPrompt";
+import {
+  getArtisticStyleEditPrompt,
+  getArtisticStyleTextPrompt,
+  sanitizeEffectPrompt,
+} from "./artisticStylePrompts";
 
 export function getStyleById(styleId) {
   return ARTISTIC_STUDIO_STYLES.find((s) => s.id === styleId) || null;
@@ -18,11 +22,13 @@ function collectEffectPromptParts(effects = {}) {
     const value = effects[section.id];
     if (section.type === "radio" && value) {
       const opt = section.options.find((o) => o.id === value);
-      if (opt?.prompt) effectParts.push(opt.prompt);
+      if (opt?.prompt) effectParts.push(sanitizeEffectPrompt(opt.prompt));
     }
     if (section.type === "checkbox" && value && typeof value === "object") {
       for (const opt of section.options) {
-        if (value[opt.id] && opt.prompt) effectParts.push(opt.prompt);
+        if (value[opt.id] && opt.prompt) {
+          effectParts.push(sanitizeEffectPrompt(opt.prompt));
+        }
       }
     }
   }
@@ -32,7 +38,6 @@ function collectEffectPromptParts(effects = {}) {
 export function buildArtisticStudioPrompt({
   userPrompt = "",
   styleId = null,
-  styleCat = null,
   effects = {},
   imageMode = false,
 }) {
@@ -40,51 +45,19 @@ export function buildArtisticStudioPrompt({
   const style = getStyleById(styleId);
   const effectParts = collectEffectPromptParts(effects);
 
-  const styleSuffixParts = [];
-  if (style?.labPreset && imageMode) {
-    styleSuffixParts.push(
-      "Rapid edit preserving identity, face, exact age, pose and framing.",
-    );
-  }
-  if (style?.suffix) styleSuffixParts.push(style.suffix);
-  const styleSuffix = styleSuffixParts.filter(Boolean).join(". ");
-
-  if (style?.cat === "nsfw" && imageMode) {
-    return buildAiLabEditPrompt({
-      userPrompt: trimmed,
-      styleSuffix,
-      extras: effectParts,
-    });
-  }
-
-  const isPhotography =
-    style?.cat === "photography" || styleCat === "photography";
-
   if (imageMode) {
-    if (isPhotography) {
-      return buildPhotographyEditPrompt({
-        userPrompt: trimmed,
-        styleSuffix,
-        extras: effectParts,
-      });
-    }
-    return buildPhotoStyleEditPrompt({
+    return buildArtisticPhotoEditPrompt({
       userPrompt: trimmed,
-      styleSuffix,
-      extras: effectParts,
+      stylePrompt: getArtisticStyleEditPrompt(style),
+      effects: effectParts,
     });
   }
 
-  const parts = [];
-  if (trimmed) parts.push(trimmed);
-  if (style?.labPreset) {
-    parts.push("Experimental diffusion rendering with editorial finish.");
-  }
-  if (style?.suffix) parts.push(style.suffix);
-  parts.push(...effectParts);
-  parts.push("Ultra high quality, professional art direction, cohesive visual recipe.");
-
-  return parts.filter(Boolean).join(". ").replace(/\.\s*\./g, ".");
+  return buildArtisticTextPrompt({
+    userPrompt: trimmed,
+    stylePrompt: getArtisticStyleTextPrompt(style),
+    effects: effectParts,
+  });
 }
 
 export function buildRecipeChips({ styleId, effects = {} }) {

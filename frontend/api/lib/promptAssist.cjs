@@ -179,10 +179,9 @@ function buildImproveSystemPrompt(context = {}) {
     }
     if (imageMode) {
       system +=
-        " Mode: IMAGE EDIT on a reference photo — output ONLY the list of changes to apply. "
-        + "Start with 'Keep the same person, face, body, pose, skin tone, and exact age as the reference.' "
-        + "Then describe wardrobe, lighting, or background changes. Never add wrinkles, never age the subject, "
-        + "never change facial structure. Never ask for a new character.";
+        " Mode: IMAGE EDIT on a reference photo — describe ONLY wardrobe, background, lighting or scene changes. "
+        + "Never describe face changes, never add wrinkles, never change age or facial structure. "
+        + "Never ask for a new character.";
     } else {
       system += " Mode: TEXT-TO-IMAGE — describe the full scene to generate.";
     }

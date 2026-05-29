@@ -1098,6 +1098,7 @@ async function imageInput(fields, files, modelKey, prompt, opts = {}) {
       poster: opts.poster,
       hasPersonPhoto: opts.hasPersonPhoto ?? Boolean(primary && !opts.posterFood),
       photoEdit: Boolean(opts.photoEdit && primary),
+      artisticPhotoEdit: Boolean(opts.artisticPhotoEdit && primary),
     }),
     aspect_ratio: normalizeRatio(text(fields, "aspect_ratio", "1:1"), modelKey),
   };
@@ -1428,7 +1429,8 @@ async function routePost(path, fields, files, req) {
     const input = await imageInput(fields, files, modelKey, promptFinal, {
       experimental: experimental || useQwenPhoto,
       photography: photography || useQwenPhoto,
-      photoEdit: hasPhoto && !experimental,
+      photoEdit: hasPhoto,
+      artisticPhotoEdit: hasPhoto,
     });
     let effects = {};
     try {

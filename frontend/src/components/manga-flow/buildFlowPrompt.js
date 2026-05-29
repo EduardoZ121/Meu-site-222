@@ -2,6 +2,7 @@
  *  Includes strong character reference instructions when ref images exist. */
 
 import { buildReferenceSlotPromptSection, sortNodesForRefs } from "../../lib/mangaGenerationRefs";
+import { buildPagePromptFromFlow } from "./buildFlowPagePrompt";
 
 export function buildPromptFromFlow(nodes, edges) {
   if (!nodes.length) return "// No cards on canvas. Add characters, scenarios and objects to generate a prompt.";
@@ -75,7 +76,7 @@ export function buildPromptFromFlow(nodes, edges) {
       lines.push(`### ${name}`);
       lines.push(`- Body pose: ${pose} (the character MUST be in this exact pose, not just standing)`);
       lines.push(`- Facial expression: ${emotion}`);
-      lines.push(`- Camera framing: ${angle}`);
+      lines.push(`- Camera framing: ${angle} — NOT a flat front-facing portrait; body turned with the scene.`);
       if (d.clothing) lines.push(`- Outfit: ${d.clothing}`);
       if (d.actionDesc) lines.push(`- Action: ${d.actionDesc}`);
       if (d.layer && d.layer !== "midground") lines.push(`- Layer depth: ${d.layer}`);
@@ -273,9 +274,70 @@ const LIGHTING_PROMPTS = {
   moonlight: "cool moonlight, blue tones, night atmosphere",
 };
 
+function appendFinalStyleSections(lines, settings, nodes) {
+  const { model, quality, aspect, style, subStyle, detailLevel, lighting, mood, extraInstructions } = settings;
+
+  lines.push("");
+  lines.push("## STYLE");
+  if (STYLE_PROMPTS[style]) lines.push(STYLE_PROMPTS[style] + ".");
+  if (SUB_STYLE_PROMPTS[subStyle]) lines.push("Rendering: " + SUB_STYLE_PROMPTS[subStyle] + ".");
+  if (detailLevel === "extreme") lines.push("Extremely detailed, every line and texture visible, production-quality artwork.");
+  else if (detailLevel === "high") lines.push("Highly detailed artwork, clean professional finish.");
+  if (LIGHTING_PROMPTS[lighting]) lines.push("Lighting: " + LIGHTING_PROMPTS[lighting] + ".");
+  if (mood) lines.push("Mood: " + mood + " atmosphere.");
+  if (aspect) lines.push("Aspect ratio: " + aspect + ".");
+
+  if (extraInstructions?.trim()) {
+    lines.push("");
+    lines.push("## ADDITIONAL INSTRUCTIONS");
+    lines.push(extraInstructions.trim());
+  }
+
+  const hasRefs = nodes.some((n) => n.data?.refImageUrl);
+  if (hasRefs) {
+    lines.push("");
+    lines.push("## CHARACTER REFERENCE CONSISTENCY");
+    lines.push("Preserve exact identity from reference images in every panel; vary pose and camera only.");
+  }
+
+  if (model === "flux") {
+    lines.push("");
+    lines.push("Optimized for: Flux model (high consistency, detailed output).");
+  }
+
+  lines.push("");
+  lines.push("Negative: blurry, low quality, deformed, bad anatomy, extra fingers, duplicate panels with identical content, symmetric front-facing portrait pose, watermark, signature.");
+}
+
+/**
+ * Multi-panel page prompt + generation settings.
+ */
+export function buildFinalPagePrompt(nodes, edges, settings = {}) {
+  const { model, quality, aspect, style, pageContext = {}, refSlots } = settings;
+  const pageBody = buildPagePromptFromFlow(nodes, edges, pageContext);
+  if (!pageBody) return buildFinalPrompt(nodes, edges, settings);
+
+  const lines = [];
+  lines.push(QUALITY_PROMPTS[quality] || QUALITY_PROMPTS.high);
+  lines.push("Professional multi-panel manga page, print-ready, distinct story beats per frame.");
+  lines.push("");
+
+  if (refSlots?.length) {
+    const slotSection = buildReferenceSlotPromptSection(refSlots);
+    if (slotSection) lines.push(slotSection);
+  }
+
+  lines.push(pageBody);
+  appendFinalStyleSections(lines, settings, nodes);
+  return lines.join("\n");
+}
+
+export function countPanelNodes(nodes) {
+  return (nodes || []).filter((n) => n.type === "panel").length;
+}
+
 /**
  * Builds the FINAL prompt for AI generation, combining canvas data with generation settings.
- * @param {object} settings
  */
 export function buildFinalPrompt(nodes, edges, settings = {}) {
   const { model, quality, aspect, style, subStyle, detailLevel, lighting, mood, extraInstructions, refSlots } = settings;
@@ -300,44 +362,6 @@ export function buildFinalPrompt(nodes, edges, settings = {}) {
   const contentLines = styleIdx >= 0 ? canvasLines.slice(0, styleIdx) : canvasLines;
   lines.push(contentLines.join("\n"));
 
-  // Style section (from generation settings)
-  lines.push("");
-  lines.push("## STYLE");
-  if (STYLE_PROMPTS[style]) lines.push(STYLE_PROMPTS[style] + ".");
-  if (SUB_STYLE_PROMPTS[subStyle]) lines.push("Rendering: " + SUB_STYLE_PROMPTS[subStyle] + ".");
-  if (detailLevel === "extreme") lines.push("Extremely detailed, every line and texture visible, production-quality artwork.");
-  else if (detailLevel === "high") lines.push("Highly detailed artwork, clean professional finish.");
-  if (LIGHTING_PROMPTS[lighting]) lines.push("Lighting: " + LIGHTING_PROMPTS[lighting] + ".");
-  if (mood) lines.push("Mood: " + mood + " atmosphere.");
-  if (aspect) lines.push("Aspect ratio: " + aspect + ".");
-
-  // Extra instructions
-  if (extraInstructions?.trim()) {
-    lines.push("");
-    lines.push("## ADDITIONAL INSTRUCTIONS");
-    lines.push(extraInstructions.trim());
-  }
-
-  // Reference emphasis (if any refs exist)
-  const hasRefs = nodes.some(n => n.data?.refImageUrl);
-  if (hasRefs) {
-    lines.push("");
-    lines.push("## ⚠ CRITICAL: CHARACTER/REFERENCE CONSISTENCY");
-    lines.push("All reference images provided MUST be followed strictly.");
-    lines.push("Character faces, bodies, hairstyles and outfits must be IDENTICAL to references.");
-    lines.push("IP-Adapter / character reference weight: MAXIMUM.");
-    lines.push("Do NOT alter, reimagine or change any referenced character's appearance.");
-  }
-
-  // Model hint
-  if (model === "flux") {
-    lines.push("");
-    lines.push("Optimized for: Flux model (high consistency, detailed output).");
-  }
-
-  // Negative (common for all models)
-  lines.push("");
-  lines.push("Negative: blurry, low quality, deformed, bad anatomy, extra fingers, duplicate, watermark, signature, text artifacts.");
-
+  appendFinalStyleSections(lines, settings, nodes);
   return lines.join("\n");
 }

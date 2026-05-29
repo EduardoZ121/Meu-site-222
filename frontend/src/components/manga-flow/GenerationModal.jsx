@@ -1,6 +1,6 @@
 import { useState, useCallback } from "react";
 import { X, Wand2, Download, Copy, Loader2, Sparkles, Image as ImageIcon, AlertCircle } from "lucide-react";
-import { buildFinalPrompt } from "./buildFlowPrompt";
+import { buildFinalPrompt, buildFinalPagePrompt, countPanelNodes } from "./buildFlowPrompt";
 import { uploadPost, pollPrediction, trackPendingPrediction } from "../../lib/api";
 import {
   planMangaGeneration,
@@ -53,7 +53,7 @@ function Chips({ label, options, value, onChange }) {
   );
 }
 
-export default function GenerationModal({ nodes, edges, onClose, onResult }) {
+export default function GenerationModal({ nodes, edges, onClose, onResult, pageContext = null }) {
   const [model, setModel] = useState("grok");
   const [quality, setQuality] = useState("high");
   const [aspect, setAspect] = useState("3:4");
@@ -66,16 +66,29 @@ export default function GenerationModal({ nodes, edges, onClose, onResult }) {
   const [showPrompt, setShowPrompt] = useState(false);
 
   const genPlan = planMangaGeneration(nodes);
-  const finalPrompt = buildFinalPrompt(nodes, edges, {
+  const panelCount = countPanelNodes(nodes);
+  const isMultiPanelPage = panelCount >= 2;
+  const promptSettings = {
     model,
     quality,
     aspect,
     style,
     extraInstructions,
     refSlots: genPlan.refSlots,
-  });
+    pageContext: pageContext || {},
+  };
+  const finalPrompt = isMultiPanelPage
+    ? buildFinalPagePrompt(nodes, edges, promptSettings)
+    : buildFinalPrompt(nodes, edges, promptSettings);
   const modelDef = MODELS.find(m => m.id === model) || MODELS[0];
   const usesDualRef = genPlan.endpoint === "/generate/manga-interaction";
+  const generateEndpoint = genPlan.error
+    ? null
+    : usesDualRef
+      ? genPlan.endpoint
+      : isMultiPanelPage
+        ? "/generate/manga-page"
+        : genPlan.endpoint || "/generate/manga-panel";
 
   const copyPrompt = () => {
     navigator.clipboard.writeText(finalPrompt).then(() => toast.success("Prompt copied!")).catch(() => toast.error("Copy failed"));
@@ -113,7 +126,7 @@ export default function GenerationModal({ nodes, edges, onClose, onResult }) {
 
       setProgress(15);
 
-      const endpoint = genPlan.endpoint || "/generate/manga-panel";
+      const endpoint = generateEndpoint || "/generate/manga-panel";
       const { data: submitData } = await uploadPost(endpoint, fd, {
         timeout: 120000,
         headers: { "X-Skip-Auto-Poll": "1" },
@@ -165,7 +178,7 @@ export default function GenerationModal({ nodes, edges, onClose, onResult }) {
     } finally {
       setGenerating(false);
     }
-  }, [finalPrompt, aspect, modelDef, genPlan, usesDualRef, onResult]);
+  }, [finalPrompt, aspect, modelDef, genPlan, usesDualRef, generateEndpoint, onResult]);
 
   return (
     <div className="mfg-overlay" data-testid="generation-modal">
@@ -174,9 +187,10 @@ export default function GenerationModal({ nodes, edges, onClose, onResult }) {
           <div className="flex items-center gap-3">
             <div className="mfg-header__icon"><Sparkles className="w-5 h-5" /></div>
             <div>
-              <h2 className="mfg-header__title">Generate Manga Page</h2>
+              <h2 className="mfg-header__title">{isMultiPanelPage ? "Generate Manga Page" : "Generate Manga Panel"}</h2>
               <p className="mfg-header__sub">
                 {nodes.length} cards · {edges.length} connections
+                {isMultiPanelPage && <> · {panelCount} panels (sequenced storyboard)</>}
                 {genPlan.refSlots.length > 0 && (
                   <> · {genPlan.refSlots.length} ref{genPlan.refSlots.length > 1 ? "s" : ""}{usesDualRef ? " (2-image mode)" : ""}</>
                 )}

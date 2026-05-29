@@ -1,4 +1,4 @@
-/** Smart manga generation — each page is unique, follows story arc, respects all user choices */
+/** Smart manga generation — story-driven pages, distinct panel beats, cinematic cameras */
 
 import { uid } from "./mangaFlowData";
 import { NODE_DEFAULTS, NODE_COLORS } from "./nodeDefaults";
@@ -22,7 +22,6 @@ function edge(src, tgt, prompt, condition) {
 function pick(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
 function pickN(arr, n) { const s = [...arr].sort(() => Math.random() - 0.5); return s.slice(0, n); }
 
-// Story arc templates per genre
 const STORY_ARCS = {
   action: ["Introduction — calm before the storm", "Tension builds — something is wrong", "Confrontation begins", "Intense battle / chase", "Climax — full power clash", "Turning point", "Victory or defeat", "Aftermath — new beginning"],
   romance: ["First meeting — catching eyes", "Getting to know each other", "Growing closer — shared moment", "Conflict or misunderstanding", "Separation and longing", "Reconciliation", "Confession of feelings", "Together — happy ending"],
@@ -64,11 +63,39 @@ const EMOTIONS_BY_TONE = {
 
 const CAMERA_BY_MOMENT = {
   establishing: { shot: "establishing", angle: "high_angle" },
-  dialogue: { shot: "medium", angle: "eye_level" },
+  dialogue: { shot: "medium", angle: "over_shoulder" },
   action: { shot: "wide", angle: "dutch_angle" },
   emotion: { shot: "close_up", angle: "eye_level" },
   dramatic: { shot: "extreme_close_up", angle: "low_angle" },
   reveal: { shot: "wide", angle: "low_angle" },
+};
+
+const CAMERA_DEFAULT_SEQUENCE = {
+  varied: ["establishing", "dialogue", "action", "emotion", "dramatic", "reveal"],
+  close_ups: ["emotion", "dramatic", "emotion", "dialogue"],
+  wide_shots: ["establishing", "reveal", "establishing", "action"],
+  dynamic_angles: ["action", "dramatic", "reveal", "action"],
+  over_shoulder: ["dialogue", "dialogue", "action", "emotion"],
+  birds_eye: ["establishing", "reveal", "establishing", "dramatic"],
+};
+
+const SHOT_TO_PERSON_CAMERA = {
+  establishing: "wide",
+  wide: "wide",
+  medium: "medium",
+  close_up: "close_up",
+  extreme_close_up: "extreme_close_up",
+  panoramic: "wide",
+};
+
+const ANGLE_TO_PERSON_CAMERA = {
+  eye_level: null,
+  low_angle: "low_angle",
+  high_angle: "high_angle",
+  dutch_angle: "dutch_angle",
+  birds_eye: "birds_eye",
+  worms_eye: "low_angle",
+  over_shoulder: "over_shoulder",
 };
 
 const EFFECTS_BY_GENRE = {
@@ -98,14 +125,33 @@ const PANEL_SIZES_MAP = {
   asymmetric: ["large", "small", "medium", "small", "large", "medium"],
 };
 
+const PANEL_BEAT_ROLES = [
+  "establishing — set the scene and location",
+  "setup — introduce situation or characters",
+  "rising action — tension or movement begins",
+  "focus — character reaction or key detail close-up",
+  "climax beat — peak action or emotion",
+  "fallout — consequence or aftermath",
+  "transition — bridge to next page",
+  "reveal — new information or twist",
+];
+
+const PACING_PANEL_WEIGHT = {
+  slow: [0, 1, 2, 3],
+  normal: [0, 1, 2, 3],
+  fast: [2, 3, 3, 3],
+  cinematic: [0, 2, 3, 3],
+};
+
 function getArcText(genre, pageIndex, totalPages) {
   const arcs = STORY_ARCS[genre] || STORY_ARCS.action;
-  const idx = Math.min(Math.floor((pageIndex / totalPages) * arcs.length), arcs.length - 1);
+  const idx = Math.min(Math.floor((pageIndex / Math.max(1, totalPages)) * arcs.length), arcs.length - 1);
   return arcs[idx];
 }
 
-function getContext(pageIndex, totalPages) {
-  const ratio = pageIndex / totalPages;
+function getContext(pageIndex, totalPages, pacing) {
+  const ratio = pageIndex / Math.max(1, totalPages);
+  if (pacing === "fast" && ratio > 0.2) return ratio < 0.75 ? "fight" : "action";
   if (ratio < 0.15) return "calm";
   if (ratio < 0.3) return "tense";
   if (ratio < 0.5) return "action";
@@ -117,6 +163,66 @@ function getContext(pageIndex, totalPages) {
 function getTimeOfDay(pageIndex, totalPages) {
   const times = ["day", "day", "sunset", "night", "dawn", "day", "sunset", "night"];
   return times[pageIndex % times.length];
+}
+
+function parseStoryBeats(storyPrompt, synopsis, keyMoments) {
+  const fromMoments = String(keyMoments || "")
+    .split(/\n|;|•|·/)
+    .map((s) => s.trim())
+    .filter((s) => s.length > 4);
+  if (fromMoments.length) return fromMoments;
+
+  const text = String(storyPrompt || synopsis || "").trim();
+  if (!text) return [];
+
+  return text
+    .split(/(?<=[.!?])\s+/)
+    .map((s) => s.trim())
+    .filter((s) => s.length > 8);
+}
+
+function getPanelBeat({
+  beats, genre, pageIndex, totalPages, panelIndex, panelsPerPage, arcText, pacing,
+}) {
+  const globalIdx = pageIndex * panelsPerPage + panelIndex;
+  if (beats.length > globalIdx) return beats[globalIdx];
+  if (beats.length > pageIndex) {
+    const role = PANEL_BEAT_ROLES[panelIndex % PANEL_BEAT_ROLES.length];
+    return `${beats[pageIndex]} — ${role}`;
+  }
+
+  const weights = PACING_PANEL_WEIGHT[pacing] || PACING_PANEL_WEIGHT.normal;
+  const roleIdx = weights[panelIndex % weights.length] ?? panelIndex;
+  const role = PANEL_BEAT_ROLES[roleIdx % PANEL_BEAT_ROLES.length];
+  return `${arcText}: ${role}`;
+}
+
+function resolvePersonCamera(cam) {
+  const angleKey = ANGLE_TO_PERSON_CAMERA[cam.angle];
+  if (angleKey) return angleKey;
+  return SHOT_TO_PERSON_CAMERA[cam.shot] || "medium";
+}
+
+function getPanelCamera(cameraDefault, panelIndex, ctx) {
+  const seq = CAMERA_DEFAULT_SEQUENCE[cameraDefault] || CAMERA_DEFAULT_SEQUENCE.varied;
+  const camKey = seq[panelIndex % seq.length] || (ctx === "fight" ? "action" : "dialogue");
+  return CAMERA_BY_MOMENT[camKey] || CAMERA_BY_MOMENT.dialogue;
+}
+
+function splitDialogueLines(sampleDialogue, genre, count) {
+  const raw = String(sampleDialogue || "").trim();
+  if (raw) {
+    const lines = raw.split(/\n|"/).map((s) => s.trim()).filter((s) => s.length > 2);
+    if (lines.length) return lines;
+  }
+  const fallback = {
+    action: ["Let's go!", "I won't lose!", "Watch out!", "It's over!", "Not yet!", "Give me strength!"],
+    romance: ["I... I like you.", "Don't leave me.", "You're beautiful.", "Stay with me.", "I'm sorry..."],
+    horror: ["What was that?!", "Don't look back!", "We need to leave NOW!", "It's coming...", "Help!"],
+    comedy: ["WHAT?!", "That's not how it works!", "Run!!", "Hahahaha!", "Seriously?!"],
+    drama: ["Why did you lie?", "I trusted you.", "It's not that simple.", "I'm leaving.", "Forgive me."],
+  };
+  return fallback[genre] || fallback.action;
 }
 
 export function generateMangaFromWizard(answers) {
@@ -134,45 +240,68 @@ export function generateMangaFromWizard(answers) {
 
   const numPages = Math.min(Math.max(1, Number(pageCount)), 20);
   const ppp = Math.min(Math.max(2, Number(panelsPerPage)), 8);
-  const charsWithNames = characters.filter(c => c.name?.trim());
+  const charsWithNames = characters.filter((c) => c.name?.trim());
   const genreEffects = EFFECTS_BY_GENRE[genre] || EFFECTS_BY_GENRE.action;
   const toneEmotions = EMOTIONS_BY_TONE[tone] || EMOTIONS_BY_TONE.epic;
   const panelPositions = PANEL_LAYOUTS[ppp] || PANEL_LAYOUTS[4];
   const panelSizes = PANEL_SIZES_MAP[panelStyle] || PANEL_SIZES_MAP.classic_grid;
+  const storyBeats = parseStoryBeats(storyPrompt, synopsis, keyMoments);
+  const dialogueLines = splitDialogueLines(sampleDialogue, genre, numPages * ppp);
+  const storySynopsis = [synopsis, storyPrompt].filter(Boolean).join(" ").trim();
 
   const pages = [];
 
   for (let p = 0; p < numPages; p++) {
     const pageId = uid("pg");
     const arcText = getArcText(genre, p, numPages);
-    const ctx = getContext(p, numPages);
+    const ctx = getContext(p, numPages, pacing);
     const timeOfDay = getTimeOfDay(p, numPages);
     const nodes = [];
     const edges_arr = [];
 
-    // Panels
     const panelNodes = [];
     for (let i = 0; i < Math.min(ppp, panelPositions.length); i++) {
       const pos = panelPositions[i];
       const size = panelSizes[i % panelSizes.length] || "medium";
-      const pn = node("panel", pos.x, pos.y, { panelSize: size, format: i === 0 && p === 0 ? "wide" : "rectangle", name: `P${p + 1}.${i + 1}` });
+      const momentDesc = getPanelBeat({
+        beats: storyBeats,
+        genre,
+        pageIndex: p,
+        totalPages: numPages,
+        panelIndex: i,
+        panelsPerPage: ppp,
+        arcText,
+        pacing,
+      });
+      const pn = node("panel", pos.x, pos.y, {
+        panelSize: size,
+        format: i === 0 && p === 0 ? "wide" : "rectangle",
+        name: `P${p + 1}.${i + 1}`,
+        momentDesc,
+        promptOverride: momentDesc,
+      });
       nodes.push(pn);
       panelNodes.push(pn);
     }
 
-    // Scenario
     const sceneX = 550;
+    const pageStoryBit = storyBeats[p] || arcText;
     const scn = node("scenario", sceneX, 40, {
-      name: `${arcText}`,
+      name: pageStoryBit.slice(0, 60),
       timeOfDay,
       weather: p === numPages - 1 ? "clear" : weather,
       mood: tone,
       lighting,
-      description: `${location || "Scene"} — ${era}. ${arcText}. ${worldDetails ? worldDetails.slice(0, 100) : ""}`,
+      description: [
+        location || "Scene",
+        era,
+        pageStoryBit,
+        worldDetails ? worldDetails.slice(0, 120) : "",
+        storySynopsis ? storySynopsis.slice(0, 150) : "",
+      ].filter(Boolean).join(" — "),
     });
     nodes.push(scn);
 
-    // Characters — rotate who appears per page, ensure variety
     const maxCharsPerPage = Math.min(charsWithNames.length || 1, ctx === "fight" ? 3 : 2);
     const pageChars = charsWithNames.length > 0
       ? pickN(charsWithNames, maxCharsPerPage)
@@ -181,56 +310,63 @@ export function generateMangaFromWizard(answers) {
     const charNodes = [];
     pageChars.forEach((ch, ci) => {
       const poses = POSES_BY_CONTEXT[ctx] || POSES_BY_CONTEXT.calm;
-      const emotion = pick(toneEmotions);
-      const pose = pick(poses);
-      const camTypes = Object.keys(CAMERA_BY_MOMENT);
-      const camCtx = ci === 0 ? (ctx === "fight" ? "action" : ctx === "calm" ? "establishing" : "dialogue") : "emotion";
-
       const cn = node("person", sceneX, 180 + ci * 200, {
         name: ch.name,
-        pose,
-        emotion,
-        cameraAngle: CAMERA_BY_MOMENT[camCtx]?.shot || "medium",
+        pose: pick(poses),
+        emotion: pick(toneEmotions),
+        cameraAngle: "medium",
         clothing: ch.appearance || "",
-        actionDesc: `${arcText}. ${ch.personality || ""}`,
-        speech: ch.catchphrase && p === 0 ? ch.catchphrase : "",
+        actionDesc: `${pageStoryBit}. ${ch.personality || ""} ${ch.powers ? `(${ch.powers})` : ""}`.trim(),
+        speech: ch.catchphrase && p === 0 && ci === 0 ? ch.catchphrase : "",
         speechType: bubbleStyle !== "normal" ? bubbleStyle : "speech",
       });
       nodes.push(cn);
       charNodes.push(cn);
-
-      // Connect to scenario
-      const actionVerbs = {
-        calm: ["standing in", "observing", "arriving at", "resting in"],
-        tense: ["watching carefully in", "hiding in", "running through"],
-        fight: ["fighting in", "attacking in", "defending in"],
-        action: ["racing through", "jumping across", "charging through"],
-        emotional: ["standing alone in", "crying in", "reflecting in"],
-        romantic: ["walking together in", "sitting together in"],
-      };
-      edges_arr.push(edge(cn.id, scn.id, `${ch.name} ${pick(actionVerbs[ctx] || actionVerbs.calm)} the scene`));
-
-      // Connect to first available panel
-      if (panelNodes[ci]) {
-        edges_arr.push(edge(cn.id, panelNodes[ci].id, "Featured in this panel"));
-      }
+      edges_arr.push(edge(cn.id, scn.id, `${ch.name} in this scene — ${pageStoryBit.slice(0, 80)}`));
     });
 
-    // Character interactions (if 2+ chars)
+    panelNodes.forEach((pn, i) => {
+      const ch = pageChars[i % pageChars.length];
+      const charNode = charNodes.find((c) => c.data.name === ch.name) || charNodes[0];
+      if (!charNode) return;
+
+      const panelBeat = pn.data.momentDesc;
+      const panelCam = getPanelCamera(cameraDefault, i, ctx);
+
+      const actionVerbs = {
+        calm: "observes",
+        tense: "watches tensely in",
+        fight: "fights within",
+        action: "moves through",
+        emotional: "reacts emotionally in",
+        romantic: "connects with someone in",
+      };
+      edges_arr.push(
+        edge(charNode.id, pn.id, `${ch.name} ${actionVerbs[ctx] || "appears in"} panel: ${panelBeat}`),
+      );
+
+      const camN = node("camera", pn.position.x + 180, pn.position.y + 20, {
+        shotType: panelCam.shot,
+        angle: panelCam.angle,
+        focusTarget: ch.name,
+      });
+      nodes.push(camN);
+      edges_arr.push(edge(camN.id, pn.id, `Cinematic framing for panel ${i + 1}`));
+    });
+
     if (charNodes.length >= 2) {
       const interactionsByCtx = {
-        calm: ["talking casually with", "walking alongside"],
+        calm: ["talking with", "walking alongside"],
         tense: ["arguing with", "staring down"],
-        fight: ["attacking", "blocking strike from", "clashing weapons with"],
-        action: ["chasing after", "racing against"],
-        emotional: ["comforting", "reaching out to", "crying with"],
-        romantic: ["holding hands with", "looking lovingly at"],
+        fight: ["clashing with", "blocking", "fighting"],
+        action: ["chasing", "racing against"],
+        emotional: ["comforting", "reaching out to"],
+        romantic: ["holding hands with", "looking at"],
       };
       const interaction = pick(interactionsByCtx[ctx] || interactionsByCtx.calm);
       edges_arr.push(edge(charNodes[0].id, charNodes[1].id, `${pageChars[0].name} ${interaction} ${pageChars[1].name}`));
     }
 
-    // Weapons/Items from character data
     pageChars.forEach((ch, ci) => {
       if (ch.weapon && charNodes[ci]) {
         const objNode = node("object", 800, 180 + ci * 200, {
@@ -243,59 +379,66 @@ export function generateMangaFromWizard(answers) {
       }
     });
 
-    // Speech bubbles — unique per page
     if (charNodes.length > 0 && dialogueStyle !== "minimal") {
-      const dialogueLines = {
-        action: ["Let's go!", "I won't lose!", "Watch out!", "It's over!", "Not yet!", "Give me strength!"],
-        romance: ["I... I like you.", "Don't leave me.", "You're beautiful.", "Stay with me.", "I'm sorry..."],
-        horror: ["What was that?!", "Don't look back!", "We need to leave NOW!", "It's coming...", "Help!"],
-        comedy: ["WHAT?!", "That's not how it works!", "Run!!", "Hahahaha!", "Seriously?!"],
-        drama: ["Why did you lie?", "I trusted you.", "It's not that simple.", "I'm leaving.", "Forgive me."],
-      };
-      const lines = dialogueLines[genre] || dialogueLines.action;
-      const line = lines[(p * 3 + 1) % lines.length]; // Different line per page
+      const lineIdx = p * panelNodes.length;
+      const line = dialogueLines[lineIdx % dialogueLines.length];
       const speechN = node("speech", 800, 50, {
-        text: sampleDialogue ? sampleDialogue.slice(p * 30, (p + 1) * 30 + 20) || line : line,
+        text: line,
         bubbleType: "speech",
         style: bubbleStyle,
         tailDirection: bubblePosition === "auto" ? "left" : bubblePosition,
       });
       nodes.push(speechN);
-      edges_arr.push(edge(charNodes[0].id, speechN.id, "Saying this"));
+      edges_arr.push(edge(charNodes[0].id, speechN.id, "Says this line"));
+      if (panelNodes[0]) edges_arr.push(edge(speechN.id, panelNodes[0].id, "Dialogue in first panel"));
     }
 
-    // Narration box
     if (narrationBox !== "none" && (p === 0 || p === numPages - 1)) {
+      const narrText = p === 0
+        ? (synopsis.slice(0, 100) || storyPrompt.slice(0, 100) || "The story begins...")
+        : `End of chapter — ${arcText}`;
       const narrN = node("speech", 800, 400, {
-        text: p === 0 ? (synopsis.slice(0, 80) || `The story begins...`) : "And so the chapter ends...",
+        text: narrText,
         bubbleType: "narration",
         style: "normal",
       });
       nodes.push(narrN);
+      if (panelNodes[0]) edges_arr.push(edge(narrN.id, panelNodes[0].id, "Narration box"));
     }
 
-    // Effects — contextual, not on every page
     if ((ctx === "fight" || ctx === "action") && genreEffects.length) {
       const fx = node("effect", 800, 350, {
         effectType: pick(genreEffects),
         intensity: ctx === "fight" ? "strong" : "medium",
       });
       nodes.push(fx);
-      if (charNodes[0]) edges_arr.push(edge(fx.id, charNodes[0].id, "Effect surrounding character"));
+      const targetPanel = panelNodes[panelNodes.length - 1] || panelNodes[0];
+      if (targetPanel) edges_arr.push(edge(fx.id, targetPanel.id, "Action effects in this panel"));
+      if (charNodes[0]) edges_arr.push(edge(fx.id, charNodes[0].id, "Effect on character"));
     }
 
-    // Camera — varies by context
-    const camCtxKey = p === 0 ? "establishing" : p === numPages - 1 ? "dramatic" : ctx === "fight" ? "action" : ctx === "emotional" ? "emotion" : "dialogue";
-    const cam = CAMERA_BY_MOMENT[camCtxKey] || CAMERA_BY_MOMENT.dialogue;
-    const camN = node("camera", 800, 500, {
-      shotType: cam.shot,
-      angle: cam.angle,
-      focusTarget: charNodes[0]?.data?.name || "Main character",
+    pages.push({
+      id: pageId,
+      name: `Page ${p + 1} — ${arcText}`,
+      pageBeat: pageStoryBit,
+      nodes,
+      edges: edges_arr,
     });
-    nodes.push(camN);
-
-    pages.push({ id: pageId, name: `Page ${p + 1} — ${arcText}`, nodes, edges: edges_arr });
   }
 
-  return { pages };
+  return {
+    pages,
+    storyMeta: {
+      synopsis: storySynopsis || synopsis,
+      storyPrompt,
+      genre,
+      tone,
+      pacing,
+      format,
+      mainStyle,
+      artStyle,
+      transitions,
+      characters: charsWithNames,
+    },
+  };
 }

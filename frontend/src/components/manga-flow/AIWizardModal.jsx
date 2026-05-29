@@ -275,7 +275,10 @@ export default function AIWizardModal({ onGenerate, onClose }) {
                 <div className="aiw-summary__row"><span>Visual:</span><strong>{a.detailLevel.replace(/_/g," ")} · {a.lighting} · {a.colorPalette} · {a.quality}</strong></div>
                 {a.synopsis && <div className="aiw-summary__synopsis"><span>Synopsis:</span><p>{a.synopsis}</p></div>}
                 {a.storyPrompt && <div className="aiw-summary__synopsis"><span>Story prompt:</span><p>{a.storyPrompt.slice(0,200)}{a.storyPrompt.length>200?"...":""}</p></div>}
-                <p className="text-[11px] text-[#14B8A6] mt-3">This will generate {a.pageCount} pages × {a.panelsPerPage} panels = {Number(a.pageCount)*Number(a.panelsPerPage)} total panels</p>
+                <p className="text-[11px] text-[#14B8A6] mt-3">
+                  Creates {a.pageCount} storyboard pages with {a.panelsPerPage} panel cards each ({Number(a.pageCount) * Number(a.panelsPerPage)} beats).
+                  Use <strong>Generate Page</strong> on each page to render the comic art (one image per page with distinct panels).
+                </p>
               </div>
             )}
           </div>)}

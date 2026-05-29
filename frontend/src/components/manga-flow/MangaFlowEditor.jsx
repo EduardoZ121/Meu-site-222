@@ -97,6 +97,21 @@ export default function MangaFlowEditor() {
   const activePage = pages.find((p) => p.id === activePageId) || pages[0] || null;
   const activePageIndex = pages.findIndex((p) => p.id === activePageId);
 
+  const generationPageContext = useMemo(() => {
+    const meta = project?.storyMeta;
+    const prior = pages
+      .slice(0, Math.max(0, activePageIndex))
+      .filter((_, i) => i < activePageIndex)
+      .map((pg, i) => `Page ${i + 1} (${pg.name}): ${pg.pageBeat || pg.name}`)
+      .join("; ");
+    return {
+      pageName: activePage?.name,
+      pageBeat: activePage?.pageBeat,
+      storySynopsis: [meta?.synopsis, meta?.storyPrompt].filter(Boolean).join(" ").trim(),
+      priorPagesSummary: prior || undefined,
+    };
+  }, [project?.storyMeta, pages, activePage, activePageIndex]);
+
   /* ---- History ---- */
   const pushHistory = useCallback(() => {
     if (skipHistoryRef.current) { skipHistoryRef.current = false; return; }
@@ -433,6 +448,7 @@ export default function MangaFlowEditor() {
       ...project,
       pages: result.pages,
       activePageId: result.pages[0].id,
+      storyMeta: result.storyMeta || project?.storyMeta,
     };
     setProject(newProject);
     setActivePageId(result.pages[0].id);
@@ -712,7 +728,14 @@ export default function MangaFlowEditor() {
       {showStats && <StatsPanel nodes={nodes} edges={edges} pages={pages.length} onClose={() => setShowStats(false)} />}
 
       {/* Generation Modal */}
-      {showGeneration && <GenerationModal nodes={nodes} edges={edges} onClose={() => setShowGeneration(false)} />}
+      {showGeneration && (
+        <GenerationModal
+          nodes={nodes}
+          edges={edges}
+          pageContext={generationPageContext}
+          onClose={() => setShowGeneration(false)}
+        />
+      )}
 
       {/* AI Wizard */}
       {showAIWizard && <AIWizardModal onGenerate={handleWizardResult} onClose={() => setShowAIWizard(false)} />}

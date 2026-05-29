@@ -4,6 +4,7 @@ import {
   X, Trash2, Link2, User, MapPin, Box, MessageCircle,
   Sparkles, Camera, Square, ChevronDown, Plus, Eye, EyeOff, Variable, Wand2,
 } from "lucide-react";
+import { NARRATIVE_ROLES } from "../../lib/mangaFlowOrchestrator";
 import {
   PERSON_POSES, PERSON_EMOTIONS, PERSON_CAMERA,
   SCENARIO_TIME, SCENARIO_WEATHER, SCENARIO_MOOD, SCENARIO_LIGHTING,
@@ -331,6 +332,10 @@ function CameraInspector({ data, onUpdate }) {
 
 function PanelInspector({ data, onUpdate }) {
   return (<>
+    <Section title="Narrative" icon={<Sparkles className="w-3.5 h-3.5 text-[#A855F7]" />}>
+      <Chips label="Story role" options={["auto", ...NARRATIVE_ROLES]} value={data.narrativeRole || "auto"} onChange={(v) => onUpdate({ narrativeRole: v })} />
+      <Field label="Moment / beat" value={data.momentDesc} onChange={(v) => onUpdate({ momentDesc: v })} placeholder="What happens in this panel..." multiline />
+    </Section>
     <Section title="Frame" icon={<Square className="w-3.5 h-3.5 text-[#D4D4D4]" />}>
       <Chips label="Size" options={PANEL_SIZES} value={data.panelSize} onChange={(v) => onUpdate({ panelSize: v })} />
       <Chips label="Format" options={PANEL_FORMATS} value={data.format} onChange={(v) => onUpdate({ format: v })} />

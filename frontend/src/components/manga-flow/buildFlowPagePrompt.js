@@ -17,6 +17,7 @@ import {
   hasNodeRef,
 } from "../../lib/mangaFlowGraph";
 import { buildSemanticGraphSection } from "../../lib/mangaFlowSemantics";
+import { orchestrateMangaGeneration } from "../../lib/mangaFlowOrchestrator";
 
 const ANTI_PORTRAIT = [
   "NOT a centered passport photo or ID portrait.",
@@ -130,51 +131,14 @@ function refSlotMap(refSlots) {
  * @param {object[]} [refSlots]
  */
 export function buildPagePromptFromFlow(nodes, edges, context = {}, refSlots = []) {
-  const panels = sortPanels(nodes);
-  const refMap = refSlotMap(refSlots);
-  const lines = [];
+  const orchestration = orchestrateMangaGeneration(nodes, edges, context, refSlots);
+  const lines = [orchestration.hiddenPrompt, ""];
 
-  lines.push("=== MANGA PAGE — GRAPH-ORCHESTRATED (connections = law) ===\n");
-  lines.push("RULES:");
-  lines.push("- Each PANEL section is ISOLATED. Do not blend beats across panels.");
-  lines.push("- Only characters listed under a panel appear in that panel.");
-  lines.push("- Respect REFERENCE IMAGE slots — no random NPCs, no face swapping.");
-  lines.push("- Connections in the graph define who appears where; ignore unlinked characters for that panel.");
-  lines.push("");
+  const semanticBlock = buildSemanticGraphSection(nodes, orchestration.semanticEdges);
+  if (semanticBlock) lines.push(semanticBlock);
 
-  const semanticBlock = buildSemanticGraphSection(nodes, edges);
-  if (semanticBlock) {
-    lines.push(semanticBlock);
-  }
-
-  if (context.storySynopsis) {
-    lines.push("## STORY");
-    lines.push(context.storySynopsis.slice(0, 500));
-    lines.push("");
-  }
-  if (context.pageBeat) lines.push(`Page beat: ${context.pageBeat}\n`);
-
-  const cast = sortPersons(nodes);
-  if (cast.length) {
-    lines.push(buildCastIdentitySection(cast, refSlots));
-  }
-
-  const interactions = personInteractions(nodes, edges);
-  if (interactions.length) {
-    lines.push("## CHARACTER ↔ CHARACTER (must appear together when linked)");
-    interactions.forEach((x) => lines.push(`- ${x.a} ↔ ${x.b}: ${x.text}`));
-    lines.push("");
-  }
-
-  if (panels.length >= 2) {
-    lines.push("## PANELS (read left-to-right, top-to-bottom)\n");
-    panels.forEach((panel, i) => {
-      lines.push(buildPanelSection(panel, i, panels.length, nodes, edges, refMap));
-    });
-  } else if (panels.length === 1) {
-    lines.push("## SINGLE PANEL SCENE\n");
-    lines.push(buildPanelSection(panels[0], 0, 1, nodes, edges, refMap));
-  } else {
+  if (orchestration.sheet.panel_count === 0) {
+    const refMap = refSlotMap(refSlots);
     lines.push("## SCENE (no panel cards — full canvas)\n");
     const scenario = nodes.find((n) => n.type === "scenario");
     if (scenario) {
@@ -182,7 +146,7 @@ export function buildPagePromptFromFlow(nodes, edges, context = {}, refSlots = [
       lines.push(`Setting: ${[sd.name, sd.description].filter(Boolean).join(" — ")}`);
     }
     const persons = sortPersons(nodes);
-  if (persons.length) {
+    if (persons.length) {
       lines.push("Characters:");
       persons.forEach((p) => {
         lines.push(formatPersonInPanel(p, p.id, nodes, edges, refMap).replace(/^  /gm, ""));
@@ -192,7 +156,9 @@ export function buildPagePromptFromFlow(nodes, edges, context = {}, refSlots = [
     lines.push("");
   }
 
-  lines.push("Negative: duplicate panel content, wrong faces, random anime extras, gym background unless specified, identity swap, watermark.");
+  lines.push(
+    "Negative: duplicate panel content, identical panels, wrong faces, random anime extras, passport portraits, identity swap, watermark.",
+  );
 
   return lines.join("\n");
 }

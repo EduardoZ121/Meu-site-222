@@ -3,6 +3,8 @@
  * Each edge type gets hidden AI instructions + optional user prompt.
  */
 
+import { inferCharacterRelation, relationSemanticBlock } from "./mangaFlowRelations";
+
 function nodeName(node) {
   if (!node) return "?";
   const d = node.data || {};
@@ -31,12 +33,7 @@ export function getDefaultSemanticPrompt(sourceNode, targetNode) {
   const b = nodeName(targetNode);
 
   if (s === "person" && t === "person") {
-    return (
-      `CHARACTER↔CHARACTER: "${a}" and "${b}" are together in the same scene and interact. ` +
-      `Generate both in the same panel/environment when linked to the same panel. ` +
-      `Keep each character's face, hair, body and outfit distinct — do not swap identities. ` +
-      `Show clear spatial relationship (facing each other, fighting, talking, etc.).`
-    );
+    return relationSemanticBlock("talking_to", a, b);
   }
 
   if (s === "person" && t === "scenario") {
@@ -164,15 +161,21 @@ export function combineSemanticAndUser(semanticPrompt, userPrompt) {
 /**
  * Build edge.data fields when creating/updating a connection.
  */
-export function buildEdgeSemanticData(sourceNode, targetNode, userPrompt = "") {
+export function buildEdgeSemanticData(sourceNode, targetNode, userPrompt = "", relationType = null) {
   const connectionType = connectionTypeId(sourceNode?.type, targetNode?.type);
-  const semanticPrompt = getDefaultSemanticPrompt(sourceNode, targetNode);
+  let semanticPrompt = getDefaultSemanticPrompt(sourceNode, targetNode);
+  if (sourceNode?.type === "person" && targetNode?.type === "person" && relationType) {
+    const a = nodeName(sourceNode);
+    const b = nodeName(targetNode);
+    semanticPrompt = relationSemanticBlock(relationType, a, b);
+  }
   const aiInstruction = combineSemanticAndUser(semanticPrompt, userPrompt);
   return {
     connectionType,
     semanticPrompt,
     prompt: userPrompt || "",
     aiInstruction,
+    ...(relationType ? { relationType } : {}),
   };
 }
 
@@ -185,8 +188,15 @@ export function resolveEdgeSemantics(edge, nodes) {
   const userPrompt = edge?.data?.prompt?.trim() || "";
   const connectionType =
     edge?.data?.connectionType || connectionTypeId(src?.type, tgt?.type);
-  const semanticPrompt =
-    edge?.data?.semanticPrompt?.trim() || getDefaultSemanticPrompt(src, tgt);
+  let semanticPrompt = edge?.data?.semanticPrompt?.trim();
+  if (!semanticPrompt) {
+    if (src?.type === "person" && tgt?.type === "person") {
+      const rel = inferCharacterRelation(edge, src, tgt);
+      semanticPrompt = relationSemanticBlock(rel, nodeName(src), nodeName(tgt));
+    } else {
+      semanticPrompt = getDefaultSemanticPrompt(src, tgt);
+    }
+  }
   const aiInstruction = combineSemanticAndUser(semanticPrompt, userPrompt);
 
   return {

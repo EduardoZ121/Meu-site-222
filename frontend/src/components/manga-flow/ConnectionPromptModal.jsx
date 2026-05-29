@@ -1,14 +1,26 @@
 import { useState, useMemo } from "react";
 import { Link2, X, Pencil, Zap, GitBranch } from "lucide-react";
 import { getDefaultSemanticPrompt } from "../../lib/mangaFlowSemantics";
+import { CHARACTER_RELATIONS } from "../../lib/mangaFlowRelations";
 
 const CONDITION_FIELDS = ["emotion", "pose", "state", "timeOfDay", "weather", "mood", "visible"];
 const CONDITION_OPS = ["=", "!=", "contains"];
 
-export default function ConnectionPromptModal({ source, target, initialPrompt, initialCondition, isEditing, onConfirm, onCancel }) {
+export default function ConnectionPromptModal({
+  source,
+  target,
+  initialPrompt,
+  initialCondition,
+  initialRelationType,
+  isEditing,
+  onConfirm,
+  onCancel,
+}) {
   const [prompt, setPrompt] = useState(initialPrompt || "");
+  const [relationType, setRelationType] = useState(initialRelationType || "talking_to");
   const [showCondition, setShowCondition] = useState(Boolean(initialCondition?.field));
   const [condition, setCondition] = useState(initialCondition || { field: "emotion", op: "=", value: "" });
+  const isPersonPair = source?.type === "person" && target?.type === "person";
   const sourceName = source?.data?.name || source?.data?.text || source?.type || "?";
   const targetName = target?.data?.name || target?.data?.text || target?.type || "?";
   const suggestions = getSuggestions(source?.type, target?.type);
@@ -18,7 +30,11 @@ export default function ConnectionPromptModal({ source, target, initialPrompt, i
   );
 
   const handleConfirm = () => {
-    onConfirm(prompt, showCondition && condition.value ? condition : null);
+    onConfirm(
+      prompt,
+      showCondition && condition.value ? condition : null,
+      isPersonPair ? relationType : null,
+    );
   };
 
   return (
@@ -52,6 +68,22 @@ export default function ConnectionPromptModal({ source, target, initialPrompt, i
             placeholder="e.g. 'They are hugging under the rain'..."
             className="manga-flow-conn-textarea" rows={3} autoFocus data-testid="connection-prompt-input" />
         </div>
+
+        {isPersonPair && (
+          <div className="manga-flow-conn-relation">
+            <label className="manga-flow-conn-input-label">Interaction type</label>
+            <select
+              value={relationType}
+              onChange={(e) => setRelationType(e.target.value)}
+              className="manga-flow-conn-relation__select"
+              data-testid="connection-relation-select"
+            >
+              {CHARACTER_RELATIONS.map((r) => (
+                <option key={r} value={r}>{r.replace(/_/g, " ")}</option>
+              ))}
+            </select>
+          </div>
+        )}
 
         {defaultSemantic && (
           <div className="manga-flow-conn-semantic">

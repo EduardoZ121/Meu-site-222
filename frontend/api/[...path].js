@@ -42,6 +42,7 @@ const {
   appendPhotoEditIdentity,
   upgradePadraoPrompt,
   buildMangaDualCharacterBlock,
+  buildMangaComicSheetBlock,
 } = require("./lib/identityPrompts.cjs");
 const { getProPreset, listProPresets } = require("./lib/proPresetsData.cjs");
 const {
@@ -1541,6 +1542,12 @@ async function routePost(path, fields, files, req) {
   if (path === "generate/manga-panel" || path === "generate/manga-page" || path === "generate/manga-chapter") {
     let promptFinal = text(fields, "prompt_final", "").trim();
     if (!promptFinal) throw new Error("Prompt em falta.");
+    const generationMode = text(fields, "generation_mode", "").trim();
+    const panelCountField = parseInt(text(fields, "panel_count", "0"), 10) || 0;
+    if (path === "generate/manga-page" || generationMode === "comic_sheet") {
+      const sheetBlock = buildMangaComicSheetBlock(panelCountField || 4);
+      promptFinal = `${sheetBlock}\n\n${promptFinal}`;
+    }
     const photoAEarly = await resolveImageRef(files, fields, "photo", "photo_url");
     const photoBEarly = await resolveImageRef(files, fields, "photo_b", "photo_b_url");
     if (photoAEarly && photoBEarly) {

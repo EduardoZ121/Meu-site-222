@@ -273,10 +273,13 @@ export default function MangaFlowEditor() {
   /* ---- Connections ---- */
   const onConnect = useCallback((params) => { pushHistory(); setPendingConnection(params); }, [pushHistory]);
 
-  const confirmConnection = useCallback((prompt, condition) => {
+  const confirmConnection = useCallback((prompt, condition, relationType) => {
     const srcNode = editingEdge?._srcNode || nodes.find((n) => n.id === pendingConnection?.source);
     const tgtNode = editingEdge?._tgtNode || nodes.find((n) => n.id === pendingConnection?.target);
-    const semanticFields = srcNode && tgtNode ? buildEdgeSemanticData(srcNode, tgtNode, prompt || "") : {};
+    const semanticFields =
+      srcNode && tgtNode
+        ? buildEdgeSemanticData(srcNode, tgtNode, prompt || "", relationType || null)
+        : {};
     const labelText = prompt
       ? (prompt.length > 30 ? prompt.slice(0, 28) + "…" : prompt)
       : semanticFields.connectionType?.replace("→", "→").slice(0, 12) || "link";
@@ -564,7 +567,10 @@ export default function MangaFlowEditor() {
         {!zenMode && (
         <div className="flex items-center gap-1 flex-wrap">
           <button onClick={() => setShowAddMenu(true)} className="manga-flow-btn manga-flow-btn-primary" data-testid="manga-flow-add-btn"><Plus className="w-4 h-4" /> Add</button>
-          <button onClick={() => setShowGeneration(true)} className="mfg-trigger-btn" data-testid="manga-flow-generate-page"><Wand2 className="w-4 h-4" /> Generate Page</button>
+          <button onClick={() => setShowGeneration(true)} className="mfg-trigger-btn" data-testid="manga-flow-generate-page">
+            <Wand2 className="w-4 h-4" />
+            {nodes.filter((n) => n.type === "panel").length >= 2 ? "Comic Sheet" : "Generate"}
+          </button>
           <button onClick={() => setShowAIWizard(true)} className="aiw-trigger-btn" data-testid="manga-flow-ai-wizard"><Sparkles className="w-4 h-4" /> Create with AI</button>
           <button onClick={autoArrange} className="manga-flow-btn" title="Auto Arrange"><LayoutGrid className="w-4 h-4" /></button>
           <button onClick={generatePrompt} className="manga-flow-btn manga-flow-btn-prompt" title="Generate AI Prompt"><Wand2 className="w-4 h-4" /></button>
@@ -681,6 +687,7 @@ export default function MangaFlowEditor() {
           target={editingEdge ? editingEdge._tgtNode : nodes.find((n) => n.id === pendingConnection.target)}
           initialPrompt={editingEdge?.data?.prompt || ""}
           initialCondition={editingEdge?.data?.condition || null}
+          initialRelationType={editingEdge?.data?.relationType || "talking_to"}
           isEditing={Boolean(editingEdge)}
           onConfirm={confirmConnection} onCancel={cancelConnectionModal} />
       )}

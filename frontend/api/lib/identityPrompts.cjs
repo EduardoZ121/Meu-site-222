@@ -56,6 +56,20 @@ function upgradePadraoPrompt(prompt) {
 }
 
 /** Qwen manga-interaction: two reference images = two different characters. */
+function buildMangaComicSheetBlock(panelCount = 4) {
+  const n = Math.max(2, Number(panelCount) || 4);
+  return [
+    "COMIC SHEET GENERATION — MANDATORY:",
+    `- Output ONE complete manga PAGE with exactly ${n} DISTINCT panel regions (comic sheet layout).`,
+    "- Each panel shows a DIFFERENT story moment — different pose, action, camera and composition.",
+    "- FORBIDDEN: one image duplicated into identical panels; grid of same face; passport mugshots.",
+    "- Read panels left-to-right, top-to-bottom for narrative sequence.",
+    "- Maintain character identity from reference images across ALL panels — no face swap, no random NPCs.",
+    "- Respect per-panel cast: only characters linked to that panel beat appear in that panel.",
+    "- Cinematic dynamic framing per panel — not flat front-facing stock poses.",
+  ].join("\n");
+}
+
 function buildMangaDualCharacterBlock(nameA, nameB, descA = "", descB = "") {
   const a = String(nameA || "Character A").trim() || "Character A";
   const b = String(nameB || "Character B").trim() || "Character B";
@@ -85,4 +99,5 @@ module.exports = {
   appendPhotoEditIdentity,
   upgradePadraoPrompt,
   buildMangaDualCharacterBlock,
+  buildMangaComicSheetBlock,
 };

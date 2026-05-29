@@ -40,6 +40,7 @@ export const NODE_DEFAULTS = {
   },
   panel: {
     panelSize: "medium", format: "rectangle", borderStyle: "thin",
+    narrativeRole: "auto", momentDesc: "",
     refImage: null, refImageUrl: null,
   },
 };

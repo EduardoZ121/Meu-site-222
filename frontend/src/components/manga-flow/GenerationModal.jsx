@@ -1,5 +1,5 @@
 import { useState, useCallback, useMemo } from "react";
-import { X, Wand2, Download, Copy, Loader2, Sparkles, Image as ImageIcon, AlertCircle } from "lucide-react";
+import { X, Wand2, Download, Copy, Loader2, Sparkles, Image as ImageIcon, AlertCircle, BookOpen } from "lucide-react";
 import { buildFinalPrompt, buildFinalPagePrompt, countPanelNodes } from "./buildFlowPrompt";
 import { uploadPost, pollPrediction, trackPendingPrediction } from "../../lib/api";
 import {
@@ -8,6 +8,7 @@ import {
 } from "../../lib/mangaGenerationRefs";
 import { validateGraphForGeneration } from "../../lib/mangaFlowGraph";
 import { enrichEdgesSemantics } from "../../lib/mangaFlowSemantics";
+import { shouldUseComicSheetMode } from "../../lib/mangaFlowOrchestrator";
 import { toast } from "sonner";
 
 const MODELS = [
@@ -68,8 +69,12 @@ export default function GenerationModal({ nodes, edges, onClose, onResult, pageC
   const [showPrompt, setShowPrompt] = useState(false);
 
   const semanticEdges = useMemo(() => enrichEdgesSemantics(edges, nodes), [edges, nodes]);
-  const genPlan = planMangaGeneration(nodes, semanticEdges);
+  const genPlan = useMemo(
+    () => planMangaGeneration(nodes, semanticEdges),
+    [nodes, semanticEdges],
+  );
   const panelCount = countPanelNodes(nodes);
+  const isComicSheet = shouldUseComicSheetMode(nodes);
   const isMultiPanelPage = panelCount >= 2;
   const dualCharRefs = genPlan.refSlots.filter((s) => s.role === "character").length >= 2;
   const promptSettings = {
@@ -82,7 +87,7 @@ export default function GenerationModal({ nodes, edges, onClose, onResult, pageC
     pageContext: pageContext || {},
   };
   const finalPrompt =
-    isMultiPanelPage || dualCharRefs
+    isMultiPanelPage || dualCharRefs || isComicSheet
       ? buildFinalPagePrompt(nodes, semanticEdges, promptSettings)
       : buildFinalPrompt(nodes, semanticEdges, promptSettings);
   const modelDef = MODELS.find(m => m.id === model) || MODELS[0];
@@ -91,7 +96,7 @@ export default function GenerationModal({ nodes, edges, onClose, onResult, pageC
     ? null
     : usesDualRef
       ? "/generate/manga-interaction"
-      : isMultiPanelPage
+      : isComicSheet || isMultiPanelPage
         ? "/generate/manga-page"
         : genPlan.endpoint || "/generate/manga-panel";
 
@@ -115,6 +120,10 @@ export default function GenerationModal({ nodes, edges, onClose, onResult, pageC
       const fd = new FormData();
       fd.append("prompt_final", finalPrompt);
       fd.append("aspect_ratio", aspect);
+      if (isComicSheet) {
+        fd.append("generation_mode", "comic_sheet");
+        fd.append("panel_count", String(panelCount));
+      }
       if (!usesDualRef) {
         fd.append("model_key", modelDef.apiModel || "standard");
       } else {
@@ -140,6 +149,13 @@ export default function GenerationModal({ nodes, edges, onClose, onResult, pageC
 
       if (genPlan.warning) toast.info(genPlan.warning);
 
+      if (isComicSheet) {
+        toast.info(
+          `Comic Sheet: ${panelCount} painéis sequenciais numa única página (orquestração semântica)`,
+          { duration: 6000 },
+        );
+      }
+
       const graphWarnings = validateGraphForGeneration(nodes, semanticEdges);
       graphWarnings.forEach((w) => toast.warning(w, { duration: 8000 }));
 
@@ -154,7 +170,6 @@ export default function GenerationModal({ nodes, edges, onClose, onResult, pageC
       setProgress(30);
 
       if (!submitData?.prediction_id) {
-        // Direct result (no polling needed)
         const directUrl = submitData?.creation?.result_urls?.[0];
         if (directUrl) {
           setResultUrl(directUrl);
@@ -166,7 +181,6 @@ export default function GenerationModal({ nodes, edges, onClose, onResult, pageC
         throw new Error(submitData?.detail || "No prediction ID returned");
       }
 
-      // Poll for result
       trackPendingPrediction(submitData.prediction_id, {
         credits_spent: submitData.credits_spent || 15,
         type: "manga",
@@ -197,7 +211,20 @@ export default function GenerationModal({ nodes, edges, onClose, onResult, pageC
     } finally {
       setGenerating(false);
     }
-  }, [finalPrompt, aspect, modelDef, genPlan, usesDualRef, dualCharRefs, generateEndpoint, onResult, nodes, semanticEdges]);
+  }, [
+    finalPrompt,
+    aspect,
+    modelDef,
+    genPlan,
+    usesDualRef,
+    dualCharRefs,
+    generateEndpoint,
+    onResult,
+    nodes,
+    semanticEdges,
+    isComicSheet,
+    panelCount,
+  ]);
 
   return (
     <div className="mfg-overlay" data-testid="generation-modal">
@@ -206,10 +233,12 @@ export default function GenerationModal({ nodes, edges, onClose, onResult, pageC
           <div className="flex items-center gap-3">
             <div className="mfg-header__icon"><Sparkles className="w-5 h-5" /></div>
             <div>
-              <h2 className="mfg-header__title">{isMultiPanelPage ? "Generate Manga Page" : "Generate Manga Panel"}</h2>
+              <h2 className="mfg-header__title">
+                {isComicSheet ? "Generate Comic Sheet" : isMultiPanelPage ? "Generate Manga Page" : "Generate Manga Panel"}
+              </h2>
               <p className="mfg-header__sub">
                 {nodes.length} cards · {edges.length} connections
-                {isMultiPanelPage && <> · {panelCount} panels (sequenced storyboard)</>}
+                {isComicSheet && <> · {panelCount} panels · semantic orchestration</>}
                 {genPlan.refSlots.length > 0 && (
                   <> · {genPlan.refSlots.length} ref{genPlan.refSlots.length > 1 ? "s" : ""}{usesDualRef ? " (2-image mode)" : ""}</>
                 )}
@@ -221,6 +250,17 @@ export default function GenerationModal({ nodes, edges, onClose, onResult, pageC
 
         <div className="mfg-body">
           <div className="mfg-settings">
+            {isComicSheet && (
+              <div className="mfg-orchestration-banner" data-testid="comic-sheet-banner">
+                <BookOpen className="w-4 h-4 shrink-0" />
+                <div>
+                  <p className="mfg-orchestration-banner__title">Comic Sheet mode</p>
+                  <p className="mfg-orchestration-banner__text">
+                    One unified page with {panelCount} isolated narrative panels. Character identity, camera and scene continuity enforced by the graph.
+                  </p>
+                </div>
+              </div>
+            )}
             <div className="mfg-section">
               <h3 className="mfg-section__title">Model & Quality</h3>
               <Chips label="AI Model" options={MODELS} value={model} onChange={setModel} />
@@ -253,7 +293,9 @@ export default function GenerationModal({ nodes, edges, onClose, onResult, pageC
               ) : (
                 <div className="mfg-preview__empty">
                   <ImageIcon className="w-12 h-12 text-[#2E2E30]" />
-                  <p className="mfg-preview__empty-text">Your manga page appears here</p>
+                  <p className="mfg-preview__empty-text">
+                    {isComicSheet ? "Your comic sheet appears here" : "Your manga page appears here"}
+                  </p>
                 </div>
               )}
             </div>
@@ -265,7 +307,7 @@ export default function GenerationModal({ nodes, edges, onClose, onResult, pageC
             {showPrompt && (
               <div className="mfg-prompt-preview">
                 <div className="flex items-center justify-between mb-2">
-                  <span className="text-[10px] text-[#5A5A5E] uppercase tracking-wider font-mono">Final Prompt</span>
+                  <span className="text-[10px] text-[#5A5A5E] uppercase tracking-wider font-mono">Orchestrated Prompt</span>
                   <button onClick={copyPrompt} className="manga-flow-btn" style={{ padding: "4px 10px", fontSize: 11 }}><Copy className="w-3 h-3" /> Copy</button>
                 </div>
                 <pre className="mfg-prompt-text">{finalPrompt}</pre>
@@ -281,13 +323,24 @@ export default function GenerationModal({ nodes, edges, onClose, onResult, pageC
               </button>
             </div>
 
-            <button onClick={handleGenerate} disabled={generating || !nodes.length} className="mfg-generate-btn">
-              {generating ? <><Loader2 className="w-5 h-5 animate-spin" /> Generating...</> : <><Wand2 className="w-5 h-5" /> Generate with {modelDef.name}</>}
+            <button
+              onClick={handleGenerate}
+              disabled={generating || !nodes.length}
+              className={`mfg-generate-btn ${isComicSheet ? "mfg-generate-btn--comic-sheet" : ""}`}
+              data-testid={isComicSheet ? "generate-comic-sheet-btn" : "generate-manga-btn"}
+            >
+              {generating ? (
+                <><Loader2 className="w-5 h-5 animate-spin" /> Generating...</>
+              ) : isComicSheet ? (
+                <><BookOpen className="w-5 h-5" /> Generate Comic Sheet</>
+              ) : (
+                <><Wand2 className="w-5 h-5" /> Generate with {modelDef.name}</>
+              )}
             </button>
 
             {resultUrl && (
-              <a href={resultUrl} download="manga-page.png" target="_blank" rel="noreferrer" className="mfg-download-btn">
-                <Download className="w-4 h-4" /> Download Image
+              <a href={resultUrl} download="manga-comic-sheet.png" target="_blank" rel="noreferrer" className="mfg-download-btn">
+                <Download className="w-4 h-4" /> Download Comic Sheet
               </a>
             )}
           </div>

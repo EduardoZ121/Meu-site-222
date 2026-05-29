@@ -4,6 +4,7 @@
 import { buildReferenceSlotPromptSection, sortNodesForRefs } from "../../lib/mangaGenerationRefs";
 import { buildSemanticGraphSection } from "../../lib/mangaFlowSemantics";
 import { buildPagePromptFromFlow, shouldUseGraphPrompt } from "./buildFlowPagePrompt";
+import { shouldUseComicSheetMode } from "../../lib/mangaFlowOrchestrator";
 import { resolveEdgeSemantics } from "../../lib/mangaFlowSemantics";
 
 export function buildPromptFromFlow(nodes, edges) {
@@ -324,7 +325,14 @@ export function buildFinalPagePrompt(nodes, edges, settings = {}) {
 
   const lines = [];
   lines.push(QUALITY_PROMPTS[quality] || QUALITY_PROMPTS.high);
-  lines.push("Professional multi-panel manga page, print-ready, distinct story beats per frame.");
+  if (shouldUseComicSheetMode(nodes)) {
+    lines.push(
+      "COMIC SHEET MODE: Generate ONE complete manga page with multiple DISTINCT sequential panels in a single image.",
+    );
+    lines.push("Each panel must show different action, pose and framing — never duplicate the same shot.");
+  } else {
+    lines.push("Professional multi-panel manga page, print-ready, distinct story beats per frame.");
+  }
   lines.push("");
 
   if (refSlots?.length) {

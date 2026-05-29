@@ -332,6 +332,10 @@ const pt = {
 
   post_sec_ref: "Foto de referência",
   post_sec_ref_hint: "Preserva rosto ou produto. Cola com Ctrl+V no desktop.",
+  post_sec_food_ref: "Foto do prato",
+  post_sec_food_ref_hint: "Só comida: fotografa o prato (hambúrguer, petisco, prato do dia, etc.) e faz upload aqui. O poster usa a tua comida como referência — não uses foto de pessoa.",
+  post_food_upload_label: "Carregar foto da comida",
+  post_food_upload_hint: "JPG, PNG ou WebP · prato, hambúrguer, sobremesa…",
   post_upload_label: "Anexar foto do artista, produto ou evento",
   post_upload_hint: "Preserva rosto / objeto · cola com Ctrl+V",
   post_sec_details: "Detalhes do template",

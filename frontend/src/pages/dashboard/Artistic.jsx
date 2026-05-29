@@ -297,12 +297,6 @@ export default function Artistic() {
       }
 
       const creation = normalizeCreation(data?.creation || data);
-      if (data?.deferred) {
-        // Background mode — result lands in gallery + notifications later.
-        if (userPrompt.length >= 3) pushArtisticPromptHistory(userPrompt);
-        await refresh().catch(() => {});
-        return;
-      }
       if (!primaryResultUrl(creation)) {
         throw new Error(t("common_no_result"));
       }

@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Film, Sparkles, Wand2 } from "lucide-react";
 import { formatApiError, trackPendingPrediction, uploadPost } from "../../lib/api";
 import { normalizeCreation, primaryResultUrl } from "../../lib/creationUrls";
@@ -46,6 +46,17 @@ export default function VideoGenerate({ mode = "text" }) {
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState(null);
 
+  useEffect(() => {
+    const onCreation = (e) => {
+      const creation = normalizeCreation(e.detail);
+      if (creation?.type !== "video" || !primaryResultUrl(creation)) return;
+      setResult(creation);
+      setBusy(false);
+    };
+    window.addEventListener("rp:creation-succeeded", onCreation);
+    return () => window.removeEventListener("rp:creation-succeeded", onCreation);
+  }, []);
+
   const cost = useMemo(
     () => computeVideoGenerateCost(costs, surcharges, { duration }),
     [costs, surcharges, duration],
@@ -82,12 +93,6 @@ export default function VideoGenerate({ mode = "text" }) {
       if (data?.deferred) {
         await refresh().catch(() => {});
         return;
-      }
-      if (data?.prediction_id && !primaryResultUrl(data?.creation)) {
-        trackPendingPrediction(data.prediction_id, {
-          credits_spent: data.credits_spent || cost,
-          type: "video",
-        });
       }
       const creation = normalizeCreation(data?.creation);
       if (!primaryResultUrl(creation)) throw new Error(t("vid_no_result"));

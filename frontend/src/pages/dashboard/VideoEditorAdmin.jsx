@@ -69,6 +69,19 @@ export default function VideoEditorAdmin() {
   const [progress, setProgress] = useState(0);
   const [result, setResult] = useState(null);
 
+  useEffect(() => {
+    const onCreation = (e) => {
+      const creation = normalizeCreation(e.detail);
+      if (creation?.type !== "video" || !primaryResultUrl(creation)) return;
+      setResult(creation);
+      setBusy(false);
+      setUploadPhase("");
+      setProgress(0);
+    };
+    window.addEventListener("rp:creation-succeeded", onCreation);
+    return () => window.removeEventListener("rp:creation-succeeded", onCreation);
+  }, []);
+
   const cost = useMemo(() => {
     let total = computeVideoEditCost(baseCost, { resolution, duration, regionId: region });
     if (improve) total += surcharges.enhancePrompt ?? 3;

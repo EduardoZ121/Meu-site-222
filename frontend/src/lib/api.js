@@ -281,44 +281,45 @@ export async function uploadPost(url, formData, config = {}) {
 api.interceptors.response.use(
   async (r) => {
     const urlStr = String(r.config?.url || "");
-    // Carousel routes must keep synchronous polling (multi-step flow needs
-    // the result URL inline to split the panorama into slides).
-    const isMultiStep = /\/generate\/carousel/.test(urlStr);
+    const isCarousel = /\/generate\/carousel/.test(urlStr);
+    const isVideoRoute = /\/generate\/video(-edit)?/.test(urlStr);
     if (
       r?.data?.prediction_id &&
       !r.config?.headers?.["X-Skip-Auto-Poll"] &&
       !urlStr.startsWith("/predictions/") &&
-      !isMultiStep
+      !isCarousel
     ) {
-      // Background mode: track the job and notify the user. The global
-      // watcher (startPendingPredictionsWatcher) handles completion via
-      // notifications + bell sound + gallery. The response is returned as
-      // `{ ...originalData, deferred: true }` so callers can detect that no
-      // synchronous `creation` will be present.
       if (r.data.credits_spent) {
         localStorage.setItem(`rp_prediction_${r.data.prediction_id}`, JSON.stringify({
           credits_spent: r.data.credits_spent,
-          type: r.data.type || "image",
+          type: r.data.type || (isVideoRoute ? "video" : "image"),
         }));
       }
-      try {
-        // Lazy import to avoid circular dep with bgGeneration.
-        // eslint-disable-next-line global-require
-        const { dispatchBackgroundJob } = await import("./bgGeneration");
-        dispatchBackgroundJob(r.data, {
-          type: r.data.type || "image",
-          creditsSpent: r.data.credits_spent || 0,
-        });
-      } catch { /* ignore notification failures */ }
-      return { ...r, data: { ...r.data, deferred: true } };
+      // Background mode: video only (long jobs). Images poll synchronously so
+      // the result panel + scroll work like before; gallery/notifications still
+      // fire via notifyCreationSucceeded when the poll completes.
+      if (isVideoRoute) {
+        try {
+          const { dispatchBackgroundJob } = await import("./bgGeneration");
+          dispatchBackgroundJob(r.data, {
+            type: r.data.type || "video",
+            creditsSpent: r.data.credits_spent || 0,
+          });
+        } catch { /* ignore notification failures */ }
+        return { ...r, data: { ...r.data, deferred: true } };
+      }
+      const data = await pollPrediction(r.data.prediction_id, {
+        credits_spent: r.data.credits_spent,
+        type: r.data.type || "image",
+      });
+      return { ...r, data };
     }
     if (
       r?.data?.prediction_id &&
       !r.config?.headers?.["X-Skip-Auto-Poll"] &&
       !String(r.config?.url || "").startsWith("/predictions/") &&
-      /\/generate\/carousel/.test(String(r.config?.url || ""))
+      isCarousel
     ) {
-      // Carousel keeps the original synchronous auto-poll behaviour.
       if (r.data.credits_spent) {
         localStorage.setItem(`rp_prediction_${r.data.prediction_id}`, JSON.stringify({
           credits_spent: r.data.credits_spent,

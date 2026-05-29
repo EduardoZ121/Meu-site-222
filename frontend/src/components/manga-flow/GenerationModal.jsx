@@ -1,8 +1,7 @@
 import { useState, useCallback } from "react";
 import { X, Wand2, Download, Copy, Loader2, Sparkles, Image as ImageIcon, AlertCircle } from "lucide-react";
 import { buildFinalPrompt } from "./buildFlowPrompt";
-import { uploadPost, api, trackPendingPrediction } from "../../lib/api";
-import { dispatchBackgroundJob, ensureBackgroundSlot } from "../../lib/bgGeneration";
+import { uploadPost, api, pollPrediction, trackPendingPrediction } from "../../lib/api";
 import { toast } from "sonner";
 
 const MODELS = [
@@ -70,7 +69,6 @@ export default function GenerationModal({ nodes, edges, onClose, onResult }) {
   };
 
   const handleGenerate = useCallback(async () => {
-    try { ensureBackgroundSlot(); } catch { return; }
     setGenerating(true);
     setError(null);
     setResultUrl(null);
@@ -118,16 +116,22 @@ export default function GenerationModal({ nodes, edges, onClose, onResult }) {
         type: "manga",
       });
 
-      dispatchBackgroundJob(submitData, {
+      setProgress(40);
+
+      const polled = await pollPrediction(submitData.prediction_id, {
+        credits_spent: submitData.credits_spent || 15,
         type: "manga",
-        creditsSpent: submitData.credits_spent || 15,
-        label: "Manga",
+        timeoutMs: 300000,
+        onTick: (sec) => setProgress(Math.min(90, 40 + Math.round((sec / 120) * 50))),
       });
 
+      const url = polled?.creation?.result_urls?.[0];
+      if (!url) throw new Error("Generation finished but no image returned");
+
+      setResultUrl(url);
       setProgress(100);
-      // Close the modal — result will appear in gallery + notifications.
-      if (typeof onClose === "function") onClose();
-      if (typeof onResult === "function") onResult(null);
+      toast.success(`Generated! ${polled?.creation?.credits_spent || submitData.credits_spent || 0} credits`);
+      if (onResult) onResult(url);
       return;
 
     } catch (err) {
@@ -137,7 +141,7 @@ export default function GenerationModal({ nodes, edges, onClose, onResult }) {
     } finally {
       setGenerating(false);
     }
-  }, [finalPrompt, aspect, modelDef, nodes, onResult, onClose]);
+  }, [finalPrompt, aspect, modelDef, nodes, onResult]);
 
   return (
     <div className="mfg-overlay" data-testid="generation-modal">

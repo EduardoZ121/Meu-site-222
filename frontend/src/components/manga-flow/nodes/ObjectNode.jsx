@@ -1,8 +1,10 @@
 import { Handle, Position, NodeResizer } from "@xyflow/react";
 import { Box } from "lucide-react";
+import { getMangaRefDisplayUrl, hasMangaRef } from "../../../lib/mangaFlowRefStorage";
 
 export default function ObjectNode({ data, selected }) {
-  const hasRef = Boolean(data.refImageUrl || data.refImage);
+  const displayUrl = getMangaRefDisplayUrl(data);
+  const hasRef = hasMangaRef(data);
   return (
     <div className={`mfn mfn--object ${selected ? "mfn--sel" : ""}`} data-testid="object-node">
       <NodeResizer minWidth={150} minHeight={80} maxWidth={350} maxHeight={400} isVisible={selected} lineClassName="mfn-resize-line mfn-resize-line--object" handleClassName="mfn-resize-handle mfn-resize-handle--object" />
@@ -11,7 +13,7 @@ export default function ObjectNode({ data, selected }) {
       <Handle type="target" position={Position.Top} className="mfn-h mfn-h--object" />
       <Handle type="source" position={Position.Bottom} className="mfn-h mfn-h--object" />
       <div className="mfn__head mfn__head--object"><Box className="w-3.5 h-3.5" /><span>Object</span></div>
-      {hasRef && <div className="mfn__img"><img src={data.refImageUrl||data.refImage} alt="" /></div>}
+      {hasRef && displayUrl && <div className="mfn__img"><img src={displayUrl} alt="" crossOrigin="anonymous" /></div>}
       <div className="mfn__body">
         <p className="mfn__name">{data.name||"Unnamed object"}</p>
         <div className="mfn__tags">

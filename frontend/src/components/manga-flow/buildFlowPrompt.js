@@ -333,6 +333,10 @@ export function buildFinalPagePrompt(nodes, edges, settings = {}) {
   if (!pageBody) return buildFinalPrompt(nodes, edges, settings);
 
   const lines = [];
+  if (pageContext?.wizardContext?.hiddenDirective) {
+    lines.push(pageContext.wizardContext.hiddenDirective);
+    lines.push("");
+  }
   lines.push(QUALITY_PROMPTS[quality] || QUALITY_PROMPTS.high);
   if (shouldUseComicSheetMode(nodes)) {
     lines.push(

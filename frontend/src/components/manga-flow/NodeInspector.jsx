@@ -353,6 +353,7 @@ function PanelInspector({ data, onUpdate }) {
 
 const TYPE_META = {
   person:   { icon: User, label: "Character", color: "#C4B5FD" },
+  support:  { icon: User, label: "Support (secondary)", color: "#F0ABFC" },
   scenario: { icon: MapPin, label: "Scenario", color: "#5EEAD4" },
   object:   { icon: Box, label: "Object", color: "#FDE68A" },
   speech:   { icon: MessageCircle, label: "Speech", color: "#93C5FD" },
@@ -362,7 +363,7 @@ const TYPE_META = {
 };
 
 const INSPECTORS = {
-  person: PersonInspector, scenario: ScenarioInspector, object: ObjectInspector,
+  person: PersonInspector, support: PersonInspector, scenario: ScenarioInspector, object: ObjectInspector,
   speech: SpeechInspector, effect: EffectInspector, camera: CameraInspector, panel: PanelInspector,
 };
 

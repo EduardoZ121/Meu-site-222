@@ -146,6 +146,12 @@ export function buildPagePromptFromFlow(nodes, edges, context = {}, refSlots = [
     lines.push("");
   }
 
+  if (context?.wizardContext?.hiddenDirective) {
+    lines.push("## WIZARD ANCHOR (binding for this project)");
+    lines.push(context.wizardContext.hiddenDirective);
+    lines.push("");
+  }
+
   lines.push(orchestration.hiddenPrompt, "");
 
   const semanticBlock = buildSemanticGraphSection(nodes, orchestration.semanticEdges);

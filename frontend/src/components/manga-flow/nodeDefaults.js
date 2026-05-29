@@ -2,6 +2,7 @@
 
 export const NODE_COLORS = {
   person:   { bg: "rgba(147,51,234,0.15)", border: "#9333EA" },
+  support:  { bg: "rgba(217,70,239,0.12)", border: "#D946EF" },
   scenario: { bg: "rgba(20,184,166,0.15)", border: "#14B8A6" },
   object:   { bg: "rgba(250,204,21,0.15)", border: "#FACC15" },
   speech:   { bg: "rgba(96,165,250,0.15)", border: "#60A5FA" },
@@ -14,6 +15,11 @@ export const NODE_DEFAULTS = {
   person: {
     name: "", pose: "standing", emotion: "normal", cameraAngle: "medium",
     clothing: "", speech: "", speechType: "speech", actionDesc: "",
+    refImage: null, refImageUrl: null, refPersistUrl: null, refUploading: false,
+  },
+  support: {
+    name: "", pose: "standing", emotion: "normal", cameraAngle: "medium",
+    clothing: "", speech: "", speechType: "speech", actionDesc: "", role: "support",
     refImage: null, refImageUrl: null, refPersistUrl: null, refUploading: false,
   },
   scenario: {

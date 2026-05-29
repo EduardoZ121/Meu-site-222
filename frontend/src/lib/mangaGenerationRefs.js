@@ -39,7 +39,7 @@ export function collectMangaRefNodes(nodes, edges = []) {
   return {
     persons: personsOrdered.length
       ? personsOrdered
-      : sorted.filter((n) => n.type === "person" && hasRef(n)),
+      : sorted.filter((n) => (n.type === "person" || n.type === "support") && hasRef(n)),
     scenarios: sorted.filter((n) => n.type === "scenario" && hasRef(n)),
     objects: sorted.filter((n) => n.type === "object" && hasRef(n)),
   };

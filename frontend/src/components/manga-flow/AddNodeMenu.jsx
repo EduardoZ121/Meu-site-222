@@ -1,7 +1,8 @@
-import { User, MapPin, Box, MessageCircle, Sparkles, Camera, Square, X } from "lucide-react";
+import { User, Users, MapPin, Box, MessageCircle, Sparkles, Camera, Square, X } from "lucide-react";
 
 const NODE_TYPES = [
   { type: "person", icon: User, label: "Person / Character", desc: "Name, pose, emotion, speech, clothing, reference photo.", color: "#9333EA", emoji: "👤" },
+  { type: "support", icon: Users, label: "Support (secondary)", desc: "Secondary character with own identity (ref slot 2). Use instead of a second Person card.", color: "#D946EF", emoji: "🧑‍🤝‍🧑" },
   { type: "scenario", icon: MapPin, label: "Scenario / Place", desc: "Location with time, weather, mood, lighting.", color: "#14B8A6", emoji: "🌆" },
   { type: "object", icon: Box, label: "Object / Item", desc: "Item with description, size, state.", color: "#FACC15", emoji: "📦" },
   { type: "speech", icon: MessageCircle, label: "Speech Bubble / Dialogue", desc: "Dialogue text, bubble type, style, tail direction.", color: "#60A5FA", emoji: "💬" },

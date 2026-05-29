@@ -12,6 +12,7 @@ import {
   Download, Upload, BarChart3, Search, Keyboard, Sparkles,
 } from "lucide-react";
 import PersonNode from "./nodes/PersonNode";
+import SupportNode from "./nodes/SupportNode";
 import ScenarioNode from "./nodes/ScenarioNode";
 import ObjectNode from "./nodes/ObjectNode";
 import SpeechNode from "./nodes/SpeechNode";
@@ -34,12 +35,13 @@ import {
   uid, createDefaultProject, createEmptyPage, saveFlowProject,
   loadFlowProject, listFlowProjects, loadFlowProjectById, deleteFlowProject,
 } from "./mangaFlowData";
+import { projectHasPendingRefUploads } from "../../lib/mangaFlowRefStorage";
 import { NODE_DEFAULTS, NODE_COLORS } from "./nodeDefaults";
 import { buildPromptFromFlow } from "./buildFlowPrompt";
 import { toast } from "sonner";
 
 const nodeTypes = {
-  person: PersonNode, scenario: ScenarioNode, object: ObjectNode,
+  person: PersonNode, support: SupportNode, scenario: ScenarioNode, object: ObjectNode,
   speech: SpeechNode, effect: EffectNode, camera: CameraNode, panel: PanelNode,
 };
 
@@ -110,8 +112,9 @@ export default function MangaFlowEditor() {
       pageBeat: activePage?.pageBeat,
       storySynopsis: [meta?.synopsis, meta?.storyPrompt].filter(Boolean).join(" ").trim(),
       priorPagesSummary: prior || undefined,
+      wizardContext: project?.wizardContext || null,
     };
-  }, [project?.storyMeta, pages, activePage, activePageIndex]);
+  }, [project?.storyMeta, project?.wizardContext, pages, activePage, activePageIndex]);
 
   /* ---- History ---- */
   const pushHistory = useCallback(() => {
@@ -176,9 +179,11 @@ export default function MangaFlowEditor() {
     });
   }, [nodes, setEdges]);
 
-  /* ---- Auto-save ---- */
+  /* ---- Auto-save (skip while reference images are still uploading) ---- */
   useEffect(() => {
+    if (projectHasPendingRefUploads(nodes)) return undefined;
     const timer = setTimeout(() => {
+      if (projectHasPendingRefUploads(nodes)) return;
       const updated = savePageState();
       if (updated) { setProject(updated); saveFlowProject(updated); }
     }, 1500);
@@ -473,6 +478,7 @@ export default function MangaFlowEditor() {
       pages: result.pages,
       activePageId: result.pages[0].id,
       storyMeta: result.storyMeta || project?.storyMeta,
+      wizardContext: result.wizardContext || project?.wizardContext || null,
     };
     setProject(newProject);
     setActivePageId(result.pages[0].id);

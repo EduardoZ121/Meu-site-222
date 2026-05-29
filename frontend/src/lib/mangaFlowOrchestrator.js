@@ -27,6 +27,15 @@ import {
 
 /** Hidden semantic metadata per node type (UI + generation). */
 export const NODE_SEMANTIC_PROFILES = {
+  support: {
+    type: "character",
+    semantic_role: "support_actor",
+    persistent_identity: true,
+    maintain_reference_consistency: true,
+    track_across_panels: true,
+    reference_priority: "maximum",
+    secondary_cast: true,
+  },
   person: {
     type: "character",
     semantic_role: "actor",
@@ -120,7 +129,7 @@ export function getNodeSemanticProfile(node) {
       focus_target: d.focusTarget || "",
     };
   }
-  if (node?.type === "person") {
+  if (node?.type === "person" || node?.type === "support") {
     return { ...base, name: d.name || "Character" };
   }
   return base;

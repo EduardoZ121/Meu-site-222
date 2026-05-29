@@ -25,9 +25,13 @@ export function sortPanels(nodes) {
     });
 }
 
+export function isCastNode(node) {
+  return node?.type === "person" || node?.type === "support";
+}
+
 export function sortPersons(nodes) {
   return [...nodes]
-    .filter((n) => n.type === "person")
+    .filter((n) => isCastNode(n))
     .sort((a, b) => {
       const ay = a.position?.y ?? 0;
       const by = b.position?.y ?? 0;
@@ -66,7 +70,7 @@ export function getEdgePrompt(aId, bId, edges, nodes = []) {
 
 /** Persons with a direct edge to this panel (either direction). */
 export function personsForPanel(panelId, nodes, edges) {
-  return getLinked(panelId, nodes, edges, ["person"]).map((x) => x.node);
+  return getLinked(panelId, nodes, edges, ["person", "support"]).map((x) => x.node);
 }
 
 export function scenarioForPanel(panelId, nodes, edges) {

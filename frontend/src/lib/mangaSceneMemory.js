@@ -14,7 +14,9 @@ import { getCharacterIdentityTag } from "./mangaCharacterRef";
 /* HIDDEN PROMPTS PER NODE                                                    */
 /* -------------------------------------------------------------------------- */
 
-const PERSON_HIDDEN = `Hidden identity directive: maintain EXACT visual identity for this character across all panels and pages. Same face, same hair color and style, same skin tone, same body type, same outfit, same accessories. This is a recurring character — never reinvent.`;
+const PERSON_HIDDEN = `Hidden identity directive: maintain EXACT visual identity for this character across all panels and pages. Same face, same hair color and style, same skin tone, same body type, same outfit, same accessories. This is a recurring PRIMARY character — never reinvent.`;
+
+const SUPPORT_HIDDEN = `Hidden identity directive: SECONDARY (support) character with its OWN independent identity. Has separate face, hair, skin, body and outfit from any primary. Appears in the scene next to the primary character but never blends with them. Reference image is bound to slot 2 — never reuse for any other character. Same persistence rules: face/hair/skin/outfit locked across all panels.`;
 
 const SCENARIO_HIDDEN = `Hidden environment directive: this location stays consistent across the scene. Architecture, lighting, color palette, time-of-day and mood persist between panels unless the story explicitly transitions to another scenario node.`;
 
@@ -35,7 +37,11 @@ export function buildHiddenNodePrompt(node) {
   switch (node.type) {
     case "person": {
       const tag = getCharacterIdentityTag(node);
-      return `${name} [${tag}] — ${PERSON_HIDDEN}`;
+      return `${name} [${tag}] (PRIMARY) — ${PERSON_HIDDEN}`;
+    }
+    case "support": {
+      const tag = getCharacterIdentityTag(node);
+      return `${name} [${tag}] (SUPPORT) — ${SUPPORT_HIDDEN}`;
     }
     case "scenario":
       return `${name} — ${SCENARIO_HIDDEN}`;

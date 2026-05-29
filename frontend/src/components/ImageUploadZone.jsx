@@ -53,6 +53,8 @@ export default function ImageUploadZone({
   mediaType = "image",
   maxVideoDurationSec = null,
   disabled = false,
+  /** When true, onChange fires only after prepare (avoids double-callback races in Manga Flow). */
+  notifyOnPreparedOnly = false,
 }) {
   const { t } = useI18n();
   const isVideo = mediaType === "video";
@@ -248,9 +250,9 @@ export default function ImageUploadZone({
     lastPreparedRef.current = null;
     setPersistState("saving");
     notifyStatus("saving");
-    onChange(file);
+    if (!notifyOnPreparedOnly) onChange(file);
     void runBackgroundImage(file, rid);
-  }, [isVideo, maxVideoDurationSec, runBackgroundImage, runBackgroundVideo, onChange, notifyStatus, t]);
+  }, [isVideo, maxVideoDurationSec, runBackgroundImage, runBackgroundVideo, onChange, notifyStatus, notifyOnPreparedOnly, t]);
 
   const clear = useCallback(() => {
     runIdRef.current += 1;

@@ -505,6 +505,22 @@
 .manga-flow-ref-upload-wrap .manga-flow-ref-upload label.min-h-\[12rem\] {
   min-height: 11rem;
 }
+.manga-flow-ref-upload-saved {
+  margin-top: 10px;
+  border-radius: 10px;
+  overflow: hidden;
+  border: 1px solid rgba(168,85,247,0.25);
+  background: rgba(17,17,24,0.6);
+}
+.manga-flow-ref-upload-saved__img {
+  width: 100%;
+  max-height: 140px;
+  object-fit: cover;
+  display: block;
+}
+.manga-flow-ref-upload--busy {
+  color: #A855F7;
+}
 
 /* Legacy compat */
 .mfi-img-wrap { position: relative; border-radius: 8px; overflow: hidden; }

@@ -242,6 +242,7 @@ export function generateMangaFromWizard(answers) {
     narrationBox = "none", sfxStyle = "japanese", sampleDialogue = "",
     artStyle = "manga_bw", detailLevel = "detailed", lighting = "dramatic",
     colorPalette = "monochrome", storyPrompt = "",
+    narration = "third_person", quality = "ultra", extraInstructions = "",
   } = answers;
 
   const numPages = Math.min(Math.max(1, Number(pageCount)), 20);
@@ -453,6 +454,24 @@ export function generateMangaFromWizard(answers) {
       artStyle,
       transitions,
       characters: charsWithNames,
+    },
+    wizardContext: {
+      hiddenDirective: [
+        `WIZARD CONTEXT (binding for every panel of this project):`,
+        `- Format: ${format}; main style: ${mainStyle}; art style: ${artStyle.replace(/_/g, " ")}.`,
+        `- Genre: ${genre.replace(/_/g, " ")}; tone: ${tone}; pacing: ${pacing}; narration: ${narration?.replace(/_/g, " ") || "third person"}.`,
+        `- Visual: ${detailLevel?.replace(/_/g, " ") || "detailed"} detail, ${lighting || "dramatic"} lighting, ${colorPalette?.replace(/_/g, " ") || "monochrome"} palette, ${quality || "ultra"} quality.`,
+        `- Dialogue style: ${dialogueStyle || "natural"}; bubbles: ${bubbleStyle || "normal"} at ${bubblePosition || "auto"}; SFX: ${sfxStyle || "japanese"}.`,
+        `- World: ${location || "unspecified"}, ${era?.replace(/_/g, " ") || "modern"} era, ${weather || "clear"} weather.${worldDetails ? ` Notes: ${worldDetails}.` : ""}`,
+        charsWithNames.length
+          ? `- Locked cast (use ONLY these characters, never invent NPCs): ${charsWithNames.map((c) => `${c.name} [${c.role || "cast"}]`).join(", ")}.`
+          : "",
+        storyPrompt ? `- Story (must follow plot beats): ${String(storyPrompt).slice(0, 600)}` : "",
+        keyMoments ? `- Key moments to hit: ${String(keyMoments).slice(0, 300)}` : "",
+        extraInstructions ? `- User extra: ${String(extraInstructions).slice(0, 200)}` : "",
+      ]
+        .filter(Boolean)
+        .join("\n"),
     },
   };
 }

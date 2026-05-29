@@ -6,6 +6,7 @@ import { useI18n } from "../lib/i18n";
 import { api, formatApiError } from "../lib/api";
 import { useAuth } from "../lib/auth";
 import { isLocalAuthToken, supportFallbackReply } from "../lib/supportClientFallback";
+import { SUPPORT_EMAIL } from "../lib/siteConfig";
 import { toast } from "sonner";
 
 const STORAGE_KEY = "rp_support_chat_v3";
@@ -178,7 +179,9 @@ export default function SupportChat({ open, onClose }) {
           ...prev,
           {
             role: "assistant",
-            content: fallback || `${formatApiError(err, t("support_error"))}\n\n${t("support_contact_hint")}`,
+            content:
+              fallback
+              || `${formatApiError(err, t("support_error"))}\n\n${t("support_contact_hint", { email: SUPPORT_EMAIL })}`,
           },
         ]);
         if (err?.response?.status === 503) toast.error(t("support_unavailable"));

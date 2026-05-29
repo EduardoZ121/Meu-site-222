@@ -15,6 +15,7 @@ import { usePricing } from "../../lib/PricingContext";
 import { setStoredPricingRegion } from "../../lib/pricingRegions";
 import { BILLING_FAQ_KEYS, BILLING_PKG_KEYS } from "../../lib/billingLocales";
 import { customPurchasePrice, getPricingMeta } from "../../lib/creditPricing";
+import { SUPPORT_EMAIL } from "../../lib/siteConfig";
 
 const PKG_ICONS = { starter: Sparkles, creator: Zap, studio: Rocket, pro: Rocket };
 
@@ -362,7 +363,7 @@ export default function Billing() {
           <li>{t("bill_terms_4")}</li>
           <li>
             {t("bill_terms_5")}{" "}
-            <a href="mailto:suporte@remakepixel.com" className="text-[#C4B5FD] hover:underline">suporte@remakepixel.com</a>
+            <a href={`mailto:${SUPPORT_EMAIL}`} className="text-[#C4B5FD] hover:underline">{SUPPORT_EMAIL}</a>
           </li>
         </ul>
         <p className="text-rp-mute2 text-[12px] mt-5 font-mono uppercase tracking-[0.1em]">

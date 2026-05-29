@@ -27,6 +27,19 @@ export const BRAND_FULL_NAME = String(
   process.env.REACT_APP_BRAND_FULL_NAME || `${BRAND_NAME} — Estúdio AI de imagem e vídeo`,
 ).trim();
 
+/** Email de suporte — muda para suporte@remake.com quando tiveres o domínio. */
+export const SUPPORT_EMAIL = (() => {
+  const fromEnv = String(process.env.REACT_APP_SUPPORT_EMAIL || "").trim();
+  if (fromEnv) return fromEnv;
+  try {
+    const host = new URL(SITE_ORIGIN).hostname.toLowerCase();
+    if (host.includes("remake.com")) return "suporte@remake.com";
+  } catch {
+    /* ignore */
+  }
+  return "suporte@remakepix.com";
+})();
+
 export const DEFAULT_SITE_DESCRIPTION =
   "Gera, edita e cria imagens com IA. 96 estilos, pôsteres, vídeo e ferramentas Pro — créditos simples, sem mensalidade obrigatória.";
 

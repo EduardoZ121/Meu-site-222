@@ -864,7 +864,7 @@
     "support_typing_2": "Pensando…",
     "support_typing_3": "Escribiendo…",
     "support_error": "Algo falló.",
-    "support_contact_hint": "Facturación o reembolsos: suporte@remakepix.com — te responderá alguien del equipo.",
+    "support_contact_hint": "Facturación o reembolsos: {email} — te responderá alguien del equipo.",
     "support_unavailable": "Sofia no está disponible ahora.",
     "support_q_casual_1": "Quiero un retrato",
     "support_q_casual_2": "Ayuda con un prompt",

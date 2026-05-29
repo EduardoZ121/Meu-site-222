@@ -52,8 +52,10 @@ Em **remakepix → Settings → Environment Variables**:
 | `REACT_APP_SITE_ORIGIN` | `https://www.remake.com` |
 | `REACT_APP_BRAND_NAME` | `Remake` |
 | `REACT_APP_BRAND_FULL_NAME` | `Remake — Estúdio AI de imagem e vídeo` (opcional) |
+| `SITE_URL` | `https://www.remake.com` (API / emails) |
+| `SUPPORT_EMAIL` | `suporte@remake.com` (se tiveres caixa nesse domínio) |
 
-O `vercel.json` já inclui estas variáveis no build. Depois de comprar o domínio, faz **Redeploy** em Production.
+O build na Vercel corre `scripts/sync-site-origin.js` antes do CRA (só altera `index.html` quando `REACT_APP_SITE_ORIGIN` está definido). Depois de comprar o domínio, faz **Redeploy** em Production.
 
 ---
 
@@ -93,9 +95,16 @@ No bucket S3 → **CORS**, inclui:
 
 ## 7. Redirecionar o domínio antigo (opcional)
 
-O `vercel.json` já redireciona **remakepix.com** → **www.remake.com** quando o tráfego chega com esse host.
+As regras estão em `vercel.redirects.remake.com.json`. **Não estão activas** no deploy actual até correres:
 
-Só activa depois de **remake.com** estar verificado na Vercel; até lá, **remakepix.com** continua a funcionar.
+```bash
+./scripts/activate-remake-domain.sh
+git add vercel.json frontend/public/index.html
+git commit -m "chore: activate remake.com redirects"
+git push
+```
+
+Só faz isto depois de **remake.com** estar verificado na Vercel; até lá, **remakepix.com** continua a funcionar sem redirects.
 
 ---
 
@@ -110,9 +119,13 @@ Só activa depois de **remake.com** estar verificado na Vercel; até lá, **rema
 
 ## O que já está no repositório
 
-- `frontend/src/lib/siteConfig.js` — origem e marca por env
+- `frontend/src/lib/siteConfig.js` — origem, marca e email de suporte
+- `frontend/api/lib/siteOrigin.cjs` — mesma lógica nas API routes
 - `scripts/sync-site-origin.js` — meta tags no `index.html` no build
-- Redirects `remakepix.com` → `remake.com` no `vercel.json`
-- Build com `REACT_APP_SITE_ORIGIN=https://www.remake.com`
+- `scripts/merge-vercel-redirects.js` + `vercel.redirects.remake.com.json`
+- `scripts/check-remake-domain-ready.sh` — lista o que falta
+- `docs/env.remake.com.example` — variáveis para copiar na Vercel
 
-Quando comprares o domínio, segue os passos 2–4 e um redeploy.
+Quando comprares o domínio: passos 2–4, `./scripts/activate-remake-domain.sh`, commit, redeploy.
+
+**Não é possível registar `remake.com` por ti** — só um registrador (com pagamento) pode comprar o domínio.

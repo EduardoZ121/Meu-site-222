@@ -34,6 +34,7 @@ const {
   newPendingId,
 } = require("./lib/pendingPredictions.cjs");
 const { formatGenerationError } = require("./lib/generationErrors.cjs");
+const { getSiteOrigin } = require("./lib/siteOrigin.cjs");
 const { handleCreationsRoute } = require("./lib/creationsRoutes.cjs");
 const { handlePromptAssistRoute } = require("./lib/promptAssist.cjs");
 const PADRAO_STYLES_LIST = require("./lib/padraoStylesData.cjs");
@@ -1866,7 +1867,7 @@ async function routePost(path, fields, files, req) {
     const packageLabel = hasCustom ? "Custom" : pkg.name;
     const packageTagline = hasCustom ? `${credits} créditos personalizados` : pkg.tagline;
     const metadataPackage = hasCustom ? "custom" : packageId;
-    const origin = fields.origin || "https://remakepix.com";
+    const origin = fields.origin || getSiteOrigin();
     const stripe = stripeClient();
     const session = await stripe.checkout.sessions.create({
       mode: "payment",

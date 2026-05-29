@@ -1205,7 +1205,7 @@
     "support_typing_2": "Thinking…",
     "support_typing_3": "Writing…",
     "support_error": "Something went wrong.",
-    "support_contact_hint": "For billing or refunds, email suporte@remakepix.com — a human will follow up soon.",
+    "support_contact_hint": "For billing or refunds, email {email} — a human will follow up soon.",
     "support_unavailable": "Sofia is temporarily offline.",
     "support_q_casual_1": "I want a portrait photo",
     "support_q_casual_2": "Help me with a prompt",

@@ -25,8 +25,10 @@ const PAGES = [
   { path: "/app/referrals", name: "Referências", desc: "Código de convite — bónus de créditos." },
 ];
 
+const { getSiteOrigin } = require("./siteOrigin.cjs");
+
 function buildSiteKnowledge() {
-  const origin = process.env.SITE_URL || "https://remakepix.com";
+  const origin = getSiteOrigin();
   const tools = TOOLS.map(
     (t) => `- ${t.name} (${t.credits} créditos): ${origin}${t.path} — ${t.desc}`,
   ).join("\n");

@@ -6,7 +6,8 @@ const MAX_HISTORY = 16;
 const MAX_OUTPUT_TOKENS = 1100;
 
 function supportEmail() {
-  return String(process.env.SUPPORT_EMAIL || "suporte@remakepix.com").trim();
+  const { getSupportEmail } = require("./siteOrigin.cjs");
+  return getSupportEmail();
 }
 
 function modelId() {

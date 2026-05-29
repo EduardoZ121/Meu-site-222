@@ -125,7 +125,8 @@ async function finalizePending(pending, replicateInfo) {
 
     if (pending.type === "video" && pending.notify_email) {
       const videoUrl = urls[0];
-      const galleryUrl = `https://remakepix.com/app/gallery?focus=${encodeURIComponent(creation.id)}`;
+      const { absoluteSitePath } = require("./siteOrigin.cjs");
+      const galleryUrl = `${absoluteSitePath("/app/gallery")}?focus=${encodeURIComponent(creation.id)}`;
       sendResendEmail({
         to: pending.notify_email,
         subject: "O teu vídeo está pronto — Remake Pixel",

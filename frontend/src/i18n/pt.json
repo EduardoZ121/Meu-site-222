@@ -1237,7 +1237,7 @@
     "support_typing_2": "A pensar…",
     "support_typing_3": "A escrever…",
     "support_error": "Algo correu mal.",
-    "support_contact_hint": "Para faturação ou reembolsos: suporte@remakepix.com — alguém da equipa responde em breve.",
+    "support_contact_hint": "Para faturação ou reembolsos: {email} — alguém da equipa responde em breve.",
     "support_unavailable": "A Sofia está temporariamente offline.",
     "support_q_casual_1": "Quero um retrato",
     "support_q_casual_2": "Ajuda com um prompt",

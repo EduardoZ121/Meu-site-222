@@ -1,4 +1,5 @@
 /** Banner de consentimento + páginas legais. */
+import { SUPPORT_EMAIL } from "./siteConfig";
 
 const en = {
   consent_title: "Cookies & terms",
@@ -24,13 +25,13 @@ const en = {
     "Each generation debits the cost shown in the tool. Successful deliveries are final. Failed generations (server error, timeout, empty output, model block) are refunded automatically.",
   legal_terms_4:
     "You are responsible for prompts and uploads. Do not use the service for illegal content or to violate third-party rights.",
-  legal_terms_5: "Billing questions: suporte@remakepix.com",
+  legal_terms_5: `Billing questions: ${SUPPORT_EMAIL}`,
   legal_privacy_1:
     "We process account data (email, name), usage (generations, credits), and files you upload to run AI models and store results.",
   legal_privacy_2:
     "We use processors (hosting, AI APIs, payments). We do not sell your personal data.",
   legal_privacy_3:
-    "You may request access or deletion of your account by emailing suporte@remakepix.com.",
+    `You may request access or deletion of your account by emailing ${SUPPORT_EMAIL}.`,
   legal_cookies_1:
     "Essential: session token (rp_token), settings (rp_settings), language, legal consent, and pending generation state.",
   legal_cookies_2:
@@ -73,13 +74,13 @@ const pt = {
     "Cada geração debita o custo indicado na ferramenta. Entregas com sucesso são definitivas. Falhas (erro do servidor, timeout, saída vazia, bloqueio do modelo) são reembolsadas automaticamente.",
   legal_terms_4:
     "És responsável pelos prompts e uploads. Não uses o serviço para conteúdo ilegal nem para violar direitos de terceiros.",
-  legal_terms_5: "Dúvidas: suporte@remakepix.com",
+  legal_terms_5: `Dúvidas: ${SUPPORT_EMAIL}`,
   legal_privacy_1:
     "Tratamos dados de conta (email, nome), utilização (gerações, créditos) e ficheiros que envias para executar modelos de IA e guardar resultados.",
   legal_privacy_2:
     "Usamos subprocessadores (alojamento, APIs de IA, pagamentos). Não vendemos os teus dados pessoais.",
   legal_privacy_3:
-    "Podes pedir acesso ou eliminação da conta em suporte@remakepix.com.",
+    `Podes pedir acesso ou eliminação da conta em ${SUPPORT_EMAIL}.`,
   legal_cookies_1:
     "Essenciais: token de sessão (rp_token), definições (rp_settings), idioma, consentimento legal e estado de gerações pendentes.",
   legal_cookies_2:

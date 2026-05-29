@@ -2,62 +2,87 @@ import {
   ARTISTIC_STUDIO_STYLES,
   ARTISTIC_EFFECT_SECTIONS,
 } from "./artisticStudioData";
-import { buildAiLabEditPrompt } from "./artisticLabPrompt";
+import {
+  buildAiLabEditPrompt,
+  buildPhotoStyleEditPrompt,
+  buildPhotographyEditPrompt,
+} from "./artisticLabPrompt";
 
 export function getStyleById(styleId) {
   return ARTISTIC_STUDIO_STYLES.find((s) => s.id === styleId) || null;
 }
 
-export function buildArtisticStudioPrompt({
-  userPrompt = "",
-  styleId = null,
-  effects = {},
-  imageMode = false,
-}) {
-  const parts = [];
-  const trimmed = String(userPrompt || "").trim();
-
-  if (imageMode) {
-    parts.push(
-      "Edit and transform the provided reference image. Preserve the subject identity, face, and overall composition unless the edit explicitly requires change.",
-    );
-  }
-
-  const style = getStyleById(styleId);
-
-  if (style?.cat === "nsfw") {
-    return buildAiLabEditPrompt({
-      userPrompt: trimmed,
-      styleSuffix: style?.suffix || "",
-    });
-  }
-
-  if (trimmed) parts.push(trimmed);
-  if (style?.labPreset) {
-    parts.push(
-      imageMode
-        ? "Rapid image edit: transform the reference photo while preserving identity, face, pose and framing."
-        : "Experimental diffusion rendering with editorial finish.",
-    );
-  }
-  if (style?.suffix) parts.push(style.suffix);
-
+function collectEffectPromptParts(effects = {}) {
+  const effectParts = [];
   for (const section of ARTISTIC_EFFECT_SECTIONS) {
     const value = effects[section.id];
     if (section.type === "radio" && value) {
       const opt = section.options.find((o) => o.id === value);
-      if (opt?.prompt) parts.push(opt.prompt);
+      if (opt?.prompt) effectParts.push(opt.prompt);
     }
     if (section.type === "checkbox" && value && typeof value === "object") {
       for (const opt of section.options) {
-        if (value[opt.id] && opt.prompt) parts.push(opt.prompt);
+        if (value[opt.id] && opt.prompt) effectParts.push(opt.prompt);
       }
     }
   }
+  return effectParts;
+}
 
-  parts.push(
-    "Ultra high quality, professional art direction, cohesive visual recipe, 8K detail where applicable.",
-  );
+export function buildArtisticStudioPrompt({
+  userPrompt = "",
+  styleId = null,
+  styleCat = null,
+  effects = {},
+  imageMode = false,
+}) {
+  const trimmed = String(userPrompt || "").trim();
+  const style = getStyleById(styleId);
+  const effectParts = collectEffectPromptParts(effects);
+
+  const styleSuffixParts = [];
+  if (style?.labPreset && imageMode) {
+    styleSuffixParts.push(
+      "Rapid edit preserving identity, face, exact age, pose and framing.",
+    );
+  }
+  if (style?.suffix) styleSuffixParts.push(style.suffix);
+  const styleSuffix = styleSuffixParts.filter(Boolean).join(". ");
+
+  if (style?.cat === "nsfw" && imageMode) {
+    return buildAiLabEditPrompt({
+      userPrompt: trimmed,
+      styleSuffix,
+      extras: effectParts,
+    });
+  }
+
+  const isPhotography =
+    style?.cat === "photography" || styleCat === "photography";
+
+  if (imageMode) {
+    if (isPhotography) {
+      return buildPhotographyEditPrompt({
+        userPrompt: trimmed,
+        styleSuffix,
+        extras: effectParts,
+      });
+    }
+    return buildPhotoStyleEditPrompt({
+      userPrompt: trimmed,
+      styleSuffix,
+      extras: effectParts,
+    });
+  }
+
+  const parts = [];
+  if (trimmed) parts.push(trimmed);
+  if (style?.labPreset) {
+    parts.push("Experimental diffusion rendering with editorial finish.");
+  }
+  if (style?.suffix) parts.push(style.suffix);
+  parts.push(...effectParts);
+  parts.push("Ultra high quality, professional art direction, cohesive visual recipe.");
 
   return parts.filter(Boolean).join(". ").replace(/\.\s*\./g, ".");
 }

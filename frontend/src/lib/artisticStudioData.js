@@ -23,7 +23,7 @@ export function canAccessNsfwArtisticStyles(user) {
 
 export const ARTISTIC_STUDIO_STYLES = [
   // —— Fotografia ——
-  { id: "photo_classic_portrait", cat: "photography", label: "Retrato Clássico", labelEn: "Classic Portrait", desc: "Iluminação suave, pele natural, fundo desfocado", descEn: "Soft light, natural skin, blurred background", suffix: "classic portrait photography, soft natural lighting, natural skin texture, shallow depth of field, creamy bokeh background, timeless editorial portrait", gradient: ["#1a1a2e", "#4a5568", "#e2e8f0"], icon: "camera" },
+  { id: "photo_classic_portrait", cat: "photography", label: "Retrato Clássico", labelEn: "Classic Portrait", desc: "Iluminação suave, pele natural, fundo desfocado", descEn: "Soft light, natural skin, blurred background", suffix: "classic portrait photography, soft natural lighting, shallow depth of field, creamy bokeh background, timeless editorial portrait", gradient: ["#1a1a2e", "#4a5568", "#e2e8f0"], icon: "camera" },
   { id: "photo_editorial", cat: "photography", label: "Retrato Editorial", labelEn: "Editorial Portrait", desc: "Alto contraste, fashion, poses dramáticas", descEn: "High contrast, fashion, dramatic poses", suffix: "high-fashion editorial portrait, dramatic contrast, bold posing, magazine cover quality, sharp styling, professional studio fashion photography", gradient: ["#0f0f0f", "#7c3aed", "#f4f1ea"], icon: "sparkles" },
   { id: "photo_lifestyle", cat: "photography", label: "Lifestyle", labelEn: "Lifestyle", desc: "Natural, candid, luz do dia", descEn: "Natural, candid, daylight", suffix: "authentic lifestyle photography, candid natural moment, soft daylight, relaxed atmosphere, documentary feel, real-world environment", gradient: ["#fef3c7", "#f59e0b", "#78350f"], icon: "sun" },
   { id: "photo_documentary", cat: "photography", label: "Documental", labelEn: "Documentary", desc: "Preto e branco granulado, momentos reais", descEn: "Grainy B&W, real moments", suffix: "documentary black and white photography, visible film grain, raw honest moment, photojournalistic composition, high contrast monochrome", gradient: ["#171717", "#525252", "#a3a3a3"], icon: "aperture" },
@@ -33,7 +33,7 @@ export const ARTISTIC_STUDIO_STYLES = [
   { id: "photo_fashion", cat: "photography", label: "Fashion Runway", labelEn: "Fashion Runway", desc: "Passarela, movimento, alta costura", descEn: "Runway, motion, haute couture", suffix: "high fashion runway photography, dynamic motion, designer clothing, sharp flash, Vogue editorial energy", gradient: ["#000000", "#ffffff", "#dc2626"], icon: "sparkles" },
   { id: "photo_cinematic", cat: "photography", label: "Cinematográfico", labelEn: "Cinematic", desc: "Widescreen, grading de filme, drama", descEn: "Widescreen, film grading, drama", suffix: "cinematic still frame, anamorphic widescreen composition, movie color grading, dramatic storytelling lighting, blockbuster film still", gradient: ["#0f172a", "#1e40af", "#f59e0b"], icon: "camera" },
   { id: "photo_noir", cat: "photography", label: "Film Noir", labelEn: "Film Noir", desc: "Sombras duras, mistério, preto e branco", descEn: "Hard shadows, mystery, monochrome", suffix: "film noir photography, hard shadows, venetian blind light patterns, mysterious mood, high contrast black and white", gradient: ["#0a0a0a", "#374151", "#d1d5db"], icon: "moon" },
-  { id: "photo_hdr", cat: "photography", label: "HDR Premium", labelEn: "HDR Premium", desc: "Detalhe extremo, cores ricas, impacto", descEn: "Extreme detail, rich colors, impact", suffix: "HDR photography, rich tonal range, hyper-detailed textures, vibrant but natural colors, premium commercial look", gradient: ["#064e3b", "#10b981", "#fef08a"], icon: "sun" },
+  { id: "photo_hdr", cat: "photography", label: "HDR Premium", labelEn: "HDR Premium", desc: "Detalhe extremo, cores ricas, impacto", descEn: "Extreme detail, rich colors, impact", suffix: "HDR photography, rich tonal range, vibrant but natural colors, premium commercial look", gradient: ["#064e3b", "#10b981", "#fef08a"], icon: "sun" },
   { id: "photo_casual", cat: "photography", label: "Casual Photo", labelEn: "Casual Photo", desc: "Estilo rede social, natural e acessível", descEn: "Social-style, natural and approachable", suffix: "casual smartphone-quality photo aesthetic, natural relaxed pose, everyday authentic vibe, soft indoor light", gradient: ["#f3f4f6", "#9ca3af", "#4b5563"], icon: "camera" },
 
   // —— Anime & Manga ——
@@ -117,7 +117,7 @@ export const ARTISTIC_STUDIO_STYLES = [
   // —— Vintage & Retro ——
   { id: "vin_pulp", cat: "vintage", label: "Pulp Art", labelEn: "Pulp Art", desc: "Capa retro, cores saturadas", descEn: "Retro cover, saturated colors", suffix: "vintage pulp magazine cover art, saturated retro illustration, 1950s adventure poster style", gradient: ["#dc2626", "#fbbf24", "#1e3a8a"], icon: "frame" },
   { id: "vin_pinup_art", cat: "vintage", label: "Pin-up Vintage", labelEn: "Vintage Pin-up", desc: "Ilustração retro glam (SFW)", descEn: "Retro glam illustration (SFW)", suffix: "vintage pin-up illustration style, 1940s retro glamour poster, tasteful classic Americana art", gradient: ["#be123c", "#fbbf24", "#1e3a8a"], icon: "sparkles" },
-  { id: "vin_1920s", cat: "vintage", label: "Anos 1920", labelEn: "1920s Photo", desc: "Sépia, art déco, charleston", descEn: "Sepia, art deco, Charleston", suffix: "1920s vintage photograph aesthetic, sepia tones, art deco era fashion, flapper era atmosphere", gradient: ["#78716c", "#d6d3d1", "#1c1917"], icon: "camera" },
+  { id: "vin_1920s", cat: "vintage", label: "Anos 1920", labelEn: "1920s Photo", desc: "Sépia, art déco, charleston", descEn: "Sepia, art deco, Charleston", suffix: "1920s vintage color grade and fashion styling, sepia tones, art deco atmosphere, period look without aging the subject", gradient: ["#78716c", "#d6d3d1", "#1c1917"], icon: "camera" },
   { id: "vin_1990s", cat: "vintage", label: "Anos 90 Photo", labelEn: "1990s Photo", desc: "Flash direto, cores datadas", descEn: "Direct flash, dated colors", suffix: "1990s photograph aesthetic, direct flash, slightly faded colors, nostalgic 90s snapshot", gradient: ["#f472b6", "#38bdf8", "#facc15"], icon: "camera" },
   { id: "vin_vhs", cat: "vintage", label: "VHS / Camcorder", labelEn: "VHS / Camcorder", desc: "Scanlines, data, noise", descEn: "Scanlines, date stamp, noise", suffix: "VHS camcorder footage aesthetic, scanlines, date stamp overlay, analog video noise, retro home video", gradient: ["#1f2937", "#6b7280", "#f43f5e"], icon: "waves" },
   { id: "vin_polaroid", cat: "vintage", label: "Polaroid", labelEn: "Polaroid", desc: "Instantâneo, bordas, nostalgia", descEn: "Instant film, borders, nostalgia", suffix: "Polaroid instant film photograph, white frame border, faded warm analog colors, nostalgic snapshot", gradient: ["#fef3c7", "#d6d3d1", "#78716c"], icon: "camera" },
@@ -183,8 +183,8 @@ export const ARTISTIC_EFFECT_SECTIONS = [
       { id: "golden", label: "Luz Dourada (Golden Hour)", labelEn: "Golden Hour", prompt: "warm golden hour sunlight" },
       { id: "blue", label: "Luz Azul (Blue Hour)", labelEn: "Blue Hour", prompt: "cool blue hour ambient light" },
       { id: "backlit", label: "Contraluz", labelEn: "Backlight", prompt: "strong backlight rim glow" },
-      { id: "rembrandt", label: "Rembrandt", labelEn: "Rembrandt", prompt: "Rembrandt triangle lighting on face" },
-      { id: "split", label: "Split Lighting", labelEn: "Split Lighting", prompt: "dramatic split lighting half face in shadow" },
+      { id: "rembrandt", label: "Rembrandt", labelEn: "Rembrandt", prompt: "Rembrandt lighting on scene, soft shadows without aging the face" },
+      { id: "split", label: "Split Lighting", labelEn: "Split Lighting", prompt: "dramatic split lighting on scene, do not add wrinkles" },
       { id: "butterfly", label: "Butterfly Lighting", labelEn: "Butterfly Lighting", prompt: "butterfly lighting from above" },
       { id: "rim", label: "Rim Light", labelEn: "Rim Light", prompt: "pronounced rim light edge separation" },
       { id: "silhouette", label: "Silhueta", labelEn: "Silhouette", prompt: "silhouette against bright background" },
@@ -226,7 +226,7 @@ export const ARTISTIC_EFFECT_SECTIONS = [
       { id: "bokeh_hex", label: "Bokeh Hexagonal", labelEn: "Hexagonal Bokeh", prompt: "hexagonal bokeh highlights" },
       { id: "vignette_soft", label: "Vignette Suave", labelEn: "Soft Vignette", prompt: "soft subtle vignette" },
       { id: "vignette_strong", label: "Vignette Forte", labelEn: "Strong Vignette", prompt: "strong dark vignette corners" },
-      { id: "grain", label: "Film Grain", labelEn: "Film Grain", prompt: "authentic film grain texture" },
+      { id: "grain", label: "Film Grain", labelEn: "Film Grain", prompt: "film grain on image grade only, not on face aging" },
       { id: "leaks", label: "Light Leaks", labelEn: "Light Leaks", prompt: "analog light leak overlays" },
       { id: "ca", label: "Chromatic Aberration", labelEn: "Chromatic Aberration", prompt: "subtle chromatic aberration fringing" },
       { id: "flare", label: "Lens Flare", labelEn: "Lens Flare", prompt: "cinematic lens flare" },
@@ -247,7 +247,7 @@ export const ARTISTIC_EFFECT_SECTIONS = [
       { id: "duotone", label: "Duotone", labelEn: "Duotone", prompt: "stylized duotone color treatment" },
       { id: "pastel_mood", label: "Pastel", labelEn: "Pastel", prompt: "soft pastel color mood" },
       { id: "neon_mood", label: "Neon", labelEn: "Neon", prompt: "neon saturated color mood" },
-      { id: "sepia", label: "Sepia", labelEn: "Sepia", prompt: "sepia vintage tone" },
+      { id: "sepia", label: "Sepia", labelEn: "Sepia", prompt: "sepia color grade only, same subject age as reference" },
       { id: "teal_orange", label: "Teal/Orange Cinema", labelEn: "Teal/Orange Cinema", prompt: "teal and orange cinematic color grade" },
     ],
   },

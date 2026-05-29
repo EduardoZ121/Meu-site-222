@@ -1097,6 +1097,7 @@ async function imageInput(fields, files, modelKey, prompt, opts = {}) {
       posterFood: opts.posterFood,
       poster: opts.poster,
       hasPersonPhoto: opts.hasPersonPhoto ?? Boolean(primary && !opts.posterFood),
+      photoEdit: Boolean(opts.photoEdit && primary),
     }),
     aspect_ratio: normalizeRatio(text(fields, "aspect_ratio", "1:1"), modelKey),
   };

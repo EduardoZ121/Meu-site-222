@@ -454,6 +454,7 @@ export default function MangaFlowEditor() {
     }
   }, []);
 
+  /* ---- Project save/load ---- */
   const handleSave = useCallback(() => {
     const updated = savePageState();
     if (updated) { setProject(updated); saveFlowProject(updated); toast.success(`"${updated.name}" saved`); }
@@ -510,16 +511,6 @@ export default function MangaFlowEditor() {
     }
     toast.message(`"${name}" deleted`);
   };
-
-  if (!project) {
-    return (
-      <div className="manga-flow-root manga-flow-root--loading" data-testid="manga-flow-loading">
-        <div className="manga-flow-loading__inner">
-          <p className="manga-flow-loading__text">Loading Manga Studio…</p>
-        </div>
-      </div>
-    );
-  }
 
   /* ---- Render ---- */
   return (
@@ -649,8 +640,8 @@ export default function MangaFlowEditor() {
       {showAddMenu && <AddNodeMenu onAdd={addNode} onClose={() => setShowAddMenu(false)} />}
       {(pendingConnection || editingEdge) && (
         <ConnectionPromptModal
-          source={editingEdge ? editingEdge._srcNode : nodes.find((n) => n.id === pendingConnection?.source)}
-          target={editingEdge ? editingEdge._tgtNode : nodes.find((n) => n.id === pendingConnection?.target)}
+          source={editingEdge ? editingEdge._srcNode : nodes.find((n) => n.id === pendingConnection.source)}
+          target={editingEdge ? editingEdge._tgtNode : nodes.find((n) => n.id === pendingConnection.target)}
           initialPrompt={editingEdge?.data?.prompt || ""}
           initialCondition={editingEdge?.data?.condition || null}
           isEditing={Boolean(editingEdge)}

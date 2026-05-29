@@ -1,7 +1,7 @@
 import { useRef, useState } from "react";
 import {
   X, Trash2, ImagePlus, Link2, User, MapPin, Box, MessageCircle,
-  Sparkles, Camera, Square, ChevronDown, Plus, Eye, EyeOff, Variable,
+  Sparkles, Camera, Square, ChevronDown, Plus, Eye, EyeOff, Variable, Wand2,
 } from "lucide-react";
 import {
   PERSON_POSES, PERSON_EMOTIONS, PERSON_CAMERA,
@@ -83,11 +83,24 @@ function Chips({ label, options, value, onChange, hint }) {
   );
 }
 
-function Field({ label, value, onChange, placeholder, multiline, hint, mono }) {
+function Field({ label, value, onChange, placeholder, multiline, hint, mono, autoGen }) {
   const Tag = multiline ? "textarea" : "input";
+  const [generating, setGen] = useState(false);
+  const doGen = async () => {
+    if (!autoGen) return;
+    setGen(true);
+    try { const txt = await autoGen(); if (txt) onChange(txt); } catch {} finally { setGen(false); }
+  };
   return (
     <div className="mfi-field">
-      <label className="mfi-label">{label}</label>
+      <div className="flex items-center justify-between">
+        <label className="mfi-label !mb-0">{label}</label>
+        {autoGen && (
+          <button onClick={doGen} disabled={generating} className="mfi-autogen" type="button">
+            <Wand2 className="w-3 h-3" /> {generating ? "..." : "Generate"}
+          </button>
+        )}
+      </div>
       {hint && <p className="mfi-hint">{hint}</p>}
       <Tag value={value || ""} onChange={(e) => onChange(e.target.value)} placeholder={placeholder}
         className={`mfi-input ${mono ? "font-mono text-[12px]" : ""}`}
@@ -152,6 +165,48 @@ function SubItemList({ label, items, onAdd, onRemove, onUpdate, renderItem }) {
   );
 }
 
+/* ======== Auto-generate descriptions based on context ======== */
+function genPersonAction(data) {
+  const actions = {
+    standing: ["Standing tall with confidence", "Waiting patiently, arms crossed", "Gazing into the distance"],
+    running: ["Sprinting at full speed, determined look", "Dashing forward with urgency", "Running through the scene, wind in hair"],
+    fighting: ["Launching a powerful attack", "Blocking an incoming strike", "In mid-combat, fierce expression"],
+    sitting: ["Sitting quietly, deep in thought", "Resting after a long journey", "Sitting on the edge, legs dangling"],
+    jumping: ["Leaping high into the air", "Jumping to dodge an attack", "Flying through the air dramatically"],
+    walking: ["Walking calmly through the scene", "Strolling with hands in pockets", "Walking purposefully towards their goal"],
+    hugging: ["Embracing tightly, emotional moment", "Holding close, tears flowing", "A warm protective embrace"],
+    kneeling: ["Kneeling in defeat", "Kneeling to examine something", "Kneeling in prayer or meditation"],
+    crouching: ["Crouching low, ready to strike", "Hidden in the shadows, watching", "Crouching behind cover"],
+    looking_back: ["Looking back over shoulder, concerned", "Glancing back with a mysterious smile", "Turning back one last time"],
+  };
+  const list = actions[data.pose] || actions.standing;
+  return list[Math.floor(Math.random() * list.length)];
+}
+
+function genScenarioDesc(data) {
+  const descs = [
+    `${data.name || "The scene"} during ${(data.timeOfDay || "day").replace(/_/g, " ")}. ${(data.mood || "neutral").replace(/_/g, " ")} atmosphere with ${(data.lighting || "natural")} lighting.`,
+    `A ${(data.mood || "neutral")} environment: ${data.name || "unnamed location"}. The ${data.weather || "clear"} weather adds to the mood.`,
+    `${(data.timeOfDay || "Day").replace(/_/g, " ")} in ${data.name || "this place"}. ${data.weather === "rain" ? "Rain falls steadily." : data.weather === "snow" ? "Snow covers everything." : "The air is still."}`,
+  ];
+  return descs[Math.floor(Math.random() * descs.length)];
+}
+
+function genObjectDesc(data) {
+  const descs = [
+    `A ${(data.size || "medium")} ${data.name || "object"}${data.state && data.state !== "normal" ? `, ${data.state.replace(/_/g, " ")}` : ""}. Important to the scene.`,
+    `${data.name || "This item"} — ${data.state !== "normal" ? data.state.replace(/_/g, " ") + ", " : ""}clearly visible and significant.`,
+  ];
+  return descs[Math.floor(Math.random() * descs.length)];
+}
+
+function genPromptOverride(type, data) {
+  if (type === "person") return `Draw ${data.name || "this character"} in exact ${(data.pose || "standing").replace(/_/g, " ")} pose, ${(data.emotion || "normal")} face, ${data.clothing ? `wearing ${data.clothing}` : "same outfit as reference"}. Preserve identity.`;
+  if (type === "scenario") return `Scene: ${data.name || "location"}, ${data.timeOfDay || "day"}, ${data.weather || "clear"} weather, ${data.mood || "neutral"} mood, ${data.lighting || "natural"} light.`;
+  if (type === "object") return `Object: ${data.name || "item"}, ${data.size || "medium"} size, ${data.state !== "normal" ? data.state : "normal"} condition. Must be clearly visible.`;
+  return "";
+}
+
 /* ======== Type-specific inspectors ======== */
 
 function PersonInspector({ data, onUpdate }) {
@@ -173,7 +228,8 @@ function PersonInspector({ data, onUpdate }) {
       <Chips label="Camera angle" options={PERSON_CAMERA} value={data.cameraAngle} onChange={(v) => onUpdate({ cameraAngle: v })} />
     </Section>
     <Section title="Action" icon={<Sparkles className="w-3.5 h-3.5 text-[#C4B5FD]" />} defaultOpen={false}>
-      <Field label="Action description" value={data.actionDesc} onChange={(v) => onUpdate({ actionDesc: v })} placeholder="Running towards enemy, looking at sky..." multiline />
+      <Field label="Action description" value={data.actionDesc} onChange={(v) => onUpdate({ actionDesc: v })} placeholder="Running towards enemy, looking at sky..." multiline
+        autoGen={() => Promise.resolve(genPersonAction(data))} />
       <Chips label="Action speed" options={ACTION_SPEEDS} value={data.actionSpeed || "normal"} onChange={(v) => onUpdate({ actionSpeed: v })} />
     </Section>
     <Section title="Dialogue" icon={<MessageCircle className="w-3.5 h-3.5 text-[#C4B5FD]" />} badge={dialogues.length || null} defaultOpen={false}>
@@ -198,7 +254,8 @@ function PersonInspector({ data, onUpdate }) {
       <NumberField label="Z-Index" value={data.zIndex ?? 10} onChange={(v) => onUpdate({ zIndex: v })} min={0} max={100} hint="Higher = in front" />
       <Toggle label="Visible in preview" value={data.visible !== false} onChange={(v) => onUpdate({ visible: v })} />
       <Field label="Custom variable" value={data.customVar} onChange={(v) => onUpdate({ customVar: v })} placeholder="estado_sakura = feliz" mono hint="For tracking state across panels" />
-      <Field label="AI Prompt override" value={data.promptOverride} onChange={(v) => onUpdate({ promptOverride: v })} placeholder="Specific instructions for AI generation..." multiline hint="Overrides auto-generated prompt for this card" />
+      <Field label="AI Prompt override" value={data.promptOverride} onChange={(v) => onUpdate({ promptOverride: v })} placeholder="Specific instructions for AI generation..." multiline hint="Overrides auto-generated prompt for this card"
+        autoGen={() => Promise.resolve(genPromptOverride("person", data))} />
     </Section>
   </>);
 }
@@ -213,7 +270,8 @@ function ScenarioInspector({ data, onUpdate }) {
           placeholder="e.g. same color palette, keep the broken bridge, maintain fog density..." multiline
           hint="Details the AI must preserve from the reference image" />
       )}
-      <Field label="Description" value={data.description} onChange={(v) => onUpdate({ description: v })} placeholder="Describe the environment..." multiline />
+      <Field label="Description" value={data.description} onChange={(v) => onUpdate({ description: v })} placeholder="Describe the environment..." multiline
+        autoGen={() => Promise.resolve(genScenarioDesc(data))} />
     </Section>
     <Section title="Atmosphere" icon={<Sparkles className="w-3.5 h-3.5 text-[#5EEAD4]" />}>
       <Chips label="Time of day" options={SCENARIO_TIME} value={data.timeOfDay} onChange={(v) => onUpdate({ timeOfDay: v })} />
@@ -244,7 +302,8 @@ function ObjectInspector({ data, onUpdate }) {
       <ImageUpload value={data.refImageUrl} onChange={onUpdate} />
       <Chips label="Size" options={OBJECT_SIZES} value={data.size} onChange={(v) => onUpdate({ size: v })} />
       <Chips label="State" options={OBJECT_STATES} value={data.state} onChange={(v) => onUpdate({ state: v })} />
-      <Field label="Description" value={data.description} onChange={(v) => onUpdate({ description: v })} placeholder="Describe..." multiline />
+      <Field label="Description" value={data.description} onChange={(v) => onUpdate({ description: v })} placeholder="Describe..." multiline
+        autoGen={() => Promise.resolve(genObjectDesc(data))} />
       <Field label="Interaction" value={data.interaction} onChange={(v) => onUpdate({ interaction: v })} placeholder="Can be held, thrown..." />
     </Section>
     <Section title="Advanced" icon={<Variable className="w-3.5 h-3.5 text-[#5A5A5E]" />} defaultOpen={false}>

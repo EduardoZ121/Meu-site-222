@@ -1517,7 +1517,9 @@ async function routePost(path, fields, files, req) {
     const nameB = text(fields, "ref_b_name", "Character 2");
     const descA = text(fields, "ref_a_desc", "");
     const descB = text(fields, "ref_b_desc", "");
-    const dualBlock = buildMangaDualCharacterBlock(nameA, nameB, descA, descB);
+    const roleA = text(fields, "ref_a_role", "primary");
+    const roleB = text(fields, "ref_b_role", "support");
+    const dualBlock = buildMangaDualCharacterBlock(nameA, nameB, descA, descB, roleA, roleB);
     promptFinal = `${dualBlock}\n\n${promptFinal}`;
     const cost = Math.max(1, Number(CREDIT.mangaPanel) || 15);
     const aspect = normalizeRatio(text(fields, "aspect_ratio", "4:5"), "qwen");
@@ -1559,7 +1561,9 @@ async function routePost(path, fields, files, req) {
       const nameB = text(fields, "ref_b_name", "Character 2");
       const descA = text(fields, "ref_a_desc", "");
       const descB = text(fields, "ref_b_desc", "");
-      const dualBlock = buildMangaDualCharacterBlock(nameA, nameB, descA, descB);
+      const roleA = text(fields, "ref_a_role", "primary");
+      const roleB = text(fields, "ref_b_role", "support");
+      const dualBlock = buildMangaDualCharacterBlock(nameA, nameB, descA, descB, roleA, roleB);
       promptFinal = `${dualBlock}\n\n${promptFinal}`;
       const cost = Math.max(1, Number(CREDIT.mangaPanel) || 15);
       const requestedAspect = text(fields, "aspect_ratio", isComicSheet ? "3:4" : "4:5");

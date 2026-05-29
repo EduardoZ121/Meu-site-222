@@ -255,13 +255,15 @@ export function buildSceneGraphSummary(nodes, edges) {
   for (const e of edges || []) {
     const src = nodes.find((n) => n.id === e.source);
     const tgt = nodes.find((n) => n.id === e.target);
-    if (src?.type === "person" && tgt?.type === "person") {
+    if (isCastNode(src) && isCastNode(tgt)) {
       const key = [src.id, tgt.id].sort().join("|");
       if (pairsSeen.has(key)) continue;
       pairsSeen.add(key);
       const rel = (e.data?.relationType || "together").replace(/_/g, " ");
+      const roleA = src.type === "support" ? " (suporte)" : "";
+      const roleB = tgt.type === "support" ? " (suporte)" : "";
       rules.push(
-        `TOGETHER: ${_displayName(src)} + ${_displayName(tgt)} share the SAME panel/scene (relation: ${rel}). Both must be visible and interacting.`,
+        `TOGETHER: ${_displayName(src)}${roleA} + ${_displayName(tgt)}${roleB} share the SAME panel/scene (relation: ${rel}). Both must be visible and interacting. Maintain INDEPENDENT identities — never blend faces/hair/outfits between them.`,
       );
     }
   }

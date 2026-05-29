@@ -175,7 +175,7 @@ function buildMangaComicSheetBlock(panelCount = 4) {
   return lines.join("\n");
 }
 
-function buildMangaDualCharacterBlock(nameA, nameB, descA = "", descB = "") {
+function buildMangaDualCharacterBlock(nameA, nameB, descA = "", descB = "", roleA = "primary", roleB = "support") {
   const a = String(nameA || "Character A").trim() || "Character A";
   const b = String(nameB || "Character B").trim() || "Character B";
   // Short stable per-name tags so the model has anchors that never collide.
@@ -187,18 +187,26 @@ function buildMangaDualCharacterBlock(nameA, nameB, descA = "", descB = "") {
   };
   const tagA = tagOf(`A|${a}|${descA}`);
   const tagB = tagOf(`B|${b}|${descB}`);
+  const labelA = roleA === "support" ? "SECONDARY CHARACTER (suporte)" : "PRIMARY CHARACTER";
+  const labelB = roleB === "support" ? "SECONDARY CHARACTER (suporte)" : "PRIMARY CHARACTER";
   const lines = [
     "DUAL CHARACTER REFERENCE — MANDATORY (read before scene description):",
-    `EXCLUSIVE CAST: exactly 2 named characters exist: "${a}" [${tagA}] and "${b}" [${tagB}]. No other people, no random NPCs, no generic anime extras, no gym/crowd faces.`,
+    `EXCLUSIVE CAST: exactly 2 named characters exist: "${a}" [${tagA}] (${labelA}) and "${b}" [${tagB}] (${labelB}). No other people, no random NPCs, no generic anime extras, no gym/crowd faces.`,
     "",
-    `=== ${a} [${tagA}] — locked identity card ===`,
+    `=== ${a} [${tagA}] — ${labelA} — locked identity card ===`,
     `- Reference image 1 is "${a}" ONLY. ${a}'s face, hairstyle, hair color, skin tone, ethnicity, body type and outfit must be taken EXACTLY from image 1.`,
     `- Image 1 may NEVER be used as a source for any other character. ${a}'s face may NEVER appear on anyone else.`,
+    roleA === "primary"
+      ? `- ${a} is the PRIMARY character — main focus of composition, leading the action.`
+      : `- ${a} is a SECONDARY/SUPPORT character — present in the scene with independent identity, but framing centers on the primary.`,
     descA ? `- ${a} visual notes (locked): ${String(descA).slice(0, 300)}` : "",
     "",
-    `=== ${b} [${tagB}] — locked identity card ===`,
+    `=== ${b} [${tagB}] — ${labelB} — locked identity card ===`,
     `- Reference image 2 is "${b}" ONLY. ${b}'s face, hairstyle, hair color, skin tone, ethnicity, body type and outfit must be taken EXACTLY from image 2.`,
     `- Image 2 may NEVER be used as a source for any other character. ${b}'s face may NEVER appear on anyone else.`,
+    roleB === "primary"
+      ? `- ${b} is the PRIMARY character — main focus of composition, leading the action.`
+      : `- ${b} is a SECONDARY/SUPPORT character — present in the scene with independent identity, but framing centers on the primary.`,
     descB ? `- ${b} visual notes (locked): ${String(descB).slice(0, 300)}` : "",
     "",
     "NON-MIXING RULES:",

@@ -3,7 +3,7 @@
  * Supports: 2 character refs → manga-interaction; single ref → manga-panel.
  */
 
-import { orderPersonsWithRefs } from "./mangaFlowGraph";
+import { orderPersonsWithRefs, isCastNode } from "./mangaFlowGraph";
 import { getCharacterIdentityTag } from "./mangaCharacterRef";
 
 function hasRef(node) {
@@ -39,7 +39,7 @@ export function collectMangaRefNodes(nodes, edges = []) {
   return {
     persons: personsOrdered.length
       ? personsOrdered
-      : sorted.filter((n) => (n.type === "person" || n.type === "support") && hasRef(n)),
+      : sorted.filter((n) => isCastNode(n) && hasRef(n)),
     scenarios: sorted.filter((n) => n.type === "scenario" && hasRef(n)),
     objects: sorted.filter((n) => n.type === "object" && hasRef(n)),
   };
@@ -108,11 +108,14 @@ export function planMangaGeneration(nodes, edges = []) {
   if (persons.length >= 2) {
     const labelA = nodeLabel(persons[0], "Personagem 1");
     const labelB = nodeLabel(persons[1], "Personagem 2");
+    const roleA = persons[0]?.type === "support" ? "support" : "primary";
+    const roleB = persons[1]?.type === "support" ? "support" : "primary";
     refSlots.push({
       slot: 1,
       role: "character",
       label: labelA,
       characterName: labelA,
+      characterRole: roleA,
       node: persons[0],
       field: "photo",
     });
@@ -121,6 +124,7 @@ export function planMangaGeneration(nodes, edges = []) {
       role: "character",
       label: labelB,
       characterName: labelB,
+      characterRole: roleB,
       node: persons[1],
       field: "photo_b",
     });
@@ -212,12 +216,14 @@ export async function appendMangaRefsToFormData(fd, refSlots) {
     const d0 = charSlots[0].node?.data;
     const desc0 = [d0?.clothing, d0?.refInstructions, d0?.actionDesc].filter(Boolean).join("; ");
     if (desc0) fd.append("ref_a_desc", desc0.slice(0, 400));
+    fd.append("ref_a_role", charSlots[0].characterRole || "primary");
   }
   if (charSlots[1]?.characterName) {
     fd.append("ref_b_name", charSlots[1].characterName);
     const d1 = charSlots[1].node?.data;
     const desc1 = [d1?.clothing, d1?.refInstructions, d1?.actionDesc].filter(Boolean).join("; ");
     if (desc1) fd.append("ref_b_desc", desc1.slice(0, 400));
+    fd.append("ref_b_role", charSlots[1].characterRole || "support");
   }
   return missing;
 }
@@ -231,8 +237,12 @@ export function buildReferenceSlotPromptSection(refSlots) {
     if (s.role === "character") {
       const who = s.characterName || s.label;
       const tag = s.node ? getCharacterIdentityTag(s.node) : `ID:CH${s.slot}`;
+      const roleLbl =
+        s.characterRole === "support"
+          ? "SECONDARY CHARACTER (suporte)"
+          : "PRIMARY CHARACTER";
       lines.push(
-        `Image ${s.slot} = "${who}" [${tag}] ONLY. This image is the sole identity source for ${who}: exact face shape, eyes, nose, mouth, hair color, hair style, skin tone, ethnicity, body proportions and outfit. Image ${s.slot} must NEVER be used for any other character, and ${who}'s face must NEVER appear on anyone else.`,
+        `Image ${s.slot} = "${who}" [${tag}] (${roleLbl}) ONLY. This image is the sole identity source for ${who}: exact face shape, eyes, nose, mouth, hair color, hair style, skin tone, ethnicity, body proportions and outfit. Image ${s.slot} must NEVER be used for any other character, and ${who}'s face must NEVER appear on anyone else.`,
       );
     } else if (s.role === "scenario") {
       lines.push(

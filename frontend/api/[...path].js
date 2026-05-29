@@ -38,6 +38,7 @@ const { handleCreationsRoute } = require("./lib/creationsRoutes.cjs");
 const { handlePromptAssistRoute } = require("./lib/promptAssist.cjs");
 const PADRAO_STYLES_LIST = require("./lib/padraoStylesData.cjs");
 const { finalizeImagePrompt } = require("./lib/imageQualityPrompts.cjs");
+const { appendPhotoEditIdentity } = require("./lib/identityPrompts.cjs");
 const {
   appendPhotoEditIdentity,
   upgradePadraoPrompt,
@@ -1408,6 +1409,9 @@ async function routePost(path, fields, files, req) {
     let promptFinal = text(fields, "prompt_final", "").trim();
     if (!promptFinal) throw new Error("Prompt em falta.");
     const hasPhoto = Boolean(files.photo || text(fields, "photo_url", "").trim());
+    if (hasPhoto) {
+      promptFinal = appendPhotoEditIdentity(promptFinal);
+    }
     const { user, isLocal } = resolveSessionUser(req);
     let userDoc = null;
     if (storageEnabled() && user?.id && !isLocal) {

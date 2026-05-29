@@ -2,7 +2,11 @@ import {
   ARTISTIC_STUDIO_STYLES,
   ARTISTIC_EFFECT_SECTIONS,
 } from "./artisticStudioData";
-import { buildAiLabEditPrompt, buildPhotographyEditPrompt } from "./artisticLabPrompt";
+import {
+  buildAiLabEditPrompt,
+  buildArtisticImageEditPrompt,
+  buildPhotographyEditPrompt,
+} from "./artisticLabPrompt";
 
 export function getStyleById(styleId) {
   return ARTISTIC_STUDIO_STYLES.find((s) => s.id === styleId) || null;
@@ -15,19 +19,17 @@ export function buildArtisticStudioPrompt({
   effects = {},
   imageMode = false,
 }) {
-  const parts = [];
   const trimmed = String(userPrompt || "").trim();
-
   const style = getStyleById(styleId);
+  const effectParts = collectEffectPromptParts(effects);
 
   if (style?.cat === "nsfw") {
     return buildAiLabEditPrompt({
       userPrompt: trimmed,
       styleSuffix: style?.suffix || "",
+      extras: effectParts,
     });
   }
-
-  const effectParts = collectEffectPromptParts(effects);
 
   const isPhotography =
     style?.cat === "photography" || styleCat === "photography";
@@ -41,25 +43,29 @@ export function buildArtisticStudioPrompt({
   }
 
   if (imageMode) {
-    parts.push(
-      "Edit and transform the provided reference image. Preserve the subject identity, face, and overall composition unless the edit explicitly requires change.",
-    );
+    const suffixParts = [];
+    if (style?.labPreset) {
+      suffixParts.push(
+        "Rapid image edit: apply style to the reference while preserving identity, face, exact age, pose and framing.",
+      );
+    }
+    if (style?.suffix) suffixParts.push(style.suffix);
+    return buildArtisticImageEditPrompt({
+      userPrompt: trimmed,
+      styleSuffix: suffixParts.filter(Boolean).join(". "),
+      extras: effectParts,
+    });
   }
 
+  const parts = [];
   if (trimmed) parts.push(trimmed);
   if (style?.labPreset) {
-    parts.push(
-      imageMode
-        ? "Rapid image edit: transform the reference photo while preserving identity, face, pose and framing."
-        : "Experimental diffusion rendering with editorial finish.",
-    );
+    parts.push("Experimental diffusion rendering with editorial finish.");
   }
   if (style?.suffix) parts.push(style.suffix);
-
   parts.push(...effectParts);
-
   parts.push(
-    "Ultra high quality, professional art direction, cohesive visual recipe, 8K detail where applicable.",
+    "Ultra high quality, professional art direction, cohesive visual recipe.",
   );
 
   return parts.filter(Boolean).join(". ").replace(/\.\s*\./g, ".");

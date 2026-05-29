@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useMemo } from "react";
 import { X, Wand2, Download, Copy, Loader2, Sparkles, Image as ImageIcon, AlertCircle } from "lucide-react";
 import { buildFinalPrompt, buildFinalPagePrompt, countPanelNodes } from "./buildFlowPrompt";
 import { uploadPost, pollPrediction, trackPendingPrediction } from "../../lib/api";
@@ -7,6 +7,7 @@ import {
   appendMangaRefsToFormData,
 } from "../../lib/mangaGenerationRefs";
 import { validateGraphForGeneration } from "../../lib/mangaFlowGraph";
+import { enrichEdgesSemantics } from "../../lib/mangaFlowSemantics";
 import { toast } from "sonner";
 
 const MODELS = [
@@ -66,7 +67,8 @@ export default function GenerationModal({ nodes, edges, onClose, onResult, pageC
   const [progress, setProgress] = useState(0);
   const [showPrompt, setShowPrompt] = useState(false);
 
-  const genPlan = planMangaGeneration(nodes, edges);
+  const semanticEdges = useMemo(() => enrichEdgesSemantics(edges, nodes), [edges, nodes]);
+  const genPlan = planMangaGeneration(nodes, semanticEdges);
   const panelCount = countPanelNodes(nodes);
   const isMultiPanelPage = panelCount >= 2;
   const dualCharRefs = genPlan.refSlots.filter((s) => s.role === "character").length >= 2;
@@ -81,8 +83,8 @@ export default function GenerationModal({ nodes, edges, onClose, onResult, pageC
   };
   const finalPrompt =
     isMultiPanelPage || dualCharRefs
-      ? buildFinalPagePrompt(nodes, edges, promptSettings)
-      : buildFinalPrompt(nodes, edges, promptSettings);
+      ? buildFinalPagePrompt(nodes, semanticEdges, promptSettings)
+      : buildFinalPrompt(nodes, semanticEdges, promptSettings);
   const modelDef = MODELS.find(m => m.id === model) || MODELS[0];
   const usesDualRef = dualCharRefs || genPlan.endpoint === "/generate/manga-interaction";
   const generateEndpoint = genPlan.error
@@ -138,7 +140,7 @@ export default function GenerationModal({ nodes, edges, onClose, onResult, pageC
 
       if (genPlan.warning) toast.info(genPlan.warning);
 
-      const graphWarnings = validateGraphForGeneration(nodes, edges);
+      const graphWarnings = validateGraphForGeneration(nodes, semanticEdges);
       graphWarnings.forEach((w) => toast.warning(w, { duration: 8000 }));
 
       setProgress(15);
@@ -195,7 +197,7 @@ export default function GenerationModal({ nodes, edges, onClose, onResult, pageC
     } finally {
       setGenerating(false);
     }
-  }, [finalPrompt, aspect, modelDef, genPlan, usesDualRef, dualCharRefs, generateEndpoint, onResult]);
+  }, [finalPrompt, aspect, modelDef, genPlan, usesDualRef, dualCharRefs, generateEndpoint, onResult, nodes, semanticEdges]);
 
   return (
     <div className="mfg-overlay" data-testid="generation-modal">

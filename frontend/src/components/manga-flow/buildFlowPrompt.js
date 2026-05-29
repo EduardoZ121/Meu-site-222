@@ -2,7 +2,9 @@
  *  Includes strong character reference instructions when ref images exist. */
 
 import { buildReferenceSlotPromptSection, sortNodesForRefs } from "../../lib/mangaGenerationRefs";
+import { buildSemanticGraphSection } from "../../lib/mangaFlowSemantics";
 import { buildPagePromptFromFlow, shouldUseGraphPrompt } from "./buildFlowPagePrompt";
+import { resolveEdgeSemantics } from "../../lib/mangaFlowSemantics";
 
 export function buildPromptFromFlow(nodes, edges) {
   if (!nodes.length) return "// No cards on canvas. Add characters, scenarios and objects to generate a prompt.";
@@ -156,22 +158,22 @@ export function buildPromptFromFlow(nodes, edges) {
     lines.push("");
   }
 
-  // ── INTERACTIONS ──
-  const interactions = edges.filter((e) => e.data?.prompt);
-  if (interactions.length) {
-    lines.push("## INTERACTIONS / ACTIONS");
-    interactions.forEach((e) => {
-      const src = nodes.find((n) => n.id === e.source);
-      const tgt = nodes.find((n) => n.id === e.target);
-      const srcName = src?.data?.name || src?.data?.text || src?.type || "?";
-      const tgtName = tgt?.data?.name || tgt?.data?.text || tgt?.type || "?";
-      let line = `${srcName} → ${tgtName}: ${e.data.prompt}`;
-      if (e.data.condition?.value) {
-        line += ` [CONDITION: if ${e.data.condition.field} ${e.data.condition.op} "${e.data.condition.value}"]`;
-      }
-      lines.push(line);
-    });
-    lines.push("");
+  if (edges.length) {
+    const semanticBlock = buildSemanticGraphSection(nodes, edges);
+    if (semanticBlock) {
+      lines.push(semanticBlock);
+    } else {
+      lines.push("## GRAPH CONNECTIONS");
+      edges.forEach((e) => {
+        const r = resolveEdgeSemantics(e, nodes);
+        let line = `${r.label} [${r.connectionType}]: ${r.aiInstruction}`;
+        if (e.data?.condition?.value) {
+          line += ` [CONDITION: if ${e.data.condition.field} ${e.data.condition.op} "${e.data.condition.value}"]`;
+        }
+        lines.push(line);
+      });
+      lines.push("");
+    }
   }
 
   // ══ CHARACTER REFERENCE INSTRUCTIONS (CRITICAL FOR AI) ══

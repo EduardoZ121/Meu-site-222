@@ -2,6 +2,8 @@
  * Graph-aware context for Manga Flow — respects edges, isolates panels, binds character refs.
  */
 
+import { getEdgeAiInstruction, resolveEdgeSemantics } from "./mangaFlowSemantics";
+
 export function hasNodeRef(node) {
   const d = node?.data;
   return Boolean(
@@ -51,12 +53,14 @@ export function getLinked(nodeId, nodes, edges, typeFilter = null) {
   return out;
 }
 
-export function getEdgePrompt(aId, bId, edges) {
+export function getEdgePrompt(aId, bId, edges, nodes = []) {
   const e = edges.find(
     (x) =>
       (x.source === aId && x.target === bId) || (x.source === bId && x.target === aId),
   );
-  return e?.data?.prompt?.trim() || "";
+  if (!e) return "";
+  if (nodes.length) return getEdgeAiInstruction(aId, bId, edges, nodes);
+  return e?.data?.aiInstruction?.trim() || e?.data?.prompt?.trim() || "";
 }
 
 /** Persons with a direct edge to this panel (either direction). */
@@ -108,18 +112,18 @@ export function objectsForPerson(personId, nodes, edges) {
   return getLinked(personId, nodes, edges, ["object"]).map((x) => x.node);
 }
 
-/** Person ↔ person interactions that mention both names (for cast). */
+/** Person ↔ person interactions (semantic + user prompt). */
 export function personInteractions(nodes, edges) {
   const lines = [];
   for (const e of edges) {
-    if (!e.data?.prompt) continue;
     const src = nodes.find((n) => n.id === e.source);
     const tgt = nodes.find((n) => n.id === e.target);
     if (src?.type === "person" && tgt?.type === "person") {
+      const r = resolveEdgeSemantics(e, nodes);
       lines.push({
         a: src.data?.name || "A",
         b: tgt.data?.name || "B",
-        text: e.data.prompt,
+        text: r.aiInstruction,
       });
     }
   }

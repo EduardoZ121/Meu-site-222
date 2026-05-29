@@ -388,10 +388,21 @@ export default function NodeInspector({ node, edges, allNodes, onUpdate, onDelet
                 const otherId = e.source === node.id ? e.target : e.source;
                 const other = allNodes.find((n) => n.id === otherId);
                 const otherMeta = TYPE_META[other?.type] || {};
+                const connType = e.data?.connectionType;
+                const userNote = e.data?.prompt?.trim();
+                const semantic = e.data?.semanticPrompt?.trim();
                 return (
                   <div key={e.id} className="manga-flow-inspector__conn">
-                    <span className="manga-flow-inspector__conn-name" style={{ color: otherMeta.color }}>{other?.data?.name || other?.data?.text || other?.type || otherId}</span>
-                    {e.data?.prompt && <span className="manga-flow-inspector__conn-prompt">{e.data.prompt}</span>}
+                    <div className="manga-flow-inspector__conn-head">
+                      <span className="manga-flow-inspector__conn-name" style={{ color: otherMeta.color }}>{other?.data?.name || other?.data?.text || other?.type || otherId}</span>
+                      {connType && <span className="manga-flow-inspector__conn-type">{connType}</span>}
+                    </div>
+                    {userNote && <span className="manga-flow-inspector__conn-prompt">Your note: {userNote}</span>}
+                    {semantic && (
+                      <span className="manga-flow-inspector__conn-semantic" title={semantic}>
+                        AI: {semantic.length > 140 ? `${semantic.slice(0, 137)}…` : semantic}
+                      </span>
+                    )}
                   </div>
                 );
               })}

@@ -20,6 +20,7 @@ import CameraNode from "./nodes/CameraNode";
 import PanelNode from "./nodes/PanelNode";
 import NodeInspector from "./NodeInspector";
 import ConnectionPromptModal from "./ConnectionPromptModal";
+import { buildEdgeSemanticData, enrichEdgesSemantics } from "../../lib/mangaFlowSemantics";
 import AddNodeMenu from "./AddNodeMenu";
 import TutorialOverlay from "./TutorialOverlay";
 import TemplatesModal from "./TemplatesModal";
@@ -165,6 +166,16 @@ export default function MangaFlowEditor() {
     if (!localStorage.getItem("manga_flow_tutorial_done")) setShowTutorial(true);
   }, [setNodes, setEdges]);
 
+  /* Backfill semantic prompts on edges (old projects + after load). */
+  useEffect(() => {
+    if (!nodes.length) return;
+    setEdges((eds) => {
+      if (!eds.length) return eds;
+      const next = enrichEdgesSemantics(eds, nodes);
+      return next.some((e, i) => e !== eds[i]) ? next : eds;
+    });
+  }, [nodes, setEdges]);
+
   /* ---- Auto-save ---- */
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -263,12 +274,22 @@ export default function MangaFlowEditor() {
   const onConnect = useCallback((params) => { pushHistory(); setPendingConnection(params); }, [pushHistory]);
 
   const confirmConnection = useCallback((prompt, condition) => {
-    const labelText = prompt ? (prompt.length > 30 ? prompt.slice(0, 28) + "…" : prompt) : "";
+    const srcNode = editingEdge?._srcNode || nodes.find((n) => n.id === pendingConnection?.source);
+    const tgtNode = editingEdge?._tgtNode || nodes.find((n) => n.id === pendingConnection?.target);
+    const semanticFields = srcNode && tgtNode ? buildEdgeSemanticData(srcNode, tgtNode, prompt || "") : {};
+    const labelText = prompt
+      ? (prompt.length > 30 ? prompt.slice(0, 28) + "…" : prompt)
+      : semanticFields.connectionType?.replace("→", "→").slice(0, 12) || "link";
     const condLabel = condition?.value ? ` [if ${condition.field} ${condition.op} ${condition.value}]` : "";
-    const fullLabel = (labelText + condLabel).slice(0, 40) || "";
+    const fullLabel = (labelText + condLabel).slice(0, 40) || semanticFields.connectionType || "link";
+    const edgeData = {
+      prompt: prompt || "",
+      condition: condition || null,
+      ...semanticFields,
+    };
     if (editingEdge) {
       setEdges((eds) => eds.map((e) => e.id === editingEdge.id ? {
-        ...e, data: { ...e.data, prompt: prompt || "", condition: condition || null },
+        ...e, data: { ...e.data, ...edgeData },
         label: fullLabel,
         labelStyle: { fill: condition?.value ? "#FDE68A" : "#C4B5FD", fontSize: 11, fontFamily: "'Inter Tight', sans-serif" },
         labelBgStyle: { fill: "#111118", fillOpacity: 0.92 }, labelBgPadding: [6, 4], labelBgBorderRadius: 6,
@@ -279,13 +300,13 @@ export default function MangaFlowEditor() {
     const edge = {
       ...pendingConnection,
       id: `e_${pendingConnection.source}_${pendingConnection.target}_${Date.now()}`,
-      data: { prompt: prompt || "", condition: condition || null },
+      data: edgeData,
       label: fullLabel,
       labelStyle: { fill: condition?.value ? "#FDE68A" : "#C4B5FD", fontSize: 11, fontFamily: "'Inter Tight', sans-serif" },
       labelBgStyle: { fill: "#111118", fillOpacity: 0.92 }, labelBgPadding: [6, 4], labelBgBorderRadius: 6,
     };
     setEdges((eds) => addEdge(edge, eds)); setPendingConnection(null);
-  }, [pendingConnection, editingEdge, setEdges]);
+  }, [pendingConnection, editingEdge, setEdges, nodes]);
 
   const onEdgeClick = useCallback((_, edge) => {
     setEditingEdge({ ...edge, _srcNode: nodes.find((n) => n.id === edge.source), _tgtNode: nodes.find((n) => n.id === edge.target) });

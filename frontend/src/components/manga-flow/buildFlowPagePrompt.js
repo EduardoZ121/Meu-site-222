@@ -16,6 +16,7 @@ import {
   buildCastIdentitySection,
   hasNodeRef,
 } from "../../lib/mangaFlowGraph";
+import { buildSemanticGraphSection } from "../../lib/mangaFlowSemantics";
 
 const ANTI_PORTRAIT = [
   "NOT a centered passport photo or ID portrait.",
@@ -59,8 +60,8 @@ function formatPersonInPanel(person, panelId, nodes, edges, refSlotByNodeId) {
     `  • ${name}${slot ? ` [identity = reference image ${slot}]` : ""}:`,
     `    Pose: ${(d.pose || "standing").replace(/_/g, " ")} | Expression: ${(d.emotion || "normal").replace(/_/g, " ")}`,
   ];
-  const panelLink = getEdgePrompt(person.id, panelId, edges);
-  if (panelLink) lines.push(`    Panel action (from connection): ${panelLink}`);
+  const panelLink = getEdgePrompt(person.id, panelId, edges, nodes);
+  if (panelLink) lines.push(`    Panel link (semantic): ${panelLink}`);
   else if (d.actionDesc) lines.push(`    Action: ${d.actionDesc}`);
 
   if (d.clothing) lines.push(`    Outfit: ${d.clothing}`);
@@ -69,7 +70,7 @@ function formatPersonInPanel(person, panelId, nodes, edges, refSlotByNodeId) {
   }
 
   for (const obj of objectsForPerson(person.id, nodes, edges)) {
-    const op = getEdgePrompt(person.id, obj.id, edges);
+    const op = getEdgePrompt(person.id, obj.id, edges, nodes);
     lines.push(`    Object: ${obj.data?.name || "item"}${op ? ` — ${op}` : ""}`);
   }
   if (d.speech) lines.push(`    Dialogue: "${d.speech}"`);
@@ -141,6 +142,11 @@ export function buildPagePromptFromFlow(nodes, edges, context = {}, refSlots = [
   lines.push("- Connections in the graph define who appears where; ignore unlinked characters for that panel.");
   lines.push("");
 
+  const semanticBlock = buildSemanticGraphSection(nodes, edges);
+  if (semanticBlock) {
+    lines.push(semanticBlock);
+  }
+
   if (context.storySynopsis) {
     lines.push("## STORY");
     lines.push(context.storySynopsis.slice(0, 500));
@@ -155,7 +161,7 @@ export function buildPagePromptFromFlow(nodes, edges, context = {}, refSlots = [
 
   const interactions = personInteractions(nodes, edges);
   if (interactions.length) {
-    lines.push("## CHARACTER RELATIONSHIPS (from graph edges)");
+    lines.push("## CHARACTER ↔ CHARACTER (must appear together when linked)");
     interactions.forEach((x) => lines.push(`- ${x.a} ↔ ${x.b}: ${x.text}`));
     lines.push("");
   }

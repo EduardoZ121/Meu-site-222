@@ -2,17 +2,23 @@
 
 import { uid } from "./mangaFlowData";
 import { NODE_DEFAULTS, NODE_COLORS } from "./nodeDefaults";
+import { buildEdgeSemanticData } from "../../lib/mangaFlowSemantics";
 
 function node(type, x, y, data = {}) {
   return { id: uid(type.slice(0, 4)), type, position: { x, y }, data: { ...NODE_DEFAULTS[type], _color: NODE_COLORS[type], ...data } };
 }
 
-function edge(src, tgt, prompt, condition) {
+function edge(srcId, tgtId, prompt, condition, srcNode, tgtNode) {
+  const semanticFields =
+    srcNode && tgtNode ? buildEdgeSemanticData(srcNode, tgtNode, prompt || "") : {};
+  const label = prompt
+    ? (prompt.length > 28 ? prompt.slice(0, 26) + "…" : prompt)
+    : semanticFields.connectionType || "";
   return {
-    id: `e_${src}_${tgt}_${Date.now()}_${Math.random().toString(36).slice(2, 5)}`,
-    source: src, target: tgt, type: "smoothstep", animated: true,
-    data: { prompt, condition: condition || null },
-    label: prompt ? (prompt.length > 28 ? prompt.slice(0, 26) + "…" : prompt) : "",
+    id: `e_${srcId}_${tgtId}_${Date.now()}_${Math.random().toString(36).slice(2, 5)}`,
+    source: srcId, target: tgtId, type: "smoothstep", animated: true,
+    data: { prompt: prompt || "", condition: condition || null, ...semanticFields },
+    label,
     labelStyle: { fill: "#C4B5FD", fontSize: 11, fontFamily: "'Inter Tight', sans-serif" },
     labelBgStyle: { fill: "#111118", fillOpacity: 0.92 },
     labelBgPadding: [6, 4], labelBgBorderRadius: 6,
@@ -322,7 +328,7 @@ export function generateMangaFromWizard(answers) {
       });
       nodes.push(cn);
       charNodes.push(cn);
-      edges_arr.push(edge(cn.id, scn.id, `${ch.name} in this scene — ${pageStoryBit.slice(0, 80)}`));
+      edges_arr.push(edge(cn.id, scn.id, `${ch.name} in this scene — ${pageStoryBit.slice(0, 80)}`, null, cn, scn));
     });
 
     panelNodes.forEach((pn, i) => {
@@ -342,7 +348,14 @@ export function generateMangaFromWizard(answers) {
         romantic: "connects with someone in",
       };
       edges_arr.push(
-        edge(charNode.id, pn.id, `${ch.name} ${actionVerbs[ctx] || "appears in"} panel: ${panelBeat}`),
+        edge(
+          charNode.id,
+          pn.id,
+          `${ch.name} ${actionVerbs[ctx] || "appears in"} panel: ${panelBeat}`,
+          null,
+          charNode,
+          pn,
+        ),
       );
 
       const camN = node("camera", pn.position.x + 180, pn.position.y + 20, {
@@ -351,7 +364,8 @@ export function generateMangaFromWizard(answers) {
         focusTarget: ch.name,
       });
       nodes.push(camN);
-      edges_arr.push(edge(camN.id, pn.id, `Cinematic framing for panel ${i + 1}`));
+      edges_arr.push(edge(camN.id, pn.id, `Cinematic framing for panel ${i + 1}`, null, camN, pn));
+      edges_arr.push(edge(charNode.id, camN.id, "", null, charNode, camN));
     });
 
     if (charNodes.length >= 2) {
@@ -364,7 +378,7 @@ export function generateMangaFromWizard(answers) {
         romantic: ["holding hands with", "looking at"],
       };
       const interaction = pick(interactionsByCtx[ctx] || interactionsByCtx.calm);
-      edges_arr.push(edge(charNodes[0].id, charNodes[1].id, `${pageChars[0].name} ${interaction} ${pageChars[1].name}`));
+      edges_arr.push(edge(charNodes[0].id, charNodes[1].id, `${pageChars[0].name} ${interaction} ${pageChars[1].name}`, null, charNodes[0], charNodes[1]));
     }
 
     pageChars.forEach((ch, ci) => {
@@ -375,7 +389,7 @@ export function generateMangaFromWizard(answers) {
           size: "medium",
         });
         nodes.push(objNode);
-        edges_arr.push(edge(charNodes[ci].id, objNode.id, `${ch.name} wielding ${ch.weapon}`));
+        edges_arr.push(edge(charNodes[ci].id, objNode.id, `${ch.name} wielding ${ch.weapon}`, null, charNodes[ci], objNode));
       }
     });
 
@@ -389,8 +403,8 @@ export function generateMangaFromWizard(answers) {
         tailDirection: bubblePosition === "auto" ? "left" : bubblePosition,
       });
       nodes.push(speechN);
-      edges_arr.push(edge(charNodes[0].id, speechN.id, "Says this line"));
-      if (panelNodes[0]) edges_arr.push(edge(speechN.id, panelNodes[0].id, "Dialogue in first panel"));
+      edges_arr.push(edge(charNodes[0].id, speechN.id, "Says this line", null, charNodes[0], speechN));
+      if (panelNodes[0]) edges_arr.push(edge(speechN.id, panelNodes[0].id, "Dialogue in first panel", null, speechN, panelNodes[0]));
     }
 
     if (narrationBox !== "none" && (p === 0 || p === numPages - 1)) {
@@ -403,7 +417,7 @@ export function generateMangaFromWizard(answers) {
         style: "normal",
       });
       nodes.push(narrN);
-      if (panelNodes[0]) edges_arr.push(edge(narrN.id, panelNodes[0].id, "Narration box"));
+      if (panelNodes[0]) edges_arr.push(edge(narrN.id, panelNodes[0].id, "Narration box", null, narrN, panelNodes[0]));
     }
 
     if ((ctx === "fight" || ctx === "action") && genreEffects.length) {
@@ -413,8 +427,8 @@ export function generateMangaFromWizard(answers) {
       });
       nodes.push(fx);
       const targetPanel = panelNodes[panelNodes.length - 1] || panelNodes[0];
-      if (targetPanel) edges_arr.push(edge(fx.id, targetPanel.id, "Action effects in this panel"));
-      if (charNodes[0]) edges_arr.push(edge(fx.id, charNodes[0].id, "Effect on character"));
+      if (targetPanel) edges_arr.push(edge(fx.id, targetPanel.id, "Action effects in this panel", null, fx, targetPanel));
+      if (charNodes[0]) edges_arr.push(edge(fx.id, charNodes[0].id, "Effect on character", null, fx, charNodes[0]));
     }
 
     pages.push({

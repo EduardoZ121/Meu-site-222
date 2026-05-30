@@ -21,6 +21,9 @@ const TOOLS = [
   { id: "pro", tier: "image", category: "generation", to: "/app/pro",
     name: "Retoque Profissional (Pro)", cost: 26,
     desc: "20 presets: realismo cinematográfico, mood editorial, enhancements." },
+  { id: "artistic", tier: "image", category: "generation", to: "/app/artistic",
+    name: "Estilos Artísticos", cost: 25,
+    desc: "Estilos artísticos, efeitos visuais e receita — gera por texto ou edita foto." },
 
   // Native utility tools
   { id: "bg_remove", tier: "image", category: "utility", to: "/app/tools/bg-remove",

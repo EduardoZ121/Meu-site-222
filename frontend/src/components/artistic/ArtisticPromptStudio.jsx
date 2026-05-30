@@ -277,6 +277,7 @@ export default function ArtisticPromptStudio({
         busyLabel={t("art_generating")}
         hint={hint}
         alignHint="start"
+        blockedNotify="message"
         testId="artistic-studio-generate"
         buttonClassName="!w-full"
       />

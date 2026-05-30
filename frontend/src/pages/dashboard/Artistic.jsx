@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Sparkles, Palette, Sun, Camera, Cloud, Sliders } from "lucide-react";
 import { useSearchParams } from "react-router-dom";
-import { api, formatApiError, uploadPost } from "../../lib/api";
+import { api, formatApiError, pollPrediction, trackPendingPrediction, uploadPost } from "../../lib/api";
+import { hasStudioCredits } from "../../lib/useStudioGenerateGate";
 import { normalizeCreation, primaryResultUrl } from "../../lib/creationUrls";
 import CreationResultMedia from "../../components/CreationResultMedia";
 import { useAuth } from "../../lib/auth";
@@ -179,7 +180,7 @@ export default function Artistic() {
       toast.error(t("art_lab_need_photo"));
       return;
     }
-    if ((user?.credits ?? 0) < cost) {
+    if (!hasStudioCredits(user, cost)) {
       toast.error(t("common_need_credits", { need: cost, have: user?.credits ?? 0 }));
       return;
     }
@@ -188,6 +189,12 @@ export default function Artistic() {
     setMobileTab("generate");
     setBusy(true);
     setResult(null);
+    const pollOpts = {
+      credits_spent: cost,
+      type: "artistic",
+      timeoutMs: 240_000,
+    };
+    const skipPollHeaders = { "X-Skip-Auto-Poll": "1" };
     try {
       let userPrompt = prompt.trim();
       if (improve && userPrompt.length >= 3) {
@@ -224,7 +231,7 @@ export default function Artistic() {
         imageMode: inputMode === "image",
       });
 
-      let data;
+      let submitData;
       if (inputMode === "image" && photo) {
         const fd = new FormData();
         fd.append("photo", photo);
@@ -233,17 +240,37 @@ export default function Artistic() {
         fd.append("style_id", styleId || "");
         fd.append("style_cat", styleCat || "");
         fd.append("effects_json", JSON.stringify(effects));
-        ({ data } = await uploadPost("/generate/artistic-studio", fd, { timeout: 240000 }));
+        fd.append("lang", lang || "en");
+        ({ data: submitData } = await uploadPost("/generate/artistic-studio", fd, {
+          timeout: 120_000,
+          pollTimeoutMs: 240_000,
+          headers: skipPollHeaders,
+        }));
       } else {
-        ({ data } = await api.post("/generate/artistic-studio", {
+        ({ data: submitData } = await api.post("/generate/artistic-studio", {
           prompt_final: finalPrompt,
           aspect_ratio: apiAspectRatio(aspect, { model: "artistic", hasPhoto: false }),
           style_id: styleId || "",
+          style_cat: styleCat || "",
           effects_json: JSON.stringify(effects),
-        }));
+          lang: lang || "en",
+        }, { timeout: 60_000, headers: skipPollHeaders }));
       }
 
-      const creation = normalizeCreation(data?.creation || data);
+      if (!submitData?.prediction_id) {
+        throw new Error(t("common_no_result"));
+      }
+
+      trackPendingPrediction(submitData.prediction_id, {
+        credits_spent: submitData.credits_spent || cost,
+        type: "artistic",
+      });
+      const data = await pollPrediction(submitData.prediction_id, {
+        ...pollOpts,
+        credits_spent: submitData.credits_spent || cost,
+      });
+
+      const creation = normalizeCreation(data?.creation);
       if (!primaryResultUrl(creation)) {
         throw new Error(t("common_no_result"));
       }

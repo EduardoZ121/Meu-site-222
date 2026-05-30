@@ -1,62 +1,136 @@
-import { useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   ArrowLeft,
   ImageIcon,
   Palette,
-  Sparkles,
   Type,
   Wand2,
   Layers,
   SlidersHorizontal,
-  Download,
-  RefreshCw,
 } from "lucide-react";
+import { toast } from "sonner";
+import { api, uploadPost } from "../../lib/api";
+import { normalizeCreation, primaryResultUrl } from "../../lib/creationUrls";
+import { useAuth } from "../../lib/auth";
 import { useI18n } from "../../lib/i18n";
 import { usePricing } from "../../lib/PricingContext";
+import { computeArtisticEffectSurcharge } from "../../lib/creditPricing";
+import { apiAspectRatio } from "../../lib/apiAspectRatio";
+import { localizeArtisticCatalog, countStylesInCategory } from "../../lib/artisticStudioLocales";
+import { canAccessNsfwArtisticStyles } from "../../lib/artisticStudioData";
+import { isArtisticExperimentalStyle } from "../../lib/artisticLabStyles";
+import {
+  buildArtisticStudioPrompt,
+  buildRecipeChips,
+  EMPTY_EFFECTS,
+  getStyleById,
+} from "../../lib/buildArtisticStudioPrompt";
 import useTitle from "../../lib/useTitle";
+import { useStudioI18n } from "../../lib/useStudioI18n";
+import { useStudioGenerateGate } from "../../lib/useStudioGenerateGate";
+import { usePhotoAspectDefault } from "../../lib/usePhotoAspectDefault";
+import ImageUploadZone from "../../components/ImageUploadZone";
+import AspectPicker from "../../components/AspectPicker";
+import ResultPanel from "../../components/ResultPanel";
+import StudioResultAnchor from "../../components/StudioResultAnchor";
 import StudioGenerateBar from "../../components/StudioGenerateBar";
 import StudioGenerateCostMeta from "../../components/StudioGenerateCostMeta";
+import StudioPhotoUploadNotice, { isPhotoUploadBusy } from "../../components/studio/StudioPhotoUploadNotice";
 import ArtisticStep from "../../components/artistic-studio/ArtisticStep";
+import ArtisticCategoryPills from "../../components/artistic-studio/ArtisticCategoryPills";
+import ArtisticStyleGrid from "../../components/artistic-studio/ArtisticStyleGrid";
+import ArtisticEffectsPanel from "../../components/artistic-studio/ArtisticEffectsPanel";
 
 const TABS = ["style", "effects", "prompt"];
 
-function SkeletonStyleGrid() {
-  return (
-    <div className="as-v2-skeleton-grid" data-testid="artistic-styles-placeholder">
-      {Array.from({ length: 6 }).map((_, i) => (
-        <div key={i} className="as-v2-skeleton-card" aria-hidden>
-          <div className="as-v2-skeleton-card__thumb" />
-          <div className="as-v2-skeleton-card__line as-v2-skeleton-card__line--wide" />
-          <div className="as-v2-skeleton-card__line" />
-        </div>
-      ))}
-    </div>
-  );
-}
-
-function SkeletonEffectChips() {
-  const labels = ["Luz", "Lente", "Mood", "Cor", "Textura", "Grão"];
-  return (
-    <div className="flex flex-wrap gap-2" data-testid="artistic-effects-placeholder">
-      {labels.map((label) => (
-        <span key={label} className="as-v2-chip as-v2-chip--ghost" aria-disabled="true">
-          {label}
-        </span>
-      ))}
-    </div>
-  );
-}
-
 export default function Artistic() {
-  const { t } = useI18n();
+  const { lang, t } = useI18n();
+  const { errToast, clearUploadToast } = useStudioI18n();
   const navigate = useNavigate();
-  const { costs } = usePricing();
+  const { refresh, user } = useAuth();
+  const { costs, region } = usePricing();
+
   const [tab, setTab] = useState("style");
   const [mode, setMode] = useState("image");
+  const [styleCat, setStyleCat] = useState("photography");
+  const [styleId, setStyleId] = useState(null);
+  const [effects, setEffects] = useState(EMPTY_EFFECTS);
+  const [prompt, setPrompt] = useState("");
+  const [photo, setPhoto] = useState(null);
+  const [aspect, setAspect] = usePhotoAspectDefault(photo, "3:4", "match");
+  const [busy, setBusy] = useState(false);
+  const [improving, setImproving] = useState(false);
+  const [result, setResult] = useState(null);
+  const [photoUploadStatus, setPhotoUploadStatus] = useState("idle");
 
   useTitle(t("art_page_title"));
-  const cost = costs.artistic ?? 25;
+  const photoUploading = isPhotoUploadBusy(photoUploadStatus);
+  const includeNsfw = useMemo(() => canAccessNsfwArtisticStyles(user), [user]);
+
+  const catalog = useMemo(
+    () => localizeArtisticCatalog(lang, { includeNsfw }),
+    [lang, includeNsfw],
+  );
+
+  const selectedStyle = useMemo(
+    () => catalog.styles.find((s) => s.id === styleId) || null,
+    [catalog.styles, styleId],
+  );
+
+  const stylesInCat = useMemo(
+    () => catalog.styles.filter((s) => s.cat === styleCat),
+    [catalog.styles, styleCat],
+  );
+
+  const categoryCounts = useMemo(() => {
+    const map = {};
+    catalog.categories.forEach((c) => {
+      map[c.id] = countStylesInCategory(catalog.styles, c.id);
+    });
+    return map;
+  }, [catalog.categories, catalog.styles]);
+
+  const activeCategory = useMemo(
+    () => catalog.categories.find((c) => c.id === styleCat) || null,
+    [catalog.categories, styleCat],
+  );
+
+  const recipeChips = useMemo(
+    () => buildRecipeChips({ styleId, effects }),
+    [styleId, effects],
+  );
+
+  const cost = useMemo(
+    () => (costs.artistic ?? 25) + computeArtisticEffectSurcharge(effects, region),
+    [costs.artistic, effects, region],
+  );
+
+  const isLabStyle = useMemo(() => isArtisticExperimentalStyle(styleId), [styleId]);
+  const isPhotoCategory = styleCat === "photography";
+  const isPhotoStyle = selectedStyle?.cat === "photography";
+
+  useEffect(() => {
+    if (!includeNsfw && styleCat === "nsfw") setStyleCat("photography");
+  }, [includeNsfw, styleCat]);
+
+  useEffect(() => {
+    const catIds = catalog.categories.map((c) => c.id);
+    if (!catIds.includes(styleCat) && catIds.length) setStyleCat(catIds[0]);
+  }, [catalog.categories, styleCat]);
+
+  useEffect(() => {
+    if (isPhotoCategory && mode !== "image") setMode("image");
+  }, [isPhotoCategory, mode]);
+
+  useEffect(() => {
+    if (mode === "text" && aspect === "match") setAspect("3:4");
+  }, [mode, aspect, setAspect]);
+
+  const effectsSummary = useMemo(() => {
+    if (!recipeChips.length) return "—";
+    return recipeChips.filter((c) => c.emoji !== "🎨").map((c) => c.label).join(", ") || "—";
+  }, [recipeChips]);
 
   const tabLabels = useMemo(
     () => ({
@@ -68,6 +142,187 @@ export default function Artistic() {
   );
 
   const generateLabel = mode === "image" ? t("art_edit_credits", { n: cost }) : t("art_generate_credits", { n: cost });
+
+  const readyOverride = useMemo(() => {
+    if (photoUploading || busy) return false;
+    const hasPrompt = prompt.trim().length >= 3;
+    if (!styleId && !hasPrompt) return false;
+    if (mode === "image" && !photo) return false;
+    if (isLabStyle && !photo) return false;
+    if ((isPhotoStyle || isPhotoCategory) && !photo) return false;
+    return true;
+  }, [
+    photoUploading,
+    busy,
+    prompt,
+    styleId,
+    mode,
+    photo,
+    isLabStyle,
+    isPhotoStyle,
+    isPhotoCategory,
+  ]);
+
+  const hintOverride = useMemo(() => {
+    if (photoUploading) return t("upload_wait_generate");
+    if (mode === "image" && !photo) return t("art_err_image_mode");
+    if (isLabStyle && !photo) return t("art_lab_need_photo");
+    if ((isPhotoStyle || isPhotoCategory) && !photo) return t("art_photo_need_photo");
+    if (!styleId && prompt.trim().length < 3) return t("art_empty");
+    return null;
+  }, [
+    photoUploading,
+    mode,
+    photo,
+    isLabStyle,
+    isPhotoStyle,
+    isPhotoCategory,
+    styleId,
+    prompt,
+    t,
+  ]);
+
+  const { ready, hint } = useStudioGenerateGate({
+    busy,
+    user,
+    cost,
+    readyOverride,
+    hintOverride,
+    uploading: photoUploading,
+  });
+
+  const selectStyle = useCallback(
+    (id) => {
+      setStyleId(id);
+      setTab("prompt");
+      const picked = catalog.styles.find((s) => s.id === id);
+      if (picked?.cat === "nsfw" && mode !== "image") {
+        setMode("image");
+        toast.message(t("art_lab_image_hint"));
+      }
+      if (picked?.cat === "photography" && mode !== "image") {
+        setMode("image");
+        toast.message(t("art_photo_image_hint"));
+      }
+    },
+    [catalog.styles, mode, t],
+  );
+
+  const setRadioEffect = (sectionId, optionId) => {
+    setEffects((prev) => ({ ...prev, [sectionId]: optionId }));
+  };
+
+  const toggleCheckboxEffect = (sectionId, optionId) => {
+    setEffects((prev) => ({
+      ...prev,
+      [sectionId]: { ...prev[sectionId], [optionId]: !prev[sectionId]?.[optionId] },
+    }));
+  };
+
+  const clearRecipe = () => {
+    setStyleId(null);
+    setEffects(EMPTY_EFFECTS);
+    setPrompt("");
+    toast.message(t("art_recipe_cleared"));
+  };
+
+  const improvePromptOnly = useCallback(async () => {
+    const userPrompt = prompt.trim();
+    if (userPrompt.length < 3) {
+      toast.error(t("studio_err_text"));
+      return;
+    }
+    setImproving(true);
+    try {
+      const pickedStyle = getStyleById(styleId);
+      const { data: imp } = await api.post("/prompt/improve", {
+        prompt: userPrompt,
+        lang: lang || "en",
+        tool: "artistic",
+        style_id: styleId || "",
+        style_label: pickedStyle?.label || "",
+        style_suffix: pickedStyle?.suffix || "",
+        image_mode: mode === "image",
+      });
+      if (imp?.prompt && imp.prompt.trim().length >= 3) {
+        setPrompt(imp.prompt.trim().slice(0, 800));
+        toast.success(imp.enhanced ? t("art_prompt_refined") : t("art_refine_unchanged"));
+      }
+    } catch (impErr) {
+      toast.error(impErr?.response?.data?.detail || t("art_refine_unavailable"));
+    } finally {
+      setImproving(false);
+    }
+  }, [prompt, styleId, mode, lang, t]);
+
+  const generate = useCallback(async () => {
+    if (photoUploading) {
+      toast.message(t("upload_wait_generate"), { duration: 6000 });
+      return;
+    }
+    if (!ready) {
+      if (hint) toast.error(hint);
+      return;
+    }
+    clearUploadToast();
+    setBusy(true);
+    setResult(null);
+    try {
+      const finalPrompt = buildArtisticStudioPrompt({
+        userPrompt: prompt.trim(),
+        styleId,
+        styleCat,
+        effects,
+        imageMode: mode === "image",
+      });
+
+      let data;
+      if (mode === "image" && photo) {
+        const fd = new FormData();
+        fd.append("photo", photo);
+        fd.append("prompt_final", finalPrompt);
+        fd.append("aspect_ratio", apiAspectRatio(aspect, { model: "artistic", hasPhoto: true }));
+        fd.append("style_id", styleId || "");
+        fd.append("style_cat", styleCat || "");
+        fd.append("effects_json", JSON.stringify(effects));
+        ({ data } = await uploadPost("/generate/artistic-studio", fd, { timeout: 240000 }));
+      } else {
+        ({ data } = await api.post("/generate/artistic-studio", {
+          prompt_final: finalPrompt,
+          aspect_ratio: apiAspectRatio(aspect, { model: "artistic", hasPhoto: false }),
+          style_id: styleId || "",
+          style_cat: styleCat || "",
+          effects_json: JSON.stringify(effects),
+        }));
+      }
+
+      const creation = normalizeCreation(data?.creation || data);
+      if (!primaryResultUrl(creation)) throw new Error(t("common_no_result"));
+      setResult(creation);
+      toast.success(t("common_generated", { n: creation.credits_spent ?? cost }));
+      await refresh();
+    } catch (err) {
+      errToast(err);
+    } finally {
+      setBusy(false);
+    }
+  }, [
+    photoUploading,
+    ready,
+    hint,
+    clearUploadToast,
+    prompt,
+    styleId,
+    styleCat,
+    effects,
+    mode,
+    photo,
+    aspect,
+    cost,
+    refresh,
+    t,
+    errToast,
+  ]);
 
   return (
     <div className="as-v2-page rp-studio-shell pb-28" data-testid="artistic-page">
@@ -98,17 +353,12 @@ export default function Artistic() {
           <div className="as-v2-recipe-badge shrink-0">
             <Layers className="w-3.5 h-3.5 text-purple-300/80" strokeWidth={1.75} />
             <span>{t("art_recipe")}</span>
-            <em>—</em>
+            <em>{selectedStyle?.label || "—"}</em>
           </div>
         </div>
       </header>
 
-      <div
-        className="as-v2-tabs mb-6"
-        role="tablist"
-        aria-label={t("art_page_title")}
-        data-testid="artistic-tabs"
-      >
+      <div className="as-v2-tabs mb-6" role="tablist" aria-label={t("art_page_title")} data-testid="artistic-tabs">
         {TABS.map((id) => (
           <button
             key={id}
@@ -128,13 +378,14 @@ export default function Artistic() {
         <div className="rp-editor-panel overflow-hidden">
           <div className="rp-editor-panel-accent" />
           <div className="p-5 sm:p-7 space-y-7">
-            <ArtisticStep step="1" title={t("art_input_image")} hint={t("art_upload_hint")}>
+            <ArtisticStep step="1" title={mode === "image" ? t("art_input_image") : t("art_input_text")} hint={t("art_upload_hint")}>
               <div className="flex flex-wrap gap-2 mb-4" data-testid="artistic-mode-toggle">
                 <button
                   type="button"
                   className={`as-v2-mode ${mode === "text" ? "as-v2-mode--active" : ""}`}
                   onClick={() => setMode("text")}
                   aria-pressed={mode === "text"}
+                  disabled={isPhotoCategory}
                 >
                   <Type className="w-3.5 h-3.5" strokeWidth={1.75} />
                   {t("art_mode_text")}
@@ -151,88 +402,99 @@ export default function Artistic() {
               </div>
 
               {mode === "image" ? (
-                <div className="as-v2-upload rp-editor-upload-dashed min-h-[180px] flex flex-col items-center justify-center gap-3 p-8 text-center">
-                  <div className="as-v2-upload-icon">
-                    <ImageIcon className="w-6 h-6 text-purple-300/70" strokeWidth={1.5} />
-                  </div>
-                  <p className="text-[#F4F1EA] text-sm font-medium font-['Inter_Tight']">{t("art_upload_label")}</p>
-                  <p className="text-[#8A8A8E] text-xs max-w-[280px]">{t("art_upload_hint")}</p>
-                  <button type="button" className="rp-btn-surface mt-1" disabled>
-                    {t("upload_empty_label")}
-                  </button>
+                <div className="max-w-[560px]">
+                  <ImageUploadZone
+                    value={photo}
+                    onChange={setPhoto}
+                    onStatusChange={setPhotoUploadStatus}
+                    layout="wide"
+                    testId="artistic-photo"
+                    compressOptions={{ maxSize: 2048 }}
+                    emptyLabel={t("art_upload_label")}
+                    emptyHint={t("art_upload_hint")}
+                  />
                 </div>
-              ) : (
-                <div className="as-v2-text-only rounded-xl border border-white/[0.06] bg-black/20 p-5">
-                  <p className="text-[#8A8A8E] text-sm leading-relaxed">{t("art_prompt_ph_text")}</p>
-                </div>
-              )}
+              ) : null}
             </ArtisticStep>
 
             {tab === "style" && (
               <ArtisticStep step="2" title={t("art_sec_style")} hint={t("art_style_label")}>
-                <SkeletonStyleGrid />
-                <p className="as-v2-soon-note">{t("art_empty")}</p>
+                <ArtisticCategoryPills
+                  categories={catalog.categories}
+                  activeId={styleCat}
+                  onSelect={setStyleCat}
+                  counts={categoryCounts}
+                />
+                <div className="mt-4">
+                  <ArtisticStyleGrid
+                    styles={stylesInCat}
+                    selectedId={styleId}
+                    onSelect={selectStyle}
+                    categoryLabel={activeCategory?.label || ""}
+                  />
+                </div>
               </ArtisticStep>
             )}
 
             {tab === "effects" && (
               <ArtisticStep step="2" title={t("art_sec_effects")}>
-                <SkeletonEffectChips />
-                <p className="as-v2-soon-note mt-4">{t("art_result_empty")}</p>
+                <ArtisticEffectsPanel
+                  sections={catalog.sections}
+                  effects={effects}
+                  onRadioChange={setRadioEffect}
+                  onToggleChange={toggleCheckboxEffect}
+                />
+              </ArtisticStep>
+            )}
+
+            {(tab === "prompt" || tab === "style" || tab === "effects") && (
+              <ArtisticStep
+                step={tab === "prompt" ? "2" : "3"}
+                title={t("art_prompt_label")}
+                hint={t("studio_styles_optional")}
+              >
+                <textarea
+                  className="rp-editor-textarea min-h-[120px]"
+                  placeholder={mode === "image" ? t("art_prompt_ph_image") : t("art_prompt_ph_text")}
+                  value={prompt}
+                  onChange={(e) => setPrompt(e.target.value)}
+                  maxLength={800}
+                  data-testid="artistic-prompt"
+                />
+                <div className="flex flex-wrap gap-2 mt-3">
+                  <button
+                    type="button"
+                    className="rp-btn-surface"
+                    onClick={improvePromptOnly}
+                    disabled={improving || prompt.trim().length < 3}
+                  >
+                    <Wand2 className="w-3.5 h-3.5" strokeWidth={1.75} />
+                    {improving ? t("art_generating") : t("art_refine_btn")}
+                  </button>
+                  <button type="button" className="rp-btn-surface" onClick={clearRecipe}>
+                    {t("art_prompt_clear")}
+                  </button>
+                </div>
               </ArtisticStep>
             )}
 
             {tab === "prompt" && (
-              <>
-                <ArtisticStep step="2" title={t("art_prompt_label")}>
-                  <textarea
-                    className="rp-editor-textarea min-h-[120px]"
-                    placeholder={mode === "image" ? t("art_prompt_ph_image") : t("art_prompt_ph_text")}
-                    disabled
-                    aria-disabled="true"
-                    data-testid="artistic-prompt"
+              <ArtisticStep step="3" title={t("art_format_label")}>
+                <div className="max-w-[560px]">
+                  <AspectPicker
+                    value={aspect}
+                    onChange={setAspect}
+                    hasPhoto={mode === "image" && !!photo}
+                    testIdPrefix="artistic-aspect"
+                    premium
                   />
-                  <div className="flex flex-wrap gap-2 mt-3">
-                    <button type="button" className="rp-btn-surface" disabled>
-                      <Wand2 className="w-3.5 h-3.5" strokeWidth={1.75} />
-                      {t("art_refine_btn")}
-                    </button>
-                    <button type="button" className="rp-btn-surface" disabled>
-                      {t("art_prompt_clear")}
-                    </button>
-                  </div>
-                </ArtisticStep>
-
-                <ArtisticStep step="3" title={t("art_format_label")}>
-                  <div className="flex flex-wrap gap-2">
-                    {["1:1", "4:5", "16:9", "9:16"].map((ratio) => (
-                      <span key={ratio} className="rp-pill opacity-50 cursor-not-allowed" aria-disabled="true">
-                        {ratio}
-                      </span>
-                    ))}
-                  </div>
-                </ArtisticStep>
-              </>
-            )}
-
-            {tab !== "prompt" && (
-              <ArtisticStep
-                step="3"
-                title={t("art_prompt_label_image")}
-                hint={t("studio_styles_optional")}
-              >
-                <textarea
-                  className="rp-editor-textarea min-h-[88px] opacity-60"
-                  placeholder={t("art_extra_placeholder")}
-                  disabled
-                  aria-disabled="true"
-                />
+                </div>
               </ArtisticStep>
             )}
           </div>
         </div>
 
-        <aside className="space-y-4">
+        <StudioResultAnchor busy={busy} ready={Boolean(primaryResultUrl(result))} className="space-y-4">
           <div className="rp-editor-panel overflow-hidden">
             <div className="rp-editor-panel-accent" />
             <div className="p-5 sm:p-6">
@@ -240,42 +502,44 @@ export default function Artistic() {
                 <p className="rp-editor-section-cap !mb-0">{t("art_result_label")}</p>
                 <SlidersHorizontal className="w-4 h-4 text-zinc-600" strokeWidth={1.75} />
               </div>
-              <div className="as-v2-preview" data-testid="artistic-preview">
-                <Sparkles className="w-8 h-8 text-purple-400/30 mb-3" strokeWidth={1.25} />
-                <p className="text-[#8A8A8E] text-sm text-center leading-relaxed px-2">
-                  {t("art_result_empty")}
-                </p>
-              </div>
-              <div className="flex gap-2 mt-4">
-                <button type="button" className="rp-btn-surface flex-1 justify-center opacity-45" disabled>
-                  <Download className="w-3.5 h-3.5" strokeWidth={1.75} />
-                  {t("art_download")}
-                </button>
-                <button type="button" className="rp-btn-surface flex-1 justify-center opacity-45" disabled>
-                  <RefreshCw className="w-3.5 h-3.5" strokeWidth={1.75} />
-                  {t("art_vary")}
-                </button>
-              </div>
+              <ResultPanel
+                creation={result}
+                loading={busy}
+                onChange={setResult}
+                emptyLabel={t("art_result_empty")}
+              />
             </div>
           </div>
 
           <div className="as-v2-meta-panel">
-            <p className="as-v2-meta-line">{t("art_meta_style", { style: "—" })}</p>
-            <p className="as-v2-meta-line">{t("art_meta_effects", { effects: "—" })}</p>
+            <p className="as-v2-meta-line">{t("art_meta_style", { style: selectedStyle?.label || "—" })}</p>
+            <p className="as-v2-meta-line">{t("art_meta_effects", { effects: effectsSummary })}</p>
+            {recipeChips.length > 0 ? (
+              <div className="flex flex-wrap gap-1.5 mt-3">
+                {recipeChips.map((chip) => (
+                  <span key={`${chip.emoji}-${chip.label}`} className="as-v2-recipe-chip">
+                    {chip.emoji} {chip.label}
+                  </span>
+                ))}
+              </div>
+            ) : null}
           </div>
-        </aside>
+        </StudioResultAnchor>
       </div>
 
+      <StudioPhotoUploadNotice status={photoUploadStatus} className="mb-3" />
+
       <StudioGenerateBar
-        ready={false}
-        busy={false}
-        onClick={() => {}}
+        ready={ready}
+        busy={busy}
+        onClick={generate}
         label={generateLabel}
         busyLabel={t("art_generating")}
-        hint={t("art_empty")}
+        hint={hint}
+        blockedNotify={photoUploading ? "message" : "error"}
         layout="sticky"
         testId="artistic-generate"
-        costMeta={<StudioGenerateCostMeta cost={cost} />}
+        costMeta={<StudioGenerateCostMeta cost={cost} user={user} />}
       />
     </div>
   );

@@ -34,10 +34,6 @@ import {
   EMPTY_EFFECTS,
   getStyleById,
 } from "../../lib/buildArtisticStudioPrompt";
-import {
-  getArtisticStyleEditPrompt,
-  getArtisticStyleTextPrompt,
-} from "../../lib/artisticStylePrompts";
 import useTitle from "../../lib/useTitle";
 import { useStudioI18n } from "../../lib/useStudioI18n";
 
@@ -214,11 +210,6 @@ export default function Artistic() {
     toast.message(t("art_recipe_cleared"));
   };
 
-  const stylePromptHint = useCallback((style, imageMode) => {
-    if (!style) return "";
-    return imageMode ? getArtisticStyleEditPrompt(style) : getArtisticStyleTextPrompt(style);
-  }, []);
-
   const generate = useCallback(async () => {
     if (photoUploading) {
       toast.message(t("upload_wait_generate"), { duration: 6000 });
@@ -259,7 +250,7 @@ export default function Artistic() {
             tool: "artistic",
             style_id: styleId || "",
             style_label: pickedStyle?.label || "",
-            style_suffix: stylePromptHint(pickedStyle, inputMode === "image"),
+            style_suffix: pickedStyle?.suffix || "",
             image_mode: inputMode === "image",
           });
           if (imp?.prompt && imp.prompt.trim().length >= 3) {
@@ -345,7 +336,6 @@ export default function Artistic() {
     t,
     errToast,
     clearUploadToast,
-    stylePromptHint,
   ]);
 
   const downloadUrl = primaryResultUrl(result);
@@ -365,7 +355,7 @@ export default function Artistic() {
         tool: "artistic",
         style_id: styleId || "",
         style_label: pickedStyle?.label || "",
-        style_suffix: stylePromptHint(pickedStyle, inputMode === "image"),
+        style_suffix: pickedStyle?.suffix || "",
         image_mode: inputMode === "image",
       });
       if (imp?.prompt && imp.prompt.trim().length >= 3) {
@@ -377,7 +367,7 @@ export default function Artistic() {
     } finally {
       setImproving(false);
     }
-  }, [prompt, styleId, inputMode, lang, t, stylePromptHint]);
+  }, [prompt, styleId, inputMode, lang, t]);
 
   const panelVisibility = (tab) =>
     mobileTab !== tab ? "hidden lg:block" : "";

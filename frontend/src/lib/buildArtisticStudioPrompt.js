@@ -3,60 +3,55 @@ import {
   ARTISTIC_EFFECT_SECTIONS,
 } from "./artisticStudioData";
 import {
-  buildArtisticPhotoEditPrompt,
+  buildArtisticEditPrompt,
   buildArtisticTextPrompt,
 } from "./artisticLabPrompt";
-import {
-  getArtisticStyleEditPrompt,
-  getArtisticStyleTextPrompt,
-  sanitizeEffectPrompt,
-} from "./artisticStylePrompts";
 
 export function getStyleById(styleId) {
   return ARTISTIC_STUDIO_STYLES.find((s) => s.id === styleId) || null;
 }
 
-function collectEffectPromptParts(effects = {}) {
-  const effectParts = [];
-  for (const section of ARTISTIC_EFFECT_SECTIONS) {
-    const value = effects[section.id];
-    if (section.type === "radio" && value) {
-      const opt = section.options.find((o) => o.id === value);
-      if (opt?.prompt) effectParts.push(sanitizeEffectPrompt(opt.prompt));
-    }
-    if (section.type === "checkbox" && value && typeof value === "object") {
-      for (const opt of section.options) {
-        if (value[opt.id] && opt.prompt) {
-          effectParts.push(sanitizeEffectPrompt(opt.prompt));
-        }
-      }
-    }
-  }
-  return effectParts;
-}
-
+/**
+ * Universal artistic prompt builder.
+ *
+ * Key fix (vs. previous version): EVERY style category now goes through a
+ * proper identity-preserving edit pipeline when a photo is uploaded, not just
+ * "photography" and "nsfw". This stops the bug where applying anime / cartoon /
+ * classic / modern styles to an uploaded photo would age, replace or distort
+ * the subject's face and body.
+ */
 export function buildArtisticStudioPrompt({
   userPrompt = "",
   styleId = null,
+  styleCat = null,
   effects = {},
   imageMode = false,
 }) {
-  const trimmed = String(userPrompt || "").trim();
   const style = getStyleById(styleId);
-  const effectParts = collectEffectPromptParts(effects);
+  const cat = style?.cat || styleCat || null;
+  const isAiLab = cat === "nsfw" || Boolean(style?.labPreset);
+  const isPhotography = cat === "photography";
 
+  const effectParts = collectEffectPromptParts(effects);
+  const trimmed = String(userPrompt || "").trim();
+
+  // PHOTO MODE → identity-preserving edit pipeline (universal).
   if (imageMode) {
-    return buildArtisticPhotoEditPrompt({
+    return buildArtisticEditPrompt({
       userPrompt: trimmed,
-      stylePrompt: getArtisticStyleEditPrompt(style),
-      effects: effectParts,
+      styleSuffix: style?.suffix || "",
+      styleCat: cat,
+      isAiLab,
+      isPhotography,
+      extras: effectParts,
     });
   }
 
+  // TEXT-ONLY MODE → pure generation, no identity lock needed.
   return buildArtisticTextPrompt({
     userPrompt: trimmed,
-    stylePrompt: getArtisticStyleTextPrompt(style),
-    effects: effectParts,
+    styleSuffix: style?.suffix || "",
+    extras: effectParts,
   });
 }
 
@@ -78,6 +73,23 @@ export function buildRecipeChips({ styleId, effects = {} }) {
     }
   }
   return chips;
+}
+
+function collectEffectPromptParts(effects = {}) {
+  const effectParts = [];
+  for (const section of ARTISTIC_EFFECT_SECTIONS) {
+    const value = effects[section.id];
+    if (section.type === "radio" && value) {
+      const opt = section.options.find((o) => o.id === value);
+      if (opt?.prompt) effectParts.push(opt.prompt);
+    }
+    if (section.type === "checkbox" && value && typeof value === "object") {
+      for (const opt of section.options) {
+        if (value[opt.id] && opt.prompt) effectParts.push(opt.prompt);
+      }
+    }
+  }
+  return effectParts;
 }
 
 function sectionEmoji(sectionId) {

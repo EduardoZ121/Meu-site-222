@@ -235,7 +235,7 @@
       "art_quick_4": "Foto editorial de moda, sombras dramáticas, pele luminosa",
       "art_quick_5": "Rua cyberpunk, chuva neon, atmosfera sombria",
       "art_quick_6": "Ilustração aquarela, paleta pastel sonhadora, textura de papel",
-      "art_module_style_hint": "Explora estilos como numa galeria profissional",
+      "art_module_style_hint": "Estilos Perchance com lock de identidade — o rosto mantém-se ao usar foto",
       "art_module_effects_hint": "Luz, lente, mood e atmosfera",
       "art_module_prompt_hint": "Descreve a tua visão ou edita uma foto"
     },
@@ -1687,7 +1687,7 @@
     "art_quick_4": "Foto editorial de moda, sombras dramáticas, pele luminosa",
     "art_quick_5": "Rua cyberpunk, chuva neon, atmosfera sombria",
     "art_quick_6": "Ilustração aquarela, paleta pastel sonhadora, textura de papel",
-    "art_module_style_hint": "Explora estilos como numa galeria profissional",
+    "art_module_style_hint": "Estilos Perchance com lock de identidade — o rosto mantém-se ao usar foto",
     "art_module_effects_hint": "Luz, lente, mood e atmosfera",
     "art_module_prompt_hint": "Descreve a tua visão ou edita uma foto",
     "upload_preview_unavailable": "Preview indisponível neste browser; a foto será usada ao gerar.",

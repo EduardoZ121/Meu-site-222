@@ -1,2 +1,2 @@
 /** Identificador do build do cliente — deve coincidir com api/health `build`. */
-export const CLIENT_BUILD_ID = process.env.REACT_APP_BUILD_ID || "emergent-20260530-v2";
+export const CLIENT_BUILD_ID = process.env.REACT_APP_BUILD_ID || "artistic-emergent-v3-20260530";

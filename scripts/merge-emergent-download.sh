@@ -16,11 +16,6 @@ fi
 unzip -q "$ZIP" -d "$TMP/src"
 
 PROTECT=(
-  "frontend/src/lib/artisticStylePrompts.js"
-  "frontend/src/lib/artisticLabPrompt.js"
-  "frontend/src/lib/buildArtisticStudioPrompt.js"
-  "frontend/src/lib/artisticStudioData.js"
-  "frontend/src/pages/dashboard/Artistic.jsx"
   "frontend/api/lib/imageQualityPrompts.cjs"
   "frontend/src/sections/Hero.jsx"
   "frontend/src/components/landing/HeroScrollCue.jsx"

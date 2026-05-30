@@ -16,7 +16,7 @@ module.exports = async function handler(req, res) {
   return res.status(200).json({
     ok: true,
     api: "remakepix",
-    build: process.env.REACT_APP_BUILD_ID || "emergent-20260530-v2",
+    build: process.env.REACT_APP_BUILD_ID || "artistic-emergent-v3-20260530",
     ts: Date.now(),
     integrations: {
       replicate,

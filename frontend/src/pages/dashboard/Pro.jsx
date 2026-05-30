@@ -1,6 +1,6 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { Sparkles, Camera, Sliders } from "lucide-react";
-import { api, formatApiError, uploadPost } from "../../lib/api";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Camera, Sliders, Sparkles as SparklesIcon, ImageIcon } from "lucide-react";
+import { api, uploadPost } from "../../lib/api";
 import { normalizeCreation, primaryResultUrl } from "../../lib/creationUrls";
 import { useAuth } from "../../lib/auth";
 import { usePricing } from "../../lib/PricingContext";
@@ -20,6 +20,12 @@ import StudioGenerateCostMeta from "../../components/StudioGenerateCostMeta";
 import StudioPhotoUploadNotice, { isPhotoUploadBusy } from "../../components/studio/StudioPhotoUploadNotice";
 import { useStudioGenerateGate } from "../../lib/useStudioGenerateGate";
 import { useStudioI18n } from "../../lib/useStudioI18n";
+import { scrollElementIntoStudioView } from "../../lib/scrollToStudioResult";
+
+const MOBILE_TABS = [
+  { id: "create", labelKey: "studio_tab_create", icon: SparklesIcon },
+  { id: "result", labelKey: "studio_tab_result", icon: ImageIcon },
+];
 
 function ProStep({ step, title, hint, children }) {
   return (
@@ -40,7 +46,7 @@ export default function Pro() {
   const { t } = useI18n();
   const { errToast, clearUploadToast } = useStudioI18n();
   useTitle(t("pro_page_title"));
-  const { refresh, user } = useAuth();
+  const { refresh, user, refundCredits } = useAuth();
   const { costs } = usePricing();
   const CAT_LABELS = {
     realism: t("pro_cat_realism"),
@@ -60,8 +66,11 @@ export default function Pro() {
   const [intensity, setIntensity] = useState(70);
   const [customPrompt, setCustomPrompt] = useState("");
   const [busy, setBusy] = useState(false);
+  const [progress, setProgress] = useState(0);
   const [result, setResult] = useState(null);
   const [photoUploadStatus, setPhotoUploadStatus] = useState("idle");
+  const [mobileTab, setMobileTab] = useState("create");
+  const resultAnchorRef = useRef(null);
   const cost = costs.pro;
   const photoUploading = isPhotoUploadBusy(photoUploadStatus);
 
@@ -76,6 +85,14 @@ export default function Pro() {
       .then((r) => setPresets(r.data.presets?.length ? r.data.presets : FALLBACK_PRO_PRESETS))
       .catch(() => setPresets(FALLBACK_PRO_PRESETS));
   }, []);
+
+  useEffect(() => {
+    if (!presets.length) return;
+    const inCat = presets.filter((p) => p.category === category);
+    if (inCat.length && !inCat.some((p) => p.id === preset)) {
+      setPreset(inCat[0].id);
+    }
+  }, [presets, category, preset]);
 
   const cats = ["realism", "mood", "enhance"];
   const filtered = useMemo(() => presets.filter((p) => p.category === category), [presets, category]);
@@ -106,7 +123,14 @@ export default function Pro() {
     if (!photo) { toast.error(t("pro_upload_photo")); return; }
     if (!preset) { toast.error(t("pro_pick_preset")); return; }
     clearUploadToast();
-    setBusy(true); setResult(null);
+    setMobileTab("result");
+    setBusy(true);
+    setResult(null);
+    setProgress(0);
+    window.requestAnimationFrame(() => {
+      scrollElementIntoStudioView(resultAnchorRef.current);
+    });
+    let submitData;
     try {
       const fd = new FormData();
       fd.append("photo", photo);
@@ -114,15 +138,25 @@ export default function Pro() {
       fd.append("aspect_ratio", apiAspectRatio(aspect, { model: "pro", hasPhoto: !!photo }));
       fd.append("extra_prompt", customPrompt.trim());
       fd.append("intensity", String(intensity));
-      const { data } = await uploadPost("/generate/pro", fd, { timeout: 180000 });
-      const creation = normalizeCreation(data?.creation);
+      ({ data: submitData } = await uploadPost("/generate/pro", fd, {
+        timeout: 180000,
+        onPollTick: (sec) => setProgress(sec),
+      }));
+      const creation = normalizeCreation(submitData?.creation);
       if (!primaryResultUrl(creation)) throw new Error(t("pro_no_result"));
       setResult(creation);
       toast.success(t("pro_success", { n: creation?.credits_spent ?? cost }));
       await refresh();
     } catch (err) {
       errToast(err);
-    } finally { setBusy(false); }
+      if (err?.refunded && submitData?.credits_spent && !submitData?.server_billing) {
+        refundCredits?.(submitData.credits_spent, t("studio_refund_desc"));
+      }
+      try { await refresh(); } catch { /* ignore */ }
+    } finally {
+      setBusy(false);
+      setProgress(0);
+    }
   }, [
     photoUploading,
     photo,
@@ -135,7 +169,18 @@ export default function Pro() {
     refresh,
     t,
     errToast,
+    refundCredits,
   ]);
+
+  const panelVisibility = (tab) => (mobileTab !== tab ? "hidden xl:block" : "");
+
+  const selectCategory = (c) => {
+    setCategory(c);
+    const inCat = presets.filter((p) => p.category === c);
+    if (inCat.length && !inCat.some((p) => p.id === preset)) {
+      setPreset(inCat[0].id);
+    }
+  };
 
   return (
     <div className="rp-studio-shell max-w-[1400px] mx-auto pb-28" data-testid="pro-page">
@@ -152,8 +197,36 @@ export default function Pro() {
         <p className="rp-studio-page-desc text-[14px] max-w-[640px]">{t("pro_empty")}</p>
       </header>
 
+      <div
+        className="xl:hidden flex gap-2 mb-5 p-1 rounded-xl border border-white/[0.08] bg-white/[0.03]"
+        role="tablist"
+        data-testid="pro-mobile-tabs"
+      >
+        {MOBILE_TABS.map(({ id, labelKey, icon: Icon }) => {
+          const active = mobileTab === id;
+          return (
+            <button
+              key={id}
+              type="button"
+              role="tab"
+              aria-selected={active}
+              onClick={() => setMobileTab(id)}
+              className={`flex-1 inline-flex items-center justify-center gap-1.5 py-2.5 rounded-lg text-sm font-medium transition-all ${
+                active
+                  ? "bg-white/[0.08] text-white shadow-[inset_0_0_0_1px_rgba(167,139,250,0.35)]"
+                  : "text-rp-mute2 hover:text-rp-mute"
+              }`}
+              data-testid={`pro-tab-${id}`}
+            >
+              <Icon className="w-3.5 h-3.5" strokeWidth={active ? 2 : 1.75} />
+              {t(labelKey)}
+            </button>
+          );
+        })}
+      </div>
+
       <div className="grid grid-cols-1 xl:grid-cols-[1fr_380px] gap-6 xl:gap-8">
-        <div className="rp-editor-panel overflow-hidden">
+        <div className={`rp-editor-panel overflow-hidden ${panelVisibility("create")}`}>
           <div className="rp-editor-panel-accent" />
           <div className="p-5 sm:p-7 space-y-7">
             <ProStep step="1" title={t("pro_step_photo")} hint={t("pro_upload_hint")}>
@@ -177,7 +250,7 @@ export default function Pro() {
                   <button
                     type="button"
                     key={c}
-                    onClick={() => setCategory(c)}
+                    onClick={() => selectCategory(c)}
                     className={`rp-select-card text-left p-3.5 ${category === c ? "rp-select-card-active" : ""}`}
                     data-testid={`procat-${c}`}
                   >
@@ -289,7 +362,12 @@ export default function Pro() {
           </div>
         </div>
 
-        <StudioResultAnchor busy={busy} ready={Boolean(primaryResultUrl(result))} className="xl:sticky xl:top-[80px] self-start space-y-2">
+        <StudioResultAnchor
+          busy={busy}
+          ready={Boolean(primaryResultUrl(result))}
+          className={`xl:sticky xl:top-[80px] self-start space-y-2 ${panelVisibility("result")}`}
+          anchorRef={resultAnchorRef}
+        >
           <p className="rp-editor-section-cap !text-[#6b6b70] !mb-2">{t("last_result")}</p>
           <div className="rp-editor-panel overflow-hidden p-4">
             <ResultPanel creation={result} loading={busy} onChange={setResult} emptyLabel={t("pro_empty_result")} />
@@ -305,7 +383,7 @@ export default function Pro() {
         busy={busy}
         onClick={generate}
         label={`${t("pro_button")} · ${cost} ${t("label_credits")}`}
-        busyLabel={t("pro_loading")}
+        busyLabel={progress > 0 ? t("studio_generating", { n: progress }) : t("studio_sending")}
         hint={hint}
         blockedNotify={photoUploading ? "message" : "error"}
         testId="pro-create"

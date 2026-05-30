@@ -70,7 +70,7 @@ export default function Artistic() {
   const [improving, setImproving] = useState(false);
   const [result, setResult] = useState(null);
   const [meta, setMeta] = useState(null);
-  const [mobileTab, setMobileTab] = useState("generate");
+  const [mobileTab, setMobileTab] = useState("style");
   const [photoUploadStatus, setPhotoUploadStatus] = useState("idle");
   const photoUploading = isPhotoUploadBusy(photoUploadStatus);
 

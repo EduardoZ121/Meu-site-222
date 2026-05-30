@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState } from "react";
-import { Loader2, Sparkles, ImagePlus, Wand2, Lightbulb } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { Wand2, Lightbulb, ImageIcon, Sparkles as SparklesIcon } from "lucide-react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { api, trackPendingPrediction, uploadPost, pollPrediction } from "../../lib/api";
 import { normalizeCreation, primaryResultUrl } from "../../lib/creationUrls";
@@ -18,12 +18,19 @@ import { PADRAO_STYLE_COVER_BY_ID } from "../../lib/padraoStyleCovers";
 import useTitle from "../../lib/useTitle";
 import StudioAccordionSection from "../../components/StudioAccordionSection";
 import StudioGenerateBar from "../../components/StudioGenerateBar";
+import StudioGenerateCostMeta from "../../components/StudioGenerateCostMeta";
 import { readUserSettings } from "../../lib/userSettings";
 import { usePhotoAspectDefault, ASPECT_MATCH } from "../../lib/usePhotoAspectDefault";
 import { apiAspectRatio } from "../../lib/apiAspectRatio";
 import { useStudioGenerateGate } from "../../lib/useStudioGenerateGate";
 import PromptEnhanceToggle from "../../components/promptAssist/PromptEnhanceToggle";
+import { scrollElementIntoStudioView } from "../../lib/scrollToStudioResult";
 import { applyGenerationSurcharges, getSurcharges } from "../../lib/creditPricing";
+
+const MOBILE_TABS = [
+  { id: "create", labelKey: "studio_tab_create", icon: SparklesIcon },
+  { id: "result", labelKey: "studio_tab_result", icon: ImageIcon },
+];
 
 const SUBJECT_KEYS = [
   { value: "the man", labelKey: "studio_subj_man" },
@@ -59,11 +66,28 @@ export default function Generate() {
   const [padraoCat, setPadraoCat] = useState("men");
   const [pickedStyle, setPickedStyle] = useState(null);
   const [subject, setSubject] = useState("the person");
+  const [mobileTab, setMobileTab] = useState("create");
+  const resultAnchorRef = useRef(null);
+
+  useEffect(() => {
+    const q = searchParams.get("prompt");
+    if (q != null) setPrompt(q);
+  }, [searchParams]);
 
   useEffect(() => {
     api.get("/public/padrao-styles")
-      .then((r) => setPadrao(r.data.styles?.length ? r.data.styles : FALLBACK_PADRAO_STYLES))
-      .catch(() => setPadrao(FALLBACK_PADRAO_STYLES));
+      .then((r) => {
+        const styles = r.data.styles?.length ? r.data.styles : FALLBACK_PADRAO_STYLES;
+        setPadrao(styles);
+        const cats = Array.from(new Set(styles.map((s) => s.cat)));
+        if (cats.length && !cats.includes(padraoCat)) setPadraoCat(cats[0]);
+      })
+      .catch(() => {
+        setPadrao(FALLBACK_PADRAO_STYLES);
+        const cats = Array.from(new Set(FALLBACK_PADRAO_STYLES.map((s) => s.cat)));
+        if (cats.length && !cats.includes(padraoCat)) setPadraoCat(cats[0]);
+      });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const padraoCats = useMemo(() => Array.from(new Set(padrao.map((s) => s.cat))), [padrao]);
@@ -83,6 +107,8 @@ export default function Generate() {
     });
     return { mode: "text", cost: textCost, ctaLabel: t("studio_cta_text", { n: textCost }) };
   }, [photo, pickedStyle, costs, surcharges, t, improve, hdQuality]);
+
+  const isTextMode = mode === "text";
 
   const generateReady = mode !== "blocked"
     && (mode === "easy" || prompt.trim().length >= 3);
@@ -115,7 +141,11 @@ export default function Generate() {
     }
 
     clearUploadToast();
+    setMobileTab("result");
     setBusy(true); setResult(null); setProgress(0);
+    window.requestAnimationFrame(() => {
+      scrollElementIntoStudioView(resultAnchorRef.current);
+    });
     let submitData;
     try {
       if (mode === "easy") {
@@ -170,6 +200,8 @@ export default function Generate() {
     } finally { setBusy(false); setProgress(0); }
   };
 
+  const panelVisibility = (tab) => (mobileTab !== tab ? "hidden lg:block" : "");
+
   return (
     <div className="rp-studio-shell max-w-[1200px] mx-auto pb-28" data-testid="generate-page">
       <header className="mb-10 pb-8 border-b border-[rgba(244,241,234,0.06)]">
@@ -178,8 +210,36 @@ export default function Generate() {
         <p className="rp-studio-page-desc">{t("studio_desc")}</p>
       </header>
 
+      <div
+        className="lg:hidden flex gap-2 mb-5 p-1 rounded-xl border border-white/[0.08] bg-white/[0.03]"
+        role="tablist"
+        data-testid="generate-mobile-tabs"
+      >
+        {MOBILE_TABS.map(({ id, labelKey, icon: Icon }) => {
+          const active = mobileTab === id;
+          return (
+            <button
+              key={id}
+              type="button"
+              role="tab"
+              aria-selected={active}
+              onClick={() => setMobileTab(id)}
+              className={`flex-1 inline-flex items-center justify-center gap-1.5 py-2.5 rounded-lg text-sm font-medium transition-all ${
+                active
+                  ? "bg-white/[0.08] text-white shadow-[inset_0_0_0_1px_rgba(167,139,250,0.35)]"
+                  : "text-rp-mute2 hover:text-rp-mute"
+              }`}
+              data-testid={`generate-tab-${id}`}
+            >
+              <Icon className="w-3.5 h-3.5" strokeWidth={active ? 2 : 1.75} />
+              {t(labelKey)}
+            </button>
+          );
+        })}
+      </div>
+
       <div className="grid grid-cols-1 lg:grid-cols-[1fr_380px] gap-8 lg:gap-10">
-        <div className="space-y-4">
+        <div className={`space-y-4 ${panelVisibility("create")}`}>
           <StudioAccordionSection title={t("studio_acc_photo")} defaultOpen={false} testId="studio-acc-photo">
             <div className="flex items-baseline justify-end mb-3">
               {photo && (
@@ -202,30 +262,34 @@ export default function Generate() {
               data-testid="prompt-input"
             />
             <div className="flex flex-col gap-2.5 mt-3">
-              <PromptEnhanceToggle
-                checked={improve}
-                onChange={setImprove}
-                locked={false}
-                onLockedClick={undefined}
-                testId="improve-toggle"
-                cost={surcharges.enhancePrompt ?? 3}
-              />
-              <label className="inline-flex items-center gap-2.5 cursor-pointer group">
-                <input
-                  type="checkbox"
-                  checked={hdQuality}
-                  disabled={false}
-                  onChange={(e) => {
-                    setHdQuality(e.target.checked);
-                  }}
-                  className="accent-[#7C3AED] w-3.5 h-3.5 rounded border-[#2E2E30]"
-                  data-testid="hd-quality-toggle"
-                />
-                <span className="text-[#8A8A8E] text-[12px] font-['Inter_Tight']">
-                  {t("studio_hd_quality")}{" "}
-                  <span className="text-[#A855F7] font-mono text-[10px]">+{surcharges.hdImage ?? 8}</span>
-                </span>
-              </label>
+              {isTextMode && (
+                <>
+                  <PromptEnhanceToggle
+                    checked={improve}
+                    onChange={setImprove}
+                    locked={false}
+                    onLockedClick={undefined}
+                    testId="improve-toggle"
+                    cost={surcharges.enhancePrompt ?? 3}
+                  />
+                  <label className="inline-flex items-center gap-2.5 cursor-pointer group">
+                    <input
+                      type="checkbox"
+                      checked={hdQuality}
+                      disabled={false}
+                      onChange={(e) => {
+                        setHdQuality(e.target.checked);
+                      }}
+                      className="accent-[#7C3AED] w-3.5 h-3.5 rounded border-[#2E2E30]"
+                      data-testid="hd-quality-toggle"
+                    />
+                    <span className="text-[#8A8A8E] text-[12px] font-['Inter_Tight']">
+                      {t("studio_hd_quality")}{" "}
+                      <span className="text-[#A855F7] font-mono text-[10px]">+{surcharges.hdImage ?? 8}</span>
+                    </span>
+                  </label>
+                </>
+              )}
             </div>
             <div className="flex justify-end mt-2">
               <span className="text-[#5A5A5E] text-[10px] font-mono tabular-nums">{prompt.length}/800</span>
@@ -285,31 +349,32 @@ export default function Generate() {
 
           <StudioAccordionSection title={t("studio_acc_format")} defaultOpen testId="studio-acc-format">
             <AspectPicker value={aspect} onChange={setAspect} hasPhoto={!!photo} testIdPrefix="aspect" />
-            <StudioGenerateBar
-              layout="inline"
-              ready={gateReady}
-              busy={busy}
-              onClick={generate}
-              label={ctaLabel}
-              busyLabel={progress > 0 ? t("studio_generating", { n: progress }) : t("studio_sending")}
-              hint={gateHint}
-              testId="generate-button"
-              className="mt-8"
-              alignHint="center"
-            />
-            <p className="text-[#6b6b70] text-[11px] mt-3 text-center font-['Inter_Tight']">
-              {t("studio_balance")} <span className="text-[#C4B5FD] font-medium tabular-nums">{user?.is_unlimited ? "∞" : (user?.credits ?? 0)}</span> {t("credits")}
-            </p>
           </StudioAccordionSection>
         </div>
 
-        <StudioResultAnchor busy={busy} ready={Boolean(primaryResultUrl(result))} className="lg:sticky lg:top-[88px] self-start space-y-3">
+        <StudioResultAnchor
+          busy={busy}
+          ready={Boolean(primaryResultUrl(result))}
+          className={`lg:sticky lg:top-[88px] self-start space-y-3 ${panelVisibility("result")}`}
+          anchorRef={resultAnchorRef}
+        >
           <p className="rp-editor-section-cap !text-[#6b6b70]">{t("last_result")}</p>
           <div className="rp-editor-panel overflow-hidden p-4 sm:p-5">
             <ResultPanel creation={result} loading={busy} onChange={setResult} emptyLabel={t("studio_result_next")} />
           </div>
         </StudioResultAnchor>
       </div>
+
+      <StudioGenerateBar
+        ready={gateReady}
+        busy={busy}
+        onClick={generate}
+        label={ctaLabel}
+        busyLabel={progress > 0 ? t("studio_generating", { n: progress }) : t("studio_sending")}
+        hint={gateHint}
+        testId="generate-button"
+        costMeta={<StudioGenerateCostMeta cost={cost} user={user} />}
+      />
     </div>
   );
 }

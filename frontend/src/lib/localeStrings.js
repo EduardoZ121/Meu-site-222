@@ -159,6 +159,8 @@ const studioEn = {
   studio_sending: "Sending…",
   studio_balance: "Balance:",
   studio_result_next: "Your next image appears here.",
+  studio_tab_create: "Create",
+  studio_tab_result: "Result",
 };
 
 const studioPt = {
@@ -216,6 +218,8 @@ const studioPt = {
   studio_sending: "A enviar…",
   studio_balance: "Saldo:",
   studio_result_next: "A tua próxima imagem aparece aqui.",
+  studio_tab_create: "Criar",
+  studio_tab_result: "Resultado",
 };
 
 const studioEs = {
@@ -265,6 +269,8 @@ const studioEs = {
   studio_sending: "Enviando…",
   studio_balance: "Saldo:",
   studio_result_next: "Tu próxima imagen aparece aquí.",
+  studio_tab_create: "Crear",
+  studio_tab_result: "Resultado",
 };
 
 const studioFr = {
@@ -314,6 +320,8 @@ const studioFr = {
   studio_sending: "Envoi…",
   studio_balance: "Solde :",
   studio_result_next: "Votre prochaine image apparaît ici.",
+  studio_tab_create: "Créer",
+  studio_tab_result: "Résultat",
 };
 
 const settingsEn = {

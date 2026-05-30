@@ -14,6 +14,8 @@ const {
   checkEmailRegistration,
   registerEmailUser,
   loginEmailUser,
+  requestPasswordReset,
+  resetPasswordWithToken,
 } = require("./lib/emailAuth.cjs");
 const {
   ADMIN_EMAILS,
@@ -2115,6 +2117,29 @@ async function handlePath(path, req, res) {
       try {
         const out = await checkEmailRegistration(email);
         return json(res, 200, out);
+      } catch (err) {
+        return json(res, err.status || 500, { detail: err.message || "Erro." });
+      }
+    }
+
+    if (req.method === "POST" && path === "auth/forgot-password") {
+      try {
+        const body = await readJsonRequestBody(req);
+        const out = await requestPasswordReset(body, req);
+        return json(res, 200, out);
+      } catch (err) {
+        return json(res, err.status || 500, {
+          detail: err.message || "Erro.",
+          code: err.code || undefined,
+        });
+      }
+    }
+
+    if (req.method === "POST" && path === "auth/reset-password") {
+      try {
+        const body = await readJsonRequestBody(req);
+        await resetPasswordWithToken(body);
+        return json(res, 200, { ok: true });
       } catch (err) {
         return json(res, err.status || 500, { detail: err.message || "Erro." });
       }

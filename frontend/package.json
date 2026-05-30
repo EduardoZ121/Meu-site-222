@@ -69,7 +69,7 @@
   },
   "scripts": {
     "start": "craco start",
-    "build": "REACT_APP_BUILD_ID=landing-fix-20260530 REACT_APP_DISABLE_VERCEL_BLOB=0 craco build",
+    "build": "REACT_APP_BUILD_ID=login-fix-20260530 REACT_APP_DISABLE_VERCEL_BLOB=0 craco build",
     "test": "craco test",
     "generate:i18n": "node scripts/generate-i18n-json.mjs"
   },

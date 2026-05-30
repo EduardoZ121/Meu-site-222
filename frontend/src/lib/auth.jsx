@@ -369,21 +369,37 @@ export function AuthProvider({ children }) {
 
   const requestPasswordReset = async (email) => {
     const normalizedEmail = email.trim().toLowerCase();
-    const local = readLocalUsers()[normalizedEmail];
-    if (!local) return { mode: "sent" };
-    const token = `reset_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 10)}`;
-    localStorage.setItem(`rp_reset_${token}`, normalizedEmail);
-    return { mode: "local", token, email: normalizedEmail };
+    try {
+      const { data } = await api.post("/auth/forgot-password", {
+        email: normalizedEmail,
+        origin: typeof window !== "undefined" ? window.location.origin : undefined,
+      });
+      return { mode: data?.email_sent ? "email" : "sent", ...data };
+    } catch (err) {
+      if (err?.response?.data?.code === "USE_GOOGLE") throw err;
+      if (!isBackendUnavailable(err)) throw err;
+      const local = readLocalUsers()[normalizedEmail];
+      if (!local) return { mode: "sent" };
+      const token = `reset_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 10)}`;
+      localStorage.setItem(`rp_reset_${token}`, normalizedEmail);
+      return { mode: "local", token, email: normalizedEmail };
+    }
   };
 
   const resetPassword = async (token, newPassword) => {
-    const email = localStorage.getItem(`rp_reset_${token}`);
-    if (!email) throw new Error("Link de recuperação inválido ou expirado.");
-    const users = readLocalUsers();
-    if (!users[email]) throw new Error("Conta não encontrada.");
-    users[email] = { ...users[email], password_hash: await hashPassword(newPassword) };
-    writeLocalUsers(users);
-    localStorage.removeItem(`rp_reset_${token}`);
+    try {
+      await api.post("/auth/reset-password", { token, password: newPassword });
+      return;
+    } catch (err) {
+      if (!isBackendUnavailable(err)) throw err;
+      const email = localStorage.getItem(`rp_reset_${token}`);
+      if (!email) throw new Error("Link de recuperação inválido ou expirado.");
+      const users = readLocalUsers();
+      if (!users[email]) throw new Error("Conta não encontrada.");
+      users[email] = { ...users[email], password_hash: await hashPassword(newPassword) };
+      writeLocalUsers(users);
+      localStorage.removeItem(`rp_reset_${token}`);
+    }
   };
 
   const verifyEmail = async () => {

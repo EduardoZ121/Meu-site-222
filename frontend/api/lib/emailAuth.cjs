@@ -227,8 +227,116 @@ async function loginEmailUser(payload, req) {
   return publicUser(updated);
 }
 
+async function sendPasswordResetEmail({ to, resetUrl }) {
+  const key = process.env.RESEND_API_KEY;
+  if (!key) return { ok: false, skipped: true };
+  const from = String(process.env.REPORT_FROM_EMAIL || "Remake Pixel <noreply@remakepix.com>").trim();
+  const subject = "Recuperar palavra-passe — Remake Pixel";
+  const html = [
+    "<p>Recebeste este email porque pediste recuperação de palavra-passe no Remake Pixel.</p>",
+    `<p><a href="${resetUrl}">Definir nova palavra-passe</a></p>`,
+    "<p>O link expira em 1 hora. Se não pediste isto, ignora este email.</p>",
+  ].join("");
+  const r = await fetch("https://api.resend.com/emails", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
+    body: JSON.stringify({ from, to: [to], subject, html, text: `Recuperar palavra-passe: ${resetUrl}` }),
+  });
+  const data = await r.json().catch(() => ({}));
+  if (!r.ok) return { ok: false, error: data.message || data.error || `Resend ${r.status}` };
+  return { ok: true, id: data.id };
+}
+
+/** POST /auth/forgot-password — token + email Resend (se configurado). */
+async function requestPasswordReset(payload, req) {
+  const email = normalizeEmail(payload.email);
+  if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    const err = new Error("Email inválido.");
+    err.status = 400;
+    throw err;
+  }
+  if (!storageEnabled()) mongoRequired();
+
+  const db = await getDb();
+  const doc = await findUserDocByEmail(email);
+  if (!doc) {
+    return { ok: true, message: "generic" };
+  }
+  if (!doc.password_hash) {
+    const isGoogle = String(doc.id || "").startsWith("google_") || doc.provider === "google";
+    if (isGoogle) {
+      const err = new Error("Este email usa Google. Entra com o botão Google.");
+      err.status = 400;
+      err.code = "USE_GOOGLE";
+      throw err;
+    }
+    return { ok: true, message: "generic" };
+  }
+
+  const token = crypto.randomBytes(32).toString("hex");
+  const expiresAt = new Date(Date.now() + 60 * 60 * 1000).toISOString();
+  await db.collection("password_resets").deleteMany({ user_id: doc.id });
+  await db.collection("password_resets").insertOne({
+    token,
+    user_id: doc.id,
+    email,
+    expires_at: expiresAt,
+    created_at: nowIso(),
+  });
+
+  const origin = String(payload.origin || req?.headers?.origin || "https://www.remakepix.com").replace(/\/$/, "");
+  const resetUrl = `${origin}/reset-password?token=${encodeURIComponent(token)}`;
+  const mailed = await sendPasswordResetEmail({ to: email, resetUrl });
+
+  return {
+    ok: true,
+    message: mailed.ok ? "email_sent" : "generic",
+    email_sent: !!mailed.ok,
+  };
+}
+
+/** POST /auth/reset-password */
+async function resetPasswordWithToken(payload) {
+  const token = String(payload.token || "").trim();
+  const password = String(payload.password || "");
+  if (!token) {
+    const err = new Error("Link de recuperação inválido ou expirado.");
+    err.status = 400;
+    throw err;
+  }
+  if (password.length < MIN_PASSWORD_LEN) {
+    const err = new Error(`Palavra-passe demasiado curta (mín. ${MIN_PASSWORD_LEN} caracteres).`);
+    err.status = 400;
+    throw err;
+  }
+  if (!storageEnabled()) mongoRequired();
+
+  const db = await getDb();
+  const row = await db.collection("password_resets").findOne({ token });
+  if (!row || !row.user_id) {
+    const err = new Error("Link de recuperação inválido ou expirado.");
+    err.status = 400;
+    throw err;
+  }
+  if (row.expires_at && Date.now() > new Date(row.expires_at).getTime()) {
+    await db.collection("password_resets").deleteOne({ token });
+    const err = new Error("Link de recuperação expirado. Pede um novo.");
+    err.status = 400;
+    throw err;
+  }
+
+  await db.collection("users").updateOne(
+    { id: row.user_id },
+    { $set: { password_hash: hashPassword(password), updated_at: nowIso() } },
+  );
+  await db.collection("password_resets").deleteMany({ user_id: row.user_id });
+  return { ok: true };
+}
+
 module.exports = {
   checkEmailRegistration,
   registerEmailUser,
   loginEmailUser,
+  requestPasswordReset,
+  resetPasswordWithToken,
 };

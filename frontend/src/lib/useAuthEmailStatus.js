@@ -27,7 +27,8 @@ export function useAuthEmailStatus(email, { enabled = true } = {}) {
     timerRef.current = setTimeout(async () => {
       const data = await checkRegisteredEmail(normalized);
       setInfo(data);
-      if (data.exists) setStatus("exists");
+      if (data.offline) setStatus("offline");
+      else if (data.exists) setStatus("exists");
       else if (data.can_register) setStatus("new");
       else setStatus("idle");
     }, 450);

@@ -11,7 +11,7 @@ import {
 import { toast } from "sonner";
 import { useI18n } from "../../lib/i18n";
 import StudioGenerateBar from "../StudioGenerateBar";
-import { useStudioGenerateGate } from "../../lib/useStudioGenerateGate";
+import { hasStudioCredits, useStudioGenerateGate } from "../../lib/useStudioGenerateGate";
 import ImageUploadZone from "../ImageUploadZone";
 import AspectPicker from "../AspectPicker";
 import PromptAssistBar from "../promptAssist/PromptAssistBar";
@@ -54,13 +54,28 @@ export default function ArtisticPromptStudio({
   const { t } = useI18n();
 
   const needsPhoto = inputMode === "image" || isLabStyle;
+  const generateReady = useMemo(() => {
+    if (cost > 0 && !hasStudioCredits(user, cost)) return false;
+    if (needsPhoto && !photo) return false;
+    if (!styleId && prompt.trim().length < 3) return false;
+    return true;
+  }, [cost, user, needsPhoto, photo, styleId, prompt]);
+
+  const generateHint = useMemo(() => {
+    if (cost > 0 && !hasStudioCredits(user, cost)) {
+      return t("studio_gen_hint_credits", { need: cost, have: user?.credits ?? 0 });
+    }
+    if (needsPhoto && !photo) {
+      return isLabStyle ? t("art_lab_need_photo") : t("studio_gen_hint_photo");
+    }
+    if (!styleId && prompt.trim().length < 3) return t("art_empty");
+    return null;
+  }, [cost, user, needsPhoto, photo, isLabStyle, styleId, prompt, t]);
+
   const { ready, hint } = useStudioGenerateGate({
     busy,
-    user,
-    cost,
-    requirePhoto: needsPhoto,
-    photo,
-    blocked: !styleId && prompt.trim().length < 3,
+    readyOverride: generateReady,
+    hintOverride: generateHint,
   });
   const [wizardOpen, setWizardOpen] = useState(false);
   const [suggestOpen, setSuggestOpen] = useState(false);

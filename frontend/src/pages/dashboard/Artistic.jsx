@@ -145,10 +145,15 @@ export default function Artistic() {
   const selectStyle = useCallback(
     (id) => {
       setStyleId(id);
+      setMobileTab("generate");
       const picked = catalog.styles.find((s) => s.id === id);
       if (picked?.cat === "nsfw" && inputMode !== "image") {
         setInputMode("image");
         toast.message(t("art_lab_image_hint"));
+      }
+      if (picked?.cat === "photography" && inputMode !== "image") {
+        setInputMode("image");
+        toast.message(t("art_photo_image_hint"));
       }
     },
     [catalog.styles, inputMode, t],
@@ -180,6 +185,7 @@ export default function Artistic() {
     }
 
     clearUploadToast();
+    setMobileTab("generate");
     setBusy(true);
     setResult(null);
     try {
@@ -225,6 +231,7 @@ export default function Artistic() {
         fd.append("prompt_final", finalPrompt);
         fd.append("aspect_ratio", apiAspectRatio(aspect, { model: "artistic", hasPhoto: true }));
         fd.append("style_id", styleId || "");
+        fd.append("style_cat", styleCat || "");
         fd.append("effects_json", JSON.stringify(effects));
         ({ data } = await uploadPost("/generate/artistic-studio", fd, { timeout: 240000 }));
       } else {
@@ -257,6 +264,7 @@ export default function Artistic() {
     }
   }, [
     styleId,
+    styleCat,
     isLabStyle,
     prompt,
     inputMode,

@@ -205,27 +205,24 @@ const {
   QWEN_EDIT_MODEL: ARTISTIC_QWEN_MODEL,
   isNsfwStyleId,
   resolveArtisticLabModel,
+  resolveStylizedPhotoModel,
 } = require("./lib/artisticStudioEngines.cjs");
 
 function isArtisticExperimentalStyleId(styleId) {
   return isNsfwStyleId(styleId);
 }
 
-function resolveArtisticStudioModel({ styleId, hasPhoto, userDoc }) {
-  const experimental = isArtisticExperimentalStyleId(styleId);
-  if (experimental) {
-    const adminOk = userDoc?.role === "admin" || userDoc?.nsfw_allowed;
-    if (!adminOk) {
-      const err = new Error("Este estilo requer permissão NSFW na conta.");
-      err.status = 403;
-      throw err;
-    }
+function resolveArtisticStudioModel({ styleId, hasPhoto }) {
+  if (isArtisticExperimentalStyleId(styleId)) {
     if (!hasPhoto) {
       const err = new Error("AI Lab exige uma foto (Qwen Image Edit edita a referência).");
       err.status = 400;
       throw err;
     }
     return resolveArtisticLabModel();
+  }
+  if (hasPhoto) {
+    return resolveStylizedPhotoModel();
   }
   return { modelKey: "standard", modelId: MODELS.standard, label: MODELS.standard };
 }
@@ -1393,20 +1390,26 @@ async function routePost(path, fields, files, req) {
     const experimental = isArtisticExperimentalStyleId(styleId);
     let promptFinal = text(fields, "prompt_final", "").trim();
     if (!promptFinal) throw new Error("Prompt em falta.");
-    const hasPhoto = Boolean(files.photo || text(fields, "photo_url", "").trim());
-    const { user, isLocal } = resolveSessionUser(req);
-    let userDoc = null;
-    if (storageEnabled() && user?.id && !isLocal) {
-      userDoc = await getUserById(user.id);
-    } else if (user?.email && ADMIN_EMAILS.has(String(user.email).toLowerCase())) {
-      userDoc = { email: user.email, role: "admin", nsfw_allowed: true };
+    const photoRef = await resolveImageRef(files, fields, "photo", "photo_url");
+    const photoFieldPresent = Boolean(fileOf(files, "photo") || text(fields, "photo_url", "").trim());
+    if (photoFieldPresent && !photoRef) {
+      const err = new Error(
+        "Não foi possível ler a foto. Usa JPEG, PNG ou WEBP (máx. 12 MB).",
+      );
+      err.status = 400;
+      throw err;
     }
+    const hasPhoto = Boolean(photoRef);
     const { modelKey, modelId, label: modelLabel } = resolveArtisticStudioModel({
       styleId,
       hasPhoto,
-      userDoc,
     });
-    const input = await imageInput(fields, files, modelKey, promptFinal, { experimental });
+    const useQwenPhoto = modelKey === "qwen";
+    const input = await imageInput(fields, files, modelKey, promptFinal, {
+      experimental: experimental || useQwenPhoto,
+      photoEdit: hasPhoto,
+      artisticPhotoEdit: hasPhoto,
+    });
     let effects = {};
     try {
       const rawFx = text(fields, "effects_json", "{}");

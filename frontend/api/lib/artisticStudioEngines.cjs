@@ -20,8 +20,19 @@ function resolveArtisticLabModel() {
   };
 }
 
+/** Estilos com foto (não Lab) → Flux Klein — preserva identidade na edição. */
+function resolveStylizedPhotoModel() {
+  return {
+    modelKey: "artistic",
+    modelId: String(process.env.ARTISTIC_PHOTO_FLUX_MODEL || "").trim()
+      || "black-forest-labs/flux-2-klein-9b",
+    label: "Flux 2 Klein",
+  };
+}
+
 module.exports = {
   QWEN_EDIT_MODEL,
   isNsfwStyleId,
   resolveArtisticLabModel,
+  resolveStylizedPhotoModel,
 };

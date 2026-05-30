@@ -223,11 +223,12 @@ function resolveArtisticStudioModel({ styleId, hasPhoto, styleCat }) {
     }
     return resolveArtisticLabModel();
   }
-  if (isPhotographyRequest(styleId, styleCat)) {
-    return resolvePhotographyModel(hasPhoto);
-  }
+  // Qualquer foto (fotografia, anime, cartoon…) → Flux Klein — igual ao backend legado.
   if (hasPhoto) {
     return resolveStylizedPhotoModel();
+  }
+  if (isPhotographyRequest(styleId, styleCat)) {
+    return resolvePhotographyModel(false);
   }
   return { modelKey: "standard", modelId: MODELS.standard, label: MODELS.standard };
 }

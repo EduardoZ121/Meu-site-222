@@ -146,7 +146,7 @@ export const I18N_BASE_DICT = {
     art_extra_placeholder: "ex.: tons quentes, luz de outono…",
     art_button: "Transformar",
     art_loading: "A gerar…",
-    art_empty: "Carrega uma foto, escolhe um estilo.",
+    art_empty: "Escolhe um estilo (clica numa capa) ou escreve 3+ palavras no prompt.",
     art_no_photo: "Carrega uma foto primeiro",
 
     // Video
@@ -487,7 +487,7 @@ export const I18N_BASE_DICT = {
     art_extra_placeholder: "e.g. warm tones, autumn light…",
     art_button: "Transform",
     art_loading: "Generating…",
-    art_empty: "Upload a photo, pick a style.",
+    art_empty: "Pick a style (tap a cover) or write 3+ words in the prompt.",
     art_no_photo: "Upload a photo first",
 
     vid_eyebrow: "Video · 6s",

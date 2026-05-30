@@ -28,7 +28,7 @@ import {
 } from "../../lib/buildArtisticStudioPrompt";
 import useTitle from "../../lib/useTitle";
 import { useStudioI18n } from "../../lib/useStudioI18n";
-import { useStudioGenerateGate } from "../../lib/useStudioGenerateGate";
+import { hasStudioCredits } from "../../lib/useStudioGenerateGate";
 import { usePhotoAspectDefault } from "../../lib/usePhotoAspectDefault";
 import ImageUploadZone from "../../components/ImageUploadZone";
 import AspectPicker from "../../components/AspectPicker";
@@ -114,7 +114,6 @@ export default function Artistic() {
 
   const isLabStyle = useMemo(() => isArtisticExperimentalStyle(styleId), [styleId]);
   const isPhotoCategory = styleCat === "photography";
-  const isPhotoStyle = selectedStyle?.cat === "photography";
 
   useEffect(() => {
     if (!includeNsfw && styleCat === "nsfw") setStyleCat("photography");
@@ -133,6 +132,11 @@ export default function Artistic() {
     if (mode === "text" && aspect === "match") setAspect("3:4");
   }, [mode, aspect, setAspect]);
 
+  useEffect(() => {
+    if (!photo || styleId || !stylesInCat.length) return;
+    setStyleId(stylesInCat[0].id);
+  }, [photo, styleId, stylesInCat]);
+
   const effectsSummary = useMemo(() => {
     if (!recipeChips.length) return "—";
     return recipeChips.filter((c) => c.emoji !== "🎨").map((c) => c.label).join(", ") || "—";
@@ -149,51 +153,28 @@ export default function Artistic() {
 
   const generateLabel = mode === "image" ? t("art_edit_credits", { n: cost }) : t("art_generate_credits", { n: cost });
 
-  const readyOverride = useMemo(() => {
-    if (photoUploading || busy) return false;
-    const hasPrompt = prompt.trim().length >= 3;
-    if (!styleId && !hasPrompt) return false;
-    if (mode === "image" && !photo) return false;
-    if (isLabStyle && !photo) return false;
-    if (isPhotoStyle && !photo) return false;
-    return true;
-  }, [
-    photoUploading,
-    busy,
-    prompt,
-    styleId,
-    mode,
-    photo,
-    isLabStyle,
-    isPhotoStyle,
-  ]);
-
-  const hintOverride = useMemo(() => {
+  const generateBlockReason = useMemo(() => {
     if (photoUploading) return t("upload_wait_generate");
+    if (cost > 0 && !hasStudioCredits(user, cost)) {
+      return t("studio_gen_hint_credits", { need: cost, have: user?.credits ?? 0 });
+    }
     if (mode === "image" && !photo) return t("art_err_image_mode");
     if (isLabStyle && !photo) return t("art_lab_need_photo");
-    if (isPhotoStyle && !photo) return t("art_photo_need_photo");
     if (!styleId && prompt.trim().length < 3) return t("art_empty");
     return null;
   }, [
     photoUploading,
+    cost,
+    user,
     mode,
     photo,
     isLabStyle,
-    isPhotoStyle,
     styleId,
     prompt,
     t,
   ]);
 
-  const { ready, hint } = useStudioGenerateGate({
-    busy,
-    user,
-    cost,
-    readyOverride,
-    hintOverride,
-    uploading: photoUploading,
-  });
+  const canGenerate = !busy && !generateBlockReason;
 
   const selectStyle = useCallback(
     (id) => {
@@ -261,12 +242,9 @@ export default function Artistic() {
   }, [prompt, styleId, mode, lang, t]);
 
   const generate = useCallback(async () => {
-    if (photoUploading) {
-      toast.message(t("upload_wait_generate"), { duration: 6000 });
-      return;
-    }
-    if (!ready) {
-      if (hint) toast.error(hint);
+    if (generateBlockReason) {
+      const notify = photoUploading ? toast.message : toast.error;
+      notify(generateBlockReason, { duration: 7000 });
       return;
     }
     clearUploadToast();
@@ -316,9 +294,8 @@ export default function Artistic() {
       setBusy(false);
     }
   }, [
+    generateBlockReason,
     photoUploading,
-    ready,
-    hint,
     clearUploadToast,
     prompt,
     styleId,
@@ -336,7 +313,7 @@ export default function Artistic() {
   ]);
 
   const hasResult = Boolean(primaryResultUrl(result));
-  const showResultPanel = tab === "prompt" || busy || hasResult;
+  const showResultFirst = busy || hasResult;
 
   return (
     <div className="as-v2-page rp-studio-shell pb-28" data-testid="artistic-page">
@@ -393,7 +370,7 @@ export default function Artistic() {
       </div>
 
       <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_360px] gap-6 xl:gap-8">
-        <div className="rp-editor-panel overflow-hidden">
+        <div className={`rp-editor-panel overflow-hidden ${showResultFirst ? "order-2 xl:order-1" : "order-1"}`}>
           <div className="rp-editor-panel-accent" />
           <div className="p-5 sm:p-7 space-y-7">
             <ArtisticStep step="1" title={mode === "image" ? t("art_input_image") : t("art_input_text")} hint={t("art_upload_hint")}>
@@ -525,7 +502,7 @@ export default function Artistic() {
         <StudioResultAnchor
           busy={busy}
           ready={hasResult}
-          className={`space-y-4 ${showResultPanel ? "" : "hidden xl:block"} xl:sticky xl:top-[80px] self-start`}
+          className={`space-y-4 xl:sticky xl:top-[80px] self-start ${showResultFirst ? "order-1 xl:order-2" : "order-2"}`}
         >
           <div className="rp-editor-panel overflow-hidden">
             <div className="rp-editor-panel-accent" />
@@ -562,12 +539,12 @@ export default function Artistic() {
       <StudioPhotoUploadNotice status={photoUploadStatus} className="mb-3" />
 
       <StudioGenerateBar
-        ready={ready}
+        ready={canGenerate}
         busy={busy}
         onClick={generate}
         label={generateLabel}
         busyLabel={t("art_generating")}
-        hint={hint}
+        hint={generateBlockReason}
         blockedNotify={photoUploading ? "message" : "error"}
         layout="sticky"
         testId="artistic-generate"

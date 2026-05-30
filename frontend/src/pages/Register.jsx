@@ -24,9 +24,13 @@ export default function Register() {
     referral_code: params.get("ref") || "",
   });
   const [loading, setLoading] = useState(false);
-  const { register, loginWithGoogle } = useAuth();
+  const { register, loginWithGoogle, user, loading: authLoading } = useAuth();
   const navigate = useNavigate();
   const { status: emailStatus, info: emailInfo } = useAuthEmailStatus(form.email);
+
+  useEffect(() => {
+    if (!authLoading && user) navigate("/app/tools", { replace: true });
+  }, [authLoading, user, navigate]);
 
   useEffect(() => {
     const q = params.get("email");

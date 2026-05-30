@@ -3,9 +3,10 @@ import { useI18n } from "../lib/i18n";
 
 export default function AuthModeTabs({ active }) {
   const { t } = useI18n();
-  const { pathname } = useLocation();
+  const { pathname, state } = useLocation();
   const loginActive = active === "login" || pathname === "/login";
   const registerActive = active === "register" || pathname === "/register";
+  const routeState = state?.from ? { from: state.from } : undefined;
 
   const tabClass = (on) =>
     `flex-1 text-center py-2.5 text-sm font-medium rounded-xl transition-all ${
@@ -20,10 +21,10 @@ export default function AuthModeTabs({ active }) {
       role="tablist"
       data-testid="auth-mode-tabs"
     >
-      <Link to="/login" className={tabClass(loginActive)} role="tab" aria-selected={loginActive} data-testid="auth-tab-login">
+      <Link to="/login" state={routeState} className={tabClass(loginActive)} role="tab" aria-selected={loginActive} data-testid="auth-tab-login">
         {t("auth_tab_login")}
       </Link>
-      <Link to="/register" className={tabClass(registerActive)} role="tab" aria-selected={registerActive} data-testid="auth-tab-register">
+      <Link to="/register" state={routeState} className={tabClass(registerActive)} role="tab" aria-selected={registerActive} data-testid="auth-tab-register">
         {t("auth_tab_register")}
       </Link>
     </div>

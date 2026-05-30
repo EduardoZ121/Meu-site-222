@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import { motion } from "framer-motion";
 import { Sparkles } from "lucide-react";
@@ -17,10 +17,14 @@ export default function PwaLoginScreen() {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [showEmail, setShowEmail] = useState(false);
-  const { login, loginWithGoogle } = useAuth();
+  const { login, loginWithGoogle, user, loading: authLoading } = useAuth();
   const navigate = useNavigate();
   const loc = useLocation();
   const from = loc.state?.from || "/app/tools";
+
+  useEffect(() => {
+    if (!authLoading && user) navigate(from, { replace: true });
+  }, [authLoading, user, from, navigate]);
 
   const onSubmit = async (e) => {
     e.preventDefault();
@@ -30,7 +34,9 @@ export default function PwaLoginScreen() {
       toast.success(t("login_success"));
       navigate(from, { replace: true });
     } catch (err) {
-      toast.error(err?.response?.data?.detail || "Login failed");
+      const code = err?.response?.data?.code;
+      if (code === "USE_GOOGLE") toast.error(t("auth_email_google_hint"));
+      else toast.error(err?.response?.data?.detail || err?.message || t("auth_login_fail"));
     } finally {
       setLoading(false);
     }
@@ -43,7 +49,7 @@ export default function PwaLoginScreen() {
       toast.success(t("login_success"));
       navigate(from, { replace: true });
     } catch (err) {
-      toast.error(err?.message || "Google sign-in failed");
+      toast.error(err?.message || t("auth_google_fail"));
     } finally {
       setLoading(false);
     }
@@ -80,7 +86,7 @@ export default function PwaLoginScreen() {
 
         <div className="pwa-login__actions">
           <div className="pwa-login__google">
-            <GoogleAuthButton onCredential={onGoogle} />
+            <GoogleAuthButton onCredential={onGoogle} label={t("auth_google_continue")} />
           </div>
 
           {!showEmail ? (
@@ -110,7 +116,12 @@ export default function PwaLoginScreen() {
                 className="field-input pwa-login__input"
                 data-testid="pwa-login-email"
               />
-              <label className="pwa-login__label">{t("login_password")}</label>
+              <div className="flex items-center justify-between gap-2">
+                <label className="pwa-login__label">{t("login_password")}</label>
+                <Link to="/forgot-password" className="text-[11px] text-[#C4B5FD] hover:underline">
+                  {t("login_forgot")}
+                </Link>
+              </div>
               <PasswordField
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}

@@ -21,22 +21,32 @@ function BrowserLogin() {
   const [email, setEmail] = useState(params.get("email") || "");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
-  const { login, loginWithGoogle } = useAuth();
+  const { login, loginWithGoogle, user, loading: authLoading } = useAuth();
   const navigate = useNavigate();
   const loc = useLocation();
   const from = loc.state?.from || "/app/tools";
   const { status: emailStatus, info: emailInfo } = useAuthEmailStatus(email);
+  const isGoogleOnly = emailStatus === "exists" && emailInfo?.provider === "google";
+  const isNewEmail = emailStatus === "new";
 
   useEffect(() => {
     const q = params.get("email");
     if (q) setEmail(q);
   }, [params]);
 
+  useEffect(() => {
+    if (!authLoading && user) navigate(from, { replace: true });
+  }, [authLoading, user, from, navigate]);
+
   const onSubmit = async (e) => {
     e.preventDefault();
-    if (emailStatus === "new") {
+    if (isNewEmail) {
       toast.message(t("auth_email_new_hint"));
       navigate(`/register?email=${encodeURIComponent(email.trim().toLowerCase())}`);
+      return;
+    }
+    if (isGoogleOnly) {
+      toast.message(t("auth_email_google_hint"));
       return;
     }
     setLoading(true);
@@ -46,9 +56,12 @@ function BrowserLogin() {
       navigate(from);
     } catch (err) {
       const detail = err?.response?.data?.detail || err?.message;
-      if (err?.response?.data?.code === "NOT_FOUND" || /não encontrada|not found/i.test(String(detail))) {
+      const code = err?.response?.data?.code;
+      if (code === "NOT_FOUND" || /não encontrada|not found/i.test(String(detail))) {
         toast.error(t("auth_email_new_hint"));
         navigate(`/register?email=${encodeURIComponent(email.trim().toLowerCase())}`);
+      } else if (code === "USE_GOOGLE") {
+        toast.error(t("auth_email_google_hint"));
       } else {
         toast.error(detail || t("auth_login_fail"));
       }
@@ -87,7 +100,7 @@ function BrowserLogin() {
           <AuthModeTabs active="login" />
 
           <div className="mb-5">
-            <GoogleAuthButton onCredential={onGoogle} />
+            <GoogleAuthButton onCredential={onGoogle} label={t("auth_google_continue")} />
           </div>
 
           <div className="flex items-center gap-3 mb-5">
@@ -113,7 +126,10 @@ function BrowserLogin() {
               {emailStatus === "checking" && (
                 <p className="mt-2 text-[12px] text-rp-mute2">{t("auth_email_checking")}</p>
               )}
-              {emailStatus === "new" && (
+              {emailStatus === "offline" && (
+                <p className="mt-2 text-[12px] text-rp-mute2">{t("auth_email_offline_hint")}</p>
+              )}
+              {isNewEmail && (
                 <p className="mt-2 text-[12px] text-amber-200/90" data-testid="login-email-new-hint">
                   {t("auth_email_new_hint")}{" "}
                   <Link to={`/register?email=${encodeURIComponent(email.trim().toLowerCase())}`} className="text-rp-lavender underline">
@@ -121,7 +137,7 @@ function BrowserLogin() {
                   </Link>
                 </p>
               )}
-              {emailStatus === "exists" && emailInfo?.provider === "google" && (
+              {isGoogleOnly && (
                 <p className="mt-2 text-[12px] text-rp-mute">{t("auth_email_google_hint")}</p>
               )}
             </div>
@@ -136,9 +152,15 @@ function BrowserLogin() {
                 onChange={(e) => setPassword(e.target.value)}
                 autoComplete="current-password"
                 testId="login-password"
+                required={!isGoogleOnly && !isNewEmail}
               />
             </div>
-            <button type="submit" disabled={loading || emailStatus === "checking"} className="btn-primary w-full disabled:opacity-50" data-testid="login-submit">
+            <button
+              type="submit"
+              disabled={loading || emailStatus === "checking" || isGoogleOnly}
+              className="btn-primary w-full disabled:opacity-50"
+              data-testid="login-submit"
+            >
               {loading ? t("login_loading") : t("login_submit")}
             </button>
           </form>

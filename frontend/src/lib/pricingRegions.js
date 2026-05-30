@@ -98,6 +98,7 @@ export function toolCatalogueCost(toolId, regionId) {
     studio: c.image,
     clothes: c.clothes,
     art: c.artistic,
+    artistic: c.artistic,
     pro: c.pro,
     bg_remove: c.bgRemove,
     upscale: c.upscale,

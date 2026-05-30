@@ -3,6 +3,7 @@ export const I18N_BASE_DICT = {
   pt: {
     // Landing / Navbar — landing fica em EN por escolha editorial
     nav_pricing: "Preços", nav_gallery: "Galeria", nav_login: "Entrar", nav_signup: "Criar conta",
+    nav_open_app: "Abrir estúdio",
     nav_discover: "Como funciona",
     landing_page_title: "Remake Pixel — Arte com IA",
     hero_eyebrow: "Para criadores. Para marcas. Para quem publica todos os dias.",
@@ -351,6 +352,7 @@ export const I18N_BASE_DICT = {
 
   en: {
     nav_pricing: "Pricing", nav_gallery: "Gallery", nav_login: "Log in", nav_signup: "Sign up",
+    nav_open_app: "Open studio",
     nav_discover: "How it works",
     landing_page_title: "Remake Pixel — AI Art Studio",
     hero_eyebrow: "For creators. For brands. For daily publishers.",

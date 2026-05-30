@@ -50,6 +50,7 @@ export default function ArtisticPromptStudio({
   onGenerate,
   onImprovePrompt,
   improving,
+  progress = 0,
 }) {
   const { t } = useI18n();
 
@@ -274,7 +275,7 @@ export default function ArtisticPromptStudio({
         busy={busy}
         onClick={handleGenerate}
         label={t("art_generate_credits", { n: cost })}
-        busyLabel={t("art_generating")}
+        busyLabel={progress > 0 ? t("studio_generating", { n: progress }) : t("studio_sending")}
         hint={hint}
         alignHint="start"
         blockedNotify="message"

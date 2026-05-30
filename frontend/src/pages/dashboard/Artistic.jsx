@@ -1,7 +1,7 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Sparkles, Palette, Sun, Camera, Cloud, Sliders } from "lucide-react";
 import { useSearchParams } from "react-router-dom";
-import { api, formatApiError, pollPrediction, trackPendingPrediction, uploadPost } from "../../lib/api";
+import { api, pollPrediction, trackPendingPrediction, uploadPost } from "../../lib/api";
 import { hasStudioCredits } from "../../lib/useStudioGenerateGate";
 import { normalizeCreation, primaryResultUrl } from "../../lib/creationUrls";
 import CreationResultMedia from "../../components/CreationResultMedia";
@@ -34,6 +34,7 @@ import {
 } from "../../lib/buildArtisticStudioPrompt";
 import useTitle from "../../lib/useTitle";
 import { useStudioI18n } from "../../lib/useStudioI18n";
+import { scrollElementIntoStudioView } from "../../lib/scrollToStudioResult";
 
 const SECTION_ICONS = {
   light: Sun,
@@ -47,7 +48,7 @@ export default function Artistic() {
   const { errToast, clearUploadToast } = useStudioI18n();
   useTitle(t("art_page_title"));
   const [searchParams] = useSearchParams();
-  const { refresh, user } = useAuth();
+  const { refresh, user, refundCredits } = useAuth();
   const { costs, region } = usePricing();
 
   const [styleCat, setStyleCat] = useState("photography");
@@ -60,15 +61,15 @@ export default function Artistic() {
   const [inputMode, setInputMode] = useState("text");
   const [prompt, setPrompt] = useState(searchParams.get("prompt") || "");
   const [improve, setImprove] = useState(false);
-  const [wizardOpen, setWizardOpen] = useState(false);
-  const [suggestOpen, setSuggestOpen] = useState(false);
   const [photo, setPhoto] = useState(null);
   const [aspect, setAspect] = useState("3:4");
   const [busy, setBusy] = useState(false);
+  const [progress, setProgress] = useState(0);
   const [improving, setImproving] = useState(false);
   const [result, setResult] = useState(null);
   const [meta, setMeta] = useState(null);
   const [mobileTab, setMobileTab] = useState("style");
+  const resultAnchorRef = useRef(null);
 
   useEffect(() => {
     const q = searchParams.get("prompt");
@@ -92,6 +93,22 @@ export default function Artistic() {
   const stylesInCat = useMemo(
     () => catalog.styles.filter((s) => s.cat === styleCat),
     [catalog.styles, styleCat],
+  );
+
+  useEffect(() => {
+    if (!styleId) return;
+    if (!stylesInCat.some((s) => s.id === styleId)) setStyleId(null);
+  }, [stylesInCat, styleId]);
+
+  const selectCategory = useCallback(
+    (catId) => {
+      setStyleCat(catId);
+      if (styleId) {
+        const inCat = catalog.styles.filter((s) => s.cat === catId);
+        if (!inCat.some((s) => s.id === styleId)) setStyleId(null);
+      }
+    },
+    [styleId, catalog.styles],
   );
 
   const isLabCategory = styleCat === "nsfw";
@@ -189,12 +206,17 @@ export default function Artistic() {
     setMobileTab("generate");
     setBusy(true);
     setResult(null);
+    setProgress(0);
+    window.requestAnimationFrame(() => {
+      scrollElementIntoStudioView(resultAnchorRef.current);
+    });
     const pollOpts = {
       credits_spent: cost,
       type: "artistic",
       timeoutMs: 240_000,
     };
     const skipPollHeaders = { "X-Skip-Auto-Poll": "1" };
+    let submitData;
     try {
       let userPrompt = prompt.trim();
       if (improve && userPrompt.length >= 3) {
@@ -231,7 +253,7 @@ export default function Artistic() {
         imageMode: inputMode === "image",
       });
 
-      let submitData;
+      let submitPayload;
       if (inputMode === "image" && photo) {
         const fd = new FormData();
         fd.append("photo", photo);
@@ -241,13 +263,13 @@ export default function Artistic() {
         fd.append("style_cat", styleCat || "");
         fd.append("effects_json", JSON.stringify(effects));
         fd.append("lang", lang || "en");
-        ({ data: submitData } = await uploadPost("/generate/artistic-studio", fd, {
+        ({ data: submitPayload } = await uploadPost("/generate/artistic-studio", fd, {
           timeout: 120_000,
           pollTimeoutMs: 240_000,
           headers: skipPollHeaders,
         }));
       } else {
-        ({ data: submitData } = await api.post("/generate/artistic-studio", {
+        ({ data: submitPayload } = await api.post("/generate/artistic-studio", {
           prompt_final: finalPrompt,
           aspect_ratio: apiAspectRatio(aspect, { model: "artistic", hasPhoto: false }),
           style_id: styleId || "",
@@ -256,6 +278,8 @@ export default function Artistic() {
           lang: lang || "en",
         }, { timeout: 60_000, headers: skipPollHeaders }));
       }
+
+      submitData = submitPayload;
 
       if (!submitData?.prediction_id) {
         throw new Error(t("common_no_result"));
@@ -268,6 +292,7 @@ export default function Artistic() {
       const data = await pollPrediction(submitData.prediction_id, {
         ...pollOpts,
         credits_spent: submitData.credits_spent || cost,
+        onTick: (sec) => setProgress(sec),
       });
 
       const creation = normalizeCreation(data?.creation);
@@ -286,8 +311,13 @@ export default function Artistic() {
       await refresh();
     } catch (err) {
       errToast(err);
+      if (err?.refunded && submitData?.credits_spent && !submitData?.server_billing) {
+        refundCredits?.(submitData.credits_spent, t("studio_refund_desc"));
+      }
+      try { await refresh(); } catch { /* ignore */ }
     } finally {
       setBusy(false);
+      setProgress(0);
     }
   }, [
     styleId,
@@ -307,6 +337,7 @@ export default function Artistic() {
     t,
     errToast,
     clearUploadToast,
+    refundCredits,
   ]);
 
   const downloadUrl = primaryResultUrl(result);
@@ -349,7 +380,7 @@ export default function Artistic() {
         categories={catalog.categories}
         styles={catalog.styles}
         activeId={styleCat}
-        onSelect={setStyleCat}
+        onSelect={selectCategory}
       />
       <p className="text-[#9CA3AF] text-[10px] font-mono uppercase tracking-[0.14em] mb-3">
         {catalog.categories.find((c) => c.id === styleCat)?.label}
@@ -499,6 +530,7 @@ export default function Artistic() {
             onGenerate={generate}
             onImprovePrompt={improvePromptOnly}
             improving={improving}
+            progress={progress}
           />
           <ArtisticResultStudio
             busy={busy}
@@ -506,6 +538,7 @@ export default function Artistic() {
             result={result}
             meta={meta}
             recipeChips={recipeChips}
+            anchorRef={resultAnchorRef}
             onVary={generate}
             onRefine={() => {
               setPrompt((p) => `${p}${p ? " " : ""}refine details, higher quality`);

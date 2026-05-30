@@ -43,12 +43,13 @@ export default function ArtisticResultStudio({
   onVary,
   onRefine,
   onReusePrompt,
+  anchorRef,
 }) {
   const { t } = useI18n();
   const navigate = useNavigate();
 
   return (
-    <StudioResultAnchor busy={busy} ready={Boolean(downloadUrl)} className="mt-6 flex-1">
+    <StudioResultAnchor busy={busy} ready={Boolean(downloadUrl)} className="mt-6 flex-1" anchorRef={anchorRef}>
       <p className="art-studio-sublabel mb-3">{t("art_result_label")}</p>
 
       {busy && <ShimmerSkeleton recipeChips={recipeChips} t={t} />}

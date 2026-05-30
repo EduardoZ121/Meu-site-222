@@ -10,7 +10,7 @@ import {
   SlidersHorizontal,
 } from "lucide-react";
 import { toast } from "sonner";
-import { api, uploadPost } from "../../lib/api";
+import { api, pollPrediction, trackPendingPrediction, uploadPost } from "../../lib/api";
 import { normalizeCreation, primaryResultUrl } from "../../lib/creationUrls";
 import { useAuth } from "../../lib/auth";
 import { useI18n } from "../../lib/i18n";
@@ -202,6 +202,7 @@ export default function Artistic() {
       setStyleId(id);
       setTab("prompt");
       const picked = catalog.styles.find((s) => s.id === id);
+      if (picked?.cat) setStyleCat(picked.cat);
       if (picked?.cat === "nsfw" && mode !== "image") {
         setMode("image");
         toast.message(t("art_lab_image_hint"));
@@ -271,38 +272,62 @@ export default function Artistic() {
       return;
     }
     clearUploadToast();
+    setTab("prompt");
     setBusy(true);
     setResult(null);
+    const effectiveStyleCat = selectedStyle?.cat || styleCat;
+    let submitData;
     try {
       const finalPrompt = buildArtisticStudioPrompt({
         userPrompt: prompt.trim(),
         styleId,
-        styleCat,
+        styleCat: effectiveStyleCat,
         effects,
         imageMode: mode === "image",
       });
 
-      let data;
+      const pollOpts = {
+        credits_spent: cost,
+        type: "artistic",
+        timeoutMs: 240_000,
+      };
+      const skipPollHeaders = { "X-Skip-Auto-Poll": "1" };
+
       if (mode === "image" && photo) {
         const fd = new FormData();
         fd.append("photo", photo);
         fd.append("prompt_final", finalPrompt);
         fd.append("aspect_ratio", apiAspectRatio(aspect, { model: "artistic", hasPhoto: true }));
         fd.append("style_id", styleId || "");
-        fd.append("style_cat", styleCat || "");
+        fd.append("style_cat", effectiveStyleCat || "");
         fd.append("effects_json", JSON.stringify(effects));
-        ({ data } = await uploadPost("/generate/artistic-studio", fd, { timeout: 240000 }));
+        fd.append("lang", lang || "en");
+        ({ data: submitData } = await uploadPost("/generate/artistic-studio", fd, {
+          timeout: 120_000,
+          headers: skipPollHeaders,
+        }));
       } else {
-        ({ data } = await api.post("/generate/artistic-studio", {
+        ({ data: submitData } = await api.post("/generate/artistic-studio", {
           prompt_final: finalPrompt,
           aspect_ratio: apiAspectRatio(aspect, { model: "artistic", hasPhoto: false }),
           style_id: styleId || "",
-          style_cat: styleCat || "",
+          style_cat: effectiveStyleCat || "",
           effects_json: JSON.stringify(effects),
-        }));
+          lang: lang || "en",
+        }, { timeout: 60_000, headers: skipPollHeaders }));
       }
 
-      const creation = normalizeCreation(data?.creation || data);
+      if (!submitData?.prediction_id) throw new Error(t("common_no_result"));
+
+      trackPendingPrediction(submitData.prediction_id, {
+        credits_spent: submitData.credits_spent || cost,
+        type: "artistic",
+      });
+      const data = await pollPrediction(submitData.prediction_id, {
+        ...pollOpts,
+        credits_spent: submitData.credits_spent || cost,
+      });
+      const creation = normalizeCreation(data?.creation);
       if (!primaryResultUrl(creation)) throw new Error(t("common_no_result"));
       setResult(creation);
       toast.success(t("common_generated", { n: creation.credits_spent ?? cost }));
@@ -320,15 +345,20 @@ export default function Artistic() {
     prompt,
     styleId,
     styleCat,
+    selectedStyle,
     effects,
     mode,
     photo,
     aspect,
     cost,
+    lang,
     refresh,
     t,
     errToast,
   ]);
+
+  const hasResult = Boolean(primaryResultUrl(result));
+  const showResultPanel = tab === "prompt" || busy || hasResult;
 
   return (
     <div className="as-v2-page rp-studio-shell pb-28" data-testid="artistic-page">
@@ -516,8 +546,8 @@ export default function Artistic() {
 
         <StudioResultAnchor
           busy={busy}
-          ready={Boolean(primaryResultUrl(result))}
-          className={`space-y-4 ${tab !== "prompt" ? "hidden xl:block" : ""} xl:sticky xl:top-[80px] self-start`}
+          ready={hasResult}
+          className={`space-y-4 ${showResultPanel ? "" : "hidden xl:block"} xl:sticky xl:top-[80px] self-start`}
         >
           <div className="rp-editor-panel overflow-hidden">
             <div className="rp-editor-panel-accent" />

@@ -1,33 +1,25 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Sparkles, Palette, Sun, Camera, Cloud, Sliders } from "lucide-react";
-import { useSearchParams } from "react-router-dom";
-import { api, formatApiError, uploadPost } from "../../lib/api";
+import { useNavigate } from "react-router-dom";
+import {
+  ArrowLeft,
+  ImageIcon,
+  Palette,
+  Type,
+  Wand2,
+  Layers,
+  SlidersHorizontal,
+} from "lucide-react";
+import { toast } from "sonner";
+import { api, uploadPost } from "../../lib/api";
 import { normalizeCreation, primaryResultUrl } from "../../lib/creationUrls";
-import CreationResultMedia from "../../components/CreationResultMedia";
 import { useAuth } from "../../lib/auth";
 import { useI18n } from "../../lib/i18n";
 import { usePricing } from "../../lib/PricingContext";
 import { computeArtisticEffectSurcharge } from "../../lib/creditPricing";
-import { toast } from "sonner";
 import { apiAspectRatio } from "../../lib/apiAspectRatio";
-import ArtisticStyleCard from "../../components/artistic/ArtisticStyleCard";
-import ArtisticLabStyleCard from "../../components/artistic/ArtisticLabStyleCard";
-import ArtisticEffectOption from "../../components/artistic/ArtisticEffectOption";
-import DraggableRecipeBubble from "../../components/artistic/DraggableRecipeBubble";
-import ArtisticStudioHeader from "../../components/artistic/ArtisticStudioHeader";
-import ArtisticStudioTabs from "../../components/artistic/ArtisticStudioTabs";
-import ArtisticCategoryRail from "../../components/artistic/ArtisticCategoryRail";
-import ArtisticStudioModule from "../../components/artistic/ArtisticStudioModule";
-import ArtisticPromptStudio from "../../components/artistic/ArtisticPromptStudio";
-import ArtisticResultStudio from "../../components/artistic/ArtisticResultStudio";
-import ArtisticFlowSteps from "../../components/artistic/ArtisticFlowSteps";
-import { isPhotoUploadBusy } from "../../components/studio/StudioPhotoUploadNotice";
-import { usePhotoAspectDefault } from "../../lib/usePhotoAspectDefault";
-import { pushArtisticPromptHistory } from "../../lib/artisticPromptHistory";
-import { localizeArtisticCatalog } from "../../lib/artisticStudioLocales";
+import { localizeArtisticCatalog, countStylesInCategory } from "../../lib/artisticStudioLocales";
 import { canAccessNsfwArtisticStyles } from "../../lib/artisticStudioData";
 import { isArtisticExperimentalStyle } from "../../lib/artisticLabStyles";
-import { ARTISTIC_LAB_MODEL_LABEL } from "../../lib/artisticStudioEngines";
 import {
   buildArtisticStudioPrompt,
   buildRecipeChips,
@@ -36,44 +28,50 @@ import {
 } from "../../lib/buildArtisticStudioPrompt";
 import useTitle from "../../lib/useTitle";
 import { useStudioI18n } from "../../lib/useStudioI18n";
+import { hasStudioCredits } from "../../lib/useStudioGenerateGate";
+import { usePhotoAspectDefault } from "../../lib/usePhotoAspectDefault";
+import ImageUploadZone from "../../components/ImageUploadZone";
+import AspectPicker from "../../components/AspectPicker";
+import ResultPanel from "../../components/ResultPanel";
+import StudioResultAnchor from "../../components/StudioResultAnchor";
+import StudioGenerateBar from "../../components/StudioGenerateBar";
+import StudioGenerateCostMeta from "../../components/StudioGenerateCostMeta";
+import StudioPhotoUploadNotice, { isPhotoUploadBusy } from "../../components/studio/StudioPhotoUploadNotice";
+import ArtisticStep from "../../components/artistic-studio/ArtisticStep";
+import ArtisticCategoryPills from "../../components/artistic-studio/ArtisticCategoryPills";
+import ArtisticStyleGrid from "../../components/artistic-studio/ArtisticStyleGrid";
+import ArtisticEffectsPanel from "../../components/artistic-studio/ArtisticEffectsPanel";
+import ArtisticFlowSteps from "../../components/artistic-studio/ArtisticFlowSteps";
+import ArtisticMobileTabs from "../../components/artistic-studio/ArtisticMobileTabs";
 
-const SECTION_ICONS = {
-  light: Sun,
-  lens: Camera,
-  cloud: Cloud,
-  palette: Palette,
-};
+const TABS = ["style", "effects", "prompt"];
+
+function panelVisibility(activeTab, currentTab) {
+  return currentTab !== activeTab ? "hidden xl:block" : "";
+}
 
 export default function Artistic() {
   const { lang, t } = useI18n();
   const { errToast, clearUploadToast } = useStudioI18n();
-  useTitle(t("art_page_title"));
-  const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
   const { refresh, user } = useAuth();
   const { costs, region } = usePricing();
 
+  const [tab, setTab] = useState("style");
+  const [mode, setMode] = useState("image");
   const [styleCat, setStyleCat] = useState("photography");
   const [styleId, setStyleId] = useState(null);
   const [effects, setEffects] = useState(EMPTY_EFFECTS);
-  const cost = useMemo(
-    () => costs.artistic + computeArtisticEffectSurcharge(effects, region),
-    [costs.artistic, effects, region],
-  );
-  const [inputMode, setInputMode] = useState("text");
-  const [prompt, setPrompt] = useState(searchParams.get("prompt") || "");
-  const [improve, setImprove] = useState(false);
-  const [wizardOpen, setWizardOpen] = useState(false);
-  const [suggestOpen, setSuggestOpen] = useState(false);
+  const [prompt, setPrompt] = useState("");
   const [photo, setPhoto] = useState(null);
   const [aspect, setAspect] = usePhotoAspectDefault(photo, "3:4", "match");
   const [busy, setBusy] = useState(false);
   const [improving, setImproving] = useState(false);
   const [result, setResult] = useState(null);
-  const [meta, setMeta] = useState(null);
-  const [mobileTab, setMobileTab] = useState("style");
   const [photoUploadStatus, setPhotoUploadStatus] = useState("idle");
-  const photoUploading = isPhotoUploadBusy(photoUploadStatus);
 
+  useTitle(t("art_page_title"));
+  const photoUploading = isPhotoUploadBusy(photoUploadStatus);
   const includeNsfw = useMemo(() => canAccessNsfwArtisticStyles(user), [user]);
 
   const catalog = useMemo(
@@ -86,99 +84,114 @@ export default function Artistic() {
     [catalog.styles, styleId],
   );
 
-  useEffect(() => {
-    const q = searchParams.get("prompt");
-    if (q) setPrompt(q);
-  }, [searchParams]);
-
-  useEffect(() => {
-    if (!includeNsfw && styleCat === "nsfw") {
-      setStyleCat("photography");
-    }
-  }, [includeNsfw, styleCat]);
-
-  useEffect(() => {
-    if (!includeNsfw && styleId) {
-      const picked = catalog.styles.find((s) => s.id === styleId);
-      if (picked?.adminOnly || picked?.cat === "nsfw") {
-        setStyleId(null);
-      }
-    }
-  }, [includeNsfw, styleId, catalog.styles]);
-
-  useEffect(() => {
-    const catIds = catalog.categories.map((c) => c.id);
-    if (!catIds.includes(styleCat) && catIds.length) {
-      setStyleCat(catIds[0]);
-    }
-  }, [catalog.categories, styleCat]);
-
   const stylesInCat = useMemo(
     () => catalog.styles.filter((s) => s.cat === styleCat),
     [catalog.styles, styleCat],
   );
 
-  const isLabCategory = styleCat === "nsfw";
-  const isPhotoCategory = styleCat === "photography";
+  const categoryCounts = useMemo(() => {
+    const map = {};
+    catalog.categories.forEach((c) => {
+      map[c.id] = countStylesInCategory(catalog.styles, c.id);
+    });
+    return map;
+  }, [catalog.categories, catalog.styles]);
 
-  useEffect(() => {
-    if (isPhotoCategory && inputMode !== "image") {
-      setInputMode("image");
-    }
-  }, [isPhotoCategory, inputMode]);
-
-  useEffect(() => {
-    if (inputMode === "text" && aspect === "match") {
-      setAspect("3:4");
-    }
-  }, [inputMode, aspect, setAspect]);
-
-  useEffect(() => {
-    if (!photo || styleId || !stylesInCat.length) return;
-    setStyleId(stylesInCat[0].id);
-  }, [photo, styleId, stylesInCat]);
-
-  const labPresets = useMemo(
-    () => stylesInCat.filter((s) => s.labPreset),
-    [stylesInCat],
+  const activeCategory = useMemo(
+    () => catalog.categories.find((c) => c.id === styleCat) || null,
+    [catalog.categories, styleCat],
   );
-  const classicExperimental = useMemo(
-    () => stylesInCat.filter((s) => !s.labPreset),
-    [stylesInCat],
-  );
-  const labLightStyles = useMemo(
-    () => classicExperimental.filter((s) => s.tier !== "heavy"),
-    [classicExperimental],
-  );
-  const labHeavyStyles = useMemo(
-    () => classicExperimental.filter((s) => s.tier === "heavy"),
-    [classicExperimental],
-  );
-
-  const isLabStyle = useMemo(
-    () => isArtisticExperimentalStyle(styleId),
-    [styleId],
-  );
-
-  const isPhotoStyle = useMemo(() => {
-    const picked = getStyleById(styleId);
-    return picked?.cat === "photography";
-  }, [styleId]);
 
   const recipeChips = useMemo(
     () => buildRecipeChips({ styleId, effects }),
     [styleId, effects],
   );
 
-  const promptFinal = useMemo(
-    () => buildArtisticStudioPrompt({
-      userPrompt: prompt,
-      styleId,
-      styleCat,
-      effects,
-      imageMode: inputMode === "image",
+  const cost = useMemo(
+    () => (costs.artistic ?? 25) + computeArtisticEffectSurcharge(effects, region),
+    [costs.artistic, effects, region],
+  );
+
+  const isLabStyle = useMemo(() => isArtisticExperimentalStyle(styleId), [styleId]);
+  const isPhotoCategory = styleCat === "photography";
+
+  useEffect(() => {
+    if (!includeNsfw && styleCat === "nsfw") setStyleCat("photography");
+  }, [includeNsfw, styleCat]);
+
+  useEffect(() => {
+    const catIds = catalog.categories.map((c) => c.id);
+    if (!catIds.includes(styleCat) && catIds.length) setStyleCat(catIds[0]);
+  }, [catalog.categories, styleCat]);
+
+  useEffect(() => {
+    if (isPhotoCategory && mode !== "image") setMode("image");
+  }, [isPhotoCategory, mode]);
+
+  useEffect(() => {
+    if (mode === "text" && aspect === "match") setAspect("3:4");
+  }, [mode, aspect, setAspect]);
+
+  useEffect(() => {
+    if (!photo || styleId || !stylesInCat.length) return;
+    setStyleId(stylesInCat[0].id);
+  }, [photo, styleId, stylesInCat]);
+
+  const effectsSummary = useMemo(() => {
+    if (!recipeChips.length) return "—";
+    return recipeChips.filter((c) => c.emoji !== "🎨").map((c) => c.label).join(", ") || "—";
+  }, [recipeChips]);
+
+  const tabLabels = useMemo(
+    () => ({
+      style: t("art_tab_style"),
+      effects: t("art_tab_effects"),
+      prompt: t("art_tab_prompt"),
     }),
-    [prompt, styleId, styleCat, effects, inputMode],
+    [t],
+  );
+
+  const generateLabel = mode === "image" ? t("art_edit_credits", { n: cost }) : t("art_generate_credits", { n: cost });
+
+  const generateBlockReason = useMemo(() => {
+    if (photoUploading) return t("upload_wait_generate");
+    if (cost > 0 && !hasStudioCredits(user, cost)) {
+      return t("studio_gen_hint_credits", { need: cost, have: user?.credits ?? 0 });
+    }
+    if (mode === "image" && !photo) return t("art_err_image_mode");
+    if (isLabStyle && !photo) return t("art_lab_need_photo");
+    if (!styleId && prompt.trim().length < 3) return t("art_empty");
+    return null;
+  }, [
+    photoUploading,
+    cost,
+    user,
+    mode,
+    photo,
+    isLabStyle,
+    styleId,
+    prompt,
+    t,
+  ]);
+
+  const canGenerate = !busy && !generateBlockReason;
+
+  const selectStyle = useCallback(
+    (id) => {
+      setStyleId(id);
+      setTab("prompt");
+      const picked = catalog.styles.find((s) => s.id === id);
+      if (picked?.cat) setStyleCat(picked.cat);
+      if (picked?.cat === "nsfw" && mode !== "image") {
+        setMode("image");
+        toast.message(t("art_lab_image_hint"));
+      }
+      if (picked?.cat === "photography" && mode !== "image") {
+        setMode("image");
+        toast.message(t("art_photo_image_hint"));
+      }
+    },
+    [catalog.styles, mode, t],
   );
 
   const setRadioEffect = (sectionId, optionId) => {
@@ -192,160 +205,12 @@ export default function Artistic() {
     }));
   };
 
-  const selectStyle = useCallback(
-    (id) => {
-      setStyleId(id);
-      setMobileTab("generate");
-      const picked = catalog.styles.find((s) => s.id === id);
-      if (picked?.cat) setStyleCat(picked.cat);
-      if (picked?.cat === "nsfw" && inputMode !== "image") {
-        setInputMode("image");
-        toast.message(t("art_lab_image_hint"));
-      }
-      if (picked?.cat === "photography" && inputMode !== "image") {
-        setInputMode("image");
-        toast.message(t("art_photo_image_hint"));
-      }
-    },
-    [catalog.styles, inputMode, t],
-  );
-
-  const clearAll = () => {
+  const clearRecipe = () => {
     setStyleId(null);
     setEffects(EMPTY_EFFECTS);
     setPrompt("");
     toast.message(t("art_recipe_cleared"));
   };
-
-  const generate = useCallback(async () => {
-    if (photoUploading) {
-      toast.message(t("upload_wait_generate"), { duration: 6000 });
-      return;
-    }
-    if (!styleId && prompt.trim().length < 3) {
-      toast.error(t("studio_err_text"));
-      return;
-    }
-    if (inputMode === "image" && !photo) {
-      toast.error(t("art_err_image_mode"));
-      return;
-    }
-    if (isLabStyle && !photo) {
-      toast.error(t("art_lab_need_photo"));
-      return;
-    }
-    if ((isPhotoStyle || isPhotoCategory) && !photo) {
-      toast.error(t("art_photo_need_photo"));
-      return;
-    }
-    if ((user?.credits ?? 0) < cost) {
-      toast.error(t("common_need_credits", { need: cost, have: user?.credits ?? 0 }));
-      return;
-    }
-
-    clearUploadToast();
-    setBusy(true);
-    setResult(null);
-    try {
-      let userPrompt = prompt.trim();
-      if (improve && userPrompt.length >= 3) {
-        const pickedStyle = getStyleById(styleId);
-        try {
-          const { data: imp } = await api.post("/prompt/improve", {
-            prompt: userPrompt,
-            lang: lang || "en",
-            tool: "artistic",
-            style_id: styleId || "",
-            style_label: pickedStyle?.label || "",
-            style_suffix: pickedStyle?.suffix || "",
-            image_mode: inputMode === "image",
-          });
-          if (imp?.prompt && imp.prompt.trim().length >= 3) {
-            userPrompt = imp.prompt.trim();
-            setPrompt(userPrompt);
-            if (imp.enhanced) {
-              toast.success(t("art_prompt_refined"));
-            } else {
-              toast.message(t("art_refine_unchanged"));
-            }
-          }
-        } catch (impErr) {
-          const detail = impErr?.response?.data?.detail;
-          toast.error(detail || t("art_refine_unavailable"));
-        }
-      }
-
-      const finalPrompt = buildArtisticStudioPrompt({
-        userPrompt,
-        styleId,
-        styleCat,
-        effects,
-        imageMode: inputMode === "image",
-      });
-
-      let data;
-      if (inputMode === "image" && photo) {
-        const fd = new FormData();
-        fd.append("photo", photo);
-        fd.append("prompt_final", finalPrompt);
-        fd.append("aspect_ratio", apiAspectRatio(aspect, { model: "artistic", hasPhoto: true }));
-        fd.append("style_id", styleId || "");
-        fd.append("style_cat", styleCat || "");
-        fd.append("effects_json", JSON.stringify(effects));
-        ({ data } = await uploadPost("/generate/artistic-studio", fd, { timeout: 240000 }));
-      } else {
-        ({ data } = await api.post("/generate/artistic-studio", {
-          prompt_final: finalPrompt,
-          aspect_ratio: apiAspectRatio(aspect, { model: "artistic", hasPhoto: false }),
-          style_id: styleId || "",
-          style_cat: styleCat || "",
-          effects_json: JSON.stringify(effects),
-        }));
-      }
-
-      const creation = normalizeCreation(data?.creation || data);
-      if (!primaryResultUrl(creation)) {
-        throw new Error(t("common_no_result"));
-      }
-      setResult(creation);
-      if (userPrompt.length >= 3) pushArtisticPromptHistory(userPrompt);
-      setMeta({
-        style: getStyleById(styleId)?.label,
-        chips: recipeChips,
-        seed: creation.id?.slice?.(0, 8),
-        lastPrompt: userPrompt,
-      });
-      toast.success(t("common_generated", { n: creation.credits_spent ?? cost }));
-      await refresh();
-    } catch (err) {
-      errToast(err);
-    } finally {
-      setBusy(false);
-    }
-  }, [
-    styleId,
-    styleCat,
-    photoUploading,
-    isLabStyle,
-    isPhotoStyle,
-    isPhotoCategory,
-    prompt,
-    inputMode,
-    photo,
-    user,
-    cost,
-    improve,
-    lang,
-    effects,
-    aspect,
-    recipeChips,
-    refresh,
-    t,
-    errToast,
-    clearUploadToast,
-  ]);
-
-  const downloadUrl = primaryResultUrl(result);
 
   const improvePromptOnly = useCallback(async () => {
     const userPrompt = prompt.trim();
@@ -363,7 +228,7 @@ export default function Artistic() {
         style_id: styleId || "",
         style_label: pickedStyle?.label || "",
         style_suffix: pickedStyle?.suffix || "",
-        image_mode: inputMode === "image",
+        image_mode: mode === "image",
       });
       if (imp?.prompt && imp.prompt.trim().length >= 3) {
         setPrompt(imp.prompt.trim().slice(0, 800));
@@ -374,233 +239,317 @@ export default function Artistic() {
     } finally {
       setImproving(false);
     }
-  }, [prompt, styleId, inputMode, lang, t]);
+  }, [prompt, styleId, mode, lang, t]);
 
-  const panelVisibility = (tab) =>
-    mobileTab !== tab ? "hidden lg:block" : "";
+  const generate = useCallback(async () => {
+    if (generateBlockReason) {
+      const notify = photoUploading ? toast.message : toast.error;
+      notify(generateBlockReason, { duration: 7000 });
+      return;
+    }
+    clearUploadToast();
+    setTab("prompt");
+    setBusy(true);
+    setResult(null);
+    const effectiveStyleCat = selectedStyle?.cat || styleCat;
+    try {
+      const finalPrompt = buildArtisticStudioPrompt({
+        userPrompt: prompt.trim(),
+        styleId,
+        styleCat: effectiveStyleCat,
+        effects,
+        imageMode: mode === "image",
+      });
 
-  const leftColumnVisibility =
-    mobileTab === "style" || mobileTab === "effects" ? "" : "hidden lg:block";
-
-  const selectCategory = useCallback(
-    (catId) => {
-      setStyleCat(catId);
-      if (catId === "photography") {
-        setInputMode("image");
+      let data;
+      if (mode === "image" && photo) {
+        const fd = new FormData();
+        fd.append("photo", photo);
+        fd.append("prompt_final", finalPrompt);
+        fd.append("aspect_ratio", apiAspectRatio(aspect, { model: "artistic", hasPhoto: true }));
+        fd.append("style_id", styleId || "");
+        fd.append("style_cat", effectiveStyleCat || "");
+        fd.append("effects_json", JSON.stringify(effects));
+        fd.append("lang", lang || "en");
+        ({ data } = await uploadPost("/generate/artistic-studio", fd, { timeout: 240_000 }));
+      } else {
+        ({ data } = await api.post("/generate/artistic-studio", {
+          prompt_final: finalPrompt,
+          aspect_ratio: apiAspectRatio(aspect, { model: "artistic", hasPhoto: false }),
+          style_id: styleId || "",
+          style_cat: effectiveStyleCat || "",
+          effects_json: JSON.stringify(effects),
+          lang: lang || "en",
+        }));
       }
-    },
-    [],
-  );
 
-  const styleGallery = (
-    <>
-      <ArtisticCategoryRail
-        categories={catalog.categories}
-        styles={catalog.styles}
-        activeId={styleCat}
-        onSelect={selectCategory}
-      />
-      <p className="text-[#9CA3AF] text-[10px] font-mono uppercase tracking-[0.14em] mb-3">
-        {catalog.categories.find((c) => c.id === styleCat)?.label}
-        {isLabCategory && includeNsfw ? ` · ${t("art_nsfw_admin_badge")}` : ""}
-      </p>
-      {isLabCategory && includeNsfw ? (
-        <div className="art-lab-panel mb-4 rounded-xl border border-[rgba(236,72,153,0.25)] bg-gradient-to-br from-[#1a0a1f]/80 via-[#111118] to-[#0a0a0f] p-3 md:p-4 max-h-[min(calc(100dvh-12rem),720px)] overflow-y-auto overflow-x-hidden">
-          <p className="text-[#f0abfc] text-[11px] font-semibold mb-1">{t("art_lab_title")}</p>
-          <p className="text-[#6B7280] text-[9px] font-mono uppercase tracking-wider mb-1">
-            {t("art_lab_engine_note", { model: ARTISTIC_LAB_MODEL_LABEL })}
-          </p>
-          <p className="text-[#9CA3AF] text-[10px] leading-snug mb-3">{t("art_lab_desc")}</p>
-          <div className="art-lab-scroll flex gap-2.5 overflow-x-auto pb-2 w-full min-w-0 snap-x snap-mandatory [-webkit-overflow-scrolling:touch] md:grid md:grid-cols-2 md:gap-2.5 md:overflow-visible md:pb-0 lg:grid-cols-2">
-            {labPresets.map((s) => (
-              <div key={s.id} className="snap-start shrink-0 w-[min(72vw,220px)] md:w-auto md:shrink">
-                <ArtisticLabStyleCard style={s} selected={styleId === s.id} onSelect={selectStyle} />
-              </div>
-            ))}
-          </div>
-          {labLightStyles.length > 0 && (
-            <>
-              <p className="text-[#6B7280] text-[9px] font-mono uppercase tracking-[0.16em] mt-4 mb-2">
-                {t("art_lab_light_row")}
-              </p>
-              <div className="art-studio-styles-grid !max-h-none">
-                {labLightStyles.map((s) => (
-                  <ArtisticStyleCard key={s.id} style={s} selected={styleId === s.id} onSelect={selectStyle} />
-                ))}
-              </div>
-            </>
-          )}
-          {labHeavyStyles.length > 0 && (
-            <>
-              <p className="text-[#6B7280] text-[9px] font-mono uppercase tracking-[0.16em] mt-4 mb-2">
-                {t("art_lab_heavy_row")}
-              </p>
-              <div className="art-studio-styles-grid !max-h-none">
-                {labHeavyStyles.map((s) => (
-                  <ArtisticStyleCard key={s.id} style={s} selected={styleId === s.id} onSelect={selectStyle} />
-                ))}
-              </div>
-            </>
-          )}
-        </div>
-      ) : isPhotoCategory ? (
-        <div className="art-photo-panel mb-4 p-3 md:p-4 max-h-[min(calc(100dvh-12rem),720px)] overflow-y-auto overflow-x-hidden">
-          <div className="flex flex-wrap items-center gap-2 mb-2">
-            <p className="text-[#fde68a] text-[11px] font-semibold">{t("art_photo_title")}</p>
-            <span className="art-photo-panel__badge">{t("art_photo_identity_badge")}</span>
-          </div>
-          <p className="text-[#6B7280] text-[9px] font-mono uppercase tracking-wider mb-1">
-            {t("art_photo_engine_note")}
-          </p>
-          <p className="text-[#9CA3AF] text-[10px] leading-snug mb-3">{t("art_photo_desc")}</p>
-          <div className="art-studio-styles-grid art-photo-styles-grid">
-            {stylesInCat.map((s) => (
-              <ArtisticStyleCard key={s.id} style={s} selected={styleId === s.id} onSelect={selectStyle} />
-            ))}
-          </div>
-        </div>
-      ) : (
-        <div className="art-studio-styles-grid">
-          {stylesInCat.map((s) => (
-            <ArtisticStyleCard key={s.id} style={s} selected={styleId === s.id} onSelect={selectStyle} />
-          ))}
-        </div>
-      )}
-    </>
-  );
+      const creation = normalizeCreation(data?.creation || data);
+      if (!primaryResultUrl(creation)) throw new Error(t("common_no_result"));
+      setResult(creation);
+      toast.success(t("common_generated", { n: creation.credits_spent ?? cost }));
+      await refresh();
+    } catch (err) {
+      errToast(err);
+    } finally {
+      setBusy(false);
+    }
+  }, [
+    generateBlockReason,
+    photoUploading,
+    clearUploadToast,
+    prompt,
+    styleId,
+    styleCat,
+    selectedStyle,
+    effects,
+    mode,
+    photo,
+    aspect,
+    cost,
+    lang,
+    refresh,
+    t,
+    errToast,
+  ]);
+
+  const hasResult = Boolean(primaryResultUrl(result));
+  const showResultFirst = busy || hasResult;
 
   return (
-    <div
-      className="rp-artistic-page w-full min-w-0 max-w-full mx-auto px-1 sm:px-0 pb-8 md:pb-14 md:max-w-[1680px]"
-      data-testid="artistic-studio-page"
-    >
-      <ArtisticStudioHeader />
+    <div className="as-v2-page rp-studio-shell pb-28" data-testid="artistic-page">
+      <button
+        type="button"
+        onClick={() => navigate("/app/tools")}
+        className="rp-studio-back"
+        data-testid="artistic-back"
+      >
+        <ArrowLeft className="w-4 h-4" strokeWidth={1.75} />
+        {t("art_back")}
+      </button>
 
-      <ArtisticFlowSteps activeStep={mobileTab} styleSelected={Boolean(styleId)} />
-
-      <ArtisticStudioTabs value={mobileTab} onChange={setMobileTab} />
-
-      <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_420px] gap-4 md:gap-6 w-full min-w-0">
-        <div className={`space-y-4 md:space-y-6 min-w-0 ${leftColumnVisibility}`}>
-          <ArtisticStudioModule
-            title={t("art_sec_style")}
-            subtitle={t("art_module_style_hint")}
-            icon={Palette}
-            className={panelVisibility("style")}
-            testId="artistic-module-style"
-          >
-            <p className="text-[#6B7280] text-[10px] mb-3">
-              {t("art_styles_count", { n: catalog.styles.length })}
-            </p>
-            {styleGallery}
-          </ArtisticStudioModule>
-
-          <ArtisticStudioModule
-            title={t("art_sec_effects")}
-            subtitle={t("art_module_effects_hint")}
-            icon={Sliders}
-            accent="cyan"
-            className={`${panelVisibility("effects")} max-h-[min(calc(100dvh-12rem),640px)] lg:max-h-none overflow-y-auto`}
-            testId="artistic-module-effects"
-          >
-            <div className="space-y-6">
-              {catalog.sections.map((section) => {
-                const SecIcon = SECTION_ICONS[section.icon] || Sparkles;
-                return (
-                  <div key={section.id}>
-                    <p className="text-[#9CA3AF] text-[10px] font-mono uppercase tracking-[0.16em] mb-2.5 flex items-center gap-1.5">
-                      <SecIcon className="w-3.5 h-3.5 text-[#67e8f9]" /> {section.title}
-                    </p>
-                    <div className="space-y-1">
-                      {section.options.map((opt) => {
-                        const active =
-                          section.type === "radio"
-                            ? effects[section.id] === opt.id
-                            : Boolean(effects[section.id]?.[opt.id]);
-                        return (
-                          <ArtisticEffectOption
-                            key={opt.id}
-                            section={section}
-                            opt={opt}
-                            active={active}
-                            onToggle={() => {
-                              if (section.type === "radio") setRadioEffect(section.id, opt.id);
-                              else toggleCheckboxEffect(section.id, opt.id);
-                            }}
-                          />
-                        );
-                      })}
-                    </div>
-                  </div>
-                );
-              })}
+      <header className="as-v2-hero mb-6 pb-6 border-b border-[rgba(244,241,234,0.06)]">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+          <div className="min-w-0">
+            <div className="flex items-center gap-3 mb-3">
+              <div className="as-v2-mark">
+                <Palette className="w-4 h-4 text-[#C4B5FD]" strokeWidth={1.5} />
+              </div>
+              <p className="rp-editor-section-cap !text-[#a89bc9] !mb-0">{t("art_brand")}</p>
             </div>
-          </ArtisticStudioModule>
+            <h1 className="rp-studio-page-title mb-2 text-[2rem] sm:text-[2.75rem] font-['Inter_Tight']">
+              {t("art_hero_title")}
+            </h1>
+            <p className="rp-studio-page-desc text-[14px] max-w-[640px]">{t("art_hero_subtitle")}</p>
+          </div>
+          <div className="as-v2-recipe-badge shrink-0">
+            <Layers className="w-3.5 h-3.5 text-purple-300/80" strokeWidth={1.75} />
+            <span>{t("art_recipe")}</span>
+            <em>{selectedStyle?.label || "—"}</em>
+          </div>
         </div>
+      </header>
 
-        <ArtisticStudioModule
-          title={t("art_sec_generate")}
-          subtitle={t("art_module_prompt_hint")}
-          icon={Sparkles}
-          accent="pink"
-          className={`${panelVisibility("generate")} lg:sticky lg:top-20 lg:self-start flex flex-col art-studio-module--generate`}
-          testId="artistic-module-prompt"
-        >
-          {!styleId && (
-            <div className="mb-4 rounded-xl border border-dashed border-[rgba(147,51,234,0.35)] bg-[rgba(124,58,237,0.08)] px-4 py-3">
-              <p className="text-[#C4B5FD] text-[13px] leading-relaxed">{t("art_pick_style_hint")}</p>
-            </div>
-          )}
-          {selectedStyle && (
-            <p className="mb-4 text-[11px] font-mono uppercase tracking-[0.12em] text-[#A855F7]">
-              {t("art_selected_style", { name: selectedStyle.label })}
-            </p>
-          )}
-          <ArtisticPromptStudio
-            inputMode={inputMode}
-            setInputMode={setInputMode}
-            isLabStyle={isLabStyle}
-            isPhotoStyle={isPhotoStyle}
-            isPhotoCategory={isPhotoCategory}
-            photoUploadStatus={photoUploadStatus}
-            onPhotoUploadStatusChange={setPhotoUploadStatus}
-            photo={photo}
-            setPhoto={setPhoto}
-            prompt={prompt}
-            setPrompt={setPrompt}
-            aspect={aspect}
-            setAspect={setAspect}
-            improve={improve}
-            setImprove={setImprove}
-            busy={busy}
-            cost={cost}
-            user={user}
-            styleId={styleId}
-            onGenerate={generate}
-            onImprovePrompt={improvePromptOnly}
-            improving={improving}
-          />
-          <ArtisticResultStudio
-            busy={busy}
-            downloadUrl={downloadUrl}
-            result={result}
-            meta={meta}
-            recipeChips={recipeChips}
-            onVary={generate}
-            onRefine={() => {
-              setPrompt((p) => `${p}${p ? " " : ""}refine details, higher quality`);
-              toast.message(t("art_refine_toast"));
-            }}
-            onReusePrompt={() => {
-              if (meta?.lastPrompt) setPrompt(meta.lastPrompt);
-              else toast.message(t("art_result_reuse"));
-            }}
-          />
-        </ArtisticStudioModule>
+      <ArtisticFlowSteps activeStep={tab} styleSelected={Boolean(styleId)} />
+
+      <ArtisticMobileTabs value={tab} onChange={setTab} />
+
+      <div className="as-v2-tabs mb-6 hidden xl:flex" role="tablist" aria-label={t("art_page_title")} data-testid="artistic-tabs">
+        {TABS.map((id) => (
+          <button
+            key={id}
+            type="button"
+            role="tab"
+            aria-selected={tab === id}
+            onClick={() => setTab(id)}
+            className={`as-v2-tab ${tab === id ? "as-v2-tab--active" : ""}`}
+            data-testid={`artistic-tab-${id}`}
+          >
+            {tabLabels[id]}
+          </button>
+        ))}
       </div>
 
-      <DraggableRecipeBubble chips={recipeChips} onClearAll={clearAll} />
+      <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_360px] gap-6 xl:gap-8">
+        <div className={`rp-editor-panel overflow-hidden ${showResultFirst ? "order-2 xl:order-1" : "order-1"}`}>
+          <div className="rp-editor-panel-accent" />
+          <div className="p-5 sm:p-7 space-y-7">
+            <ArtisticStep step="1" title={mode === "image" ? t("art_input_image") : t("art_input_text")} hint={t("art_upload_hint")}>
+              <div className="flex flex-wrap gap-2 mb-4" data-testid="artistic-mode-toggle">
+                <button
+                  type="button"
+                  className={`as-v2-mode ${mode === "text" ? "as-v2-mode--active" : ""}`}
+                  onClick={() => setMode("text")}
+                  aria-pressed={mode === "text"}
+                  disabled={isPhotoCategory}
+                >
+                  <Type className="w-3.5 h-3.5" strokeWidth={1.75} />
+                  {t("art_mode_text")}
+                </button>
+                <button
+                  type="button"
+                  className={`as-v2-mode ${mode === "image" ? "as-v2-mode--active" : ""}`}
+                  onClick={() => setMode("image")}
+                  aria-pressed={mode === "image"}
+                >
+                  <ImageIcon className="w-3.5 h-3.5" strokeWidth={1.75} />
+                  {t("art_mode_image")}
+                </button>
+              </div>
+
+              {mode === "image" ? (
+                <div className="max-w-[560px]">
+                  <ImageUploadZone
+                    value={photo}
+                    onChange={setPhoto}
+                    onStatusChange={setPhotoUploadStatus}
+                    layout="wide"
+                    testId="artistic-photo"
+                    compressOptions={{ maxSize: 2048 }}
+                    emptyLabel={t("art_upload_label")}
+                    emptyHint={t("art_upload_hint")}
+                  />
+                </div>
+              ) : null}
+            </ArtisticStep>
+
+            <div className={panelVisibility("style", tab)}>
+              <ArtisticStep step="2" title={t("art_sec_style")} hint={t("art_style_label")}>
+                <ArtisticCategoryPills
+                  categories={catalog.categories}
+                  activeId={styleCat}
+                  onSelect={setStyleCat}
+                  counts={categoryCounts}
+                />
+                <div className="mt-4 max-h-[min(62vh,640px)] overflow-y-auto overscroll-contain pr-1">
+                  <ArtisticStyleGrid
+                    styles={stylesInCat}
+                    selectedId={styleId}
+                    onSelect={selectStyle}
+                    categoryLabel={activeCategory?.label || ""}
+                  />
+                </div>
+              </ArtisticStep>
+            </div>
+
+            <div className={panelVisibility("effects", tab)}>
+              <ArtisticStep step="2" title={t("art_sec_effects")}>
+                <div className="max-h-[min(62vh,640px)] overflow-y-auto overscroll-contain pr-1">
+                  <ArtisticEffectsPanel
+                    sections={catalog.sections}
+                    effects={effects}
+                    onRadioChange={setRadioEffect}
+                    onToggleChange={toggleCheckboxEffect}
+                  />
+                </div>
+              </ArtisticStep>
+            </div>
+
+            <div className={panelVisibility("prompt", tab)}>
+              <ArtisticStep step="2" title={t("art_prompt_label")} hint={t("studio_styles_optional")}>
+                <textarea
+                  className="rp-editor-textarea min-h-[120px]"
+                  placeholder={mode === "image" ? t("art_prompt_ph_image") : t("art_prompt_ph_text")}
+                  value={prompt}
+                  onChange={(e) => setPrompt(e.target.value)}
+                  maxLength={800}
+                  data-testid="artistic-prompt"
+                />
+                <div className="flex flex-wrap gap-2 mt-3">
+                  <button
+                    type="button"
+                    className="rp-btn-surface"
+                    onClick={improvePromptOnly}
+                    disabled={improving || prompt.trim().length < 3}
+                  >
+                    <Wand2 className="w-3.5 h-3.5" strokeWidth={1.75} />
+                    {improving ? t("art_generating") : t("art_refine_btn")}
+                  </button>
+                  <button type="button" className="rp-btn-surface" onClick={clearRecipe}>
+                    {t("art_prompt_clear")}
+                  </button>
+                </div>
+              </ArtisticStep>
+
+              <ArtisticStep step="3" title={t("art_format_label")}>
+                <div className="max-w-[560px]">
+                  <AspectPicker
+                    value={aspect}
+                    onChange={setAspect}
+                    hasPhoto={mode === "image" && !!photo}
+                    testIdPrefix="artistic-aspect"
+                    premium
+                  />
+                </div>
+              </ArtisticStep>
+            </div>
+
+            {(tab === "style" || tab === "effects") && (
+              <div className="hidden xl:block">
+                <ArtisticStep step="3" title={t("art_prompt_label_image")} hint={t("studio_styles_optional")}>
+                  <textarea
+                    className="rp-editor-textarea min-h-[88px]"
+                    placeholder={t("art_extra_placeholder")}
+                    value={prompt}
+                    onChange={(e) => setPrompt(e.target.value)}
+                    maxLength={800}
+                  />
+                </ArtisticStep>
+              </div>
+            )}
+          </div>
+        </div>
+
+        <StudioResultAnchor
+          busy={busy}
+          ready={hasResult}
+          className={`space-y-4 xl:sticky xl:top-[80px] self-start ${showResultFirst ? "order-1 xl:order-2" : "order-2"}`}
+        >
+          <div className="rp-editor-panel overflow-hidden">
+            <div className="rp-editor-panel-accent" />
+            <div className="p-5 sm:p-6">
+              <div className="flex items-center justify-between gap-3 mb-4">
+                <p className="rp-editor-section-cap !mb-0">{t("art_result_label")}</p>
+                <SlidersHorizontal className="w-4 h-4 text-zinc-600" strokeWidth={1.75} />
+              </div>
+              <ResultPanel
+                creation={result}
+                loading={busy}
+                onChange={setResult}
+                emptyLabel={t("art_result_empty")}
+              />
+            </div>
+          </div>
+
+          <div className="as-v2-meta-panel">
+            <p className="as-v2-meta-line">{t("art_meta_style", { style: selectedStyle?.label || "—" })}</p>
+            <p className="as-v2-meta-line">{t("art_meta_effects", { effects: effectsSummary })}</p>
+            {recipeChips.length > 0 ? (
+              <div className="flex flex-wrap gap-1.5 mt-3">
+                {recipeChips.map((chip) => (
+                  <span key={`${chip.emoji}-${chip.label}`} className="as-v2-recipe-chip">
+                    {chip.emoji} {chip.label}
+                  </span>
+                ))}
+              </div>
+            ) : null}
+          </div>
+        </StudioResultAnchor>
+      </div>
+
+      <StudioPhotoUploadNotice status={photoUploadStatus} className="mb-3" />
+
+      <StudioGenerateBar
+        ready={canGenerate}
+        busy={busy}
+        onClick={generate}
+        label={generateLabel}
+        busyLabel={t("art_generating")}
+        hint={generateBlockReason}
+        blockedNotify={photoUploading ? "message" : "error"}
+        layout="sticky"
+        testId="artistic-generate"
+        costMeta={<StudioGenerateCostMeta cost={cost} user={user} />}
+      />
     </div>
   );
 }
-

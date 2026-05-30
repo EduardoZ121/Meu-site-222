@@ -4,7 +4,7 @@ import { useAuth } from "../../lib/auth";
 import { useI18n } from "../../lib/i18n";
 import {
   Sparkles, Images, Heart, CreditCard, User, Users, ShieldCheck, LogOut,
-  Film, FileText, BookOpen, Menu, Settings, LayoutGrid, Camera, Palette, Wand2, Lock,
+  Film, FileText, BookOpen, Menu, Settings, LayoutGrid, Camera, Wand2, Lock,
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
@@ -108,7 +108,6 @@ export default function DashboardLayout() {
         { to: "/app/tools", icon: LayoutGrid, label: t("nav_tools") },
         { to: "/app/generate", icon: Sparkles, label: t("sidebar.generate") },
         { to: "/app/pro", icon: Camera, label: t("sidebar.pro") },
-        { to: "/app/artistic", icon: Palette, label: t("sidebar.artistic") },
         { to: "/app/posters", icon: FileText, label: t("sidebar.posters") },
         { to: "/app/video", icon: Film, label: t("sidebar.video") },
         {

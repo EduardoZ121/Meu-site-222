@@ -71,7 +71,6 @@ const {
   applyGenerationSurcharges,
   computeVideoGenerateCost,
   computeVideoEditCostFromConfig,
-  computeArtisticEffectSurcharge,
   restoreCostForLevel,
   customPurchaseAmountCents,
   getPricingMeta,
@@ -199,43 +198,14 @@ const functionConfig = {
   },
 };
 
-const {
-  QWEN_EDIT_MODEL,
-  isNsfwStyleId,
-  isPhotographyStyleId,
-  isPhotographyRequest,
-  resolveArtisticLabModel,
-  resolvePhotographyModel,
-} = require("./lib/artisticStudioEngines.cjs");
+const { listPosterTemplates } = require("./lib/posterTemplatesData.cjs");
 
-function isArtisticExperimentalStyleId(styleId) {
-  return isNsfwStyleId(styleId);
-}
-
-function resolveArtisticStudioModel({ styleId, hasPhoto, userDoc, styleCat }) {
-  const experimental = isArtisticExperimentalStyleId(styleId);
-  if (experimental) {
-    if (!hasPhoto) {
-      const err = new Error("AI Lab exige uma foto (Qwen Image Edit edita a referência).");
-      err.status = 400;
-      throw err;
-    }
-    return resolveArtisticLabModel();
-  }
-  if (isPhotographyRequest(styleId, styleCat)) {
-    return resolvePhotographyModel(hasPhoto);
-  }
-  // Grok devolve imagens brancas "NSFW" em edições com foto — usar Qwen em vez disso.
-  if (hasPhoto) {
-    return resolvePhotographyModel(true);
-  }
-  return { modelKey: "standard", modelId: MODELS.standard, label: MODELS.standard };
-}
+const QWEN_EDIT_MODEL =
+  String(process.env.ARTISTIC_LAB_QWEN_MODEL || "").trim() || "qwen/qwen-image-edit-2511";
 
 const MODELS = {
   standard: "xai/grok-imagine-image",
   pro: "black-forest-labs/flux-2-klein-9b",
-  artistic: "black-forest-labs/flux-2-klein-9b",
   kontext: "black-forest-labs/flux-kontext-max",
   qwen: QWEN_EDIT_MODEL,
   video: "xai/grok-imagine-video",
@@ -274,7 +244,7 @@ function normalizeRatio(ratio = "1:1", modelKey = "standard") {
     return { "4:5": "3:4", "5:4": "4:3", "21:9": "16:9", "9:21": "9:16" }[ratio] || "3:4";
   }
   if (!ratio || ["match", "match_input_image", "original"].includes(ratio)) {
-    return modelKey === "pro" || modelKey === "artistic" || modelKey === "kontext" ? "match_input_image" : "1:1";
+    return modelKey === "pro" || modelKey === "kontext" ? "match_input_image" : "1:1";
   }
   if (modelKey === "standard" || modelKey === "video") {
     if (GROK_SUPPORTED.has(ratio)) return ratio;
@@ -1098,11 +1068,10 @@ async function imageInput(fields, files, modelKey, prompt, opts = {}) {
       poster: opts.poster,
       hasPersonPhoto: opts.hasPersonPhoto ?? Boolean(primary && !opts.posterFood),
       photoEdit: Boolean(opts.photoEdit && primary),
-      artisticPhotoEdit: Boolean(opts.artisticPhotoEdit && primary),
     }),
     aspect_ratio: normalizeRatio(text(fields, "aspect_ratio", "1:1"), modelKey),
   };
-  if (["standard", "pro", "artistic"].includes(modelKey)) {
+  if (["standard", "pro"].includes(modelKey)) {
     const n = Number(text(fields, "num_outputs", 1)) || 1;
     if (modelKey !== "standard") input.num_outputs = n;
     else if (n > 1) input.num_outputs = n;
@@ -1118,8 +1087,8 @@ async function imageInput(fields, files, modelKey, prompt, opts = {}) {
       input.aspect_ratio = "match_input_image";
     }
   }
-  if (modelKey === "kontext" || modelKey === "artistic" || modelKey === "pro") {
-    if (opts.photography || opts.photoEdit || opts.artisticPhotoEdit) {
+  if (modelKey === "kontext" || modelKey === "pro") {
+    if (opts.photography || opts.photoEdit) {
       input.disable_safety_checker = true;
     }
   }
@@ -1190,7 +1159,7 @@ function panoramicGenerationAspect(slideCount, panelAspect, modelKey) {
   const tw = Math.max(2, slideCount) * w;
   const th = h;
   const ratio = tw / th;
-  if (modelKey === "pro" || modelKey === "artistic") {
+  if (modelKey === "pro") {
     if (ratio >= 2.1) return "21:9";
     if (ratio >= 1.7) return "16:9";
     return "3:2";
@@ -1384,75 +1353,6 @@ async function routePost(path, fields, files, req) {
       aspectRatio: input.aspect_ratio,
       modelUsed: MODELS.pro,
       spendDescription: "Retoque Pro",
-    });
-  }
-
-  if (path === "generate/artistic") {
-    const style = text(fields, "style_id", "artistic");
-    const extra = text(fields, "extra_prompt", "");
-    const prompt = `Transform this image into ${style} art style. Preserve identity and composition. ${extra}`;
-    const input = await imageInput(fields, files, "standard", prompt);
-    return submitBillableGeneration(req, fields, {
-      cost: CREDIT.artistic,
-      type: "artistic",
-      modelId: MODELS.standard,
-      input,
-      prompt,
-      aspectRatio: input.aspect_ratio,
-      modelUsed: MODELS.standard,
-      spendDescription: "Estilos artísticos",
-    });
-  }
-
-  if (path === "generate/artistic-studio") {
-    const styleId = text(fields, "style_id", "").trim();
-    const experimental = isArtisticExperimentalStyleId(styleId);
-    let promptFinal = text(fields, "prompt_final", "").trim();
-    if (!promptFinal) throw new Error("Prompt em falta.");
-    const hasPhoto = Boolean(files.photo || text(fields, "photo_url", "").trim());
-    const { user, isLocal } = resolveSessionUser(req);
-    let userDoc = null;
-    if (storageEnabled() && user?.id && !isLocal) {
-      userDoc = await getUserById(user.id);
-    } else if (user?.email && ADMIN_EMAILS.has(String(user.email).toLowerCase())) {
-      userDoc = { email: user.email, role: "admin", nsfw_allowed: true };
-    }
-    const styleCat = text(fields, "style_cat", "").trim();
-    const photography = isPhotographyRequest(styleId, styleCat);
-    const { modelKey, modelId, label: modelLabel } = resolveArtisticStudioModel({
-      styleId,
-      hasPhoto,
-      userDoc,
-      styleCat,
-    });
-    const useQwenPhoto = modelKey === "qwen";
-    const input = await imageInput(fields, files, modelKey, promptFinal, {
-      experimental: experimental || useQwenPhoto,
-      photography: photography || useQwenPhoto,
-      photoEdit: hasPhoto,
-      artisticPhotoEdit: hasPhoto,
-    });
-    let effects = {};
-    try {
-      const rawFx = text(fields, "effects_json", "{}");
-      effects = typeof rawFx === "string" ? JSON.parse(rawFx) : rawFx;
-    } catch {
-      effects = {};
-    }
-    const artisticCost = CREDIT.artistic + computeArtisticEffectSurcharge(effects, region);
-    return submitBillableGeneration(req, fields, {
-      cost: artisticCost,
-      type: "artistic",
-      modelId,
-      input,
-      prompt: promptFinal,
-      aspectRatio: input.aspect_ratio,
-      modelUsed: modelLabel,
-      spendDescription: isArtisticExperimentalStyleId(styleId)
-        ? "Estúdio artístico · AI Lab (Qwen)"
-        : photography
-          ? "Estúdio artístico · Fotografia"
-          : "Estúdio artístico",
     });
   }
 

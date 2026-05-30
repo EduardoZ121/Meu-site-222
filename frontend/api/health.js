@@ -16,7 +16,7 @@ module.exports = async function handler(req, res) {
   return res.status(200).json({
     ok: true,
     api: "remakepix",
-    build: process.env.REACT_APP_BUILD_ID || "artistic-live-20260530-v4",
+    build: process.env.REACT_APP_BUILD_ID || "artistic-removed-20260530",
     ts: Date.now(),
     integrations: {
       replicate,

@@ -2,7 +2,6 @@
 const TOOLS = [
   { id: "studio", path: "/app/generate", name: "Estúdio de Geração", credits: 12, desc: "Texto, foto + prompt ou estilos prontos." },
   { id: "clothes", path: "/app/tools/clothes", name: "Trocar Roupa (AI)", credits: 24, desc: "Troca outfit com foto de referência ou texto." },
-  { id: "art", path: "/app/artistic", name: "Estilos Artísticos", credits: 18, desc: "33 estilos (anime, óleo, comic, etc.)." },
   { id: "pro", path: "/app/pro", name: "Retoque Profissional (Pro)", credits: 26, desc: "20 presets cinematográficos/editoriais." },
   { id: "bg_remove", path: "/app/tools/bg-remove", name: "Remover Fundo", credits: 8, desc: "Recorte com transparência." },
   { id: "upscale", path: "/app/tools/upscale", name: "Aumentar Resolução", credits: 20, desc: "Upscale 2× ou 4×." },

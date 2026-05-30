@@ -20,7 +20,6 @@ import StudioWorkspaceLayout from "./layouts/StudioWorkspaceLayout";
 import Tools from "./pages/dashboard/Tools";
 import Generate from "./pages/dashboard/Generate";
 import Pro from "./pages/dashboard/Pro";
-import Artistic from "./pages/dashboard/Artistic";
 import Video from "./pages/dashboard/Video";
 import VideoFlow from "./pages/dashboard/VideoFlow";
 import Posters from "./pages/dashboard/Posters";
@@ -141,7 +140,7 @@ function App() {
                   <Route path="generate" element={<Generate />} />
                   <Route path="studio" element={<Generate />} />
                   <Route path="pro" element={<Pro />} />
-                  <Route path="artistic" element={<Artistic />} />
+                  <Route path="artistic" element={<Navigate to="/app/tools" replace />} />
                   <Route path="video" element={<Video />} />
                   <Route path="video/:mode" element={<VideoFlow />} />
                   <Route path="posters" element={<Posters />} />

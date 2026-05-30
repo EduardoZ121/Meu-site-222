@@ -41,8 +41,14 @@ import ArtisticStep from "../../components/artistic-studio/ArtisticStep";
 import ArtisticCategoryPills from "../../components/artistic-studio/ArtisticCategoryPills";
 import ArtisticStyleGrid from "../../components/artistic-studio/ArtisticStyleGrid";
 import ArtisticEffectsPanel from "../../components/artistic-studio/ArtisticEffectsPanel";
+import ArtisticFlowSteps from "../../components/artistic-studio/ArtisticFlowSteps";
+import ArtisticMobileTabs from "../../components/artistic-studio/ArtisticMobileTabs";
 
 const TABS = ["style", "effects", "prompt"];
+
+function panelVisibility(activeTab, currentTab) {
+  return currentTab !== activeTab ? "hidden xl:block" : "";
+}
 
 export default function Artistic() {
   const { lang, t } = useI18n();
@@ -358,7 +364,11 @@ export default function Artistic() {
         </div>
       </header>
 
-      <div className="as-v2-tabs mb-6" role="tablist" aria-label={t("art_page_title")} data-testid="artistic-tabs">
+      <ArtisticFlowSteps activeStep={tab} styleSelected={Boolean(styleId)} />
+
+      <ArtisticMobileTabs value={tab} onChange={setTab} />
+
+      <div className="as-v2-tabs mb-6 hidden xl:flex" role="tablist" aria-label={t("art_page_title")} data-testid="artistic-tabs">
         {TABS.map((id) => (
           <button
             key={id}
@@ -417,7 +427,7 @@ export default function Artistic() {
               ) : null}
             </ArtisticStep>
 
-            {tab === "style" && (
+            <div className={panelVisibility("style", tab)}>
               <ArtisticStep step="2" title={t("art_sec_style")} hint={t("art_style_label")}>
                 <ArtisticCategoryPills
                   categories={catalog.categories}
@@ -425,7 +435,7 @@ export default function Artistic() {
                   onSelect={setStyleCat}
                   counts={categoryCounts}
                 />
-                <div className="mt-4">
+                <div className="mt-4 max-h-[min(62vh,640px)] overflow-y-auto overscroll-contain pr-1">
                   <ArtisticStyleGrid
                     styles={stylesInCat}
                     selectedId={styleId}
@@ -434,25 +444,23 @@ export default function Artistic() {
                   />
                 </div>
               </ArtisticStep>
-            )}
+            </div>
 
-            {tab === "effects" && (
+            <div className={panelVisibility("effects", tab)}>
               <ArtisticStep step="2" title={t("art_sec_effects")}>
-                <ArtisticEffectsPanel
-                  sections={catalog.sections}
-                  effects={effects}
-                  onRadioChange={setRadioEffect}
-                  onToggleChange={toggleCheckboxEffect}
-                />
+                <div className="max-h-[min(62vh,640px)] overflow-y-auto overscroll-contain pr-1">
+                  <ArtisticEffectsPanel
+                    sections={catalog.sections}
+                    effects={effects}
+                    onRadioChange={setRadioEffect}
+                    onToggleChange={toggleCheckboxEffect}
+                  />
+                </div>
               </ArtisticStep>
-            )}
+            </div>
 
-            {(tab === "prompt" || tab === "style" || tab === "effects") && (
-              <ArtisticStep
-                step={tab === "prompt" ? "2" : "3"}
-                title={t("art_prompt_label")}
-                hint={t("studio_styles_optional")}
-              >
+            <div className={panelVisibility("prompt", tab)}>
+              <ArtisticStep step="2" title={t("art_prompt_label")} hint={t("studio_styles_optional")}>
                 <textarea
                   className="rp-editor-textarea min-h-[120px]"
                   placeholder={mode === "image" ? t("art_prompt_ph_image") : t("art_prompt_ph_text")}
@@ -476,9 +484,7 @@ export default function Artistic() {
                   </button>
                 </div>
               </ArtisticStep>
-            )}
 
-            {tab === "prompt" && (
               <ArtisticStep step="3" title={t("art_format_label")}>
                 <div className="max-w-[560px]">
                   <AspectPicker
@@ -490,11 +496,29 @@ export default function Artistic() {
                   />
                 </div>
               </ArtisticStep>
+            </div>
+
+            {(tab === "style" || tab === "effects") && (
+              <div className="hidden xl:block">
+                <ArtisticStep step="3" title={t("art_prompt_label_image")} hint={t("studio_styles_optional")}>
+                  <textarea
+                    className="rp-editor-textarea min-h-[88px]"
+                    placeholder={t("art_extra_placeholder")}
+                    value={prompt}
+                    onChange={(e) => setPrompt(e.target.value)}
+                    maxLength={800}
+                  />
+                </ArtisticStep>
+              </div>
             )}
           </div>
         </div>
 
-        <StudioResultAnchor busy={busy} ready={Boolean(primaryResultUrl(result))} className="space-y-4">
+        <StudioResultAnchor
+          busy={busy}
+          ready={Boolean(primaryResultUrl(result))}
+          className={`space-y-4 ${tab !== "prompt" ? "hidden xl:block" : ""} xl:sticky xl:top-[80px] self-start`}
+        >
           <div className="rp-editor-panel overflow-hidden">
             <div className="rp-editor-panel-accent" />
             <div className="p-5 sm:p-6">

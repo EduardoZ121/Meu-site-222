@@ -18,6 +18,12 @@ export async function syncClientBuildWithServer() {
     const clientStale = CLIENT_BUILD_ID && serverBuild !== CLIENT_BUILD_ID;
 
     if (mismatch || clientStale) {
+      const reloadKey = `rp_build_reload:${serverBuild}`;
+      if (sessionStorage.getItem(reloadKey)) {
+        sessionStorage.setItem("rp_js_build", serverBuild);
+        return;
+      }
+      sessionStorage.setItem(reloadKey, "1");
       sessionStorage.setItem("rp_js_build", serverBuild);
       if ("serviceWorker" in navigator) {
         const regs = await navigator.serviceWorker.getRegistrations();

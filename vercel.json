@@ -1,7 +1,8 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "env": {
-    "DISABLE_VERCEL_BLOB": "0"
+    "DISABLE_VERCEL_BLOB": "0",
+    "REACT_APP_BUILD_ID": "emergent-20260530-v2"
   },
   "crons": [
     {
@@ -17,7 +18,7 @@
     }
   },
   "installCommand": "ln -sfn frontend/api api; yarn install --frozen-lockfile || yarn install; cd frontend && yarn install --frozen-lockfile || yarn install",
-  "buildCommand": "cd frontend && REACT_APP_BUILD_ID=upload-glow-vid-v1 REACT_APP_DISABLE_VERCEL_BLOB=0 yarn build",
+  "buildCommand": "cd frontend && REACT_APP_BUILD_ID=emergent-20260530-v2 REACT_APP_DISABLE_VERCEL_BLOB=0 yarn build",
   "headers": [
     {
       "source": "/index.html",

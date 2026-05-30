@@ -16,7 +16,7 @@ module.exports = async function handler(req, res) {
   return res.status(200).json({
     ok: true,
     api: "remakepix",
-    build: "upload-glow-vid-v1",
+    build: process.env.REACT_APP_BUILD_ID || "emergent-20260530-v2",
     ts: Date.now(),
     integrations: {
       replicate,

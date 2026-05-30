@@ -159,6 +159,8 @@ const studioEn = {
   studio_sending: "Sending…",
   studio_balance: "Balance:",
   studio_result_next: "Your next image appears here.",
+  studio_tab_create: "Create",
+  studio_tab_result: "Result",
 };
 
 const studioPt = {

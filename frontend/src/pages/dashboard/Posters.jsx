@@ -1,4 +1,4 @@
-import { Component, useEffect, useMemo, useState } from "react";
+import { Component, useEffect, useMemo, useRef, useState } from "react";
 import {
   Loader2, Sparkles, ArrowLeft, Check, Layers, Crown, Zap, Aperture,
   Image as ImageIcon,
@@ -7,7 +7,6 @@ import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import {
   api,
-  formatApiError,
   pollPrediction,
   trackPendingPrediction,
   uploadPost,
@@ -45,6 +44,12 @@ import { useI18n } from "../../lib/i18n";
 import { useStudioI18n } from "../../lib/useStudioI18n";
 import { posterFieldLabel, POSTER_CAT_KEYS } from "../../lib/posterFieldLocales";
 import { normalizePosterModels } from "../../lib/posterModels";
+import { scrollElementIntoStudioView } from "../../lib/scrollToStudioResult";
+
+const EDITOR_MOBILE_TABS = [
+  { id: "create", labelKey: "studio_tab_create", icon: Sparkles },
+  { id: "result", labelKey: "studio_tab_result", icon: ImageIcon },
+];
 
 /* ------------------------------------------------------------------ */
 /*  Constants                                                          */
@@ -92,13 +97,13 @@ const MODEL_ICONS = {
 /* ------------------------------------------------------------------ */
 
 export default function Posters() {
-  const { t } = useStudioI18n();
+  const { t, errToast, clearUploadToast } = useStudioI18n();
   const { lang } = useI18n();
   const labelFor = (k) => posterFieldLabel(k, lang);
   const catLabel = (c) => (POSTER_CAT_KEYS[c] ? t(POSTER_CAT_KEYS[c]) : c);
   useTitle(t("sidebar_posters"));
   const navigate = useNavigate();
-  const { refresh, user } = useAuth();
+  const { refresh, user, refundCredits } = useAuth();
   const { region } = usePricing();
 
   const [templates, setTemplates] = useState([]);
@@ -120,6 +125,8 @@ export default function Posters() {
   const [genPhase, setGenPhase] = useState("");
   const [genProgress, setGenProgress] = useState(0);
   const [result, setResult] = useState(null);
+  const [editorMobileTab, setEditorMobileTab] = useState("create");
+  const resultAnchorRef = useRef(null);
 
   useEffect(() => {
     api.get("/public/poster-templates")
@@ -140,7 +147,16 @@ export default function Posters() {
     });
   }, [region]);
 
-  const filtered = useMemo(() => templates.filter((t) => t.category === category), [templates, category]);
+  useEffect(() => {
+    if (!templates.length) return;
+    const hasInCat = templates.some((tpl) => tpl.category === category);
+    if (!hasInCat) {
+      const first = CAT_ORDER.find((c) => templates.some((tpl) => tpl.category === c));
+      if (first) setCategory(first);
+    }
+  }, [templates, category]);
+
+  const filtered = useMemo(() => templates.filter((tpl) => tpl.category === category), [templates, category]);
 
   const counts = useMemo(() => {
     const m = {};
@@ -171,6 +187,7 @@ export default function Posters() {
     setMood("");
     setPaletteColors([]);
     setNumOutputs(1);
+    setEditorMobileTab("create");
     // Sem foto: proporção sugerida pelo template; com foto o hook mantém "match".
     if (!photo) {
       const p = (tpl.prompt || "").toLowerCase();
@@ -217,10 +234,15 @@ export default function Posters() {
     fd.append("lang", lang || "en");
     if (photo) fd.append("photo", photo);
 
+    clearUploadToast();
+    setEditorMobileTab("result");
     setBusy(true);
     setResult(null);
     setGenProgress(0);
     setGenPhase("upload");
+    window.requestAnimationFrame(() => {
+      scrollElementIntoStudioView(resultAnchorRef.current);
+    });
     let submitData;
     try {
       ({ data: submitData } = await uploadPost("/generate/poster", fd, {
@@ -252,9 +274,12 @@ export default function Posters() {
       toast.success(t("post_success", { n: normalized?.credits_spent ?? submitData.credits_spent ?? totalCost }));
       await refresh();
     } catch (err) {
-      const msg = formatApiError(err, t("post_fail"), { context: "image_upload", t });
       console.error("[Posters] generate failed", err);
-      toast.error(msg, { duration: 12000 });
+      errToast(err);
+      if (err?.refunded && submitData?.credits_spent && !submitData?.server_billing) {
+        refundCredits?.(submitData.credits_spent, t("studio_refund_desc"));
+      }
+      try { await refresh(); } catch { /* ignore */ }
     } finally {
       setBusy(false);
       setGenPhase("");
@@ -291,6 +316,9 @@ export default function Posters() {
         t={t}
         labelFor={labelFor}
         catLabel={catLabel}
+        editorMobileTab={editorMobileTab}
+        setEditorMobileTab={setEditorMobileTab}
+        resultAnchorRef={resultAnchorRef}
       />
       </PosterEditorErrorBoundary>
     );
@@ -334,8 +362,10 @@ export default function Posters() {
 
       {/* Grid */}
       <div className={POSTER_GRID_CLASS} data-testid="poster-templates-grid">
-        {filtered.map((tpl, i) => (
-          <TemplateCard key={tpl.id} tpl={tpl} index={i} onClick={() => openTemplate(tpl)} catLabel={catLabel} />
+        {filtered.length === 0 ? (
+          <p className="col-span-full text-center text-[#8A8A8E] text-sm py-12">{t("post_grid_empty")}</p>
+        ) : filtered.map((tpl, i) => (
+          <TemplateCard key={tpl.id} tpl={tpl} index={i} onClick={() => openTemplate(tpl)} catLabel={catLabel} t={t} />
         ))}
       </div>
     </div>
@@ -346,7 +376,7 @@ export default function Posters() {
 /*  Template card                                                      */
 /* ------------------------------------------------------------------ */
 
-function TemplateCard({ tpl, index, onClick, catLabel }) {
+function TemplateCard({ tpl, index, onClick, catLabel, t }) {
   const gradient = CAT_GRADIENTS[tpl.category] || CAT_GRADIENTS.editorial;
   return (
     <motion.button
@@ -375,12 +405,12 @@ function TemplateCard({ tpl, index, onClick, catLabel }) {
           </div>
         )}
         <div className="absolute bottom-2 right-2 sm:bottom-3 sm:right-3 z-[2] font-['JetBrains_Mono'] text-[8px] sm:text-[9px] uppercase tracking-[0.14em] text-white/70">
-          {tpl.placeholders?.length ? `${tpl.placeholders.length} campos` : "Pronto"}
+          {tpl.placeholders?.length ? t("post_fields_badge", { n: tpl.placeholders.length }) : t("post_ready_badge")}
         </div>
 
         <div className="absolute inset-0 z-[3] hidden sm:flex items-center justify-center bg-[#7C3AED]/85 backdrop-blur-md opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
           <span className="text-white text-[11px] font-medium uppercase tracking-[0.12em] px-4 py-2 border border-white/50 rounded-full">
-            Abrir editor →
+            {t("post_open_editor")}
           </span>
         </div>
       </div>
@@ -446,7 +476,10 @@ function Editor(props) {
     busy, result, setResult,
     missing, onGenerate, genPhase, genProgress, user,
     t, labelFor, catLabel,
+    editorMobileTab, setEditorMobileTab, resultAnchorRef,
   } = props;
+
+  const panelVisibility = (tab) => (editorMobileTab !== tab ? "hidden xl:block" : "");
 
   const modelsForPicker = useMemo(() => {
     if (engineModels?.length) return engineModels;
@@ -527,9 +560,37 @@ function Editor(props) {
         </div>
       </div>
 
+      <div
+        className="xl:hidden flex gap-2 mb-5 p-1 rounded-xl border border-white/[0.08] bg-white/[0.03]"
+        role="tablist"
+        data-testid="poster-editor-mobile-tabs"
+      >
+        {EDITOR_MOBILE_TABS.map(({ id, labelKey, icon: Icon }) => {
+          const active = editorMobileTab === id;
+          return (
+            <button
+              key={id}
+              type="button"
+              role="tab"
+              aria-selected={active}
+              onClick={() => setEditorMobileTab(id)}
+              className={`flex-1 inline-flex items-center justify-center gap-1.5 py-2.5 rounded-lg text-sm font-medium transition-all ${
+                active
+                  ? "bg-white/[0.08] text-white shadow-[inset_0_0_0_1px_rgba(167,139,250,0.35)]"
+                  : "text-rp-mute2 hover:text-rp-mute"
+              }`}
+              data-testid={`poster-editor-tab-${id}`}
+            >
+              <Icon className="w-3.5 h-3.5" strokeWidth={active ? 2 : 1.75} />
+              {t(labelKey)}
+            </button>
+          );
+        })}
+      </div>
+
       <div className="grid grid-cols-1 xl:grid-cols-[1fr_440px] gap-10">
         {/* ====== LEFT: form ====== */}
-        <motion.div className="space-y-5">
+        <motion.div className={`space-y-5 ${panelVisibility("create")}`}>
           <PosterSection
             title={isPosterFoodTemplate(picked) ? t("post_sec_food_ref") : t("post_sec_ref")}
             optional
@@ -719,8 +780,13 @@ function Editor(props) {
         </motion.div>
 
         {/* ====== RIGHT: result panel ====== */}
-        <StudioResultAnchor busy={busy} ready={Boolean(primaryResultUrl(result))} className="xl:sticky xl:top-[80px] self-start">
-          <p className="text-[#5A5A5E] text-[10px] font-mono uppercase tracking-[0.2em] mb-3">Preview</p>
+        <StudioResultAnchor
+          busy={busy}
+          ready={Boolean(primaryResultUrl(result))}
+          className={`xl:sticky xl:top-[80px] self-start ${panelVisibility("result")}`}
+          anchorRef={resultAnchorRef}
+        >
+          <p className="text-[#5A5A5E] text-[10px] font-mono uppercase tracking-[0.2em] mb-3">{t("post_preview_label")}</p>
           <PosterResult busy={busy} result={result} setResult={setResult} aspect={aspect} />
         </StudioResultAnchor>
       </div>
@@ -795,7 +861,7 @@ function PosterResult({ busy, result, setResult, aspect }) {
       document.body.appendChild(a); a.click(); a.remove();
       setTimeout(() => URL.revokeObjectURL(u), 1000);
     } catch {
-      toast.error("Falha ao baixar.");
+      toast.error(t("gal_download_fail"));
     }
   };
 
@@ -826,7 +892,7 @@ function PosterResult({ busy, result, setResult, aspect }) {
           className="flex-1 bg-[#7C3AED] hover:bg-[#9333EA] text-white py-3 rounded-lg text-[12.5px] font-medium flex items-center justify-center gap-2 transition-colors"
           data-testid="poster-download"
         >
-          Baixar Alta Resolução
+          {t("post_download_hd")}
         </button>
         <a
           href={main}
@@ -835,7 +901,7 @@ function PosterResult({ busy, result, setResult, aspect }) {
           className="px-4 py-3 border border-[#2E2E30] hover:border-[#7C3AED]/50 text-[#8A8A8E] hover:text-[#F4F1EA] rounded-lg text-[12.5px] transition-colors flex items-center"
           data-testid="poster-open"
         >
-          Abrir
+          {t("post_open")}
         </a>
       </div>
     </div>

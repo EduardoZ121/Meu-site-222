@@ -199,8 +199,6 @@ const functionConfig = {
   },
 };
 
-const { listPosterTemplates } = require("./lib/posterTemplatesData.cjs");
-
 const {
   QWEN_EDIT_MODEL: ARTISTIC_QWEN_MODEL,
   isNsfwStyleId,

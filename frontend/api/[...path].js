@@ -204,31 +204,28 @@ const { listPosterTemplates } = require("./lib/posterTemplatesData.cjs");
 const {
   QWEN_EDIT_MODEL: ARTISTIC_QWEN_MODEL,
   isNsfwStyleId,
-  isPhotographyRequest,
   resolveArtisticLabModel,
-  resolvePhotographyModel,
-  resolveStylizedPhotoModel,
 } = require("./lib/artisticStudioEngines.cjs");
 
 function isArtisticExperimentalStyleId(styleId) {
   return isNsfwStyleId(styleId);
 }
 
-function resolveArtisticStudioModel({ styleId, hasPhoto, styleCat }) {
-  if (isArtisticExperimentalStyleId(styleId)) {
+function resolveArtisticStudioModel({ styleId, hasPhoto, userDoc }) {
+  const experimental = isArtisticExperimentalStyleId(styleId);
+  if (experimental) {
+    const adminOk = userDoc?.role === "admin" || userDoc?.nsfw_allowed;
+    if (!adminOk) {
+      const err = new Error("Este estilo requer permissão NSFW na conta.");
+      err.status = 403;
+      throw err;
+    }
     if (!hasPhoto) {
       const err = new Error("AI Lab exige uma foto (Qwen Image Edit edita a referência).");
       err.status = 400;
       throw err;
     }
     return resolveArtisticLabModel();
-  }
-  // Qualquer foto (fotografia, anime, cartoon…) → Flux Klein — igual ao backend legado.
-  if (hasPhoto) {
-    return resolveStylizedPhotoModel();
-  }
-  if (isPhotographyRequest(styleId, styleCat)) {
-    return resolvePhotographyModel(false);
   }
   return { modelKey: "standard", modelId: MODELS.standard, label: MODELS.standard };
 }
@@ -1395,35 +1392,21 @@ async function routePost(path, fields, files, req) {
     const styleId = text(fields, "style_id", "").trim();
     const experimental = isArtisticExperimentalStyleId(styleId);
     let promptFinal = text(fields, "prompt_final", "").trim();
-    if (!promptFinal) {
-      const err = new Error("Prompt em falta.");
-      err.status = 400;
-      throw err;
+    if (!promptFinal) throw new Error("Prompt em falta.");
+    const hasPhoto = Boolean(files.photo || text(fields, "photo_url", "").trim());
+    const { user, isLocal } = resolveSessionUser(req);
+    let userDoc = null;
+    if (storageEnabled() && user?.id && !isLocal) {
+      userDoc = await getUserById(user.id);
+    } else if (user?.email && ADMIN_EMAILS.has(String(user.email).toLowerCase())) {
+      userDoc = { email: user.email, role: "admin", nsfw_allowed: true };
     }
-    const photoRef = await resolveImageRef(files, fields, "photo", "photo_url");
-    const photoFieldPresent = Boolean(fileOf(files, "photo") || text(fields, "photo_url", "").trim());
-    if (photoFieldPresent && !photoRef) {
-      const err = new Error(
-        "Não foi possível ler a foto. Usa JPEG, PNG ou WEBP (máx. 12 MB).",
-      );
-      err.status = 400;
-      throw err;
-    }
-    const hasPhoto = Boolean(photoRef);
-    const styleCat = text(fields, "style_cat", "").trim();
-    const photography = isPhotographyRequest(styleId, styleCat);
     const { modelKey, modelId, label: modelLabel } = resolveArtisticStudioModel({
       styleId,
       hasPhoto,
-      styleCat,
+      userDoc,
     });
-    const useQwenPhoto = modelKey === "qwen";
-    const input = await imageInput(fields, files, modelKey, promptFinal, {
-      experimental: experimental || useQwenPhoto,
-      photography: photography || useQwenPhoto,
-      photoEdit: hasPhoto,
-      artisticPhotoEdit: hasPhoto,
-    });
+    const input = await imageInput(fields, files, modelKey, promptFinal, { experimental });
     let effects = {};
     try {
       const rawFx = text(fields, "effects_json", "{}");
@@ -1431,8 +1414,6 @@ async function routePost(path, fields, files, req) {
     } catch {
       effects = {};
     }
-    const region = regionFromRequest(req, fields);
-    const CREDIT = getCreditCostsForRegion(region);
     const artisticCost = CREDIT.artistic + computeArtisticEffectSurcharge(effects, region);
     return submitBillableGeneration(req, fields, {
       cost: artisticCost,
@@ -1444,9 +1425,7 @@ async function routePost(path, fields, files, req) {
       modelUsed: modelLabel,
       spendDescription: isArtisticExperimentalStyleId(styleId)
         ? "Estúdio artístico · AI Lab (Qwen)"
-        : photography
-          ? "Estúdio artístico · Fotografia"
-          : "Estúdio artístico",
+        : "Estúdio artístico",
     });
   }
 

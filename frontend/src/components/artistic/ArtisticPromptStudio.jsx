@@ -11,7 +11,6 @@ import {
 import { toast } from "sonner";
 import { useI18n } from "../../lib/i18n";
 import StudioGenerateBar from "../StudioGenerateBar";
-import StudioPhotoUploadNotice, { isPhotoUploadBusy } from "../studio/StudioPhotoUploadNotice";
 import { useStudioGenerateGate } from "../../lib/useStudioGenerateGate";
 import ImageUploadZone from "../ImageUploadZone";
 import AspectPicker from "../AspectPicker";
@@ -36,10 +35,6 @@ export default function ArtisticPromptStudio({
   inputMode,
   setInputMode,
   isLabStyle,
-  isPhotoStyle = false,
-  isPhotoCategory = false,
-  photoUploadStatus: photoUploadStatusProp,
-  onPhotoUploadStatusChange,
   photo,
   setPhoto,
   prompt,
@@ -57,20 +52,14 @@ export default function ArtisticPromptStudio({
   improving,
 }) {
   const { t } = useI18n();
-  const [photoUploadStatusLocal, setPhotoUploadStatusLocal] = useState("idle");
-  const photoUploadStatus = photoUploadStatusProp ?? photoUploadStatusLocal;
-  const setPhotoUploadStatus = onPhotoUploadStatusChange ?? setPhotoUploadStatusLocal;
 
-  const needsPhoto = inputMode === "image" || isLabStyle || isPhotoStyle || isPhotoCategory;
-  const imageOnlyMode = isLabStyle || isPhotoStyle || isPhotoCategory;
-  const photoUploading = isPhotoUploadBusy(photoUploadStatus);
+  const needsPhoto = inputMode === "image" || isLabStyle;
   const { ready, hint } = useStudioGenerateGate({
     busy,
     user,
     cost,
     requirePhoto: needsPhoto,
     photo,
-    uploading: photoUploading,
     blocked: !styleId && prompt.trim().length < 3,
   });
   const [wizardOpen, setWizardOpen] = useState(false);
@@ -114,16 +103,16 @@ export default function ArtisticPromptStudio({
       <div className="art-studio-mode-toggle">
         <button
           type="button"
-          disabled={imageOnlyMode}
+          disabled={isLabStyle}
           onClick={() => {
-            if (imageOnlyMode) {
-              toast.message(isLabStyle ? t("art_lab_image_hint") : t("art_photo_image_hint"));
+            if (isLabStyle) {
+              toast.message(t("art_lab_image_hint"));
               return;
             }
             setInputMode("text");
           }}
           className={`art-studio-mode-btn ${inputMode === "text" ? "art-studio-mode-btn--active" : ""} ${
-            imageOnlyMode ? "opacity-40 cursor-not-allowed" : ""
+            isLabStyle ? "opacity-40 cursor-not-allowed" : ""
           }`}
         >
           <Type className="w-4 h-4" /> {t("art_input_text")}
@@ -142,7 +131,6 @@ export default function ArtisticPromptStudio({
           <ImageUploadZone
             value={photo}
             onChange={setPhoto}
-            onStatusChange={setPhotoUploadStatus}
             layout="wide"
             testId="artistic-studio-photo"
             emptyLabel={t("art_upload_label")}
@@ -264,21 +252,15 @@ export default function ArtisticPromptStudio({
         testIdPrefix="art-studio-aspect"
       />
 
-      <StudioPhotoUploadNotice
-        status={inputMode === "image" ? photoUploadStatus : "idle"}
-        className="mt-6"
-      />
-
       <StudioGenerateBar
         layout="inline"
-        className="mt-3"
+        className="mt-6"
         ready={ready}
         busy={busy}
         onClick={handleGenerate}
         label={t("art_generate_credits", { n: cost })}
         busyLabel={t("art_generating")}
         hint={hint}
-        blockedNotify={photoUploading ? "message" : "error"}
         alignHint="start"
         testId="artistic-studio-generate"
         buttonClassName="!w-full"

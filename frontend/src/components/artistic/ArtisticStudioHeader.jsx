@@ -1,13 +1,12 @@
 import { Link } from "react-router-dom";
 import { ArrowLeft, Palette } from "lucide-react";
 import { useI18n } from "../../lib/i18n";
-import { CLIENT_BUILD_ID } from "../../lib/buildInfo";
 
 export default function ArtisticStudioHeader() {
   const { t } = useI18n();
 
   return (
-    <header className="art-studio-header mb-4 md:mb-6" data-testid="artistic-studio-header">
+    <header className="art-studio-header hidden md:block" data-testid="artistic-studio-header">
       <div className="art-studio-header__glow" aria-hidden />
       <div className="flex flex-wrap items-start justify-between gap-4 relative z-[1]">
         <div className="flex items-start gap-4 min-w-0">
@@ -23,9 +22,6 @@ export default function ArtisticStudioHeader() {
             </h1>
             <p className="text-[#9CA3AF] text-[15px] mt-2 max-w-2xl leading-relaxed">
               {t("art_hero_subtitle")}
-            </p>
-            <p className="text-[#6B7280] text-[10px] font-mono mt-2 tracking-wide" data-testid="artistic-build-id">
-              build {CLIENT_BUILD_ID}
             </p>
           </div>
         </div>

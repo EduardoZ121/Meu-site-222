@@ -2,57 +2,64 @@ import {
   ARTISTIC_STUDIO_STYLES,
   ARTISTIC_EFFECT_SECTIONS,
 } from "./artisticStudioData";
-import {
-  buildArtisticEditPrompt,
-  buildArtisticTextPrompt,
-} from "./artisticLabPrompt";
+import { buildAiLabEditPrompt } from "./artisticLabPrompt";
 
 export function getStyleById(styleId) {
   return ARTISTIC_STUDIO_STYLES.find((s) => s.id === styleId) || null;
 }
 
-/**
- * Universal artistic prompt builder.
- *
- * Key fix (vs. previous version): EVERY style category now goes through a
- * proper identity-preserving edit pipeline when a photo is uploaded, not just
- * "photography" and "nsfw". This stops the bug where applying anime / cartoon /
- * classic / modern styles to an uploaded photo would age, replace or distort
- * the subject's face and body.
- */
 export function buildArtisticStudioPrompt({
   userPrompt = "",
   styleId = null,
-  styleCat = null,
   effects = {},
   imageMode = false,
 }) {
-  const style = getStyleById(styleId);
-  const cat = style?.cat || styleCat || null;
-  const isAiLab = cat === "nsfw" || Boolean(style?.labPreset);
-  const isPhotography = cat === "photography";
-
-  const effectParts = collectEffectPromptParts(effects);
+  const parts = [];
   const trimmed = String(userPrompt || "").trim();
 
-  // PHOTO MODE → identity-preserving edit pipeline (universal).
   if (imageMode) {
-    return buildArtisticEditPrompt({
+    parts.push(
+      "Edit and transform the provided reference image. Preserve the subject identity, face, and overall composition unless the edit explicitly requires change.",
+    );
+  }
+
+  const style = getStyleById(styleId);
+
+  if (style?.cat === "nsfw") {
+    return buildAiLabEditPrompt({
       userPrompt: trimmed,
       styleSuffix: style?.suffix || "",
-      styleCat: cat,
-      isAiLab,
-      isPhotography,
-      extras: effectParts,
     });
   }
 
-  // TEXT-ONLY MODE → pure generation, no identity lock needed.
-  return buildArtisticTextPrompt({
-    userPrompt: trimmed,
-    styleSuffix: style?.suffix || "",
-    extras: effectParts,
-  });
+  if (trimmed) parts.push(trimmed);
+  if (style?.labPreset) {
+    parts.push(
+      imageMode
+        ? "Rapid image edit: transform the reference photo while preserving identity, face, pose and framing."
+        : "Experimental diffusion rendering with editorial finish.",
+    );
+  }
+  if (style?.suffix) parts.push(style.suffix);
+
+  for (const section of ARTISTIC_EFFECT_SECTIONS) {
+    const value = effects[section.id];
+    if (section.type === "radio" && value) {
+      const opt = section.options.find((o) => o.id === value);
+      if (opt?.prompt) parts.push(opt.prompt);
+    }
+    if (section.type === "checkbox" && value && typeof value === "object") {
+      for (const opt of section.options) {
+        if (value[opt.id] && opt.prompt) parts.push(opt.prompt);
+      }
+    }
+  }
+
+  parts.push(
+    "Ultra high quality, professional art direction, cohesive visual recipe, 8K detail where applicable.",
+  );
+
+  return parts.filter(Boolean).join(". ").replace(/\.\s*\./g, ".");
 }
 
 export function buildRecipeChips({ styleId, effects = {} }) {
@@ -73,23 +80,6 @@ export function buildRecipeChips({ styleId, effects = {} }) {
     }
   }
   return chips;
-}
-
-function collectEffectPromptParts(effects = {}) {
-  const effectParts = [];
-  for (const section of ARTISTIC_EFFECT_SECTIONS) {
-    const value = effects[section.id];
-    if (section.type === "radio" && value) {
-      const opt = section.options.find((o) => o.id === value);
-      if (opt?.prompt) effectParts.push(opt.prompt);
-    }
-    if (section.type === "checkbox" && value && typeof value === "object") {
-      for (const opt of section.options) {
-        if (value[opt.id] && opt.prompt) effectParts.push(opt.prompt);
-      }
-    }
-  }
-  return effectParts;
 }
 
 function sectionEmoji(sectionId) {

@@ -1,8 +1,7 @@
 /**
  * Estúdio Artístico — estilos e efeitos (inspirado em Perchance / mega-lens).
- * `adminOnly` / categoria nsfw (AI Lab) — visível só para administradores.
+ * `adminOnly` — filtrado por `canAccessNsfwArtisticStyles` (utilizadores autenticados).
  */
-import { isAdminUser } from "./isAdmin";
 
 export const ARTISTIC_STYLE_CATEGORIES = [
   { id: "photography", label: "Fotografia", labelEn: "Photography" },
@@ -18,7 +17,7 @@ export const ARTISTIC_STYLE_CATEGORIES = [
 ];
 
 export function canAccessNsfwArtisticStyles(user) {
-  return isAdminUser(user);
+  return Boolean(user);
 }
 
 export const ARTISTIC_STUDIO_STYLES = [
@@ -254,16 +253,9 @@ export const ARTISTIC_EFFECT_SECTIONS = [
 ];
 
 export function filterArtisticCategories(categories, includeNsfw) {
-  return categories.filter((c) => {
-    if (c.id === "nsfw" || c.labCategory) return includeNsfw;
-    return !c.adminOnly || includeNsfw;
-  });
+  return categories.filter((c) => !c.adminOnly || includeNsfw);
 }
 
 export function filterArtisticStyles(styles, includeNsfw) {
   return styles.filter((s) => !s.adminOnly || includeNsfw);
-}
-
-export function isPhotographyStyleId(styleId) {
-  return String(styleId || "").trim().startsWith("photo_");
 }

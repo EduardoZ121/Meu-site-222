@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { ImageIcon, Film } from "lucide-react";
 import ToolsGridCard from "../../components/tools/ToolsGridCard";
@@ -33,12 +33,29 @@ function ToolsCategorySection({ title, description, children, testId }) {
   );
 }
 
+const TOOLS_TAB_KEY = "rp_tools_tab";
+
 export default function Tools() {
   const { t } = useI18n();
   const tools = useLocalizedTools();
   useTitle(t("tools_grid.page_eyebrow"));
   const { region } = usePricing();
-  const [tab, setTab] = useState("image");
+  const [tab, setTab] = useState(() => {
+    try {
+      const saved = sessionStorage.getItem(TOOLS_TAB_KEY);
+      return saved === "video" ? "video" : "image";
+    } catch {
+      return "image";
+    }
+  });
+
+  useEffect(() => {
+    try {
+      sessionStorage.setItem(TOOLS_TAB_KEY, tab);
+    } catch {
+      /* ignore */
+    }
+  }, [tab]);
 
   const imageTools = useMemo(
     () => tools.filter((tool) => tool.tier === "image"),
@@ -193,6 +210,7 @@ export default function Tools() {
                     category={category}
                     index={index}
                     t={t}
+                    compact
                   />
                 ))}
               </div>

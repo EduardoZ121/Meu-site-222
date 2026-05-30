@@ -14,7 +14,7 @@ const navSpring = { type: "spring", stiffness: 380, damping: 32 };
  */
 export default function HubMainLayout() {
   const { openMobileNav } = useOutletContext() || {};
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const { t } = useI18n();
   const [headerCompact, setHeaderCompact] = useState(false);
   const mainRef = useRef(null);
@@ -34,6 +34,10 @@ export default function HubMainLayout() {
       window.removeEventListener("scroll", onScroll);
     };
   }, [onScroll]);
+
+  if (authLoading) {
+    return <div className="flex-1 min-w-0 bg-rp-bg" data-testid="hub-auth-loading" />;
+  }
 
   if (!user) return null;
 
@@ -56,7 +60,7 @@ export default function HubMainLayout() {
         <div className="flex items-center gap-3">
           <button
             type="button"
-            onClick={openMobileNav}
+            onClick={() => openMobileNav?.()}
             className="md:hidden text-white/70 hover:text-white p-2 rounded-lg hover:bg-white/[0.06] transition-colors"
             data-testid="mobile-menu-btn"
           >
@@ -80,7 +84,7 @@ export default function HubMainLayout() {
               className="text-[#A855F7] text-base font-mono font-semibold leading-none tabular-nums"
               data-testid="credits-value"
             >
-              {user.is_unlimited ? "∞" : user.credits}
+              {user.is_unlimited ? "∞" : (user.credits ?? 0)}
             </span>
           </Link>
           <DashboardProfileMenu />

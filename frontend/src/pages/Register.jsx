@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Link, useNavigate, useSearchParams } from "react-router-dom";
+import { Link, useNavigate, useLocation, useSearchParams } from "react-router-dom";
 import { motion } from "framer-motion";
 import { useAuth } from "../lib/auth";
 import { useI18n } from "../lib/i18n";
@@ -26,11 +26,16 @@ export default function Register() {
   const [loading, setLoading] = useState(false);
   const { register, loginWithGoogle, user, loading: authLoading } = useAuth();
   const navigate = useNavigate();
+  const loc = useLocation();
+  const from = loc.state?.from || "/app/tools";
   const { status: emailStatus, info: emailInfo } = useAuthEmailStatus(form.email);
+  const loginHref = form.email.trim()
+    ? `/login?email=${encodeURIComponent(form.email.trim().toLowerCase())}`
+    : "/login";
 
   useEffect(() => {
-    if (!authLoading && user) navigate("/app/tools", { replace: true });
-  }, [authLoading, user, navigate]);
+    if (!authLoading && user) navigate(from, { replace: true });
+  }, [authLoading, user, from, navigate]);
 
   useEffect(() => {
     const q = params.get("email");
@@ -46,7 +51,7 @@ export default function Register() {
     e.preventDefault();
     if (emailTaken) {
       toast.error(t("auth_email_exists_hint"));
-      navigate(`/login?email=${encodeURIComponent(form.email.trim().toLowerCase())}`);
+      navigate(loginHref, loc.state?.from ? { state: { from: loc.state.from } } : undefined);
       return;
     }
     if (form.password !== form.confirm) {
@@ -62,13 +67,13 @@ export default function Register() {
         referral_code: form.referral_code,
       });
       toast.success(t("auth_register_success"));
-      navigate("/app/tools");
+      navigate(from);
     } catch (err) {
       const detail = err?.response?.data?.detail || err?.message;
       const status = err?.response?.status;
       if (status === 409 || /já está registado|already registered/i.test(String(detail))) {
         toast.error(t("auth_email_exists_hint"));
-        navigate(`/login?email=${encodeURIComponent(form.email.trim().toLowerCase())}`);
+        navigate(loginHref, loc.state?.from ? { state: { from: loc.state.from } } : undefined);
       } else {
         toast.error(detail || t("auth_register_fail"));
       }
@@ -82,13 +87,17 @@ export default function Register() {
     try {
       await loginWithGoogle(credential);
       toast.success(t("auth_register_success"));
-      navigate("/app/tools");
+      navigate(from);
     } catch (err) {
       toast.error(err?.message || t("auth_google_fail"));
     } finally {
       setLoading(false);
     }
   };
+
+  if (authLoading || user) {
+    return <div className="min-h-screen bg-rp-bg" data-testid="register-auth-loading" />;
+  }
 
   return (
     <div className="min-h-screen bg-rp-bg flex flex-col" data-testid="register-page">
@@ -121,7 +130,8 @@ export default function Register() {
             <div className="mb-5 rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-[13px] text-amber-100/95" data-testid="register-email-exists-banner">
               {emailInfo?.provider === "google" ? t("auth_email_google_hint") : t("auth_email_exists_hint")}{" "}
               <Link
-                to={`/login?email=${encodeURIComponent(form.email.trim().toLowerCase())}`}
+                to={loginHref}
+                state={loc.state?.from ? { from: loc.state.from } : undefined}
                 className="text-rp-lavender underline font-medium"
               >
                 {t("auth_go_login")}
@@ -159,6 +169,9 @@ export default function Register() {
               />
               {emailStatus === "checking" && (
                 <p className="mt-2 text-[12px] text-rp-mute2">{t("auth_email_checking")}</p>
+              )}
+              {emailStatus === "offline" && (
+                <p className="mt-2 text-[12px] text-rp-mute2">{t("auth_email_offline_register_hint")}</p>
               )}
             </div>
             <div>
@@ -211,7 +224,14 @@ export default function Register() {
 
           <p className="text-rp-mute text-sm mt-10">
             {t("auth_have_account")}{" "}
-            <Link to="/login" className="text-rp-lavender hover:underline" data-testid="register-go-login">{t("auth_go_login")}</Link>
+            <Link
+              to={loginHref}
+              state={loc.state?.from ? { from: loc.state.from } : undefined}
+              className="text-rp-lavender hover:underline"
+              data-testid="register-go-login"
+            >
+              {t("auth_go_login")}
+            </Link>
           </p>
         </motion.div>
       </div>

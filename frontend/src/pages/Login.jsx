@@ -167,7 +167,14 @@ function BrowserLogin() {
 
           <p className="text-rp-mute text-sm mt-10">
             {t("login_new")}{" "}
-            <Link to="/register" className="text-rp-lavender hover:underline" data-testid="login-go-register">{t("login_register")}</Link>
+            <Link
+              to={email.trim() ? `/register?email=${encodeURIComponent(email.trim().toLowerCase())}` : "/register"}
+              state={loc.state?.from ? { from: loc.state.from } : undefined}
+              className="text-rp-lavender hover:underline"
+              data-testid="login-go-register"
+            >
+              {t("login_register")}
+            </Link>
           </p>
         </motion.div>
       </div>

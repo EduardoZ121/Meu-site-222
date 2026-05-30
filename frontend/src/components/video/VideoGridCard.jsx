@@ -17,26 +17,30 @@ const ICON_STYLES = {
   clapperboard: "from-fuchsia-600/35 to-violet-900/55 text-fuchsia-100",
 };
 
-export default function VideoGridCard({ category, index, t }) {
+export default function VideoGridCard({ category, index, t, compact = false }) {
   const { costs } = usePricing();
   const cost = costs[category.costKey] ?? costs.video ?? 80;
   const Icon = ICONS[category.icon] || Type;
   const iconStyle = ICON_STYLES[category.icon] || ICON_STYLES.type;
 
+  const linkClass = compact
+    ? "group relative flex h-full flex-col overflow-hidden rounded-xl border border-[rgba(147,51,234,0.2)] bg-[#13131A] shadow-md transition-all duration-300 hover:-translate-y-0.5 hover:border-[#A855F7]/45 hover:shadow-[0_12px_32px_-14px_rgba(124,58,237,0.4)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500/50"
+    : "group relative flex h-full flex-col overflow-hidden rounded-2xl border border-white/[0.07] bg-white/[0.03] shadow-[0_1px_0_rgba(255,255,255,0.06)_inset,0_24px_48px_-32px_rgba(0,0,0,0.85)] backdrop-blur-xl transition-[transform,box-shadow,border-color] duration-500 ease-out hover:scale-[1.02] hover:border-violet-400/35 hover:shadow-[0_0_0_1px_rgba(168,85,247,0.12),0_28px_60px_-24px_rgba(124,58,237,0.55)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500/50";
+
   return (
     <motion.article
-      initial={{ opacity: 0, y: 20 }}
+      initial={{ opacity: 0, y: compact ? 8 : 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{
-        duration: 0.45,
-        delay: Math.min(index * 0.06, 0.35),
+        duration: compact ? 0.35 : 0.45,
+        delay: Math.min(index * (compact ? 0.04 : 0.06), compact ? 0.4 : 0.35),
         ease: cardEase,
       }}
       className="h-full"
     >
       <Link
         to={category.to}
-        className="group relative flex h-full flex-col overflow-hidden rounded-2xl border border-white/[0.07] bg-white/[0.03] shadow-[0_1px_0_rgba(255,255,255,0.06)_inset,0_24px_48px_-32px_rgba(0,0,0,0.85)] backdrop-blur-xl transition-[transform,box-shadow,border-color] duration-500 ease-out hover:scale-[1.02] hover:border-violet-400/35 hover:shadow-[0_0_0_1px_rgba(168,85,247,0.12),0_28px_60px_-24px_rgba(124,58,237,0.55)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500/50"
+        className={linkClass}
         data-testid={`video-card-${category.id}`}
       >
         <div
@@ -51,8 +55,8 @@ export default function VideoGridCard({ category, index, t }) {
         <div className={`relative aspect-[16/10] overflow-hidden bg-gradient-to-br ${iconStyle}`}>
           <div className="absolute inset-0 bg-[#0a0a0f]/50" aria-hidden />
           <div className="absolute inset-0 flex items-center justify-center z-[1]">
-            <div className="w-16 h-16 rounded-2xl border border-white/15 bg-black/25 backdrop-blur-md flex items-center justify-center shadow-[0_0_40px_-8px_rgba(124,58,237,0.5)]">
-              <Icon className="w-8 h-8" strokeWidth={1.5} />
+            <div className={`rounded-2xl border border-white/15 bg-black/25 backdrop-blur-md flex items-center justify-center shadow-[0_0_40px_-8px_rgba(124,58,237,0.5)] ${compact ? "w-12 h-12" : "w-16 h-16"}`}>
+              <Icon className={compact ? "w-6 h-6" : "w-8 h-8"} strokeWidth={1.5} />
             </div>
           </div>
           <div
@@ -73,20 +77,22 @@ export default function VideoGridCard({ category, index, t }) {
           </span>
         </div>
 
-        <div className="relative flex flex-1 flex-col gap-2 p-4 sm:p-5 border-t border-white/[0.05]">
-          <h3 className="text-[17px] sm:text-[18px] font-semibold text-white leading-snug tracking-[-0.02em] font-['Inter_Tight'] group-hover:text-violet-50 transition-colors line-clamp-2">
+        <div className={`relative flex flex-1 flex-col border-t border-white/[0.05] ${compact ? "gap-1 p-2.5 sm:p-3" : "gap-2 p-4 sm:p-5"}`}>
+          <h3 className={`font-semibold text-white leading-snug font-['Inter_Tight'] group-hover:text-violet-50 transition-colors line-clamp-2 ${compact ? "text-sm line-clamp-1" : "text-[17px] sm:text-[18px] tracking-[-0.02em]"}`}>
             {t(category.nameKey)}
           </h3>
-          <p className="text-[13px] sm:text-[14px] text-zinc-400 leading-relaxed line-clamp-3 flex-1">
+          <p className={`text-zinc-400 leading-snug line-clamp-2 flex-1 ${compact ? "text-xs mt-1" : "text-[13px] sm:text-[14px] leading-relaxed line-clamp-3"}`}>
             {t(category.descKey)}
           </p>
-          <div className="pt-2 flex items-center justify-between gap-3 mt-auto">
-            <span className="text-[11px] font-mono uppercase tracking-[0.14em] text-violet-400/90">
-              {cost} {t("label_credits")}
+          <div className={`flex items-center justify-between gap-3 mt-auto ${compact ? "pt-1.5" : "pt-2"}`}>
+            <span className={`font-mono text-violet-400/90 ${compact ? "text-[10px]" : "text-[11px] uppercase tracking-[0.14em]"}`}>
+              {cost} {compact ? t("label_credits_short") : t("label_credits")}
             </span>
-            <span className="text-[11px] font-medium text-zinc-500 group-hover:text-violet-300/90 transition-colors">
-              {t("vid_grid_open")}
-            </span>
+            {!compact && (
+              <span className="text-[11px] font-medium text-zinc-500 group-hover:text-violet-300/90 transition-colors">
+                {t("vid_grid_open")}
+              </span>
+            )}
           </div>
         </div>
       </Link>

@@ -93,7 +93,7 @@ function SidebarNavItem({
 }
 
 export default function DashboardLayout() {
-  const { user, refresh, logout } = useAuth();
+  const { user, refresh, logout, loading: authLoading } = useAuth();
   const { t } = useI18n();
   const navigate = useNavigate();
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -166,6 +166,10 @@ export default function DashboardLayout() {
     return () => clearInterval(interval);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  if (authLoading) {
+    return <div className="min-h-screen bg-rp-bg" data-testid="dashboard-auth-loading" />;
+  }
 
   if (!user) return null;
 

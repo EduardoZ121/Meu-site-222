@@ -207,6 +207,7 @@ const {
   isPhotographyRequest,
   resolveArtisticLabModel,
   resolvePhotographyModel,
+  resolveStylizedPhotoModel,
 } = require("./lib/artisticStudioEngines.cjs");
 
 function isArtisticExperimentalStyleId(styleId) {
@@ -226,7 +227,7 @@ function resolveArtisticStudioModel({ styleId, hasPhoto, styleCat }) {
     return resolvePhotographyModel(hasPhoto);
   }
   if (hasPhoto) {
-    return resolvePhotographyModel(true);
+    return resolveStylizedPhotoModel();
   }
   return { modelKey: "standard", modelId: MODELS.standard, label: MODELS.standard };
 }
@@ -1132,7 +1133,7 @@ async function imageInput(fields, files, modelKey, prompt, opts = {}) {
     else input.images = [primary];
   }
   if (opts.experimental && modelKey === "qwen" && !input.image) {
-    const err = new Error("AI Lab: envia uma foto de referência.");
+    const err = new Error("Envia uma foto válida (JPEG, PNG ou WEBP).");
     err.status = 400;
     throw err;
   }
@@ -1393,8 +1394,21 @@ async function routePost(path, fields, files, req) {
     const styleId = text(fields, "style_id", "").trim();
     const experimental = isArtisticExperimentalStyleId(styleId);
     let promptFinal = text(fields, "prompt_final", "").trim();
-    if (!promptFinal) throw new Error("Prompt em falta.");
-    const hasPhoto = Boolean(files.photo || text(fields, "photo_url", "").trim());
+    if (!promptFinal) {
+      const err = new Error("Prompt em falta.");
+      err.status = 400;
+      throw err;
+    }
+    const photoRef = await resolveImageRef(files, fields, "photo", "photo_url");
+    const photoFieldPresent = Boolean(fileOf(files, "photo") || text(fields, "photo_url", "").trim());
+    if (photoFieldPresent && !photoRef) {
+      const err = new Error(
+        "Não foi possível ler a foto. Usa JPEG, PNG ou WEBP (máx. 12 MB).",
+      );
+      err.status = 400;
+      throw err;
+    }
+    const hasPhoto = Boolean(photoRef);
     const styleCat = text(fields, "style_cat", "").trim();
     const photography = isPhotographyRequest(styleId, styleCat);
     const { modelKey, modelId, label: modelLabel } = resolveArtisticStudioModel({

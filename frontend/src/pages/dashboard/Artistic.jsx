@@ -10,7 +10,7 @@ import {
   SlidersHorizontal,
 } from "lucide-react";
 import { toast } from "sonner";
-import { api, pollPrediction, trackPendingPrediction, uploadPost } from "../../lib/api";
+import { api, uploadPost } from "../../lib/api";
 import { normalizeCreation, primaryResultUrl } from "../../lib/creationUrls";
 import { useAuth } from "../../lib/auth";
 import { useI18n } from "../../lib/i18n";
@@ -155,7 +155,7 @@ export default function Artistic() {
     if (!styleId && !hasPrompt) return false;
     if (mode === "image" && !photo) return false;
     if (isLabStyle && !photo) return false;
-    if ((isPhotoStyle || isPhotoCategory) && !photo) return false;
+    if (isPhotoStyle && !photo) return false;
     return true;
   }, [
     photoUploading,
@@ -166,14 +166,13 @@ export default function Artistic() {
     photo,
     isLabStyle,
     isPhotoStyle,
-    isPhotoCategory,
   ]);
 
   const hintOverride = useMemo(() => {
     if (photoUploading) return t("upload_wait_generate");
     if (mode === "image" && !photo) return t("art_err_image_mode");
     if (isLabStyle && !photo) return t("art_lab_need_photo");
-    if ((isPhotoStyle || isPhotoCategory) && !photo) return t("art_photo_need_photo");
+    if (isPhotoStyle && !photo) return t("art_photo_need_photo");
     if (!styleId && prompt.trim().length < 3) return t("art_empty");
     return null;
   }, [
@@ -182,7 +181,6 @@ export default function Artistic() {
     photo,
     isLabStyle,
     isPhotoStyle,
-    isPhotoCategory,
     styleId,
     prompt,
     t,
@@ -276,7 +274,6 @@ export default function Artistic() {
     setBusy(true);
     setResult(null);
     const effectiveStyleCat = selectedStyle?.cat || styleCat;
-    let submitData;
     try {
       const finalPrompt = buildArtisticStudioPrompt({
         userPrompt: prompt.trim(),
@@ -286,13 +283,7 @@ export default function Artistic() {
         imageMode: mode === "image",
       });
 
-      const pollOpts = {
-        credits_spent: cost,
-        type: "artistic",
-        timeoutMs: 240_000,
-      };
-      const skipPollHeaders = { "X-Skip-Auto-Poll": "1" };
-
+      let data;
       if (mode === "image" && photo) {
         const fd = new FormData();
         fd.append("photo", photo);
@@ -302,32 +293,19 @@ export default function Artistic() {
         fd.append("style_cat", effectiveStyleCat || "");
         fd.append("effects_json", JSON.stringify(effects));
         fd.append("lang", lang || "en");
-        ({ data: submitData } = await uploadPost("/generate/artistic-studio", fd, {
-          timeout: 120_000,
-          headers: skipPollHeaders,
-        }));
+        ({ data } = await uploadPost("/generate/artistic-studio", fd, { timeout: 240_000 }));
       } else {
-        ({ data: submitData } = await api.post("/generate/artistic-studio", {
+        ({ data } = await api.post("/generate/artistic-studio", {
           prompt_final: finalPrompt,
           aspect_ratio: apiAspectRatio(aspect, { model: "artistic", hasPhoto: false }),
           style_id: styleId || "",
           style_cat: effectiveStyleCat || "",
           effects_json: JSON.stringify(effects),
           lang: lang || "en",
-        }, { timeout: 60_000, headers: skipPollHeaders }));
+        }));
       }
 
-      if (!submitData?.prediction_id) throw new Error(t("common_no_result"));
-
-      trackPendingPrediction(submitData.prediction_id, {
-        credits_spent: submitData.credits_spent || cost,
-        type: "artistic",
-      });
-      const data = await pollPrediction(submitData.prediction_id, {
-        ...pollOpts,
-        credits_spent: submitData.credits_spent || cost,
-      });
-      const creation = normalizeCreation(data?.creation);
+      const creation = normalizeCreation(data?.creation || data);
       if (!primaryResultUrl(creation)) throw new Error(t("common_no_result"));
       setResult(creation);
       toast.success(t("common_generated", { n: creation.credits_spent ?? cost }));

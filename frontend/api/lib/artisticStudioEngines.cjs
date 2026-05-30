@@ -44,6 +44,16 @@ function resolveArtisticLabModel() {
   };
 }
 
+/** Estilos artísticos (anime, cartoon, etc.) com foto → Flux Klein — igual ao backend legado. */
+function resolveStylizedPhotoModel() {
+  return {
+    modelKey: "artistic",
+    modelId: String(process.env.ARTISTIC_PHOTO_FLUX_MODEL || "").trim()
+      || "black-forest-labs/flux-2-klein-9b",
+    label: "Flux 2 Klein",
+  };
+}
+
 module.exports = {
   QWEN_EDIT_MODEL,
   isNsfwStyleId,
@@ -51,4 +61,5 @@ module.exports = {
   isPhotographyRequest,
   resolveArtisticLabModel,
   resolvePhotographyModel,
+  resolveStylizedPhotoModel,
 };

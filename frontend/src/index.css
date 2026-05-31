@@ -1,6 +1,7 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter+Tight:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,100;1,200;1,300;1,400;1,500&family=JetBrains+Mono:wght@300;400;500;600;700&display=swap');
 @import "./styles/manga-studio.css";
 @import "./styles/discover.css";
+@import "./styles/brand.css";
 
 @tailwind base;
 @tailwind components;
@@ -8,12 +9,14 @@
 
 @layer base {
   :root {
-    /* Premium dark — alinhado a produtos tipo Midjourney / Runway */
+    /* Remake Craft — identidade v1 (ver styles/brand.css) */
     --rp-bg: #050505;
     --rp-bg-elevated: #0a0a0a;
     --rp-surface: #111113;
     --rp-surface-raised: #18181b;
+    --rp-surface-tool: #13131a;
     --rp-border: #27272a;
+    --rp-border-legacy: #2e2e30;
     --rp-border-glow: rgba(124, 58, 237, 0.45);
     --rp-accent: #7c3aed;
     --rp-accent-mid: #9333ea;
@@ -23,6 +26,7 @@
     --rp-neon-fuchsia: #c026d3;
     --rp-neon-cyan: #22d3ee;
     --rp-gold: #c7a77a;
+    --rp-cream: #f4f1ea;
     --rp-text: #fafafa;
     --rp-text-secondary: #a1a1aa;
     --rp-text-tertiary: #71717a;
@@ -66,9 +70,7 @@
   body {
     background: var(--rp-bg);
     background-image:
-      radial-gradient(ellipse 120% 80% at 50% -30%, rgba(124, 58, 237, 0.14), transparent 55%),
-      radial-gradient(ellipse 60% 40% at 100% 0%, rgba(192, 38, 211, 0.06), transparent 45%),
-      radial-gradient(ellipse 50% 35% at 0% 20%, rgba(34, 211, 238, 0.05), transparent 40%);
+      radial-gradient(ellipse 100% 70% at 50% -25%, rgba(124, 58, 237, 0.08), transparent 50%);
     color: var(--rp-text);
     font-family: 'Inter Tight', system-ui, sans-serif;
     font-feature-settings: 'cv11', 'ss01';
@@ -527,7 +529,13 @@
   .rp-editor-panel-accent {
     height: 1px;
     width: 100%;
-    background: linear-gradient(90deg, transparent, rgba(34, 211, 238, 0.25), rgba(168, 85, 247, 0.55), rgba(192, 38, 211, 0.35), transparent);
+    background: linear-gradient(
+      90deg,
+      transparent,
+      rgba(199, 167, 122, 0.3),
+      rgba(124, 58, 237, 0.5),
+      transparent
+    );
     opacity: 1;
   }
 

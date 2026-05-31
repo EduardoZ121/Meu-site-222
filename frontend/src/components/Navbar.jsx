@@ -48,7 +48,7 @@ export default function Navbar({ variant = "home" }) {
         animate={{ y: 0, opacity: 1 }}
         transition={{ duration: 0.8, delay: 0.1, ease: [0.16, 1, 0.3, 1] }}
         className={`fixed top-0 left-0 right-0 z-50 transition-all duration-500 ${
-          scrolled ? "bg-[#0B0B0C]/90 backdrop-blur-xl border-b border-[#2E2E30]" : "bg-transparent"
+          scrolled ? "bg-rp-bg/90 backdrop-blur-xl border-b border-rp-border" : "bg-transparent"
         }`}
         data-testid="navbar"
       >
@@ -61,7 +61,7 @@ export default function Navbar({ variant = "home" }) {
                 <Link
                   key={l.label}
                   to={l.href}
-                  className="text-[#8A8A8E] text-[11px] font-medium uppercase tracking-[0.15em] hover:text-[#F4F1EA] transition-colors duration-300"
+                  className="rp-nav-link"
                 >
                   {l.label}
                 </Link>
@@ -69,7 +69,7 @@ export default function Navbar({ variant = "home" }) {
                 <a
                   key={l.label}
                   href={l.href}
-                  className="text-[#8A8A8E] text-[11px] font-medium uppercase tracking-[0.15em] hover:text-[#F4F1EA] transition-colors duration-300"
+                  className="rp-nav-link"
                 >
                   {l.label}
                 </a>
@@ -91,7 +91,7 @@ export default function Navbar({ variant = "home" }) {
               <>
                 <Link
                   to="/login"
-                  className="text-[#8A8A8E] text-[11px] font-medium uppercase tracking-[0.1em] hover:text-[#F4F1EA] transition-colors px-3 py-1.5"
+                  className="rp-nav-link px-3 py-1.5"
                   data-testid="nav-login"
                 >
                   {t("nav_login")}
@@ -119,7 +119,7 @@ export default function Navbar({ variant = "home" }) {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-40 bg-[#0B0B0C]/98 backdrop-blur-xl md:hidden pt-[56px]"
+            className="fixed inset-0 z-40 bg-rp-bg/98 backdrop-blur-xl md:hidden pt-[56px]"
           >
             <div className="flex flex-col items-center gap-6 p-8">
             {navLinks.map((l, i) =>

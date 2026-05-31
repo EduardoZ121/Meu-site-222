@@ -65,36 +65,27 @@ export default function Tools() {
       data-testid="tools-page"
     >
       <motion.section
-        className="relative -mx-4 sm:-mx-6 md:-mx-10 px-4 sm:px-6 md:px-10 pt-8 pb-10 md:pt-10 md:pb-12 mb-6 md:mb-8 border-b border-white/5 overflow-hidden"
+        className="rp-brand-band relative -mx-4 sm:-mx-6 md:-mx-10 px-4 sm:px-6 md:px-10 pt-8 pb-10 md:pt-10 md:pb-12 mb-6 md:mb-8 overflow-hidden"
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ duration: 0.45, ease: pageEase }}
         aria-labelledby="tools-hero-title"
       >
-        <div className="absolute inset-0 bg-gradient-to-b from-zinc-950 to-black" aria-hidden />
-        <div className="absolute inset-0 bg-[#6b21a8]/[0.06]" aria-hidden />
-        <div
-          className="absolute inset-0 pointer-events-none"
-          aria-hidden
-          style={{
-            background:
-              "radial-gradient(ellipse 80% 50% at 50% 0%, rgba(107,33,168,0.12), transparent 55%)",
-          }}
-        />
+        <div className="rp-brand-band__glow" aria-hidden />
 
         <div className="relative mx-auto flex w-full max-w-xl flex-col items-center text-center">
-          <p className="mb-2 text-[10px] sm:text-[11px] font-mono font-semibold uppercase tracking-[0.18em] text-violet-400/90">
+          <p className="rp-brand-page-header__eyebrow mb-2 justify-center">
             {t("tools_grid.page_eyebrow")}
           </p>
 
           <h1
             id="tools-hero-title"
-            className="mb-3 text-4xl sm:text-5xl font-bold leading-[1.05] tracking-tighter text-white md:text-6xl"
+            className="rp-brand-page-header__title text-center mb-3"
           >
             {t("tools_grid.page_title")}
           </h1>
 
-          <p className="max-w-[420px] text-[15px] leading-relaxed text-zinc-400">
+          <p className="rp-brand-page-header__desc text-center mx-auto">
             {t("tools_grid.page_desc", { n: tabCount })}
           </p>
 

@@ -79,13 +79,11 @@ export default function Hero() {
         >
           <Link
             to={primaryHref}
-            className="group inline-flex items-center justify-center gap-2 w-full sm:w-auto px-7 py-3.5 rounded-xl bg-[#7C3AED] hover:bg-[#8B47EF] active:scale-[0.98] transition-all duration-200 shadow-[0_10px_40px_-12px_rgba(124,58,237,0.7)] hover:shadow-[0_14px_44px_-10px_rgba(124,58,237,0.85)]"
+            className="rp-btn-craft group w-full sm:w-auto"
             data-testid="hero-cta-primary"
           >
-            <span className="text-white text-[14px] font-semibold tracking-wide">
-              {primaryLabel}
-            </span>
-            <ArrowRight className="w-4 h-4 text-white transition-transform group-hover:translate-x-0.5" strokeWidth={2} />
+            <span>{primaryLabel}</span>
+            <ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-0.5" strokeWidth={2} />
           </Link>
 
           <div className="flex items-center gap-5 text-[12px] text-[#6B7280]">

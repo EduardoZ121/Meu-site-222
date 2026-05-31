@@ -226,7 +226,7 @@ export default function ToolFrame({
           className="xl:sticky xl:top-[80px] self-start space-y-3"
         >
           <p className="rp-editor-section-cap !text-[#6b6b70]">{t("tool_preview")}</p>
-          <div className="rp-editor-panel overflow-hidden p-4 sm:p-5" data-testid={`${testId}-result-panel`}>
+          <div className="rp-editor-panel rp-remake-frame overflow-hidden p-4 sm:p-5" data-testid={`${testId}-result-panel`}>
             <ResultPanel creation={result} loading={busy} onChange={onResultChange} emptyLabel={t("tool_result_empty")} />
           </div>
         </StudioResultAnchor>

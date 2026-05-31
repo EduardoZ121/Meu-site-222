@@ -19,7 +19,7 @@ export default function Landing() {
   });
 
   return (
-    <div className="relative min-h-screen bg-[#0B0B0C]" data-testid="landing-page">
+    <div className="relative min-h-screen bg-rp-bg" data-testid="landing-page">
       <div className="noise-overlay" />
       <Navbar />
       <Hero />

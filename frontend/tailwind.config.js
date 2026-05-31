@@ -27,6 +27,7 @@ module.exports = {
           surfaceRaised: "#18181b",
           border: "#27272a",
           text: "#fafafa",
+          cream: "#f4f1ea",
           mute: "#a1a1aa",
           mute2: "#71717a",
           purple: "#7c3aed",

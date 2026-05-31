@@ -1,0 +1,267 @@
+/**
+ * ═══════════════════════════════════════════════════════════════════════════
+ * REMAKE CRAFT — Identidade visual v1
+ * ═══════════════════════════════════════════════════════════════════════════
+ *
+ * Direção escolhida: estúdio de transformação (remake), não “SaaS roxo genérico”.
+ *
+ * Pilares:
+ * 1. Calor humano — texto cream (#F4F1EA), ouro para premium, preto profundo
+ * 2. Precisão pixel — cantos em degrau (marca), grids, frames de preview
+ * 3. Um roxo — acento único; sem arco-íris cyan/fuchsia em todo o UI
+ * 4. Tipografia — Inter Tight para UI; mono SÓ em índices de secção (01 · Foto)
+ * 5. Botões — sólidos, legíveis; sem gradiente neon nem ALL CAPS robótico
+ *
+ * Não somos: cyberpunk, barbie, anime UI, livraria. Somos ferramenta criativa
+ * que “refaz” imagens — frame, split, craft.
+ */
+
+/* ─── Marca: canto pixel / frame de remake ─── */
+.rp-brand-mark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  color: var(--rp-cream);
+}
+
+.rp-brand-mark__svg {
+  display: block;
+}
+
+/* Frame em volta de previews (resultado, cards de tool) */
+.rp-remake-frame {
+  position: relative;
+  border-radius: 0.75rem;
+  border: 1px solid var(--rp-border);
+  background: var(--rp-surface);
+  overflow: hidden;
+}
+
+.rp-remake-frame::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 14px;
+  height: 14px;
+  background: linear-gradient(135deg, transparent 50%, var(--rp-accent) 50%);
+  opacity: 0.85;
+  pointer-events: none;
+  z-index: 2;
+}
+
+.rp-remake-frame::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  border-radius: inherit;
+}
+
+/* Linha de assinatura (substitui arco-íris cyan/fuchsia) */
+.rp-brand-accent-line {
+  height: 1px;
+  width: 100%;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(199, 167, 122, 0.35),
+    rgba(124, 58, 237, 0.55),
+    transparent
+  );
+}
+
+/* ─── Headers de página (tools, studios) ─── */
+.rp-brand-page-header {
+  margin-bottom: 2rem;
+  padding-bottom: 1.5rem;
+  border-bottom: 1px solid var(--rp-glass-border);
+}
+
+.rp-brand-page-header__eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--rp-accent-bright);
+  font-family: 'JetBrains Mono', monospace;
+}
+
+.rp-brand-page-header__title {
+  font-family: 'Inter Tight', system-ui, sans-serif;
+  font-weight: 500;
+  letter-spacing: -0.03em;
+  line-height: 1.08;
+  color: var(--rp-cream);
+  font-size: clamp(1.75rem, 4vw, 2.75rem);
+}
+
+.rp-brand-page-header__desc {
+  margin-top: 0.65rem;
+  max-width: 40rem;
+  font-size: 15px;
+  line-height: 1.6;
+  color: var(--rp-text-secondary);
+}
+
+/* Hero band (tools hub, etc.) */
+.rp-brand-band {
+  position: relative;
+  overflow: hidden;
+  border-bottom: 1px solid var(--rp-glass-border);
+  background: linear-gradient(180deg, var(--rp-bg-elevated) 0%, var(--rp-bg) 100%);
+}
+
+.rp-brand-band__glow {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: radial-gradient(ellipse 80% 60% at 50% -20%, rgba(124, 58, 237, 0.12), transparent 55%);
+}
+
+/* ─── Botões marca (marketing + app) ─── */
+.rp-btn-craft {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.85rem 1.5rem;
+  border-radius: 0.75rem;
+  font-family: 'Inter Tight', system-ui, sans-serif;
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--rp-cream);
+  background: var(--rp-accent);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.15) inset,
+    0 12px 32px -16px rgba(124, 58, 237, 0.55);
+  transition: background 0.2s var(--rp-ease), transform 0.2s var(--rp-ease), box-shadow 0.2s var(--rp-ease);
+}
+
+.rp-btn-craft:hover {
+  background: var(--rp-accent-hover);
+  transform: translateY(-1px);
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.18) inset,
+    0 16px 40px -14px rgba(124, 58, 237, 0.65);
+}
+
+.rp-btn-craft:active {
+  transform: translateY(0);
+}
+
+.rp-btn-craft--secondary {
+  background: transparent;
+  color: var(--rp-text-secondary);
+  border-color: var(--rp-border);
+  box-shadow: none;
+}
+
+.rp-btn-craft--secondary:hover {
+  color: var(--rp-cream);
+  border-color: rgba(124, 58, 237, 0.45);
+  background: rgba(124, 58, 237, 0.08);
+}
+
+/* Nav links públicos — menos “robótico” */
+.rp-nav-link {
+  font-family: 'Inter Tight', system-ui, sans-serif;
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+  color: var(--rp-text-secondary);
+  transition: color 0.2s;
+}
+
+.rp-nav-link:hover {
+  color: var(--rp-cream);
+}
+
+/* Créditos / premium badge */
+.rp-badge-gold {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.35rem 0.75rem;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--rp-gold);
+  border: 1px solid rgba(199, 167, 122, 0.25);
+  background: rgba(199, 167, 122, 0.08);
+}
+
+/* ─── Overrides v1: botões app + marketing (menos robótico / menos neon) ─── */
+.btn-primary {
+  font-family: 'Inter Tight', system-ui, sans-serif !important;
+  font-size: 14px !important;
+  font-weight: 600 !important;
+  letter-spacing: -0.01em !important;
+  text-transform: none !important;
+  background: var(--rp-accent) !important;
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.15) inset,
+    0 12px 32px -16px rgba(124, 58, 237, 0.5) !important;
+}
+
+.btn-primary:hover {
+  filter: none !important;
+  background: var(--rp-accent-hover) !important;
+  transform: translateY(-1px) !important;
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.18) inset,
+    0 16px 40px -14px rgba(124, 58, 237, 0.6) !important;
+}
+
+.btn-secondary {
+  font-family: 'Inter Tight', system-ui, sans-serif !important;
+  font-size: 13px !important;
+  font-weight: 500 !important;
+  letter-spacing: -0.01em !important;
+  text-transform: none !important;
+}
+
+.rp-action-primary,
+.rp-action-primary--ready {
+  font-family: 'Inter Tight', system-ui, sans-serif !important;
+  font-size: 14px !important;
+  font-weight: 600 !important;
+  letter-spacing: -0.01em !important;
+  text-transform: none !important;
+  background: var(--rp-accent) !important;
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.15) inset,
+    0 12px 32px -16px rgba(124, 58, 237, 0.5) !important;
+}
+
+.rp-action-primary--ready {
+  background: var(--rp-accent-mid) !important;
+}
+
+.rp-action-primary:hover:not(:disabled),
+.rp-action-primary--ready:hover:not(:disabled) {
+  filter: none !important;
+  background: var(--rp-accent-hover) !important;
+  transform: translateY(-1px) !important;
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.18) inset,
+    0 16px 40px -14px rgba(124, 58, 237, 0.6) !important;
+}
+
+.rp-editor-section-cap {
+  color: var(--rp-gold) !important;
+  opacity: 0.92;
+}
+
+.heading-display {
+  color: var(--rp-cream);
+}

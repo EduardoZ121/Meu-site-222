@@ -1,14 +1,13 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import {
-  ArrowLeft, Palette, Download,
+  Palette, Download, Sparkles, Image as ImageIcon,
   Check, Move, RotateCcw,
 } from "lucide-react";
 import StudioGenerateBar from "../../../components/StudioGenerateBar";
 import StudioGenerateCostMeta from "../../../components/StudioGenerateCostMeta";
 import { useStudioGenerateGate } from "../../../lib/useStudioGenerateGate";
-import { useNavigate } from "react-router-dom";
-import { formatApiError, uploadPost } from "../../../lib/api";
+import { uploadPost } from "../../../lib/api";
 import { useAuth } from "../../../lib/auth";
 import { usePricing } from "../../../lib/PricingContext";
 import { useStudioMediaPreview } from "../../../hooks/useStudioMediaPreview";
@@ -36,8 +35,7 @@ const VIBE_OPTIONS = [
 export default function Colorize() {
   const { t, errToast, clearUploadToast } = useStudioI18n();
   const { t: tCat } = useI18n();
-  const navigate = useNavigate();
-  const { user, refresh } = useAuth();
+  const { user, refresh, refundCredits } = useAuth();
   const { costs } = usePricing();
 
   const styles = useMemo(
@@ -64,7 +62,23 @@ export default function Colorize() {
   const [customPrompt, setCustomPrompt] = useState("");
 
   const [busy, setBusy] = useState(false);
+  const [progress, setProgress] = useState(0);
   const [result, setResult] = useState(null);
+  const [mobileTab, setMobileTab] = useState("create");
+
+  const panelVisibility = (tab) => (mobileTab !== tab ? "hidden xl:block" : "");
+
+  useEffect(() => {
+    if (!busy) {
+      setProgress(0);
+      return undefined;
+    }
+    const start = Date.now();
+    const timer = window.setInterval(() => {
+      setProgress(Math.floor((Date.now() - start) / 1000));
+    }, 500);
+    return () => window.clearInterval(timer);
+  }, [busy]);
 
   const cost = costs.colorize;
 
@@ -84,7 +98,13 @@ export default function Colorize() {
   const run = async () => {
     if (!photo) { toast.error(t("colorize_err_upload")); return; }
     clearUploadToast();
-    setBusy(true); setResult(null);
+    setMobileTab("result");
+    setBusy(true);
+    setResult(null);
+    window.requestAnimationFrame(() => {
+      window.dispatchEvent(new CustomEvent("rp:scroll-to-result"));
+    });
+    let submitData;
     try {
       const fd = new FormData();
       fd.append("photo", photo);
@@ -93,8 +113,8 @@ export default function Colorize() {
       fd.append("enhance_details", enhanceDetails ? "true" : "false");
       fd.append("vibe", vibe);
       fd.append("custom_prompt", customPrompt);
-      const { data } = await uploadPost("/tools/colorize", fd, { timeout: 240000 });
-      const creation = data?.creation;
+      ({ data: submitData } = await uploadPost("/tools/colorize", fd, { timeout: 240000 }));
+      const creation = submitData?.creation;
       const url = creation?.result_urls?.[0];
       if (!url) throw new Error(t("common_no_result"));
       setResult({ url, id: creation?.id || null, style });
@@ -102,6 +122,10 @@ export default function Colorize() {
       await refresh();
     } catch (err) {
       errToast(err);
+      if (err?.refunded && submitData?.credits_spent && !submitData?.server_billing) {
+        refundCredits?.(submitData.credits_spent, t("studio_refund_desc"));
+      }
+      try { await refresh(); } catch { /* ignore */ }
     } finally { setBusy(false); }
   };
 
@@ -121,13 +145,44 @@ export default function Colorize() {
         </div>
       </div>
 
+      <div
+        className="xl:hidden flex gap-2 mb-5 p-1 rounded-xl border border-white/[0.08] bg-white/[0.03]"
+        role="tablist"
+        data-testid="colorize-mobile-tabs"
+      >
+        {[
+          { id: "create", labelKey: "studio_tab_create", icon: Sparkles },
+          { id: "result", labelKey: "studio_tab_result", icon: ImageIcon },
+        ].map(({ id, labelKey, icon: Icon }) => {
+          const active = mobileTab === id;
+          return (
+            <button
+              key={id}
+              type="button"
+              role="tab"
+              aria-selected={active}
+              onClick={() => setMobileTab(id)}
+              className={`flex-1 inline-flex items-center justify-center gap-1.5 py-2.5 rounded-lg text-sm font-medium transition-all ${
+                active
+                  ? "bg-white/[0.08] text-white shadow-[inset_0_0_0_1px_rgba(167,139,250,0.35)]"
+                  : "text-rp-mute2 hover:text-rp-mute"
+              }`}
+              data-testid={`colorize-tab-${id}`}
+            >
+              <Icon className="w-3.5 h-3.5" strokeWidth={active ? 2 : 1.75} />
+              {tCat(labelKey)}
+            </button>
+          );
+        })}
+      </div>
+
       <div className="grid grid-cols-1 xl:grid-cols-[1fr_440px] gap-10">
-        <div className="space-y-5">
-          {/* 1) UPLOAD */}
+        <div className={`space-y-5 ${panelVisibility("create")}`}>
           <CollapsibleSection title={t("colorize_section_photo")} defaultOpen testId="colorize-section-photo">
             <div className="flex items-baseline justify-between mb-4">
               {photo && (
                 <button
+                  type="button"
                   onClick={reset}
                   className="text-[#5A5A5E] hover:text-[#7C3AED] text-[12px] inline-flex items-center gap-1.5 transition-colors"
                   data-testid="colorize-reset"
@@ -147,11 +202,12 @@ export default function Colorize() {
             />
           </CollapsibleSection>
 
-          <CollapsibleSection title={t("colorize_section_level")} testId="colorize-section-style">
+          <CollapsibleSection title={t("colorize_section_style")} testId="colorize-section-style">
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-3" data-testid="colorize-styles">
-              {styles.map(({ key, label, hint, swatch }) => (
+              {styles.map(({ key, label, hint: styleHint, swatch }) => (
                 <button
                   key={key}
+                  type="button"
                   onClick={() => setStyle(key)}
                   data-testid={`colorize-style-${key}`}
                   className={`relative text-left p-4 rounded-2xl border-2 transition-all overflow-hidden group ${
@@ -163,7 +219,6 @@ export default function Colorize() {
                   {style === key && (
                     <div className="absolute -top-12 -right-12 w-32 h-32 bg-[#7C3AED]/20 blur-3xl pointer-events-none" />
                   )}
-                  {/* swatch row */}
                   <div className="relative flex items-center gap-1 mb-3">
                     {swatch.map((c, i) => (
                       <div key={i} className="w-5 h-5 rounded-full border border-black/20" style={{ background: c }} />
@@ -177,7 +232,7 @@ export default function Colorize() {
                   <p className={`relative text-[15px] font-light tracking-[-0.01em] mb-1 font-['Inter_Tight'] ${
                     style === key ? "text-[#F4F1EA]" : "text-[#F4F1EA]/85"
                   }`}>{label}</p>
-                  <p className="relative text-[#8A8A8E] text-[11.5px] leading-snug">{hint}</p>
+                  <p className="relative text-[#8A8A8E] text-[11.5px] leading-snug">{styleHint}</p>
                 </button>
               ))}
             </div>
@@ -202,7 +257,6 @@ export default function Colorize() {
                 />
               </div>
 
-              {/* Vibe segment */}
               <div className="rounded-xl border border-[#2E2E30] bg-[#13131A]/50 p-3.5 flex flex-col sm:flex-row sm:items-center gap-3" data-testid="colorize-vibe">
                 <div className="flex-1 min-w-0">
                   <p className="text-[#F4F1EA] text-[13px] font-medium font-['Inter_Tight']">{t("colorize_finish_label")}</p>
@@ -214,6 +268,7 @@ export default function Colorize() {
                   {VIBE_OPTIONS.map(({ value, labelKey }) => (
                     <button
                       key={value}
+                      type="button"
                       onClick={() => setVibe(value)}
                       data-testid={`colorize-vibe-${value}`}
                       className={`px-4 py-1.5 text-[12px] rounded-md transition-all font-['Inter_Tight'] ${
@@ -244,6 +299,7 @@ export default function Colorize() {
               {promptIdeas.map((s) => (
                 <button
                   key={s}
+                  type="button"
                   onClick={() => setCustomPrompt(s)}
                   className="text-[#C4B5FD] hover:text-[#F4F1EA] text-[11px] underline decoration-[#5A5A5E] decoration-dashed underline-offset-4 hover:decoration-[#7C3AED] transition-colors"
                 >
@@ -254,9 +310,9 @@ export default function Colorize() {
           </CollapsibleSection>
         </div>
 
-        <StudioResultAnchor busy={busy} ready={Boolean(result?.url)} className="xl:sticky xl:top-[80px] self-start">
+        <StudioResultAnchor busy={busy} ready={Boolean(result?.url)} className={`xl:sticky xl:top-[80px] self-start ${panelVisibility("result")}`}>
           <p className="text-[#5A5A5E] text-[10px] font-mono uppercase tracking-[0.2em] mb-3">{t("common_output")}</p>
-          <ResultArea busy={busy} result={result} originalPreview={resultOriginalUrl} style={style} />
+          <ResultArea busy={busy} progress={progress} result={result} originalPreview={resultOriginalUrl} style={style} />
         </StudioResultAnchor>
       </div>
 
@@ -274,11 +330,10 @@ export default function Colorize() {
   );
 }
 
-/* ------------------------------------------------------------------ */
-
 function Toggle({ active, onClick, label, hint, testId }) {
   return (
     <button
+      type="button"
       onClick={onClick}
       data-testid={testId}
       className={`w-full flex items-start gap-4 p-3.5 rounded-xl border transition-all text-left ${
@@ -300,11 +355,7 @@ function Toggle({ active, onClick, label, hint, testId }) {
   );
 }
 
-/* ------------------------------------------------------------------ */
-/*  Result: side-by-side Before/After slider                           */
-/* ------------------------------------------------------------------ */
-
-function ResultArea({ busy, result, originalPreview, style }) {
+function ResultArea({ busy, progress, result, originalPreview, style }) {
   const { t } = useStudioI18n();
   const styleLabel = t(`colorize_style_${style}_label`);
   if (busy) {
@@ -314,7 +365,9 @@ function ResultArea({ busy, result, originalPreview, style }) {
         <div className="relative w-14 h-14 rounded-full border-2 border-[#7C3AED]/30 border-t-[#C4B5FD] animate-spin mb-5" />
         <p className="relative text-[#F4F1EA] text-[14px] font-medium font-['Inter_Tight']">{t("colorize_loading")}</p>
         <p className="relative text-[#5A5A5E] text-[11px] font-mono uppercase mt-2 tracking-[0.18em]">
-          {t("colorize_loading_sub", { style: styleLabel })}
+          {progress > 0
+            ? t("colorize_loading_sec", { n: progress, style: styleLabel })
+            : t("colorize_loading_sub", { style: styleLabel })}
         </p>
       </div>
     );
@@ -335,7 +388,7 @@ function ResultArea({ busy, result, originalPreview, style }) {
 
 function ResultViewer({ result, originalPreview }) {
   const { t } = useStudioI18n();
-  const [pos, setPos] = useState(50); // slider position 0..100
+  const [pos, setPos] = useState(50);
   const wrapRef = useRef(null);
   const styleLabel = t(`colorize_style_${result.style}_label`);
 
@@ -372,7 +425,6 @@ function ResultViewer({ result, originalPreview }) {
         onTouchMove={(e) => onMove(e.touches[0].clientX)}
         onTouchStart={(e) => onMove(e.touches[0].clientX)}
       >
-        {/* Colorized (full) */}
         <img
           src={result.url}
           alt={t("colorize_alt_colorized")}
@@ -381,7 +433,6 @@ function ResultViewer({ result, originalPreview }) {
           crossOrigin="anonymous"
           draggable={false}
         />
-        {/* Original B&W clipped to left of slider */}
         {originalPreview && (
           <div
             className="absolute inset-0 overflow-hidden"
@@ -396,7 +447,6 @@ function ResultViewer({ result, originalPreview }) {
             />
           </div>
         )}
-        {/* Slider handle */}
         {originalPreview && (
           <>
             <div className="absolute top-0 bottom-0 w-[2px] bg-white/90 shadow-[0_0_8px_rgba(124,58,237,0.6)] pointer-events-none" style={{ left: `${pos}%` }} />
@@ -417,6 +467,7 @@ function ResultViewer({ result, originalPreview }) {
       </div>
       <div className="p-3 flex gap-2 border-t border-[#2E2E30] bg-[#0B0B0C]/60">
         <button
+          type="button"
           onClick={handleDownload}
           className="flex-1 bg-[#7C3AED] hover:bg-[#9333EA] text-white py-3 rounded-lg text-[12.5px] font-medium flex items-center justify-center gap-2 transition-colors"
           data-testid="colorize-download"

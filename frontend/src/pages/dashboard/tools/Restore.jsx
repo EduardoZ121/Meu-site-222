@@ -1,14 +1,13 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import {
-  ArrowLeft, History, Download,
+  History, Download, Sparkles, Image as ImageIcon,
   Check, Move, RotateCcw,
 } from "lucide-react";
 import StudioGenerateBar from "../../../components/StudioGenerateBar";
 import StudioGenerateCostMeta from "../../../components/StudioGenerateCostMeta";
 import { useStudioGenerateGate } from "../../../lib/useStudioGenerateGate";
-import { useNavigate } from "react-router-dom";
-import { formatApiError, uploadPost } from "../../../lib/api";
+import { uploadPost } from "../../../lib/api";
 import { useAuth } from "../../../lib/auth";
 import { usePricing } from "../../../lib/PricingContext";
 import { useStudioMediaPreview } from "../../../hooks/useStudioMediaPreview";
@@ -25,8 +24,7 @@ const RESTORE_PROMPT_KEYS = [1, 2, 3, 4];
 export default function Restore() {
   const { t, errToast, clearUploadToast } = useStudioI18n();
   const { t: tCat } = useI18n();
-  const navigate = useNavigate();
-  const { user, refresh } = useAuth();
+  const { user, refresh, refundCredits } = useAuth();
   const { costs } = usePricing();
 
   const levels = useMemo(
@@ -53,7 +51,23 @@ export default function Restore() {
   const [customPrompt, setCustomPrompt] = useState("");
 
   const [busy, setBusy] = useState(false);
+  const [progress, setProgress] = useState(0);
   const [result, setResult] = useState(null);
+  const [mobileTab, setMobileTab] = useState("create");
+
+  const panelVisibility = (tab) => (mobileTab !== tab ? "hidden xl:block" : "");
+
+  useEffect(() => {
+    if (!busy) {
+      setProgress(0);
+      return undefined;
+    }
+    const start = Date.now();
+    const timer = window.setInterval(() => {
+      setProgress(Math.floor((Date.now() - start) / 1000));
+    }, 500);
+    return () => window.clearInterval(timer);
+  }, [busy]);
 
   const cost = useMemo(() => restoreCostForLevel(costs, level), [costs, level]);
 
@@ -73,7 +87,13 @@ export default function Restore() {
   const run = async () => {
     if (!photo) { toast.error(t("restore_err_upload")); return; }
     clearUploadToast();
-    setBusy(true); setResult(null);
+    setMobileTab("result");
+    setBusy(true);
+    setResult(null);
+    window.requestAnimationFrame(() => {
+      window.dispatchEvent(new CustomEvent("rp:scroll-to-result"));
+    });
+    let submitData;
     try {
       const fd = new FormData();
       fd.append("photo", photo);
@@ -83,8 +103,8 @@ export default function Restore() {
       fd.append("remove_noise", removeNoise ? "true" : "false");
       fd.append("sharpen", sharpen ? "true" : "false");
       fd.append("custom_prompt", customPrompt);
-      const { data } = await uploadPost("/tools/restore", fd, { timeout: 240000 });
-      const creation = data?.creation;
+      ({ data: submitData } = await uploadPost("/tools/restore", fd, { timeout: 240000 }));
+      const creation = submitData?.creation;
       const url = creation?.result_urls?.[0];
       if (!url) throw new Error(t("common_no_result"));
       setResult({ url, id: creation?.id || null, level });
@@ -92,12 +112,15 @@ export default function Restore() {
       await refresh();
     } catch (err) {
       errToast(err);
+      if (err?.refunded && submitData?.credits_spent && !submitData?.server_billing) {
+        refundCredits?.(submitData.credits_spent, t("studio_refund_desc"));
+      }
+      try { await refresh(); } catch { /* ignore */ }
     } finally { setBusy(false); }
   };
 
   return (
     <div className="max-w-[1400px] mx-auto pb-32" data-testid="restore-frame">
-      {/* Hero header */}
       <div className="mb-12 flex items-start gap-5">
         <div className="shrink-0 w-14 h-14 rounded-2xl bg-[#7C3AED]/15 border border-[#7C3AED]/30 flex items-center justify-center">
           <History className="w-7 h-7 text-[#C4B5FD]" strokeWidth={1.5} />
@@ -112,9 +135,39 @@ export default function Restore() {
         </div>
       </div>
 
+      <div
+        className="xl:hidden flex gap-2 mb-5 p-1 rounded-xl border border-white/[0.08] bg-white/[0.03]"
+        role="tablist"
+        data-testid="restore-mobile-tabs"
+      >
+        {[
+          { id: "create", labelKey: "studio_tab_create", icon: Sparkles },
+          { id: "result", labelKey: "studio_tab_result", icon: ImageIcon },
+        ].map(({ id, labelKey, icon: Icon }) => {
+          const active = mobileTab === id;
+          return (
+            <button
+              key={id}
+              type="button"
+              role="tab"
+              aria-selected={active}
+              onClick={() => setMobileTab(id)}
+              className={`flex-1 inline-flex items-center justify-center gap-1.5 py-2.5 rounded-lg text-sm font-medium transition-all ${
+                active
+                  ? "bg-white/[0.08] text-white shadow-[inset_0_0_0_1px_rgba(167,139,250,0.35)]"
+                  : "text-rp-mute2 hover:text-rp-mute"
+              }`}
+              data-testid={`restore-tab-${id}`}
+            >
+              <Icon className="w-3.5 h-3.5" strokeWidth={active ? 2 : 1.75} />
+              {tCat(labelKey)}
+            </button>
+          );
+        })}
+      </div>
+
       <div className="grid grid-cols-1 xl:grid-cols-[1fr_440px] gap-10">
-        <div className="space-y-5">
-          {/* 1) UPLOAD */}
+        <div className={`space-y-5 ${panelVisibility("create")}`}>
           <CollapsibleSection title={t("restore_section_photo")} defaultOpen testId="restore-section-photo">
             <div className="flex items-baseline justify-between mb-4">
               {photo && (
@@ -139,7 +192,7 @@ export default function Restore() {
 
           <CollapsibleSection title={t("restore_section_level")} testId="restore-section-level">
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3" data-testid="restore-levels">
-              {levels.map(({ key, label, hint }) => (
+              {levels.map(({ key, label, hint: levelHint }) => (
                 <button
                   key={key}
                   onClick={() => setLevel(key)}
@@ -164,7 +217,7 @@ export default function Restore() {
                   <p className={`relative text-[16px] font-light tracking-[-0.01em] mb-1 font-['Inter_Tight'] ${
                     level === key ? "text-[#F4F1EA]" : "text-[#F4F1EA]/85"
                   }`}>{label}</p>
-                  <p className="relative text-[#8A8A8E] text-[11.5px] leading-snug">{hint}</p>
+                  <p className="relative text-[#8A8A8E] text-[11.5px] leading-snug">{levelHint}</p>
                 </button>
               ))}
             </div>
@@ -217,6 +270,7 @@ export default function Restore() {
               {promptIdeas.map((s) => (
                 <button
                   key={s}
+                  type="button"
                   onClick={() => setCustomPrompt(s)}
                   className="text-[#C4B5FD] hover:text-[#F4F1EA] text-[11px] underline decoration-[#5A5A5E] decoration-dashed underline-offset-4 hover:decoration-[#7C3AED] transition-colors"
                 >
@@ -227,9 +281,9 @@ export default function Restore() {
           </CollapsibleSection>
         </div>
 
-        <StudioResultAnchor busy={busy} ready={Boolean(result?.url)} className="xl:sticky xl:top-[80px] self-start">
+        <StudioResultAnchor busy={busy} ready={Boolean(result?.url)} className={`xl:sticky xl:top-[80px] self-start ${panelVisibility("result")}`}>
           <p className="text-[#5A5A5E] text-[10px] font-mono uppercase tracking-[0.2em] mb-3">{t("common_output")}</p>
-          <ResultArea busy={busy} result={result} originalPreview={resultOriginalUrl} level={level} />
+          <ResultArea busy={busy} progress={progress} result={result} originalPreview={resultOriginalUrl} level={level} />
         </StudioResultAnchor>
       </div>
 
@@ -247,10 +301,7 @@ export default function Restore() {
   );
 }
 
-/* ------------------------------------------------------------------ */
-
 function IntensityBars({ active, index }) {
-  // Show 1, 2, or 3 bars indicating leve/medio/profundo intensity
   const filled = index + 1;
   return (
     <div className="flex items-end gap-1 h-6">
@@ -272,6 +323,7 @@ function IntensityBars({ active, index }) {
 function Toggle({ active, onClick, label, hint, testId }) {
   return (
     <button
+      type="button"
       onClick={onClick}
       data-testid={testId}
       className={`w-full flex items-start gap-4 p-3.5 rounded-xl border transition-all text-left ${
@@ -293,7 +345,7 @@ function Toggle({ active, onClick, label, hint, testId }) {
   );
 }
 
-function ResultArea({ busy, result, originalPreview, level }) {
+function ResultArea({ busy, progress, result, originalPreview, level }) {
   const { t } = useStudioI18n();
   const levelLabel = t(`restore_level_${level}_label`);
   if (busy) {
@@ -303,7 +355,9 @@ function ResultArea({ busy, result, originalPreview, level }) {
         <div className="relative w-14 h-14 rounded-full border-2 border-[#7C3AED]/30 border-t-[#C4B5FD] animate-spin mb-5" />
         <p className="relative text-[#F4F1EA] text-[14px] font-medium font-['Inter_Tight']">{t("restore_loading")}</p>
         <p className="relative text-[#5A5A5E] text-[11px] font-mono uppercase mt-2 tracking-[0.18em]">
-          {t("restore_loading_sub", { level: levelLabel })}
+          {progress > 0
+            ? t("restore_loading_sec", { n: progress, level: levelLabel })
+            : t("restore_loading_sub", { level: levelLabel })}
         </p>
       </div>
     );
@@ -368,6 +422,7 @@ function ResultViewer({ result, originalPreview }) {
         </div>
         {originalPreview && (
           <button
+            type="button"
             onMouseDown={() => setShowCompare(true)}
             onMouseUp={() => setShowCompare(false)}
             onMouseLeave={() => setShowCompare(false)}
@@ -383,6 +438,7 @@ function ResultViewer({ result, originalPreview }) {
       </div>
       <div className="p-3 flex gap-2 border-t border-[#2E2E30] bg-[#0B0B0C]/60">
         <button
+          type="button"
           onClick={handleDownload}
           className="flex-1 bg-[#7C3AED] hover:bg-[#9333EA] text-white py-3 rounded-lg text-[12.5px] font-medium flex items-center justify-center gap-2 transition-colors"
           data-testid="restore-download"

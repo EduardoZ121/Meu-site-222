@@ -116,6 +116,7 @@ const en = {
   restore_processing: "Restoring…",
   restore_loading: "Restoring photo…",
   restore_loading_sub: "30–90 sec · level {level}",
+  restore_loading_sec: "{n}s · level {level}",
   restore_desc_long:
     "Repair faded, scratched, or low-quality prints while keeping a natural look. Reduces imperfections and improves faces, color, and clarity.",
   restore_result_badge: "Restored · {label}",
@@ -314,6 +315,7 @@ const pt = {
   restore_processing: "A restaurar…",
   restore_loading: "A restaurar a foto…",
   restore_loading_sub: "30–90 seg · nível {level}",
+  restore_loading_sec: "{n}s · nível {level}",
   restore_desc_long:
     "Recupera fotos desbotadas, riscadas ou de baixa qualidade com aspeto natural. Reduz imperfeições e melhora rostos, cor e nitidez.",
   restore_result_badge: "Restaurado · {label}",

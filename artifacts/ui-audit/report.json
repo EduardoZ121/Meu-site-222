@@ -1,0 +1,3159 @@
+{
+  "ts": "2026-05-31T09:10:18.043Z",
+  "base": "http://127.0.0.1:3001",
+  "issues": [
+    {
+      "type": "behind-fixed-cta",
+      "page": "home/desktop@y0",
+      "tag": "A",
+      "testId": "hero-cta-primary",
+      "text": "Open studio",
+      "bottom": 665,
+      "vh": 900,
+      "inset": 900
+    },
+    {
+      "type": "behind-fixed-cta",
+      "page": "home/desktop@y0",
+      "tag": "A",
+      "testId": "hero-cta-gallery",
+      "text": "See creations",
+      "bottom": 699,
+      "vh": 900,
+      "inset": 900
+    },
+    {
+      "type": "behind-fixed-cta",
+      "page": "home/desktop@y0",
+      "tag": "A",
+      "testId": "hero-cta-learn",
+      "text": "Learn more",
+      "bottom": 699,
+      "vh": 900,
+      "inset": 900
+    },
+    {
+      "type": "behind-fixed-cta",
+      "page": "home/desktop@y0",
+      "tag": "BUTTON",
+      "testId": "hero-scroll-cue",
+      "text": "Scroll",
+      "bottom": 868,
+      "vh": 900,
+      "inset": 900
+    },
+    {
+      "type": "behind-fixed-cta",
+      "page": "home/desktop@y593",
+      "tag": "A",
+      "testId": "hero-cta-primary",
+      "text": "Open studio",
+      "bottom": 72,
+      "vh": 900,
+      "inset": 900
+    },
+    {
+      "type": "behind-fixed-cta",
+      "page": "home/desktop@y593",
+      "tag": "A",
+      "testId": "hero-cta-gallery",
+      "text": "See creations",
+      "bottom": 106,
+      "vh": 900,
+      "inset": 900
+    },
+    {
+      "type": "behind-fixed-cta",
+      "page": "home/desktop@y593",
+      "tag": "A",
+      "testId": "hero-cta-learn",
+      "text": "Learn more",
+      "bottom": 106,
+      "vh": 900,
+      "inset": 900
+    },
+    {
+      "type": "behind-fixed-cta",
+      "page": "home/desktop@y593",
+      "tag": "BUTTON",
+      "testId": "hero-scroll-cue",
+      "text": "Scroll",
+      "bottom": 275,
+      "vh": 900,
+      "inset": 900
+    },
+    {
+      "type": "behind-fixed-cta",
+      "page": "home/desktop@y593",
+      "tag": "A",
+      "testId": "home-strip-cta",
+      "text": "Learn more →",
+      "bottom": 703,
+      "vh": 900,
+      "inset": 900
+    },
+    {
+      "type": "behind-fixed-cta",
+      "page": "home/desktop@y1185",
+      "tag": "A",
+      "testId": "home-strip-cta",
+      "text": "Learn more →",
+      "bottom": 111,
+      "vh": 900,
+      "inset": 900
+    },
+    {
+      "type": "behind-fixed-cta",
+      "page": "discover/desktop@y0",
+      "tag": "A",
+      "testId": "discover-cta-start",
+      "text": "Start free — 50 credits",
+      "bottom": 616,
+      "vh": 900,
+      "inset": 900
+    },
+    {
+      "type": "behind-fixed-cta",
+      "page": "discover/desktop@y0",
+      "tag": "A",
+      "testId": "discover-cta-scroll",
+      "text": "Explore sessions",
+      "bottom": 616,
+      "vh": 900,
+      "inset": 900
+    },
+    {
+      "type": "behind-fixed-cta",
+      "page": "discover/desktop@y0",
+      "tag": "ARTICLE",
+      "testId": "showcase-generate",
+      "text": "01 — GenerateGenerateFrom a sentence to a publish-ready imag",
+      "bottom": 1350,
+      "vh": 900,
+      "inset": 900
+    },
+    {
+      "type": "behind-fixed-cta",
+      "page": "discover/desktop@y1309",
+      "tag": "ARTICLE",
+      "testId": "showcase-generate",
+      "text": "01 — GenerateGenerateFrom a sentence to a publish-ready imag",
+      "bottom": 41,
+      "vh": 900,
+      "inset": 900
+    },
+    {
+      "type": "behind-fixed-cta",
+      "page": "discover/desktop@y9161",
+      "tag": "BUTTON",
+      "testId": "faq-q-0",
+      "text": "O que é o Remake Pixel?",
+      "bottom": 73,
+      "vh": 900,
+      "inset": 900
+    },
+    {
+      "type": "behind-fixed-cta",
+      "page": "discover/desktop@y9161",
+      "tag": "BUTTON",
+      "testId": "faq-q-1",
+      "text": "Como funcionam os créditos?",
+      "bottom": 134,
+      "vh": 900,
+      "inset": 900
+    },
+    {
+      "type": "behind-fixed-cta",
+      "page": "discover/desktop@y9161",
+      "tag": "BUTTON",
+      "testId": "faq-q-2",
+      "text": "Recebo créditos grátis?",
+      "bottom": 196,
+      "vh": 900,
+      "inset": 900
+    },
+    {
+      "type": "behind-fixed-cta",
+      "page": "discover/desktop@y9161",
+      "tag": "BUTTON",
+      "testId": "faq-q-3",
+      "text": "Que modelos de IA usam?",
+      "bottom": 257,
+      "vh": 900,
+      "inset": 900
+    },
+    {
+      "type": "behind-fixed-cta",
+      "page": "discover/desktop@y9161",
+      "tag": "BUTTON",
+      "testId": "faq-q-4",
+      "text": "Posso usar as minhas fotos?",
+      "bottom": 319,
+      "vh": 900,
+      "inset": 900
+    },
+    {
+      "type": "behind-fixed-cta",
+      "page": "discover/desktop@y9161",
+      "tag": "BUTTON",
+      "testId": "faq-q-5",
+      "text": "Que formatos são suportados?",
+      "bottom": 380,
+      "vh": 900,
+      "inset": 900
+    },
+    {
+      "type": "behind-fixed-cta",
+      "page": "discover/desktop@y9161",
+      "tag": "BUTTON",
+      "testId": "faq-q-6",
+      "text": "Posso vender o que crio?",
+      "bottom": 442,
+      "vh": 900,
+      "inset": 900
+    },
+    {
+      "type": "behind-fixed-cta",
+      "page": "discover/desktop@y9161",
+      "tag": "BUTTON",
+      "testId": "faq-q-7",
+      "text": "Qual é a política de reembolso?",
+      "bottom": 503,
+      "vh": 900,
+      "inset": 900
+    },
+    {
+      "type": "behind-fixed-cta",
+      "page": "discover/desktop@y9161",
+      "tag": "BUTTON",
+      "testId": "faq-q-8",
+      "text": "Existe subscrição obrigatória?",
+      "bottom": 565,
+      "vh": 900,
+      "inset": 900
+    },
+    {
+      "type": "behind-fixed-cta",
+      "page": "discover/desktop@y9161",
+      "tag": "BUTTON",
+      "testId": "faq-q-9",
+      "text": "Em que idiomas funciona?",
+      "bottom": 626,
+      "vh": 900,
+      "inset": 900
+    },
+    {
+      "type": "behind-fixed-cta",
+      "page": "discover/desktop@y9161",
+      "tag": "SECTION",
+      "testId": "cta-section",
+      "text": "Remake PixelNão esperes pela imagem perfeita.Cria-a.Começar ",
+      "bottom": 1272,
+      "vh": 900,
+      "inset": 900
+    },
+    {
+      "type": "behind-fixed-cta",
+      "page": "discover/desktop@y10470",
+      "tag": "BUTTON",
+      "testId": "faq-q-8",
+      "text": "Existe subscrição obrigatória?",
+      "bottom": 17,
+      "vh": 900,
+      "inset": 900
+    },
+    {
+      "type": "behind-fixed-cta",
+      "page": "discover/desktop@y10470",
+      "tag": "BUTTON",
+      "testId": "faq-q-9",
+      "text": "Em que idiomas funciona?",
+      "bottom": 78,
+      "vh": 900,
+      "inset": 900
+    },
+    {
+      "type": "behind-fixed-cta",
+      "page": "discover/desktop@y10470",
+      "tag": "SECTION",
+      "testId": "cta-section",
+      "text": "Remake PixelNão esperes pela imagem perfeita.Cria-a.Começar ",
+      "bottom": 724,
+      "vh": 900,
+      "inset": 900
+    },
+    {
+      "type": "behind-fixed-cta",
+      "page": "discover/desktop@y10470",
+      "tag": "A",
+      "testId": "cta-primary",
+      "text": "Começar grátis — 50 créditos",
+      "bottom": 612,
+      "vh": 900,
+      "inset": 900
+    },
+    {
+      "type": "behind-fixed-cta",
+      "page": "discover/desktop@y10470",
+      "tag": "A",
+      "testId": "cta-secondary",
+      "text": "Ver pacotes",
+      "bottom": 612,
+      "vh": 900,
+      "inset": 900
+    },
+    {
+      "type": "behind-fixed-cta",
+      "page": "home/mobile@y0",
+      "tag": "BUTTON",
+      "testId": "mobile-toggle",
+      "text": "",
+      "bottom": 38,
+      "vh": 844,
+      "inset": 844
+    },
+    {
+      "type": "behind-fixed-cta",
+      "page": "home/mobile@y0",
+      "tag": "A",
+      "testId": "hero-cta-primary",
+      "text": "Open studio",
+      "bottom": 574,
+      "vh": 844,
+      "inset": 844
+    },
+    {
+      "type": "behind-fixed-cta",
+      "page": "home/mobile@y0",
+      "tag": "A",
+      "testId": "hero-cta-gallery",
+      "text": "See creations",
+      "bottom": 608,
+      "vh": 844,
+      "inset": 844
+    },
+    {
+      "type": "behind-fixed-cta",
+      "page": "home/mobile@y0",
+      "tag": "A",
+      "testId": "hero-cta-learn",
+      "text": "Learn more",
+      "bottom": 608,
+      "vh": 844,
+      "inset": 844
+    },
+    {
+      "type": "behind-fixed-cta",
+      "page": "home/mobile@y0",
+      "tag": "BUTTON",
+      "testId": "hero-scroll-cue",
+      "text": "Scroll",
+      "bottom": 812,
+      "vh": 844,
+      "inset": 844
+    },
+    {
+      "type": "behind-fixed-cta",
+      "page": "home/mobile@y546",
+      "tag": "BUTTON",
+      "testId": "mobile-toggle",
+      "text": "",
+      "bottom": 38,
+      "vh": 844,
+      "inset": 844
+    },
+    {
+      "type": "behind-fixed-cta",
+      "page": "home/mobile@y546",
+      "tag": "A",
+      "testId": "hero-cta-primary",
+      "text": "Open studio",
+      "bottom": 28,
+      "vh": 844,
+      "inset": 844
+    },
+    {
+      "type": "behind-fixed-cta",
+      "page": "home/mobile@y546",
+      "tag": "A",
+      "testId": "hero-cta-gallery",
+      "text": "See creations",
+      "bottom": 62,
+      "vh": 844,
+      "inset": 844
+    },
+    {
+      "type": "behind-fixed-cta",
+      "page": "home/mobile@y546",
+      "tag": "A",
+      "testId": "hero-cta-learn",
+      "text": "Learn more",
+      "bottom": 62,
+      "vh": 844,
+      "inset": 844
+    },
+    {
+      "type": "behind-fixed-cta",
+      "page": "home/mobile@y546",
+      "tag": "BUTTON",
+      "testId": "hero-scroll-cue",
+      "text": "Scroll",
+      "bottom": 266,
+      "vh": 844,
+      "inset": 844
+    },
+    {
+      "type": "behind-fixed-cta",
+      "page": "home/mobile@y546",
+      "tag": "A",
+      "testId": "home-strip-cta",
+      "text": "Learn more →",
+      "bottom": 656,
+      "vh": 844,
+      "inset": 844
+    },
+    {
+      "type": "behind-fixed-cta",
+      "page": "home/mobile@y1092",
+      "tag": "BUTTON",
+      "testId": "mobile-toggle",
+      "text": "",
+      "bottom": 38,
+      "vh": 844,
+      "inset": 844
+    },
+    {
+      "type": "behind-fixed-cta",
+      "page": "home/mobile@y1092",
+      "tag": "A",
+      "testId": "home-strip-cta",
+      "text": "Learn more →",
+      "bottom": 110,
+      "vh": 844,
+      "inset": 844
+    },
+    {
+      "type": "behind-fixed-cta",
+      "page": "home/mobile@y1638",
+      "tag": "BUTTON",
+      "testId": "mobile-toggle",
+      "text": "",
+      "bottom": 38,
+      "vh": 844,
+      "inset": 844
+    },
+    {
+      "type": "behind-fixed-cta",
+      "page": "home/mobile@y2184",
+      "tag": "BUTTON",
+      "testId": "mobile-toggle",
+      "text": "",
+      "bottom": 38,
+      "vh": 844,
+      "inset": 844
+    },
+    {
+      "type": "behind-fixed-cta",
+      "page": "home/mobile@y2730",
+      "tag": "BUTTON",
+      "testId": "mobile-toggle",
+      "text": "",
+      "bottom": 38,
+      "vh": 844,
+      "inset": 844
+    },
+    {
+      "type": "behind-fixed-cta",
+      "page": "discover/mobile@y0",
+      "tag": "BUTTON",
+      "testId": "mobile-toggle",
+      "text": "",
+      "bottom": 38,
+      "vh": 844,
+      "inset": 844
+    },
+    {
+      "type": "behind-fixed-cta",
+      "page": "discover/mobile@y0",
+      "tag": "A",
+      "testId": "discover-cta-start",
+      "text": "Start free — 50 credits",
+      "bottom": 485,
+      "vh": 844,
+      "inset": 844
+    },
+    {
+      "type": "behind-fixed-cta",
+      "page": "discover/mobile@y0",
+      "tag": "A",
+      "testId": "discover-cta-scroll",
+      "text": "Explore sessions",
+      "bottom": 543,
+      "vh": 844,
+      "inset": 844
+    },
+    {
+      "type": "behind-fixed-cta",
+      "page": "discover/mobile@y0",
+      "tag": "ARTICLE",
+      "testId": "showcase-generate",
+      "text": "01 — GenerateGenerateFrom a sentence to a publish-ready imag",
+      "bottom": 1272,
+      "vh": 844,
+      "inset": 844
+    },
+    {
+      "type": "behind-fixed-cta",
+      "page": "discover/mobile@y1457",
+      "tag": "BUTTON",
+      "testId": "mobile-toggle",
+      "text": "",
+      "bottom": 38,
+      "vh": 844,
+      "inset": 844
+    },
+    {
+      "type": "behind-fixed-cta",
+      "page": "discover/mobile@y2913",
+      "tag": "BUTTON",
+      "testId": "mobile-toggle",
+      "text": "",
+      "bottom": 38,
+      "vh": 844,
+      "inset": 844
+    },
+    {
+      "type": "behind-fixed-cta",
+      "page": "discover/mobile@y4370",
+      "tag": "BUTTON",
+      "testId": "mobile-toggle",
+      "text": "",
+      "bottom": 38,
+      "vh": 844,
+      "inset": 844
+    },
+    {
+      "type": "behind-fixed-cta",
+      "page": "discover/mobile@y5827",
+      "tag": "BUTTON",
+      "testId": "mobile-toggle",
+      "text": "",
+      "bottom": 38,
+      "vh": 844,
+      "inset": 844
+    },
+    {
+      "type": "behind-fixed-cta",
+      "page": "discover/mobile@y7283",
+      "tag": "BUTTON",
+      "testId": "mobile-toggle",
+      "text": "",
+      "bottom": 38,
+      "vh": 844,
+      "inset": 844
+    },
+    {
+      "type": "behind-fixed-cta",
+      "page": "discover/mobile@y8740",
+      "tag": "BUTTON",
+      "testId": "mobile-toggle",
+      "text": "",
+      "bottom": 38,
+      "vh": 844,
+      "inset": 844
+    },
+    {
+      "type": "behind-fixed-cta",
+      "page": "discover/mobile@y10196",
+      "tag": "BUTTON",
+      "testId": "mobile-toggle",
+      "text": "",
+      "bottom": 38,
+      "vh": 844,
+      "inset": 844
+    },
+    {
+      "type": "behind-fixed-cta",
+      "page": "discover/mobile@y10196",
+      "tag": "BUTTON",
+      "testId": "faq-q-0",
+      "text": "O que é o Remake Pixel?",
+      "bottom": 557,
+      "vh": 844,
+      "inset": 844
+    },
+    {
+      "type": "behind-fixed-cta",
+      "page": "discover/mobile@y10196",
+      "tag": "BUTTON",
+      "testId": "faq-q-1",
+      "text": "Como funcionam os créditos?",
+      "bottom": 615,
+      "vh": 844,
+      "inset": 844
+    },
+    {
+      "type": "behind-fixed-cta",
+      "page": "discover/mobile@y10196",
+      "tag": "BUTTON",
+      "testId": "faq-q-2",
+      "text": "Recebo créditos grátis?",
+      "bottom": 672,
+      "vh": 844,
+      "inset": 844
+    },
+    {
+      "type": "behind-fixed-cta",
+      "page": "discover/mobile@y10196",
+      "tag": "BUTTON",
+      "testId": "faq-q-3",
+      "text": "Que modelos de IA usam?",
+      "bottom": 730,
+      "vh": 844,
+      "inset": 844
+    },
+    {
+      "type": "behind-fixed-cta",
+      "page": "discover/mobile@y10196",
+      "tag": "BUTTON",
+      "testId": "faq-q-4",
+      "text": "Posso usar as minhas fotos?",
+      "bottom": 787,
+      "vh": 844,
+      "inset": 844
+    },
+    {
+      "type": "behind-fixed-cta",
+      "page": "discover/mobile@y10196",
+      "tag": "BUTTON",
+      "testId": "faq-q-5",
+      "text": "Que formatos são suportados?",
+      "bottom": 845,
+      "vh": 844,
+      "inset": 844
+    },
+    {
+      "type": "behind-fixed-cta",
+      "page": "discover/mobile@y11653",
+      "tag": "BUTTON",
+      "testId": "mobile-toggle",
+      "text": "",
+      "bottom": 38,
+      "vh": 844,
+      "inset": 844
+    },
+    {
+      "type": "behind-fixed-cta",
+      "page": "discover/mobile@y11653",
+      "tag": "BUTTON",
+      "testId": "faq-q-6",
+      "text": "Posso vender o que crio?",
+      "bottom": 57,
+      "vh": 844,
+      "inset": 844
+    },
+    {
+      "type": "behind-fixed-cta",
+      "page": "discover/mobile@y11653",
+      "tag": "BUTTON",
+      "testId": "faq-q-7",
+      "text": "Qual é a política de reembolso?",
+      "bottom": 115,
+      "vh": 844,
+      "inset": 844
+    },
+    {
+      "type": "behind-fixed-cta",
+      "page": "discover/mobile@y11653",
+      "tag": "BUTTON",
+      "testId": "faq-q-8",
+      "text": "Existe subscrição obrigatória?",
+      "bottom": 172,
+      "vh": 844,
+      "inset": 844
+    },
+    {
+      "type": "behind-fixed-cta",
+      "page": "discover/mobile@y11653",
+      "tag": "BUTTON",
+      "testId": "faq-q-9",
+      "text": "Em que idiomas funciona?",
+      "bottom": 230,
+      "vh": 844,
+      "inset": 844
+    },
+    {
+      "type": "behind-fixed-cta",
+      "page": "discover/mobile@y11653",
+      "tag": "SECTION",
+      "testId": "cta-section",
+      "text": "Remake PixelNão esperes pela imagem perfeita.Cria-a.Começar ",
+      "bottom": 672,
+      "vh": 844,
+      "inset": 844
+    },
+    {
+      "type": "behind-fixed-cta",
+      "page": "discover/mobile@y11653",
+      "tag": "A",
+      "testId": "cta-primary",
+      "text": "Começar grátis — 50 créditos",
+      "bottom": 553,
+      "vh": 844,
+      "inset": 844
+    },
+    {
+      "type": "behind-fixed-cta",
+      "page": "discover/mobile@y11653",
+      "tag": "A",
+      "testId": "cta-secondary",
+      "text": "Ver pacotes",
+      "bottom": 611,
+      "vh": 844,
+      "inset": 844
+    },
+    {
+      "type": "behind-fixed-cta",
+      "page": "explore/mobile@y0",
+      "tag": "BUTTON",
+      "testId": "mobile-toggle",
+      "text": "",
+      "bottom": 38,
+      "vh": 844,
+      "inset": 844
+    },
+    {
+      "type": "behind-fixed-cta",
+      "page": "explore/mobile@y465",
+      "tag": "BUTTON",
+      "testId": "mobile-toggle",
+      "text": "",
+      "bottom": 38,
+      "vh": 844,
+      "inset": 844
+    },
+    {
+      "type": "behind-fixed-cta",
+      "page": "explore/mobile@y929",
+      "tag": "BUTTON",
+      "testId": "mobile-toggle",
+      "text": "",
+      "bottom": 38,
+      "vh": 844,
+      "inset": 844
+    },
+    {
+      "type": "behind-fixed-cta",
+      "page": "pro/desktop@y0",
+      "tag": "BUTTON",
+      "testId": "procat-realism",
+      "text": "Realism presetsPhotographic looks — cinema, iPhone, studio, ",
+      "bottom": 885,
+      "vh": 900,
+      "inset": 108
+    },
+    {
+      "type": "behind-fixed-cta",
+      "page": "pro/desktop@y0",
+      "tag": "BUTTON",
+      "testId": "procat-mood",
+      "text": "Mood & styleAtmosphere and emotion — seductive, intense, rom",
+      "bottom": 885,
+      "vh": 900,
+      "inset": 108
+    },
+    {
+      "type": "behind-fixed-cta",
+      "page": "pro/desktop@y0",
+      "tag": "BUTTON",
+      "testId": "procat-enhance",
+      "text": "EnhancementsSurgical refinements — lighting, skin, eyes, clo",
+      "bottom": 885,
+      "vh": 900,
+      "inset": 108
+    },
+    {
+      "type": "behind-fixed-cta",
+      "page": "pro/desktop@y0",
+      "tag": "DIV",
+      "testId": "pro-create-bar",
+      "text": "Cost for this action35creditsBalance420Refine · 35 creditsUp",
+      "bottom": 900,
+      "vh": 900,
+      "inset": 108
+    },
+    {
+      "type": "behind-fixed-cta",
+      "page": "pro/desktop@y0",
+      "tag": "BUTTON",
+      "testId": "pro-create",
+      "text": "Refine · 35 credits",
+      "bottom": 860,
+      "vh": 900,
+      "inset": 108
+    },
+    {
+      "type": "behind-fixed-cta",
+      "page": "pro/desktop@y0",
+      "tag": "P",
+      "testId": "pro-create-hint",
+      "text": "Upload the required photo to continue",
+      "bottom": 882,
+      "vh": 900,
+      "inset": 108
+    },
+    {
+      "type": "behind-fixed-cta",
+      "page": "pro/desktop@y450",
+      "tag": "BUTTON",
+      "testId": "procat-realism",
+      "text": "Realism presetsPhotographic looks — cinema, iPhone, studio, ",
+      "bottom": 885,
+      "vh": 900,
+      "inset": 108
+    },
+    {
+      "type": "behind-fixed-cta",
+      "page": "pro/desktop@y450",
+      "tag": "BUTTON",
+      "testId": "procat-mood",
+      "text": "Mood & styleAtmosphere and emotion — seductive, intense, rom",
+      "bottom": 885,
+      "vh": 900,
+      "inset": 108
+    },
+    {
+      "type": "behind-fixed-cta",
+      "page": "pro/desktop@y450",
+      "tag": "BUTTON",
+      "testId": "procat-enhance",
+      "text": "EnhancementsSurgical refinements — lighting, skin, eyes, clo",
+      "bottom": 885,
+      "vh": 900,
+      "inset": 108
+    },
+    {
+      "type": "behind-fixed-cta",
+      "page": "pro/desktop@y450",
+      "tag": "DIV",
+      "testId": "pro-create-bar",
+      "text": "Cost for this action35creditsBalance420Refine · 35 creditsUp",
+      "bottom": 900,
+      "vh": 900,
+      "inset": 108
+    },
+    {
+      "type": "behind-fixed-cta",
+      "page": "pro/desktop@y450",
+      "tag": "BUTTON",
+      "testId": "pro-create",
+      "text": "Refine · 35 credits",
+      "bottom": 860,
+      "vh": 900,
+      "inset": 108
+    },
+    {
+      "type": "behind-fixed-cta",
+      "page": "pro/desktop@y450",
+      "tag": "P",
+      "testId": "pro-create-hint",
+      "text": "Upload the required photo to continue",
+      "bottom": 882,
+      "vh": 900,
+      "inset": 108
+    },
+    {
+      "type": "behind-fixed-cta",
+      "page": "pro/desktop@y900",
+      "tag": "BUTTON",
+      "testId": "procat-realism",
+      "text": "Realism presetsPhotographic looks — cinema, iPhone, studio, ",
+      "bottom": 885,
+      "vh": 900,
+      "inset": 108
+    },
+    {
+      "type": "behind-fixed-cta",
+      "page": "pro/desktop@y900",
+      "tag": "BUTTON",
+      "testId": "procat-mood",
+      "text": "Mood & styleAtmosphere and emotion — seductive, intense, rom",
+      "bottom": 885,
+      "vh": 900,
+      "inset": 108
+    },
+    {
+      "type": "behind-fixed-cta",
+      "page": "pro/desktop@y900",
+      "tag": "BUTTON",
+      "testId": "procat-enhance",
+      "text": "EnhancementsSurgical refinements — lighting, skin, eyes, clo",
+      "bottom": 885,
+      "vh": 900,
+      "inset": 108
+    },
+    {
+      "type": "behind-fixed-cta",
+      "page": "pro/desktop@y900",
+      "tag": "DIV",
+      "testId": "pro-create-bar",
+      "text": "Cost for this action35creditsBalance420Refine · 35 creditsUp",
+      "bottom": 900,
+      "vh": 900,
+      "inset": 108
+    },
+    {
+      "type": "behind-fixed-cta",
+      "page": "pro/desktop@y900",
+      "tag": "BUTTON",
+      "testId": "pro-create",
+      "text": "Refine · 35 credits",
+      "bottom": 860,
+      "vh": 900,
+      "inset": 108
+    },
+    {
+      "type": "behind-fixed-cta",
+      "page": "pro/desktop@y900",
+      "tag": "P",
+      "testId": "pro-create-hint",
+      "text": "Upload the required photo to continue",
+      "bottom": 882,
+      "vh": 900,
+      "inset": 108
+    },
+    {
+      "type": "overflow-x",
+      "page": "artistic/desktop@y0",
+      "tag": "BUTTON",
+      "testId": "art-cat-nsfw",
+      "text": "🔥AI Lab27",
+      "right": 1536,
+      "vw": 1440
+    },
+    {
+      "type": "overflow-x",
+      "page": "artistic/desktop@y450",
+      "tag": "BUTTON",
+      "testId": "art-cat-nsfw",
+      "text": "🔥AI Lab27",
+      "right": 1536,
+      "vw": 1440
+    },
+    {
+      "type": "overflow-x",
+      "page": "artistic/desktop@y900",
+      "tag": "BUTTON",
+      "testId": "art-cat-nsfw",
+      "text": "🔥AI Lab27",
+      "right": 1536,
+      "vw": 1440
+    },
+    {
+      "type": "behind-fixed-cta",
+      "page": "manga/desktop@y0",
+      "tag": "BUTTON",
+      "testId": "studio-back",
+      "text": "",
+      "bottom": 48,
+      "vh": 900,
+      "inset": 900
+    },
+    {
+      "type": "behind-fixed-cta",
+      "page": "manga/desktop@y0",
+      "tag": "BUTTON",
+      "testId": "header-avatar",
+      "text": "A",
+      "bottom": 48,
+      "vh": 900,
+      "inset": 900
+    },
+    {
+      "type": "behind-fixed-cta",
+      "page": "manga/desktop@y0",
+      "tag": "BUTTON",
+      "testId": "manga-flow-add-btn",
+      "text": "Add",
+      "bottom": 106,
+      "vh": 900,
+      "inset": 900
+    },
+    {
+      "type": "behind-fixed-cta",
+      "page": "manga/desktop@y0",
+      "tag": "BUTTON",
+      "testId": "manga-flow-generate-page",
+      "text": "Generate",
+      "bottom": 106,
+      "vh": 900,
+      "inset": 900
+    },
+    {
+      "type": "behind-fixed-cta",
+      "page": "manga/desktop@y0",
+      "tag": "BUTTON",
+      "testId": "manga-flow-ai-wizard",
+      "text": "Create with AI",
+      "bottom": 106,
+      "vh": 900,
+      "inset": 900
+    },
+    {
+      "type": "behind-fixed-cta",
+      "page": "manga/desktop@y0",
+      "tag": "BUTTON",
+      "testId": "page-selector",
+      "text": "Página 11 / 1",
+      "bottom": 196,
+      "vh": 900,
+      "inset": 900
+    },
+    {
+      "type": "behind-fixed-cta",
+      "page": "manga/desktop@y0",
+      "tag": "BUTTON",
+      "testId": "page-add",
+      "text": "New",
+      "bottom": 194,
+      "vh": 900,
+      "inset": 900
+    },
+    {
+      "type": "behind-fixed-cta",
+      "page": "manga/desktop@y450",
+      "tag": "BUTTON",
+      "testId": "studio-back",
+      "text": "",
+      "bottom": 48,
+      "vh": 900,
+      "inset": 900
+    },
+    {
+      "type": "behind-fixed-cta",
+      "page": "manga/desktop@y450",
+      "tag": "BUTTON",
+      "testId": "header-avatar",
+      "text": "A",
+      "bottom": 48,
+      "vh": 900,
+      "inset": 900
+    },
+    {
+      "type": "behind-fixed-cta",
+      "page": "manga/desktop@y450",
+      "tag": "BUTTON",
+      "testId": "manga-flow-add-btn",
+      "text": "Add",
+      "bottom": 106,
+      "vh": 900,
+      "inset": 900
+    },
+    {
+      "type": "behind-fixed-cta",
+      "page": "manga/desktop@y450",
+      "tag": "BUTTON",
+      "testId": "manga-flow-generate-page",
+      "text": "Generate",
+      "bottom": 106,
+      "vh": 900,
+      "inset": 900
+    },
+    {
+      "type": "behind-fixed-cta",
+      "page": "manga/desktop@y450",
+      "tag": "BUTTON",
+      "testId": "manga-flow-ai-wizard",
+      "text": "Create with AI",
+      "bottom": 106,
+      "vh": 900,
+      "inset": 900
+    },
+    {
+      "type": "behind-fixed-cta",
+      "page": "manga/desktop@y450",
+      "tag": "BUTTON",
+      "testId": "page-selector",
+      "text": "Página 11 / 1",
+      "bottom": 196,
+      "vh": 900,
+      "inset": 900
+    },
+    {
+      "type": "behind-fixed-cta",
+      "page": "manga/desktop@y450",
+      "tag": "BUTTON",
+      "testId": "page-add",
+      "text": "New",
+      "bottom": 194,
+      "vh": 900,
+      "inset": 900
+    },
+    {
+      "type": "behind-fixed-cta",
+      "page": "manga/desktop@y900",
+      "tag": "BUTTON",
+      "testId": "studio-back",
+      "text": "",
+      "bottom": 48,
+      "vh": 900,
+      "inset": 900
+    },
+    {
+      "type": "behind-fixed-cta",
+      "page": "manga/desktop@y900",
+      "tag": "BUTTON",
+      "testId": "header-avatar",
+      "text": "A",
+      "bottom": 48,
+      "vh": 900,
+      "inset": 900
+    },
+    {
+      "type": "behind-fixed-cta",
+      "page": "manga/desktop@y900",
+      "tag": "BUTTON",
+      "testId": "manga-flow-add-btn",
+      "text": "Add",
+      "bottom": 106,
+      "vh": 900,
+      "inset": 900
+    },
+    {
+      "type": "behind-fixed-cta",
+      "page": "manga/desktop@y900",
+      "tag": "BUTTON",
+      "testId": "manga-flow-generate-page",
+      "text": "Generate",
+      "bottom": 106,
+      "vh": 900,
+      "inset": 900
+    },
+    {
+      "type": "behind-fixed-cta",
+      "page": "manga/desktop@y900",
+      "tag": "BUTTON",
+      "testId": "manga-flow-ai-wizard",
+      "text": "Create with AI",
+      "bottom": 106,
+      "vh": 900,
+      "inset": 900
+    },
+    {
+      "type": "behind-fixed-cta",
+      "page": "manga/desktop@y900",
+      "tag": "BUTTON",
+      "testId": "page-selector",
+      "text": "Página 11 / 1",
+      "bottom": 196,
+      "vh": 900,
+      "inset": 900
+    },
+    {
+      "type": "behind-fixed-cta",
+      "page": "manga/desktop@y900",
+      "tag": "BUTTON",
+      "testId": "page-add",
+      "text": "New",
+      "bottom": 194,
+      "vh": 900,
+      "inset": 900
+    },
+    {
+      "type": "behind-fixed-cta",
+      "page": "bg-remove/desktop@y0",
+      "tag": "DIV",
+      "testId": "bg-remove-create-btn-bar",
+      "text": "Cost for this action8creditsBalance420Remove background · 8 ",
+      "bottom": 900,
+      "vh": 900,
+      "inset": 105
+    },
+    {
+      "type": "behind-fixed-cta",
+      "page": "bg-remove/desktop@y0",
+      "tag": "BUTTON",
+      "testId": "bg-remove-create-btn",
+      "text": "Remove background · 8 credits",
+      "bottom": 860,
+      "vh": 900,
+      "inset": 105
+    },
+    {
+      "type": "behind-fixed-cta",
+      "page": "bg-remove/desktop@y0",
+      "tag": "P",
+      "testId": "bg-remove-create-btn-hint",
+      "text": "Upload the required photo to continue",
+      "bottom": 882,
+      "vh": 900,
+      "inset": 105
+    },
+    {
+      "type": "behind-fixed-cta",
+      "page": "bg-remove/desktop@y450",
+      "tag": "DIV",
+      "testId": "bg-remove-create-btn-bar",
+      "text": "Cost for this action8creditsBalance420Remove background · 8 ",
+      "bottom": 900,
+      "vh": 900,
+      "inset": 105
+    },
+    {
+      "type": "behind-fixed-cta",
+      "page": "bg-remove/desktop@y450",
+      "tag": "BUTTON",
+      "testId": "bg-remove-create-btn",
+      "text": "Remove background · 8 credits",
+      "bottom": 860,
+      "vh": 900,
+      "inset": 105
+    },
+    {
+      "type": "behind-fixed-cta",
+      "page": "bg-remove/desktop@y450",
+      "tag": "P",
+      "testId": "bg-remove-create-btn-hint",
+      "text": "Upload the required photo to continue",
+      "bottom": 882,
+      "vh": 900,
+      "inset": 105
+    },
+    {
+      "type": "behind-fixed-cta",
+      "page": "bg-remove/desktop@y900",
+      "tag": "DIV",
+      "testId": "bg-remove-create-btn-bar",
+      "text": "Cost for this action8creditsBalance420Remove background · 8 ",
+      "bottom": 900,
+      "vh": 900,
+      "inset": 105
+    },
+    {
+      "type": "behind-fixed-cta",
+      "page": "bg-remove/desktop@y900",
+      "tag": "BUTTON",
+      "testId": "bg-remove-create-btn",
+      "text": "Remove background · 8 credits",
+      "bottom": 860,
+      "vh": 900,
+      "inset": 105
+    },
+    {
+      "type": "behind-fixed-cta",
+      "page": "bg-remove/desktop@y900",
+      "tag": "P",
+      "testId": "bg-remove-create-btn-hint",
+      "text": "Upload the required photo to continue",
+      "bottom": 882,
+      "vh": 900,
+      "inset": 105
+    },
+    {
+      "type": "behind-fixed-cta",
+      "page": "upscale/desktop@y0",
+      "tag": "DIV",
+      "testId": "upscale-create-btn-bar",
+      "text": "Cost for this action12creditsBalance420Upscale · 12 creditsU",
+      "bottom": 900,
+      "vh": 900,
+      "inset": 105
+    },
+    {
+      "type": "behind-fixed-cta",
+      "page": "upscale/desktop@y0",
+      "tag": "BUTTON",
+      "testId": "upscale-create-btn",
+      "text": "Upscale · 12 credits",
+      "bottom": 860,
+      "vh": 900,
+      "inset": 105
+    },
+    {
+      "type": "behind-fixed-cta",
+      "page": "upscale/desktop@y0",
+      "tag": "P",
+      "testId": "upscale-create-btn-hint",
+      "text": "Upload the required photo to continue",
+      "bottom": 882,
+      "vh": 900,
+      "inset": 105
+    },
+    {
+      "type": "behind-fixed-cta",
+      "page": "upscale/desktop@y450",
+      "tag": "DIV",
+      "testId": "upscale-create-btn-bar",
+      "text": "Cost for this action12creditsBalance420Upscale · 12 creditsU",
+      "bottom": 900,
+      "vh": 900,
+      "inset": 105
+    },
+    {
+      "type": "behind-fixed-cta",
+      "page": "upscale/desktop@y450",
+      "tag": "BUTTON",
+      "testId": "upscale-create-btn",
+      "text": "Upscale · 12 credits",
+      "bottom": 860,
+      "vh": 900,
+      "inset": 105
+    },
+    {
+      "type": "behind-fixed-cta",
+      "page": "upscale/desktop@y450",
+      "tag": "P",
+      "testId": "upscale-create-btn-hint",
+      "text": "Upload the required photo to continue",
+      "bottom": 882,
+      "vh": 900,
+      "inset": 105
+    },
+    {
+      "type": "behind-fixed-cta",
+      "page": "upscale/desktop@y900",
+      "tag": "DIV",
+      "testId": "upscale-create-btn-bar",
+      "text": "Cost for this action12creditsBalance420Upscale · 12 creditsU",
+      "bottom": 900,
+      "vh": 900,
+      "inset": 105
+    },
+    {
+      "type": "behind-fixed-cta",
+      "page": "upscale/desktop@y900",
+      "tag": "BUTTON",
+      "testId": "upscale-create-btn",
+      "text": "Upscale · 12 credits",
+      "bottom": 860,
+      "vh": 900,
+      "inset": 105
+    },
+    {
+      "type": "behind-fixed-cta",
+      "page": "upscale/desktop@y900",
+      "tag": "P",
+      "testId": "upscale-create-btn-hint",
+      "text": "Upload the required photo to continue",
+      "bottom": 882,
+      "vh": 900,
+      "inset": 105
+    },
+    {
+      "type": "behind-fixed-cta",
+      "page": "restore/desktop@y0",
+      "tag": "DIV",
+      "testId": "restore-create-btn-bar",
+      "text": "Cost for this action15creditsBalance420Restore photo · 15 cr",
+      "bottom": 900,
+      "vh": 900,
+      "inset": 105
+    },
+    {
+      "type": "behind-fixed-cta",
+      "page": "restore/desktop@y0",
+      "tag": "BUTTON",
+      "testId": "restore-create-btn",
+      "text": "Restore photo · 15 credits",
+      "bottom": 860,
+      "vh": 900,
+      "inset": 105
+    },
+    {
+      "type": "behind-fixed-cta",
+      "page": "restore/desktop@y0",
+      "tag": "P",
+      "testId": "restore-create-btn-hint",
+      "text": "Upload the required photo to continue",
+      "bottom": 882,
+      "vh": 900,
+      "inset": 105
+    },
+    {
+      "type": "behind-fixed-cta",
+      "page": "restore/desktop@y450",
+      "tag": "DIV",
+      "testId": "restore-create-btn-bar",
+      "text": "Cost for this action15creditsBalance420Restore photo · 15 cr",
+      "bottom": 900,
+      "vh": 900,
+      "inset": 105
+    },
+    {
+      "type": "behind-fixed-cta",
+      "page": "restore/desktop@y450",
+      "tag": "BUTTON",
+      "testId": "restore-create-btn",
+      "text": "Restore photo · 15 credits",
+      "bottom": 860,
+      "vh": 900,
+      "inset": 105
+    },
+    {
+      "type": "behind-fixed-cta",
+      "page": "restore/desktop@y450",
+      "tag": "P",
+      "testId": "restore-create-btn-hint",
+      "text": "Upload the required photo to continue",
+      "bottom": 882,
+      "vh": 900,
+      "inset": 105
+    },
+    {
+      "type": "behind-fixed-cta",
+      "page": "restore/desktop@y900",
+      "tag": "DIV",
+      "testId": "restore-create-btn-bar",
+      "text": "Cost for this action15creditsBalance420Restore photo · 15 cr",
+      "bottom": 900,
+      "vh": 900,
+      "inset": 105
+    },
+    {
+      "type": "behind-fixed-cta",
+      "page": "restore/desktop@y900",
+      "tag": "BUTTON",
+      "testId": "restore-create-btn",
+      "text": "Restore photo · 15 credits",
+      "bottom": 860,
+      "vh": 900,
+      "inset": 105
+    },
+    {
+      "type": "behind-fixed-cta",
+      "page": "restore/desktop@y900",
+      "tag": "P",
+      "testId": "restore-create-btn-hint",
+      "text": "Upload the required photo to continue",
+      "bottom": 882,
+      "vh": 900,
+      "inset": 105
+    },
+    {
+      "type": "behind-fixed-cta",
+      "page": "colorize/desktop@y0",
+      "tag": "DIV",
+      "testId": "colorize-create-btn-bar",
+      "text": "Cost for this action15creditsBalance420Colorize photo · 15 c",
+      "bottom": 900,
+      "vh": 900,
+      "inset": 105
+    },
+    {
+      "type": "behind-fixed-cta",
+      "page": "colorize/desktop@y0",
+      "tag": "BUTTON",
+      "testId": "colorize-create-btn",
+      "text": "Colorize photo · 15 credits",
+      "bottom": 860,
+      "vh": 900,
+      "inset": 105
+    },
+    {
+      "type": "behind-fixed-cta",
+      "page": "colorize/desktop@y0",
+      "tag": "P",
+      "testId": "colorize-create-btn-hint",
+      "text": "Upload the required photo to continue",
+      "bottom": 882,
+      "vh": 900,
+      "inset": 105
+    },
+    {
+      "type": "behind-fixed-cta",
+      "page": "colorize/desktop@y450",
+      "tag": "DIV",
+      "testId": "colorize-create-btn-bar",
+      "text": "Cost for this action15creditsBalance420Colorize photo · 15 c",
+      "bottom": 900,
+      "vh": 900,
+      "inset": 105
+    },
+    {
+      "type": "behind-fixed-cta",
+      "page": "colorize/desktop@y450",
+      "tag": "BUTTON",
+      "testId": "colorize-create-btn",
+      "text": "Colorize photo · 15 credits",
+      "bottom": 860,
+      "vh": 900,
+      "inset": 105
+    },
+    {
+      "type": "behind-fixed-cta",
+      "page": "colorize/desktop@y450",
+      "tag": "P",
+      "testId": "colorize-create-btn-hint",
+      "text": "Upload the required photo to continue",
+      "bottom": 882,
+      "vh": 900,
+      "inset": 105
+    },
+    {
+      "type": "behind-fixed-cta",
+      "page": "colorize/desktop@y900",
+      "tag": "DIV",
+      "testId": "colorize-create-btn-bar",
+      "text": "Cost for this action15creditsBalance420Colorize photo · 15 c",
+      "bottom": 900,
+      "vh": 900,
+      "inset": 105
+    },
+    {
+      "type": "behind-fixed-cta",
+      "page": "colorize/desktop@y900",
+      "tag": "BUTTON",
+      "testId": "colorize-create-btn",
+      "text": "Colorize photo · 15 credits",
+      "bottom": 860,
+      "vh": 900,
+      "inset": 105
+    },
+    {
+      "type": "behind-fixed-cta",
+      "page": "colorize/desktop@y900",
+      "tag": "P",
+      "testId": "colorize-create-btn-hint",
+      "text": "Upload the required photo to continue",
+      "bottom": 882,
+      "vh": 900,
+      "inset": 105
+    },
+    {
+      "type": "behind-fixed-cta",
+      "page": "inpaint/desktop@y0",
+      "tag": "DIV",
+      "testId": "inpaint-create-btn-bar",
+      "text": "Cost for this action25creditsBalance420Generate · 25 credits",
+      "bottom": 900,
+      "vh": 900,
+      "inset": 105
+    },
+    {
+      "type": "behind-fixed-cta",
+      "page": "inpaint/desktop@y0",
+      "tag": "BUTTON",
+      "testId": "inpaint-create-btn",
+      "text": "Generate · 25 credits",
+      "bottom": 860,
+      "vh": 900,
+      "inset": 105
+    },
+    {
+      "type": "behind-fixed-cta",
+      "page": "inpaint/desktop@y0",
+      "tag": "P",
+      "testId": "inpaint-create-btn-hint",
+      "text": "Upload the required photo to continue",
+      "bottom": 882,
+      "vh": 900,
+      "inset": 105
+    },
+    {
+      "type": "behind-fixed-cta",
+      "page": "inpaint/desktop@y450",
+      "tag": "DIV",
+      "testId": "inpaint-create-btn-bar",
+      "text": "Cost for this action25creditsBalance420Generate · 25 credits",
+      "bottom": 900,
+      "vh": 900,
+      "inset": 105
+    },
+    {
+      "type": "behind-fixed-cta",
+      "page": "inpaint/desktop@y450",
+      "tag": "BUTTON",
+      "testId": "inpaint-create-btn",
+      "text": "Generate · 25 credits",
+      "bottom": 860,
+      "vh": 900,
+      "inset": 105
+    },
+    {
+      "type": "behind-fixed-cta",
+      "page": "inpaint/desktop@y450",
+      "tag": "P",
+      "testId": "inpaint-create-btn-hint",
+      "text": "Upload the required photo to continue",
+      "bottom": 882,
+      "vh": 900,
+      "inset": 105
+    },
+    {
+      "type": "behind-fixed-cta",
+      "page": "inpaint/desktop@y900",
+      "tag": "DIV",
+      "testId": "inpaint-create-btn-bar",
+      "text": "Cost for this action25creditsBalance420Generate · 25 credits",
+      "bottom": 900,
+      "vh": 900,
+      "inset": 105
+    },
+    {
+      "type": "behind-fixed-cta",
+      "page": "inpaint/desktop@y900",
+      "tag": "BUTTON",
+      "testId": "inpaint-create-btn",
+      "text": "Generate · 25 credits",
+      "bottom": 860,
+      "vh": 900,
+      "inset": 105
+    },
+    {
+      "type": "behind-fixed-cta",
+      "page": "inpaint/desktop@y900",
+      "tag": "P",
+      "testId": "inpaint-create-btn-hint",
+      "text": "Upload the required photo to continue",
+      "bottom": 882,
+      "vh": 900,
+      "inset": 105
+    },
+    {
+      "type": "behind-fixed-cta",
+      "page": "clothes/desktop@y0",
+      "tag": "BUTTON",
+      "testId": "clothes-create",
+      "text": "Generate new outfit · 28 credits",
+      "bottom": 884,
+      "vh": 900,
+      "inset": 81
+    },
+    {
+      "type": "behind-fixed-cta",
+      "page": "clothes/desktop@y450",
+      "tag": "BUTTON",
+      "testId": "clothes-create",
+      "text": "Generate new outfit · 28 credits",
+      "bottom": 884,
+      "vh": 900,
+      "inset": 81
+    },
+    {
+      "type": "behind-fixed-cta",
+      "page": "clothes/desktop@y900",
+      "tag": "BUTTON",
+      "testId": "clothes-create",
+      "text": "Generate new outfit · 28 credits",
+      "bottom": 884,
+      "vh": 900,
+      "inset": 81
+    },
+    {
+      "type": "behind-fixed-cta",
+      "page": "pro/mobile@y0",
+      "tag": "BUTTON",
+      "testId": "procat-mood",
+      "text": "Mood & styleAtmosphere and emotion — seductive, intense, rom",
+      "bottom": 827,
+      "vh": 844,
+      "inset": 108
+    },
+    {
+      "type": "behind-fixed-cta",
+      "page": "pro/mobile@y0",
+      "tag": "BUTTON",
+      "testId": "procat-enhance",
+      "text": "EnhancementsSurgical refinements — lighting, skin, eyes, clo",
+      "bottom": 939,
+      "vh": 844,
+      "inset": 108
+    },
+    {
+      "type": "behind-fixed-cta",
+      "page": "pro/mobile@y0",
+      "tag": "DIV",
+      "testId": "pro-create-bar",
+      "text": "Cost for this action35creditsBalance420Refine · 35 creditsUp",
+      "bottom": 844,
+      "vh": 844,
+      "inset": 108
+    },
+    {
+      "type": "behind-fixed-cta",
+      "page": "pro/mobile@y0",
+      "tag": "BUTTON",
+      "testId": "pro-create",
+      "text": "Refine · 35 credits",
+      "bottom": 804,
+      "vh": 844,
+      "inset": 108
+    },
+    {
+      "type": "behind-fixed-cta",
+      "page": "pro/mobile@y0",
+      "tag": "P",
+      "testId": "pro-create-hint",
+      "text": "Upload the required photo to continue",
+      "bottom": 826,
+      "vh": 844,
+      "inset": 108
+    },
+    {
+      "type": "behind-fixed-cta",
+      "page": "pro/mobile@y422",
+      "tag": "BUTTON",
+      "testId": "procat-mood",
+      "text": "Mood & styleAtmosphere and emotion — seductive, intense, rom",
+      "bottom": 827,
+      "vh": 844,
+      "inset": 108
+    },
+    {
+      "type": "behind-fixed-cta",
+      "page": "pro/mobile@y422",
+      "tag": "BUTTON",
+      "testId": "procat-enhance",
+      "text": "EnhancementsSurgical refinements — lighting, skin, eyes, clo",
+      "bottom": 939,
+      "vh": 844,
+      "inset": 108
+    },
+    {
+      "type": "behind-fixed-cta",
+      "page": "pro/mobile@y422",
+      "tag": "DIV",
+      "testId": "pro-create-bar",
+      "text": "Cost for this action35creditsBalance420Refine · 35 creditsUp",
+      "bottom": 844,
+      "vh": 844,
+      "inset": 108
+    },
+    {
+      "type": "behind-fixed-cta",
+      "page": "pro/mobile@y422",
+      "tag": "BUTTON",
+      "testId": "pro-create",
+      "text": "Refine · 35 credits",
+      "bottom": 804,
+      "vh": 844,
+      "inset": 108
+    },
+    {
+      "type": "behind-fixed-cta",
+      "page": "pro/mobile@y422",
+      "tag": "P",
+      "testId": "pro-create-hint",
+      "text": "Upload the required photo to continue",
+      "bottom": 826,
+      "vh": 844,
+      "inset": 108
+    },
+    {
+      "type": "behind-fixed-cta",
+      "page": "pro/mobile@y844",
+      "tag": "BUTTON",
+      "testId": "procat-mood",
+      "text": "Mood & styleAtmosphere and emotion — seductive, intense, rom",
+      "bottom": 827,
+      "vh": 844,
+      "inset": 108
+    },
+    {
+      "type": "behind-fixed-cta",
+      "page": "pro/mobile@y844",
+      "tag": "BUTTON",
+      "testId": "procat-enhance",
+      "text": "EnhancementsSurgical refinements — lighting, skin, eyes, clo",
+      "bottom": 939,
+      "vh": 844,
+      "inset": 108
+    },
+    {
+      "type": "behind-fixed-cta",
+      "page": "pro/mobile@y844",
+      "tag": "DIV",
+      "testId": "pro-create-bar",
+      "text": "Cost for this action35creditsBalance420Refine · 35 creditsUp",
+      "bottom": 844,
+      "vh": 844,
+      "inset": 108
+    },
+    {
+      "type": "behind-fixed-cta",
+      "page": "pro/mobile@y844",
+      "tag": "BUTTON",
+      "testId": "pro-create",
+      "text": "Refine · 35 credits",
+      "bottom": 804,
+      "vh": 844,
+      "inset": 108
+    },
+    {
+      "type": "behind-fixed-cta",
+      "page": "pro/mobile@y844",
+      "tag": "P",
+      "testId": "pro-create-hint",
+      "text": "Upload the required photo to continue",
+      "bottom": 826,
+      "vh": 844,
+      "inset": 108
+    },
+    {
+      "type": "overflow-x",
+      "page": "artistic/mobile@y0",
+      "tag": "BUTTON",
+      "testId": "art-cat-cartoon",
+      "text": "🧸Cartoon & 3D8",
+      "right": 476,
+      "vw": 390
+    },
+    {
+      "type": "overflow-x",
+      "page": "artistic/mobile@y0",
+      "tag": "BUTTON",
+      "testId": "art-cat-illustration",
+      "text": "🖌Illustration & Comic9",
+      "right": 646,
+      "vw": 390
+    },
+    {
+      "type": "overflow-x",
+      "page": "artistic/mobile@y0",
+      "tag": "BUTTON",
+      "testId": "art-cat-digital",
+      "text": "🌌Digital & Sci-Fi10",
+      "right": 795,
+      "vw": 390
+    },
+    {
+      "type": "overflow-x",
+      "page": "artistic/mobile@y0",
+      "tag": "BUTTON",
+      "testId": "art-cat-classic",
+      "text": "🖼Classic Painting10",
+      "right": 949,
+      "vw": 390
+    },
+    {
+      "type": "overflow-x",
+      "page": "artistic/mobile@y0",
+      "tag": "BUTTON",
+      "testId": "art-cat-modern",
+      "text": "✨Modern Design8",
+      "right": 1101,
+      "vw": 390
+    },
+    {
+      "type": "overflow-x",
+      "page": "artistic/mobile@y0",
+      "tag": "BUTTON",
+      "testId": "art-cat-fantasy",
+      "text": "⚔Fantasy & Epic8",
+      "right": 1248,
+      "vw": 390
+    },
+    {
+      "type": "overflow-x",
+      "page": "artistic/mobile@y0",
+      "tag": "BUTTON",
+      "testId": "art-cat-vintage",
+      "text": "📼Vintage & Retro8",
+      "right": 1404,
+      "vw": 390
+    },
+    {
+      "type": "overflow-x",
+      "page": "artistic/mobile@y0",
+      "tag": "BUTTON",
+      "testId": "art-cat-nsfw",
+      "text": "🔥AI Lab27",
+      "right": 1515,
+      "vw": 390
+    },
+    {
+      "type": "overflow-x",
+      "page": "artistic/mobile@y422",
+      "tag": "BUTTON",
+      "testId": "art-cat-cartoon",
+      "text": "🧸Cartoon & 3D8",
+      "right": 476,
+      "vw": 390
+    },
+    {
+      "type": "overflow-x",
+      "page": "artistic/mobile@y422",
+      "tag": "BUTTON",
+      "testId": "art-cat-illustration",
+      "text": "🖌Illustration & Comic9",
+      "right": 646,
+      "vw": 390
+    },
+    {
+      "type": "overflow-x",
+      "page": "artistic/mobile@y422",
+      "tag": "BUTTON",
+      "testId": "art-cat-digital",
+      "text": "🌌Digital & Sci-Fi10",
+      "right": 795,
+      "vw": 390
+    },
+    {
+      "type": "overflow-x",
+      "page": "artistic/mobile@y422",
+      "tag": "BUTTON",
+      "testId": "art-cat-classic",
+      "text": "🖼Classic Painting10",
+      "right": 949,
+      "vw": 390
+    },
+    {
+      "type": "overflow-x",
+      "page": "artistic/mobile@y422",
+      "tag": "BUTTON",
+      "testId": "art-cat-modern",
+      "text": "✨Modern Design8",
+      "right": 1101,
+      "vw": 390
+    },
+    {
+      "type": "overflow-x",
+      "page": "artistic/mobile@y422",
+      "tag": "BUTTON",
+      "testId": "art-cat-fantasy",
+      "text": "⚔Fantasy & Epic8",
+      "right": 1248,
+      "vw": 390
+    },
+    {
+      "type": "overflow-x",
+      "page": "artistic/mobile@y422",
+      "tag": "BUTTON",
+      "testId": "art-cat-vintage",
+      "text": "📼Vintage & Retro8",
+      "right": 1404,
+      "vw": 390
+    },
+    {
+      "type": "overflow-x",
+      "page": "artistic/mobile@y422",
+      "tag": "BUTTON",
+      "testId": "art-cat-nsfw",
+      "text": "🔥AI Lab27",
+      "right": 1515,
+      "vw": 390
+    },
+    {
+      "type": "overflow-x",
+      "page": "artistic/mobile@y844",
+      "tag": "BUTTON",
+      "testId": "art-cat-cartoon",
+      "text": "🧸Cartoon & 3D8",
+      "right": 476,
+      "vw": 390
+    },
+    {
+      "type": "overflow-x",
+      "page": "artistic/mobile@y844",
+      "tag": "BUTTON",
+      "testId": "art-cat-illustration",
+      "text": "🖌Illustration & Comic9",
+      "right": 646,
+      "vw": 390
+    },
+    {
+      "type": "overflow-x",
+      "page": "artistic/mobile@y844",
+      "tag": "BUTTON",
+      "testId": "art-cat-digital",
+      "text": "🌌Digital & Sci-Fi10",
+      "right": 795,
+      "vw": 390
+    },
+    {
+      "type": "overflow-x",
+      "page": "artistic/mobile@y844",
+      "tag": "BUTTON",
+      "testId": "art-cat-classic",
+      "text": "🖼Classic Painting10",
+      "right": 949,
+      "vw": 390
+    },
+    {
+      "type": "overflow-x",
+      "page": "artistic/mobile@y844",
+      "tag": "BUTTON",
+      "testId": "art-cat-modern",
+      "text": "✨Modern Design8",
+      "right": 1101,
+      "vw": 390
+    },
+    {
+      "type": "overflow-x",
+      "page": "artistic/mobile@y844",
+      "tag": "BUTTON",
+      "testId": "art-cat-fantasy",
+      "text": "⚔Fantasy & Epic8",
+      "right": 1248,
+      "vw": 390
+    },
+    {
+      "type": "overflow-x",
+      "page": "artistic/mobile@y844",
+      "tag": "BUTTON",
+      "testId": "art-cat-vintage",
+      "text": "📼Vintage & Retro8",
+      "right": 1404,
+      "vw": 390
+    },
+    {
+      "type": "overflow-x",
+      "page": "artistic/mobile@y844",
+      "tag": "BUTTON",
+      "testId": "art-cat-nsfw",
+      "text": "🔥AI Lab27",
+      "right": 1515,
+      "vw": 390
+    },
+    {
+      "type": "behind-fixed-cta",
+      "page": "manga/mobile@y0",
+      "tag": "BUTTON",
+      "testId": "studio-back",
+      "text": "",
+      "bottom": 48,
+      "vh": 844,
+      "inset": 844
+    },
+    {
+      "type": "behind-fixed-cta",
+      "page": "manga/mobile@y0",
+      "tag": "BUTTON",
+      "testId": "header-avatar",
+      "text": "A",
+      "bottom": 48,
+      "vh": 844,
+      "inset": 844
+    },
+    {
+      "type": "behind-fixed-cta",
+      "page": "manga/mobile@y0",
+      "tag": "BUTTON",
+      "testId": "manga-flow-add-btn",
+      "text": "Add",
+      "bottom": 95,
+      "vh": 844,
+      "inset": 844
+    },
+    {
+      "type": "behind-fixed-cta",
+      "page": "manga/mobile@y0",
+      "tag": "BUTTON",
+      "testId": "manga-flow-generate-page",
+      "text": "Generate",
+      "bottom": 95,
+      "vh": 844,
+      "inset": 844
+    },
+    {
+      "type": "behind-fixed-cta",
+      "page": "manga/mobile@y0",
+      "tag": "BUTTON",
+      "testId": "manga-flow-ai-wizard",
+      "text": "Create with AI",
+      "bottom": 95,
+      "vh": 844,
+      "inset": 844
+    },
+    {
+      "type": "overflow-x",
+      "page": "manga/mobile@y0",
+      "tag": "BUTTON",
+      "testId": "",
+      "text": "",
+      "right": 407,
+      "vw": 390
+    },
+    {
+      "type": "overflow-x",
+      "page": "manga/mobile@y0",
+      "tag": "BUTTON",
+      "testId": "",
+      "text": "",
+      "right": 445,
+      "vw": 390
+    },
+    {
+      "type": "overflow-x",
+      "page": "manga/mobile@y0",
+      "tag": "BUTTON",
+      "testId": "",
+      "text": "",
+      "right": 483,
+      "vw": 390
+    },
+    {
+      "type": "overflow-x",
+      "page": "manga/mobile@y0",
+      "tag": "BUTTON",
+      "testId": "",
+      "text": "",
+      "right": 521,
+      "vw": 390
+    },
+    {
+      "type": "overflow-x",
+      "page": "manga/mobile@y0",
+      "tag": "BUTTON",
+      "testId": "",
+      "text": "",
+      "right": 559,
+      "vw": 390
+    },
+    {
+      "type": "overflow-x",
+      "page": "manga/mobile@y0",
+      "tag": "BUTTON",
+      "testId": "",
+      "text": "",
+      "right": 597,
+      "vw": 390
+    },
+    {
+      "type": "overflow-x",
+      "page": "manga/mobile@y0",
+      "tag": "BUTTON",
+      "testId": "",
+      "text": "",
+      "right": 635,
+      "vw": 390
+    },
+    {
+      "type": "overflow-x",
+      "page": "manga/mobile@y0",
+      "tag": "BUTTON",
+      "testId": "",
+      "text": "",
+      "right": 673,
+      "vw": 390
+    },
+    {
+      "type": "overflow-x",
+      "page": "manga/mobile@y0",
+      "tag": "BUTTON",
+      "testId": "",
+      "text": "",
+      "right": 711,
+      "vw": 390
+    },
+    {
+      "type": "overflow-x",
+      "page": "manga/mobile@y0",
+      "tag": "BUTTON",
+      "testId": "",
+      "text": "",
+      "right": 749,
+      "vw": 390
+    },
+    {
+      "type": "overflow-x",
+      "page": "manga/mobile@y0",
+      "tag": "BUTTON",
+      "testId": "",
+      "text": "",
+      "right": 787,
+      "vw": 390
+    },
+    {
+      "type": "overflow-x",
+      "page": "manga/mobile@y0",
+      "tag": "BUTTON",
+      "testId": "",
+      "text": "",
+      "right": 825,
+      "vw": 390
+    },
+    {
+      "type": "overflow-x",
+      "page": "manga/mobile@y0",
+      "tag": "BUTTON",
+      "testId": "",
+      "text": "",
+      "right": 863,
+      "vw": 390
+    },
+    {
+      "type": "overflow-x",
+      "page": "manga/mobile@y0",
+      "tag": "BUTTON",
+      "testId": "",
+      "text": "",
+      "right": 901,
+      "vw": 390
+    },
+    {
+      "type": "overflow-x",
+      "page": "manga/mobile@y0",
+      "tag": "BUTTON",
+      "testId": "",
+      "text": "",
+      "right": 939,
+      "vw": 390
+    },
+    {
+      "type": "overflow-x",
+      "page": "manga/mobile@y0",
+      "tag": "BUTTON",
+      "testId": "",
+      "text": "",
+      "right": 977,
+      "vw": 390
+    },
+    {
+      "type": "overflow-x",
+      "page": "manga/mobile@y0",
+      "tag": "BUTTON",
+      "testId": "",
+      "text": "",
+      "right": 1015,
+      "vw": 390
+    },
+    {
+      "type": "behind-fixed-cta",
+      "page": "manga/mobile@y0",
+      "tag": "BUTTON",
+      "testId": "page-selector",
+      "text": "Página 11 / 1",
+      "bottom": 143,
+      "vh": 844,
+      "inset": 844
+    },
+    {
+      "type": "behind-fixed-cta",
+      "page": "manga/mobile@y0",
+      "tag": "BUTTON",
+      "testId": "page-add",
+      "text": "New",
+      "bottom": 139,
+      "vh": 844,
+      "inset": 844
+    },
+    {
+      "type": "behind-fixed-cta",
+      "page": "manga/mobile@y422",
+      "tag": "BUTTON",
+      "testId": "studio-back",
+      "text": "",
+      "bottom": 48,
+      "vh": 844,
+      "inset": 844
+    },
+    {
+      "type": "behind-fixed-cta",
+      "page": "manga/mobile@y422",
+      "tag": "BUTTON",
+      "testId": "header-avatar",
+      "text": "A",
+      "bottom": 48,
+      "vh": 844,
+      "inset": 844
+    },
+    {
+      "type": "behind-fixed-cta",
+      "page": "manga/mobile@y422",
+      "tag": "BUTTON",
+      "testId": "manga-flow-add-btn",
+      "text": "Add",
+      "bottom": 95,
+      "vh": 844,
+      "inset": 844
+    },
+    {
+      "type": "behind-fixed-cta",
+      "page": "manga/mobile@y422",
+      "tag": "BUTTON",
+      "testId": "manga-flow-generate-page",
+      "text": "Generate",
+      "bottom": 95,
+      "vh": 844,
+      "inset": 844
+    },
+    {
+      "type": "behind-fixed-cta",
+      "page": "manga/mobile@y422",
+      "tag": "BUTTON",
+      "testId": "manga-flow-ai-wizard",
+      "text": "Create with AI",
+      "bottom": 95,
+      "vh": 844,
+      "inset": 844
+    },
+    {
+      "type": "overflow-x",
+      "page": "manga/mobile@y422",
+      "tag": "BUTTON",
+      "testId": "",
+      "text": "",
+      "right": 407,
+      "vw": 390
+    },
+    {
+      "type": "overflow-x",
+      "page": "manga/mobile@y422",
+      "tag": "BUTTON",
+      "testId": "",
+      "text": "",
+      "right": 445,
+      "vw": 390
+    },
+    {
+      "type": "overflow-x",
+      "page": "manga/mobile@y422",
+      "tag": "BUTTON",
+      "testId": "",
+      "text": "",
+      "right": 483,
+      "vw": 390
+    },
+    {
+      "type": "overflow-x",
+      "page": "manga/mobile@y422",
+      "tag": "BUTTON",
+      "testId": "",
+      "text": "",
+      "right": 521,
+      "vw": 390
+    },
+    {
+      "type": "overflow-x",
+      "page": "manga/mobile@y422",
+      "tag": "BUTTON",
+      "testId": "",
+      "text": "",
+      "right": 559,
+      "vw": 390
+    },
+    {
+      "type": "overflow-x",
+      "page": "manga/mobile@y422",
+      "tag": "BUTTON",
+      "testId": "",
+      "text": "",
+      "right": 597,
+      "vw": 390
+    },
+    {
+      "type": "overflow-x",
+      "page": "manga/mobile@y422",
+      "tag": "BUTTON",
+      "testId": "",
+      "text": "",
+      "right": 635,
+      "vw": 390
+    },
+    {
+      "type": "overflow-x",
+      "page": "manga/mobile@y422",
+      "tag": "BUTTON",
+      "testId": "",
+      "text": "",
+      "right": 673,
+      "vw": 390
+    },
+    {
+      "type": "overflow-x",
+      "page": "manga/mobile@y422",
+      "tag": "BUTTON",
+      "testId": "",
+      "text": "",
+      "right": 711,
+      "vw": 390
+    },
+    {
+      "type": "overflow-x",
+      "page": "manga/mobile@y422",
+      "tag": "BUTTON",
+      "testId": "",
+      "text": "",
+      "right": 749,
+      "vw": 390
+    },
+    {
+      "type": "overflow-x",
+      "page": "manga/mobile@y422",
+      "tag": "BUTTON",
+      "testId": "",
+      "text": "",
+      "right": 787,
+      "vw": 390
+    },
+    {
+      "type": "overflow-x",
+      "page": "manga/mobile@y422",
+      "tag": "BUTTON",
+      "testId": "",
+      "text": "",
+      "right": 825,
+      "vw": 390
+    },
+    {
+      "type": "overflow-x",
+      "page": "manga/mobile@y422",
+      "tag": "BUTTON",
+      "testId": "",
+      "text": "",
+      "right": 863,
+      "vw": 390
+    },
+    {
+      "type": "overflow-x",
+      "page": "manga/mobile@y422",
+      "tag": "BUTTON",
+      "testId": "",
+      "text": "",
+      "right": 901,
+      "vw": 390
+    },
+    {
+      "type": "overflow-x",
+      "page": "manga/mobile@y422",
+      "tag": "BUTTON",
+      "testId": "",
+      "text": "",
+      "right": 939,
+      "vw": 390
+    },
+    {
+      "type": "overflow-x",
+      "page": "manga/mobile@y422",
+      "tag": "BUTTON",
+      "testId": "",
+      "text": "",
+      "right": 977,
+      "vw": 390
+    },
+    {
+      "type": "overflow-x",
+      "page": "manga/mobile@y422",
+      "tag": "BUTTON",
+      "testId": "",
+      "text": "",
+      "right": 1015,
+      "vw": 390
+    },
+    {
+      "type": "behind-fixed-cta",
+      "page": "manga/mobile@y422",
+      "tag": "BUTTON",
+      "testId": "page-selector",
+      "text": "Página 11 / 1",
+      "bottom": 143,
+      "vh": 844,
+      "inset": 844
+    },
+    {
+      "type": "behind-fixed-cta",
+      "page": "manga/mobile@y422",
+      "tag": "BUTTON",
+      "testId": "page-add",
+      "text": "New",
+      "bottom": 139,
+      "vh": 844,
+      "inset": 844
+    },
+    {
+      "type": "behind-fixed-cta",
+      "page": "manga/mobile@y844",
+      "tag": "BUTTON",
+      "testId": "studio-back",
+      "text": "",
+      "bottom": 48,
+      "vh": 844,
+      "inset": 844
+    },
+    {
+      "type": "behind-fixed-cta",
+      "page": "manga/mobile@y844",
+      "tag": "BUTTON",
+      "testId": "header-avatar",
+      "text": "A",
+      "bottom": 48,
+      "vh": 844,
+      "inset": 844
+    },
+    {
+      "type": "behind-fixed-cta",
+      "page": "manga/mobile@y844",
+      "tag": "BUTTON",
+      "testId": "manga-flow-add-btn",
+      "text": "Add",
+      "bottom": 95,
+      "vh": 844,
+      "inset": 844
+    },
+    {
+      "type": "behind-fixed-cta",
+      "page": "manga/mobile@y844",
+      "tag": "BUTTON",
+      "testId": "manga-flow-generate-page",
+      "text": "Generate",
+      "bottom": 95,
+      "vh": 844,
+      "inset": 844
+    },
+    {
+      "type": "behind-fixed-cta",
+      "page": "manga/mobile@y844",
+      "tag": "BUTTON",
+      "testId": "manga-flow-ai-wizard",
+      "text": "Create with AI",
+      "bottom": 95,
+      "vh": 844,
+      "inset": 844
+    },
+    {
+      "type": "overflow-x",
+      "page": "manga/mobile@y844",
+      "tag": "BUTTON",
+      "testId": "",
+      "text": "",
+      "right": 407,
+      "vw": 390
+    },
+    {
+      "type": "overflow-x",
+      "page": "manga/mobile@y844",
+      "tag": "BUTTON",
+      "testId": "",
+      "text": "",
+      "right": 445,
+      "vw": 390
+    },
+    {
+      "type": "overflow-x",
+      "page": "manga/mobile@y844",
+      "tag": "BUTTON",
+      "testId": "",
+      "text": "",
+      "right": 483,
+      "vw": 390
+    },
+    {
+      "type": "overflow-x",
+      "page": "manga/mobile@y844",
+      "tag": "BUTTON",
+      "testId": "",
+      "text": "",
+      "right": 521,
+      "vw": 390
+    },
+    {
+      "type": "overflow-x",
+      "page": "manga/mobile@y844",
+      "tag": "BUTTON",
+      "testId": "",
+      "text": "",
+      "right": 559,
+      "vw": 390
+    },
+    {
+      "type": "overflow-x",
+      "page": "manga/mobile@y844",
+      "tag": "BUTTON",
+      "testId": "",
+      "text": "",
+      "right": 597,
+      "vw": 390
+    },
+    {
+      "type": "overflow-x",
+      "page": "manga/mobile@y844",
+      "tag": "BUTTON",
+      "testId": "",
+      "text": "",
+      "right": 635,
+      "vw": 390
+    },
+    {
+      "type": "overflow-x",
+      "page": "manga/mobile@y844",
+      "tag": "BUTTON",
+      "testId": "",
+      "text": "",
+      "right": 673,
+      "vw": 390
+    },
+    {
+      "type": "overflow-x",
+      "page": "manga/mobile@y844",
+      "tag": "BUTTON",
+      "testId": "",
+      "text": "",
+      "right": 711,
+      "vw": 390
+    },
+    {
+      "type": "overflow-x",
+      "page": "manga/mobile@y844",
+      "tag": "BUTTON",
+      "testId": "",
+      "text": "",
+      "right": 749,
+      "vw": 390
+    },
+    {
+      "type": "overflow-x",
+      "page": "manga/mobile@y844",
+      "tag": "BUTTON",
+      "testId": "",
+      "text": "",
+      "right": 787,
+      "vw": 390
+    },
+    {
+      "type": "overflow-x",
+      "page": "manga/mobile@y844",
+      "tag": "BUTTON",
+      "testId": "",
+      "text": "",
+      "right": 825,
+      "vw": 390
+    },
+    {
+      "type": "overflow-x",
+      "page": "manga/mobile@y844",
+      "tag": "BUTTON",
+      "testId": "",
+      "text": "",
+      "right": 863,
+      "vw": 390
+    },
+    {
+      "type": "overflow-x",
+      "page": "manga/mobile@y844",
+      "tag": "BUTTON",
+      "testId": "",
+      "text": "",
+      "right": 901,
+      "vw": 390
+    },
+    {
+      "type": "overflow-x",
+      "page": "manga/mobile@y844",
+      "tag": "BUTTON",
+      "testId": "",
+      "text": "",
+      "right": 939,
+      "vw": 390
+    },
+    {
+      "type": "overflow-x",
+      "page": "manga/mobile@y844",
+      "tag": "BUTTON",
+      "testId": "",
+      "text": "",
+      "right": 977,
+      "vw": 390
+    },
+    {
+      "type": "overflow-x",
+      "page": "manga/mobile@y844",
+      "tag": "BUTTON",
+      "testId": "",
+      "text": "",
+      "right": 1015,
+      "vw": 390
+    },
+    {
+      "type": "behind-fixed-cta",
+      "page": "manga/mobile@y844",
+      "tag": "BUTTON",
+      "testId": "page-selector",
+      "text": "Página 11 / 1",
+      "bottom": 143,
+      "vh": 844,
+      "inset": 844
+    },
+    {
+      "type": "behind-fixed-cta",
+      "page": "manga/mobile@y844",
+      "tag": "BUTTON",
+      "testId": "page-add",
+      "text": "New",
+      "bottom": 139,
+      "vh": 844,
+      "inset": 844
+    },
+    {
+      "type": "behind-fixed-cta",
+      "page": "bg-remove/mobile@y0",
+      "tag": "DIV",
+      "testId": "bg-remove-create-btn-bar",
+      "text": "Cost for this action8creditsBalance420Remove background · 8 ",
+      "bottom": 844,
+      "vh": 844,
+      "inset": 105
+    },
+    {
+      "type": "behind-fixed-cta",
+      "page": "bg-remove/mobile@y0",
+      "tag": "BUTTON",
+      "testId": "bg-remove-create-btn",
+      "text": "Remove background · 8 credits",
+      "bottom": 804,
+      "vh": 844,
+      "inset": 105
+    },
+    {
+      "type": "behind-fixed-cta",
+      "page": "bg-remove/mobile@y0",
+      "tag": "P",
+      "testId": "bg-remove-create-btn-hint",
+      "text": "Upload the required photo to continue",
+      "bottom": 826,
+      "vh": 844,
+      "inset": 105
+    },
+    {
+      "type": "behind-fixed-cta",
+      "page": "bg-remove/mobile@y422",
+      "tag": "DIV",
+      "testId": "bg-remove-create-btn-bar",
+      "text": "Cost for this action8creditsBalance420Remove background · 8 ",
+      "bottom": 844,
+      "vh": 844,
+      "inset": 105
+    },
+    {
+      "type": "behind-fixed-cta",
+      "page": "bg-remove/mobile@y422",
+      "tag": "BUTTON",
+      "testId": "bg-remove-create-btn",
+      "text": "Remove background · 8 credits",
+      "bottom": 804,
+      "vh": 844,
+      "inset": 105
+    },
+    {
+      "type": "behind-fixed-cta",
+      "page": "bg-remove/mobile@y422",
+      "tag": "P",
+      "testId": "bg-remove-create-btn-hint",
+      "text": "Upload the required photo to continue",
+      "bottom": 826,
+      "vh": 844,
+      "inset": 105
+    },
+    {
+      "type": "behind-fixed-cta",
+      "page": "bg-remove/mobile@y844",
+      "tag": "DIV",
+      "testId": "bg-remove-create-btn-bar",
+      "text": "Cost for this action8creditsBalance420Remove background · 8 ",
+      "bottom": 844,
+      "vh": 844,
+      "inset": 105
+    },
+    {
+      "type": "behind-fixed-cta",
+      "page": "bg-remove/mobile@y844",
+      "tag": "BUTTON",
+      "testId": "bg-remove-create-btn",
+      "text": "Remove background · 8 credits",
+      "bottom": 804,
+      "vh": 844,
+      "inset": 105
+    },
+    {
+      "type": "behind-fixed-cta",
+      "page": "bg-remove/mobile@y844",
+      "tag": "P",
+      "testId": "bg-remove-create-btn-hint",
+      "text": "Upload the required photo to continue",
+      "bottom": 826,
+      "vh": 844,
+      "inset": 105
+    },
+    {
+      "type": "behind-fixed-cta",
+      "page": "upscale/mobile@y0",
+      "tag": "DIV",
+      "testId": "upscale-create-btn-bar",
+      "text": "Cost for this action12creditsBalance420Upscale · 12 creditsU",
+      "bottom": 844,
+      "vh": 844,
+      "inset": 105
+    },
+    {
+      "type": "behind-fixed-cta",
+      "page": "upscale/mobile@y0",
+      "tag": "BUTTON",
+      "testId": "upscale-create-btn",
+      "text": "Upscale · 12 credits",
+      "bottom": 804,
+      "vh": 844,
+      "inset": 105
+    },
+    {
+      "type": "behind-fixed-cta",
+      "page": "upscale/mobile@y0",
+      "tag": "P",
+      "testId": "upscale-create-btn-hint",
+      "text": "Upload the required photo to continue",
+      "bottom": 826,
+      "vh": 844,
+      "inset": 105
+    },
+    {
+      "type": "behind-fixed-cta",
+      "page": "upscale/mobile@y422",
+      "tag": "DIV",
+      "testId": "upscale-create-btn-bar",
+      "text": "Cost for this action12creditsBalance420Upscale · 12 creditsU",
+      "bottom": 844,
+      "vh": 844,
+      "inset": 105
+    },
+    {
+      "type": "behind-fixed-cta",
+      "page": "upscale/mobile@y422",
+      "tag": "BUTTON",
+      "testId": "upscale-create-btn",
+      "text": "Upscale · 12 credits",
+      "bottom": 804,
+      "vh": 844,
+      "inset": 105
+    },
+    {
+      "type": "behind-fixed-cta",
+      "page": "upscale/mobile@y422",
+      "tag": "P",
+      "testId": "upscale-create-btn-hint",
+      "text": "Upload the required photo to continue",
+      "bottom": 826,
+      "vh": 844,
+      "inset": 105
+    },
+    {
+      "type": "behind-fixed-cta",
+      "page": "upscale/mobile@y844",
+      "tag": "DIV",
+      "testId": "upscale-create-btn-bar",
+      "text": "Cost for this action12creditsBalance420Upscale · 12 creditsU",
+      "bottom": 844,
+      "vh": 844,
+      "inset": 105
+    },
+    {
+      "type": "behind-fixed-cta",
+      "page": "upscale/mobile@y844",
+      "tag": "BUTTON",
+      "testId": "upscale-create-btn",
+      "text": "Upscale · 12 credits",
+      "bottom": 804,
+      "vh": 844,
+      "inset": 105
+    },
+    {
+      "type": "behind-fixed-cta",
+      "page": "upscale/mobile@y844",
+      "tag": "P",
+      "testId": "upscale-create-btn-hint",
+      "text": "Upload the required photo to continue",
+      "bottom": 826,
+      "vh": 844,
+      "inset": 105
+    },
+    {
+      "type": "behind-fixed-cta",
+      "page": "restore/mobile@y0",
+      "tag": "DIV",
+      "testId": "restore-create-btn-bar",
+      "text": "Cost for this action15creditsBalance420Restore photo · 15 cr",
+      "bottom": 844,
+      "vh": 844,
+      "inset": 105
+    },
+    {
+      "type": "behind-fixed-cta",
+      "page": "restore/mobile@y0",
+      "tag": "BUTTON",
+      "testId": "restore-create-btn",
+      "text": "Restore photo · 15 credits",
+      "bottom": 804,
+      "vh": 844,
+      "inset": 105
+    },
+    {
+      "type": "behind-fixed-cta",
+      "page": "restore/mobile@y0",
+      "tag": "P",
+      "testId": "restore-create-btn-hint",
+      "text": "Upload the required photo to continue",
+      "bottom": 826,
+      "vh": 844,
+      "inset": 105
+    },
+    {
+      "type": "behind-fixed-cta",
+      "page": "restore/mobile@y422",
+      "tag": "DIV",
+      "testId": "restore-create-btn-bar",
+      "text": "Cost for this action15creditsBalance420Restore photo · 15 cr",
+      "bottom": 844,
+      "vh": 844,
+      "inset": 105
+    },
+    {
+      "type": "behind-fixed-cta",
+      "page": "restore/mobile@y422",
+      "tag": "BUTTON",
+      "testId": "restore-create-btn",
+      "text": "Restore photo · 15 credits",
+      "bottom": 804,
+      "vh": 844,
+      "inset": 105
+    },
+    {
+      "type": "behind-fixed-cta",
+      "page": "restore/mobile@y422",
+      "tag": "P",
+      "testId": "restore-create-btn-hint",
+      "text": "Upload the required photo to continue",
+      "bottom": 826,
+      "vh": 844,
+      "inset": 105
+    },
+    {
+      "type": "behind-fixed-cta",
+      "page": "restore/mobile@y844",
+      "tag": "DIV",
+      "testId": "restore-create-btn-bar",
+      "text": "Cost for this action15creditsBalance420Restore photo · 15 cr",
+      "bottom": 844,
+      "vh": 844,
+      "inset": 105
+    },
+    {
+      "type": "behind-fixed-cta",
+      "page": "restore/mobile@y844",
+      "tag": "BUTTON",
+      "testId": "restore-create-btn",
+      "text": "Restore photo · 15 credits",
+      "bottom": 804,
+      "vh": 844,
+      "inset": 105
+    },
+    {
+      "type": "behind-fixed-cta",
+      "page": "restore/mobile@y844",
+      "tag": "P",
+      "testId": "restore-create-btn-hint",
+      "text": "Upload the required photo to continue",
+      "bottom": 826,
+      "vh": 844,
+      "inset": 105
+    },
+    {
+      "type": "behind-fixed-cta",
+      "page": "colorize/mobile@y0",
+      "tag": "DIV",
+      "testId": "colorize-create-btn-bar",
+      "text": "Cost for this action15creditsBalance420Colorize photo · 15 c",
+      "bottom": 844,
+      "vh": 844,
+      "inset": 105
+    },
+    {
+      "type": "behind-fixed-cta",
+      "page": "colorize/mobile@y0",
+      "tag": "BUTTON",
+      "testId": "colorize-create-btn",
+      "text": "Colorize photo · 15 credits",
+      "bottom": 804,
+      "vh": 844,
+      "inset": 105
+    },
+    {
+      "type": "behind-fixed-cta",
+      "page": "colorize/mobile@y0",
+      "tag": "P",
+      "testId": "colorize-create-btn-hint",
+      "text": "Upload the required photo to continue",
+      "bottom": 826,
+      "vh": 844,
+      "inset": 105
+    },
+    {
+      "type": "behind-fixed-cta",
+      "page": "colorize/mobile@y422",
+      "tag": "DIV",
+      "testId": "colorize-create-btn-bar",
+      "text": "Cost for this action15creditsBalance420Colorize photo · 15 c",
+      "bottom": 844,
+      "vh": 844,
+      "inset": 105
+    },
+    {
+      "type": "behind-fixed-cta",
+      "page": "colorize/mobile@y422",
+      "tag": "BUTTON",
+      "testId": "colorize-create-btn",
+      "text": "Colorize photo · 15 credits",
+      "bottom": 804,
+      "vh": 844,
+      "inset": 105
+    },
+    {
+      "type": "behind-fixed-cta",
+      "page": "colorize/mobile@y422",
+      "tag": "P",
+      "testId": "colorize-create-btn-hint",
+      "text": "Upload the required photo to continue",
+      "bottom": 826,
+      "vh": 844,
+      "inset": 105
+    },
+    {
+      "type": "behind-fixed-cta",
+      "page": "colorize/mobile@y844",
+      "tag": "DIV",
+      "testId": "colorize-create-btn-bar",
+      "text": "Cost for this action15creditsBalance420Colorize photo · 15 c",
+      "bottom": 844,
+      "vh": 844,
+      "inset": 105
+    },
+    {
+      "type": "behind-fixed-cta",
+      "page": "colorize/mobile@y844",
+      "tag": "BUTTON",
+      "testId": "colorize-create-btn",
+      "text": "Colorize photo · 15 credits",
+      "bottom": 804,
+      "vh": 844,
+      "inset": 105
+    },
+    {
+      "type": "behind-fixed-cta",
+      "page": "colorize/mobile@y844",
+      "tag": "P",
+      "testId": "colorize-create-btn-hint",
+      "text": "Upload the required photo to continue",
+      "bottom": 826,
+      "vh": 844,
+      "inset": 105
+    },
+    {
+      "type": "behind-fixed-cta",
+      "page": "inpaint/mobile@y0",
+      "tag": "DIV",
+      "testId": "inpaint-create-btn-bar",
+      "text": "Cost for this action25creditsBalance420Generate · 25 credits",
+      "bottom": 844,
+      "vh": 844,
+      "inset": 105
+    },
+    {
+      "type": "behind-fixed-cta",
+      "page": "inpaint/mobile@y0",
+      "tag": "BUTTON",
+      "testId": "inpaint-create-btn",
+      "text": "Generate · 25 credits",
+      "bottom": 804,
+      "vh": 844,
+      "inset": 105
+    },
+    {
+      "type": "behind-fixed-cta",
+      "page": "inpaint/mobile@y0",
+      "tag": "P",
+      "testId": "inpaint-create-btn-hint",
+      "text": "Upload the required photo to continue",
+      "bottom": 826,
+      "vh": 844,
+      "inset": 105
+    },
+    {
+      "type": "behind-fixed-cta",
+      "page": "inpaint/mobile@y422",
+      "tag": "DIV",
+      "testId": "inpaint-create-btn-bar",
+      "text": "Cost for this action25creditsBalance420Generate · 25 credits",
+      "bottom": 844,
+      "vh": 844,
+      "inset": 105
+    },
+    {
+      "type": "behind-fixed-cta",
+      "page": "inpaint/mobile@y422",
+      "tag": "BUTTON",
+      "testId": "inpaint-create-btn",
+      "text": "Generate · 25 credits",
+      "bottom": 804,
+      "vh": 844,
+      "inset": 105
+    },
+    {
+      "type": "behind-fixed-cta",
+      "page": "inpaint/mobile@y422",
+      "tag": "P",
+      "testId": "inpaint-create-btn-hint",
+      "text": "Upload the required photo to continue",
+      "bottom": 826,
+      "vh": 844,
+      "inset": 105
+    },
+    {
+      "type": "behind-fixed-cta",
+      "page": "inpaint/mobile@y844",
+      "tag": "DIV",
+      "testId": "inpaint-create-btn-bar",
+      "text": "Cost for this action25creditsBalance420Generate · 25 credits",
+      "bottom": 844,
+      "vh": 844,
+      "inset": 105
+    },
+    {
+      "type": "behind-fixed-cta",
+      "page": "inpaint/mobile@y844",
+      "tag": "BUTTON",
+      "testId": "inpaint-create-btn",
+      "text": "Generate · 25 credits",
+      "bottom": 804,
+      "vh": 844,
+      "inset": 105
+    },
+    {
+      "type": "behind-fixed-cta",
+      "page": "inpaint/mobile@y844",
+      "tag": "P",
+      "testId": "inpaint-create-btn-hint",
+      "text": "Upload the required photo to continue",
+      "bottom": 826,
+      "vh": 844,
+      "inset": 105
+    },
+    {
+      "type": "behind-fixed-cta",
+      "page": "clothes/mobile@y0",
+      "tag": "BUTTON",
+      "testId": "clothes-create",
+      "text": "Generate new outfit · 28 credits",
+      "bottom": 828,
+      "vh": 844,
+      "inset": 81
+    },
+    {
+      "type": "behind-fixed-cta",
+      "page": "clothes/mobile@y422",
+      "tag": "BUTTON",
+      "testId": "clothes-create",
+      "text": "Generate new outfit · 28 credits",
+      "bottom": 828,
+      "vh": 844,
+      "inset": 81
+    },
+    {
+      "type": "behind-fixed-cta",
+      "page": "clothes/mobile@y844",
+      "tag": "BUTTON",
+      "testId": "clothes-create",
+      "text": "Generate new outfit · 28 credits",
+      "bottom": 828,
+      "vh": 844,
+      "inset": 81
+    }
+  ],
+  "issueCount": 323
+}

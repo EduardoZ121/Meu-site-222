@@ -6,7 +6,7 @@ import { normalizeCreation, primaryResultUrl } from "../../../lib/creationUrls";
 import { useAuth } from "../../../lib/auth";
 import { usePricing } from "../../../lib/PricingContext";
 import ToolFrame from "../../../components/ToolFrame";
-import { Brush, Eraser } from "lucide-react";
+import { Brush, Eraser, Paintbrush } from "lucide-react";
 import { useStudioMediaPreview } from "../../../hooks/useStudioMediaPreview";
 import { useI18n } from "../../../lib/i18n";
 import { useLocalizedTools } from "../../../lib/useLocalizedTools";
@@ -97,6 +97,7 @@ export default function Inpaint() {
   return (
     <ToolFrame
       testId="inpaint"
+      headerIcon={Paintbrush}
       title={tool?.name || t("tool_inpaint_name")}
       subtitle={tool?.desc}
       photo={photo} onPhotoChange={setPhoto}

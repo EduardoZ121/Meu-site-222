@@ -12,6 +12,7 @@ import { useAuth } from "../../../lib/auth";
 import { usePricing } from "../../../lib/PricingContext";
 import ImageUploadZone from "../../../components/ImageUploadZone";
 import CollapsibleSection from "../../../components/CollapsibleSection";
+import BrandPageHeader from "../../../components/brand/BrandPageHeader";
 import StudioResultAnchor from "../../../components/StudioResultAnchor";
 import StudioGenerateBar from "../../../components/StudioGenerateBar";
 import StudioGenerateCostMeta from "../../../components/StudioGenerateCostMeta";
@@ -84,21 +85,13 @@ export default function Upscale() {
 
   return (
     <div className="max-w-[1400px] mx-auto pb-32" data-testid="upscale-frame">
-      {/* Back link */}
-      {/* Hero header */}
-      <div className="mb-12 flex items-start gap-5">
-        <div className="shrink-0 w-14 h-14 rounded-2xl bg-[#7C3AED]/15 border border-[#7C3AED]/30 flex items-center justify-center">
-          <ArrowUp className="w-7 h-7 text-[#C4B5FD]" strokeWidth={1.5} />
-        </div>
-        <div>
-          <h1 className="text-[#F4F1EA] text-[32px] md:text-[44px] font-light tracking-[-0.02em] leading-[1.05] mb-2 font-['Inter_Tight']">
-            {tCat("tool_upscale_name")}
-          </h1>
-          <p className="text-[#8A8A8E] text-[15px] max-w-[640px] leading-relaxed">
-            {t("upscale_desc_long")}
-          </p>
-        </div>
-      </div>
+      <BrandPageHeader
+        icon={ArrowUp}
+        eyebrow={t("tool_cap")}
+        title={tCat("tool_upscale_name")}
+        description={tCat("tool_upscale_desc")}
+        testId="upscale-header"
+      />
 
       <div className="grid grid-cols-1 xl:grid-cols-[1fr_440px] gap-10">
         {/* ====== LEFT: controls ====== */}

@@ -11,6 +11,7 @@ import ImageUploadZone from "./ImageUploadZone";
 import ResultPanel from "./ResultPanel";
 import CollapsibleSection from "./CollapsibleSection";
 import StudioResultAnchor from "./StudioResultAnchor";
+import BrandPageHeader from "./brand/BrandPageHeader";
 import { primaryResultUrl } from "../lib/creationUrls";
 /**
  * Unified studio frame — Pollo-style.
@@ -36,6 +37,7 @@ import { primaryResultUrl } from "../lib/creationUrls";
 export default function ToolFrame({
   title,
   subtitle,
+  headerIcon,
   models,
   selectedModel,
   onModelChange,
@@ -92,11 +94,13 @@ export default function ToolFrame({
 
   return (
     <div className="rp-studio-shell max-w-[1400px] mx-auto pb-32" data-testid={`${testId}-frame`}>
-      <header className="mb-8 md:mb-10 pb-6 md:pb-8 border-b border-[rgba(244,241,234,0.06)]">
-        <p className="rp-editor-section-cap mb-2">{t("tool_cap")}</p>
-        <h1 className="rp-studio-page-title mb-3 font-['Inter_Tight']">{title}</h1>
-        {subtitle && <p className="rp-studio-page-desc">{subtitle}</p>}
-      </header>
+      <BrandPageHeader
+        icon={headerIcon}
+        eyebrow={t("tool_cap")}
+        title={title}
+        description={subtitle}
+        testId={`${testId}-header`}
+      />
 
       <div className="grid grid-cols-1 xl:grid-cols-[1fr_400px] gap-8 xl:gap-10">
         <div className="rp-editor-panel overflow-hidden">

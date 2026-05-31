@@ -10,6 +10,7 @@ import { usePricing } from "../../../lib/PricingContext";
 import ResultPanel from "../../../components/ResultPanel";
 import ImageUploadZone from "../../../components/ImageUploadZone";
 import CollapsibleSection from "../../../components/CollapsibleSection";
+import BrandPageHeader from "../../../components/brand/BrandPageHeader";
 import StudioResultAnchor from "../../../components/StudioResultAnchor";
 import useTitle from "../../../lib/useTitle";
 import { useI18n } from "../../../lib/i18n";
@@ -125,18 +126,13 @@ export default function ClothesChanger() {
 
   return (
     <div className="max-w-[1400px] mx-auto pb-32" data-testid="clothes-page">
-      <header className="mb-8 md:mb-10">
-        <div className="flex items-center gap-3 mb-3">
-          <div className="w-9 h-9 rounded-full bg-[#7C3AED]/15 flex items-center justify-center">
-            <Shirt className="w-4 h-4 text-[#C4B5FD]" strokeWidth={1.5} />
-          </div>
-          <p className="text-[#7C3AED] text-[10px] font-mono uppercase tracking-[0.22em]">{tCat("tool_clothes_name")}</p>
-        </div>
-        <h1 className="text-[#F4F1EA] text-[32px] md:text-[44px] font-light tracking-[-0.02em] leading-[1.1] mb-3 font-['Inter_Tight']">
-          {tCat("tool_clothes_name")}
-        </h1>
-        <p className="text-[#8A8A8E] text-[15px] max-w-[640px]">{t("clothes_changer.description")}</p>
-      </header>
+      <BrandPageHeader
+        icon={Shirt}
+        eyebrow={t("tool_cap")}
+        title={tCat("tool_clothes_name")}
+        description={tCat("tool_clothes_desc")}
+        testId="clothes-header"
+      />
 
       <div className="grid grid-cols-1 xl:grid-cols-[1fr_400px] gap-10">
         <div className="space-y-5">

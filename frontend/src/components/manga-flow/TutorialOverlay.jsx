@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { HelpCircle, ChevronRight, X, Sparkles } from "lucide-react";
+import MangaModalOverlay from "./MangaModalOverlay";
 
 const STEPS = [
   {
@@ -45,7 +46,7 @@ export default function TutorialOverlay({ onClose }) {
   const isLast = step === STEPS.length - 1;
 
   return (
-    <div className="manga-flow-modal-overlay" onClick={onClose} data-testid="tutorial-overlay">
+    <MangaModalOverlay onClose={onClose} testId="tutorial-overlay">
       <div className="manga-flow-tutorial" onClick={(e) => e.stopPropagation()}>
         <button onClick={onClose} className="manga-flow-tutorial__close"><X className="w-4 h-4" /></button>
         <div className="manga-flow-tutorial__icon">{current.icon}</div>
@@ -63,6 +64,6 @@ export default function TutorialOverlay({ onClose }) {
           </button>
         </div>
       </div>
-    </div>
+    </MangaModalOverlay>
   );
 }

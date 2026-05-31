@@ -16,7 +16,7 @@ module.exports = async function handler(req, res) {
   return res.status(200).json({
     ok: true,
     api: "remakepix",
-    build: process.env.REACT_APP_BUILD_ID || "inpaint-fix-20260530",
+    build: process.env.REACT_APP_BUILD_ID || "ui-audit-20260531",
     ts: Date.now(),
     integrations: {
       replicate,

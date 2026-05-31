@@ -314,7 +314,7 @@ export default function BgRemove() {
             </AnimatePresence>
           </CollapsibleSection>
 
-          <CollapsibleSection title={t("bg_section_tuning")} optional hint="Cabelo, sombra e refinamentos." testId="bg-remove-section-tuning">
+          <CollapsibleSection title={t("bg_section_tuning")} optional hint={t("bg_section_tuning_hint")} testId="bg-remove-section-tuning">
             <div className="space-y-2.5">
               <Toggle
                 active={refineHair}

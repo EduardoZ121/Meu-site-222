@@ -239,7 +239,7 @@ export default function DashboardLayout() {
   return (
     <NotificationProvider>
       <motion.div
-        className={`min-h-screen h-[100dvh] md:min-h-screen bg-rp-bg flex font-['Inter_Tight'] text-rp-text touch-manipulation overflow-hidden w-full max-w-[100vw] ${
+        className={`min-h-screen h-[100dvh] md:min-h-screen bg-rp-bg flex font-['Inter_Tight'] text-rp-text touch-manipulation overflow-x-hidden w-full max-w-[100vw] ${
           workspaceMode ? "rp-dashboard--workspace" : ""
         }`}
         data-testid="dashboard-layout"

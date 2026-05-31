@@ -1476,6 +1476,10 @@
     display: flex;
     gap: 0.5rem;
     overflow-x: auto;
+    overflow-y: hidden;
+    max-width: 100%;
+    width: 100%;
+    min-width: 0;
     padding-bottom: 0.5rem;
     margin-bottom: 1rem;
     scroll-snap-type: x proximity;

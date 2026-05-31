@@ -1,9 +1,8 @@
 import { useMemo, useState } from "react";
-import { ArrowLeft, Loader2, Sparkles, Shirt } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { Loader2, Sparkles, Shirt, Image as ImageIcon } from "lucide-react";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
-import { formatApiError, uploadPost } from "../../../lib/api";
+import { uploadPost } from "../../../lib/api";
 import { normalizeCreation, primaryResultUrl } from "../../../lib/creationUrls";
 import { useAuth } from "../../../lib/auth";
 import { usePricing } from "../../../lib/PricingContext";
@@ -15,16 +14,7 @@ import useTitle from "../../../lib/useTitle";
 import { useI18n } from "../../../lib/i18n";
 import { useStudioI18n } from "../../../lib/useStudioI18n";
 
-const STYLE_PRESETS = [
-  { id: "casual",      label: "Casual",      desc: "white t-shirt, blue jeans, sneakers" },
-  { id: "formal",      label: "Formal",      desc: "elegant black suit, white shirt, leather shoes" },
-  { id: "streetwear",  label: "Streetwear",  desc: "oversized hoodie, baggy cargo pants, high-top sneakers" },
-  { id: "luxury",      label: "Luxury",      desc: "designer outfit, silk shirt, gold accessories, premium look" },
-  { id: "sport",       label: "Sport",       desc: "athletic gym wear, performance fabric, sportswear" },
-  { id: "evening",     label: "Evening",     desc: "elegant evening dress, satin fabric, sophisticated styling" },
-  { id: "vintage",     label: "Vintage",     desc: "70s vintage fashion, retro pattern, classic tailoring" },
-  { id: "business",    label: "Business",    desc: "navy blazer, crisp shirt, tailored trousers" },
-];
+const PRESET_IDS = ["casual", "formal", "streetwear", "luxury", "sport", "evening", "vintage", "business"];
 
 function PhotoBox({ photo, onChange, label, helper, emptyLabel, testId }) {
   return (
@@ -51,16 +41,25 @@ export default function ClothesChanger() {
   const { t, errToast, clearUploadToast } = useStudioI18n();
   const { t: tCat } = useI18n();
   useTitle(tCat("tool_clothes_name"));
-  const { refresh, user } = useAuth();
+  const { refresh, refundCredits, user } = useAuth();
   const { costs } = usePricing();
-  const navigate = useNavigate();
   const [photo, setPhoto] = useState(null);
   const [garment, setGarment] = useState(null);
   const [prompt, setPrompt] = useState("");
   const [changeType, setChangeType] = useState("full");
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState(null);
+  const [mobileTab, setMobileTab] = useState("create");
   const cost = costs.clothes;
+
+  const stylePresets = useMemo(
+    () => PRESET_IDS.map((id) => ({
+      id,
+      label: t(`clothes_preset_${id}_label`),
+      desc: t(`clothes_preset_${id}_desc`),
+    })),
+    [t],
+  );
 
   const changeTypes = useMemo(
     () => [
@@ -75,8 +74,8 @@ export default function ClothesChanger() {
     setPrompt(preset.desc);
   };
 
-  // Auto-switch is no longer needed — backend chooses the best internal motor.
-  // composition when a garment is uploaded, regardless of change_type.
+  const panelVisibility = (tab) => (mobileTab !== tab ? "hidden xl:block" : "");
+  const resultReady = Boolean(primaryResultUrl(result));
 
   const run = async () => {
     if (!photo) { toast.error(t("clothes_err_person")); return; }
@@ -89,30 +88,26 @@ export default function ClothesChanger() {
       return;
     }
     clearUploadToast();
+    setMobileTab("result");
+    window.requestAnimationFrame(() => {
+      window.dispatchEvent(new CustomEvent("rp:scroll-to-result"));
+    });
     setBusy(true); setResult(null);
+    let submitCredits = null;
     try {
       const fd = new FormData();
-
       const finalPrompt = prompt.trim();
+      fd.append("photo", photo);
+      fd.append("change_type", changeType);
       if (garment) {
-        fd.append("photo", photo);
         fd.append("garment", garment);
         if (finalPrompt) fd.append("prompt", finalPrompt);
-        fd.append("change_type", changeType);
       } else {
-        const prefixes = {
-          full:  "Replace all clothing with:",
-          piece: "Add/replace this specific clothing piece:",
-          color: "Keep the same outfit but change the color/style to:",
-        };
-        const prefix = prefixes[changeType] || "Change the outfit to:";
-
-        fd.append("photo", photo);
-        fd.append("prompt", `${prefix} ${finalPrompt}. Preserve face, body pose and identity. Photorealistic, natural lighting.`);
-        fd.append("change_type", changeType);
+        fd.append("prompt", finalPrompt);
       }
 
       const { data } = await uploadPost("/tools/clothes", fd, { timeout: 240000 });
+      submitCredits = data?.credits_spent ?? cost;
       const creation = normalizeCreation(data?.creation);
       if (!primaryResultUrl(creation)) throw new Error(t("common_no_result"));
       setResult(creation);
@@ -120,6 +115,11 @@ export default function ClothesChanger() {
       await refresh();
     } catch (err) {
       errToast(err);
+      const spent = submitCredits ?? (err?.refunded ? cost : 0);
+      if (err?.refunded && spent && !err?.server_billing) {
+        refundCredits?.(spent, t("studio_refund_desc"));
+      }
+      try { await refresh(); } catch { /* ignore */ }
     } finally { setBusy(false); }
   };
 
@@ -135,14 +135,45 @@ export default function ClothesChanger() {
         <h1 className="text-[#F4F1EA] text-[32px] md:text-[44px] font-light tracking-[-0.02em] leading-[1.1] mb-3 font-['Inter_Tight']">
           {tCat("tool_clothes_name")}
         </h1>
-        <p className="text-[#8A8A8E] text-[15px] max-w-[640px]">{t("clothes_changer.description")}</p>
+        <p className="text-[#8A8A8E] text-[15px] max-w-[640px]">{t("clothes_desc")}</p>
       </header>
 
+      <div
+        className="xl:hidden flex gap-2 mb-5 p-1 rounded-xl border border-white/[0.08] bg-white/[0.03]"
+        role="tablist"
+        data-testid="clothes-mobile-tabs"
+      >
+        {[
+          { id: "create", labelKey: "studio_tab_create", icon: Sparkles },
+          { id: "result", labelKey: "studio_tab_result", icon: ImageIcon },
+        ].map(({ id, labelKey, icon: Icon }) => {
+          const active = mobileTab === id;
+          return (
+            <button
+              key={id}
+              type="button"
+              role="tab"
+              aria-selected={active}
+              onClick={() => setMobileTab(id)}
+              className={`flex-1 inline-flex items-center justify-center gap-1.5 py-2.5 rounded-lg text-sm font-medium transition-all ${
+                active
+                  ? "bg-white/[0.08] text-white shadow-[inset_0_0_0_1px_rgba(167,139,250,0.35)]"
+                  : "text-rp-mute2 hover:text-rp-mute"
+              }`}
+              data-testid={`clothes-tab-${id}`}
+            >
+              <Icon className="w-3.5 h-3.5" strokeWidth={active ? 2 : 1.75} />
+              {t(labelKey)}
+            </button>
+          );
+        })}
+      </div>
+
       <div className="grid grid-cols-1 xl:grid-cols-[1fr_400px] gap-10">
-        <div className="space-y-5">
+        <div className={`space-y-5 ${panelVisibility("create")}`}>
           {/* Step 1 — photos */}
           <CollapsibleSection title={t("clothes_section_photos")} defaultOpen testId="clothes-section-photos">
-            <div className="grid grid-cols-2 gap-3 max-w-[600px]">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-w-[600px]">
               <PhotoBox
                 photo={photo}
                 onChange={setPhoto}
@@ -186,7 +217,7 @@ export default function ClothesChanger() {
           {!garment && (
             <CollapsibleSection title={t("clothes_section_presets")} optional testId="clothes-section-presets">
               <div className="flex flex-wrap gap-2" data-testid="presets">
-                {STYLE_PRESETS.map((p) => (
+                {stylePresets.map((p) => (
                   <button
                     key={p.id}
                     onClick={() => applyPreset(p)}
@@ -220,7 +251,11 @@ export default function ClothesChanger() {
         </div>
 
         {/* RIGHT */}
-        <StudioResultAnchor busy={busy} ready={Boolean(primaryResultUrl(result))} className="xl:sticky xl:top-[80px] self-start">
+        <StudioResultAnchor
+          busy={busy}
+          ready={resultReady}
+          className={`xl:sticky xl:top-[80px] self-start ${panelVisibility("result")}`}
+        >
           <p className="text-[#5A5A5E] text-[10px] font-mono uppercase tracking-[0.2em] mb-3">{t("clothes_result_label")}</p>
           <ResultPanel creation={result} loading={busy} onChange={setResult} emptyLabel={t("clothes_result_empty")} />
         </StudioResultAnchor>

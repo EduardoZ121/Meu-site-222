@@ -54,6 +54,7 @@ const en = {
   bg_scene_minimal: "Minimal beige",
   bg_mode_describe: "Describe",
   bg_section_tuning: "03 · Fine tuning",
+  bg_section_tuning_hint: "Hair edges, shadow, and refinements",
   bg_tune_hair: "Improve hair edges",
   bg_tune_hair_hint: "Preserves fine strands — recommended for people.",
   bg_tune_shadow: "Keep soft shadow",
@@ -203,6 +204,23 @@ const en = {
   clothes_err_person: "Upload a photo of the person.",
   clothes_err_garment: "Upload a garment photo OR describe the new outfit in text.",
   clothes_desc: "Swap anyone's outfit. Upload a person photo and garment reference or describe the look in text.",
+
+  clothes_preset_casual_label: "Casual",
+  clothes_preset_casual_desc: "white t-shirt, blue jeans, sneakers",
+  clothes_preset_formal_label: "Formal",
+  clothes_preset_formal_desc: "elegant black suit, white shirt, leather shoes",
+  clothes_preset_streetwear_label: "Streetwear",
+  clothes_preset_streetwear_desc: "oversized hoodie, baggy cargo pants, high-top sneakers",
+  clothes_preset_luxury_label: "Luxury",
+  clothes_preset_luxury_desc: "designer outfit, silk shirt, gold accessories, premium look",
+  clothes_preset_sport_label: "Sport",
+  clothes_preset_sport_desc: "athletic gym wear, performance fabric, sportswear",
+  clothes_preset_evening_label: "Evening",
+  clothes_preset_evening_desc: "elegant evening dress, satin fabric, sophisticated styling",
+  clothes_preset_vintage_label: "Vintage",
+  clothes_preset_vintage_desc: "70s vintage fashion, retro pattern, classic tailoring",
+  clothes_preset_business_label: "Business",
+  clothes_preset_business_desc: "navy blazer, crisp shirt, tailored trousers",
 };
 
 const pt = {
@@ -259,6 +277,7 @@ const pt = {
   bg_scene_minimal: "Minimal Bege",
   bg_mode_describe: "Descrever",
   bg_section_tuning: "03 · Ajustes finos",
+  bg_section_tuning_hint: "Cabelo, sombra e refinamentos",
   bg_tune_hair: "Melhorar bordas do cabelo",
   bg_tune_hair_hint: "Preserva fios finos e mechas translúcidas — recomendado para pessoas.",
   bg_tune_shadow: "Manter sombra suave",
@@ -408,6 +427,23 @@ const pt = {
   clothes_err_person: "Envia uma foto da pessoa.",
   clothes_err_garment: "Envia uma foto da roupa OU descreve a roupa nova no campo de texto.",
   clothes_desc: "Envia foto da pessoa. Envia foto da roupa OU descreve em palavras. O modelo preserva o rosto e a pose.",
+
+  clothes_preset_casual_label: "Casual",
+  clothes_preset_casual_desc: "t-shirt branca, jeans azuis, ténis",
+  clothes_preset_formal_label: "Formal",
+  clothes_preset_formal_desc: "fato preto elegante, camisa branca, sapatos de couro",
+  clothes_preset_streetwear_label: "Streetwear",
+  clothes_preset_streetwear_desc: "hoodie oversized, calças cargo, ténis altos",
+  clothes_preset_luxury_label: "Luxury",
+  clothes_preset_luxury_desc: "outfit de designer, camisa de seda, acessórios dourados",
+  clothes_preset_sport_label: "Desporto",
+  clothes_preset_sport_desc: "roupa de ginásio, tecido técnico, sportswear",
+  clothes_preset_evening_label: "Noite",
+  clothes_preset_evening_desc: "vestido de gala, tecido acetinado, estilo sofisticado",
+  clothes_preset_vintage_label: "Vintage",
+  clothes_preset_vintage_desc: "moda vintage anos 70, padrão retro, corte clássico",
+  clothes_preset_business_label: "Business",
+  clothes_preset_business_desc: "blazer azul-marinho, camisa crisp, calças à medida",
 };
 
 export function mergeToolPagesLocales(dict) {

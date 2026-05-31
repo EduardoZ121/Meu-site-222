@@ -147,14 +147,12 @@ export function planMangaGeneration(nodes, edges = []) {
       node: persons[0],
       field: "photo",
     });
-    refSlots.push({
-      slot: 2,
-      role: "scenario",
-      label: nodeLabel(scenarios[0], "Cenário"),
-      node: scenarios[0],
-      field: "photo_b",
-    });
-    return { endpoint: "/generate/manga-interaction", refSlots };
+    return {
+      endpoint: "/generate/manga-panel",
+      refSlots,
+      warning:
+        "Cenário incluído no texto do prompt — a foto de cenário não é enviada à API (só personagem).",
+    };
   }
 
   if (persons.length === 1) {

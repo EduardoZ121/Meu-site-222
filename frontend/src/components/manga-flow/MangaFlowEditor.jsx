@@ -10,6 +10,7 @@ import {
   Pencil, FileText, Check, LayoutTemplate, History,
   Variable, List, Maximize2, Minimize2, Eye, EyeOff,
   Download, Upload, BarChart3, Search, Keyboard, Sparkles,
+  Image as ImageIcon,
 } from "lucide-react";
 import PersonNode from "./nodes/PersonNode";
 import SupportNode from "./nodes/SupportNode";
@@ -31,6 +32,16 @@ import StoryboardView from "./StoryboardView";
 import StatsPanel from "./StatsPanel";
 import GenerationModal from "./GenerationModal";
 import AIWizardModal from "./AIWizardModal";
+import { planMangaGeneration } from "../../lib/mangaGenerationRefs";
+import { shouldUseComicSheetMode } from "../../lib/mangaFlowOrchestrator";
+import { countPanelNodes } from "./buildFlowPrompt";
+import { useI18n } from "../../lib/i18n";
+import { usePricing } from "../../lib/PricingContext";
+import StudioGenerateBar from "../StudioGenerateBar";
+import StudioGenerateCostMeta from "../StudioGenerateCostMeta";
+import StudioResultAnchor from "../StudioResultAnchor";
+import { useStudioGenerateGate } from "../../lib/useStudioGenerateGate";
+import { useAuth } from "../../lib/auth";
 import {
   uid, createDefaultProject, createEmptyPage, saveFlowProject,
   loadFlowProject, listFlowProjects, loadFlowProjectById, deleteFlowProject,
@@ -52,9 +63,25 @@ const defaultEdgeOptions = {
 
 const MAX_HISTORY = 40;
 
+function estimateFlowCost(nodes, edges, costs) {
+  const semanticEdges = enrichEdgesSemantics(edges, nodes);
+  const genPlan = planMangaGeneration(nodes, semanticEdges);
+  const panelCount = countPanelNodes(nodes);
+  const isComicSheet = shouldUseComicSheetMode(nodes);
+  const isMultiPanelPage = panelCount >= 2;
+  const dualCharRefs = genPlan.refSlots.filter((s) => s.role === "character").length >= 2;
+  const usesDualInteraction = dualCharRefs && !isComicSheet && !isMultiPanelPage
+    && genPlan.endpoint === "/generate/manga-interaction";
+  if (isComicSheet || isMultiPanelPage) return costs?.mangaPage ?? 40;
+  return costs?.mangaPanel ?? 15;
+}
+
 /* ================================================================ */
 
 export default function MangaFlowEditor() {
+  const { t } = useI18n();
+  const { costs } = usePricing();
+  const { user } = useAuth();
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
   const [selectedNode, setSelectedNode] = useState(null);
@@ -70,6 +97,8 @@ export default function MangaFlowEditor() {
   const [showStats, setShowStats] = useState(false);
   const [showGeneration, setShowGeneration] = useState(false);
   const [showAIWizard, setShowAIWizard] = useState(false);
+  const [lastResultUrl, setLastResultUrl] = useState(null);
+  const [mobileFlowTab, setMobileFlowTab] = useState("flow");
   const [viewMode, setViewMode] = useState("canvas"); // "canvas" | "storyboard"
   const [zenMode, setZenMode] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -98,6 +127,16 @@ export default function MangaFlowEditor() {
   const pages = useMemo(() => project?.pages || [], [project?.pages]);
   const activePage = pages.find((p) => p.id === activePageId) || pages[0] || null;
   const activePageIndex = pages.findIndex((p) => p.id === activePageId);
+  const flowCost = useMemo(() => estimateFlowCost(nodes, edges, costs), [nodes, edges, costs]);
+  const isComicSheetFlow = shouldUseComicSheetMode(nodes);
+  const panelVisibility = (tab) => (mobileFlowTab !== tab ? "hidden lg:block" : "");
+  const { ready: genReady, hint: genHint } = useStudioGenerateGate({
+    busy: false,
+    user,
+    cost: flowCost,
+    readyOverride: nodes.length > 0,
+    hintOverride: nodes.length === 0 ? t("manga_select_panel") : null,
+  });
 
   const generationPageContext = useMemo(() => {
     const meta = project?.storyMeta;
@@ -569,12 +608,12 @@ export default function MangaFlowEditor() {
         </div>
         {!zenMode && (
         <div className="flex items-center gap-1 flex-wrap">
-          <button onClick={() => setShowAddMenu(true)} className="manga-flow-btn manga-flow-btn-primary" data-testid="manga-flow-add-btn"><Plus className="w-4 h-4" /> Add</button>
+          <button onClick={() => setShowAddMenu(true)} className="manga-flow-btn manga-flow-btn-primary" data-testid="manga-flow-add-btn"><Plus className="w-4 h-4" /> {t("manga_flow_add")}</button>
           <button onClick={() => setShowGeneration(true)} className="mfg-trigger-btn" data-testid="manga-flow-generate-page">
             <Wand2 className="w-4 h-4" />
-            {nodes.filter((n) => n.type === "panel").length >= 2 ? "Comic Sheet" : "Generate"}
+            {isComicSheetFlow ? t("manga_flow_comic_short", { n: flowCost }) : t("manga_flow_open_generate", { n: flowCost })}
           </button>
-          <button onClick={() => setShowAIWizard(true)} className="aiw-trigger-btn" data-testid="manga-flow-ai-wizard"><Sparkles className="w-4 h-4" /> Create with AI</button>
+          <button onClick={() => setShowAIWizard(true)} className="aiw-trigger-btn" data-testid="manga-flow-ai-wizard"><Sparkles className="w-4 h-4" /> {t("manga_flow_ai_wizard")}</button>
           <button onClick={autoArrange} className="manga-flow-btn" title="Auto Arrange"><LayoutGrid className="w-4 h-4" /></button>
           <button onClick={generatePrompt} className="manga-flow-btn manga-flow-btn-prompt" title="Generate AI Prompt"><Wand2 className="w-4 h-4" /></button>
           <button onClick={() => setShowTemplates(true)} className="manga-flow-btn" title="Templates"><LayoutTemplate className="w-4 h-4" /></button>
@@ -645,7 +684,40 @@ export default function MangaFlowEditor() {
         </div>
       )}
 
+      {lastResultUrl && (
+        <div
+          className="lg:hidden flex gap-2 mx-3 mb-2 p-1 rounded-xl border border-white/[0.08] bg-white/[0.03]"
+          role="tablist"
+          data-testid="manga-flow-mobile-tabs"
+        >
+          {[
+            { id: "flow", labelKey: "manga_flow_tab_flow", icon: LayoutGrid },
+            { id: "result", labelKey: "studio_tab_result", icon: ImageIcon },
+          ].map(({ id, labelKey, icon: Icon }) => {
+            const active = mobileFlowTab === id;
+            return (
+              <button
+                key={id}
+                type="button"
+                role="tab"
+                aria-selected={active}
+                onClick={() => setMobileFlowTab(id)}
+                className={`flex-1 inline-flex items-center justify-center gap-1.5 py-2 rounded-lg text-sm font-medium transition-all ${
+                  active
+                    ? "bg-white/[0.08] text-white shadow-[inset_0_0_0_1px_rgba(167,139,250,0.35)]"
+                    : "text-[#8A8A8E]"
+                }`}
+              >
+                <Icon className="w-3.5 h-3.5" strokeWidth={active ? 2 : 1.75} />
+                {t(labelKey)}
+              </button>
+            );
+          })}
+        </div>
+      )}
+
       {/* ===== CANVAS or STORYBOARD ===== */}
+      <div className={panelVisibility("flow")}>
       {viewMode === "storyboard" ? (
         <div className="manga-flow-canvas-wrap">
           <StoryboardView nodes={nodes} edges={edges} onSelectNode={(id) => { setSelectedNode(id); setViewMode("canvas"); }} />
@@ -681,6 +753,30 @@ export default function MangaFlowEditor() {
         )}
       </div>
       )}
+      </div>
+
+      {lastResultUrl && (
+        <div className={`mx-3 mb-4 ${panelVisibility("result")}`}>
+          <StudioResultAnchor busy={false} ready className="max-w-lg mx-auto">
+            <p className="text-[10px] font-mono uppercase tracking-[0.22em] text-[#7C3AED] mb-2">{t("last_result")}</p>
+            <div className="rounded-xl border border-[#2E2E30] overflow-hidden bg-[#0B0B0C]">
+              <img src={lastResultUrl} alt="" className="w-full h-auto" crossOrigin="anonymous" />
+            </div>
+          </StudioResultAnchor>
+        </div>
+      )}
+
+      <StudioGenerateBar
+        ready={genReady}
+        busy={false}
+        onClick={() => setShowGeneration(true)}
+        label={isComicSheetFlow ? t("manga_flow_comic_sheet_btn", { n: flowCost }) : t("manga_flow_open_generate", { n: flowCost })}
+        busyLabel={t("manga_generating")}
+        hint={genHint}
+        testId="manga-flow-generate-bar"
+        icon={Wand2}
+        costMeta={<StudioGenerateCostMeta cost={flowCost} user={user} />}
+      />
 
       {/* ===== MODALS ===== */}
       {showAddMenu && <AddNodeMenu onAdd={addNode} onClose={() => setShowAddMenu(false)} />}
@@ -765,6 +861,10 @@ export default function MangaFlowEditor() {
           edges={edges}
           pageContext={generationPageContext}
           onClose={() => setShowGeneration(false)}
+          onResult={(url) => {
+            setLastResultUrl(url);
+            setMobileFlowTab("result");
+          }}
         />
       )}
 

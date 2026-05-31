@@ -1,7 +1,24 @@
 import { Component } from "react";
 import { ReactFlowProvider } from "@xyflow/react";
 import MangaFlowEditor from "../../components/manga-flow/MangaFlowEditor";
+import { useI18n } from "../../lib/i18n";
 import "../../styles/manga-flow.css";
+
+function MangaStudioErrorFallback({ error, t }) {
+  return (
+    <div className="manga-studio-fallback" data-testid="manga-studio-error">
+      <h2 className="manga-studio-fallback__title">{t("manga_studio_err_title")}</h2>
+      <p className="manga-studio-fallback__msg">{error?.message || t("common_fail")}</p>
+      <button
+        type="button"
+        className="manga-flow-btn manga-flow-btn-primary"
+        onClick={() => window.location.reload()}
+      >
+        {t("manga_studio_err_reload")}
+      </button>
+    </div>
+  );
+}
 
 class MangaStudioErrorBoundary extends Component {
   constructor(props) {
@@ -19,15 +36,7 @@ class MangaStudioErrorBoundary extends Component {
 
   render() {
     if (this.state.error) {
-      return (
-        <div className="manga-studio-fallback" data-testid="manga-studio-error">
-          <h2 className="manga-studio-fallback__title">Manga Studio could not start</h2>
-          <p className="manga-studio-fallback__msg">{this.state.error?.message || "Unknown error"}</p>
-          <button type="button" className="manga-flow-btn manga-flow-btn-primary" onClick={() => window.location.reload()}>
-            Reload page
-          </button>
-        </div>
-      );
+      return <MangaStudioErrorFallback error={this.state.error} t={this.props.t} />;
     }
     return this.props.children;
   }
@@ -35,8 +44,9 @@ class MangaStudioErrorBoundary extends Component {
 
 /** Manga Studio — visual flow editor (TUDO-FINAL). */
 export default function MangaStudio() {
+  const { t } = useI18n();
   return (
-    <MangaStudioErrorBoundary>
+    <MangaStudioErrorBoundary t={t}>
       <div className="manga-studio-page" data-testid="manga-studio-page">
         <ReactFlowProvider>
           <MangaFlowEditor />

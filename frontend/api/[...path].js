@@ -1581,7 +1581,8 @@ async function routePost(path, fields, files, req) {
     const selected = text(fields, "model_key", "grok");
     const hasPhoto = Boolean(files.photo || text(fields, "photo_url", "").trim());
     let modelKey = "standard";
-    if (selected === "gpt_image" || selected === "flux2") modelKey = "pro";
+    if (selected === "gpt_image" || selected === "flux2" || selected === "pro") modelKey = "pro";
+    if (selected === "grok" || selected === "standard") modelKey = "standard";
 
     const aspectDefault = mode === "chapter" ? "9:16" : mode === "page" ? "3:4" : text(fields, "aspect_ratio", "4:5");
     const input = await imageInput(fields, files, modelKey, promptFinal);

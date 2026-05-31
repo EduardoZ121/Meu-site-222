@@ -2,7 +2,7 @@ import axios from "axios";
 
 import { formatHttpError } from "./uploadErrors";
 import { isBrowserOnlineFlag } from "./uploadReachability";
-import { normalizeCreation } from "./creationUrls";
+import { isVideoCreation, normalizeCreation } from "./creationUrls";
 import { notifyCreditsUpdate, notifyGenerationComplete } from "./notifyUser";
 
 /** Evita mixed content: página em https + backend em http → o browser bloqueia e parece "Network Error". */
@@ -411,8 +411,12 @@ async function pollTrackedPredictionOnce(predictionId, meta = {}) {
   if (data.status === "succeeded") {
     if (data.creation && !notifiedPredictions.has(predictionId)) {
       if (meta?.credits_spent && !data.creation.credits_spent) data.creation.credits_spent = meta.credits_spent;
-      if (meta?.type && !data.creation.type) data.creation.type = meta.type;
-      const creation = normalizeCreation(data.creation);
+      let creation = normalizeCreation(data.creation);
+      if (isVideoCreation(creation) && creation.type !== "video") {
+        creation = { ...creation, type: "video" };
+      } else if (meta?.type && !creation.type) {
+        creation = { ...creation, type: meta.type };
+      }
       if (creation?.result_urls?.length) {
         notifiedPredictions.add(predictionId);
         notifyCreationSucceeded({
@@ -509,15 +513,24 @@ export async function pollPrediction(predictionId, opts = {}) {
     }
     const data = res.data;
     if (data.status === "succeeded") {
+      let meta = {};
       try {
-        const meta = JSON.parse(localStorage.getItem(`rp_prediction_${predictionId}`) || "{}");
-        const spent = meta.credits_spent || opts.credits_spent;
-        if (data.creation && spent && !data.creation.credits_spent) {
-          data.creation.credits_spent = spent;
-          data.creation.type = data.creation.type || meta.type || opts.type;
+        meta = JSON.parse(localStorage.getItem(`rp_prediction_${predictionId}`) || "{}");
+      } catch { meta = {}; }
+      const spent = meta.credits_spent || opts.credits_spent;
+      if (data.creation && spent && !data.creation.credits_spent) {
+        data.creation.credits_spent = spent;
+      }
+      if (data.creation) {
+        let creation = normalizeCreation(data.creation);
+        if (isVideoCreation(creation) && creation.type !== "video") {
+          creation = { ...creation, type: "video" };
+        } else if ((meta.type || opts.type) && !creation.type) {
+          creation = { ...creation, type: meta.type || opts.type };
         }
-        removeTrackedPrediction(predictionId);
-      } catch { /* ignore */ }
+        data.creation = creation;
+      }
+      removeTrackedPrediction(predictionId);
       if (data.new_balance != null && typeof window !== "undefined") {
         window.dispatchEvent(new CustomEvent("rp:credits-sync", { detail: { credits: data.new_balance } }));
       }

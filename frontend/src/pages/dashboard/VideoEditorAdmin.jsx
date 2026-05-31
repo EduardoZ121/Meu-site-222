@@ -1,16 +1,14 @@
 import { useEffect, useMemo, useState } from "react";
-import { Clapperboard, Sparkles } from "lucide-react";
+import { Clapperboard, ImageIcon, Sparkles } from "lucide-react";
 import {
-  formatApiError,
   trackPendingPrediction,
   uploadPost,
 } from "../../lib/api";
 import { dispatchBackgroundJob, ensureBackgroundSlot } from "../../lib/bgGeneration";
-import { normalizeCreation, primaryResultUrl } from "../../lib/creationUrls";
+import { coerceVideoCreation, isVideoCreation, normalizeCreation, primaryResultUrl } from "../../lib/creationUrls";
 import { readVideoDurationSeconds } from "../../lib/videoMedia";
 import { useAuth } from "../../lib/auth";
 import { usePricing } from "../../lib/PricingContext";
-import { useI18n } from "../../lib/i18n";
 import { computeVideoEditCost, buildVideoEditSurcharge } from "../../lib/videoEditPricing";
 import { getSurcharges } from "../../lib/creditPricing";
 import { toast } from "sonner";
@@ -20,10 +18,16 @@ import StudioAccordionSection from "../../components/StudioAccordionSection";
 import ImageUploadZone from "../../components/ImageUploadZone";
 import StudioVideoUpload from "../../components/StudioVideoUpload";
 import StudioGenerateBar from "../../components/StudioGenerateBar";
+import StudioGenerateCostMeta from "../../components/StudioGenerateCostMeta";
 import PromptEnhanceToggle from "../../components/promptAssist/PromptEnhanceToggle";
 import { useStudioGenerateGate } from "../../lib/useStudioGenerateGate";
+import { useStudioI18n } from "../../lib/useStudioI18n";
 
 const EDIT_IDEAS = ["vid_edit_idea_1", "vid_edit_idea_2", "vid_edit_idea_3"];
+const MOBILE_TABS = [
+  { id: "create", labelKey: "studio_tab_create", icon: Sparkles },
+  { id: "result", labelKey: "studio_tab_result", icon: ImageIcon },
+];
 const DURATIONS = [4, 6, 8, 10];
 const RESOLUTIONS = [
   { v: "original", labelKey: "vid_res_original", premium: false },
@@ -46,9 +50,9 @@ function selectCard(active) {
 }
 
 export default function VideoEditorAdmin() {
-  const { t, lang } = useI18n();
+  const { t, lang, errToast, clearUploadToast } = useStudioI18n();
   const ideas = useMemo(() => EDIT_IDEAS.map((k) => t(k)), [t]);
-  const { refresh, user } = useAuth();
+  const { refresh, user, refundCredits } = useAuth();
   const { costs, region } = usePricing();
   const surcharges = useMemo(() => getSurcharges(region), [region]);
   const videoSurcharge = useMemo(() => buildVideoEditSurcharge(region), [region]);
@@ -68,18 +72,32 @@ export default function VideoEditorAdmin() {
   const [uploadPhase, setUploadPhase] = useState("");
   const [progress, setProgress] = useState(0);
   const [result, setResult] = useState(null);
+  const [mobileTab, setMobileTab] = useState("create");
+  const [bgPending, setBgPending] = useState(false);
 
   useEffect(() => {
     const onCreation = (e) => {
-      const creation = normalizeCreation(e.detail);
-      if (creation?.type !== "video" || !primaryResultUrl(creation)) return;
+      const creation = coerceVideoCreation(normalizeCreation(e.detail));
+      if (!isVideoCreation(creation) || !primaryResultUrl(creation)) return;
       setResult(creation);
       setBusy(false);
+      setBgPending(false);
+      setUploadPhase("");
+      setProgress(0);
+      setMobileTab("result");
+    };
+    const onFailed = () => {
+      setBusy(false);
+      setBgPending(false);
       setUploadPhase("");
       setProgress(0);
     };
     window.addEventListener("rp:creation-succeeded", onCreation);
-    return () => window.removeEventListener("rp:creation-succeeded", onCreation);
+    window.addEventListener("rp:prediction-failed", onFailed);
+    return () => {
+      window.removeEventListener("rp:creation-succeeded", onCreation);
+      window.removeEventListener("rp:prediction-failed", onFailed);
+    };
   }, []);
 
   const cost = useMemo(() => {
@@ -130,6 +148,10 @@ export default function VideoEditorAdmin() {
     setDuration(d);
   };
 
+  const panelVisibility = (tab) => (mobileTab !== tab ? "hidden lg:block" : "");
+  const resultReady = Boolean(primaryResultUrl(result));
+  const showBusy = busy || bgPending || uploadPhase === "processing";
+
   const run = async () => {
     if (!video) {
       toast.error(t("vid_edit_err_video"));
@@ -144,11 +166,17 @@ export default function VideoEditorAdmin() {
       return;
     }
 
+    clearUploadToast();
+    setMobileTab("result");
     setBusy(true);
     setProgress(0);
     setUploadPhase("send");
     setResult(null);
-    try { ensureBackgroundSlot(); } catch { setBusy(false); setUploadPhase(""); return; }
+    setBgPending(true);
+    window.requestAnimationFrame(() => {
+      window.dispatchEvent(new CustomEvent("rp:scroll-to-result"));
+    });
+    try { ensureBackgroundSlot(); } catch { setBusy(false); setBgPending(false); setUploadPhase(""); return; }
     let submitData;
     try {
       const fd = new FormData();
@@ -183,10 +211,12 @@ export default function VideoEditorAdmin() {
       // for video edits, if the backend so chooses — opt-in via `notify_email`
       // field which we forward when present).
     } catch (err) {
-      toast.error(formatApiError(err, t("vid_edit_fail"), { context: "video_upload", t }), { duration: 12000 });
-      if (err?.refunded && submitData?.credits_spent) {
-        try { await refresh(); } catch { /* ignore */ }
+      setBgPending(false);
+      errToast(err);
+      if (err?.refunded && submitData?.credits_spent && !submitData?.server_billing) {
+        refundCredits?.(submitData.credits_spent, t("studio_refund_desc"));
       }
+      try { await refresh(); } catch { /* ignore */ }
     } finally {
       setBusy(false);
       setUploadPhase("");
@@ -195,7 +225,7 @@ export default function VideoEditorAdmin() {
   };
 
   const controls = (
-    <div className="space-y-4 min-w-0">
+    <div className={`space-y-4 min-w-0 ${panelVisibility("create")}`}>
       <StudioAccordionSection title={t("vid_acc_my_video")} defaultOpen testId="video-edit-acc-source">
         <p className="text-[#6f6f76] text-[11px] mb-3">
           {t("vid_edit_eta_hint", { min: eta.min, max: eta.max })}
@@ -369,51 +399,76 @@ export default function VideoEditorAdmin() {
           </span>
         </label>
       </StudioAccordionSection>
-
-      <StudioAccordionSection title={t("vid_acc_generate")} defaultOpen testId="video-edit-acc-generate">
-          <StudioGenerateBar
-            layout="inline"
-            ready={ready}
-            busy={busy}
-            onClick={run}
-            label={t("vid_edit_btn", { n: cost })}
-            busyLabel={
-              uploadPhase === "processing" && progress > 0
-                ? `${t("vid_edit_processing")} (${progress}s)`
-                : uploadPhase === "processing"
-                  ? t("vid_edit_processing_eta", { min: eta.min, max: eta.max })
-                  : t("vid_edit_processing")
-            }
-            hint={hint}
-            testId="video-edit-submit"
-            icon={Clapperboard}
-          />
-          <p className="text-[#5A5A5E] text-[11px] mt-3 text-center font-mono uppercase tracking-[0.14em]">
-            {t("vid_balance", { n: user?.is_unlimited ? "∞" : (user?.credits ?? 0) })}
-          </p>
-      </StudioAccordionSection>
     </div>
   );
 
   const resultBlock = (
     <StudioResultAnchor
-      busy={busy}
-      ready={Boolean(primaryResultUrl(result))}
-      className="lg:sticky lg:top-[88px] self-start space-y-3"
+      busy={showBusy}
+      ready={resultReady}
+      className={`lg:sticky lg:top-[88px] self-start space-y-3 ${panelVisibility("result")}`}
     >
       <p className="text-[10px] font-mono uppercase tracking-[0.22em] text-[#7C3AED]">
         {t("vid_edit_result_label")}
       </p>
       <div className="rp-editor-panel overflow-hidden p-3 sm:p-4">
-        <ResultPanel creation={result} loading={busy} onChange={setResult} emptyLabel={t("vid_edit_result_empty")} />
+        <ResultPanel creation={result} loading={showBusy} onChange={setResult} emptyLabel={t("vid_edit_result_empty")} />
       </div>
     </StudioResultAnchor>
   );
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-[1fr_380px] gap-8 lg:gap-10" data-testid="video-editor-admin">
-      {controls}
-      {resultBlock}
+    <div className="pb-28" data-testid="video-editor-admin">
+      <div
+        className="lg:hidden flex gap-2 mb-5 p-1 rounded-xl border border-white/[0.08] bg-white/[0.03]"
+        role="tablist"
+        data-testid="video-edit-mobile-tabs"
+      >
+        {MOBILE_TABS.map(({ id, labelKey, icon: Icon }) => {
+          const active = mobileTab === id;
+          return (
+            <button
+              key={id}
+              type="button"
+              role="tab"
+              aria-selected={active}
+              onClick={() => setMobileTab(id)}
+              className={`flex-1 inline-flex items-center justify-center gap-1.5 py-2.5 rounded-lg text-sm font-medium transition-all ${
+                active
+                  ? "bg-white/[0.08] text-white shadow-[inset_0_0_0_1px_rgba(167,139,250,0.35)]"
+                  : "text-rp-mute2 hover:text-rp-mute"
+              }`}
+              data-testid={`video-edit-tab-${id}`}
+            >
+              <Icon className="w-3.5 h-3.5" strokeWidth={active ? 2 : 1.75} />
+              {t(labelKey)}
+            </button>
+          );
+        })}
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-[1fr_380px] gap-8 lg:gap-10">
+        {controls}
+        {resultBlock}
+      </div>
+
+      <StudioGenerateBar
+        ready={ready}
+        busy={showBusy}
+        onClick={run}
+        label={t("vid_edit_btn", { n: cost })}
+        busyLabel={
+          uploadPhase === "processing" && progress > 0
+            ? `${t("vid_edit_processing")} (${progress}s)`
+            : uploadPhase === "processing" || bgPending
+              ? t("vid_edit_processing_eta", { min: eta.min, max: eta.max })
+              : t("vid_edit_processing")
+        }
+        hint={hint}
+        testId="video-edit-submit"
+        icon={Clapperboard}
+        costMeta={<StudioGenerateCostMeta cost={cost} user={user} extra={`${duration}s`} />}
+      />
     </div>
   );
 }

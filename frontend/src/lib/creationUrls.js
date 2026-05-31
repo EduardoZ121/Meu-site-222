@@ -56,6 +56,13 @@ export function isVideoCreation(creation, url) {
   return /\.(mp4|webm|mov)(\?|$)/i.test(u);
 }
 
+/** Corrige type quando a API devolve "image" mas o URL é vídeo. */
+export function coerceVideoCreation(creation) {
+  if (!creation) return creation;
+  if (creation.type === "video" || !isVideoCreation(creation)) return creation;
+  return { ...creation, type: "video" };
+}
+
 /** Proxy same-origin (só quando o CDN bloqueia hotlink). */
 export function proxiedMediaUrl(url) {
   if (!url || url.startsWith("data:")) return url;

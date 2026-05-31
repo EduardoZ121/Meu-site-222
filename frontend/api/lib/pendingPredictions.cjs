@@ -69,7 +69,9 @@ function creationFromPending(pending, urls) {
     poster: "poster",
     carousel: "carousel",
   };
-  const resolved = typeMap[pending.type] || "image";
+  const firstUrl = Array.isArray(urls) ? urls[0] : "";
+  const urlIsVideo = /\.(mp4|webm|mov)(\?|$)/i.test(String(firstUrl || ""));
+  const resolved = urlIsVideo ? "video" : (typeMap[pending.type] || "image");
   return {
     id: pending.id,
     type: resolved,

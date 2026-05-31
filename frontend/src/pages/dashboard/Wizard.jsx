@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import {
   Loader2, ArrowRight, Sparkles, ArrowLeft, Wand2, Copy, Check,
   Camera, Palette, Crop, FileText, Image as ImageIcon,
@@ -10,7 +10,11 @@ import { useAuth } from "../../lib/auth";
 import { toast } from "sonner";
 import useTitle from "../../lib/useTitle";
 import { useI18n } from "../../lib/i18n";
+import { useStudioI18n } from "../../lib/useStudioI18n";
 import { optionLabel, wizardLocale } from "../../lib/wizardData";
+import { stashWizardPrompt } from "../../lib/wizardPromptTransfer";
+import StudioResultAnchor from "../../components/StudioResultAnchor";
+import StudioGenerateBar from "../../components/StudioGenerateBar";
 
 const STEP_ICONS = {
   image: ImageIcon,
@@ -40,6 +44,7 @@ function composeLocalPrompt(answers, locale) {
 
 export default function Wizard() {
   const { t, lang } = useI18n();
+  const { errToast } = useStudioI18n();
   const locale = useMemo(() => wizardLocale(lang), [lang]);
   const { steps, q1, q2, q3, q4Examples, compose } = locale;
 
@@ -55,6 +60,22 @@ export default function Wizard() {
   const [composed, setComposed] = useState(null);
   const [editing, setEditing] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [mobileTab, setMobileTab] = useState("create");
+
+  useEffect(() => {
+    if (composed) {
+      setMobileTab("result");
+      window.requestAnimationFrame(() => {
+        window.dispatchEvent(new CustomEvent("rp:scroll-to-result"));
+      });
+    }
+  }, [composed]);
+
+  const goToStudio = () => {
+    if (!composed?.trim()) return;
+    stashWizardPrompt(composed.trim());
+    navigate("/app/generate?from=wizard");
+  };
 
   const step = steps[stepIdx];
   const id = step.id;
@@ -98,9 +119,20 @@ export default function Wizard() {
         lang: user?.lang || lang || "en",
       });
       setComposed(data.prompt || composeLocalPrompt(final, { q1, q2, q3, compose }));
-    } catch {
+    } catch (err) {
+      const status = err?.response?.status;
+      const detail = err?.response?.data?.detail;
+      if (status === 401 || status === 403) {
+        toast.error(detail || t("wiz_login_required"));
+      } else if (status === 503) {
+        toast.error(detail || t("wiz_server_account"));
+      } else {
+        errToast(err);
+      }
       setComposed(composeLocalPrompt(final, { q1, q2, q3, compose }));
-      toast.info(t("wiz_compose_local"));
+      if (status !== 401 && status !== 403) {
+        toast.info(t("wiz_compose_local"));
+      }
     } finally {
       setBusy(false);
     }
@@ -113,6 +145,7 @@ export default function Wizard() {
     setQ4Text("");
     setQ5Text("");
     setEditing(false);
+    setMobileTab("create");
   };
 
   const copyPrompt = async () => {
@@ -126,94 +159,110 @@ export default function Wizard() {
   };
 
   if (composed) {
+    const panelVisibility = (tab) => (mobileTab !== tab ? "hidden md:block" : "");
     return (
-      <motion.div className="max-w-[860px] mx-auto" data-testid="wizard-result-page">
-        <p className="text-[#7C3AED] text-[10px] font-mono uppercase tracking-[0.22em] mb-3">
-          {t("wiz_result_eyebrow")}
-        </p>
-        <h1 className="text-[#F4F1EA] text-[36px] md:text-[44px] font-light tracking-[-0.02em] leading-[1.05] mb-8 font-['Inter_Tight']">
-          {t("wiz_result_title")}
-        </h1>
-
-        <motion.div
-          className="rounded-2xl border border-[#7C3AED]/40 bg-gradient-to-br from-[#13131A] to-[#0B0B0C] p-7 mb-6 relative overflow-hidden"
-          data-testid="wizard-result"
+      <motion.div className="max-w-[860px] mx-auto pb-28" data-testid="wizard-result-page">
+        <div
+          className="md:hidden flex gap-2 mb-5 p-1 rounded-xl border border-white/[0.08] bg-white/[0.03]"
+          role="tablist"
+          data-testid="wizard-mobile-tabs"
         >
-          <motion.div className="absolute -top-16 -right-16 w-48 h-48 bg-[#7C3AED]/15 blur-3xl pointer-events-none" />
-          <div className="flex items-center gap-2 mb-5 relative">
-            <Wand2 className="w-4 h-4 text-[#C4B5FD]" />
-            <p className="text-[#C4B5FD] text-[11px] font-mono uppercase tracking-[0.2em]">
-              {t("wiz_words", { n: composed.split(/\s+/).length })}
-            </p>
-          </div>
-          {editing ? (
-            <textarea
-              value={composed}
-              onChange={(e) => setComposed(e.target.value)}
-              rows={8}
-              className="relative w-full bg-[#0B0B0C] border border-[#2E2E30] focus:border-[#7C3AED] text-[#F4F1EA] text-[15px] leading-relaxed px-4 py-3 rounded-lg focus:outline-none resize-none font-['Inter_Tight'] transition-colors"
-              data-testid="wizard-edit-textarea"
-            />
-          ) : (
-            <p
-              className="relative text-[#F4F1EA] text-[17px] md:text-[18px] leading-[1.55] font-light font-['Inter_Tight']"
-              data-testid="wizard-composed-text"
-            >
-              {composed}
-            </p>
-          )}
-        </motion.div>
+          {[
+            { id: "create", labelKey: "studio_tab_create", icon: Wand2 },
+            { id: "result", labelKey: "studio_tab_result", icon: Sparkles },
+          ].map(({ id, labelKey, icon: Icon }) => {
+            const active = mobileTab === id;
+            return (
+              <button
+                key={id}
+                type="button"
+                role="tab"
+                aria-selected={active}
+                onClick={() => setMobileTab(id)}
+                className={`flex-1 inline-flex items-center justify-center gap-1.5 py-2.5 rounded-lg text-sm font-medium transition-all ${
+                  active
+                    ? "bg-white/[0.08] text-white shadow-[inset_0_0_0_1px_rgba(167,139,250,0.35)]"
+                    : "text-rp-mute2 hover:text-rp-mute"
+                }`}
+                data-testid={`wizard-tab-${id}`}
+              >
+                <Icon className="w-3.5 h-3.5" strokeWidth={active ? 2 : 1.75} />
+                {t(labelKey)}
+              </button>
+            );
+          })}
+        </div>
 
-        <motion.div className="flex flex-wrap gap-2 mb-10">
-          <button
-            type="button"
-            onClick={() => setEditing(!editing)}
-            className="px-4 py-2.5 border border-[#2E2E30] hover:border-[#7C3AED]/50 text-[#8A8A8E] hover:text-[#F4F1EA] rounded-lg text-[12.5px] flex items-center gap-2 transition-colors"
-            data-testid="wizard-edit-toggle"
+        <div className={panelVisibility("create")}>
+          <p className="text-[#7C3AED] text-[10px] font-mono uppercase tracking-[0.22em] mb-3">
+            {t("wiz_result_eyebrow")}
+          </p>
+          <h1 className="text-[#F4F1EA] text-[36px] md:text-[44px] font-light tracking-[-0.02em] leading-[1.05] mb-4 font-['Inter_Tight']">
+            {t("wiz_result_title")}
+          </h1>
+          <motion.div className="flex flex-wrap gap-2 mb-6">
+            <button type="button" onClick={() => setEditing(!editing)} className="px-4 py-2.5 border border-[#2E2E30] hover:border-[#7C3AED]/50 text-[#8A8A8E] hover:text-[#F4F1EA] rounded-lg text-[12.5px] flex items-center gap-2 transition-colors" data-testid="wizard-edit-toggle">
+              {editing ? <><Check className="w-3.5 h-3.5" /> {t("wiz_edit_done")}</> : <>✎ {t("wiz_edit_prompt")}</>}
+            </button>
+            <button type="button" onClick={copyPrompt} className="px-4 py-2.5 border border-[#2E2E30] hover:border-[#7C3AED]/50 text-[#8A8A8E] hover:text-[#F4F1EA] rounded-lg text-[12.5px] flex items-center gap-2 transition-colors" data-testid="wizard-copy">
+              {copied ? <><Check className="w-3.5 h-3.5 text-[#22C55E]" /> {t("wiz_copied")}</> : <><Copy className="w-3.5 h-3.5" /> {t("wiz_copy")}</>}
+            </button>
+            <button type="button" onClick={restart} className="px-4 py-2.5 border border-[#2E2E30] hover:border-[#7C3AED]/50 text-[#8A8A8E] hover:text-[#F4F1EA] rounded-lg text-[12.5px] transition-colors" data-testid="wizard-restart">
+              {t("wiz_restart")}
+            </button>
+          </motion.div>
+        </div>
+
+        <StudioResultAnchor busy={false} ready className={`${panelVisibility("result")} mb-6`}>
+          <motion.div
+            className="rounded-2xl border border-[#7C3AED]/40 bg-gradient-to-br from-[#13131A] to-[#0B0B0C] p-7 relative overflow-hidden"
+            data-testid="wizard-result"
           >
+            <motion.div className="absolute -top-16 -right-16 w-48 h-48 bg-[#7C3AED]/15 blur-3xl pointer-events-none" />
+            <div className="flex items-center gap-2 mb-5 relative">
+              <Wand2 className="w-4 h-4 text-[#C4B5FD]" />
+              <p className="text-[#C4B5FD] text-[11px] font-mono uppercase tracking-[0.2em]">
+                {t("wiz_words", { n: composed.split(/\s+/).length })}
+              </p>
+            </div>
             {editing ? (
-              <>
-                <Check className="w-3.5 h-3.5" /> {t("wiz_edit_done")}
-              </>
+              <textarea
+                value={composed}
+                onChange={(e) => setComposed(e.target.value)}
+                rows={8}
+                className="relative w-full bg-[#0B0B0C] border border-[#2E2E30] focus:border-[#7C3AED] text-[#F4F1EA] text-[15px] leading-relaxed px-4 py-3 rounded-lg focus:outline-none resize-none font-['Inter_Tight'] transition-colors"
+                data-testid="wizard-edit-textarea"
+              />
             ) : (
-              <>✎ {t("wiz_edit_prompt")}</>
+              <p className="relative text-[#F4F1EA] text-[17px] md:text-[18px] leading-[1.55] font-light font-['Inter_Tight']" data-testid="wizard-composed-text">
+                {composed}
+              </p>
             )}
-          </button>
-          <button
-            type="button"
-            onClick={copyPrompt}
-            className="px-4 py-2.5 border border-[#2E2E30] hover:border-[#7C3AED]/50 text-[#8A8A8E] hover:text-[#F4F1EA] rounded-lg text-[12.5px] flex items-center gap-2 transition-colors"
-            data-testid="wizard-copy"
-          >
-            {copied ? (
-              <>
-                <Check className="w-3.5 h-3.5 text-[#22C55E]" /> {t("wiz_copied")}
-              </>
-            ) : (
-              <>
-                <Copy className="w-3.5 h-3.5" /> {t("wiz_copy")}
-              </>
-            )}
-          </button>
-          <button
-            type="button"
-            onClick={restart}
-            className="px-4 py-2.5 border border-[#2E2E30] hover:border-[#7C3AED]/50 text-[#8A8A8E] hover:text-[#F4F1EA] rounded-lg text-[12.5px] transition-colors"
-            data-testid="wizard-restart"
-          >
-            {t("wiz_restart")}
-          </button>
-        </motion.div>
+          </motion.div>
+        </StudioResultAnchor>
 
-        <button
-          type="button"
-          onClick={() => navigate(`/app/generate?prompt=${encodeURIComponent(composed)}`)}
-          className="w-full sm:w-auto bg-[#7C3AED] hover:bg-[#9333EA] text-white px-8 py-4 rounded-lg text-[14px] font-medium transition-all flex items-center justify-center gap-2 shadow-lg shadow-[#7C3AED]/25"
-          data-testid="wizard-use"
-        >
-          <Sparkles className="w-4 h-4" /> {t("wiz_use_studio")}
-          <ArrowRight className="w-4 h-4" />
-        </button>
+        <div className="hidden md:block">
+          <button
+            type="button"
+            onClick={goToStudio}
+            className="w-full sm:w-auto bg-[#7C3AED] hover:bg-[#9333EA] text-white px-8 py-4 rounded-lg text-[14px] font-medium transition-all flex items-center justify-center gap-2 shadow-lg shadow-[#7C3AED]/25"
+            data-testid="wizard-use"
+          >
+            <Sparkles className="w-4 h-4" /> {t("wiz_use_studio")}
+            <ArrowRight className="w-4 h-4" />
+          </button>
+        </div>
+
+        <StudioGenerateBar
+          ready
+          busy={false}
+          onClick={goToStudio}
+          label={t("wiz_use_studio")}
+          hint={t("wiz_result_hint")}
+          testId="wizard-use-bar"
+          icon={Sparkles}
+          className="md:hidden"
+        />
       </motion.div>
     );
   }
@@ -358,7 +407,7 @@ export default function Wizard() {
         </motion.div>
       </AnimatePresence>
 
-      <motion.div className="flex gap-3 mt-10">
+      <div className="hidden md:flex gap-3 mt-10">
         {stepIdx > 0 && (
           <button
             type="button"
@@ -387,7 +436,30 @@ export default function Wizard() {
             </>
           )}
         </button>
-      </motion.div>
+      </div>
+
+      {stepIdx > 0 && (
+        <button
+          type="button"
+          onClick={() => setStepIdx(stepIdx - 1)}
+          className="md:hidden mt-8 mb-2 px-5 py-3 border border-[#2E2E30] hover:border-[#7C3AED]/50 text-[#8A8A8E] hover:text-[#F4F1EA] rounded-lg text-[12.5px] flex items-center gap-2 transition-colors w-fit"
+          data-testid="wizard-back-mobile"
+        >
+          <ArrowLeft className="w-4 h-4" /> {t("wiz_back")}
+        </button>
+      )}
+
+      <StudioGenerateBar
+        ready={canAdvance()}
+        busy={busy}
+        onClick={goNext}
+        label={stepIdx === steps.length - 1 ? t("wiz_compose_btn") : t("wiz_next")}
+        busyLabel={t("wiz_composing")}
+        hint={!canAdvance() ? (id === "q4" ? t("wiz_detail_more") : t("wiz_pick_option")) : null}
+        testId="wizard-next-bar"
+        icon={ArrowRight}
+        className="md:hidden"
+      />
     </motion.div>
   );
 }

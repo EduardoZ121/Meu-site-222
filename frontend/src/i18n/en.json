@@ -281,7 +281,10 @@
       "wiz_q4_ph": "e.g. \"Woman in her 30s with short hair on a Lisbon rooftop at sunset, warm golden light\"",
       "wiz_q5_ph": "Type \"no\" to skip, or describe who/what is the reference",
       "wiz_q5_hint": "e.g. \"Ana's face from iPhone photos\", \"an Eames chair\", or leave blank.",
-      "wiz_back": "Back"
+      "wiz_back": "Back",
+      "wiz_login_required": "Sign in to compose with AI — using a local prompt for now.",
+      "wiz_server_account": "The assistant requires a server account (Google or email sign-up).",
+      "wiz_result_hint": "Opens Studio with this prompt ready to generate."
     },
     "posters": {
       "eyebrow": "Posters · 44",
@@ -1696,6 +1699,9 @@
     "wiz_q5_ph": "Type \"no\" to skip, or describe who/what is the reference",
     "wiz_q5_hint": "e.g. \"Ana's face from iPhone photos\", \"an Eames chair\", or leave blank.",
     "wiz_back": "Back",
+    "wiz_login_required": "Sign in to compose with AI — using a local prompt for now.",
+    "wiz_server_account": "The assistant requires a server account (Google or email sign-up).",
+    "wiz_result_hint": "Opens Studio with this prompt ready to generate.",
     "post_editor_error_title": "Could not open this template",
     "post_editor_error_desc": "Something went wrong loading the editor. Go back and try again, or refresh the page.",
     "vid_edit_large_hint": "Large clip: cloud upload runs when you tap Generate (Blob or S3).",

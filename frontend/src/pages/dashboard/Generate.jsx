@@ -24,6 +24,7 @@ import { apiAspectRatio } from "../../lib/apiAspectRatio";
 import { useStudioGenerateGate } from "../../lib/useStudioGenerateGate";
 import PromptEnhanceToggle from "../../components/promptAssist/PromptEnhanceToggle";
 import { applyGenerationSurcharges, getSurcharges } from "../../lib/creditPricing";
+import { consumeWizardPrompt } from "../../lib/wizardPromptTransfer";
 
 const SUBJECT_KEYS = [
   { value: "the man", labelKey: "studio_subj_man" },
@@ -65,6 +66,16 @@ export default function Generate() {
       .then((r) => setPadrao(r.data.styles?.length ? r.data.styles : FALLBACK_PADRAO_STYLES))
       .catch(() => setPadrao(FALLBACK_PADRAO_STYLES));
   }, []);
+
+  useEffect(() => {
+    if (searchParams.get("from") === "wizard") {
+      const stashed = consumeWizardPrompt();
+      if (stashed) setPrompt(stashed);
+      return;
+    }
+    const q = searchParams.get("prompt");
+    if (q) setPrompt(q);
+  }, [searchParams]);
 
   const padraoCats = useMemo(() => Array.from(new Set(padrao.map((s) => s.cat))), [padrao]);
   const padraoFiltered = padrao.filter((s) => s.cat === padraoCat);

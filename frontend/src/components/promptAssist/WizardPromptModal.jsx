@@ -7,6 +7,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { api } from "../../lib/api";
 import { useAuth } from "../../lib/auth";
 import { useI18n } from "../../lib/i18n";
+import { useStudioI18n } from "../../lib/useStudioI18n";
 import { toast } from "sonner";
 import { optionLabel, wizardLocale } from "../../lib/wizardData";
 
@@ -38,6 +39,7 @@ function composeLocalPrompt(answers, locale) {
 
 export default function WizardPromptModal({ open, onOpenChange, onApply }) {
   const { t, lang } = useI18n();
+  const { errToast } = useStudioI18n();
   const locale = useMemo(() => wizardLocale(lang), [lang]);
   const { steps, q1, q2, q3, q4Examples, compose } = locale;
   const { user } = useAuth();
@@ -91,9 +93,20 @@ export default function WizardPromptModal({ open, onOpenChange, onApply }) {
         lang: user?.lang || lang || "en",
       });
       setComposed(data.prompt || composeLocalPrompt(final, { q1, q2, q3, compose }));
-    } catch {
+    } catch (err) {
+      const status = err?.response?.status;
+      const detail = err?.response?.data?.detail;
+      if (status === 401 || status === 403) {
+        toast.error(detail || t("wiz_login_required"));
+      } else if (status === 503) {
+        toast.error(detail || t("wiz_server_account"));
+      } else {
+        errToast(err);
+      }
       setComposed(composeLocalPrompt(final, { q1, q2, q3, compose }));
-      toast.info(t("wiz_compose_local"));
+      if (status !== 401 && status !== 403) {
+        toast.info(t("wiz_compose_local"));
+      }
     } finally {
       setBusy(false);
     }

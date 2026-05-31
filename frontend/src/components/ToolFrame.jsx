@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { RefreshCw } from "lucide-react";
+import { RefreshCw, Sparkles, Image as ImageIcon } from "lucide-react";
 import { useAuth } from "../lib/auth";
 import { useI18n } from "../lib/i18n";
 import StudioGenerateBar from "./StudioGenerateBar";
@@ -68,7 +68,10 @@ export default function ToolFrame({
   const formatsLabel = acceptedFormats ?? t("tool_accept_formats");
   const [viewAllModels, setViewAllModels] = useState(false);
   const [photoUploadStatus, setPhotoUploadStatus] = useState("idle");
+  const [mobileTab, setMobileTab] = useState("create");
   const photoUploading = showPhoto && isPhotoUploadBusy(photoUploadStatus);
+
+  const panelVisibility = (tab) => (mobileTab !== tab ? "hidden xl:block" : "");
 
   const visibleModels = models ? (viewAllModels ? models : models.slice(0, 8)) : [];
   const resultReady = Boolean(primaryResultUrl(result));
@@ -90,6 +93,14 @@ export default function ToolFrame({
   const ready = gate.ready;
   const hint = generateHint ?? gate.hint;
 
+  const handleCreate = () => {
+    setMobileTab("result");
+    window.requestAnimationFrame(() => {
+      window.dispatchEvent(new CustomEvent("rp:scroll-to-result"));
+    });
+    return onCreate?.();
+  };
+
   return (
     <div className="rp-studio-shell max-w-[1400px] mx-auto pb-32" data-testid={`${testId}-frame`}>
       <header className="mb-8 md:mb-10 pb-6 md:pb-8 border-b border-[rgba(244,241,234,0.06)]">
@@ -98,8 +109,39 @@ export default function ToolFrame({
         {subtitle && <p className="rp-studio-page-desc">{subtitle}</p>}
       </header>
 
+      <div
+        className="xl:hidden flex gap-2 mb-5 p-1 rounded-xl border border-white/[0.08] bg-white/[0.03]"
+        role="tablist"
+        data-testid={`${testId}-mobile-tabs`}
+      >
+        {[
+          { id: "create", labelKey: "studio_tab_create", icon: Sparkles },
+          { id: "result", labelKey: "studio_tab_result", icon: ImageIcon },
+        ].map(({ id, labelKey, icon: Icon }) => {
+          const active = mobileTab === id;
+          return (
+            <button
+              key={id}
+              type="button"
+              role="tab"
+              aria-selected={active}
+              onClick={() => setMobileTab(id)}
+              className={`flex-1 inline-flex items-center justify-center gap-1.5 py-2.5 rounded-lg text-sm font-medium transition-all ${
+                active
+                  ? "bg-white/[0.08] text-white shadow-[inset_0_0_0_1px_rgba(167,139,250,0.35)]"
+                  : "text-rp-mute2 hover:text-rp-mute"
+              }`}
+              data-testid={`${testId}-tab-${id}`}
+            >
+              <Icon className="w-3.5 h-3.5" strokeWidth={active ? 2 : 1.75} />
+              {t(labelKey)}
+            </button>
+          );
+        })}
+      </div>
+
       <div className="grid grid-cols-1 xl:grid-cols-[1fr_400px] gap-8 xl:gap-10">
-        <div className="rp-editor-panel overflow-hidden">
+        <div className={`rp-editor-panel overflow-hidden ${panelVisibility("create")}`}>
           <div className="rp-editor-panel-accent" />
           <div className="p-6 sm:p-8 space-y-0">
           {showPhoto && (
@@ -223,7 +265,7 @@ export default function ToolFrame({
         <StudioResultAnchor
           busy={busy}
           ready={resultReady}
-          className="xl:sticky xl:top-[80px] self-start space-y-3"
+          className={`xl:sticky xl:top-[80px] self-start space-y-3 ${panelVisibility("result")}`}
         >
           <p className="rp-editor-section-cap !text-[#6b6b70]">{t("tool_preview")}</p>
           <div className="rp-editor-panel overflow-hidden p-4 sm:p-5" data-testid={`${testId}-result-panel`}>
@@ -239,7 +281,7 @@ export default function ToolFrame({
       <StudioGenerateBar
         ready={ready}
         busy={busy}
-        onClick={onCreate}
+        onClick={handleCreate}
         label={t("tool_generate_credits", { n: cost })}
         busyLabel={t("tool_generating")}
         hint={hint}

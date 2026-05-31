@@ -157,7 +157,7 @@ export default function ImageUploadZone({
         if (rid !== runIdRef.current) return;
         setPersistState("error");
         notifyStatus("error");
-        toast.error(formatHttpError(err, t("upload_save_error")), { duration: 6000 });
+        toast.error(formatHttpError(err, t("upload_save_error"), { context: "image_upload", t }), { duration: 6000 });
       }
     } catch (err) {
       if (rid !== runIdRef.current) return;
@@ -199,7 +199,7 @@ export default function ImageUploadZone({
       if (rid !== runIdRef.current) return;
       setPersistState("error");
       notifyStatus("error");
-      toast.error(formatHttpError(err, t("upload_save_error")), { duration: 6000 });
+      toast.error(formatHttpError(err, t("upload_save_error"), { context: "image_upload", t }), { duration: 6000 });
     }
   }, [value, isVideo, enableRemotePersist, notifyStatus, t]);
 

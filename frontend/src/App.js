@@ -43,6 +43,7 @@ import BuildVersionGuard from "./components/BuildVersionGuard";
 import CookieConsentBar from "./components/legal/CookieConsentBar";
 import WhatsAppGenerationListener from "./components/legal/WhatsAppGenerationListener";
 import Legal from "./pages/Legal";
+import { formatGenerationFailure, getClientLang } from "./lib/errorMessages";
 
 /** App instalado (Chrome): abre login em vez da landing; sessão autenticada vai ao estúdio. */
 function PwaStartupRedirect() {
@@ -72,7 +73,7 @@ function BackgroundGenerationRedirect() {
     const onFailed = (event) => {
       const detail = event?.detail || {};
       if (detail.source !== "background") return;
-      toast.error(detail.error || "A geração falhou.");
+      toast.error(formatGenerationFailure(detail.error, getClientLang()));
     };
     window.addEventListener("rp:prediction-failed", onFailed);
     return () => {

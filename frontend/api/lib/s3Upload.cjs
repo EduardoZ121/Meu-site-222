@@ -111,7 +111,7 @@ async function createVideoPresignedUpload({ filename, contentType, contentLength
   }
   const size = Number(contentLength) || 0;
   if (size > MAX_VIDEO_BYTES) {
-    const err = new Error("Vídeo demasiado grande (máx. 80 MB).");
+    const err = new Error("Vídeo demasiado grande (máx. 50 MB).");
     err.status = 413;
     throw err;
   }

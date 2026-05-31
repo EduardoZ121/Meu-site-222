@@ -1,5 +1,6 @@
 import axios from "axios";
 
+import { formatGenerationFailure, formatNoResultError, formatPollTimeout, getClientLang } from "./errorMessages";
 import { formatHttpError } from "./uploadErrors";
 import { isBrowserOnlineFlag } from "./uploadReachability";
 import { normalizeCreation } from "./creationUrls";
@@ -341,6 +342,10 @@ api.interceptors.response.use(
   }
 );
 
+function failMsg(raw) {
+  return formatGenerationFailure(raw, getClientLang());
+}
+
 function notifyCreationSucceeded(creation) {
   if (typeof window === "undefined" || !creation) return;
   window.dispatchEvent(new CustomEvent("rp:creation-succeeded", { detail: creation }));
@@ -351,7 +356,7 @@ function notifyPredictionFailure(error, detail = {}) {
   if (typeof window === "undefined") return;
   window.dispatchEvent(new CustomEvent("rp:prediction-failed", {
     detail: {
-      error: String(error || "Geração falhou."),
+      error: String(error || failMsg("")),
       ...detail,
     },
   }));
@@ -400,7 +405,7 @@ async function pollTrackedPredictionOnce(predictionId, meta = {}) {
     const status = e?.response?.status;
     if (status && status >= 400 && status < 500 && status !== 429) {
       removeTrackedPrediction(predictionId);
-      notifyPredictionFailure(e?.response?.data?.detail || e?.message || "Geração falhou.", {
+      notifyPredictionFailure(e?.response?.data?.detail || e?.message || failMsg(""), {
         prediction_id: predictionId,
         source: "background",
       });
@@ -438,7 +443,7 @@ async function pollTrackedPredictionOnce(predictionId, meta = {}) {
         spent: meta?.credits_spent,
       });
     }
-    notifyPredictionFailure(data.error || "Geração falhou.", {
+    notifyPredictionFailure(data.error || failMsg(""), {
       prediction_id: predictionId,
       source: "background",
     });
@@ -447,7 +452,7 @@ async function pollTrackedPredictionOnce(predictionId, meta = {}) {
         status: "failed",
         prediction_id: predictionId,
         source: "background",
-        error: data.error || "Geração falhou.",
+        error: data.error || failMsg(""),
       },
     }));
     removeTrackedPrediction(predictionId);
@@ -522,7 +527,7 @@ export async function pollPrediction(predictionId, opts = {}) {
         window.dispatchEvent(new CustomEvent("rp:credits-sync", { detail: { credits: data.new_balance } }));
       }
       if (!data.creation) {
-        const err = new Error("Geração concluída sem resultado.");
+        const err = new Error(formatNoResultError());
         err.refunded = data.refunded;
         err.new_balance = data.new_balance;
         throw err;
@@ -531,7 +536,7 @@ export async function pollPrediction(predictionId, opts = {}) {
       data.creation.server_billing = data.server_billing || data.creation.server_billing;
       if (data.new_balance != null) data.creation.new_balance = data.new_balance;
       if (!data.creation.result_urls?.length) {
-        const err = new Error("Geração concluída sem ficheiro de resultado.");
+        const err = new Error(formatNoResultError());
         err.refunded = data.refunded;
         err.new_balance = data.new_balance;
         throw err;
@@ -555,7 +560,7 @@ export async function pollPrediction(predictionId, opts = {}) {
           spent: opts.credits_spent,
         });
       }
-      const err = new Error(data.error || "Geração falhou.");
+      const err = new Error(data.error || failMsg(""));
       err.new_balance = data.new_balance;
       err.refunded = data.refunded;
       removeTrackedPrediction(predictionId);
@@ -572,7 +577,7 @@ export async function pollPrediction(predictionId, opts = {}) {
     if (onTick) onTick(data.elapsed_seconds || Math.floor((Date.now() - start) / 1000));
     await new Promise((r) => setTimeout(r, intervalMs));
   }
-  throw new Error("Tempo esgotado — a geração pode ainda estar em curso. Verifica a Galeria daqui a 1 min.");
+  throw new Error(formatPollTimeout());
 }
 
 /**

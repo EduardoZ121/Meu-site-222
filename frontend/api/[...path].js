@@ -911,6 +911,7 @@ async function submitBillableGeneration(req, fields, {
     if (balance < cost) {
       const err = new Error("Créditos insuficientes.");
       err.status = 402;
+      err.code = "INSUFFICIENT_CREDITS";
       throw err;
     }
 
@@ -2045,7 +2046,7 @@ async function handlePath(path, req, res) {
       if (status === "failed" || status === "canceled") {
         return json(res, 200, {
           status: "failed",
-          error: formatGenerationError(prediction.error || "A geração falhou.", lang),
+          error: formatGenerationError(prediction.error || "", lang),
         });
       }
       return json(res, 200, { status, elapsed_seconds: 0 });

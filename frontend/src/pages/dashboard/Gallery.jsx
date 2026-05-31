@@ -80,7 +80,7 @@ export default function Gallery({ favoritesOnly = false }) {
       .get(`/generations/history?limit=60${favoritesOnly ? "&only_favorites=true" : ""}`)
       .then((r) => setItems(r.data.creations || []))
       .catch((err) => {
-        if (!isBackground) toast.error(formatApiError(err, tRef.current("gal_load_fail")));
+        if (!isBackground) toast.error(formatApiError(err, tRef.current("gal_load_fail"), { t: tRef.current }));
         setItems([]);
       })
       .finally(() => {
@@ -121,7 +121,7 @@ export default function Gallery({ favoritesOnly = false }) {
       const { data } = await api.post(`/generations/${encodeURIComponent(id)}/favorite`);
       setItems((cur) => cur.map((c) => (c.id === id ? { ...c, is_favorite: data.is_favorite } : c)));
     } catch (err) {
-      toast.error(formatApiError(err, t("failed")));
+      toast.error(formatApiError(err, t("failed"), { t }));
     } finally {
       setBusyId(null);
     }
@@ -136,7 +136,7 @@ export default function Gallery({ favoritesOnly = false }) {
       if (viewItem?.id === id) setViewItem(null);
       toast.success(t("remove"));
     } catch (err) {
-      toast.error(formatApiError(err, t("gal_delete_fail")));
+      toast.error(formatApiError(err, t("gal_delete_fail"), { t }));
     } finally {
       setBusyId(null);
     }
@@ -164,7 +164,7 @@ export default function Gallery({ favoritesOnly = false }) {
       setTimeout(() => URL.revokeObjectURL(objectUrl), 2000);
       toast.success("Download iniciado.");
     } catch (err) {
-      toast.error(formatApiError(err, t("gal_download_fail")));
+      toast.error(formatApiError(err, t("gal_download_fail"), { t }));
     } finally {
       setBusyId(null);
     }

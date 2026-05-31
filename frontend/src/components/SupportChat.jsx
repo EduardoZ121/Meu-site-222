@@ -178,7 +178,7 @@ export default function SupportChat({ open, onClose }) {
           ...prev,
           {
             role: "assistant",
-            content: fallback || `${formatApiError(err, t("support_error"))}\n\n${t("support_contact_hint")}`,
+            content: fallback || `${formatApiError(err, t("support_error"), { t })}\n\n${t("support_contact_hint")}`,
           },
         ]);
         if (err?.response?.status === 503) toast.error(t("support_unavailable"));

@@ -168,6 +168,13 @@ const en = {
   colorize_success: "Photo colorized · {n} credits",
   colorize_section_photo: "01 · B&W image",
 
+  inpaint_idea_1: "natural blue sky background",
+  inpaint_idea_2: "wooden floor texture",
+  inpaint_idea_3: "green grass field",
+  inpaint_idea_4: "remove unwanted object",
+  inpaint_idea_5: "clean white studio wall",
+  inpaint_success: "Inpaint complete · {n} credits",
+
   clothes_garment_label: "Reference outfit (optional)",
   clothes_garment_helper: "Photo of the garment to wear",
   clothes_btn: "Generate new outfit · {n} credits",
@@ -365,6 +372,13 @@ const pt = {
   colorize_btn: "Colorir Foto · {n} créditos",
   colorize_success: "Foto colorida · {n} créditos",
   colorize_section_photo: "01 · Imagem em P&B",
+
+  inpaint_idea_1: "céu azul natural de fundo",
+  inpaint_idea_2: "textura de chão de madeira",
+  inpaint_idea_3: "relva verde natural",
+  inpaint_idea_4: "remover objeto indesejado",
+  inpaint_idea_5: "parede branca limpa de estúdio",
+  inpaint_success: "Inpaint concluído · {n} créditos",
 
   clothes_garment_label: "Roupa de referência (opcional)",
   clothes_garment_helper: "Foto da peça para vestir",

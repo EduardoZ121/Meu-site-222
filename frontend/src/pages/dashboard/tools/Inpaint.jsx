@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react";
+import { useMemo, useState, useRef } from "react";
 import { toast } from "sonner";
 import { uploadPost } from "../../../lib/api";
 import { useStudioI18n } from "../../../lib/useStudioI18n";
@@ -8,20 +8,24 @@ import { usePricing } from "../../../lib/PricingContext";
 import ToolFrame from "../../../components/ToolFrame";
 import { Brush, Eraser } from "lucide-react";
 import { useStudioMediaPreview } from "../../../hooks/useStudioMediaPreview";
-import { useI18n } from "../../../lib/i18n";
 import { useLocalizedTools } from "../../../lib/useLocalizedTools";
+
+const INPAINT_IDEA_KEYS = [1, 2, 3, 4, 5];
 
 /**
  * Inpaint tool — user uploads photo, paints over the region they want changed,
  * then provides a prompt describing the replacement.
  */
 export default function Inpaint() {
-  const { t } = useI18n();
+  const { t, errToast, clearUploadToast } = useStudioI18n();
   const tools = useLocalizedTools();
   const tool = tools.find((x) => x.id === "inpaint");
-  const { errToast, clearUploadToast } = useStudioI18n();
-  const { refresh } = useAuth();
+  const { refresh, refundCredits } = useAuth();
   const { costs } = usePricing();
+  const ideas = useMemo(
+    () => INPAINT_IDEA_KEYS.map((n) => t(`inpaint_idea_${n}`)),
+    [t],
+  );
   const [photo, setPhoto] = useState(null);
   const { previewUrl: photoUrl } = useStudioMediaPreview(photo);
   const [prompt, setPrompt] = useState("");
@@ -62,36 +66,44 @@ export default function Inpaint() {
   const clearMask = () => initCanvas();
 
   const run = async () => {
-    if (!photo) { toast.error(t("pro_upload_photo")); return; }
+    if (!photo) { toast.error(t("common_upload_first")); return; }
     if (prompt.trim().length < 3) { toast.error(t("tool_prompt_ph")); return; }
-      const c = canvasRef.current;
-      if (!c) { toast.error(t("inpaint_paint_first")); return; }
-      clearUploadToast();
-      setBusy(true); setResult(null);
-      try {
-        const maxSide = 640;
-        const w = c.width;
-        const h = c.height;
-        const scale = Math.max(w, h) > maxSide ? maxSide / Math.max(w, h) : 1;
-        const tc = document.createElement("canvas");
-        tc.width = Math.max(1, Math.round(w * scale));
-        tc.height = Math.max(1, Math.round(h * scale));
-        const tctx = tc.getContext("2d");
-        tctx.imageSmoothingEnabled = true;
-        tctx.drawImage(c, 0, 0, tc.width, tc.height);
-        const maskBlob = await new Promise((res) => tc.toBlob(res, "image/png"));
+    const c = canvasRef.current;
+    if (!c) { toast.error(t("inpaint_paint_first")); return; }
+    clearUploadToast();
+    setBusy(true); setResult(null);
+    let submitCredits = null;
+    try {
+      const maxSide = 640;
+      const w = c.width;
+      const h = c.height;
+      const scale = Math.max(w, h) > maxSide ? maxSide / Math.max(w, h) : 1;
+      const tc = document.createElement("canvas");
+      tc.width = Math.max(1, Math.round(w * scale));
+      tc.height = Math.max(1, Math.round(h * scale));
+      const tctx = tc.getContext("2d");
+      tctx.imageSmoothingEnabled = true;
+      tctx.drawImage(c, 0, 0, tc.width, tc.height);
+      const maskBlob = await new Promise((res) => tc.toBlob(res, "image/png"));
       const fd = new FormData();
       fd.append("photo", photo);
       fd.append("mask", new File([maskBlob], "mask.png", { type: "image/png" }));
       fd.append("prompt", prompt.trim());
       const { data } = await uploadPost("/tools/inpaint", fd, { timeout: 240000 });
+      submitCredits = data?.credits_spent ?? cost;
       const creation = normalizeCreation(data?.creation);
-      if (!primaryResultUrl(creation)) throw new Error(t("pro_no_result"));
+      if (!primaryResultUrl(creation)) throw new Error(t("common_no_result"));
       setResult(creation);
-      toast.success(t("studio_success", { n: creation?.credits_spent ?? 28 }));
+      toast.success(t("inpaint_success", { n: creation?.credits_spent ?? cost }));
       await refresh();
-    } catch (err) { errToast(err); }
-    finally { setBusy(false); }
+    } catch (err) {
+      errToast(err);
+      const spent = submitCredits ?? (err?.refunded ? cost : 0);
+      if (err?.refunded && spent && !err?.server_billing) {
+        refundCredits?.(spent, t("studio_refund_desc"));
+      }
+      try { await refresh(); } catch { /* ignore */ }
+    } finally { setBusy(false); }
   };
 
   return (
@@ -103,7 +115,7 @@ export default function Inpaint() {
       photoCompressOptions={{ maxSize: 1600 }}
       prompt={prompt} onPromptChange={setPrompt}
       promptLabel={t("inpaint_prompt_label")}
-      ideas={["background", "blue sky", "wooden floor", "natural grass", "remove object"]}
+      ideas={ideas}
       aspectRatios={null}
       aspect={aspect} onAspectChange={setAspect}
       cost={cost}
@@ -112,7 +124,7 @@ export default function Inpaint() {
       extraFields={
         photoUrl && (
           <section>
-            <label className="block text-[#F4F1EA] text-[14px] font-medium mb-3 font-['Inter_Tight']">Pinta a zona a alterar</label>
+            <label className="block text-[#F4F1EA] text-[14px] font-medium mb-3 font-['Inter_Tight']">{t("inpaint_paint_zone")}</label>
             <div className="relative bg-[#13131A] rounded-md overflow-hidden border border-[#2E2E30]" data-testid="inpaint-canvas-wrapper">
               <img ref={imgRef} src={photoUrl} alt="" className="w-full block" onLoad={initCanvas} />
               <canvas
@@ -129,12 +141,12 @@ export default function Inpaint() {
             </div>
             <div className="flex items-center gap-4 mt-3">
               <div className="flex items-center gap-2 text-[12px] text-[#8A8A8E]">
-                <Brush className="w-3.5 h-3.5" /> Pincel:
+                <Brush className="w-3.5 h-3.5" /> {t("inpaint_brush_label")}
                 <input type="range" min="10" max="80" value={brushSize} onChange={(e) => setBrushSize(+e.target.value)} className="accent-[#7C3AED]" />
                 <span className="font-mono">{brushSize}px</span>
               </div>
               <button onClick={clearMask} className="flex items-center gap-1.5 text-[#8A8A8E] hover:text-[#F4F1EA] text-[12px]">
-                <Eraser className="w-3.5 h-3.5" /> Limpar
+                <Eraser className="w-3.5 h-3.5" /> {t("inpaint_clear_mask")}
               </button>
             </div>
           </section>

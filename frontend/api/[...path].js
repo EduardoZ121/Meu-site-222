@@ -996,6 +996,36 @@ function buildColorizePrompt(fields) {
   return parts.join(" ");
 }
 
+function buildBgRemoveScenePrompt(fields) {
+  const bgMode = text(fields, "bg_mode", "transparent");
+  const sceneKey = text(fields, "scene_key", "white");
+  const custom = text(fields, "bg_prompt", "").trim();
+  const keepShadow = truthyField(fields, "keep_shadow");
+  const refineHair = truthyField(fields, "refine_hair");
+  const sceneMap = {
+    white: "pure white seamless studio background, soft even lighting",
+    studio: "professional grey photography studio backdrop with subtle gradient",
+    black: "deep black studio background with subtle rim light",
+    gradient: "soft purple and pink gradient backdrop, modern aesthetic",
+    beach: "sunny beach with golden sand and turquoise ocean, softly blurred",
+    neon: "cyberpunk neon city at night, magenta and cyan glow",
+    outdoor: "lush green nature bokeh, soft daylight",
+    minimal: "warm minimal beige interior, clean and airy",
+  };
+  let bgDesc = sceneMap[sceneKey] || sceneMap.white;
+  if (bgMode === "custom" && custom.length >= 4) {
+    bgDesc = custom;
+  }
+  const parts = [
+    "Replace ONLY the background of this photo. Keep the main subject exactly the same — same face, body, pose, clothing, and proportions.",
+    `New background: ${bgDesc}.`,
+    "Photorealistic composite, natural edge blending, professional photography quality.",
+  ];
+  if (refineHair) parts.push("Preserve fine hair strands and natural edge detail.");
+  if (keepShadow) parts.push("Add a soft natural ground shadow under the subject.");
+  return parts.join(" ");
+}
+
 function buildRestorePrompt(fields) {
   const level = text(fields, "level", "medio");
   const custom = text(fields, "custom_prompt", "").trim();
@@ -1719,6 +1749,25 @@ async function routePost(path, fields, files, req) {
   }
 
   if (path === "tools/bg-remove") {
+    const bgMode = text(fields, "bg_mode", "transparent");
+    const isSceneLike = bgMode === "scene" || bgMode === "custom";
+
+    if (isSceneLike) {
+      const prompt = buildBgRemoveScenePrompt(fields);
+      const input = await imageInput(fields, files, "standard", prompt);
+      const cost = Math.max(1, Number(CREDIT.bgRemoveScene ?? CREDIT.bgRemove) || 8);
+      return submitBillableGeneration(req, fields, {
+        cost,
+        type: "image",
+        modelId: MODELS.standard,
+        input,
+        prompt,
+        aspectRatio: input.aspect_ratio,
+        modelUsed: MODELS.standard,
+        spendDescription: "Remover fundo · cena IA",
+      });
+    }
+
     const image = await resolveImageRef(files, fields, "photo", "photo_url");
     const input = { image };
     return submitBillableGeneration(req, fields, {

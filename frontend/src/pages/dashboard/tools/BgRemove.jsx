@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useI18n } from "../../../lib/i18n";
 import { useStudioI18n } from "../../../lib/useStudioI18n";
 import { BG_SCENE_KEYS } from "../../../lib/toolPagesLocales";
@@ -7,13 +7,12 @@ const BG_PROMPT_CHIP_KEYS = [1, 2, 3, 4];
 import { toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
 import {
-  ArrowLeft, Scissors, Download,
+  Scissors, Download, Sparkles, Image as ImageIcon,
   Check, Move, RotateCcw,
 } from "lucide-react";
 import StudioGenerateBar from "../../../components/StudioGenerateBar";
 import StudioGenerateCostMeta from "../../../components/StudioGenerateCostMeta";
 import { useStudioGenerateGate } from "../../../lib/useStudioGenerateGate";
-import { useNavigate } from "react-router-dom";
 import { uploadPost } from "../../../lib/api";
 import { useAuth } from "../../../lib/auth";
 import { usePricing } from "../../../lib/PricingContext";
@@ -50,8 +49,7 @@ const SOLID_COLORS = [
 export default function BgRemove() {
   const { t, errToast, clearUploadToast } = useStudioI18n();
   const { t: tCatalogue } = useI18n();
-  const navigate = useNavigate();
-  const { user, refresh } = useAuth();
+  const { user, refresh, refundCredits } = useAuth();
   const { costs } = usePricing();
   const scenePresets = useMemo(
     () => BG_SCENE_KEYS.map((key) => ({
@@ -77,7 +75,23 @@ export default function BgRemove() {
   const [refineHair, setRefineHair] = useState(true);
 
   const [busy, setBusy] = useState(false);
-  const [result, setResult] = useState(null); // { url, mode } — url is the cutout PNG or scene composite
+  const [progress, setProgress] = useState(0);
+  const [result, setResult] = useState(null);
+  const [mobileTab, setMobileTab] = useState("create");
+
+  const panelVisibility = (tab) => (mobileTab !== tab ? "hidden xl:block" : "");
+
+  useEffect(() => {
+    if (!busy) {
+      setProgress(0);
+      return undefined;
+    }
+    const start = Date.now();
+    const timer = window.setInterval(() => {
+      setProgress(Math.floor((Date.now() - start) / 1000));
+    }, 500);
+    return () => window.clearInterval(timer);
+  }, [busy]);
 
   const cost = mode === "scene" || mode === "custom" ? costs.bgRemoveScene : costs.bgRemove;
 
@@ -107,17 +121,24 @@ export default function BgRemove() {
       toast.error(t("bg_err_describe")); return;
     }
     clearUploadToast();
-    setBusy(true); setResult(null);
+    setMobileTab("result");
+    setBusy(true);
+    setResult(null);
+    window.requestAnimationFrame(() => {
+      window.dispatchEvent(new CustomEvent("rp:scroll-to-result"));
+    });
+    let submitData;
     try {
       const fd = new FormData();
       fd.append("photo", photo);
       fd.append("bg_mode", mode);
       fd.append("bg_prompt", customPrompt);
       fd.append("scene_key", sceneKey);
+      fd.append("solid_color", solidColor);
       fd.append("keep_shadow", keepShadow ? "true" : "false");
       fd.append("refine_hair", refineHair ? "true" : "false");
-      const { data } = await uploadPost("/tools/bg-remove", fd, { timeout: 180000 });
-      const creation = data?.creation;
+      ({ data: submitData } = await uploadPost("/tools/bg-remove", fd, { timeout: 180000 }));
+      const creation = submitData?.creation;
       const url = creation?.result_urls?.[0];
       if (!url) throw new Error(t("common_no_result"));
       setResult({ url, mode, id: creation?.id || null });
@@ -125,6 +146,10 @@ export default function BgRemove() {
       await refresh();
     } catch (err) {
       errToast(err);
+      if (err?.refunded && submitData?.credits_spent && !submitData?.server_billing) {
+        refundCredits?.(submitData.credits_spent, t("studio_refund_desc"));
+      }
+      try { await refresh(); } catch { /* ignore */ }
     } finally { setBusy(false); }
   };
 
@@ -145,9 +170,39 @@ export default function BgRemove() {
         </div>
       </div>
 
+      <div
+        className="xl:hidden flex gap-2 mb-5 p-1 rounded-xl border border-white/[0.08] bg-white/[0.03]"
+        role="tablist"
+        data-testid="bg-remove-mobile-tabs"
+      >
+        {[
+          { id: "create", labelKey: "studio_tab_create", icon: Sparkles },
+          { id: "result", labelKey: "studio_tab_result", icon: ImageIcon },
+        ].map(({ id, labelKey, icon: Icon }) => {
+          const active = mobileTab === id;
+          return (
+            <button
+              key={id}
+              type="button"
+              role="tab"
+              aria-selected={active}
+              onClick={() => setMobileTab(id)}
+              className={`flex-1 inline-flex items-center justify-center gap-1.5 py-2.5 rounded-lg text-sm font-medium transition-all ${
+                active
+                  ? "bg-white/[0.08] text-white shadow-[inset_0_0_0_1px_rgba(167,139,250,0.35)]"
+                  : "text-rp-mute2 hover:text-rp-mute"
+              }`}
+              data-testid={`bg-remove-tab-${id}`}
+            >
+              <Icon className="w-3.5 h-3.5" strokeWidth={active ? 2 : 1.75} />
+              {tCatalogue(labelKey)}
+            </button>
+          );
+        })}
+      </div>
+
       <div className="grid grid-cols-1 xl:grid-cols-[1fr_440px] gap-10">
-        {/* ====== LEFT: controls ====== */}
-        <div className="space-y-5">
+        <div className={`space-y-5 ${panelVisibility("create")}`}>
           <CollapsibleSection title={t("common_section_upload_photo")} defaultOpen testId="bg-remove-section-photo">
             <div className="flex items-baseline justify-between mb-4">
               {photo && (
@@ -314,7 +369,7 @@ export default function BgRemove() {
             </AnimatePresence>
           </CollapsibleSection>
 
-          <CollapsibleSection title={t("bg_section_tuning")} optional hint="Cabelo, sombra e refinamentos." testId="bg-remove-section-tuning">
+          <CollapsibleSection title={t("bg_section_tuning")} optional hint={t("bg_section_tuning_hint")} testId="bg-remove-section-tuning">
             <div className="space-y-2.5">
               <Toggle
                 active={refineHair}
@@ -336,10 +391,15 @@ export default function BgRemove() {
           </CollapsibleSection>
         </div>
 
-        <StudioResultAnchor busy={busy} ready={Boolean(result?.url)} className="xl:sticky xl:top-[80px] self-start">
+        <StudioResultAnchor
+          busy={busy}
+          ready={Boolean(result?.url)}
+          className={`xl:sticky xl:top-[80px] self-start ${panelVisibility("result")}`}
+        >
           <p className="text-[#5A5A5E] text-[10px] font-mono uppercase tracking-[0.2em] mb-3">{t("bg_output")}</p>
           <ResultArea
             busy={busy}
+            progress={progress}
             result={result}
             mode={mode}
             solidColor={solidColor}
@@ -440,7 +500,7 @@ function CheckerBoard() {
 /*  Result area with before/after slider + download                    */
 /* ------------------------------------------------------------------ */
 
-function ResultArea({ busy, result, mode, solidColor, originalPreview }) {
+function ResultArea({ busy, progress, result, mode, solidColor, originalPreview }) {
   const { t } = useStudioI18n();
   if (busy) {
     return (
@@ -449,7 +509,7 @@ function ResultArea({ busy, result, mode, solidColor, originalPreview }) {
         <div className="relative w-14 h-14 rounded-full border-2 border-[#7C3AED]/30 border-t-[#C4B5FD] animate-spin mb-5" />
         <p className="relative text-[#F4F1EA] text-[14px] font-medium font-['Inter_Tight']">{t("bg_loading")}</p>
         <p className="relative text-[#5A5A5E] text-[11px] font-mono uppercase mt-2 tracking-[0.18em]">
-          {t("bg_loading_sub")}
+          {progress > 0 ? t("bg_loading_sec", { n: progress }) : t("bg_loading_sub")}
         </p>
       </div>
     );
@@ -471,14 +531,13 @@ function ResultArea({ busy, result, mode, solidColor, originalPreview }) {
 }
 
 function ResultViewer({ result, mode, solidColor, originalPreview }) {
+  const { t } = useStudioI18n();
   const [showCompare, setShowCompare] = useState(false);
   const isSolid = result.mode === "solid";
 
-  // Compose download: if solid → flatten cutout on color via canvas; else download raw.
   const handleDownload = async () => {
     try {
       if (!isSolid) {
-        // Direct download via fetch+blob to preserve alpha
         const r = await fetch(result.url);
         const blob = await r.blob();
         triggerDownload(blob, suggestedName(result.mode));
@@ -488,7 +547,7 @@ function ResultViewer({ result, mode, solidColor, originalPreview }) {
       triggerDownload(blob, suggestedName("solid"));
     } catch (e) {
       console.error(e);
-      toast.error("Falha ao preparar download.");
+      toast.error(t("bg_download_fail"));
     }
   };
 
@@ -513,23 +572,21 @@ function ResultViewer({ result, mode, solidColor, originalPreview }) {
 
         <img
           src={result.url}
-          alt="Resultado"
+          alt=""
           className="absolute inset-0 w-full h-full object-contain"
           data-testid="bg-remove-result-image"
           crossOrigin="anonymous"
         />
 
-        {/* Before/After overlay */}
         {showCompare && originalPreview && (
           <div className="absolute inset-0 pointer-events-none">
             <img src={originalPreview} alt="" className="w-full h-full object-contain" />
             <div className="absolute top-3 left-3 text-[10px] font-mono uppercase tracking-[0.2em] text-white bg-black/60 px-2 py-1 rounded">
-              Antes
+              {t("bg_before")}
             </div>
           </div>
         )}
 
-        {/* Compare toggle */}
         {originalPreview && (
           <button
             onMouseDown={() => setShowCompare(true)}
@@ -541,12 +598,11 @@ function ResultViewer({ result, mode, solidColor, originalPreview }) {
             data-testid="bg-remove-compare"
           >
             <Move className="w-3.5 h-3.5" />
-            Segurar para ver antes
+            {t("bg_compare_hold")}
           </button>
         )}
       </div>
 
-      {/* Action bar */}
       <div className="p-3 flex gap-2 border-t border-[#2E2E30] bg-[#0B0B0C]/60">
         <button
           onClick={handleDownload}
@@ -554,7 +610,7 @@ function ResultViewer({ result, mode, solidColor, originalPreview }) {
           data-testid="bg-remove-download"
         >
           <Download className="w-4 h-4" />
-          Baixar {isSolid ? "JPG" : "PNG"}
+          {isSolid ? t("bg_download_jpg") : t("bg_download_png")}
         </button>
         <a
           href={result.url}
@@ -563,7 +619,7 @@ function ResultViewer({ result, mode, solidColor, originalPreview }) {
           className="px-4 py-3 border border-[#2E2E30] hover:border-[#7C3AED]/50 text-[#8A8A8E] hover:text-[#F4F1EA] rounded-lg text-[12.5px] transition-colors flex items-center"
           data-testid="bg-remove-open"
         >
-          Abrir
+          {t("bg_open")}
         </a>
       </div>
     </div>

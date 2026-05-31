@@ -34,6 +34,8 @@
   min-height: calc(100vh - 64px);
   display: flex;
   flex-direction: column;
+  overflow-x: clip;
+  max-width: 100%;
 }
 
 /* Top bar */
@@ -1338,25 +1340,47 @@
 
 /* Mobile responsive */
 @media (max-width: 768px) {
-  .manga-flow-topbar { padding: 8px 10px; gap: 6px; }
-  .manga-flow-topbar > div:first-child { display: none; } /* Hide logo on mobile */
+  .manga-flow-topbar {
+    flex-direction: column;
+    align-items: stretch;
+    padding: 8px 10px;
+    gap: 8px;
+  }
+  .manga-flow-topbar > div:first-child { display: none; }
   .manga-flow-project-name { font-size: 14px; width: 140px; }
-  /* Collapse toolbar buttons to smaller size + scrollable row */
   .manga-flow-topbar > div:last-child,
   .manga-flow-topbar > .flex:last-child {
-    display: flex; flex-wrap: nowrap; overflow-x: auto; gap: 4px;
-    -webkit-overflow-scrolling: touch; scrollbar-width: none;
-    max-width: 100%; padding-bottom: 2px;
+    display: flex;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    gap: 4px;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    max-width: 100%;
+    padding-bottom: 2px;
+    overscroll-behavior-x: contain;
+  }
+  .manga-flow-topbar > div:last-child > button:nth-child(n+6),
+  .manga-flow-topbar > .flex:last-child > button:nth-child(n+6) {
+    display: none;
   }
   .manga-flow-topbar > div:last-child::-webkit-scrollbar,
   .manga-flow-topbar > .flex:last-child::-webkit-scrollbar { display: none; }
   .manga-flow-btn { padding: 6px 8px; font-size: 11px; flex-shrink: 0; }
-  .mfg-trigger-btn { padding: 6px 12px; font-size: 11px; flex-shrink: 0; }
-  .aiw-trigger-btn { padding: 6px 12px; font-size: 11px; flex-shrink: 0; }
+  .mfg-trigger-btn { padding: 6px 10px; font-size: 11px; flex-shrink: 0; }
+  .aiw-trigger-btn { padding: 6px 10px; font-size: 11px; flex-shrink: 0; }
   .manga-flow-btn-primary { padding: 6px 10px; font-size: 11px; }
-  .manga-flow-pagebar { padding: 4px 10px; gap: 4px; }
-  .manga-flow-pagebar__btn { padding: 4px 8px; font-size: 10px; }
-  .manga-flow-canvas { height: calc(100vh - 160px); min-height: 300px; }
+  .manga-flow-pagebar {
+    padding: 4px 10px;
+    gap: 4px;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+  }
+  .manga-flow-pagebar__current { max-width: 55vw; }
+  .manga-flow-pagebar__btn { padding: 4px 8px; font-size: 10px; flex-shrink: 0; }
+  .manga-flow-pagebar__btn span { display: none; }
+  .manga-flow-canvas { height: calc(100dvh - 11rem); min-height: 280px; }
   .manga-flow-inspector { width: 100%; max-width: 100%; position: fixed; top: auto; bottom: 0; height: 55vh; border-left: none; border-top: 1px solid rgba(255,255,255,0.1); border-radius: 16px 16px 0 0; z-index: 80; }
   .mfn { min-width: 140px; max-width: 170px; }
   .manga-flow-add-grid { grid-template-columns: 1fr; }

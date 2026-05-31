@@ -18,6 +18,8 @@ import { PADRAO_STYLE_COVER_BY_ID } from "../../lib/padraoStyleCovers";
 import useTitle from "../../lib/useTitle";
 import StudioAccordionSection from "../../components/StudioAccordionSection";
 import StudioGenerateBar from "../../components/StudioGenerateBar";
+import StudioMobileTabs from "../../components/studio/StudioMobileTabs";
+import { useStudioMobileTabs } from "../../lib/useStudioMobileTabs";
 import { readUserSettings } from "../../lib/userSettings";
 import { usePhotoAspectDefault, ASPECT_MATCH } from "../../lib/usePhotoAspectDefault";
 import { apiAspectRatio } from "../../lib/apiAspectRatio";
@@ -53,6 +55,7 @@ export default function Generate() {
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState(null);
   const [progress, setProgress] = useState(0);
+  const { mobileTab, setMobileTab, panelVisibility, focusResultPanel } = useStudioMobileTabs("create", "lg");
 
   const [showStyles, setShowStyles] = useState(true);
   const [padrao, setPadrao] = useState([]);
@@ -114,6 +117,7 @@ export default function Generate() {
       return;
     }
 
+    focusResultPanel();
     clearUploadToast();
     setBusy(true); setResult(null); setProgress(0);
     let submitData;
@@ -171,15 +175,17 @@ export default function Generate() {
   };
 
   return (
-    <div className="rp-studio-shell max-w-[1200px] mx-auto pb-28" data-testid="generate-page">
+    <div className="rp-studio-shell max-w-[1200px] mx-auto rp-studio-page-pad" data-testid="generate-page">
       <header className="mb-10 pb-8 border-b border-[rgba(244,241,234,0.06)]">
         <p className="rp-editor-section-cap mb-2">{t("studio_eyebrow")}</p>
         <h1 className="rp-studio-page-title mb-3 font-['Inter_Tight']">{t("studio_title")}</h1>
         <p className="rp-studio-page-desc">{t("studio_desc")}</p>
       </header>
 
+      <StudioMobileTabs active={mobileTab} onChange={setMobileTab} testIdPrefix="generate" breakpoint="lg" />
+
       <div className="grid grid-cols-1 lg:grid-cols-[1fr_380px] gap-8 lg:gap-10">
-        <div className="space-y-4">
+        <div className={`space-y-4 ${panelVisibility("create")}`}>
           <StudioAccordionSection title={t("studio_acc_photo")} defaultOpen={false} testId="studio-acc-photo">
             <div className="flex items-baseline justify-end mb-3">
               {photo && (
@@ -303,7 +309,7 @@ export default function Generate() {
           </StudioAccordionSection>
         </div>
 
-        <StudioResultAnchor busy={busy} ready={Boolean(primaryResultUrl(result))} className="lg:sticky lg:top-[88px] self-start space-y-3">
+        <StudioResultAnchor busy={busy} ready={Boolean(primaryResultUrl(result))} className={`lg:sticky lg:top-[88px] self-start space-y-3 ${panelVisibility("result")}`}>
           <p className="rp-editor-section-cap !text-[#6b6b70]">{t("last_result")}</p>
           <div className="rp-editor-panel overflow-hidden p-4 sm:p-5">
             <ResultPanel creation={result} loading={busy} onChange={setResult} emptyLabel={t("studio_result_next")} />

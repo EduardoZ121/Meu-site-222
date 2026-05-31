@@ -4,6 +4,7 @@ const en = {
   consent_title: "Cookies & terms",
   consent_body:
     "We use essential cookies to keep you signed in and remember preferences. By continuing, you accept our Terms of Use and Privacy Policy.",
+  consent_body_short: "We use essential cookies. By continuing you accept our Terms.",
   consent_accept: "Accept",
   consent_terms: "Terms of use",
   consent_privacy: "Privacy",
@@ -53,6 +54,7 @@ const pt = {
   consent_title: "Cookies e termos",
   consent_body:
     "Usamos cookies essenciais para manter a sessão e as tuas preferências. Ao continuar, aceitas os Termos de Utilização e a Política de Privacidade.",
+  consent_body_short: "Usamos cookies essenciais. Ao continuar aceitas os Termos.",
   consent_accept: "Aceitar",
   consent_terms: "Termos de utilização",
   consent_privacy: "Privacidade",

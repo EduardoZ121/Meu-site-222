@@ -16,6 +16,8 @@ import ImageUploadZone from "../../../components/ImageUploadZone";
 import CollapsibleSection from "../../../components/CollapsibleSection";
 import BrandPageHeader from "../../../components/brand/BrandPageHeader";
 import StudioResultAnchor from "../../../components/StudioResultAnchor";
+import StudioMobileTabs from "../../../components/studio/StudioMobileTabs";
+import { useStudioMobileTabs } from "../../../lib/useStudioMobileTabs";
 import { useI18n } from "../../../lib/i18n";
 import { useStudioI18n } from "../../../lib/useStudioI18n";
 import { RESTORE_LEVEL_KEYS } from "../../../lib/toolPagesLocales";
@@ -55,6 +57,7 @@ export default function Restore() {
 
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState(null);
+  const { mobileTab, setMobileTab, panelVisibility, focusResultPanel } = useStudioMobileTabs();
 
   const cost = useMemo(() => restoreCostForLevel(costs, level), [costs, level]);
 
@@ -73,6 +76,7 @@ export default function Restore() {
 
   const run = async () => {
     if (!photo) { toast.error(t("restore_err_upload")); return; }
+    focusResultPanel();
     clearUploadToast();
     setBusy(true); setResult(null);
     try {
@@ -97,7 +101,7 @@ export default function Restore() {
   };
 
   return (
-    <div className="max-w-[1400px] mx-auto pb-32" data-testid="restore-frame">
+    <div className="max-w-[1400px] mx-auto rp-studio-page-pad" data-testid="restore-frame">
       <BrandPageHeader
         icon={History}
         eyebrow={t("tool_cap")}
@@ -106,8 +110,10 @@ export default function Restore() {
         testId="restore-header"
       />
 
+      <StudioMobileTabs active={mobileTab} onChange={setMobileTab} testIdPrefix="restore" />
+
       <div className="grid grid-cols-1 xl:grid-cols-[1fr_440px] gap-10">
-        <div className="space-y-5">
+        <div className={`space-y-5 ${panelVisibility("create")}`}>
           {/* 1) UPLOAD */}
           <CollapsibleSection title={t("restore_section_photo")} defaultOpen testId="restore-section-photo">
             <div className="flex items-baseline justify-between mb-4">
@@ -221,7 +227,7 @@ export default function Restore() {
           </CollapsibleSection>
         </div>
 
-        <StudioResultAnchor busy={busy} ready={Boolean(result?.url)} className="xl:sticky xl:top-[80px] self-start">
+        <StudioResultAnchor busy={busy} ready={Boolean(result?.url)} className={`xl:sticky xl:top-[80px] self-start ${panelVisibility("result")}`}>
           <p className="text-[#5A5A5E] text-[10px] font-mono uppercase tracking-[0.2em] mb-3">{t("common_output")}</p>
           <ResultArea busy={busy} result={result} originalPreview={resultOriginalUrl} level={level} />
         </StudioResultAnchor>

@@ -17,6 +17,8 @@ import useTitle from "../../lib/useTitle";
 import { useI18n } from "../../lib/i18n";
 import StudioGenerateBar from "../../components/StudioGenerateBar";
 import StudioGenerateCostMeta from "../../components/StudioGenerateCostMeta";
+import StudioMobileTabs from "../../components/studio/StudioMobileTabs";
+import { useStudioMobileTabs } from "../../lib/useStudioMobileTabs";
 import StudioPhotoUploadNotice, { isPhotoUploadBusy } from "../../components/studio/StudioPhotoUploadNotice";
 import { useStudioGenerateGate } from "../../lib/useStudioGenerateGate";
 import { useStudioI18n } from "../../lib/useStudioI18n";
@@ -62,6 +64,7 @@ export default function Pro() {
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState(null);
   const [photoUploadStatus, setPhotoUploadStatus] = useState("idle");
+  const { mobileTab, setMobileTab, panelVisibility, focusResultPanel } = useStudioMobileTabs();
   const cost = costs.pro;
   const photoUploading = isPhotoUploadBusy(photoUploadStatus);
 
@@ -105,6 +108,7 @@ export default function Pro() {
     }
     if (!photo) { toast.error(t("pro_upload_photo")); return; }
     if (!preset) { toast.error(t("pro_pick_preset")); return; }
+    focusResultPanel();
     clearUploadToast();
     setBusy(true); setResult(null);
     try {
@@ -134,11 +138,12 @@ export default function Pro() {
     cost,
     refresh,
     t,
+    focusResultPanel,
     errToast,
   ]);
 
   return (
-    <div className="rp-studio-shell max-w-[1400px] mx-auto pb-28" data-testid="pro-page">
+    <div className="rp-studio-shell max-w-[1400px] mx-auto rp-studio-page-pad" data-testid="pro-page">
       <header className="mb-6 pb-5 border-b border-[rgba(244,241,234,0.06)]">
         <div className="flex items-center gap-3 mb-2">
           <div className="w-9 h-9 rounded-xl bg-[rgba(124,58,237,0.14)] border border-[rgba(124,58,237,0.28)] flex items-center justify-center">
@@ -152,8 +157,10 @@ export default function Pro() {
         <p className="rp-studio-page-desc text-[14px] max-w-[640px]">{t("pro_empty")}</p>
       </header>
 
+      <StudioMobileTabs active={mobileTab} onChange={setMobileTab} testIdPrefix="pro" />
+
       <div className="grid grid-cols-1 xl:grid-cols-[1fr_380px] gap-6 xl:gap-8">
-        <div className="rp-editor-panel overflow-hidden">
+        <div className={`rp-editor-panel overflow-hidden ${panelVisibility("create")}`}>
           <div className="rp-editor-panel-accent" />
           <div className="p-5 sm:p-7 space-y-7">
             <ProStep step="1" title={t("pro_step_photo")} hint={t("pro_upload_hint")}>
@@ -289,7 +296,7 @@ export default function Pro() {
           </div>
         </div>
 
-        <StudioResultAnchor busy={busy} ready={Boolean(primaryResultUrl(result))} className="xl:sticky xl:top-[80px] self-start space-y-2">
+        <StudioResultAnchor busy={busy} ready={Boolean(primaryResultUrl(result))} className={`xl:sticky xl:top-[80px] self-start space-y-2 ${panelVisibility("result")}`}>
           <p className="rp-editor-section-cap !text-[#6b6b70] !mb-2">{t("last_result")}</p>
           <div className="rp-editor-panel overflow-hidden p-4">
             <ResultPanel creation={result} loading={busy} onChange={setResult} emptyLabel={t("pro_empty_result")} />

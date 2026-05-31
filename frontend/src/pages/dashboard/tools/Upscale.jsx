@@ -14,6 +14,8 @@ import ImageUploadZone from "../../../components/ImageUploadZone";
 import CollapsibleSection from "../../../components/CollapsibleSection";
 import BrandPageHeader from "../../../components/brand/BrandPageHeader";
 import StudioResultAnchor from "../../../components/StudioResultAnchor";
+import StudioMobileTabs from "../../../components/studio/StudioMobileTabs";
+import { useStudioMobileTabs } from "../../../lib/useStudioMobileTabs";
 import StudioGenerateBar from "../../../components/StudioGenerateBar";
 import StudioGenerateCostMeta from "../../../components/StudioGenerateCostMeta";
 import { useStudioGenerateGate } from "../../../lib/useStudioGenerateGate";
@@ -36,6 +38,7 @@ export default function Upscale() {
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState(null);
   const { previewUrl: photoPreview } = useStudioMediaPreview(photo);
+  const { mobileTab, setMobileTab, panelVisibility, focusResultPanel } = useStudioMobileTabs();
 
   const cost = costs.upscale;
 
@@ -62,6 +65,7 @@ export default function Upscale() {
 
   const run = async () => {
     if (!photo) { toast.error(t("common_upload_first")); return; }
+    focusResultPanel();
     clearUploadToast();
     setBusy(true); setResult(null);
     try {
@@ -84,7 +88,7 @@ export default function Upscale() {
   };
 
   return (
-    <div className="max-w-[1400px] mx-auto pb-32" data-testid="upscale-frame">
+    <div className="max-w-[1400px] mx-auto rp-studio-page-pad" data-testid="upscale-frame">
       <BrandPageHeader
         icon={ArrowUp}
         eyebrow={t("tool_cap")}
@@ -93,9 +97,11 @@ export default function Upscale() {
         testId="upscale-header"
       />
 
+      <StudioMobileTabs active={mobileTab} onChange={setMobileTab} testIdPrefix="upscale" />
+
       <div className="grid grid-cols-1 xl:grid-cols-[1fr_440px] gap-10">
         {/* ====== LEFT: controls ====== */}
-        <div className="space-y-5">
+        <div className={`space-y-5 ${panelVisibility("create")}`}>
           {/* 1) UPLOAD */}
           <CollapsibleSection title={t("common_section_upload_image")} defaultOpen testId="upscale-section-photo">
             <div className="flex items-baseline justify-between mb-4">
@@ -183,7 +189,7 @@ export default function Upscale() {
           </CollapsibleSection>
         </div>
 
-        <StudioResultAnchor busy={busy} ready={Boolean(result?.url)} className="xl:sticky xl:top-[80px] self-start">
+        <StudioResultAnchor busy={busy} ready={Boolean(result?.url)} className={`xl:sticky xl:top-[80px] self-start ${panelVisibility("result")}`}>
           <p className="text-[#5A5A5E] text-[10px] font-mono uppercase tracking-[0.2em] mb-3">{t("common_output")}</p>
           <ResultArea busy={busy} result={result} originalPreview={photoPreview} scale={scale} />
         </StudioResultAnchor>

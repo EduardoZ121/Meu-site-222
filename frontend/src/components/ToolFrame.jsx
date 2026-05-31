@@ -5,7 +5,9 @@ import { useI18n } from "../lib/i18n";
 import StudioGenerateBar from "./StudioGenerateBar";
 import StudioGenerateCostMeta from "./StudioGenerateCostMeta";
 import StudioPhotoUploadNotice, { isPhotoUploadBusy } from "./studio/StudioPhotoUploadNotice";
+import StudioMobileTabs from "./studio/StudioMobileTabs";
 import { useStudioGenerateGate } from "../lib/useStudioGenerateGate";
+import { useStudioMobileTabs } from "../lib/useStudioMobileTabs";
 import AspectPicker from "./AspectPicker";
 import ImageUploadZone from "./ImageUploadZone";
 import ResultPanel from "./ResultPanel";
@@ -70,6 +72,7 @@ export default function ToolFrame({
   const formatsLabel = acceptedFormats ?? t("tool_accept_formats");
   const [viewAllModels, setViewAllModels] = useState(false);
   const [photoUploadStatus, setPhotoUploadStatus] = useState("idle");
+  const { mobileTab, setMobileTab, panelVisibility, focusResultPanel } = useStudioMobileTabs();
   const photoUploading = showPhoto && isPhotoUploadBusy(photoUploadStatus);
 
   const visibleModels = models ? (viewAllModels ? models : models.slice(0, 8)) : [];
@@ -92,8 +95,13 @@ export default function ToolFrame({
   const ready = gate.ready;
   const hint = generateHint ?? gate.hint;
 
+  const handleCreate = () => {
+    focusResultPanel();
+    return onCreate?.();
+  };
+
   return (
-    <div className="rp-studio-shell max-w-[1400px] mx-auto pb-32" data-testid={`${testId}-frame`}>
+    <div className="rp-studio-shell max-w-[1400px] mx-auto rp-studio-page-pad" data-testid={`${testId}-frame`}>
       <BrandPageHeader
         icon={headerIcon}
         eyebrow={t("tool_cap")}
@@ -102,8 +110,10 @@ export default function ToolFrame({
         testId={`${testId}-header`}
       />
 
+      <StudioMobileTabs active={mobileTab} onChange={setMobileTab} testIdPrefix={testId} />
+
       <div className="grid grid-cols-1 xl:grid-cols-[1fr_400px] gap-8 xl:gap-10">
-        <div className="rp-editor-panel overflow-hidden">
+        <div className={`rp-editor-panel overflow-hidden ${panelVisibility("create")}`}>
           <div className="rp-editor-panel-accent" />
           <div className="p-6 sm:p-8 space-y-0">
           {showPhoto && (
@@ -227,7 +237,7 @@ export default function ToolFrame({
         <StudioResultAnchor
           busy={busy}
           ready={resultReady}
-          className="xl:sticky xl:top-[80px] self-start space-y-3"
+          className={`xl:sticky xl:top-[80px] self-start space-y-3 ${panelVisibility("result")}`}
         >
           <p className="rp-editor-section-cap !text-[#6b6b70]">{t("tool_preview")}</p>
           <div className="rp-editor-panel rp-remake-frame overflow-hidden p-4 sm:p-5" data-testid={`${testId}-result-panel`}>
@@ -243,7 +253,7 @@ export default function ToolFrame({
       <StudioGenerateBar
         ready={ready}
         busy={busy}
-        onClick={onCreate}
+        onClick={handleCreate}
         label={t("tool_generate_credits", { n: cost })}
         busyLabel={t("tool_generating")}
         hint={hint}

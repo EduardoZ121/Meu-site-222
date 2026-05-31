@@ -88,7 +88,7 @@ export default function ToolsGridCard({ tool, index, region, t, compact = false 
         </div>
 
         <div className={`relative flex flex-1 flex-col border-t border-white/[0.05] ${compact ? "gap-1 p-2.5 sm:p-3" : "gap-2 p-4 sm:p-5"}`}>
-          <h3 className={`font-semibold text-white leading-snug font-['Inter_Tight'] group-hover:text-violet-50 transition-colors duration-300 line-clamp-1 ${compact ? "text-sm" : "text-[17px] sm:text-[18px] tracking-[-0.02em] line-clamp-2"}`}>
+          <h3 className={`font-semibold text-white leading-snug font-['Inter_Tight'] group-hover:text-violet-50 transition-colors duration-300 ${compact ? "text-sm line-clamp-2" : "text-[16px] sm:text-[17px] tracking-[-0.02em] line-clamp-2 min-h-[2.5rem]"}`}>
             {tool.name}
           </h3>
           {tool.desc && (

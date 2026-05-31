@@ -359,6 +359,7 @@ export const I18N_BASE_DICT = {
     hero_title_1: "Turn ideas into",
     hero_title_2: "art",
     hero_title_3: "in seconds.",
+    hero_subtitle: "Photo, anime, posters, video and more — pro control, identity preserved, results in seconds.",
     hero_cta_primary: "Start free — 50 credits",
     hero_cta_gallery: "See creations",
     hero_cta_learn: "Learn more",

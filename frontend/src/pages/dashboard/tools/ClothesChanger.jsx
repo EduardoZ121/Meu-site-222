@@ -1,9 +1,7 @@
 import { useMemo, useState } from "react";
-import { ArrowLeft, Loader2, Sparkles, Shirt } from "lucide-react";
-import { useNavigate } from "react-router-dom";
-import { motion } from "framer-motion";
+import { Sparkles, Shirt } from "lucide-react";
 import { toast } from "sonner";
-import { formatApiError, uploadPost } from "../../../lib/api";
+import { uploadPost } from "../../../lib/api";
 import { normalizeCreation, primaryResultUrl } from "../../../lib/creationUrls";
 import { useAuth } from "../../../lib/auth";
 import { usePricing } from "../../../lib/PricingContext";
@@ -12,20 +10,15 @@ import ImageUploadZone from "../../../components/ImageUploadZone";
 import CollapsibleSection from "../../../components/CollapsibleSection";
 import BrandPageHeader from "../../../components/brand/BrandPageHeader";
 import StudioResultAnchor from "../../../components/StudioResultAnchor";
+import StudioGenerateBar from "../../../components/StudioGenerateBar";
+import StudioGenerateCostMeta from "../../../components/StudioGenerateCostMeta";
+import StudioMobileTabs from "../../../components/studio/StudioMobileTabs";
+import { useStudioMobileTabs } from "../../../lib/useStudioMobileTabs";
 import useTitle from "../../../lib/useTitle";
 import { useI18n } from "../../../lib/i18n";
 import { useStudioI18n } from "../../../lib/useStudioI18n";
 
-const STYLE_PRESETS = [
-  { id: "casual",      label: "Casual",      desc: "white t-shirt, blue jeans, sneakers" },
-  { id: "formal",      label: "Formal",      desc: "elegant black suit, white shirt, leather shoes" },
-  { id: "streetwear",  label: "Streetwear",  desc: "oversized hoodie, baggy cargo pants, high-top sneakers" },
-  { id: "luxury",      label: "Luxury",      desc: "designer outfit, silk shirt, gold accessories, premium look" },
-  { id: "sport",       label: "Sport",       desc: "athletic gym wear, performance fabric, sportswear" },
-  { id: "evening",     label: "Evening",     desc: "elegant evening dress, satin fabric, sophisticated styling" },
-  { id: "vintage",     label: "Vintage",     desc: "70s vintage fashion, retro pattern, classic tailoring" },
-  { id: "business",    label: "Business",    desc: "navy blazer, crisp shirt, tailored trousers" },
-];
+const PRESET_IDS = ["casual", "formal", "streetwear", "luxury", "sport", "evening", "vintage", "business"];
 
 function PhotoBox({ photo, onChange, label, helper, emptyLabel, testId }) {
   return (
@@ -54,7 +47,7 @@ export default function ClothesChanger() {
   useTitle(tCat("tool_clothes_name"));
   const { refresh, user } = useAuth();
   const { costs } = usePricing();
-  const navigate = useNavigate();
+  const { mobileTab, setMobileTab, panelVisibility, focusResultPanel } = useStudioMobileTabs();
   const [photo, setPhoto] = useState(null);
   const [garment, setGarment] = useState(null);
   const [prompt, setPrompt] = useState("");
@@ -62,6 +55,15 @@ export default function ClothesChanger() {
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState(null);
   const cost = costs.clothes;
+
+  const stylePresets = useMemo(
+    () => PRESET_IDS.map((id) => ({
+      id,
+      label: t(`clothes_preset_${id}_label`),
+      desc: t(`clothes_preset_${id}_desc`),
+    })),
+    [t],
+  );
 
   const changeTypes = useMemo(
     () => [
@@ -89,6 +91,7 @@ export default function ClothesChanger() {
       toast.error(t("common_need_credits", { need: cost, have: user?.credits ?? 0 }));
       return;
     }
+    focusResultPanel();
     clearUploadToast();
     setBusy(true); setResult(null);
     try {
@@ -125,7 +128,7 @@ export default function ClothesChanger() {
   };
 
   return (
-    <div className="max-w-[1400px] mx-auto pb-32" data-testid="clothes-page">
+    <div className="max-w-[1400px] mx-auto rp-studio-page-pad" data-testid="clothes-page">
       <BrandPageHeader
         icon={Shirt}
         eyebrow={t("tool_cap")}
@@ -134,11 +137,12 @@ export default function ClothesChanger() {
         testId="clothes-header"
       />
 
+      <StudioMobileTabs active={mobileTab} onChange={setMobileTab} testIdPrefix="clothes" />
+
       <div className="grid grid-cols-1 xl:grid-cols-[1fr_400px] gap-10">
-        <div className="space-y-5">
-          {/* Step 1 — photos */}
+        <div className={`space-y-5 ${panelVisibility("create")}`}>
           <CollapsibleSection title={t("clothes_section_photos")} defaultOpen testId="clothes-section-photos">
-            <div className="grid grid-cols-2 gap-3 max-w-[600px]">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-w-[600px]">
               <PhotoBox
                 photo={photo}
                 onChange={setPhoto}
@@ -182,7 +186,7 @@ export default function ClothesChanger() {
           {!garment && (
             <CollapsibleSection title={t("clothes_section_presets")} optional testId="clothes-section-presets">
               <div className="flex flex-wrap gap-2" data-testid="presets">
-                {STYLE_PRESETS.map((p) => (
+                {stylePresets.map((p) => (
                   <button
                     key={p.id}
                     onClick={() => applyPreset(p)}
@@ -216,36 +220,22 @@ export default function ClothesChanger() {
         </div>
 
         {/* RIGHT */}
-        <StudioResultAnchor busy={busy} ready={Boolean(primaryResultUrl(result))} className="xl:sticky xl:top-[80px] self-start">
+        <StudioResultAnchor busy={busy} ready={Boolean(primaryResultUrl(result))} className={`xl:sticky xl:top-[80px] self-start ${panelVisibility("result")}`}>
           <p className="text-[#5A5A5E] text-[10px] font-mono uppercase tracking-[0.2em] mb-3">{t("clothes_result_label")}</p>
           <ResultPanel creation={result} loading={busy} onChange={setResult} emptyLabel={t("clothes_result_empty")} />
         </StudioResultAnchor>
       </div>
 
-      {/* Sticky CTA */}
-      <motion.div initial={{ y: 100 }} animate={{ y: 0 }} className="fixed bottom-0 left-0 right-0 md:left-[240px] bg-gradient-to-t from-[#0B0B0C] via-[#0B0B0C] to-[#0B0B0C]/95 backdrop-blur-xl border-t border-[#2E2E30] z-30 px-4 sm:px-6 md:px-10 py-4">
-        <div className="max-w-[1400px] mx-auto flex items-center justify-between gap-4">
-          <div className="hidden sm:flex items-center gap-3 text-[12px]">
-            <span className="text-[#8A8A8E]">{t("clothes_credits_needed")}</span>
-            <span className="text-[#C4B5FD] font-medium text-[16px]">{cost}</span>
-            <span className="text-[#5A5A5E] mx-2">·</span>
-            <span className="text-[#8A8A8E]">{t("clothes_balance")}</span>
-            <span className="text-[#F4F1EA] font-medium">{user?.credits ?? 0}</span>
-          </div>
-          <button
-            onClick={run}
-            disabled={busy}
-            className="flex-1 sm:flex-initial sm:min-w-[260px] bg-gradient-to-r from-[#7C3AED] to-[#9333EA] hover:from-[#8B5CF6] hover:to-[#A855F7] disabled:from-[#1A1A1C] disabled:to-[#1A1A1C] disabled:text-[#5A5A5E] text-white py-3.5 rounded-md text-[13px] font-medium tracking-wide transition-all flex items-center justify-center gap-2 shadow-lg shadow-[#7C3AED]/30 hover:shadow-[#7C3AED]/50"
-            data-testid="clothes-create"
-          >
-            {busy ? (
-              <><Loader2 className="w-4 h-4 animate-spin" /> {t("clothes_dressing")}</>
-            ) : (
-              <><Sparkles className="w-4 h-4" /> {t("clothes_btn", { n: cost })}</>
-            )}
-          </button>
-        </div>
-      </motion.div>
+      <StudioGenerateBar
+        ready={Boolean(photo) && (Boolean(garment) || prompt.trim().length >= 3) && (user?.credits ?? 0) >= cost}
+        busy={busy}
+        onClick={run}
+        label={t("clothes_btn", { n: cost })}
+        busyLabel={t("clothes_dressing")}
+        hint={!photo ? t("clothes_err_person") : (!garment && prompt.trim().length < 3 ? t("clothes_err_garment") : null)}
+        testId="clothes-create"
+        costMeta={<StudioGenerateCostMeta cost={cost} user={user} />}
+      />
     </div>
   );
 }

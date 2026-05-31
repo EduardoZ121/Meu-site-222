@@ -22,6 +22,8 @@ import ImageUploadZone from "../../../components/ImageUploadZone";
 import CollapsibleSection from "../../../components/CollapsibleSection";
 import BrandPageHeader from "../../../components/brand/BrandPageHeader";
 import StudioResultAnchor from "../../../components/StudioResultAnchor";
+import StudioMobileTabs from "../../../components/studio/StudioMobileTabs";
+import { useStudioMobileTabs } from "../../../lib/useStudioMobileTabs";
 
 /* ------------------------------------------------------------------ */
 /*  Scene presets + solid color palette                                */
@@ -79,6 +81,7 @@ export default function BgRemove() {
 
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState(null); // { url, mode } — url is the cutout PNG or scene composite
+  const { mobileTab, setMobileTab, panelVisibility, focusResultPanel } = useStudioMobileTabs();
 
   const cost = mode === "scene" || mode === "custom" ? costs.bgRemoveScene : costs.bgRemove;
 
@@ -107,6 +110,7 @@ export default function BgRemove() {
     if (mode === "custom" && customPrompt.trim().length < 4) {
       toast.error(t("bg_err_describe")); return;
     }
+    focusResultPanel();
     clearUploadToast();
     setBusy(true); setResult(null);
     try {
@@ -130,7 +134,7 @@ export default function BgRemove() {
   };
 
   return (
-    <div className="max-w-[1400px] mx-auto pb-32" data-testid="bg-remove-frame">
+    <div className="max-w-[1400px] mx-auto rp-studio-page-pad" data-testid="bg-remove-frame">
       <BrandPageHeader
         icon={Scissors}
         eyebrow={t("tool_cap")}
@@ -139,9 +143,11 @@ export default function BgRemove() {
         testId="bg-remove-header"
       />
 
+      <StudioMobileTabs active={mobileTab} onChange={setMobileTab} testIdPrefix="bg-remove" />
+
       <div className="grid grid-cols-1 xl:grid-cols-[1fr_440px] gap-10">
         {/* ====== LEFT: controls ====== */}
-        <div className="space-y-5">
+        <div className={`space-y-5 ${panelVisibility("create")}`}>
           <CollapsibleSection title={t("common_section_upload_photo")} defaultOpen testId="bg-remove-section-photo">
             <div className="flex items-baseline justify-between mb-4">
               {photo && (
@@ -330,7 +336,7 @@ export default function BgRemove() {
           </CollapsibleSection>
         </div>
 
-        <StudioResultAnchor busy={busy} ready={Boolean(result?.url)} className="xl:sticky xl:top-[80px] self-start">
+        <StudioResultAnchor busy={busy} ready={Boolean(result?.url)} className={`xl:sticky xl:top-[80px] self-start ${panelVisibility("result")}`}>
           <p className="text-[#5A5A5E] text-[10px] font-mono uppercase tracking-[0.2em] mb-3">{t("bg_output")}</p>
           <ResultArea
             busy={busy}

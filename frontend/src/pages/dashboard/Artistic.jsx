@@ -345,12 +345,14 @@ export default function Artistic() {
 
   const styleGallery = (
     <>
-      <ArtisticCategoryRail
-        categories={catalog.categories}
-        styles={catalog.styles}
-        activeId={styleCat}
-        onSelect={setStyleCat}
-      />
+      <div className="min-w-0 max-w-full overflow-hidden">
+        <ArtisticCategoryRail
+          categories={catalog.categories}
+          styles={catalog.styles}
+          activeId={styleCat}
+          onSelect={setStyleCat}
+        />
+      </div>
       <p className="text-[#9CA3AF] text-[10px] font-mono uppercase tracking-[0.14em] mb-3">
         {catalog.categories.find((c) => c.id === styleCat)?.label}
         {includeNsfw ? ` · ${t("art_nsfw_admin_badge")}` : ""}

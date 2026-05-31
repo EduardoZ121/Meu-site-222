@@ -3,6 +3,8 @@
 const en = {
   common_fail: "Failed.",
   tool_cap: "Tool",
+  studio_tab_create: "Create",
+  studio_tab_result: "Result",
   tool_ref_image: "Reference image",
   tool_model: "Model",
   tool_view_all: "View all ({n})",
@@ -366,6 +368,8 @@ const en = {
 const pt = {
   common_fail: "Falhou.",
   tool_cap: "Ferramenta",
+  studio_tab_create: "Criar",
+  studio_tab_result: "Resultado",
   tool_ref_image: "Imagem de referência",
   tool_model: "Modelo",
   tool_view_all: "Ver todos ({n})",

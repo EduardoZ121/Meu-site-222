@@ -13,7 +13,7 @@ import { VIDEO_CATEGORIES } from "../../lib/videoCatalogue";
 const pageEase = [0.16, 1, 0.3, 1];
 
 const TOOL_GRID_CLASS =
-  "grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-2.5 sm:gap-3";
+  "grid grid-cols-1 min-[420px]:grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-3 sm:gap-3";
 
 function ToolsCategorySection({ title, description, children, testId }) {
   return (

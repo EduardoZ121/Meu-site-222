@@ -16,6 +16,8 @@ import ImageUploadZone from "../../../components/ImageUploadZone";
 import CollapsibleSection from "../../../components/CollapsibleSection";
 import BrandPageHeader from "../../../components/brand/BrandPageHeader";
 import StudioResultAnchor from "../../../components/StudioResultAnchor";
+import StudioMobileTabs from "../../../components/studio/StudioMobileTabs";
+import { useStudioMobileTabs } from "../../../lib/useStudioMobileTabs";
 import { useI18n } from "../../../lib/i18n";
 import { useStudioI18n } from "../../../lib/useStudioI18n";
 import { COLORIZE_STYLE_KEYS } from "../../../lib/toolPagesLocales";
@@ -66,6 +68,7 @@ export default function Colorize() {
 
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState(null);
+  const { mobileTab, setMobileTab, panelVisibility, focusResultPanel } = useStudioMobileTabs();
 
   const cost = costs.colorize;
 
@@ -84,6 +87,7 @@ export default function Colorize() {
 
   const run = async () => {
     if (!photo) { toast.error(t("colorize_err_upload")); return; }
+    focusResultPanel();
     clearUploadToast();
     setBusy(true); setResult(null);
     try {
@@ -107,7 +111,7 @@ export default function Colorize() {
   };
 
   return (
-    <div className="max-w-[1400px] mx-auto pb-32" data-testid="colorize-frame">
+    <div className="max-w-[1400px] mx-auto rp-studio-page-pad" data-testid="colorize-frame">
       <BrandPageHeader
         icon={Palette}
         eyebrow={t("tool_cap")}
@@ -116,8 +120,10 @@ export default function Colorize() {
         testId="colorize-header"
       />
 
+      <StudioMobileTabs active={mobileTab} onChange={setMobileTab} testIdPrefix="colorize" />
+
       <div className="grid grid-cols-1 xl:grid-cols-[1fr_440px] gap-10">
-        <div className="space-y-5">
+        <div className={`space-y-5 ${panelVisibility("create")}`}>
           {/* 1) UPLOAD */}
           <CollapsibleSection title={t("colorize_section_photo")} defaultOpen testId="colorize-section-photo">
             <div className="flex items-baseline justify-between mb-4">
@@ -249,7 +255,7 @@ export default function Colorize() {
           </CollapsibleSection>
         </div>
 
-        <StudioResultAnchor busy={busy} ready={Boolean(result?.url)} className="xl:sticky xl:top-[80px] self-start">
+        <StudioResultAnchor busy={busy} ready={Boolean(result?.url)} className={`xl:sticky xl:top-[80px] self-start ${panelVisibility("result")}`}>
           <p className="text-[#5A5A5E] text-[10px] font-mono uppercase tracking-[0.2em] mb-3">{t("common_output")}</p>
           <ResultArea busy={busy} result={result} originalPreview={resultOriginalUrl} style={style} />
         </StudioResultAnchor>

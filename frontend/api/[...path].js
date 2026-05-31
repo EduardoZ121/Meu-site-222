@@ -1674,6 +1674,9 @@ async function routePost(path, fields, files, req) {
     const duration = Number(text(fields, "duration", "6"));
     const videoCost = computeVideoGenerateCost(CREDIT, surcharges, { duration });
     const input = await imageInput(fields, files, "video", prompt);
+    if (Number.isFinite(duration) && duration >= 1 && duration <= 15) {
+      input.duration = Math.round(duration);
+    }
     return submitBillableGeneration(req, fields, {
       cost: videoCost,
       type: "video",

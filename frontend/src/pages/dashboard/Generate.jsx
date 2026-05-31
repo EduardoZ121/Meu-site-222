@@ -202,30 +202,34 @@ export default function Generate() {
               data-testid="prompt-input"
             />
             <div className="flex flex-col gap-2.5 mt-3">
-              <PromptEnhanceToggle
-                checked={improve}
-                onChange={setImprove}
-                locked={false}
-                onLockedClick={undefined}
-                testId="improve-toggle"
-                cost={surcharges.enhancePrompt ?? 3}
-              />
-              <label className="inline-flex items-center gap-2.5 cursor-pointer group">
-                <input
-                  type="checkbox"
-                  checked={hdQuality}
-                  disabled={false}
-                  onChange={(e) => {
-                    setHdQuality(e.target.checked);
-                  }}
-                  className="accent-[#7C3AED] w-3.5 h-3.5 rounded border-[#2E2E30]"
-                  data-testid="hd-quality-toggle"
-                />
-                <span className="text-[#8A8A8E] text-[12px] font-['Inter_Tight']">
-                  {t("studio_hd_quality")}{" "}
-                  <span className="text-[#A855F7] font-mono text-[10px]">+{surcharges.hdImage ?? 8}</span>
-                </span>
-              </label>
+              {mode === "text" && (
+                <>
+                  <PromptEnhanceToggle
+                    checked={improve}
+                    onChange={setImprove}
+                    locked={false}
+                    onLockedClick={undefined}
+                    testId="improve-toggle"
+                    cost={surcharges.enhancePrompt ?? 3}
+                  />
+                  <label className="inline-flex items-center gap-2.5 cursor-pointer group">
+                    <input
+                      type="checkbox"
+                      checked={hdQuality}
+                      disabled={false}
+                      onChange={(e) => {
+                        setHdQuality(e.target.checked);
+                      }}
+                      className="accent-[#7C3AED] w-3.5 h-3.5 rounded border-[#2E2E30]"
+                      data-testid="hd-quality-toggle"
+                    />
+                    <span className="text-[#8A8A8E] text-[12px] font-['Inter_Tight']">
+                      {t("studio_hd_quality")}{" "}
+                      <span className="text-[#A855F7] font-mono text-[10px]">+{surcharges.hdImage ?? 8}</span>
+                    </span>
+                  </label>
+                </>
+              )}
             </div>
             <div className="flex justify-end mt-2">
               <span className="text-[#5A5A5E] text-[10px] font-mono tabular-nums">{prompt.length}/800</span>

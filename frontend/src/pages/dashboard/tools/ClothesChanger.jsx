@@ -100,15 +100,8 @@ export default function ClothesChanger() {
         if (finalPrompt) fd.append("prompt", finalPrompt);
         fd.append("change_type", changeType);
       } else {
-        const prefixes = {
-          full:  "Replace all clothing with:",
-          piece: "Add/replace this specific clothing piece:",
-          color: "Keep the same outfit but change the color/style to:",
-        };
-        const prefix = prefixes[changeType] || "Change the outfit to:";
-
         fd.append("photo", photo);
-        fd.append("prompt", `${prefix} ${finalPrompt}. Preserve face, body pose and identity. Photorealistic, natural lighting.`);
+        fd.append("prompt", finalPrompt);
         fd.append("change_type", changeType);
       }
 

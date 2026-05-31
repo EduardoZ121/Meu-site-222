@@ -87,6 +87,7 @@ const en = {
   upscale_toggle_colors_hint: "Keeps exact tones. Turn off to let AI reinterpret.",
   upscale_loading: "Upscaling {scale}×…",
   upscale_loading_sub: "30–90 sec · AI reconstructing pixels",
+  upscale_loading_sec: "{n}s · AI reconstructing pixels",
   upscale_download: "Download high resolution",
   upscale_badge: "{scale}× upscaled",
 
@@ -285,6 +286,7 @@ const pt = {
   upscale_toggle_colors_hint: "Mantém os tons exatos da foto. Desativa se quiseres deixar a IA reinterpretar.",
   upscale_loading: "A aumentar resolução {scale}×…",
   upscale_loading_sub: "30–90 seg · IA a reconstruir pixels",
+  upscale_loading_sec: "{n}s · IA a reconstruir pixels",
   upscale_download: "Baixar Alta Resolução",
   upscale_badge: "{scale}× upscale",
 

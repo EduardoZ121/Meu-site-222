@@ -1,12 +1,10 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useStudioMediaPreview } from "../../../hooks/useStudioMediaPreview";
 import { toast } from "sonner";
-import { motion } from "framer-motion";
 import {
-  ArrowLeft, Loader2, ArrowUp, Download, Sparkles,
+  ArrowUp, Download, Sparkles, Image as ImageIcon,
   Check, Move, RotateCcw, ZoomIn,
 } from "lucide-react";
-import { useNavigate } from "react-router-dom";
 import { uploadPost } from "../../../lib/api";
 import { useAuth } from "../../../lib/auth";
 import { usePricing } from "../../../lib/PricingContext";
@@ -22,8 +20,7 @@ import { useStudioI18n } from "../../../lib/useStudioI18n";
 export default function Upscale() {
   const { t, errToast, clearUploadToast } = useStudioI18n();
   const { t: tCat } = useI18n();
-  const navigate = useNavigate();
-  const { user, refresh } = useAuth();
+  const { user, refresh, refundCredits } = useAuth();
   const { costs } = usePricing();
 
   const [photo, setPhoto] = useState(null);
@@ -33,8 +30,24 @@ export default function Upscale() {
   const [preserveColors, setPreserveColors] = useState(true);
 
   const [busy, setBusy] = useState(false);
+  const [progress, setProgress] = useState(0);
   const [result, setResult] = useState(null);
+  const [mobileTab, setMobileTab] = useState("create");
   const { previewUrl: photoPreview } = useStudioMediaPreview(photo);
+
+  const panelVisibility = (tab) => (mobileTab !== tab ? "hidden xl:block" : "");
+
+  useEffect(() => {
+    if (!busy) {
+      setProgress(0);
+      return undefined;
+    }
+    const start = Date.now();
+    const timer = window.setInterval(() => {
+      setProgress(Math.floor((Date.now() - start) / 1000));
+    }, 500);
+    return () => window.clearInterval(timer);
+  }, [busy]);
 
   const cost = costs.upscale;
 
@@ -62,7 +75,13 @@ export default function Upscale() {
   const run = async () => {
     if (!photo) { toast.error(t("common_upload_first")); return; }
     clearUploadToast();
-    setBusy(true); setResult(null);
+    setMobileTab("result");
+    setBusy(true);
+    setResult(null);
+    window.requestAnimationFrame(() => {
+      window.dispatchEvent(new CustomEvent("rp:scroll-to-result"));
+    });
+    let submitData;
     try {
       const fd = new FormData();
       fd.append("photo", photo);
@@ -70,8 +89,8 @@ export default function Upscale() {
       fd.append("sharpen", sharpen ? "true" : "false");
       fd.append("denoise", denoise ? "true" : "false");
       fd.append("preserve_colors", preserveColors ? "true" : "false");
-      const { data } = await uploadPost("/tools/upscale", fd, { timeout: 240000 });
-      const creation = data?.creation;
+      ({ data: submitData } = await uploadPost("/tools/upscale", fd, { timeout: 240000 }));
+      const creation = submitData?.creation;
       const url = creation?.result_urls?.[0];
       if (!url) throw new Error(t("common_no_result"));
       setResult({ url, id: creation?.id || null, scale });
@@ -79,13 +98,15 @@ export default function Upscale() {
       await refresh();
     } catch (err) {
       errToast(err);
+      if (err?.refunded && submitData?.credits_spent && !submitData?.server_billing) {
+        refundCredits?.(submitData.credits_spent, t("studio_refund_desc"));
+      }
+      try { await refresh(); } catch { /* ignore */ }
     } finally { setBusy(false); }
   };
 
   return (
     <div className="max-w-[1400px] mx-auto pb-32" data-testid="upscale-frame">
-      {/* Back link */}
-      {/* Hero header */}
       <div className="mb-12 flex items-start gap-5">
         <div className="shrink-0 w-14 h-14 rounded-2xl bg-[#7C3AED]/15 border border-[#7C3AED]/30 flex items-center justify-center">
           <ArrowUp className="w-7 h-7 text-[#C4B5FD]" strokeWidth={1.5} />
@@ -100,10 +121,39 @@ export default function Upscale() {
         </div>
       </div>
 
+      <div
+        className="xl:hidden flex gap-2 mb-5 p-1 rounded-xl border border-white/[0.08] bg-white/[0.03]"
+        role="tablist"
+        data-testid="upscale-mobile-tabs"
+      >
+        {[
+          { id: "create", labelKey: "studio_tab_create", icon: Sparkles },
+          { id: "result", labelKey: "studio_tab_result", icon: ImageIcon },
+        ].map(({ id, labelKey, icon: Icon }) => {
+          const active = mobileTab === id;
+          return (
+            <button
+              key={id}
+              type="button"
+              role="tab"
+              aria-selected={active}
+              onClick={() => setMobileTab(id)}
+              className={`flex-1 inline-flex items-center justify-center gap-1.5 py-2.5 rounded-lg text-sm font-medium transition-all ${
+                active
+                  ? "bg-white/[0.08] text-white shadow-[inset_0_0_0_1px_rgba(167,139,250,0.35)]"
+                  : "text-rp-mute2 hover:text-rp-mute"
+              }`}
+              data-testid={`upscale-tab-${id}`}
+            >
+              <Icon className="w-3.5 h-3.5" strokeWidth={active ? 2 : 1.75} />
+              {tCat(labelKey)}
+            </button>
+          );
+        })}
+      </div>
+
       <div className="grid grid-cols-1 xl:grid-cols-[1fr_440px] gap-10">
-        {/* ====== LEFT: controls ====== */}
-        <div className="space-y-5">
-          {/* 1) UPLOAD */}
+        <div className={`space-y-5 ${panelVisibility("create")}`}>
           <CollapsibleSection title={t("common_section_upload_image")} defaultOpen testId="upscale-section-photo">
             <div className="flex items-baseline justify-between mb-4">
               {photo && (
@@ -130,7 +180,7 @@ export default function Upscale() {
 
           <CollapsibleSection title={t("upscale_section_scale")} hint={t("upscale_section_scale_hint")} testId="upscale-section-scale">
             <div className="grid grid-cols-2 gap-3" data-testid="upscale-scale-options">
-              {scaleOptions.map(({ s, label, hint }) => (
+              {scaleOptions.map(({ s, label, hint: scaleHint }) => (
                 <button
                   key={s}
                   onClick={() => setScale(s)}
@@ -157,7 +207,7 @@ export default function Upscale() {
                   }`}>
                     {label}
                   </p>
-                  <p className="relative text-[#8A8A8E] text-[12px]">{hint}</p>
+                  <p className="relative text-[#8A8A8E] text-[12px]">{scaleHint}</p>
                 </button>
               ))}
             </div>
@@ -190,9 +240,9 @@ export default function Upscale() {
           </CollapsibleSection>
         </div>
 
-        <StudioResultAnchor busy={busy} ready={Boolean(result?.url)} className="xl:sticky xl:top-[80px] self-start">
+        <StudioResultAnchor busy={busy} ready={Boolean(result?.url)} className={`xl:sticky xl:top-[80px] self-start ${panelVisibility("result")}`}>
           <p className="text-[#5A5A5E] text-[10px] font-mono uppercase tracking-[0.2em] mb-3">{t("common_output")}</p>
-          <ResultArea busy={busy} result={result} originalPreview={photoPreview} scale={scale} />
+          <ResultArea busy={busy} progress={progress} result={result} originalPreview={photoPreview} scale={scale} />
         </StudioResultAnchor>
       </div>
 
@@ -209,10 +259,6 @@ export default function Upscale() {
     </div>
   );
 }
-
-/* ------------------------------------------------------------------ */
-/*  Sub-components                                                     */
-/* ------------------------------------------------------------------ */
 
 function Toggle({ active, onClick, label, hint, testId }) {
   return (
@@ -238,7 +284,7 @@ function Toggle({ active, onClick, label, hint, testId }) {
   );
 }
 
-function ResultArea({ busy, result, originalPreview, scale }) {
+function ResultArea({ busy, progress, result, originalPreview, scale }) {
   const { t } = useStudioI18n();
   if (busy) {
     return (
@@ -247,7 +293,7 @@ function ResultArea({ busy, result, originalPreview, scale }) {
         <div className="relative w-14 h-14 rounded-full border-2 border-[#7C3AED]/30 border-t-[#C4B5FD] animate-spin mb-5" />
         <p className="relative text-[#F4F1EA] text-[14px] font-medium font-['Inter_Tight']">{t("upscale_loading", { scale })}</p>
         <p className="relative text-[#5A5A5E] text-[11px] font-mono uppercase mt-2 tracking-[0.18em]">
-          {t("upscale_loading_sub")}
+          {progress > 0 ? t("upscale_loading_sec", { n: progress }) : t("upscale_loading_sub")}
         </p>
       </div>
     );
@@ -306,7 +352,6 @@ function ResultViewer({ result, originalPreview }) {
             </div>
           </div>
         )}
-        {/* Scale badge */}
         <div className="absolute top-3 left-3 text-[11px] font-mono uppercase tracking-[0.18em] bg-[#7C3AED] text-white px-2.5 py-1 rounded">
           {t("upscale_badge", { scale: result.scale })}
         </div>

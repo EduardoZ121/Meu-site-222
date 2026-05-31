@@ -996,6 +996,22 @@ function buildColorizePrompt(fields) {
   return parts.join(" ");
 }
 
+function buildUpscaleInput(fields, image) {
+  const scaleRaw = Number(text(fields, "scale", 2)) || 2;
+  const scaleFactor = scaleRaw >= 4 ? 4 : 2;
+  const sharpen = truthyField(fields, "sharpen");
+  const denoise = truthyField(fields, "denoise");
+  const preserveColors = truthyField(fields, "preserve_colors");
+  return {
+    image,
+    scale_factor: scaleFactor,
+    dynamic: sharpen ? 9 : 4,
+    creativity: preserveColors ? 0.25 : 0.55,
+    resemblance: preserveColors ? 1.0 : 0.45,
+    num_inference_steps: denoise ? 22 : 14,
+  };
+}
+
 function buildRestorePrompt(fields) {
   const level = text(fields, "level", "medio");
   const custom = text(fields, "custom_prompt", "").trim();
@@ -1733,10 +1749,7 @@ async function routePost(path, fields, files, req) {
 
   if (path === "tools/upscale") {
     const image = await resolveImageRef(files, fields, "photo", "photo_url");
-    const input = {
-      image,
-      scale_factor: Number(text(fields, "scale", 2)) || 2,
-    };
+    const input = buildUpscaleInput(fields, image);
     return submitBillableGeneration(req, fields, {
       cost: CREDIT.upscale,
       type: "image",

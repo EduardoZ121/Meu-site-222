@@ -385,6 +385,18 @@ async def health():
     return {"status": "ok", "service": "Remake Pixel API"}
 
 
+@api.get("/health")
+async def health_alias():
+    """Alias for legacy /api/health calls from the frontend."""
+    return {"status": "ok", "service": "Remake Pixel API"}
+
+
+@api.get("/public/pricing")
+async def public_pricing_alias():
+    """Alias for /api/public/packages used by landing pricing section."""
+    return {"packages": PACKAGES}
+
+
 @api.get("/public/stats")
 async def public_stats():
     users = await db.users.count_documents({})
@@ -410,6 +422,17 @@ async def public_pro_presets():
 
 @api.get("/public/poster-templates")
 async def public_poster_templates():
+    """Returns posters from poster_templates_v2.json (frontend-synced)
+    with a fallback to the legacy in-code POSTER_TEMPLATES list."""
+    try:
+        json_path = ROOT_DIR / "poster_templates_v2.json"
+        if json_path.exists():
+            with open(json_path, "r", encoding="utf-8") as fh:
+                templates = json.load(fh)
+            if templates:
+                return {"templates": templates}
+    except Exception as e:
+        logging.warning("Failed loading poster_templates_v2.json: %s", e)
     return {"templates": POSTER_TEMPLATES}
 
 

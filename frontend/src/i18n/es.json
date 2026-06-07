@@ -3,7 +3,9 @@
     "header": {
       "credits": "Créditos",
       "menu_label": "Menú",
-      "back_to_tools": "Volver a herramientas"
+      "back_to_tools": "Volver a herramientas",
+      "studio_nav_workspace": "Estudio",
+      "studio_nav_back": "Volver a las herramientas"
     },
     "sidebar": {
       "create": "Crear",
@@ -74,7 +76,16 @@
       "tool_generating": "Generating…",
       "tool_prompt_ph": "Describe what you want to create…",
       "tool_example": "Example: {text}",
-      "tool_accept_formats": "JPEG, PNG, WEBP or HEIC up to 10 MB"
+      "tool_accept_formats": "JPEG, PNG, WEBP or HEIC up to 10 MB",
+      "cat_generation": "Generación",
+      "cat_generation_desc": "Crea imágenes desde texto o transforma tus fotos.",
+      "cat_utility": "Utilidad",
+      "cat_utility_desc": "Arreglos rápidos y limpieza para cualquier imagen.",
+      "cat_creative": "Creativo",
+      "cat_creative_desc": "Pósters, carruseles y contenido estilizado.",
+      "cat_video": "Vídeo",
+      "cat_video_desc": "Anima imágenes o genera clips cortos.",
+      "count_label": "{n} herramientas IA listas"
     },
     "clothes_changer": {
       "garment_label": "Reference outfit (optional)",
@@ -2073,6 +2084,7 @@
     "wa_invalid_phone": "Enter a valid number with country code (digits only).",
     "wa_toast_title": "Generation ready",
     "wa_toast_action": "Open in WhatsApp",
-    "wa_toast_skip": "Not now"
+    "wa_toast_skip": "Not now",
+    "hero_subtitle": "Fotos, pósters, carruseles y vídeos cortos — generados en segundos, listos para publicar."
   }
 }

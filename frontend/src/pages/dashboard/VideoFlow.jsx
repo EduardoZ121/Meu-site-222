@@ -1,6 +1,8 @@
 import { Link, Navigate, useParams } from "react-router-dom";
 import { ArrowLeft } from "lucide-react";
 import { useI18n } from "../../lib/i18n";
+import { useAuth } from "../../lib/auth";
+import { isAdminUser } from "../../lib/isAdmin";
 import useTitle from "../../lib/useTitle";
 import { VIDEO_CATEGORIES, VIDEO_FLOW_MODES } from "../../lib/videoCatalogue";
 import VideoGenerate from "./VideoGenerate";
@@ -9,11 +11,16 @@ import VideoEditorAdmin from "./VideoEditorAdmin";
 export default function VideoFlow() {
   const { mode } = useParams();
   const { t } = useI18n();
+  const { user } = useAuth();
   const valid = VIDEO_FLOW_MODES.has(mode);
   const meta = valid ? VIDEO_CATEGORIES.find((c) => c.id === mode) : null;
   useTitle(t(meta ? meta.nameKey : "sidebar_video"));
 
   if (!valid) {
+    return <Navigate to="/app/video" replace />;
+  }
+  // Block video-to-video for non-admins
+  if (mode === "edit" && !isAdminUser(user)) {
     return <Navigate to="/app/video" replace />;
   }
 

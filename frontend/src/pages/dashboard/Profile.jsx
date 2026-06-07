@@ -46,7 +46,9 @@ export default function Profile() {
 
   if (!user) return null;
 
-  const joined = new Date(user.created_at).toLocaleDateString("pt-PT", {
+  const localeMap = { en: "en-US", pt: "pt-PT", es: "es-ES", fr: "fr-FR" };
+  const dateLocale = localeMap[lang] || "en-US";
+  const joined = new Date(user.created_at).toLocaleDateString(dateLocale, {
     day: "2-digit",
     month: "long",
     year: "numeric",
@@ -176,7 +178,7 @@ export default function Profile() {
                     </label>
                   </div>
                   <p className="mt-3 text-[10px] font-mono uppercase tracking-[0.14em] text-rp-mute2 text-center sm:text-left">
-                    JPG / PNG · compressão automática
+                    JPG / PNG · {t("prof_avatar_hint").replace("JPG / PNG · ","")}
                   </p>
                 </div>
 
@@ -202,14 +204,14 @@ export default function Profile() {
                         ) : (
                           <AlertCircle className="w-3.5 h-3.5" />
                         )}
-                        {emailVerified ? "Email verificado" : "Email por verificar"}
+                        {emailVerified ? t("prof_email_verified") : t("prof_email_unverified")}
                       </span>
                     </div>
 
                     {editing ? (
                       <div className="space-y-3">
                         <label className="block text-[11px] font-mono uppercase tracking-[0.16em] text-rp-mute">
-                          Nome público
+                          {t("prof_name_label")}
                         </label>
                         <div className="flex flex-col sm:flex-row gap-2">
                           <input
@@ -217,7 +219,7 @@ export default function Profile() {
                             value={name}
                             onChange={(e) => setName(e.target.value)}
                             className="field-input flex-1 !py-2.5"
-                            placeholder="O teu nome ou marca"
+                            placeholder={t("prof_name_placeholder")}
                             maxLength={80}
                           />
                           <div className="flex gap-2">
@@ -227,7 +229,7 @@ export default function Profile() {
                               disabled={saving}
                               className="btn-primary !py-2.5 !px-5 shrink-0"
                             >
-                              {saving ? "…" : "Guardar"}
+                              {saving ? "…" : t("prof_save")}
                             </button>
                             <button
                               type="button"
@@ -235,7 +237,7 @@ export default function Profile() {
                               disabled={saving}
                               className="px-4 py-2.5 rounded-lg border border-rp-border text-rp-mute text-[13px] hover:text-rp-text hover:border-[#3f3f42] transition-colors"
                             >
-                              Cancelar
+                              {t("prof_cancel")}
                             </button>
                           </div>
                         </div>
@@ -258,7 +260,7 @@ export default function Profile() {
                       <Mail className="w-4 h-4 text-[#7C3AED] shrink-0 mt-0.5" strokeWidth={1.5} />
                       <div className="min-w-0">
                         <p className="text-[10px] font-mono uppercase tracking-[0.14em] text-rp-mute2 mb-0.5">
-                          Email de sessão
+                          {t("prof_session_email")}
                         </p>
                         <p className="text-rp-text text-[14px] truncate" title={user.email}>
                           {user.email}
@@ -268,11 +270,11 @@ export default function Profile() {
                     <div className="flex flex-wrap gap-2 shrink-0">
                       <button
                         type="button"
-                        onClick={() => copyText(user.email, "Email copiado.")}
+                        onClick={() => copyText(user.email, t("prof_email_copied"))}
                         className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-rp-border text-[11px] font-mono uppercase tracking-[0.1em] text-[#C4B5FD] hover:border-[#7C3AED]/40 transition-colors"
                       >
                         <Copy className="w-3.5 h-3.5" />
-                        Copiar
+                        {t("prof_copy")}
                       </button>
                       {!emailVerified && (
                         <button
@@ -280,7 +282,7 @@ export default function Profile() {
                           onClick={confirmEmail}
                           className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-amber-500/30 text-[11px] font-mono uppercase tracking-[0.1em] text-amber-200 hover:bg-amber-500/10 transition-colors"
                         >
-                          Confirmar
+                          {t("prof_confirm")}
                         </button>
                       )}
                     </div>
@@ -294,7 +296,7 @@ export default function Profile() {
                       data-testid="profile-edit-btn"
                     >
                       <Pencil className="w-3.5 h-3.5" strokeWidth={1.5} />
-                      Editar nome público
+                      {t("prof_edit_public_name")}
                     </button>
                   )}
                 </div>
@@ -304,15 +306,15 @@ export default function Profile() {
 
           <section className="rounded-2xl border border-rp-border bg-rp-surface p-6 sm:p-8">
             <h3 className="text-rp-text text-[15px] font-medium font-['Inter_Tight'] mb-1">
-              Dados da conta
+              {t("prof_data_title")}
             </h3>
             <p className="text-rp-mute text-[13px] mb-6 leading-relaxed">
-              Informação técnica e preferências. O ID é útil para suporte.
+              {t("prof_data_subtitle")}
             </p>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <DetailRow
                 icon={<Calendar className="w-4 h-4" strokeWidth={1.5} />}
-                label="Membro desde"
+                label={t("prof_member_since")}
                 value={joined}
                 testId="info-joined"
               />
@@ -324,7 +326,7 @@ export default function Profile() {
               />
               <DetailRow
                 icon={<Hash className="w-4 h-4" strokeWidth={1.5} />}
-                label="ID da conta"
+                label={t("prof_account_id")}
                 value={shortId}
                 mono
                 action={
@@ -394,7 +396,7 @@ export default function Profile() {
               className="text-rp-text text-[44px] sm:text-[52px] font-light leading-none tracking-tight font-['Inter_Tight'] mb-6"
               data-testid="profile-balance"
             >
-              {user.is_unlimited ? "∞" : user.credits?.toLocaleString("pt-PT")}
+              {user.is_unlimited ? "∞" : user.credits?.toLocaleString(dateLocale)}
             </p>
             <Link
               to="/app/billing"
@@ -424,13 +426,13 @@ export default function Profile() {
 
           <section className="rounded-2xl border border-dashed border-rp-border bg-rp-bg/50 px-5 py-4">
             <p className="text-[12px] text-rp-mute leading-relaxed">
-              Palavra-passe e preferências de geração estão em{" "}
+              {t("prof_recovery_text")}{" "}
               <Link to="/app/settings" className="text-[#C4B5FD] hover:underline">
                 {t("prof_settings")}
               </Link>
-              . Recuperação de acesso:{" "}
+              . {t("prof_recovery_intro")}{" "}
               <Link to="/forgot-password" className="text-[#C4B5FD] hover:underline">
-                Esqueci a palavra-passe
+                {t("prof_recovery_link")}
               </Link>
               .
             </p>

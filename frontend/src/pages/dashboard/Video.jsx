@@ -1,11 +1,21 @@
+import { useMemo } from "react";
 import { VIDEO_CATEGORIES } from "../../lib/videoCatalogue";
 import { useI18n } from "../../lib/i18n";
+import { useAuth } from "../../lib/auth";
+import { isAdminUser } from "../../lib/isAdmin";
 import useTitle from "../../lib/useTitle";
 import VideoGridCard from "../../components/video/VideoGridCard";
 
 export default function Video() {
   const { t } = useI18n();
+  const { user } = useAuth();
   useTitle(t("sidebar_video"));
+
+  const isAdmin = isAdminUser(user);
+  const categories = useMemo(
+    () => VIDEO_CATEGORIES.filter((c) => c.id !== "edit" || isAdmin),
+    [isAdmin]
+  );
 
   return (
     <div
@@ -25,7 +35,7 @@ export default function Video() {
         className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 md:gap-6"
         data-testid="video-cards-grid"
       >
-        {VIDEO_CATEGORIES.map((category, index) => (
+        {categories.map((category, index) => (
           <VideoGridCard key={category.id} category={category} index={index} t={t} />
         ))}
       </div>

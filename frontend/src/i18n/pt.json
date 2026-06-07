@@ -2590,6 +2590,23 @@
     "wa_toast_title": "Geração pronta",
     "wa_toast_action": "Abrir no WhatsApp",
     "wa_toast_skip": "Agora não",
-    "hero_subtitle": "Fotos, pôsteres, carrosséis e pequenos vídeos — gerados em segundos, prontos a publicar."
+    "hero_subtitle": "Fotos, pôsteres, carrosséis e pequenos vídeos — gerados em segundos, prontos a publicar.",
+    "prof_email_verified": "Email verificado",
+    "prof_email_unverified": "Email por verificar",
+    "prof_name_label": "Nome público",
+    "prof_name_placeholder": "O teu nome ou marca",
+    "prof_save": "Guardar",
+    "prof_cancel": "Cancelar",
+    "prof_session_email": "Email de sessão",
+    "prof_confirm": "Confirmar",
+    "prof_edit_public_name": "Editar nome público",
+    "prof_data_title": "Dados da conta",
+    "prof_data_subtitle": "Informação técnica e preferências. O ID é útil para suporte.",
+    "prof_email_copied": "Email copiado.",
+    "prof_recovery_text": "Palavra-passe e preferências de geração estão em",
+    "prof_settings_link": "Definições",
+    "prof_recovery_intro": "Recuperação de acesso:",
+    "prof_recovery_link": "Esqueci a palavra-passe",
+    "prof_avatar_hint": "JPG / PNG · compressão automática"
   }
 }

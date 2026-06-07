@@ -577,6 +577,54 @@ async def me(request: Request, current=Depends(get_current_user)):
     return _public_user(doc)
 
 
+@api.get("/auth/check-email")
+async def check_email(email: str):
+    """Quickly check if an email is already registered.
+    Lightweight: returns {exists: bool}. Not authenticated."""
+    if not email or "@" not in email:
+        return {"exists": False}
+    normalized = email.strip().lower()
+    doc = await db.users.find_one({"email": normalized}, {"_id": 0, "id": 1})
+    return {"exists": bool(doc)}
+
+
+@api.get("/generations/pending")
+async def generations_pending(current=Depends(get_current_user)):
+    """List in-flight predictions belonging to the user.
+    Used by the dashboard to resume polling on page reload."""
+    cur = db.predictions.find(
+        {"user_id": current["sub"], "status": {"$in": ["starting", "processing", "queued"]}},
+        {"_id": 0},
+    ).sort("created_at", -1).limit(20)
+    items = []
+    async for doc in cur:
+        items.append({
+            "id": doc.get("id"),
+            "type": doc.get("type"),
+            "status": doc.get("status"),
+            "created_at": doc.get("created_at"),
+        })
+    return {"pending": items}
+
+
+@api.get("/generations/{creation_id}/media")
+async def generation_media(creation_id: str, current=Depends(get_current_user)):
+    """Return the media URL(s) for a finished creation. Used by the
+    gallery to refresh expired Replicate URLs."""
+    doc = await db.creations.find_one(
+        {"id": creation_id, "user_id": current["sub"]},
+        {"_id": 0, "result_url": 1, "result_urls": 1, "type": 1},
+    )
+    if not doc:
+        raise HTTPException(status_code=404, detail="Creation not found")
+    return {
+        "id": creation_id,
+        "type": doc.get("type"),
+        "url": doc.get("result_url"),
+        "urls": doc.get("result_urls") or ([doc["result_url"]] if doc.get("result_url") else []),
+    }
+
+
 # ============== Credits ==============
 @api.get("/credits/balance")
 async def credits_balance(current=Depends(get_current_user)):

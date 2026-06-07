@@ -1,25 +1,29 @@
 import { useState, useRef, useEffect } from "react";
 import { toast } from "sonner";
-import { api } from "../../../lib/api";
+import { uploadPost } from "../../../lib/api";
+import { useStudioI18n } from "../../../lib/useStudioI18n";
+import { normalizeCreation, primaryResultUrl } from "../../../lib/creationUrls";
 import { useAuth } from "../../../lib/auth";
+import { usePricing } from "../../../lib/PricingContext";
 import ToolFrame from "../../../components/ToolFrame";
 import { Brush, Eraser } from "lucide-react";
-import { compressImage } from "../../../lib/imageCompress";
-import { fileToDataURL } from "../../../lib/fileToDataURL";
-
-const errMsg = (err) =>
-  err?.code === "ECONNABORTED" ? "Tempo esgotado — tenta de novo." :
-  err?.response?.status === 402 ? "Créditos insuficientes." :
-  err?.response?.data?.detail || err?.message || "Falhou.";
+import { useStudioMediaPreview } from "../../../hooks/useStudioMediaPreview";
+import { useI18n } from "../../../lib/i18n";
+import { useLocalizedTools } from "../../../lib/useLocalizedTools";
 
 /**
  * Inpaint tool — user uploads photo, paints over the region they want changed,
  * then provides a prompt describing the replacement.
  */
 export default function Inpaint() {
+  const { t } = useI18n();
+  const tools = useLocalizedTools();
+  const tool = tools.find((x) => x.id === "inpaint");
+  const { errToast, clearUploadToast } = useStudioI18n();
   const { refresh } = useAuth();
+  const { costs } = usePricing();
   const [photo, setPhoto] = useState(null);
-  const [photoUrl, setPhotoUrl] = useState(null);
+  const { previewUrl: photoUrl } = useStudioMediaPreview(photo);
   const [prompt, setPrompt] = useState("");
   const [aspect, setAspect] = useState(null);
   const [busy, setBusy] = useState(false);
@@ -28,14 +32,7 @@ export default function Inpaint() {
   const [drawing, setDrawing] = useState(false);
   const canvasRef = useRef(null);
   const imgRef = useRef(null);
-  const cost = 12;
-
-  useEffect(() => {
-    let cancelled = false;
-    if (!photo) { setPhotoUrl(null); return; }
-    fileToDataURL(photo).then((u) => { if (!cancelled) setPhotoUrl(u); }).catch(() => {});
-    return () => { cancelled = true; };
-  }, [photo]);
+  const cost = costs.inpaint;
 
   const initCanvas = () => {
     const img = imgRef.current;
@@ -65,34 +62,47 @@ export default function Inpaint() {
   const clearMask = () => initCanvas();
 
   const run = async () => {
-    if (!photo) { toast.error("Envia uma imagem."); return; }
-    if (prompt.trim().length < 3) { toast.error("Descreve o que queres pôr na zona pintada."); return; }
-    const c = canvasRef.current;
-    if (!c) { toast.error("Pinta primeiro a zona a alterar."); return; }
-    setBusy(true); setResult(null);
-    try {
-      const maskBlob = await new Promise((res) => c.toBlob(res, "image/png"));
-      const photoCompressed = await compressImage(photo);
+    if (!photo) { toast.error(t("pro_upload_photo")); return; }
+    if (prompt.trim().length < 3) { toast.error(t("tool_prompt_ph")); return; }
+      const c = canvasRef.current;
+      if (!c) { toast.error(t("inpaint_paint_first")); return; }
+      clearUploadToast();
+      setBusy(true); setResult(null);
+      try {
+        const maxSide = 640;
+        const w = c.width;
+        const h = c.height;
+        const scale = Math.max(w, h) > maxSide ? maxSide / Math.max(w, h) : 1;
+        const tc = document.createElement("canvas");
+        tc.width = Math.max(1, Math.round(w * scale));
+        tc.height = Math.max(1, Math.round(h * scale));
+        const tctx = tc.getContext("2d");
+        tctx.imageSmoothingEnabled = true;
+        tctx.drawImage(c, 0, 0, tc.width, tc.height);
+        const maskBlob = await new Promise((res) => tc.toBlob(res, "image/png"));
       const fd = new FormData();
-      fd.append("photo", photoCompressed);
+      fd.append("photo", photo);
       fd.append("mask", new File([maskBlob], "mask.png", { type: "image/png" }));
       fd.append("prompt", prompt.trim());
-      const { data } = await api.post("/tools/inpaint", fd, { timeout: 240000 });
-      setResult(data.creation);
-      toast.success(`Editado · ${data.creation.credits_spent} créditos`);
+      const { data } = await uploadPost("/tools/inpaint", fd, { timeout: 240000 });
+      const creation = normalizeCreation(data?.creation);
+      if (!primaryResultUrl(creation)) throw new Error(t("pro_no_result"));
+      setResult(creation);
+      toast.success(t("studio_success", { n: creation?.credits_spent ?? 28 }));
       await refresh();
-    } catch (err) { toast.error(errMsg(err), { duration: 8000 }); }
+    } catch (err) { errToast(err); }
     finally { setBusy(false); }
   };
 
   return (
     <ToolFrame
       testId="inpaint"
-      title="Inpaint / Remover Objeto"
-      subtitle="Pinta a zona que queres alterar e escreve o que pôr no lugar. Para apagar objetos, escreve apenas 'background'."
+      title={tool?.name || t("tool_inpaint_name")}
+      subtitle={tool?.desc}
       photo={photo} onPhotoChange={setPhoto}
+      photoCompressOptions={{ maxSize: 1600 }}
       prompt={prompt} onPromptChange={setPrompt}
-      promptLabel="O que pôr na zona pintada"
+      promptLabel={t("inpaint_prompt_label")}
       ideas={["background", "blue sky", "wooden floor", "natural grass", "remove object"]}
       aspectRatios={null}
       aspect={aspect} onAspectChange={setAspect}

@@ -1,29 +1,90 @@
-import { useState } from "react";
-import { Link, useNavigate, useLocation } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { Link, useNavigate, useLocation, useSearchParams } from "react-router-dom";
 import { motion } from "framer-motion";
 import { useAuth } from "../lib/auth";
+import { useI18n } from "../lib/i18n";
+import { isPwaStandalone } from "../lib/pwaMode";
+import { useAuthEmailStatus } from "../lib/useAuthEmailStatus";
 import { toast } from "sonner";
-import useTitle from "../lib/useTitle";
+import { usePageSeo } from "../lib/usePageSeo";
+import { SEO_LOGIN } from "../lib/seoEn";
+import GoogleAuthButton from "../components/GoogleAuthButton";
+import Logo from "../components/Logo";
+import PasswordField from "../components/PasswordField";
+import AuthModeTabs from "../components/AuthModeTabs";
+import PwaLoginScreen from "../components/pwa/PwaLoginScreen";
+import PublicLanguageBar from "../components/PublicLanguageBar";
 
-export default function Login() {
-  useTitle("Sign in");
-  const [email, setEmail] = useState("");
+function BrowserLogin() {
+  const { t } = useI18n();
+  usePageSeo({
+    title: SEO_LOGIN.title,
+    documentTitle: SEO_LOGIN.documentTitle,
+    description: SEO_LOGIN.description,
+    path: SEO_LOGIN.path,
+    noindex: SEO_LOGIN.noindex,
+  });
+  const [params] = useSearchParams();
+  const [email, setEmail] = useState(params.get("email") || "");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
-  const { login } = useAuth();
+  const { login, loginWithGoogle, user, loading: authLoading } = useAuth();
   const navigate = useNavigate();
   const loc = useLocation();
-  const from = loc.state?.from || "/app/generate";
+  const from = loc.state?.from || "/app/tools";
+  const { status: emailStatus, info: emailInfo } = useAuthEmailStatus(email);
+  const isGoogleOnly = emailStatus === "exists" && emailInfo?.provider === "google";
+  const isNewEmail = emailStatus === "new";
+
+  useEffect(() => {
+    const q = params.get("email");
+    if (q) setEmail(q);
+  }, [params]);
+
+  useEffect(() => {
+    if (!authLoading && user) navigate(from, { replace: true });
+  }, [authLoading, user, from, navigate]);
 
   const onSubmit = async (e) => {
     e.preventDefault();
+    if (isNewEmail) {
+      toast.message(t("auth_email_new_hint"));
+      navigate(`/register?email=${encodeURIComponent(email.trim().toLowerCase())}`);
+      return;
+    }
+    if (isGoogleOnly) {
+      toast.message(t("auth_email_google_hint"));
+      return;
+    }
     setLoading(true);
     try {
       await login(email, password);
-      toast.success("Welcome back.");
+      toast.success(t("login_success"));
       navigate(from);
     } catch (err) {
-      toast.error(err?.response?.data?.detail || "Login failed");
+      const detail = err?.response?.data?.detail || err?.message;
+      const code = err?.response?.data?.code;
+      if (code === "NOT_FOUND" || /não encontrada|not found/i.test(String(detail))) {
+        toast.error(t("auth_email_new_hint"));
+        navigate(`/register?email=${encodeURIComponent(email.trim().toLowerCase())}`);
+      } else if (code === "USE_GOOGLE") {
+        toast.error(t("auth_email_google_hint"));
+      } else {
+        toast.error(detail || t("auth_login_fail"));
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const onGoogle = async (credential) => {
+    setLoading(true);
+    try {
+      await loginWithGoogle(credential);
+      toast.success(t("login_success"));
+      navigate(from);
+    } catch (err) {
+      toast.error(err?.message || t("auth_google_fail"));
     } finally {
       setLoading(false);
     }
@@ -31,39 +92,97 @@ export default function Login() {
 
   return (
     <div className="min-h-screen bg-rp-bg flex flex-col" data-testid="login-page">
+      <PublicLanguageBar testId="login-lang-bar" />
       <div className="film-grain" />
       <header className="container-rp h-[64px] flex items-center">
-        <Link to="/" className="flex items-center gap-2.5">
-          <span className="font-heading italic text-[22px] text-rp-text">Remake</span>
-          <span className="w-[3px] h-[3px] bg-rp-purple rounded-full" />
-          <span className="font-mono text-[10px] uppercase tracking-[0.25em] text-rp-mute">Pixel</span>
-        </Link>
+        <Logo to="/" size="lg" />
       </header>
       <div className="flex-1 flex items-center justify-center px-6 py-16">
         <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.7 }} className="w-full max-w-[420px]">
-          <p className="eyebrow mb-5">Welcome back</p>
-          <h1 className="heading-lg mb-10">Continue your <span className="italic text-rp-lavender">craft</span>.</h1>
+          <p className="eyebrow mb-5">{t("login_welcome")}</p>
+          <h1 className="heading-lg mb-6">
+            {t("login_title")} <span className="italic text-rp-lavender">{t("login_title_accent")}</span>.
+          </h1>
+
+          <AuthModeTabs active="login" />
+
+          <div className="mb-5">
+            <GoogleAuthButton onCredential={onGoogle} label={t("auth_google_continue")} />
+          </div>
+
+          <div className="flex items-center gap-3 mb-5">
+            <div className="h-px flex-1 bg-white/10" />
+            <span className="text-[11px] font-mono uppercase tracking-[0.18em] text-rp-mute2">{t("auth_or_email")}</span>
+            <div className="h-px flex-1 bg-white/10" />
+          </div>
 
           <form onSubmit={onSubmit} className="space-y-5" data-testid="login-form">
             <div>
-              <label className="block text-[11px] font-mono uppercase tracking-[0.2em] text-rp-mute2 mb-3">Email</label>
-              <input value={email} onChange={(e) => setEmail(e.target.value)} type="email" required placeholder="you@studio.com" className="field-input" data-testid="login-email" />
+              <label htmlFor="login-email" className="block text-[11px] font-mono uppercase tracking-[0.2em] text-rp-mute2 mb-3">{t("login_email")}</label>
+              <input
+                id="login-email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                type="email"
+                required
+                autoComplete="email"
+                placeholder="you@studio.com"
+                className="field-input"
+                data-testid="login-email"
+              />
+              {emailStatus === "checking" && (
+                <p className="mt-2 text-[12px] text-rp-mute2">{t("auth_email_checking")}</p>
+              )}
+              {emailStatus === "offline" && (
+                <p className="mt-2 text-[12px] text-rp-mute2">{t("auth_email_offline_hint")}</p>
+              )}
+              {isNewEmail && (
+                <p className="mt-2 text-[12px] text-amber-200/90" data-testid="login-email-new-hint">
+                  {t("auth_email_new_hint")}{" "}
+                  <Link to={`/register?email=${encodeURIComponent(email.trim().toLowerCase())}`} className="text-rp-lavender underline">
+                    {t("auth_tab_register")}
+                  </Link>
+                </p>
+              )}
+              {isGoogleOnly && (
+                <p className="mt-2 text-[12px] text-rp-mute">{t("auth_email_google_hint")}</p>
+              )}
             </div>
             <div>
-              <label className="block text-[11px] font-mono uppercase tracking-[0.2em] text-rp-mute2 mb-3">Password</label>
-              <input value={password} onChange={(e) => setPassword(e.target.value)} type="password" required minLength={6} className="field-input" data-testid="login-password" />
+              <div className="flex items-center justify-between mb-3">
+                <label htmlFor="login-password" className="block text-[11px] font-mono uppercase tracking-[0.2em] text-rp-mute2">{t("login_password")}</label>
+                <Link to="/forgot-password" className="text-[11px] text-rp-lavender hover:underline">{t("login_forgot")}</Link>
+              </div>
+              <PasswordField
+                id="login-password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                autoComplete="current-password"
+                testId="login-password"
+                required={!isGoogleOnly && !isNewEmail}
+              />
             </div>
-            <button type="submit" disabled={loading} className="btn-primary w-full disabled:opacity-50" data-testid="login-submit">
-              {loading ? "Signing in…" : "Sign in"}
+            <button
+              type="submit"
+              disabled={loading || emailStatus === "checking" || isGoogleOnly}
+              className="btn-primary w-full disabled:opacity-50"
+              data-testid="login-submit"
+            >
+              {loading ? t("login_loading") : t("login_submit")}
             </button>
           </form>
 
           <p className="text-rp-mute text-sm mt-10">
-            New to Remake Pixel?{" "}
-            <Link to="/register" className="text-rp-lavender hover:underline" data-testid="login-go-register">Create an account →</Link>
+            {t("login_new")}{" "}
+            <Link to="/register" className="text-rp-lavender hover:underline" data-testid="login-go-register">{t("login_register")}</Link>
           </p>
         </motion.div>
       </div>
     </div>
   );
+}
+
+export default function Login() {
+  if (isPwaStandalone()) return <PwaLoginScreen />;
+  return <BrowserLogin />;
 }

@@ -1,59 +1,59 @@
 import { useEffect, useMemo, useState } from "react";
 import { Loader2, Sparkles, ImagePlus, Wand2, Lightbulb } from "lucide-react";
 import { useSearchParams, useNavigate } from "react-router-dom";
-import { api, pollPrediction } from "../../lib/api";
+import { api, trackPendingPrediction, uploadPost, pollPrediction } from "../../lib/api";
+import { normalizeCreation, primaryResultUrl } from "../../lib/creationUrls";
 import { useAuth } from "../../lib/auth";
+import { usePricing } from "../../lib/PricingContext";
 import { useI18n } from "../../lib/i18n";
+import { useStudioI18n } from "../../lib/useStudioI18n";
 import { toast } from "sonner";
 import PhotoUpload from "../../components/PhotoUpload";
 import AspectPicker from "../../components/AspectPicker";
 import ResultPanel from "../../components/ResultPanel";
-import { compressImage } from "../../lib/imageCompress";
+import StudioResultAnchor from "../../components/StudioResultAnchor";
+import StyleCover from "../../components/StyleCover";
+import { FALLBACK_PADRAO_STYLES } from "../../lib/publicFallbacks";
+import { PADRAO_STYLE_COVER_BY_ID } from "../../lib/padraoStyleCovers";
 import useTitle from "../../lib/useTitle";
+import StudioAccordionSection from "../../components/StudioAccordionSection";
+import StudioGenerateBar from "../../components/StudioGenerateBar";
+import { readUserSettings } from "../../lib/userSettings";
+import { usePhotoAspectDefault, ASPECT_MATCH } from "../../lib/usePhotoAspectDefault";
+import { apiAspectRatio } from "../../lib/apiAspectRatio";
+import { useStudioGenerateGate } from "../../lib/useStudioGenerateGate";
+import PromptEnhanceToggle from "../../components/promptAssist/PromptEnhanceToggle";
+import { applyGenerationSurcharges, getSurcharges } from "../../lib/creditPricing";
 
-// Per-category default thumbnails (Unsplash)
-const CAT_THUMBS = {
-  men:     "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=400&q=70&fit=crop&auto=format",
-  women:   "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=400&q=70&fit=crop&auto=format",
-  unisex:  "https://images.unsplash.com/photo-1531123897727-8f129e1688ce?w=400&q=70&fit=crop&auto=format",
-  flyer:   "https://images.unsplash.com/photo-1551582045-6ec9c11d8697?w=400&q=70&fit=crop&auto=format",
-  couple:  "https://images.unsplash.com/photo-1521146764736-56c929d59c83?w=400&q=70&fit=crop&auto=format",
-  comic:   "https://images.unsplash.com/photo-1612544448445-b8232cff3b6c?w=400&q=70&fit=crop&auto=format",
-  stories: "https://images.unsplash.com/photo-1611162616305-c69b3fa7fbe0?w=400&q=70&fit=crop&auto=format",
-  sensual: "https://images.unsplash.com/photo-1542178243-bc20204b769f?w=400&q=70&fit=crop&auto=format",
-};
-
-const ASPECT_RATIOS = ["1:1", "4:5", "3:4", "9:16", "16:9", "21:9"];
-
-const CAT_LABELS = {
-  men: "Homens", women: "Mulheres", unisex: "Unissex",
-  flyer: "Flyers", couple: "Casais", comic: "Comics",
-  stories: "Stories", sensual: "Sensual",
-};
-
-const SUBJECTS = [
-  { value: "the man", label: "Homem" },
-  { value: "the woman", label: "Mulher" },
-  { value: "the person", label: "Pessoa" },
+const SUBJECT_KEYS = [
+  { value: "the man", labelKey: "studio_subj_man" },
+  { value: "the woman", labelKey: "studio_subj_woman" },
+  { value: "the person", labelKey: "studio_subj_person" },
 ];
 
 export default function Generate() {
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
+  const { errToast, clearUploadToast } = useStudioI18n();
   useTitle(t("sidebar_generate"));
-  const { refresh, user } = useAuth();
+  const { refresh, user, refundCredits } = useAuth();
+  const { costs, region } = usePricing();
+  const surcharges = useMemo(() => getSurcharges(region), [region]);
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
 
   const [photo, setPhoto] = useState(null);
   const [prompt, setPrompt] = useState(searchParams.get("prompt") || "");
   const [improve, setImprove] = useState(false);
-  const [aspect, setAspect] = useState("4:5");
-  const [engine, setEngine] = useState("grok"); // "grok" | "aurora"
+  const [hdQuality, setHdQuality] = useState(false);
+  const settingsFallback = (() => {
+    const d = readUserSettings().aspect_ratio_default || "4:5";
+    return d === ASPECT_MATCH ? "4:5" : d;
+  })();
+  const [aspect, setAspect] = usePhotoAspectDefault(photo, settingsFallback, settingsFallback);
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState(null);
-  const [progress, setProgress] = useState(0); // elapsed seconds during polling
+  const [progress, setProgress] = useState(0);
 
-  // Style picker (visible by default — Pollo-style)
   const [showStyles, setShowStyles] = useState(true);
   const [padrao, setPadrao] = useState([]);
   const [padraoCat, setPadraoCat] = useState("men");
@@ -61,314 +61,270 @@ export default function Generate() {
   const [subject, setSubject] = useState("the person");
 
   useEffect(() => {
-    api.get("/public/padrao-styles").then((r) => setPadrao(r.data.styles || [])).catch(() => {});
+    api.get("/public/padrao-styles")
+      .then((r) => setPadrao(r.data.styles?.length ? r.data.styles : FALLBACK_PADRAO_STYLES))
+      .catch(() => setPadrao(FALLBACK_PADRAO_STYLES));
   }, []);
-
-  // When a photo is uploaded, default to "Original" aspect ratio (match the photo's dimensions).
-  // When the photo is removed, fall back to 4:5.
-  useEffect(() => {
-    if (photo) setAspect("match");
-    else if (aspect === "match") setAspect("4:5");
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [photo]);
 
   const padraoCats = useMemo(() => Array.from(new Set(padrao.map((s) => s.cat))), [padrao]);
   const padraoFiltered = padrao.filter((s) => s.cat === padraoCat);
   const picked = padrao.find((s) => s.id === pickedStyle);
 
-  // Smart cost calculation — surface what will actually happen
+  const catLabel = (c) => t(`cat_${c}`) || c;
+
   const { mode, cost, ctaLabel } = useMemo(() => {
-    if (photo && pickedStyle) return { mode: "easy", cost: 11, ctaLabel: `Aplicar estilo · 11 créditos` };
-    if (photo && !pickedStyle) return { mode: "edit", cost: 12, ctaLabel: `Editar com prompt · 12 créditos` };
-    if (!photo && pickedStyle) return { mode: "blocked", cost: 0, ctaLabel: `Envia uma foto para usar este estilo` };
-    return { mode: "text", cost: 10, ctaLabel: `Gerar do zero · 10 créditos` };
-  }, [photo, pickedStyle]);
+    if (photo && pickedStyle) return { mode: "easy", cost: costs.easy, ctaLabel: t("studio_cta_easy", { n: costs.easy }) };
+    if (photo && !pickedStyle) return { mode: "edit", cost: costs.edit, ctaLabel: t("studio_cta_edit", { n: costs.edit }) };
+    if (!photo && pickedStyle) return { mode: "blocked", cost: 0, ctaLabel: t("studio_cta_blocked") };
+    const textCost = applyGenerationSurcharges(costs.image, surcharges, {
+      improvePrompt: improve,
+      hdQuality,
+      hdMode: "image",
+    });
+    return { mode: "text", cost: textCost, ctaLabel: t("studio_cta_text", { n: textCost }) };
+  }, [photo, pickedStyle, costs, surcharges, t, improve, hdQuality]);
+
+  const generateReady = mode !== "blocked"
+    && (mode === "easy" || prompt.trim().length >= 3);
+
+  const { ready: gateReady, hint: gateHint } = useStudioGenerateGate({
+    busy,
+    user,
+    cost,
+    readyOverride: generateReady,
+    hintOverride: mode === "blocked"
+      ? t("studio_gen_hint_blocked")
+      : (mode === "text" || mode === "edit") && prompt.trim().length < 3
+        ? t("studio_gen_hint_prompt")
+        : null,
+  });
 
   const generate = async () => {
-    // Validation
-    if (mode === "blocked") { toast.error("Envia uma foto para aplicar um estilo, ou remove o estilo."); return; }
+    if (mode === "blocked") { toast.error(t("studio_err_blocked")); return; }
     if (mode === "text" && prompt.trim().length < 3) {
-      toast.error("Escreve o que queres criar (mínimo 3 letras).");
+      toast.error(t("studio_err_text"));
       return;
     }
     if (mode === "edit" && prompt.trim().length < 3) {
-      toast.error("Descreve a edição que queres fazer à foto.");
+      toast.error(t("studio_err_edit"));
       return;
     }
     if ((user?.credits ?? 0) < cost) {
-      toast.error(`Precisas de ${cost} créditos. Tens ${user?.credits ?? 0}.`);
+      toast.error(t("studio_err_credits", { need: cost, have: user?.credits ?? 0 }));
       return;
     }
 
+    clearUploadToast();
     setBusy(true); setResult(null); setProgress(0);
+    let submitData;
     try {
-      // Phase 1 — submit request and get prediction_id quickly (~1-2s)
-      let submitData;
       if (mode === "easy") {
-        const compressed = await compressImage(photo);
+        if (!photo) {
+          toast.error(t("studio_gen_hint_photo"));
+          setBusy(false);
+          return;
+        }
         const fd = new FormData();
-        fd.append("photo", compressed);
+        fd.append("photo", photo);
         fd.append("style_id", pickedStyle);
         fd.append("subject", subject);
-        fd.append("aspect_ratio", aspect);
-        fd.append("engine", engine);
+        fd.append("aspect_ratio", apiAspectRatio(aspect, {
+          model: "standard",
+          hasPhoto: aspect === "match" || aspect === ASPECT_MATCH,
+        }));
+        fd.append("lang", lang || "en");
         if (prompt.trim()) fd.append("extra_prompt", prompt.trim());
-        ({ data: submitData } = await api.post("/generate/easy", fd, { timeout: 60000 }));
+        ({ data: submitData } = await uploadPost("/generate/easy", fd, { timeout: 120000, headers: { "X-Skip-Auto-Poll": "1" } }));
       } else if (mode === "edit") {
-        const compressed = await compressImage(photo);
+        if (!photo) {
+          toast.error(t("studio_gen_hint_photo"));
+          setBusy(false);
+          return;
+        }
         const fd = new FormData();
-        fd.append("photo", compressed);
+        fd.append("photo", photo);
         fd.append("prompt", prompt.trim());
-        fd.append("aspect_ratio", aspect);
-        fd.append("engine", engine);
-        ({ data: submitData } = await api.post("/generate/edit", fd, { timeout: 60000 }));
+        fd.append("aspect_ratio", apiAspectRatio(aspect, {
+          model: "standard",
+          hasPhoto: aspect === "match" || aspect === ASPECT_MATCH,
+        }));
+        fd.append("lang", lang || "en");
+        ({ data: submitData } = await uploadPost("/generate/edit", fd, { timeout: 120000, headers: { "X-Skip-Auto-Poll": "1" } }));
       } else {
-        // text-to-image (text-only doesn't use engine selector — Grok-only)
         ({ data: submitData } = await api.post("/generate/image", {
           prompt: prompt.trim(),
           mode: "advanced",
-          aspect_ratio: aspect,
+          aspect_ratio: apiAspectRatio(aspect, { model: "standard", hasPhoto: false }),
           num_outputs: 1,
           improve_prompt: improve,
-        }, { timeout: 60000 }));
+          hd_quality: hdQuality,
+          lang: lang || "en",
+        }, { timeout: 60000, headers: { "X-Skip-Auto-Poll": "1" } }));
       }
 
-      // Aurora returns the finished creation directly (no polling)
-      let data = submitData;
-      if (submitData.prediction_id) {
-        data = await pollPrediction(submitData.prediction_id, {
-          onTick: (sec) => setProgress(sec),
-        });
-      }
-      setResult(data.creation);
-      toast.success(`Gerado · ${data.creation.credits_spent} créditos`);
+      trackPendingPrediction(submitData.prediction_id, {
+        credits_spent: submitData.credits_spent || cost,
+        type: "image",
+      });
+      const data = await pollPrediction(submitData.prediction_id, {
+        onTick: (sec) => setProgress(sec),
+        credits_spent: submitData.credits_spent || cost,
+        type: "image",
+      });
+      const creation = normalizeCreation(data?.creation);
+      if (!primaryResultUrl(creation)) throw new Error(t("common_no_result"));
+      setResult(creation);
+      toast.success(t("studio_success", { n: creation?.credits_spent ?? cost }));
       await refresh();
     } catch (err) {
-      let msg = "Falhou a geração.";
-      if (err?.code === "ECONNABORTED" || /timeout/i.test(err?.message || "")) msg = "Tempo esgotado — tenta de novo.";
-      else if (err?.response?.status === 402) msg = "Créditos insuficientes.";
-      else if (err?.response?.status === 401) msg = "Sessão expirada.";
-      else if (err?.response?.status === 429) msg = "Demasiados pedidos. Espera 1 minuto.";
-      else if (err?.response?.data?.detail) msg = typeof err.response.data.detail === "string" ? err.response.data.detail : "Erro inesperado.";
-      else if (err?.message) msg = err.message;
-      toast.error(msg, { duration: 8000 });
-      // eslint-disable-next-line no-console
+      errToast(err);
+      if (err?.refunded && submitData?.credits_spent && !submitData?.server_billing) {
+        refundCredits?.(submitData.credits_spent, t("studio_refund_desc"));
+      }
       console.error("Generation error:", err);
-      // Even on error, balance may have changed (refund) — refresh
       try { await refresh(); } catch { /* ignore */ }
     } finally { setBusy(false); setProgress(0); }
   };
 
   return (
-    <div className="max-w-[1200px] mx-auto" data-testid="generate-page">
-      <header className="mb-10">
-        <p className="eyebrow mb-3">Estúdio</p>
-        <h1 className="text-[#F4F1EA] font-light leading-[1.05] tracking-[-0.02em] text-[42px] md:text-[56px]">
-          Cria, edita ou personaliza.
-        </h1>
-        <p className="text-[#8A8A8E] text-[15px] mt-3 max-w-[560px]">
-          Envia uma foto, descreve o que queres, ou escolhe um estilo pronto. Combina como quiseres — só prompt, só estilo, ou as duas coisas.
-        </p>
+    <div className="rp-studio-shell max-w-[1200px] mx-auto pb-28" data-testid="generate-page">
+      <header className="mb-10 pb-8 border-b border-[rgba(244,241,234,0.06)]">
+        <p className="rp-editor-section-cap mb-2">{t("studio_eyebrow")}</p>
+        <h1 className="rp-studio-page-title mb-3 font-['Inter_Tight']">{t("studio_title")}</h1>
+        <p className="rp-studio-page-desc">{t("studio_desc")}</p>
       </header>
 
-      <div className="grid grid-cols-1 lg:grid-cols-[1fr_380px] gap-10">
-        {/* ── LEFT: studio inputs ────────────────────────────── */}
-        <div>
-          {/* Step 1 — photo */}
-          <div className="mb-10">
-            <div className="flex items-baseline justify-between mb-3">
-              <p className="text-[10px] font-mono uppercase tracking-[0.22em] text-[#7C3AED]">1 · Foto (opcional)</p>
+      <div className="grid grid-cols-1 lg:grid-cols-[1fr_380px] gap-8 lg:gap-10">
+        <div className="space-y-4">
+          <StudioAccordionSection title={t("studio_acc_photo")} defaultOpen={false} testId="studio-acc-photo">
+            <div className="flex items-baseline justify-end mb-3">
               {photo && (
-                <button onClick={() => setPhoto(null)} className="text-[10px] font-mono uppercase tracking-[0.15em] text-[#5A5A5E] hover:text-[#F4F1EA]">Remover</button>
+                <button type="button" onClick={() => setPhoto(null)} className="text-[10px] font-mono uppercase tracking-[0.12em] text-[#8A8A8E] hover:text-[#F4F1EA] transition-colors">{t("remove")}</button>
               )}
             </div>
             <div className="max-w-[420px]">
-              <PhotoUpload value={photo} onChange={setPhoto} testId="gen-photo" />
+              <PhotoUpload value={photo} onChange={(f) => setPhoto(f || null)} testId="gen-photo" />
             </div>
-          </div>
+          </StudioAccordionSection>
 
-          {/* Step 2 — prompt */}
-          <div className="mb-10">
-            <p className="text-[10px] font-mono uppercase tracking-[0.22em] text-[#7C3AED] mb-3">
-              2 · {photo ? "O que queres mudar?" : "Descreve o que queres criar"}
-            </p>
+          <StudioAccordionSection title={t("studio_acc_prompt")} defaultOpen testId="studio-acc-prompt">
             <textarea
               value={prompt}
               onChange={(e) => setPrompt(e.target.value)}
               rows={4}
               maxLength={800}
-              placeholder={photo
-                ? 'Ex: "muda o fundo para uma praia ao pôr do sol", "fato preto elegante"...'
-                : 'Ex: "cidade futurista ao pôr do sol, neon azul e rosa"...'}
-              className="w-full bg-transparent border border-[#2E2E30] text-[#F4F1EA] px-4 py-3 text-[15px] leading-relaxed placeholder:text-[#5A5A5E] focus:outline-none focus:border-[#7C3AED] transition-colors rounded-sm font-['Inter_Tight'] resize-none"
+              placeholder={photo ? t("studio_placeholder_photo") : t("studio_placeholder_text")}
+              className="rp-editor-textarea min-h-[120px]"
               data-testid="prompt-input"
             />
-            <div className="flex items-center justify-between mt-2">
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input type="checkbox" checked={improve} onChange={(e) => setImprove(e.target.checked)} className="accent-[#7C3AED]" data-testid="improve-toggle" />
-                <span className="text-[#8A8A8E] text-[12px]">Melhorar prompt com IA (+0 créditos)</span>
+            <div className="flex flex-col gap-2.5 mt-3">
+              <PromptEnhanceToggle
+                checked={improve}
+                onChange={setImprove}
+                locked={false}
+                onLockedClick={undefined}
+                testId="improve-toggle"
+                cost={surcharges.enhancePrompt ?? 3}
+              />
+              <label className="inline-flex items-center gap-2.5 cursor-pointer group">
+                <input
+                  type="checkbox"
+                  checked={hdQuality}
+                  disabled={false}
+                  onChange={(e) => {
+                    setHdQuality(e.target.checked);
+                  }}
+                  className="accent-[#7C3AED] w-3.5 h-3.5 rounded border-[#2E2E30]"
+                  data-testid="hd-quality-toggle"
+                />
+                <span className="text-[#8A8A8E] text-[12px] font-['Inter_Tight']">
+                  {t("studio_hd_quality")}{" "}
+                  <span className="text-[#A855F7] font-mono text-[10px]">+{surcharges.hdImage ?? 8}</span>
+                </span>
               </label>
-              <span className="text-[#5A5A5E] text-[10px] font-mono">{prompt.length}/800</span>
             </div>
-            <div className="flex flex-wrap gap-2 mt-3">
-              <button onClick={() => navigate("/app/wizard")} className="flex items-center gap-2 px-3 py-2 border border-[#2E2E30] text-[#8A8A8E] hover:text-[#F4F1EA] hover:border-[#7C3AED]/40 text-[11px] font-mono uppercase tracking-[0.12em] transition-colors" data-testid="open-wizard">
-                <Wand2 className="w-3 h-3" /> Assistente
+            <div className="flex justify-end mt-2">
+              <span className="text-[#5A5A5E] text-[10px] font-mono tabular-nums">{prompt.length}/800</span>
+            </div>
+            <div className="flex flex-wrap gap-2 mt-4">
+              <button type="button" onClick={() => navigate("/app/wizard")} className="rp-btn-surface" data-testid="open-wizard">
+                <Wand2 className="w-3.5 h-3.5" strokeWidth={1.5} /> {t("studio_wizard")}
               </button>
-              <button onClick={() => navigate("/app/suggest")} className="flex items-center gap-2 px-3 py-2 border border-[#2E2E30] text-[#8A8A8E] hover:text-[#F4F1EA] hover:border-[#7C3AED]/40 text-[11px] font-mono uppercase tracking-[0.12em] transition-colors" data-testid="open-suggest">
-                <Lightbulb className="w-3 h-3" /> Sugestões
+              <button type="button" onClick={() => navigate("/app/suggest")} className="rp-btn-surface" data-testid="open-suggest">
+                <Lightbulb className="w-3.5 h-3.5" strokeWidth={1.5} /> {t("studio_suggest")}
               </button>
             </div>
-          </div>
+          </StudioAccordionSection>
 
-          {/* Step 3 — optional style */}
-          <div className="mb-10">
-            <button
-              onClick={() => setShowStyles(!showStyles)}
-              className="flex items-center gap-2 text-[10px] font-mono uppercase tracking-[0.22em] text-[#7C3AED] mb-3 hover:text-[#9333EA]"
-              data-testid="toggle-styles"
-            >
-              3 · Escolhe um Estilo <span className="text-[#5A5A5E]">(opcional)</span>
-              <span className="text-[#5A5A5E]">{showStyles ? "▴" : "▾"}</span>
+          <StudioAccordionSection
+            title={t("studio_acc_styles")}
+            defaultOpen={false}
+            testId="studio-acc-styles"
+            titleClassName="studio-customize-title"
+          >
+            <button type="button" onClick={() => setShowStyles(!showStyles)} className="flex items-center gap-2 w-full text-left rp-editor-section-cap !text-[#a89bc9] hover:!text-[#c4b8e6] transition-colors mb-4" data-testid="toggle-styles">
+              {t("studio_styles_toggle")} <span className="text-[#5A5A5E] font-['Inter_Tight'] normal-case tracking-normal text-[12px] font-normal">{t("studio_styles_optional")}</span>
+              <span className="text-[#5A5A5E] ml-auto font-mono text-[11px]">{showStyles ? "−" : "+"}</span>
             </button>
             {pickedStyle && picked && (
-              <div className="mb-3 inline-flex items-center gap-2 px-3 py-1.5 bg-[#7C3AED]/10 border border-[#7C3AED]/40 rounded-md">
-                <span className="text-[#C4B5FD] text-[11px] font-medium">{picked.nome}</span>
-                <button onClick={() => setPickedStyle(null)} className="text-[#8A8A8E] hover:text-[#F4F1EA] text-[14px] leading-none">×</button>
+              <div className="mb-4 inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-[rgba(124,58,237,0.35)] bg-[rgba(124,58,237,0.08)]">
+                <span className="text-[#E9E4DC] text-[12px] font-medium font-['Inter_Tight']">{picked.nome}</span>
+                <button type="button" onClick={() => setPickedStyle(null)} className="text-[#8A8A8E] hover:text-[#F4F1EA] text-lg leading-none w-7 h-7 flex items-center justify-center rounded-md hover:bg-white/5" aria-label={t("studio_remove_style")}>×</button>
               </div>
             )}
-
             {showStyles && (
               <>
                 <div className="flex flex-wrap gap-2 mb-4" data-testid="subject-bar">
-                  {SUBJECTS.map((s) => (
-                    <button key={s.value} onClick={() => setSubject(s.value)}
-                      className={`px-3 py-1.5 border text-[10px] font-mono uppercase tracking-[0.1em] transition-colors ${subject === s.value ? "border-[#7C3AED] text-[#C4B5FD] bg-[#7C3AED]/10" : "border-[#2E2E30] text-[#8A8A8E] hover:text-[#F4F1EA]"}`}
-                      data-testid={`subj-${s.value.replace(/\s/g, "-")}`}>
-                      {s.label}
+                  {SUBJECT_KEYS.map((s) => (
+                    <button type="button" key={s.value} onClick={() => setSubject(s.value)} className={`rp-pill ${subject === s.value ? "rp-pill-active" : ""}`} data-testid={`subj-${s.value.replace(/\s/g, "-")}`}>
+                      {t(s.labelKey)}
                     </button>
                   ))}
                 </div>
-
                 <div className="flex flex-wrap gap-2 mb-4" data-testid="padrao-cats">
                   {padraoCats.map((c) => (
-                    <button key={c} onClick={() => { setPadraoCat(c); setPickedStyle(null); }}
-                      className={`px-3 py-1.5 text-[10px] font-mono uppercase tracking-[0.12em] border transition-colors ${padraoCat === c ? "border-[#7C3AED] text-[#C4B5FD]" : "border-[#2E2E30] text-[#8A8A8E] hover:text-[#F4F1EA]"}`}
-                      data-testid={`pcat-${c}`}>
-                      {CAT_LABELS[c] || c}
+                    <button type="button" key={c} onClick={() => { setPadraoCat(c); setPickedStyle(null); }} className={`rp-pill ${padraoCat === c ? "rp-pill-active" : ""}`} data-testid={`pcat-${c}`}>
+                      {catLabel(c)}
                     </button>
                   ))}
                 </div>
-
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 max-h-[460px] overflow-y-auto pr-1" data-testid="padrao-grid">
-                  {padraoFiltered.map((s) => {
-                    // Per-style preview generated by scripts/gen_unisex_thumbs.py
-                    // Falls back to a category-shared photo if not yet generated.
-                    const styleThumb = `/images/styles/${s.id}.jpg`;
-                    const catThumb   = CAT_THUMBS[s.cat];
-                    return (
-                      <button key={s.id} onClick={() => setPickedStyle(pickedStyle === s.id ? null : s.id)}
-                        className={`relative aspect-[3/4] overflow-hidden border-2 rounded-md text-left transition-all group ${pickedStyle === s.id ? "border-[#7C3AED] ring-2 ring-[#7C3AED]/40 shadow-lg shadow-[#7C3AED]/30" : "border-[#2E2E30] hover:border-[#7C3AED]/40"} ${s.locked ? "opacity-90" : ""}`}
-                        data-testid={`pstyle-${s.id}`}>
-                        <img
-                          src={styleThumb}
-                          alt={s.nome}
-                          className="absolute inset-0 w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
-                          loading="lazy"
-                          onError={(e) => {
-                            // If the per-style image isn't available yet,
-                            // gracefully fall back to the category thumb.
-                            if (catThumb && e.currentTarget.src !== catThumb) {
-                              e.currentTarget.src = catThumb;
-                            }
-                          }}
-                        />
-                        <div className="absolute inset-0 bg-gradient-to-t from-[#0B0B0C] via-[#0B0B0C]/40 to-transparent" />
-                        <div className="relative h-full flex flex-col justify-end p-3">
-                          <p className="text-[#F4F1EA] text-[12px] font-medium leading-tight font-['Inter_Tight'] drop-shadow-md">{s.nome}</p>
-                          {s.locked && <p className="text-[#C7A77A] text-[9px] font-mono uppercase tracking-wider mt-1">Premium</p>}
-                        </div>
-                        {pickedStyle === s.id && (
-                          <div className="absolute top-2 right-2 w-6 h-6 rounded-full bg-[#7C3AED] flex items-center justify-center shadow-lg shadow-[#7C3AED]/50 z-10">
-                            <span className="text-white text-[11px] font-bold">✓</span>
-                          </div>
-                        )}
-                      </button>
-                    );
-                  })}
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 max-h-[460px] overflow-y-auto pr-1" data-testid="padrao-grid">
+                  {padraoFiltered.map((s) => (
+                    <button type="button" key={s.id} onClick={() => setPickedStyle(pickedStyle === s.id ? null : s.id)} className={`rp-style-card-shell relative aspect-[3/4] overflow-hidden rounded-xl text-left transition-all border group ${pickedStyle === s.id ? "border-rp-purple ring-2 ring-rp-purple/35 shadow-[0_0_36px_-10px_rgba(168,85,247,0.55),inset_0_0_0_1px_rgba(255,255,255,0.06)]" : "border-rp-border hover:border-rp-purple/45 hover:shadow-[0_16px_40px_-20px_rgba(124,58,237,0.35)]"} ${s.locked ? "opacity-90" : ""}`} data-testid={`pstyle-${s.id}`}>
+                      <StyleCover id={s.id} title={s.nome} prompt={s.prompt} category={s.cat} eyebrow={catLabel(s.cat)} premium={s.locked} selected={pickedStyle === s.id} coverSrc={PADRAO_STYLE_COVER_BY_ID[s.id] || ""} />
+                    </button>
+                  ))}
                 </div>
               </>
             )}
-          </div>
+          </StudioAccordionSection>
 
-          {/* Step 4 — aspect ratio */}
-          <div className="mb-6">
-            <p className="text-[10px] font-mono uppercase tracking-[0.22em] text-[#7C3AED] mb-3">4 · Formato</p>
+          <StudioAccordionSection title={t("studio_acc_format")} defaultOpen testId="studio-acc-format">
             <AspectPicker value={aspect} onChange={setAspect} hasPhoto={!!photo} testIdPrefix="aspect" />
-          </div>
-
-          {/* Step 5 — engine selector (only shows for modes that use a photo) */}
-          {mode !== "create" && (
-            <div className="mb-10">
-              <p className="text-[10px] font-mono uppercase tracking-[0.22em] text-[#7C3AED] mb-3">5 · Motor de IA</p>
-              <div className="grid grid-cols-2 gap-2.5">
-                <button onClick={() => setEngine("grok")} data-testid="engine-grok"
-                  className={`text-left px-4 py-3.5 rounded-lg border transition-all
-                    ${engine === "grok"
-                      ? "border-[#7C3AED] bg-gradient-to-br from-[#7C3AED]/15 to-[#7C3AED]/5 shadow-[0_0_28px_-10px_rgba(124,58,237,0.6)]"
-                      : "border-[#2E2E30] bg-[#0F0F12] hover:border-[#5A5A5E]"}`}>
-                  <div className="flex items-baseline justify-between">
-                    <p className="text-[#F4F1EA] text-[14px] font-medium">Grok Imagine</p>
-                    <span className="text-[#C4B5FD] text-[11px] font-mono">{mode === "easy" ? "11" : "12"} cr</span>
-                  </div>
-                  <p className="text-[#8A8A8E] text-[11px] mt-1">Rápido · fidelidade alta · pré-definido</p>
-                </button>
-                <button onClick={() => setEngine("aurora")} data-testid="engine-aurora"
-                  className={`text-left px-4 py-3.5 rounded-lg border transition-all relative
-                    ${engine === "aurora"
-                      ? "border-[#7C3AED] bg-gradient-to-br from-[#7C3AED]/15 to-[#7C3AED]/5 shadow-[0_0_28px_-10px_rgba(124,58,237,0.6)]"
-                      : "border-[#2E2E30] bg-[#0F0F12] hover:border-[#5A5A5E]"}`}>
-                  <span className="absolute -top-2 -right-2 px-2 py-0.5 rounded-full bg-gradient-to-r from-[#7C3AED] to-[#EC4899] text-white text-[9px] font-mono uppercase tracking-[0.14em]">Novo</span>
-                  <div className="flex items-baseline justify-between">
-                    <p className="text-[#F4F1EA] text-[14px] font-medium">Aurora</p>
-                    <span className="text-[#C4B5FD] text-[11px] font-mono">15 cr</span>
-                  </div>
-                  <p className="text-[#8A8A8E] text-[11px] mt-1">Foto-realista · IA neural · sem espera</p>
-                </button>
-              </div>
-            </div>
-          )}
-
-          {/* CTA */}
-          <button
-            onClick={generate}
-            disabled={busy || mode === "blocked"}
-            className="w-full bg-gradient-to-r from-[#7C3AED] to-[#9333EA] hover:from-[#8B5CF6] hover:to-[#A855F7] disabled:bg-[#1A1A1C] disabled:from-[#1A1A1C] disabled:to-[#1A1A1C] disabled:text-[#5A5A5E] text-white py-4 text-[12px] font-medium uppercase tracking-[0.18em] rounded-md shadow-lg shadow-[#7C3AED]/30 hover:shadow-[#7C3AED]/50 hover:-translate-y-0.5 transition-all flex items-center justify-center gap-2"
-            data-testid="generate-button"
-          >
-            {busy ? (
-              <>
-                <span className="relative flex items-center justify-center">
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                  <span className="absolute inset-0 rounded-full bg-white/30 blur-md animate-pulse" />
-                </span>
-                {progress > 0 ? `A gerar... ${progress}s` : "A enviar..."}
-              </>
-            ) : mode === "blocked" ? (
-              <><ImagePlus className="w-4 h-4" /> {ctaLabel}</>
-            ) : (
-              <><Sparkles className="w-4 h-4" /> {ctaLabel}</>
-            )}
-          </button>
-          <p className="text-[#5A5A5E] text-[11px] mt-3 text-center font-['Inter_Tight']">
-            Saldo: <span className="text-[#C4B5FD]">{user?.credits ?? 0} créditos</span>
-          </p>
+            <StudioGenerateBar
+              layout="inline"
+              ready={gateReady}
+              busy={busy}
+              onClick={generate}
+              label={ctaLabel}
+              busyLabel={progress > 0 ? t("studio_generating", { n: progress }) : t("studio_sending")}
+              hint={gateHint}
+              testId="generate-button"
+              className="mt-8"
+              alignHint="center"
+            />
+            <p className="text-[#6b6b70] text-[11px] mt-3 text-center font-['Inter_Tight']">
+              {t("studio_balance")} <span className="text-[#C4B5FD] font-medium tabular-nums">{user?.is_unlimited ? "∞" : (user?.credits ?? 0)}</span> {t("credits")}
+            </p>
+          </StudioAccordionSection>
         </div>
 
-        {/* ── RIGHT: live result ─────────────────────────────── */}
-        <aside className="lg:sticky lg:top-[88px] self-start">
-          <p className="eyebrow mb-4">Último resultado</p>
-          <ResultPanel creation={result} loading={busy} onChange={setResult} emptyLabel="A tua próxima imagem aparece aqui." />
-        </aside>
+        <StudioResultAnchor busy={busy} ready={Boolean(primaryResultUrl(result))} className="lg:sticky lg:top-[88px] self-start space-y-3">
+          <p className="rp-editor-section-cap !text-[#6b6b70]">{t("last_result")}</p>
+          <div className="rp-editor-panel overflow-hidden p-4 sm:p-5">
+            <ResultPanel creation={result} loading={busy} onChange={setResult} emptyLabel={t("studio_result_next")} />
+          </div>
+        </StudioResultAnchor>
       </div>
     </div>
   );

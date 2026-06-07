@@ -2,10 +2,17 @@ import { useEffect, useState } from "react";
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
 import { api } from "../lib/api";
-import useTitle from "../lib/useTitle";
+import GalleryMedia from "../components/GalleryMedia";
+import { usePageSeo } from "../lib/usePageSeo";
+import { SEO_EXPLORE } from "../lib/seoEn";
 
 export default function Explore() {
-  useTitle("Explore");
+  usePageSeo({
+    title: SEO_EXPLORE.title,
+    documentTitle: SEO_EXPLORE.documentTitle,
+    description: SEO_EXPLORE.description,
+    path: SEO_EXPLORE.path,
+  });
   const [items, setItems] = useState([]);
   const [active, setActive] = useState(null);
 
@@ -34,7 +41,7 @@ export default function Explore() {
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-1" data-testid="explore-grid">
               {items.map((c) => (
                 <button key={c.id} onClick={() => setActive(c)} className="aspect-square overflow-hidden bg-rp-surface relative group" data-testid={`explore-${c.id}`}>
-                  <img src={c.result_urls[0]} alt="" className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" />
+                  <GalleryMedia publicView creation={c} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" />
                   <div className="absolute inset-0 bg-rp-bg/70 opacity-0 group-hover:opacity-100 transition-opacity flex items-end p-3">
                     <p className="text-rp-text text-[10px] font-mono uppercase tracking-[0.16em]">View prompt →</p>
                   </div>
@@ -49,17 +56,17 @@ export default function Explore() {
         <div className="fixed inset-0 z-50 bg-rp-bg/95 backdrop-blur-md flex items-center justify-center p-4 sm:p-8" onClick={() => setActive(null)} data-testid="explore-modal">
           <div className="relative w-full max-w-6xl h-full max-h-[85vh] bg-rp-surface border border-rp-border flex flex-col md:flex-row overflow-hidden" onClick={(e) => e.stopPropagation()}>
             <div className="flex-1 bg-black flex items-center justify-center">
-              <img src={active.result_urls[0]} alt="" className="max-w-full max-h-full object-contain" />
+              <GalleryMedia publicView creation={active} className="max-w-full max-h-full object-contain" />
             </div>
             <div className="w-full md:w-96 p-6 md:p-8 flex flex-col gap-6 overflow-y-auto border-t md:border-t-0 md:border-l border-rp-border">
               <p className="eyebrow">Prompt</p>
               <p className="text-rp-text font-heading text-2xl leading-tight">{active.prompt}</p>
               <div className="space-y-3 text-sm">
-                <Row k="Model" v={active.model_used} />
-                <Row k="Type" v={active.type} />
-                <Row k="Aspect" v={active.aspect_ratio} />
+                <Row k="Motor" v={active.model_used || "Motor IA"} />
+                <Row k="Tipo" v={active.type} />
+                <Row k="Formato" v={active.aspect_ratio} />
               </div>
-              <button onClick={() => setActive(null)} className="btn-secondary mt-auto" data-testid="explore-close">Close</button>
+              <button onClick={() => setActive(null)} className="btn-secondary mt-auto" data-testid="explore-close">Fechar</button>
             </div>
           </div>
         </div>

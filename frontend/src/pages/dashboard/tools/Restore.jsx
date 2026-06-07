@@ -1,47 +1,50 @@
-import { useEffect, useRef, useState } from "react";
+import { useMemo, useState } from "react";
 import { toast } from "sonner";
-import { motion } from "framer-motion";
 import {
-  ArrowLeft, Loader2, Upload, History, Download, X, Sparkles,
+  ArrowLeft, History, Download,
   Check, Move, RotateCcw,
 } from "lucide-react";
+import StudioGenerateBar from "../../../components/StudioGenerateBar";
+import StudioGenerateCostMeta from "../../../components/StudioGenerateCostMeta";
+import { useStudioGenerateGate } from "../../../lib/useStudioGenerateGate";
 import { useNavigate } from "react-router-dom";
-import { api } from "../../../lib/api";
+import { formatApiError, uploadPost } from "../../../lib/api";
 import { useAuth } from "../../../lib/auth";
-import { compressImage } from "../../../lib/imageCompress";
-import { fileToDataURL } from "../../../lib/fileToDataURL";
+import { usePricing } from "../../../lib/PricingContext";
+import { useStudioMediaPreview } from "../../../hooks/useStudioMediaPreview";
+import ImageUploadZone from "../../../components/ImageUploadZone";
+import CollapsibleSection from "../../../components/CollapsibleSection";
+import StudioResultAnchor from "../../../components/StudioResultAnchor";
+import { useI18n } from "../../../lib/i18n";
+import { useStudioI18n } from "../../../lib/useStudioI18n";
+import { RESTORE_LEVEL_KEYS } from "../../../lib/toolPagesLocales";
+import { restoreCostForLevel } from "../../../lib/creditPricing";
 
-const errMsg = (err) => {
-  if (err?.code === "ECONNABORTED") return "Tempo esgotado — tenta de novo.";
-  if (err?.response?.status === 402) return "Créditos insuficientes.";
-  if (err?.response?.status === 429) return "Demasiados pedidos. Espera 1 minuto.";
-  if (err?.response?.data?.detail)
-    return typeof err.response.data.detail === "string"
-      ? err.response.data.detail
-      : "Erro inesperado.";
-  return err?.message || "Falhou.";
-};
-
-const LEVELS = [
-  { key: "leve",     label: "Leve",     hint: "Toque subtil · preserva grão original" },
-  { key: "medio",    label: "Médio",    hint: "Equilíbrio profissional · uso geral" },
-  { key: "profundo", label: "Profundo", hint: "Restauro completo · fotos muito danificadas" },
-];
-
-const PROMPT_IDEAS = [
-  "restaurar foto antiga de 1970, melhorar rosto da criança",
-  "remover dobras e manchas amareladas",
-  "preservar a expressão da minha avó",
-  "foto de casamento dos anos 60 com cores naturais",
-];
+const RESTORE_PROMPT_KEYS = [1, 2, 3, 4];
 
 export default function Restore() {
+  const { t, errToast, clearUploadToast } = useStudioI18n();
+  const { t: tCat } = useI18n();
   const navigate = useNavigate();
   const { user, refresh } = useAuth();
-  const fileRef = useRef(null);
+  const { costs } = usePricing();
+
+  const levels = useMemo(
+    () => RESTORE_LEVEL_KEYS.map((key) => ({
+      key,
+      label: t(`restore_level_${key}_label`),
+      hint: t(`restore_level_${key}_hint`),
+    })),
+    [t],
+  );
+
+  const promptIdeas = useMemo(
+    () => RESTORE_PROMPT_KEYS.map((n) => t(`restore_prompt_${n}`)),
+    [t],
+  );
 
   const [photo, setPhoto] = useState(null);
-  const [photoPreview, setPhotoPreview] = useState(null);
+  const { previewUrl: resultOriginalUrl } = useStudioMediaPreview(photo);
   const [level, setLevel] = useState("medio");
   const [enhanceFaces, setEnhanceFaces] = useState(true);
   const [recoverColors, setRecoverColors] = useState(true);
@@ -52,32 +55,24 @@ export default function Restore() {
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState(null);
 
-  const cost = 8;
+  const cost = useMemo(() => restoreCostForLevel(costs, level), [costs, level]);
 
-  useEffect(() => {
-    let cancelled = false;
-    if (!photo) { setPhotoPreview(null); return; }
-    fileToDataURL(photo).then((u) => { if (!cancelled) setPhotoPreview(u); }).catch(() => {});
-    return () => { cancelled = true; };
-  }, [photo]);
+  const { ready, hint } = useStudioGenerateGate({
+    busy,
+    user,
+    cost,
+    requirePhoto: true,
+    photo,
+  });
 
-  const handlePick = async (file) => {
-    if (!file) return;
-    const isImg = file.type?.startsWith("image/") || /\.(jpe?g|png|webp|gif|bmp|heic|heif|avif)$/i.test(file.name || "");
-    if (!isImg) { toast.error("Ficheiro tem de ser uma imagem."); return; }
+  const reset = () => {
+    setPhoto(null);
     setResult(null);
-    try {
-      const compressed = await compressImage(file);
-      setPhoto(compressed);
-    } catch (e) {
-      toast.error(e.message || "Não consegui ler esta imagem.");
-    }
   };
 
-  const reset = () => { setPhoto(null); setPhotoPreview(null); setResult(null); };
-
   const run = async () => {
-    if (!photo) { toast.error("Envia a foto antiga primeiro."); return; }
+    if (!photo) { toast.error(t("restore_err_upload")); return; }
+    clearUploadToast();
     setBusy(true); setResult(null);
     try {
       const fd = new FormData();
@@ -88,27 +83,20 @@ export default function Restore() {
       fd.append("remove_noise", removeNoise ? "true" : "false");
       fd.append("sharpen", sharpen ? "true" : "false");
       fd.append("custom_prompt", customPrompt);
-      const { data } = await api.post("/tools/restore", fd, { timeout: 240000 });
-      const url = data.creation?.result_urls?.[0];
-      if (!url) throw new Error("Sem resultado");
-      setResult({ url, id: data.creation.id, level });
-      toast.success(`Foto restaurada · ${data.creation.credits_spent} créditos`);
+      const { data } = await uploadPost("/tools/restore", fd, { timeout: 240000 });
+      const creation = data?.creation;
+      const url = creation?.result_urls?.[0];
+      if (!url) throw new Error(t("common_no_result"));
+      setResult({ url, id: creation?.id || null, level });
+      toast.success(t("restore_success", { n: creation?.credits_spent ?? cost }));
       await refresh();
     } catch (err) {
-      toast.error(errMsg(err), { duration: 8000 });
+      errToast(err);
     } finally { setBusy(false); }
   };
 
   return (
     <div className="max-w-[1400px] mx-auto pb-32" data-testid="restore-frame">
-      <button
-        onClick={() => navigate("/app/tools")}
-        className="inline-flex items-center gap-2 text-[#8A8A8E] hover:text-[#F4F1EA] mb-6 text-[12px] font-medium transition-colors"
-        data-testid="restore-back"
-      >
-        <ArrowLeft className="w-4 h-4" /> Voltar às ferramentas
-      </button>
-
       {/* Hero header */}
       <div className="mb-12 flex items-start gap-5">
         <div className="shrink-0 w-14 h-14 rounded-2xl bg-[#7C3AED]/15 border border-[#7C3AED]/30 flex items-center justify-center">
@@ -116,89 +104,42 @@ export default function Restore() {
         </div>
         <div>
           <h1 className="text-[#F4F1EA] text-[32px] md:text-[44px] font-light tracking-[-0.02em] leading-[1.05] mb-2 font-['Inter_Tight']">
-            Photo Restoration
+            {tCat("tool_restore_name")}
           </h1>
           <p className="text-[#8A8A8E] text-[15px] max-w-[640px] leading-relaxed">
-            Recupera fotos antigas, rostos nítidos, cores naturais. Ideal para retratos de família,
-            álbuns dos avós e impressões danificadas.
+            {t("restore_desc_long")}
           </p>
         </div>
       </div>
 
       <div className="grid grid-cols-1 xl:grid-cols-[1fr_440px] gap-10">
-        <div className="space-y-10">
+        <div className="space-y-5">
           {/* 1) UPLOAD */}
-          <section>
+          <CollapsibleSection title={t("restore_section_photo")} defaultOpen testId="restore-section-photo">
             <div className="flex items-baseline justify-between mb-4">
-              <label className="text-[#F4F1EA] text-[13px] font-medium uppercase tracking-[0.16em] font-['Inter_Tight']">
-                01 · Foto Original
-              </label>
               {photo && (
                 <button
                   onClick={reset}
                   className="text-[#5A5A5E] hover:text-[#7C3AED] text-[12px] inline-flex items-center gap-1.5 transition-colors"
                   data-testid="restore-reset"
                 >
-                  <RotateCcw className="w-3.5 h-3.5" /> Trocar foto
+                  <RotateCcw className="w-3.5 h-3.5" /> {t("common_swap_photo")}
                 </button>
               )}
             </div>
-            <label htmlFor="file-restore"
-              
-              onDragOver={(e) => e.preventDefault()}
-              onDrop={(e) => { e.preventDefault(); handlePick(e.dataTransfer.files?.[0]); }}
-              className={`relative block w-full ${photoPreview ? "aspect-[16/10]" : "aspect-[2/1]"} rounded-2xl border-2 border-dashed transition-all overflow-hidden ${
-                photoPreview
-                  ? "border-[#2E2E30] bg-[#0E0E12]"
-                  : "border-[#2E2E30] hover:border-[#7C3AED]/70 bg-gradient-to-br from-[#13131A] via-[#0E0E12] to-[#0B0B0C] cursor-pointer group"
-              }`}
-              data-testid="restore-upload-area"
-            >
-              {photoPreview ? (
-                <>
-                  <img src={photoPreview} alt="" className="absolute inset-0 w-full h-full object-contain p-4" />
-                  <button
-                    onClick={(e) => { e.stopPropagation(); reset(); }}
-                    className="absolute top-4 right-4 w-9 h-9 bg-black/70 backdrop-blur-md rounded-full flex items-center justify-center text-white hover:bg-black z-10"
-                    data-testid="restore-clear"
-                  >
-                    <X className="w-4 h-4" />
-                  </button>
-                </>
-              ) : (
-                <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 text-center px-6">
-                  <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,rgba(124,58,237,0.10),transparent_60%)] pointer-events-none" />
-                  <div className="relative w-20 h-20 rounded-full bg-[#7C3AED]/10 border border-[#7C3AED]/25 flex items-center justify-center group-hover:bg-[#7C3AED]/20 group-hover:border-[#7C3AED]/50 transition-all">
-                    <Upload className="w-8 h-8 text-[#C4B5FD]" strokeWidth={1.5} />
-                  </div>
-                  <p className="relative text-[#F4F1EA] text-[20px] font-light tracking-[-0.01em] font-['Inter_Tight']">
-                    Click to upload an image
-                  </p>
-                  <p className="relative text-[#8A8A8E] text-[13px]">
-                    Envia o scan ou foto digitalizada do retrato antigo
-                  </p>
-                  <p className="relative text-[#5A5A5E] text-[11px] font-mono uppercase tracking-[0.18em]">
-                    JPEG · PNG · WEBP · até 15 MB
-                  </p>
-                </div>
-              )}
-            </label>
-            <input id="file-restore" ref={fileRef}
-              type="file"
-              accept="image/*"
-              className="hidden"
-              onChange={(e) => handlePick(e.target.files?.[0])}
-              data-testid="restore-upload-input"
+            <ImageUploadZone
+              value={photo}
+              onChange={(f) => { setPhoto(f); setResult(null); }}
+              layout="wide"
+              testId="restore-photo"
+              emptyLabel={t("common_upload_click")}
+              emptyHint={t("common_upload_hint_drag")}
             />
-          </section>
+          </CollapsibleSection>
 
-          {/* 2) LEVEL */}
-          <section>
-            <label className="block text-[#F4F1EA] text-[13px] font-medium mb-4 uppercase tracking-[0.16em] font-['Inter_Tight']">
-              02 · Nível de Restauração
-            </label>
+          <CollapsibleSection title={t("restore_section_level")} testId="restore-section-level">
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3" data-testid="restore-levels">
-              {LEVELS.map(({ key, label, hint }) => (
+              {levels.map(({ key, label, hint }) => (
                 <button
                   key={key}
                   onClick={() => setLevel(key)}
@@ -213,7 +154,7 @@ export default function Restore() {
                     <div className="absolute -top-10 -right-10 w-32 h-32 bg-[#7C3AED]/20 blur-3xl pointer-events-none" />
                   )}
                   <div className="relative flex items-start justify-between mb-2">
-                    <IntensityBars active={level === key} index={LEVELS.findIndex(l => l.key === key)} />
+                    <IntensityBars active={level === key} index={levels.findIndex((l) => l.key === key)} />
                     {level === key && (
                       <div className="w-5 h-5 rounded-full bg-[#7C3AED] flex items-center justify-center">
                         <Check className="w-3 h-3 text-white" strokeWidth={3} />
@@ -227,61 +168,53 @@ export default function Restore() {
                 </button>
               ))}
             </div>
-          </section>
+          </CollapsibleSection>
 
-          {/* 3) TOGGLES */}
-          <section>
-            <label className="block text-[#F4F1EA] text-[13px] font-medium mb-4 uppercase tracking-[0.16em] font-['Inter_Tight']">
-              03 · Opções Avançadas
-            </label>
+          <CollapsibleSection title={t("restore_section_advanced")} testId="restore-section-options">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
               <Toggle
                 active={enhanceFaces}
                 onClick={() => setEnhanceFaces(!enhanceFaces)}
-                label="Melhorar rostos e pele"
-                hint="Define olhos, lábios, sobrancelhas e textura natural da pele."
+                label={t("restore_toggle_faces")}
+                hint={t("restore_toggle_faces_hint")}
                 testId="restore-toggle-faces"
               />
               <Toggle
                 active={recoverColors}
                 onClick={() => setRecoverColors(!recoverColors)}
-                label="Recuperar cores originais"
-                hint="Reanima tons desbotados. Se for P&B, faz colorização realista."
+                label={t("restore_toggle_colors")}
+                hint={t("restore_toggle_colors_hint")}
                 testId="restore-toggle-colors"
               />
               <Toggle
                 active={removeNoise}
                 onClick={() => setRemoveNoise(!removeNoise)}
-                label="Reduzir riscos, manchas e ruídos"
-                hint="Apaga arranhões, poeira, dobras e manchas amareladas."
+                label={t("restore_toggle_noise")}
+                hint={t("restore_toggle_noise_hint")}
                 testId="restore-toggle-noise"
               />
               <Toggle
                 active={sharpen}
                 onClick={() => setSharpen(!sharpen)}
-                label="Aumentar nitidez"
-                hint="Realça micro-detalhes em cabelo, tecidos e texturas finas."
+                label={t("restore_toggle_sharpen")}
+                hint={t("restore_toggle_sharpen_hint")}
                 testId="restore-toggle-sharpen"
               />
             </div>
-          </section>
+          </CollapsibleSection>
 
-          {/* 4) OPTIONAL PROMPT */}
-          <section>
-            <label className="block text-[#F4F1EA] text-[13px] font-medium mb-3 uppercase tracking-[0.16em] font-['Inter_Tight']">
-              04 · Instrução Adicional <span className="text-[#5A5A5E] normal-case tracking-normal text-[11px] font-normal">(opcional)</span>
-            </label>
+          <CollapsibleSection title={t("restore_section_extra")} optional testId="restore-section-prompt">
             <textarea
               value={customPrompt}
               onChange={(e) => setCustomPrompt(e.target.value)}
               rows={3}
               maxLength={280}
-              placeholder="ex: restaurar foto antiga de 1970, melhorar rosto da criança"
+              placeholder={t("restore_prompt_ph")}
               className="w-full bg-[#13131A] border border-[#2E2E30] focus:border-[#7C3AED] text-[#F4F1EA] text-[14px] placeholder:text-[#5A5A5E] px-4 py-3 rounded-lg focus:outline-none resize-none font-['Inter_Tight'] transition-colors"
               data-testid="restore-custom-prompt"
             />
             <div className="flex flex-wrap gap-2 mt-2.5">
-              {PROMPT_IDEAS.map((s) => (
+              {promptIdeas.map((s) => (
                 <button
                   key={s}
                   onClick={() => setCustomPrompt(s)}
@@ -291,45 +224,25 @@ export default function Restore() {
                 </button>
               ))}
             </div>
-          </section>
+          </CollapsibleSection>
         </div>
 
-        <aside className="xl:sticky xl:top-[80px] self-start">
-          <p className="text-[#5A5A5E] text-[10px] font-mono uppercase tracking-[0.2em] mb-3">Output</p>
-          <ResultArea busy={busy} result={result} originalPreview={photoPreview} level={level} />
-        </aside>
+        <StudioResultAnchor busy={busy} ready={Boolean(result?.url)} className="xl:sticky xl:top-[80px] self-start">
+          <p className="text-[#5A5A5E] text-[10px] font-mono uppercase tracking-[0.2em] mb-3">{t("common_output")}</p>
+          <ResultArea busy={busy} result={result} originalPreview={resultOriginalUrl} level={level} />
+        </StudioResultAnchor>
       </div>
 
-      <motion.div
-        initial={{ y: 100 }}
-        animate={{ y: 0 }}
-        className="fixed bottom-0 left-0 right-0 md:left-[240px] bg-gradient-to-t from-[#0B0B0C] via-[#0B0B0C] to-[#0B0B0C]/95 backdrop-blur-xl border-t border-[#2E2E30] z-30 px-4 sm:px-6 md:px-10 py-4"
-        data-testid="restore-cta-bar"
-      >
-        <div className="max-w-[1400px] mx-auto flex items-center justify-between gap-4">
-          <div className="hidden sm:flex items-center gap-3 text-[12px]">
-            <span className="text-[#8A8A8E]">Custo:</span>
-            <span className="text-[#C4B5FD] font-medium text-[16px]">
-              {cost} <span className="text-[10px] font-mono uppercase tracking-wider">Créditos</span>
-            </span>
-            <span className="text-[#5A5A5E] mx-2">·</span>
-            <span className="text-[#8A8A8E]">Saldo:</span>
-            <span className="text-[#F4F1EA] font-medium">{user?.credits ?? 0}</span>
-          </div>
-          <button
-            onClick={run}
-            disabled={busy || !photo}
-            className="flex-1 sm:flex-initial sm:min-w-[260px] bg-[#7C3AED] hover:bg-[#9333EA] disabled:bg-[#2E2E30] disabled:text-[#5A5A5E] text-white py-3.5 rounded-lg text-[13px] font-medium tracking-wide transition-all flex items-center justify-center gap-2 shadow-lg shadow-[#7C3AED]/25"
-            data-testid="restore-create-btn"
-          >
-            {busy ? (
-              <><Loader2 className="w-4 h-4 animate-spin" /> A restaurar…</>
-            ) : (
-              <><Sparkles className="w-4 h-4" /> Restaurar Foto · {cost} créditos</>
-            )}
-          </button>
-        </div>
-      </motion.div>
+      <StudioGenerateBar
+        ready={ready}
+        busy={busy}
+        onClick={run}
+        label={t("restore_btn", { n: cost })}
+        busyLabel={t("restore_processing")}
+        hint={hint}
+        testId="restore-create-btn"
+        costMeta={<StudioGenerateCostMeta cost={cost} user={user} />}
+      />
     </div>
   );
 }
@@ -381,14 +294,16 @@ function Toggle({ active, onClick, label, hint, testId }) {
 }
 
 function ResultArea({ busy, result, originalPreview, level }) {
+  const { t } = useStudioI18n();
+  const levelLabel = t(`restore_level_${level}_label`);
   if (busy) {
     return (
       <div className="rounded-2xl bg-[#0E0E12] border border-[#2E2E30] aspect-square flex flex-col items-center justify-center p-10 relative overflow-hidden" data-testid="restore-loading">
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,rgba(124,58,237,0.18),transparent_65%)] animate-pulse pointer-events-none" />
         <div className="relative w-14 h-14 rounded-full border-2 border-[#7C3AED]/30 border-t-[#C4B5FD] animate-spin mb-5" />
-        <p className="relative text-[#F4F1EA] text-[14px] font-medium font-['Inter_Tight']">A restaurar a foto…</p>
+        <p className="relative text-[#F4F1EA] text-[14px] font-medium font-['Inter_Tight']">{t("restore_loading")}</p>
         <p className="relative text-[#5A5A5E] text-[11px] font-mono uppercase mt-2 tracking-[0.18em]">
-          30–90 seg · nível {level}
+          {t("restore_loading_sub", { level: levelLabel })}
         </p>
       </div>
     );
@@ -400,8 +315,8 @@ function ResultArea({ busy, result, originalPreview, level }) {
         <div className="w-12 h-12 rounded-full bg-[#7C3AED]/10 flex items-center justify-center mb-4">
           <History className="w-5 h-5 text-[#C4B5FD]" strokeWidth={1.5} />
         </div>
-        <p className="text-[#8A8A8E] text-[13px] text-center">A tua foto restaurada aparece aqui.</p>
-        <p className="text-[#5A5A5E] text-[11px] text-center mt-1.5">Toca em "Restaurar Foto" para começar.</p>
+        <p className="text-[#8A8A8E] text-[13px] text-center">{t("restore_result_empty")}</p>
+        <p className="text-[#5A5A5E] text-[11px] text-center mt-1.5">{t("restore_result_cta")}</p>
       </div>
     );
   }
@@ -410,7 +325,9 @@ function ResultArea({ busy, result, originalPreview, level }) {
 }
 
 function ResultViewer({ result, originalPreview }) {
+  const { t } = useStudioI18n();
   const [showCompare, setShowCompare] = useState(false);
+  const levelLabel = t(`restore_level_${result.level}_label`);
 
   const handleDownload = async () => {
     try {
@@ -424,7 +341,7 @@ function ResultViewer({ result, originalPreview }) {
       setTimeout(() => URL.revokeObjectURL(url), 1000);
     } catch (e) {
       console.error(e);
-      toast.error("Falha ao preparar download.");
+      toast.error(t("common_download_fail"));
     }
   };
 
@@ -433,7 +350,7 @@ function ResultViewer({ result, originalPreview }) {
       <div className="relative aspect-square bg-black">
         <img
           src={result.url}
-          alt="Restaurada"
+          alt={t("restore_alt_result")}
           className="absolute inset-0 w-full h-full object-contain"
           data-testid="restore-result-image"
           crossOrigin="anonymous"
@@ -442,12 +359,12 @@ function ResultViewer({ result, originalPreview }) {
           <div className="absolute inset-0">
             <img src={originalPreview} alt="" className="w-full h-full object-contain" />
             <div className="absolute top-3 left-3 text-[10px] font-mono uppercase tracking-[0.2em] text-white bg-black/70 px-2 py-1 rounded">
-              Original
+              {t("common_before")}
             </div>
           </div>
         )}
         <div className="absolute top-3 left-3 text-[11px] font-mono uppercase tracking-[0.18em] bg-[#7C3AED] text-white px-2.5 py-1 rounded">
-          Restaurado · {result.level}
+          {t("restore_result_badge", { label: levelLabel })}
         </div>
         {originalPreview && (
           <button
@@ -460,7 +377,7 @@ function ResultViewer({ result, originalPreview }) {
             data-testid="restore-compare"
           >
             <Move className="w-3.5 h-3.5" />
-            Segurar para ver o original
+            {t("common_hold_before")}
           </button>
         )}
       </div>
@@ -471,7 +388,7 @@ function ResultViewer({ result, originalPreview }) {
           data-testid="restore-download"
         >
           <Download className="w-4 h-4" />
-          Baixar Restaurada
+          {t("restore_download")}
         </button>
         <a
           href={result.url}
@@ -480,7 +397,7 @@ function ResultViewer({ result, originalPreview }) {
           className="px-4 py-3 border border-[#2E2E30] hover:border-[#7C3AED]/50 text-[#8A8A8E] hover:text-[#F4F1EA] rounded-lg text-[12.5px] transition-colors flex items-center"
           data-testid="restore-open"
         >
-          Abrir
+          {t("common_open")}
         </a>
       </div>
     </div>

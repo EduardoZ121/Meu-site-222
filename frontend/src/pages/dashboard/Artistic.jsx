@@ -1,294 +1,543 @@
-import { useEffect, useMemo, useState, useRef } from "react";
-import { ArrowLeft, Loader2, Sparkles, Search, Shuffle, Upload, X, Palette } from "lucide-react";
-import { motion } from "framer-motion";
-import { useNavigate } from "react-router-dom";
-import { api } from "../../lib/api";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { Sparkles, Palette, Sun, Camera, Cloud, Sliders } from "lucide-react";
+import { useSearchParams } from "react-router-dom";
+import { api, formatApiError, pollPrediction, trackPendingPrediction, uploadPost } from "../../lib/api";
+import { hasStudioCredits } from "../../lib/useStudioGenerateGate";
+import { normalizeCreation, primaryResultUrl } from "../../lib/creationUrls";
+import CreationResultMedia from "../../components/CreationResultMedia";
 import { useAuth } from "../../lib/auth";
+import { useI18n } from "../../lib/i18n";
+import { usePricing } from "../../lib/PricingContext";
+import { computeArtisticEffectSurcharge } from "../../lib/creditPricing";
 import { toast } from "sonner";
-import ResultPanel from "../../components/ResultPanel";
-import AspectPicker from "../../components/AspectPicker";
-import { compressImage } from "../../lib/imageCompress";
-import { fileToDataURL } from "../../lib/fileToDataURL";
+import { apiAspectRatio } from "../../lib/apiAspectRatio";
+import ArtisticStyleCard from "../../components/artistic/ArtisticStyleCard";
+import ArtisticLabStyleCard from "../../components/artistic/ArtisticLabStyleCard";
+import ArtisticEffectOption from "../../components/artistic/ArtisticEffectOption";
+import DraggableRecipeBubble from "../../components/artistic/DraggableRecipeBubble";
+import ArtisticStudioHeader from "../../components/artistic/ArtisticStudioHeader";
+import ArtisticFlowSteps from "../../components/artistic/ArtisticFlowSteps";
+import ArtisticStudioTabs from "../../components/artistic/ArtisticStudioTabs";
+import ArtisticCategoryRail from "../../components/artistic/ArtisticCategoryRail";
+import ArtisticStudioModule from "../../components/artistic/ArtisticStudioModule";
+import ArtisticPromptStudio from "../../components/artistic/ArtisticPromptStudio";
+import ArtisticResultStudio from "../../components/artistic/ArtisticResultStudio";
+import { pushArtisticPromptHistory } from "../../lib/artisticPromptHistory";
+import { localizeArtisticCatalog } from "../../lib/artisticStudioLocales";
+import { canAccessNsfwArtisticStyles } from "../../lib/artisticStudioData";
+import { isArtisticExperimentalStyle } from "../../lib/artisticLabStyles";
+import { ARTISTIC_LAB_MODEL_LABEL } from "../../lib/artisticStudioEngines";
+import {
+  buildArtisticStudioPrompt,
+  buildRecipeChips,
+  EMPTY_EFFECTS,
+  getStyleById,
+} from "../../lib/buildArtisticStudioPrompt";
+import { resolveArtisticStyleSuffix } from "../../lib/artisticStyleSuffixes";
 import useTitle from "../../lib/useTitle";
+import { useStudioI18n } from "../../lib/useStudioI18n";
 
-const ASPECT_RATIOS = ["1:1", "4:5", "3:4", "9:16", "16:9", "21:9"];
-
-const errMsg = (err) =>
-  err?.code === "ECONNABORTED" ? "Tempo esgotado — tenta de novo." :
-  err?.response?.status === 402 ? "Créditos insuficientes." :
-  err?.response?.status === 429 ? "Demasiados pedidos. Espera 1 minuto." :
-  err?.response?.data?.detail || err?.message || "Falhou.";
-
-function PhotoBox({ photo, onChange, testId }) {
-  const ref = useRef(null);
-  const [preview, setPreview] = useState(null);
-  useEffect(() => {
-    let cancel = false;
-    if (!photo) { setPreview(null); return; }
-    fileToDataURL(photo).then((u) => { if (!cancel) setPreview(u); }).catch(() => {});
-    return () => { cancel = true; };
-  }, [photo]);
-
-  const pick = async (file) => {
-    if (!file) return;
-    const isImg = file.type?.startsWith("image/") || /\.(jpe?g|png|webp|gif|bmp|heic|heif|avif)$/i.test(file.name || "");
-    if (!isImg) { toast.error("Ficheiro tem de ser uma imagem."); return; }
-    try { onChange(await compressImage(file)); }
-    catch (e) { toast.error(e.message || "Não consegui ler esta imagem."); }
-  };
-
-  return (
-    <div className="w-full">
-      <div
-        onClick={() => ref.current?.click()}
-        onDragOver={(e) => e.preventDefault()}
-        onDrop={(e) => { e.preventDefault(); pick(e.dataTransfer.files?.[0]); }}
-        className="relative aspect-[16/9] border-2 border-dashed border-[#2E2E30] hover:border-[#7C3AED]/60 bg-[#13131A]/50 rounded-md cursor-pointer transition-all flex items-center justify-center group overflow-hidden"
-        data-testid={testId}
-      >
-        {preview ? (
-          <>
-            <img src={preview} alt="" className="absolute inset-0 w-full h-full object-contain p-2" />
-            <button onClick={(e) => { e.stopPropagation(); onChange(null); }} className="absolute top-2 right-2 w-8 h-8 bg-black/70 backdrop-blur-sm rounded-full flex items-center justify-center text-white z-10">
-              <X className="w-4 h-4" />
-            </button>
-          </>
-        ) : (
-          <div className="flex flex-col items-center gap-2 text-center px-3">
-            <div className="w-12 h-12 rounded-full bg-[#7C3AED]/10 flex items-center justify-center group-hover:bg-[#7C3AED]/20 transition-colors">
-              <Upload className="w-4 h-4 text-[#7C3AED]" strokeWidth={1.5} />
-            </div>
-            <p className="text-[#F4F1EA] text-[12px] font-medium">Drop a photo</p>
-            <p className="text-[#5A5A5E] text-[10px]">ou clica para enviar</p>
-          </div>
-        )}
-      </div>
-      <input ref={ref} type="file" accept="image/*" className="hidden" onChange={(e) => pick(e.target.files?.[0])} />
-    </div>
-  );
-}
+const SECTION_ICONS = {
+  light: Sun,
+  lens: Camera,
+  cloud: Cloud,
+  palette: Palette,
+};
 
 export default function Artistic() {
-  useTitle("Estilos Artísticos");
+  const { lang, t } = useI18n();
+  const { errToast, clearUploadToast } = useStudioI18n();
+  useTitle(t("art_page_title"));
+  const [searchParams] = useSearchParams();
   const { refresh, user } = useAuth();
-  const navigate = useNavigate();
+  const { costs, region } = usePricing();
 
-  const [styles, setStyles] = useState([]);
-  const [cats, setCats] = useState({});
-  const [tab, setTab] = useState("all");
-  const [query, setQuery] = useState("");
-  const [picked, setPicked] = useState(null);
+  const [styleCat, setStyleCat] = useState("photography");
+  const [styleId, setStyleId] = useState(null);
+  const [effects, setEffects] = useState(EMPTY_EFFECTS);
+  const cost = useMemo(
+    () => costs.artistic + computeArtisticEffectSurcharge(effects, region),
+    [costs.artistic, effects, region],
+  );
+  const [inputMode, setInputMode] = useState("text");
+  const [prompt, setPrompt] = useState(searchParams.get("prompt") || "");
+  const [improve, setImprove] = useState(false);
+  const [wizardOpen, setWizardOpen] = useState(false);
+  const [suggestOpen, setSuggestOpen] = useState(false);
   const [photo, setPhoto] = useState(null);
-  const [aspect, setAspect] = useState("match");
-  const [extra, setExtra] = useState("");
+  const [aspect, setAspect] = useState("3:4");
   const [busy, setBusy] = useState(false);
+  const [improving, setImproving] = useState(false);
   const [result, setResult] = useState(null);
-  const cost = 13;
+  const [meta, setMeta] = useState(null);
+  const [mobileTab, setMobileTab] = useState("generate");
 
   useEffect(() => {
-    if (!photo && aspect === "match") setAspect("1:1");
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [photo]);
+    const q = searchParams.get("prompt");
+    if (q) setPrompt(q);
+  }, [searchParams]);
+
+  const includeNsfw = useMemo(() => canAccessNsfwArtisticStyles(user), [user]);
+
+  const catalog = useMemo(
+    () => localizeArtisticCatalog(lang, { includeNsfw }),
+    [lang, includeNsfw],
+  );
 
   useEffect(() => {
-    api.get("/public/artistic-styles").then((r) => {
-      setStyles(r.data.styles || []);
-      setCats(r.data.categories || {});
-    }).catch(() => {});
-  }, []);
-
-  const filtered = useMemo(() => {
-    let list = styles;
-    if (tab !== "all") list = list.filter((s) => s.cat === tab);
-    if (query.trim()) {
-      const q = query.trim().toLowerCase();
-      list = list.filter((s) => s.label.toLowerCase().includes(q) || s.id.toLowerCase().includes(q));
+    const catIds = catalog.categories.map((c) => c.id);
+    if (!catIds.includes(styleCat) && catIds.length) {
+      setStyleCat(catIds[0]);
     }
-    return list;
-  }, [styles, tab, query]);
+  }, [catalog.categories, styleCat]);
 
-  const surpriseMe = () => {
-    if (!styles.length) return;
-    const random = styles[Math.floor(Math.random() * styles.length)];
-    setPicked(random.id);
-    setTab(random.cat);
-    toast.success(`Estilo surpresa: ${random.label}`);
+  const stylesInCat = useMemo(
+    () => catalog.styles.filter((s) => s.cat === styleCat),
+    [catalog.styles, styleCat],
+  );
+
+  const isLabCategory = styleCat === "nsfw";
+  const labPresets = useMemo(
+    () => stylesInCat.filter((s) => s.labPreset),
+    [stylesInCat],
+  );
+  const classicExperimental = useMemo(
+    () => stylesInCat.filter((s) => !s.labPreset),
+    [stylesInCat],
+  );
+  const labLightStyles = useMemo(
+    () => classicExperimental.filter((s) => s.tier !== "heavy"),
+    [classicExperimental],
+  );
+  const labHeavyStyles = useMemo(
+    () => classicExperimental.filter((s) => s.tier === "heavy"),
+    [classicExperimental],
+  );
+
+  const isLabStyle = useMemo(
+    () => isArtisticExperimentalStyle(styleId),
+    [styleId],
+  );
+
+  const recipeChips = useMemo(
+    () => buildRecipeChips({ styleId, effects }),
+    [styleId, effects],
+  );
+
+  const promptFinal = useMemo(
+    () => buildArtisticStudioPrompt({
+      userPrompt: prompt,
+      styleId,
+      effects,
+      imageMode: inputMode === "image",
+    }),
+    [prompt, styleId, effects, inputMode],
+  );
+
+  const setRadioEffect = (sectionId, optionId) => {
+    setEffects((prev) => ({ ...prev, [sectionId]: optionId }));
   };
 
-  const generate = async () => {
-    if (!photo) { toast.error("Envia uma foto."); return; }
-    if (!picked) { toast.error("Escolhe um estilo da grelha."); return; }
-    if ((user?.credits ?? 0) < cost) {
-      toast.error(`Precisas de ${cost} créditos.`); return;
+  const toggleCheckboxEffect = (sectionId, optionId) => {
+    setEffects((prev) => ({
+      ...prev,
+      [sectionId]: { ...prev[sectionId], [optionId]: !prev[sectionId]?.[optionId] },
+    }));
+  };
+
+  const selectStyle = useCallback(
+    (id) => {
+      setStyleId(id);
+      setMobileTab("generate");
+      const picked = catalog.styles.find((s) => s.id === id);
+      if (picked?.cat === "nsfw" && inputMode !== "image") {
+        setInputMode("image");
+        toast.message(t("art_lab_image_hint"));
+      }
+      if (picked?.cat === "photography" && inputMode !== "image") {
+        setInputMode("image");
+        toast.message(t("art_photo_image_hint"));
+      }
+    },
+    [catalog.styles, inputMode, t],
+  );
+
+  const clearAll = () => {
+    setStyleId(null);
+    setEffects(EMPTY_EFFECTS);
+    setPrompt("");
+    toast.message(t("art_recipe_cleared"));
+  };
+
+  const generate = useCallback(async () => {
+    if (!styleId && prompt.trim().length < 3) {
+      toast.error(t("studio_err_text"));
+      return;
     }
-    setBusy(true); setResult(null);
+    if (inputMode === "image" && !photo) {
+      toast.error(t("art_err_image_mode"));
+      return;
+    }
+    if (isLabStyle && !photo) {
+      toast.error(t("art_lab_need_photo"));
+      return;
+    }
+    if (!hasStudioCredits(user, cost)) {
+      toast.error(t("common_need_credits", { need: cost, have: user?.credits ?? 0 }));
+      return;
+    }
+
+    clearUploadToast();
+    setMobileTab("generate");
+    setBusy(true);
+    setResult(null);
+    const pollOpts = {
+      credits_spent: cost,
+      type: "artistic",
+      timeoutMs: 240_000,
+    };
+    const skipPollHeaders = { "X-Skip-Auto-Poll": "1" };
     try {
-      const fd = new FormData();
-      fd.append("photo", await compressImage(photo));
-      fd.append("style_id", picked);
-      fd.append("aspect_ratio", aspect);
-      fd.append("extra_prompt", extra);
-      const { data } = await api.post("/generate/artistic", fd, { timeout: 180000 });
-      setResult(data.creation);
-      toast.success(`Estilo aplicado · ${data.creation.credits_spent} créditos`);
+      let userPrompt = prompt.trim();
+      if (improve && userPrompt.length >= 3) {
+        const pickedStyle = getStyleById(styleId);
+        try {
+          const { data: imp } = await api.post("/prompt/improve", {
+            prompt: userPrompt,
+            lang: lang || "en",
+            tool: "artistic",
+            style_id: styleId || "",
+            style_label: pickedStyle?.label || "",
+            style_suffix: resolveArtisticStyleSuffix(pickedStyle),
+            image_mode: inputMode === "image",
+          });
+          if (imp?.prompt && imp.prompt.trim().length >= 3) {
+            userPrompt = imp.prompt.trim();
+            setPrompt(userPrompt);
+            if (imp.enhanced) {
+              toast.success(t("art_prompt_refined"));
+            } else {
+              toast.message(t("art_refine_unchanged"));
+            }
+          }
+        } catch (impErr) {
+          const detail = impErr?.response?.data?.detail;
+          toast.error(detail || t("art_refine_unavailable"));
+        }
+      }
+
+      const finalPrompt = buildArtisticStudioPrompt({
+        userPrompt,
+        styleId,
+        effects,
+        imageMode: inputMode === "image",
+      });
+
+      let submitData;
+      if (inputMode === "image" && photo) {
+        const fd = new FormData();
+        fd.append("photo", photo);
+        fd.append("prompt_final", finalPrompt);
+        fd.append("aspect_ratio", apiAspectRatio(aspect, {
+          model: "artistic",
+          hasPhoto: aspect === "match",
+        }));
+        fd.append("style_id", styleId || "");
+        fd.append("style_cat", styleCat || "");
+        fd.append("effects_json", JSON.stringify(effects));
+        fd.append("lang", lang || "en");
+        ({ data: submitData } = await uploadPost("/generate/artistic-studio", fd, {
+          timeout: 120_000,
+          pollTimeoutMs: 240_000,
+          headers: skipPollHeaders,
+        }));
+      } else {
+        ({ data: submitData } = await api.post("/generate/artistic-studio", {
+          prompt_final: finalPrompt,
+          aspect_ratio: apiAspectRatio(aspect, { model: "artistic", hasPhoto: false }),
+          style_id: styleId || "",
+          style_cat: styleCat || "",
+          effects_json: JSON.stringify(effects),
+          lang: lang || "en",
+        }, { timeout: 60_000, headers: skipPollHeaders }));
+      }
+
+      if (!submitData?.prediction_id) {
+        throw new Error(t("common_no_result"));
+      }
+
+      trackPendingPrediction(submitData.prediction_id, {
+        credits_spent: submitData.credits_spent || cost,
+        type: "artistic",
+      });
+      const data = await pollPrediction(submitData.prediction_id, {
+        ...pollOpts,
+        credits_spent: submitData.credits_spent || cost,
+      });
+
+      const creation = normalizeCreation(data?.creation);
+      if (!primaryResultUrl(creation)) {
+        throw new Error(t("common_no_result"));
+      }
+      setResult(creation);
+      if (userPrompt.length >= 3) pushArtisticPromptHistory(userPrompt);
+      setMeta({
+        style: getStyleById(styleId)?.label,
+        chips: recipeChips,
+        seed: creation.id?.slice?.(0, 8),
+        lastPrompt: userPrompt,
+      });
+      toast.success(t("common_generated", { n: creation.credits_spent ?? cost }));
       await refresh();
     } catch (err) {
-      toast.error(errMsg(err), { duration: 8000 });
-    } finally { setBusy(false); }
-  };
+      errToast(err);
+    } finally {
+      setBusy(false);
+    }
+  }, [
+    styleId,
+    styleCat,
+    isLabStyle,
+    prompt,
+    inputMode,
+    photo,
+    user,
+    cost,
+    improve,
+    lang,
+    effects,
+    aspect,
+    recipeChips,
+    refresh,
+    t,
+    errToast,
+    clearUploadToast,
+  ]);
 
-  const pickedStyle = styles.find((s) => s.id === picked);
+  const downloadUrl = primaryResultUrl(result);
+
+  const improvePromptOnly = useCallback(async () => {
+    const userPrompt = prompt.trim();
+    if (userPrompt.length < 3) {
+      toast.error(t("studio_err_text"));
+      return;
+    }
+    setImproving(true);
+    try {
+      const pickedStyle = getStyleById(styleId);
+      const { data: imp } = await api.post("/prompt/improve", {
+        prompt: userPrompt,
+        lang: lang || "en",
+        tool: "artistic",
+        style_id: styleId || "",
+        style_label: pickedStyle?.label || "",
+        style_suffix: resolveArtisticStyleSuffix(pickedStyle),
+        image_mode: inputMode === "image",
+      });
+      if (imp?.prompt && imp.prompt.trim().length >= 3) {
+        setPrompt(imp.prompt.trim().slice(0, 800));
+        toast.success(imp.enhanced ? t("art_prompt_refined") : t("art_refine_unchanged"));
+      }
+    } catch (impErr) {
+      toast.error(impErr?.response?.data?.detail || t("art_refine_unavailable"));
+    } finally {
+      setImproving(false);
+    }
+  }, [prompt, styleId, inputMode, lang, t]);
+
+  const panelVisibility = (tab) =>
+    mobileTab !== tab ? "hidden lg:block" : "";
+
+  const promptReady = prompt.trim().length >= 3 || Boolean(photo);
+
+  const styleGallery = (
+    <>
+      <ArtisticCategoryRail
+        categories={catalog.categories}
+        styles={catalog.styles}
+        activeId={styleCat}
+        onSelect={setStyleCat}
+      />
+      <p className="text-[#9CA3AF] text-[10px] font-mono uppercase tracking-[0.14em] mb-3">
+        {catalog.categories.find((c) => c.id === styleCat)?.label}
+        {includeNsfw ? ` · ${t("art_nsfw_admin_badge")}` : ""}
+      </p>
+      {isLabCategory && includeNsfw ? (
+        <div className="art-lab-panel mb-4 rounded-xl border border-[rgba(236,72,153,0.25)] bg-gradient-to-br from-[#1a0a1f]/80 via-[#111118] to-[#0a0a0f] p-3 md:p-4 max-h-[min(calc(100dvh-12rem),720px)] overflow-y-auto overflow-x-hidden">
+          <p className="text-[#f0abfc] text-[11px] font-semibold mb-1">{t("art_lab_title")}</p>
+          <p className="text-[#6B7280] text-[9px] font-mono uppercase tracking-wider mb-1">
+            {t("art_lab_engine_note", { model: ARTISTIC_LAB_MODEL_LABEL })}
+          </p>
+          <p className="text-[#9CA3AF] text-[10px] leading-snug mb-3">{t("art_lab_desc")}</p>
+          <div className="art-lab-scroll flex gap-2.5 overflow-x-auto pb-2 w-full min-w-0 snap-x snap-mandatory [-webkit-overflow-scrolling:touch] md:grid md:grid-cols-2 md:gap-2.5 md:overflow-visible md:pb-0 lg:grid-cols-2">
+            {labPresets.map((s) => (
+              <div key={s.id} className="snap-start shrink-0 w-[min(72vw,220px)] md:w-auto md:shrink">
+                <ArtisticLabStyleCard style={s} selected={styleId === s.id} onSelect={selectStyle} />
+              </div>
+            ))}
+          </div>
+          {labLightStyles.length > 0 && (
+            <>
+              <p className="text-[#6B7280] text-[9px] font-mono uppercase tracking-[0.16em] mt-4 mb-2">
+                {t("art_lab_light_row")}
+              </p>
+              <div className="art-studio-styles-grid !max-h-none">
+                {labLightStyles.map((s) => (
+                  <ArtisticStyleCard key={s.id} style={s} selected={styleId === s.id} onSelect={selectStyle} />
+                ))}
+              </div>
+            </>
+          )}
+          {labHeavyStyles.length > 0 && (
+            <>
+              <p className="text-[#6B7280] text-[9px] font-mono uppercase tracking-[0.16em] mt-4 mb-2">
+                {t("art_lab_heavy_row")}
+              </p>
+              <div className="art-studio-styles-grid !max-h-none">
+                {labHeavyStyles.map((s) => (
+                  <ArtisticStyleCard key={s.id} style={s} selected={styleId === s.id} onSelect={selectStyle} />
+                ))}
+              </div>
+            </>
+          )}
+        </div>
+      ) : (
+        <div className="art-studio-styles-grid">
+          {stylesInCat.map((s) => (
+            <ArtisticStyleCard key={s.id} style={s} selected={styleId === s.id} onSelect={selectStyle} />
+          ))}
+        </div>
+      )}
+    </>
+  );
 
   return (
-    <div className="max-w-[1400px] mx-auto pb-32" data-testid="artistic-page">
-      <button onClick={() => navigate("/app/tools")} className="inline-flex items-center gap-2 text-[#8A8A8E] hover:text-[#F4F1EA] mb-6 text-[12px] font-medium">
-        <ArrowLeft className="w-4 h-4" /> Voltar às ferramentas
-      </button>
+    <div
+      className="rp-artistic-page w-full min-w-0 max-w-full mx-auto px-1 sm:px-0 pb-8 md:pb-14 md:max-w-[1680px]"
+      data-testid="artistic-studio-page"
+    >
+      <ArtisticStudioHeader />
 
-      <header className="mb-10">
-        <div className="flex items-center gap-3 mb-3">
-          <div className="w-9 h-9 rounded-full bg-[#7C3AED]/15 flex items-center justify-center">
-            <Palette className="w-4 h-4 text-[#C4B5FD]" strokeWidth={1.5} />
+      <p className="md:hidden text-[#9CA3AF] text-[13px] leading-relaxed mb-4 px-0.5">
+        {t("art_hero_subtitle")}
+      </p>
+
+      <ArtisticFlowSteps
+        activeStep={mobileTab}
+        promptReady={promptReady}
+        styleSelected={Boolean(styleId)}
+        onStepSelect={setMobileTab}
+      />
+
+      <ArtisticStudioTabs value={mobileTab} onChange={setMobileTab} />
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6 w-full min-w-0">
+        <ArtisticStudioModule
+          step={1}
+          title={t("art_tab_prompt")}
+          subtitle={t("art_module_prompt_hint")}
+          icon={Sparkles}
+          className={`${panelVisibility("generate")} flex flex-col lg:order-1`}
+          testId="artistic-module-prompt"
+        >
+          <ArtisticPromptStudio
+            inputMode={inputMode}
+            setInputMode={setInputMode}
+            isLabStyle={isLabStyle}
+            photo={photo}
+            setPhoto={setPhoto}
+            prompt={prompt}
+            setPrompt={setPrompt}
+            aspect={aspect}
+            setAspect={setAspect}
+            improve={improve}
+            setImprove={setImprove}
+            busy={busy}
+            cost={cost}
+            user={user}
+            styleId={styleId}
+            onGenerate={generate}
+            onImprovePrompt={improvePromptOnly}
+            improving={improving}
+          />
+          <ArtisticResultStudio
+            busy={busy}
+            downloadUrl={downloadUrl}
+            result={result}
+            meta={meta}
+            recipeChips={recipeChips}
+            onVary={generate}
+            onRefine={() => {
+              setPrompt((p) => `${p}${p ? " " : ""}refine details, higher quality`);
+              toast.message(t("art_refine_toast"));
+            }}
+            onReusePrompt={() => {
+              if (meta?.lastPrompt) setPrompt(meta.lastPrompt);
+              else toast.message(t("art_result_reuse"));
+            }}
+          />
+        </ArtisticStudioModule>
+
+        <ArtisticStudioModule
+          step={2}
+          title={t("art_sec_style")}
+          subtitle={t("art_module_style_hint")}
+          icon={Palette}
+          className={`${panelVisibility("style")} lg:order-2`}
+          testId="artistic-module-style"
+        >
+          <p className="text-[#6B7280] text-[10px] mb-3">
+            {t("art_styles_count", { n: catalog.styles.length })}
+          </p>
+          {styleGallery}
+        </ArtisticStudioModule>
+
+        <ArtisticStudioModule
+          step={3}
+          title={t("art_sec_effects")}
+          subtitle={t("art_module_effects_hint")}
+          icon={Sliders}
+          accent="cyan"
+          className={`${panelVisibility("effects")} max-h-[min(calc(100dvh-12rem),820px)] lg:max-h-[min(88vh,820px)] overflow-y-auto lg:order-3`}
+          testId="artistic-module-effects"
+        >
+          <div className="space-y-6">
+            {catalog.sections.map((section) => {
+              const SecIcon = SECTION_ICONS[section.icon] || Sparkles;
+              return (
+                <div key={section.id}>
+                  <p className="text-[#9CA3AF] text-[10px] font-mono uppercase tracking-[0.16em] mb-2.5 flex items-center gap-1.5">
+                    <SecIcon className="w-3.5 h-3.5 text-[#67e8f9]" /> {section.title}
+                  </p>
+                  <div className="space-y-1">
+                    {section.options.map((opt) => {
+                      const active =
+                        section.type === "radio"
+                          ? effects[section.id] === opt.id
+                          : Boolean(effects[section.id]?.[opt.id]);
+                      return (
+                        <ArtisticEffectOption
+                          key={opt.id}
+                          section={section}
+                          opt={opt}
+                          active={active}
+                          onToggle={() => {
+                            if (section.type === "radio") setRadioEffect(section.id, opt.id);
+                            else toggleCheckboxEffect(section.id, opt.id);
+                          }}
+                        />
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            })}
           </div>
-          <p className="text-[#7C3AED] text-[10px] font-mono uppercase tracking-[0.22em]">Estilos Artísticos · {styles.length}+ estilos</p>
-        </div>
-        <h1 className="text-[#F4F1EA] text-[32px] md:text-[44px] font-light tracking-[-0.02em] leading-[1.1] mb-3 font-['Inter_Tight']">
-          Uma foto, <span className="italic">reimaginada</span>.
-        </h1>
-        <p className="text-[#8A8A8E] text-[15px] max-w-[640px]">Anime, óleo, aquarela, comic, fantasy, pixel art e muito mais. Escolhe um estilo e a foto é transformada em segundos.</p>
-      </header>
-
-      <div className="grid grid-cols-1 xl:grid-cols-[1fr_400px] gap-10">
-        <div className="space-y-10">
-          {/* Step 1 — Photo */}
-          <section>
-            <p className="text-[10px] font-mono uppercase tracking-[0.22em] text-[#7C3AED] mb-3">1 · Foto</p>
-            <div className="max-w-[560px]">
-              <PhotoBox photo={photo} onChange={setPhoto} testId="artistic-photo" />
-            </div>
-          </section>
-
-          {/* Step 2 — Style picker */}
-          <section>
-            <div className="flex items-center justify-between mb-4">
-              <p className="text-[10px] font-mono uppercase tracking-[0.22em] text-[#7C3AED]">2 · Estilo {pickedStyle && <span className="text-[#C4B5FD] normal-case font-sans text-[12px] tracking-normal ml-2">· {pickedStyle.label}</span>}</p>
-              <button onClick={surpriseMe} className="flex items-center gap-1.5 text-[#8A8A8E] hover:text-[#C4B5FD] text-[11px] font-medium transition-colors" data-testid="surprise-me">
-                <Shuffle className="w-3.5 h-3.5" /> Surpreende-me
-              </button>
-            </div>
-
-            {/* Search */}
-            <div className="relative mb-4">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[#5A5A5E]" />
-              <input
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                placeholder="Procurar estilo... (ex: anime, oil, cyber)"
-                className="w-full bg-[#13131A] border border-[#2E2E30] focus:border-[#7C3AED] text-[#F4F1EA] text-[13px] placeholder:text-[#5A5A5E] pl-9 pr-4 py-2.5 rounded-md focus:outline-none transition-colors"
-                data-testid="artistic-search"
-              />
-            </div>
-
-            {/* Category tabs */}
-            <div className="flex flex-wrap gap-1.5 mb-5" data-testid="artistic-cats">
-              <button onClick={() => setTab("all")} className={`px-3.5 py-1.5 text-[11px] font-medium rounded-full transition-all ${tab === "all" ? "bg-[#F4F1EA] text-[#0B0B0C]" : "bg-[#13131A] border border-[#2E2E30] text-[#8A8A8E] hover:text-[#F4F1EA]"}`}>Todos ({styles.length})</button>
-              {Object.entries(cats).map(([id, label]) => {
-                const n = styles.filter((s) => s.cat === id).length;
-                return (
-                  <button key={id} onClick={() => setTab(id)} className={`px-3.5 py-1.5 text-[11px] font-medium rounded-full transition-all ${tab === id ? "bg-[#F4F1EA] text-[#0B0B0C]" : "bg-[#13131A] border border-[#2E2E30] text-[#8A8A8E] hover:text-[#F4F1EA]"}`} data-testid={`cat-${id}`}>
-                    {label} ({n})
-                  </button>
-                );
-              })}
-            </div>
-
-            {/* Style grid */}
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2 max-h-[520px] overflow-y-auto pr-1" data-testid="artistic-styles-grid">
-              {filtered.map((s, i) => (
-                <motion.button
-                  key={s.id}
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  transition={{ duration: 0.25, delay: Math.min(i * 0.01, 0.3) }}
-                  onClick={() => setPicked(s.id)}
-                  className={`relative aspect-[4/3] rounded-md overflow-hidden border-2 transition-all text-left p-3 flex flex-col justify-end ${
-                    picked === s.id
-                      ? "border-[#7C3AED] ring-2 ring-[#7C3AED]/40"
-                      : "border-[#2E2E30] hover:border-[#7C3AED]/40"
-                  }`}
-                  data-testid={`style-${s.id}`}
-                  style={{
-                    background: `linear-gradient(135deg,
-                      hsl(${(s.id.charCodeAt(0) * 7) % 360}, 35%, 22%) 0%,
-                      #13131A 60%,
-                      #0B0B0C 100%)`,
-                  }}
-                >
-                  <p className="relative z-10 text-[#F4F1EA] text-[12px] font-medium leading-tight font-['Inter_Tight']">{s.label}</p>
-                  <p className="relative z-10 text-[#C4B5FD]/60 text-[9px] font-mono uppercase tracking-wider mt-0.5">{cats[s.cat]?.split(" ")[0] || s.cat}</p>
-                  {picked === s.id && (
-                    <div className="absolute top-2 right-2 w-5 h-5 rounded-full bg-[#7C3AED] flex items-center justify-center">
-                      <span className="text-white text-[10px]">✓</span>
-                    </div>
-                  )}
-                </motion.button>
-              ))}
-              {filtered.length === 0 && (
-                <p className="col-span-full text-[#5A5A5E] text-[13px] py-10 text-center">Nenhum estilo encontrado para "{query}"</p>
-              )}
-            </div>
-          </section>
-
-          {/* Step 3 — extra prompt */}
-          <section>
-            <p className="text-[10px] font-mono uppercase tracking-[0.22em] text-[#7C3AED] mb-3">3 · Detalhes extra (opcional)</p>
-            <input
-              value={extra}
-              onChange={(e) => setExtra(e.target.value)}
-              placeholder='Ex: "dramatic lighting, gold accents, moody atmosphere"'
-              className="w-full bg-[#13131A] border border-[#2E2E30] focus:border-[#7C3AED] text-[#F4F1EA] text-[14px] placeholder:text-[#5A5A5E] px-4 py-3 rounded-md focus:outline-none transition-colors"
-              data-testid="artistic-extra"
-            />
-          </section>
-
-          {/* Step 4 — aspect ratio */}
-          <section>
-            <p className="text-[10px] font-mono uppercase tracking-[0.22em] text-[#7C3AED] mb-3">4 · Formato</p>
-            <AspectPicker value={aspect} onChange={setAspect} hasPhoto={!!photo} testIdPrefix="art-aspect" />
-          </section>
-        </div>
-
-        {/* RIGHT */}
-        <aside className="xl:sticky xl:top-[80px] self-start">
-          <p className="text-[#5A5A5E] text-[10px] font-mono uppercase tracking-[0.2em] mb-3">Resultado</p>
-          <ResultPanel creation={result} loading={busy} onChange={setResult} emptyLabel="A foto reimaginada aparece aqui." />
-        </aside>
+        </ArtisticStudioModule>
       </div>
 
-      {/* Sticky CTA */}
-      <motion.div initial={{ y: 100 }} animate={{ y: 0 }} className="fixed bottom-0 left-0 right-0 md:left-[240px] bg-gradient-to-t from-[#0B0B0C] via-[#0B0B0C] to-[#0B0B0C]/95 backdrop-blur-xl border-t border-[#2E2E30] z-30 px-4 sm:px-6 md:px-10 py-4">
-        <div className="max-w-[1400px] mx-auto flex items-center justify-between gap-4">
-          <div className="hidden sm:flex items-center gap-3 text-[12px]">
-            <span className="text-[#8A8A8E]">Credits required:</span>
-            <span className="text-[#C4B5FD] font-medium text-[16px]">{cost}</span>
-            <span className="text-[#5A5A5E] mx-2">·</span>
-            <span className="text-[#8A8A8E]">Saldo:</span>
-            <span className="text-[#F4F1EA] font-medium">{user?.credits ?? 0}</span>
-          </div>
-          <button
-            onClick={generate}
-            disabled={busy}
-            className="flex-1 sm:flex-initial sm:min-w-[280px] bg-gradient-to-r from-[#7C3AED] to-[#9333EA] hover:from-[#8B5CF6] hover:to-[#A855F7] disabled:from-[#1A1A1C] disabled:to-[#1A1A1C] disabled:text-[#5A5A5E] text-white py-3.5 rounded-md text-[13px] font-medium tracking-wide transition-all flex items-center justify-center gap-2 shadow-lg shadow-[#7C3AED]/30 hover:shadow-[#7C3AED]/50"
-            data-testid="artistic-create"
-          >
-            {busy ? (
-              <><Loader2 className="w-4 h-4 animate-spin" /> A pintar...</>
-            ) : (
-              <><Sparkles className="w-4 h-4" /> Aplicar Estilo · {cost} créditos</>
-            )}
-          </button>
-        </div>
-      </motion.div>
+      <DraggableRecipeBubble chips={recipeChips} onClearAll={clearAll} />
     </div>
   );
 }
+

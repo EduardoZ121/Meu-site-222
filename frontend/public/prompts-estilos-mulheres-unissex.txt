@@ -1,0 +1,477 @@
+REMADE PIX — PROMPTS DOS ESTILOS PRONTOS (fallback)
+Categoria: MULHERES (ordem = ordem dos cards na grelha do Estúdio)
+Depois: UNISSEX (mesma ordem que aparece na grelha Unissex)
+
+Para o PDF das capas: página 1 = 1.º estilo desta lista (esq. na 1.ª linha), página 2 = 2.º (dir.), etc.
+Substitui [subject] na tua ferramenta por "the woman" ou pela descrição da tua modelo de referência.
+========================================================================
+
+### MULHERES (6 estilos)
+
+------------------------------------------------------------------------
+1. ID: wom_baton
+    TÍTULO: 💄 Baton Rouge Editorial
+    subject (API): the woman
+
+    PROMPT:
+    Use the reference photo and make an ultra-realistic close-up portrait, [subject] wearing an elegant strapless black suit, seductive and confident expression, striking red lipstick, dramatic fashion lighting with a soft circular spotlight in the background, cinematic aesthetic of beauty editorial photography, ultra HD, preserve identity, keep same face, keep facial structure, keep skin tone, maintain original identity, do not change person, realistic face consistency, preserve original facial expression, keep same emotion, keep same eye expression, keep same pose
+
+------------------------------------------------------------------------
+2. ID: wom_coffee
+    TÍTULO: ☕ Café Editorial Bege
+    subject (API): the woman
+
+    PROMPT:
+    A full-length studio photograph with a professional and elegant aesthetic. It captures [subject] seated in a light wooden chair with a seat and back upholstered in light fabric and straw accents. The subject sits in a confident and relaxed pose, slightly turned toward the camera, with a gentle smile. One hand rests on the arm of the chair, and the legs are crossed at the ankles. Wearing a suit (blazer and pants) in a neutral tone (light beige or gray-green) over a white or cream top. On the feet are light-colored high-heeled shoes with ankle straps. Wearing delicate jewelry: a necklace with a pendant, earrings, and rings. Nails painted a vibrant red. Hair styled medium-length with soft waves, combed to the side. The background is a solid-colored studio backdrop in a uniform, light brown tone. The lighting is studio-style, soft, and directional, coming from a frontal-upward angle. Captured with a prime portrait lens (85mm) on a full-frame camera, f/4.5, ISO 100, 1/200s. Studio lighting with a large softbox as the main light. preserve identity, keep same face, keep facial structure, keep skin tone, maintain original identity, do not change person, realistic face consistency, preserve original facial expression, keep same emotion, keep same eye expression, keep same pose
+
+------------------------------------------------------------------------
+3. ID: wom_mirror
+    TÍTULO: 📱 Selfie Espelho Confiante
+    subject (API): the woman
+
+    PROMPT:
+    A full-length mirror or selfie photograph with a casual, modern aesthetic, featuring [subject] standing against a dark wall, looking at the camera with a serious, confident expression. One hand raised holding a cell phone taking the photo, the other playing with the hair. Wearing a black cropped top with a red print and short tight denim shorts. Discreet tattoos visible on the abdomen. Wearing a necklace with a heart pendant. Hair long, dark, styled with straight bangs and two thick braids over the shoulders. Dramatic makeup with winged eyeliner and lipstick. Background minimal dark wall. Lighting diffuse and soft from the front, highlighting face and clothing without harsh shadows. Camera: high-quality phone selfie, 24-35mm equivalent, f/1.8, ISO 200, 1/125s. preserve identity, keep same face, keep facial structure, keep skin tone, maintain original identity, do not change person, realistic face consistency, preserve original facial expression, keep same emotion, keep same eye expression, keep same pose
+
+------------------------------------------------------------------------
+4. ID: wom_softselfie
+    TÍTULO: ✨ Selfie Suave & Glow
+    subject (API): the woman
+
+    PROMPT:
+    Create a soft aesthetic selfie featuring [subject] with a gentle confident expression. Lighting warmer and softer, dreamy glow on the skin. Background is a smooth dark wall. Outfit casual modern. Soft natural makeup. Overall mood calm, refined, and gentle while keeping a believable phone-selfie look. Camera: phone selfie, 35mm, f/2.0, ISO 200. preserve identity, keep same face, keep facial structure, keep skin tone, maintain original identity, do not change person, realistic face consistency, preserve original facial expression, keep same emotion, keep same eye expression, keep same pose
+
+------------------------------------------------------------------------
+5. ID: wom_mirror_concrete
+    TÍTULO: 🪞 Mirror Bedroom Selfie
+    subject (API): the woman
+
+    PROMPT:
+    Cinematic portrait of [subject] with short curly dark hair leaning against a textured concrete wall, wearing a loose white button-down shirt and layered gold necklaces. Warm golden hour sunlight through a window creates dramatic shadow patterns. Soft natural light on the face, thoughtful sideways expression, minimal aesthetic, shallow depth of field, film photography style, 85mm lens, warm tones, high detail. preserve identity, keep same face, keep facial structure, keep skin tone, maintain original identity, do not change person, realistic face consistency, preserve original facial expression, keep same emotion, keep same eye expression, keep same pose
+
+------------------------------------------------------------------------
+6. ID: wom_fitness_split
+    TÍTULO: 💪 Fitness Lifestyle Split
+    subject (API): the woman
+
+    PROMPT:
+    Modern lifestyle split composition poster combining a luxurious smartphone gym selfie with a healthy diet bowl. Top section: [subject] in a luxury gym taking a mirror selfie holding a smartphone, wearing stylish sports bra and high-waisted athletic shorts/leggings, healthy toned physique, post-workout glow, modern gym mirrors, soft natural window light. Bottom section: clean top-down food photography of healthy breakfast bowl with strawberries, blueberries, banana slices, granola, yogurt, on wooden table, with minimal nutrition infographic next to bowl labelled 'Banana 90 kcal / Strawberries 50 / Blueberries 60 / Granola 180 / Yogurt 120 / Total 500 kcal'. Soft neutrals, natural wood tones, fresh fruit colors. Photorealistic, high detail, fitness lifestyle aesthetic. preserve identity, keep same face, keep facial structure, keep skin tone, maintain original identity, do not change person, realistic face consistency, preserve original facial expression, keep same emotion, keep same eye expression, keep same pose
+
+
+========================================================================
+### UNISSEX (52 estilos)
+
+------------------------------------------------------------------------
+1. ID: u_joker
+    TÍTULO: 🃏 Joker Dualidade
+    subject (API): the person
+
+    PROMPT:
+    Generate a striking portrait with a central theme of duality and hidden identity. The image should feature [subject] holding a Joker-style clown mask in front of the face. The subject should be depicted in grayscale, suggesting a somber or desaturated reality, with a thoughtful or melancholic expression in the visible eye. The hand, holding the mask, should be detailed and possibly gloved or armored, also in grayscale. The clown mask, however, should be in vibrant color, with its classic red smile, red nose, and blue markings around the eyes, appearing vivid and unsettlingly cheerful. The background should be dark and minimalistic to emphasize the contrast between the subject and the mask. preserve identity, keep same face, keep facial structure, keep skin tone, maintain original identity, do not change person, realistic face consistency, preserve original facial expression, keep same emotion, keep same eye expression, keep same pose
+
+------------------------------------------------------------------------
+2. ID: u_rembrandt
+    TÍTULO: 🎨 Rembrandt Clássico
+    subject (API): the person
+
+    PROMPT:
+    Generate a realistic portrait styled after a 17th-century Dutch oil painting, [subject], with classic Rembrandt lighting (Chiaroscuro), a single soft light source illuminating one side of the face against a dark, moody background. The final image should have the rich color palette, deep shadows, and subtle texture of an oil painting on canvas, with fine, visible brushstrokes. Calm and introspective expression, capturing a quiet, timeless moment, preserve identity, keep same face, keep facial structure, keep skin tone, maintain original identity, do not change person, realistic face consistency, preserve original facial expression, keep same emotion, keep same eye expression, keep same pose
+
+------------------------------------------------------------------------
+3. ID: u_facepost
+    TÍTULO: 🖼️ Pôster Tinta Editorial
+    subject (API): the person
+
+    PROMPT:
+    Convert this image into an editorial art-poster in extreme close-up, half-frame composition; [subject]; thick impasto oil-paint texture with palette-knife strokes forming realistic features, teal-green iris with sharp catchlight, lips and skin rendered in layered paint ridges; abstract paint blocks in matte black and deep yellow overlapping the left side like chipped panels; subtle paper grain and micro-cracks; clean poster edges, deep vignette and soft studio background blur for focus; lighting: soft museum key light from upper left with gentle speculars on paint peaks, HDR exposure, high local contrast; optical language: 85mm portrait look, f/2.8, ISO 100, 1/160s, shallow depth isolating the eye; output intent: ultra-sharp, high-frequency paint detail, print-ready, preserve identity, keep same face, keep facial structure, keep skin tone, maintain original identity, do not change person, realistic face consistency, preserve original facial expression, keep same emotion, keep same eye expression, keep same pose
+
+------------------------------------------------------------------------
+4. ID: u_corporate
+    TÍTULO: 📰 Corporativo P&B
+    subject (API): the person
+
+    PROMPT:
+    Black and white editorial magazine portrait, focus on [subject] seated on a sofa, confident introspective expression, direct gaze to camera, relaxed pose with hand supporting the chin, light dress shirt with a few buttons open, soft side lighting creating contrast and depth, sophisticated interior with curtains and modern decor in the background, realistic skin and fabric texture, high sharpness, professional photographic quality, 85mm f/1.8 lens, cinematic monochrome style. Negative: blurry, cartoonish, oversaturated, smiling, colored image, low contrast. preserve identity, keep same face, keep facial structure, keep skin tone, maintain original identity, do not change person, realistic face consistency, preserve original facial expression, keep same emotion, keep same eye expression, keep same pose
+
+------------------------------------------------------------------------
+5. ID: u_lion_winter
+    TÍTULO: ❄️ Conexão Inverno
+    subject (API): the person
+
+    PROMPT:
+    Create a realistic and emotional scene showing [subject] and a lion face to face in a moment of connection and respect. Eyes closed, with a serene expression, while the lion gently rests its forehead and muzzle against the subject, conveying trust and a spiritual bond. Both are standing on ground covered in light snow, with snowflakes gently falling. Wearing a dark coat, hair slightly tousled by the wind, and the lion displays a thick, majestic mane. In the background, a cold, misty natural landscape with blurred mountains and gray tones reinforces the calm and powerful atmosphere. Soft diffuse natural winter light, ultra-realistic cinematic 8K. preserve identity, keep same face, keep facial structure, keep skin tone, maintain original identity, do not change person, realistic face consistency, preserve original facial expression, keep same emotion, keep same eye expression, keep same pose
+
+------------------------------------------------------------------------
+6. ID: u_lion_desert
+    TÍTULO: 🏜️ Rei do Deserto
+    subject (API): the person
+
+    PROMPT:
+    Create a powerful cinematic scene showing [subject] and a lion face to face in a warm desert environment, symbolizing dominance and unity. Calm and confident expression, eyes slightly closed, while the lion stands firmly with its mane flowing in the wind. Golden sand dunes stretch across the background with a glowing sunset horizon. Warm orange and gold tones dominate the scene. Strong directional lighting from the side creates dramatic shadows and highlights on the face and lion's fur. Ultra-realistic, cinematic, 8K, golden hour. preserve identity, keep same face, keep facial structure, keep skin tone, maintain original identity, do not change person, realistic face consistency, preserve original facial expression, keep same emotion, keep same eye expression, keep same pose
+
+------------------------------------------------------------------------
+7. ID: u_lion_shadow
+    TÍTULO: 🌑 Espírito Sombra
+    subject (API): the person
+
+    PROMPT:
+    Create a dark cinematic scene showing [subject] and a lion in a mysterious connection within a shadowy environment. Eyes closed, deep introspective expression, while the lion appears partially hidden in darkness. Background filled with fog, dark tones, and minimal light. A single soft light source illuminates the faces, creating strong contrast and chiaroscuro effect. The atmosphere should feel spiritual, intense, and symbolic. Ultra-realistic, dark cinematic, 8K, low-key lighting. preserve identity, keep same face, keep facial structure, keep skin tone, maintain original identity, do not change person, realistic face consistency, preserve original facial expression, keep same emotion, keep same eye expression, keep same pose
+
+------------------------------------------------------------------------
+8. ID: u_phone_spotify
+    TÍTULO: 🎧 Spotify Gigante
+    subject (API): the person
+
+    PROMPT:
+    Create a stylish, modern photo in vertical 9:16 format using the reference image, featuring [subject] standing confidently on the giant screen of an iPhone 16 lying on the floor. The screen displays a Spotify playlist with the song 'Enter Sandman - Metallica.' Wearing AirPods Max, an oversized white hoodie, black pants, and crisp white Air Jordans. The scene is shot from a high angle, top-down, to emphasize the scale of the phone. Minimalist, stylish, futuristic vibe. preserve identity, keep same face, keep facial structure, keep skin tone, maintain original identity, do not change person, realistic face consistency, preserve original facial expression, keep same emotion, keep same eye expression, keep same pose
+
+------------------------------------------------------------------------
+9. ID: u_phone_neon
+    TÍTULO: 🟣 Neon Music World
+    subject (API): the person
+
+    PROMPT:
+    Create a futuristic neon-style scene in vertical 9:16 format featuring [subject] standing on a giant smartphone screen displaying a music interface. The environment glows with purple and blue neon lights. Wearing headphones, oversized hoodie, and streetwear outfit. High-angle top-down shot emphasizing scale. Cyberpunk aesthetic with glowing reflections. preserve identity, keep same face, keep facial structure, keep skin tone, maintain original identity, do not change person, realistic face consistency, preserve original facial expression, keep same emotion, keep same eye expression, keep same pose
+
+------------------------------------------------------------------------
+10. ID: u_phone_apple
+    TÍTULO: 🍏 Apple Minimal Luxo
+    subject (API): the person
+
+    PROMPT:
+    Create a clean luxury Apple-style photo in vertical 9:16 featuring [subject] standing on a giant smartphone screen in a minimalist white environment. The interface is sleek and modern with music playing. Wearing premium streetwear with a refined aesthetic. Shot from a high top-down angle with soft shadows and clean lighting. preserve identity, keep same face, keep facial structure, keep skin tone, maintain original identity, do not change person, realistic face consistency, preserve original facial expression, keep same emotion, keep same eye expression, keep same pose
+
+------------------------------------------------------------------------
+11. ID: u_phone_street
+    TÍTULO: 🏙️ Street Music Energy
+    subject (API): the person
+
+    PROMPT:
+    Create a street-style scene in vertical 9:16 featuring [subject] standing on a giant phone screen placed on an urban ground surface. The screen shows a music player interface. Background includes subtle street textures like concrete and graffiti. Outfit is casual streetwear with strong attitude. Shot from top-down angle. preserve identity, keep same face, keep facial structure, keep skin tone, maintain original identity, do not change person, realistic face consistency, preserve original facial expression, keep same emotion, keep same eye expression, keep same pose
+
+------------------------------------------------------------------------
+12. ID: u_ed_future
+    TÍTULO: 🌸 Future Vision Pôster
+    subject (API): the person
+
+    PROMPT:
+    Fashion editorial poster featuring [subject] in modern Japanese streetwear, standing against a minimal gradient background. Oversized typography at the top spells 'FUTURE VISION' in English, with smaller Japanese katakana characters beneath. Monochrome palette in neon pink. Ultra-modern, high-fashion poster design. preserve identity, keep same face, keep facial structure, keep skin tone, maintain original identity, do not change person, realistic face consistency, preserve original facial expression, keep same emotion, keep same eye expression, keep same pose
+
+------------------------------------------------------------------------
+13. ID: u_ed_modern
+    TÍTULO: 🌷 Modern Edge Pôster
+    subject (API): the person
+
+    PROMPT:
+    Fashion editorial poster featuring [subject] in modern streetwear with a luxury minimalist approach, standing against a soft neutral gradient background. Clean oversized typography reading 'MODERN EDGE' with subtle Japanese characters. Soft monochrome tones with light pink accents. Clean and elegant composition. preserve identity, keep same face, keep facial structure, keep skin tone, maintain original identity, do not change person, realistic face consistency, preserve original facial expression, keep same emotion, keep same eye expression, keep same pose
+
+------------------------------------------------------------------------
+14. ID: u_bw_chiar
+    TÍTULO: ⚫ Chiaroscuro P&B
+    subject (API): the person
+
+    PROMPT:
+    Create a high-contrast black and white portrait based on the uploaded image, featuring [subject], keeping all facial features intact. Dramatic artistic studio photoshoot style. Use chiaroscuro lighting with a single strong key light from the side to create a Rembrandt lighting effect. Wearing a simple black turtleneck. Background is a dark, subtly textured studio canvas. The final image should feel intensely moody, powerful, and like a professionally captured photographic artwork. preserve identity, keep same face, keep facial structure, keep skin tone, maintain original identity, do not change person, realistic face consistency, preserve original facial expression, keep same emotion, keep same eye expression, keep same pose
+
+------------------------------------------------------------------------
+15. ID: u_bw_hard
+    TÍTULO: ⬛ Sombras Duras
+    subject (API): the person
+
+    PROMPT:
+    Create a high-contrast black and white portrait featuring [subject] with extremely strong directional lighting casting deep, sharp shadows across the face. Dramatic studio setup with intense contrast and minimal fill light. Black background fading into darkness. Powerful and bold artistic mood. preserve identity, keep same face, keep facial structure, keep skin tone, maintain original identity, do not change person, realistic face consistency, preserve original facial expression, keep same emotion, keep same eye expression, keep same pose
+
+------------------------------------------------------------------------
+16. ID: u_bw_soft
+    TÍTULO: 🌫️ Rembrandt Suave
+    subject (API): the person
+
+    PROMPT:
+    Create a black and white portrait featuring [subject] with classic Rembrandt lighting but softened for a more elegant and timeless look. Gentle shadow transitions, subtle highlights, and a refined artistic tone. Background remains dark with a soft texture. preserve identity, keep same face, keep facial structure, keep skin tone, maintain original identity, do not change person, realistic face consistency, preserve original facial expression, keep same emotion, keep same eye expression, keep same pose
+
+------------------------------------------------------------------------
+17. ID: u_hk_noir
+    TÍTULO: 💻 Hacker Noir
+    subject (API): the person
+
+    PROMPT:
+    A portrait using the reference image, featuring [subject] depicted as a hacker in a dark, rainy urban environment. Wearing a large hooded sweatshirt covering the head while keeping the face visible, looking directly at the camera. A computer screen reflects soft green code onto the face. Dramatic low-contrast lighting, with illumination mainly from the monitor and blurred streetlights in the background. Strong sense of isolation and paranoia. Grainy cinematic aesthetic, modern noir style, focus on technology and surveillance. preserve identity, keep same face, keep facial structure, keep skin tone, maintain original identity, do not change person, realistic face consistency, preserve original facial expression, keep same emotion, keep same eye expression, keep same pose
+
+------------------------------------------------------------------------
+18. ID: u_hk_surv
+    TÍTULO: 🛰️ Estado de Vigilância
+    subject (API): the person
+
+    PROMPT:
+    Create a dark cyber surveillance portrait featuring [subject] in a hooded outfit surrounded by subtle digital overlays and screen reflections. Green and blue code reflections illuminate the face. Background filled with blurred security cameras and digital noise. Low light, tense atmosphere, cinematic grain. preserve identity, keep same face, keep facial structure, keep skin tone, maintain original identity, do not change person, realistic face consistency, preserve original facial expression, keep same emotion, keep same eye expression, keep same pose
+
+------------------------------------------------------------------------
+19. ID: u_hk_rain
+    TÍTULO: 🌧️ Hacker na Chuva
+    subject (API): the person
+
+    PROMPT:
+    Create a rainy night portrait featuring [subject] wearing a hood, standing under light rain with water droplets visible. Streetlights reflect softly in the background. Face illuminated by a faint screen glow. Moody, cinematic, dark tones, subtle reflections on skin and clothing. preserve identity, keep same face, keep facial structure, keep skin tone, maintain original identity, do not change person, realistic face consistency, preserve original facial expression, keep same emotion, keep same eye expression, keep same pose
+
+------------------------------------------------------------------------
+20. ID: u_cr_dom
+    TÍTULO: 🔴 Domínio Carmesim
+    subject (API): the person
+
+    PROMPT:
+    Create a vertical portrait shot in 1080x1920 format using the reference image, featuring [subject] with exact facial features preserved. Stark cinematic lighting with intense contrast. Captured from a slightly low, upward-facing angle emphasizing the jawline and neck, creating a sense of dominance and sculptural elegance. Background is a deep, saturated crimson red, contrasting strongly with luminous skin and dark wardrobe. preserve identity, keep same face, keep facial structure, keep skin tone, maintain original identity, do not change person, realistic face consistency, preserve original facial expression, keep same emotion, keep same eye expression, keep same pose
+
+------------------------------------------------------------------------
+21. ID: u_cr_shad
+    TÍTULO: 🩸 Sombra Carmesim
+    subject (API): the person
+
+    PROMPT:
+    Create a vertical cinematic portrait featuring [subject] with deep shadows covering part of the face. Low upward angle with dramatic contrast. Background remains deep crimson red but darker toward edges. Lighting sharper with stronger shadow cuts, creating a mysterious and intense presence. preserve identity, keep same face, keep facial structure, keep skin tone, maintain original identity, do not change person, realistic face consistency, preserve original facial expression, keep same emotion, keep same eye expression, keep same pose
+
+------------------------------------------------------------------------
+22. ID: u_cr_glow
+    TÍTULO: 🌹 Brilho Carmesim Suave
+    subject (API): the person
+
+    PROMPT:
+    Create a vertical portrait featuring [subject] with softer cinematic lighting and smoother transitions between light and shadow. Slight upward angle maintained. Background is a gradient crimson red with subtle glow. More elegant and refined mood. preserve identity, keep same face, keep facial structure, keep skin tone, maintain original identity, do not change person, realistic face consistency, preserve original facial expression, keep same emotion, keep same eye expression, keep same pose
+
+------------------------------------------------------------------------
+23. ID: u_nw_warrior
+    TÍTULO: ⚡ Guerreiro Neon
+    subject (API): the person
+
+    PROMPT:
+    Edit this image featuring [subject] standing with one shoulder slightly forward, relaxed but commanding posture. Wearing an oversized black leather jacket with purple neon zipper details over a deep plum hoodie. Fitted black tech-fabric pants with silver piping down the sides, paired with matte black combat boots with electric purple soles. Surrounded by a glowing electric aura in shades of violet, magenta, and deep blue, with crackling energy particles around the silhouette. Background with dynamic angular brushstrokes in charcoal and purple creating depth. Expression intense and focused, with shadows accentuating facial features. Dark, moody, futuristic cinematic lighting with swirling particles and light wisps. preserve identity, keep same face, keep facial structure, keep skin tone, maintain original identity, do not change person, realistic face consistency, preserve original facial expression, keep same emotion, keep same eye expression, keep same pose
+
+------------------------------------------------------------------------
+24. ID: u_nw_pulse
+    TÍTULO: 🌐 Pulso de Energia
+    subject (API): the person
+
+    PROMPT:
+    Edit this image featuring [subject] in a futuristic cyberpunk environment, standing confidently with subtle forward posture. Outfit remains dark techwear with glowing purple accents. Energy aura becomes more digital, with glitch particles and neon lines flowing around the body. Background includes abstract digital grids and light distortions. Mood intense and high-tech. preserve identity, keep same face, keep facial structure, keep skin tone, maintain original identity, do not change person, realistic face consistency, preserve original facial expression, keep same emotion, keep same eye expression, keep same pose
+
+------------------------------------------------------------------------
+25. ID: u_nw_arcane
+    TÍTULO: 🔮 Poder Arcano
+    subject (API): the person
+
+    PROMPT:
+    Edit this image featuring [subject] surrounded by mystical purple energy resembling magical aura. Clothing remains dark but slightly more textured and arcane-inspired. Floating particles resemble sparks and smoke. Background darker with shadowy gradients. Expression serious and powerful, mystical atmosphere. preserve identity, keep same face, keep facial structure, keep skin tone, maintain original identity, do not change person, realistic face consistency, preserve original facial expression, keep same emotion, keep same eye expression, keep same pose
+
+------------------------------------------------------------------------
+26. ID: u_em_break
+    TÍTULO: 😔 Esgotamento Editorial
+    subject (API): the person
+
+    PROMPT:
+    Use the uploaded face and identity with high similarity, featuring [subject]. Do not change the face. Black-and-white dramatic editorial portrait. Expression tired and emotionally drained, with slightly heavy eyelids and subtly parted lips. Long wavy hair messy and unkempt, with strands falling over the forehead and framing the face. Both hands lifted into the hair, fingers tangled, gently pulling upward to enhance exhaustion and vulnerability. Wearing a black high-neck knit sweater with visible texture emphasized in grayscale. Directional lighting from the right creating strong highlights and deep shadows across the face. Background minimal and out of focus. Hyperrealistic detail in skin, hair, and fabric textures with shallow depth of field. 8K. preserve identity, keep same face, keep facial structure, keep skin tone, maintain original identity, do not change person, realistic face consistency, preserve original facial expression, keep same emotion, keep same eye expression, keep same pose
+
+------------------------------------------------------------------------
+27. ID: u_em_hard
+    TÍTULO: 🖤 Sombra de Emoção
+    subject (API): the person
+
+    PROMPT:
+    Create a high-contrast black and white portrait featuring [subject] with intense dramatic lighting. Expression exhausted and emotionally heavy. Strong shadows cut across the face creating a harsh, cinematic mood. Hair messy with hands gripping it more tightly. Background dark and minimal. preserve identity, keep same face, keep facial structure, keep skin tone, maintain original identity, do not change person, realistic face consistency, preserve original facial expression, keep same emotion, keep same eye expression, keep same pose
+
+------------------------------------------------------------------------
+28. ID: u_em_analog
+    TÍTULO: 📻 Emoção Analógica
+    subject (API): the person
+
+    PROMPT:
+    Create a black and white portrait featuring [subject] with a vintage analog film aesthetic. Expression tired and vulnerable. Add subtle grain, film texture, and slight imperfections. Lighting medium contrast with natural falloff. Background soft and blurred. preserve identity, keep same face, keep facial structure, keep skin tone, maintain original identity, do not change person, realistic face consistency, preserve original facial expression, keep same emotion, keep same eye expression, keep same pose
+
+------------------------------------------------------------------------
+29. ID: u_sk_extreme
+    TÍTULO: 🔬 Pele Extrema
+    subject (API): the person
+
+    PROMPT:
+    Create an extreme close-up portrait based on the reference image, featuring [subject], using exact same facial features with maximum fidelity. Capture intense skin texture and moisture details. Dewy skin glistening with natural shine, wet hair strands partially covering the eye area. The eye is in sharp focus with high clarity, showing subtle redness for raw realism. Harsh directional studio lighting from a side angle emphasizing pores, highlights, and micro-shadows on the skin. Hyper-realistic, raw, detailed composition. preserve identity, keep same face, keep facial structure, keep skin tone, maintain original identity, do not change person, realistic face consistency, preserve original facial expression, keep same emotion, keep same eye expression, keep same pose
+
+------------------------------------------------------------------------
+30. ID: u_sk_dew
+    TÍTULO: 💧 Brilho de Orvalho Suave
+    subject (API): the person
+
+    PROMPT:
+    Create an extreme close-up portrait featuring [subject] with softer moisture detail and smoother skin transitions. Dewy skin with subtle shine, wet strands lightly touching the face. Lighting softer but still directional, creating gentle highlights and refined shadows. Focus remains on the eye with high clarity. preserve identity, keep same face, keep facial structure, keep skin tone, maintain original identity, do not change person, realistic face consistency, preserve original facial expression, keep same emotion, keep same eye expression, keep same pose
+
+------------------------------------------------------------------------
+31. ID: u_sk_raw
+    TÍTULO: 🩹 Textura Crua
+    subject (API): the person
+
+    PROMPT:
+    Create an extreme close-up portrait featuring [subject] with very harsh studio lighting. Strong side light exaggerating skin pores, imperfections, and texture. Wet skin appears more reflective with high contrast highlights. Eye remains the focal point with intense sharpness. preserve identity, keep same face, keep facial structure, keep skin tone, maintain original identity, do not change person, realistic face consistency, preserve original facial expression, keep same emotion, keep same eye expression, keep same pose
+
+------------------------------------------------------------------------
+32. ID: u_sk_cine
+    TÍTULO: 🎬 Foco Cinemático
+    subject (API): the person
+
+    PROMPT:
+    Create a cinematic extreme close-up portrait featuring [subject] with controlled lighting and dramatic depth. Moist skin with subtle glow, wet hair partially covering the eye. Lighting more cinematic with shadow gradients and controlled highlights. Eye sharply focused with emotional depth. preserve identity, keep same face, keep facial structure, keep skin tone, maintain original identity, do not change person, realistic face consistency, preserve original facial expression, keep same emotion, keep same eye expression, keep same pose
+
+------------------------------------------------------------------------
+33. ID: u_sk_dark
+    TÍTULO: 🌒 Atmosfera Húmida Escura
+    subject (API): the person
+
+    PROMPT:
+    Create a dark extreme close-up portrait featuring [subject] with low-key lighting. Wet skin glistening under minimal light. Hair strands more prominent across the face. Background fades into darkness. Eye still sharply focused with subtle redness, creating a moody and intense atmosphere. preserve identity, keep same face, keep facial structure, keep skin tone, maintain original identity, do not change person, realistic face consistency, preserve original facial expression, keep same emotion, keep same eye expression, keep same pose
+
+------------------------------------------------------------------------
+34. ID: u_se_eye
+    TÍTULO: 👁️ Olhar Submerso
+    subject (API): the person
+
+    PROMPT:
+    Hyper-realistic black and white portrait featuring [subject] in an extreme close-up with the face partially submerged in water. Only one eye fully visible above the surface, with an intense and focused expression conveying strength, mystery, and introspection. Skin highly detailed with visible pores and water droplets, eyelashes and eyebrows sharply defined. Soft side lighting creating dramatic contrast between light and shadow, highlighting the depth of the gaze and reflective water texture. Water surface with gentle ripples and bubbles. Macro lens, ultra-high definition, shallow depth of field with focus entirely on the eye. preserve identity, keep same face, keep facial structure, keep skin tone, maintain original identity, do not change person, realistic face consistency, preserve original facial expression, keep same emotion, keep same eye expression, keep same pose
+
+------------------------------------------------------------------------
+35. ID: u_se_dark
+    TÍTULO: 🌊 Profundidade Sombria
+    subject (API): the person
+
+    PROMPT:
+    Create a darker black and white extreme close-up featuring [subject] with deeper shadows and more dramatic contrast. Water appears darker and heavier, with fewer reflections. Eye illuminated more selectively, creating a mysterious and intense mood. preserve identity, keep same face, keep facial structure, keep skin tone, maintain original identity, do not change person, realistic face consistency, preserve original facial expression, keep same emotion, keep same eye expression, keep same pose
+
+------------------------------------------------------------------------
+36. ID: u_vb_autumn
+    TÍTULO: 🍂 Outono Vintage
+    subject (API): the person
+
+    PROMPT:
+    Side-angle photorealistic cinematic shot featuring [subject] sitting on the floor and leaning next to a classic vintage white Volkswagen Beetle parked on a city street with autumn leaves. Sunlight filters through trees, casting warm dappled light on the subject and the car. Wearing a crisp white shirt, black jacket, light blue jeans, small black leather bag, and black boots. Cinematic mood with soft depth of field and subtle film grain. Aspect ratio 9:16. preserve identity, keep same face, keep facial structure, keep skin tone, maintain original identity, do not change person, realistic face consistency, preserve original facial expression, keep same emotion, keep same eye expression, keep same pose
+
+------------------------------------------------------------------------
+37. ID: u_vb_golden
+    TÍTULO: 🌅 Luz Dourada Urbana
+    subject (API): the person
+
+    PROMPT:
+    Create a cinematic side-angle shot featuring [subject] in the same pose next to a vintage white Volkswagen Beetle during golden hour. Strong warm sunlight with long shadows. Autumn leaves glowing in golden tones. Slight lens flare and cinematic softness. Crisp white shirt, black jacket, light blue jeans. preserve identity, keep same face, keep facial structure, keep skin tone, maintain original identity, do not change person, realistic face consistency, preserve original facial expression, keep same emotion, keep same eye expression, keep same pose
+
+------------------------------------------------------------------------
+38. ID: u_vb_rainy
+    TÍTULO: 💧 Mood Vintage Chuvoso
+    subject (API): the person
+
+    PROMPT:
+    Create a moody rainy version featuring [subject] sitting beside a vintage white Volkswagen Beetle on a wet street. Reflections on the ground, soft mist in the air. Lighting dim and cinematic with cool tones. Subtle rain droplets visible. Crisp white shirt, black jacket, light blue jeans. preserve identity, keep same face, keep facial structure, keep skin tone, maintain original identity, do not change person, realistic face consistency, preserve original facial expression, keep same emotion, keep same eye expression, keep same pose
+
+------------------------------------------------------------------------
+39. ID: u_vb_film
+    TÍTULO: 🎞️ Estética Filme Urbana
+    subject (API): the person
+
+    PROMPT:
+    Create a cinematic street photography version featuring [subject] with a film-like look. Slight grain, muted tones, and natural lighting. Background with urban textures and autumn leaves. Same pose next to a vintage white Volkswagen Beetle. Strong documentary vibe. preserve identity, keep same face, keep facial structure, keep skin tone, maintain original identity, do not change person, realistic face consistency, preserve original facial expression, keep same emotion, keep same eye expression, keep same pose
+
+------------------------------------------------------------------------
+40. ID: u_he_cine
+    TÍTULO: 🎥 Frame Cinematográfico Herói
+    subject (API): the person
+
+    PROMPT:
+    Retrato editorial cinematográfico em 8K apresentando [subject] com estética de super-herói moderno. Fundo vermelho com luz difusa e partículas leves. Iluminação suave porém dramática com highlights no rosto e traje. Pose firme com braços cruzados e expressão determinada. Estilo realista próximo de filme. preserve identity, keep same face, keep facial structure, keep skin tone, maintain original identity, do not change person, realistic face consistency, preserve original facial expression, keep same emotion, keep same eye expression, keep same pose
+
+------------------------------------------------------------------------
+41. ID: u_bw_intro
+    TÍTULO: 🌃 Introspecção Cinemática
+    subject (API): the person
+
+    PROMPT:
+    Cinematic introspective black and white portrait featuring [subject] with stronger contrast between window light and deep shadows. Slightly darker environment, sense of deep reflection. Sharper marked shadows, film-noir style. Subtle cinematic film grain, deeper color grading. preserve identity, keep same face, keep facial structure, keep skin tone, maintain original identity, do not change person, realistic face consistency, preserve original facial expression, keep same emotion, keep same eye expression, keep same pose
+
+------------------------------------------------------------------------
+42. ID: u_ls_mirror
+    TÍTULO: 🪞 Mirror Selfie Concrete
+    subject (API): the person
+
+    PROMPT:
+    Cinematic portrait using the reference image as identity anchor, of [subject] with short curly dark hair leaning against a textured concrete wall, wearing a loose white button-down shirt and layered gold necklaces. Warm golden hour sunlight coming through a window creates dramatic shadow patterns on the wall. Soft natural light on the face, thoughtful expression looking sideways, minimal aesthetic, shallow depth of field, film photography style, 85mm lens, ultra realistic, warm tones, high detail, moody atmosphere. preserve identity, keep same face, keep facial structure, keep skin tone, maintain original identity, do not change person, realistic face consistency, preserve original facial expression, keep same emotion, keep same eye expression, keep same pose
+
+------------------------------------------------------------------------
+43. ID: u_ls_cafe
+    TÍTULO: ☕ Urban Café Layered
+    subject (API): the person
+
+    PROMPT:
+    Portrait of [subject] in a stylish, layered outfit sitting at a wooden table in a street cafe. Wearing a brown oversized jacket with a light yellow jumper draped over the shoulders, light blue oversized loose-fitting jeans with cuffs, a pale yellow cap with a small logo, and narrow oval glasses with clear lenses and dark frames. Long dark hair, calm makeup, tanned skin. Plastic cup of green smoothie nearby, large bouquet of yellow tulips. Soft daylight, urban lifestyle aesthetic. Color scheme: chocolate, lemon yellow, denim. Relaxed pose, resting chin on hand. Background: city cafe window with evening lights. High resolution, realistic, professional portrait photography, warm toning, vibrant color correction. preserve identity, keep same face, keep facial structure, keep skin tone, maintain original identity, do not change person, realistic face consistency, preserve original facial expression, keep same emotion, keep same eye expression, keep same pose
+
+------------------------------------------------------------------------
+44. ID: u_ls_chibi
+    TÍTULO: 🧸 Wellness Chibi Meditation
+    subject (API): the person
+
+    PROMPT:
+    A calm [subject] sitting cross-legged on a bed in a cozy minimal bedroom, meditating with eyes closed, wearing an oversized light grey sweatshirt and matching grey joggers. Soft natural morning light from the side window. Around the subject are tiny cute chibi versions of the same identity sitting on shoulders, knees and around, doing activities like reading, meditating, stretching and dancing. Hand-drawn pastel doodles and speech bubbles floating around the head with words like 'Content', 'Focus', 'Growth', 'Sleep', 'Work', 'Recharge'. Cute pastel hearts, stars, smiley faces and sparkles around the scene. Style: soft pastel illustration + realistic photography mix, dreamy wellness vibe, cozy aesthetic, ultra detailed, 4k. preserve identity, keep same face, keep facial structure, keep skin tone, maintain original identity, do not change person, realistic face consistency, preserve original facial expression, keep same emotion, keep same eye expression, keep same pose
+
+------------------------------------------------------------------------
+45. ID: u_ls_wellness
+    TÍTULO: 🪷 Wellness Editorial Calm
+    subject (API): the person
+
+    PROMPT:
+    Editorial wellness scene featuring [subject] sitting sideways in a wooden chair with terracotta upholstery, relaxed posture, looking towards a window with soft natural light entering. Hair tied back naturally, comfortable outfit in neutral tones (beige sweatshirt and light pants), realistic fabric texture. Soft natural side light with light diffusion, creating delicate shadows. Out-of-focus plants in foreground creating depth, cinematic framing, rule of thirds, minimalist cozy environment. Calm introspective atmosphere, self-care aesthetic. Ultra-realistic photography, 8k, natural skin texture, warm soft color grading, premium editorial style. preserve identity, keep same face, keep facial structure, keep skin tone, maintain original identity, do not change person, realistic face consistency, preserve original facial expression, keep same emotion, keep same eye expression, keep same pose
+
+------------------------------------------------------------------------
+46. ID: u_ep_sorcerer
+    TÍTULO: 🔮 Fantasy Sorcerer Poster
+    subject (API): the person
+
+    PROMPT:
+    Hyper-realistic cinematic movie poster of [subject] as a powerful sorcerer bursting through a cracked Queen of Spades playing card. The card explodes outward with stone fragments, dust, and debris frozen mid-air. Wearing an ornate royal maroon and gold embroidered medieval fantasy jacket, rich fabric textures, intricate detailing, regal and mystical. The subject extends one hand forward, fingers glowing with intense magical energy, subtle golden sparks and dark arcane aura. Intense piercing gaze, confident dominant expression, cinematic hero framing. Dramatic chiaroscuro lighting, dark moody background, volumetric light rays, ultra-detailed textures, photorealistic face, epic fantasy realism, movie poster composition, high contrast, dynamic motion, dust particles, 8K. preserve identity, keep same face, keep facial structure, keep skin tone, maintain original identity, do not change person, realistic face consistency, preserve original facial expression, keep same emotion, keep same eye expression, keep same pose
+
+------------------------------------------------------------------------
+47. ID: u_ep_grid_classic
+    TÍTULO: 🎬 Editorial Grid — Classic
+    subject (API): the person
+
+    PROMPT:
+    Professional studio fashion photoshoot in a 2×2 grid collage showing four poses of [subject] wearing black sunglasses. Outfit: deep emerald green tailored blazer, cream/off-white dress shirt, black slim trousers, burgundy tie, silver watch. Blazer appears differently across frames (worn, draped over shoulder, partially removed, held). Background: clean teal-to-turquoise gradient studio. Poses: 1. Close portrait adjusting tie. 2. Seated editorial pose leaning forward elbow on knee. 3. Relaxed pose with vintage camera around neck. 4. Stylish pose running hand through hair while holding blazer. Lighting: three-point studio lighting — softbox key 45° camera left, soft fill camera right, subtle rim light. 85mm f/2.2 ISO 100 1/160s. Ultra-realistic GQ/Vogue editorial, sharp 4K, clean 2×2 grid. preserve identity, keep same face, keep facial structure, keep skin tone, maintain original identity, do not change person, realistic face consistency, preserve original facial expression, keep same emotion, keep same eye expression, keep same pose
+
+------------------------------------------------------------------------
+48. ID: u_ep_grid_dark
+    TÍTULO: 🎬 Editorial Grid — Dark Mode
+    subject (API): the person
+
+    PROMPT:
+    Same 2×2 grid editorial of [subject] with sunglasses, identical outfit and poses, but darker teal gradient with subtle vignette, stronger contrast, deeper shadows, cinematic moody tone. Editorial high contrast, 4K, 2×2 grid. preserve identity, keep same face, keep facial structure, keep skin tone, maintain original identity, do not change person, realistic face consistency, preserve original facial expression, keep same emotion, keep same eye expression, keep same pose
+
+------------------------------------------------------------------------
+49. ID: u_ep_grid_lux
+    TÍTULO: 🎬 Editorial Grid — Soft Luxury
+    subject (API): the person
+
+    PROMPT:
+    Same 2×2 grid editorial of [subject] with sunglasses, identical outfit and poses, but soft pastel teal gradient cleaner luxury look, softer diffusion, more even highlights, luxury fashion tone. Clean Vogue-style, 4K, 2×2 grid. preserve identity, keep same face, keep facial structure, keep skin tone, maintain original identity, do not change person, realistic face consistency, preserve original facial expression, keep same emotion, keep same eye expression, keep same pose
+
+------------------------------------------------------------------------
+50. ID: u_ep_grid_street
+    TÍTULO: 🎬 Editorial Grid — Street Edge
+    subject (API): the person
+
+    PROMPT:
+    Same 2×2 grid editorial of [subject] with sunglasses, identical outfit and poses, but teal gradient with subtle texture, slightly harsher lighting, sharper shadows, street-fashion tone. Edgy editorial sharper contrast, 4K, 2×2 grid. preserve identity, keep same face, keep facial structure, keep skin tone, maintain original identity, do not change person, realistic face consistency, preserve original facial expression, keep same emotion, keep same eye expression, keep same pose
+
+------------------------------------------------------------------------
+51. ID: u_sf_cyber
+    TÍTULO: 🔬 Cyber Science Portrait
+    subject (API): the person
+
+    PROMPT:
+    Cinematic close-up portrait of [subject] in side profile, wet hair strands on the skin, intense reflective eyes, mathematical formulas and scientific equations projected across the face and neck, glowing white handwritten symbols, physics diagrams and abstract calculations overlay, futuristic holographic projection, dark moody background, dramatic lighting, high contrast, detailed skin texture, cyberpunk science aesthetic, shallow depth of field, volumetric lighting, photorealistic, 8k, film still, sci-fi atmosphere. preserve identity, keep same face, keep facial structure, keep skin tone, maintain original identity, do not change person, realistic face consistency, preserve original facial expression, keep same emotion, keep same eye expression, keep same pose
+
+------------------------------------------------------------------------
+52. ID: u_sf_cybergoth
+    TÍTULO: 💜 Cybergoth Neon Portrait
+    subject (API): the person
+
+    PROMPT:
+    Cyberpunk portrait of [subject] with pale synthetic complexion, dark metallic lipstick, intense gaze directed at viewer. Vivid holographic glow with magenta and cyan edge lighting. Captured on a mirrorless 85mm f/1.2, deep atmospheric bokeh. Cyberpunk portraiture, techno-goth aesthetic, high-contrast digital realism, ultra high resolution, hyper-detailed textures, cinematic sci-fi realism. preserve identity, keep same face, keep facial structure, keep skin tone, maintain original identity, do not change person, realistic face consistency, preserve original facial expression, keep same emotion, keep same eye expression, keep same pose

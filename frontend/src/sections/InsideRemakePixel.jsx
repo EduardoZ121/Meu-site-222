@@ -8,16 +8,16 @@ export default function InsideRemakePixel() {
   const isInView = useInView(ref, { once: true, margin: "-80px" });
 
   return (
-    <section className="relative bg-[#0B0B0C] py-24 md:py-32 border-t border-[#2E2E30]" ref={ref} data-testid="inside-section">
+    <section className="relative bg-[#0B0B0C] py-16 md:py-28 border-t border-[#2E2E30]" ref={ref} data-testid="inside-section">
       <div className="max-w-[1200px] mx-auto px-6 lg:px-10">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 lg:gap-16 items-center">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-7 lg:gap-16 items-center">
           <motion.div
             initial={{ opacity: 0, y: 30 }}
             animate={isInView ? { opacity: 1, y: 0 } : {}}
             transition={{ duration: 0.8, ease: EASE }}
           >
             <div className="rounded-sm overflow-hidden border border-[#2E2E30]">
-              <img src="/images/dashboard-mockup.jpg" alt="Remake Pixel Dashboard" className="w-full object-cover" loading="lazy" />
+              <img src="/images/discover/generate.jpg" alt="Remake Pixel studio" className="w-full object-cover" loading="lazy" />
             </div>
           </motion.div>
           <motion.div
@@ -25,9 +25,9 @@ export default function InsideRemakePixel() {
             animate={isInView ? { opacity: 1, y: 0 } : {}}
             transition={{ duration: 0.8, delay: 0.15, ease: EASE }}
           >
-            <p className="eyebrow mb-4">Inside Remake Pixel</p>
-            <h2 className="heading-lg mb-5">Generate. Edit. Animate. One studio.</h2>
-            <p className="body-text">Everything you need to create — under one roof, under one balance of credits.</p>
+            <p className="eyebrow mb-3 md:mb-4">Por dentro do Remake Pixel</p>
+            <h2 className="heading-lg mb-4 md:mb-5">Gerar. Editar. Animar. Um estúdio só.</h2>
+            <p className="body-text">Todas as ferramentas criativas numa conta, com um único saldo de créditos e fluxos pensados para publicar mais rápido.</p>
           </motion.div>
         </div>
       </div>

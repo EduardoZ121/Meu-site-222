@@ -1,87 +1,201 @@
-import { useState } from "react";
-import { Link } from "react-router-dom";
-import { motion } from "framer-motion";
-import TOOLS from "../../lib/toolsCatalogue";
-import ToolThumb from "../../components/ToolThumb";
+import { useMemo, useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import { ImageIcon, Film } from "lucide-react";
+import ToolsGridCard from "../../components/tools/ToolsGridCard";
+import VideoGridCard from "../../components/video/VideoGridCard";
 import useTitle from "../../lib/useTitle";
+import { usePricing } from "../../lib/PricingContext";
+import { useI18n } from "../../lib/i18n";
+import { useLocalizedTools } from "../../lib/useLocalizedTools";
+import { IMAGE_TOOL_SECTIONS } from "../../lib/toolsCatalogue";
+import { VIDEO_CATEGORIES } from "../../lib/videoCatalogue";
+
+const pageEase = [0.16, 1, 0.3, 1];
+
+const TOOL_GRID_CLASS =
+  "grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-2.5 sm:gap-3";
+
+function ToolsCategorySection({ title, description, children, testId }) {
+  return (
+    <section className="mb-10 md:mb-12 last:mb-0" data-testid={testId}>
+      <header className="mb-4 md:mb-5 flex flex-col sm:flex-row sm:items-end sm:justify-between gap-2">
+        <div>
+          <h2 className="rp-type-section-title">{title}</h2>
+          {description && (
+            <p className="rp-type-section-lead">{description}</p>
+          )}
+        </div>
+      </header>
+      {children}
+    </section>
+  );
+}
 
 export default function Tools() {
-  useTitle("Ferramentas");
+  const { t } = useI18n();
+  const tools = useLocalizedTools();
+  useTitle(t("tools_grid.page_eyebrow"));
+  const { region } = usePricing();
   const [tab, setTab] = useState("image");
-  const filtered = TOOLS.filter((t) => t.tier === tab);
+
+  const imageTools = useMemo(
+    () => tools.filter((tool) => tool.tier === "image"),
+    [tools],
+  );
+
+  const sections = useMemo(() => {
+    return IMAGE_TOOL_SECTIONS.map((section) => ({
+      ...section,
+      tools: imageTools.filter((tool) => tool.category === section.id),
+    })).filter((section) => section.tools.length > 0);
+  }, [imageTools]);
+
+  const tabCount = tab === "image" ? imageTools.length : VIDEO_CATEGORIES.length;
+
+  const tabs = [
+    { id: "image", label: t("tools_grid.tab_image"), testId: "tab-image", icon: ImageIcon },
+    { id: "video", label: t("tools_grid.tab_video"), testId: "tab-video", icon: Film },
+  ];
 
   return (
-    <div className="max-w-[1400px] mx-auto" data-testid="tools-page">
-      <header className="mb-10">
-        <p className="text-[#7C3AED] text-[10px] font-mono uppercase tracking-[0.22em] mb-3">Ferramentas</p>
-        <h1 className="text-[#F4F1EA] text-[40px] md:text-[56px] font-light tracking-[-0.02em] leading-[1.05] mb-4 font-['Inter_Tight']">
-          Tudo o que precisas.
-        </h1>
-        <p className="text-[#8A8A8E] text-[16px] max-w-[600px]">
-          {filtered.length} ferramentas de IA prontas a usar. Escolhe uma, envia uma foto (quando necessário) e clica em Create.
-        </p>
-      </header>
+    <div
+      className="relative w-full max-w-[1400px] mx-auto -mt-8 md:-mt-12 pb-20 md:pb-24"
+      data-testid="tools-page"
+    >
+      <motion.section
+        className="relative -mx-4 sm:-mx-6 md:-mx-10 px-4 sm:px-6 md:px-10 pt-8 pb-10 md:pt-10 md:pb-12 mb-6 md:mb-8 border-b border-white/5 overflow-hidden"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ duration: 0.45, ease: pageEase }}
+        aria-labelledby="tools-hero-title"
+      >
+        <div className="absolute inset-0 bg-gradient-to-b from-zinc-950 to-black" aria-hidden />
+        <div className="absolute inset-0 bg-[#6b21a8]/[0.06]" aria-hidden />
+        <div
+          className="absolute inset-0 pointer-events-none"
+          aria-hidden
+          style={{
+            background:
+              "radial-gradient(ellipse 80% 50% at 50% 0%, rgba(107,33,168,0.12), transparent 55%)",
+          }}
+        />
 
-      <div className="inline-flex items-center bg-[#13131A] border border-[#2E2E30] rounded-full p-1 mb-10" data-testid="tools-tabs">
-        <button
-          onClick={() => setTab("image")}
-          className={`px-6 py-2.5 rounded-full text-[13px] font-medium transition-all ${
-            tab === "image" ? "bg-[#F4F1EA] text-[#0B0B0C]" : "text-[#8A8A8E] hover:text-[#F4F1EA]"
-          }`}
-          data-testid="tab-image"
-        >
-          Image Tools
-        </button>
-        <button
-          onClick={() => setTab("video")}
-          className={`px-6 py-2.5 rounded-full text-[13px] font-medium transition-all ${
-            tab === "video" ? "bg-[#F4F1EA] text-[#0B0B0C]" : "text-[#8A8A8E] hover:text-[#F4F1EA]"
-          }`}
-          data-testid="tab-video"
-        >
-          Video Tools
-        </button>
-      </div>
+        <div className="relative mx-auto flex w-full max-w-xl flex-col items-center text-center">
+          <p className="rp-type-eyebrow mb-2">
+            {t("tools_grid.page_eyebrow")}
+          </p>
 
-      <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4" data-testid="tools-grid">
-        {filtered.map((tool, i) => (
-          <motion.div
-            key={tool.id}
-            initial={{ opacity: 0, y: 14 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.35, delay: Math.min(i * 0.02, 0.4), ease: [0.16, 1, 0.3, 1] }}
+          <h1
+            id="tools-hero-title"
+            className="rp-type-page-title mb-3 text-4xl sm:text-5xl md:text-6xl"
           >
-            <Link
-              to={tool.to}
-              className="block group relative bg-[#13131A] border border-[#2E2E30] hover:border-[#7C3AED]/70 rounded-xl overflow-hidden transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_12px_36px_-12px_rgba(124,58,237,0.5)]"
-              data-testid={`tool-${tool.id}`}
-            >
-              <div className="relative aspect-[16/10] overflow-hidden">
-                <ToolThumb id={tool.id} name={tool.name} />
-                {tool.isNew && (
-                  <span className="absolute top-2 left-2 px-2 py-0.5 rounded-full text-[9px] font-mono font-medium uppercase tracking-wider bg-[#7C3AED] text-white shadow-lg shadow-[#7C3AED]/40">
-                    Novo
-                  </span>
-                )}
-                <div className="absolute inset-0 flex items-center justify-center bg-[#7C3AED]/85 backdrop-blur-sm opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-                  <span className="text-white text-[11px] font-medium uppercase tracking-[0.15em] px-4 py-2 border border-white/60 rounded-full">
-                    Abrir →
-                  </span>
-                </div>
-              </div>
-              <div className="p-4">
-                <h3 className="text-[#F4F1EA] text-[14px] font-medium font-['Inter_Tight'] leading-tight line-clamp-1">{tool.name}</h3>
-                {tool.desc && <p className="text-[#8A8A8E] text-[12px] leading-snug mt-1.5 line-clamp-2 min-h-[34px]">{tool.desc}</p>}
-                {tool.cost > 0 ? (
-                  <p className="text-[#7C3AED] text-[10px] font-mono uppercase tracking-wider mt-2.5">{tool.cost} créditos</p>
-                ) : (
-                  <p className="text-[#C4B5FD] text-[10px] font-mono uppercase tracking-wider mt-2.5">Grátis</p>
-                )}
-              </div>
-            </Link>
+            {t("tools_grid.page_title")}
+          </h1>
+
+          <p className="rp-type-lead max-w-[420px] mx-auto">
+            {t("tools_grid.page_desc", { n: tabCount })}
+          </p>
+
+          <div
+            className="mt-4 flex flex-wrap items-center justify-center gap-3"
+            data-testid="tools-tabs"
+            role="tablist"
+            aria-label={t("tools_grid.page_eyebrow")}
+          >
+            {tabs.map(({ id, label, testId, icon: Icon }) => {
+              const active = tab === id;
+              return (
+                <button
+                  key={id}
+                  type="button"
+                  role="tab"
+                  aria-selected={active}
+                  onClick={() => setTab(id)}
+                  data-testid={testId}
+                  className={active ? "rp-glass-tab rp-glass-tab--active" : "rp-glass-tab"}
+                >
+                  <Icon className="w-4 h-4 shrink-0" strokeWidth={1.75} />
+                  {label}
+                </button>
+              );
+            })}
+          </div>
+
+          <p className="rp-type-meta mt-3">
+            {t("tools_grid.count_label", { n: tabCount })}
+          </p>
+        </div>
+      </motion.section>
+
+      <AnimatePresence mode="wait">
+        {tab === "image" ? (
+          <motion.div
+            key="image"
+            role="tabpanel"
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -8 }}
+            transition={{ duration: 0.35, ease: pageEase }}
+            data-testid="tools-grid-sections"
+            className="rp-grid-ambient"
+          >
+            {sections.map((section, sectionIdx) => {
+              const indexOffset = sections
+                .slice(0, sectionIdx)
+                .reduce((n, s) => n + s.tools.length, 0);
+              return (
+                <ToolsCategorySection
+                  key={section.id}
+                  title={t(section.labelKey)}
+                  description={t(`tools_grid.cat_${section.id}_desc`)}
+                  testId={`tools-section-${section.id}`}
+                >
+                  <div className={TOOL_GRID_CLASS} data-testid={`tools-grid-${section.id}`}>
+                    {section.tools.map((tool, i) => (
+                      <ToolsGridCard
+                        key={tool.id}
+                        tool={tool}
+                        index={indexOffset + i}
+                        region={region}
+                        t={t}
+                        compact
+                      />
+                    ))}
+                  </div>
+                </ToolsCategorySection>
+              );
+            })}
           </motion.div>
-        ))}
-      </div>
+        ) : (
+          <motion.div
+            key="video"
+            role="tabpanel"
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -8 }}
+            transition={{ duration: 0.35, ease: pageEase }}
+            data-testid="tools-video-sections"
+            className="rp-grid-ambient"
+          >
+            <ToolsCategorySection
+              title={t("tools_grid.cat_video")}
+              description={t("tools_grid.cat_video_desc")}
+              testId="tools-section-video"
+            >
+              <div className={TOOL_GRID_CLASS} data-testid="tools-grid-video">
+                {VIDEO_CATEGORIES.map((category, index) => (
+                  <VideoGridCard
+                    key={category.id}
+                    category={category}
+                    index={index}
+                    t={t}
+                  />
+                ))}
+              </div>
+            </ToolsCategorySection>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

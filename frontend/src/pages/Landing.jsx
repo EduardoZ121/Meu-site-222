@@ -1,38 +1,35 @@
 import Navbar from "../components/Navbar";
 import Hero from "../sections/Hero";
-import QuoteBlock from "../sections/QuoteBlock";
-import FeatureSection from "../sections/FeatureSection";
-import Pricing from "../sections/Pricing";
-import InsideRemakePixel from "../sections/InsideRemakePixel";
-import AvailableNow from "../sections/AvailableNow";
-import Reviews from "../sections/Reviews";
-import FAQ from "../sections/FAQ";
-import Policy from "../sections/Policy";
-import Founder from "../sections/Founder";
-import Marquee from "../sections/Marquee";
-import CTAFinal from "../sections/CTAFinal";
+import LandingHighlights from "../components/landing/LandingHighlights";
+import LandingShowcaseStrip from "../components/landing/LandingShowcaseStrip";
 import Footer from "../sections/Footer";
-import useTitle from "../lib/useTitle";
+import SeoJsonLd from "../components/SeoJsonLd";
+import { usePageSeo } from "../lib/usePageSeo";
+import {
+  SEO_HOME,
+  organizationJsonLd,
+  softwareApplicationJsonLd,
+  webSiteJsonLd,
+} from "../lib/seoEn";
 
+/** Home — first impression only: hero + teaser. Full story lives on /discover. */
 export default function Landing() {
-  useTitle("Remake Pixel — Turn ideas into art in seconds");
+  usePageSeo({
+    title: SEO_HOME.title,
+    documentTitle: SEO_HOME.documentTitle,
+    description: SEO_HOME.description,
+    keywords: SEO_HOME.keywords,
+    path: SEO_HOME.path,
+  });
 
   return (
     <div className="relative min-h-screen bg-[#0B0B0C]" data-testid="landing-page">
+      <SeoJsonLd data={[organizationJsonLd(), webSiteJsonLd(), softwareApplicationJsonLd()]} />
       <div className="noise-overlay" />
       <Navbar />
       <Hero />
-      <QuoteBlock />
-      <FeatureSection />
-      <Pricing />
-      <InsideRemakePixel />
-      <AvailableNow />
-      <Reviews />
-      <FAQ />
-      <Policy />
-      <Founder />
-      <Marquee />
-      <CTAFinal />
+      <LandingShowcaseStrip />
+      <LandingHighlights />
       <Footer />
     </div>
   );

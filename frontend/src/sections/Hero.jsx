@@ -1,78 +1,115 @@
 import { motion } from "framer-motion";
-import { ChevronDown } from "lucide-react";
 import { Link } from "react-router-dom";
+import { ArrowRight, Sparkles } from "lucide-react";
 import { useI18n } from "../lib/i18n";
+import { useAuth } from "../lib/auth";
+import HeroFloatingPreviews from "../components/landing/HeroFloatingPreviews";
+import HeroScrollCue from "../components/landing/HeroScrollCue";
 
 const EASE = [0.16, 1, 0.3, 1];
 
 export default function Hero() {
   const { t } = useI18n();
+  const { user } = useAuth();
+  const primaryHref = user ? "/app/tools" : "/register";
+  const primaryLabel = user ? t("nav_open_app") : t("hero_cta_primary");
+
   return (
-    <section className="relative min-h-[100dvh] flex flex-col items-center justify-center overflow-hidden" data-testid="hero-section">
+    <section
+      className="relative min-h-[100dvh] flex flex-col items-center justify-center overflow-hidden"
+      data-testid="hero-section"
+    >
+      {/* Backdrop layers */}
       <div className="absolute inset-0 z-0">
         <img
-          src="/images/hero-bg.jpg?v=8"
+          src="/images/hero-bg.jpg?v=13"
           alt=""
-          className="w-full h-full object-cover opacity-30 sm:opacity-35"
-          style={{ objectPosition: "center 35%" }}
+          className="w-full h-full object-cover opacity-[0.38]"
           draggable={false}
         />
-        <div className="absolute inset-0 bg-gradient-to-b from-[#0B0B0C]/85 via-[#0B0B0C]/70 to-[#0B0B0C]" />
+        <div className="hero-aurora hero-aurora--static absolute inset-0" aria-hidden />
+        {/* Vignette + tighter bottom fade for premium feel */}
+        <div className="absolute inset-0 bg-gradient-to-b from-[#0B0B0C]/85 via-[#0B0B0C]/45 to-[#0B0B0C]" />
+        <div className="absolute inset-0 bg-[radial-gradient(120%_60%_at_50%_30%,rgba(124,58,237,0.18),transparent_60%)]" aria-hidden />
       </div>
+      <HeroFloatingPreviews />
 
-      <div className="relative z-10 flex flex-col items-center text-center px-6 max-w-[900px] mx-auto pt-[56px]">
-        <motion.p
-          initial={{ opacity: 0, y: 16 }}
+      <div className="hero-headline-wrap relative z-30 flex flex-col items-center text-center px-6 max-w-[960px] mx-auto pt-[56px]">
+        {/* Refined badge eyebrow (replaces the loud uppercase mono strip) */}
+        <motion.div
+          initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.7, delay: 0.3, ease: EASE }}
-          className="text-[#7C3AED] text-[10px] font-medium uppercase tracking-[0.25em] mb-8 font-['JetBrains_Mono']"
-          data-testid="hero-eyebrow"
+          transition={{ duration: 0.6, delay: 0.25, ease: EASE }}
+          className="inline-flex items-center gap-2 mb-8 px-3 py-1.5 rounded-full border border-white/10 bg-white/[0.03] backdrop-blur-sm"
         >
-          {t("hero_eyebrow")}
-        </motion.p>
+          <Sparkles className="w-3 h-3 text-[#c7a77a]" strokeWidth={2} />
+          <span className="rp-type-eyebrow rp-type-eyebrow--sentence text-[11px]">
+            {t("hero_eyebrow")}
+          </span>
+        </motion.div>
 
         <motion.h1
           initial={{ opacity: 0, y: 24 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 1, delay: 0.45, ease: EASE }}
-          className="text-white mb-10"
-          style={{
-            fontFamily: "'Inter Tight', sans-serif",
-            fontWeight: 700,
-            letterSpacing: "-0.035em",
-            lineHeight: 1.02,
-            fontSize: "clamp(48px, 9vw, 130px)",
-          }}
-          data-testid="hero-title"
+          transition={{ duration: 0.9, delay: 0.4, ease: EASE }}
+          className="heading-display mb-6"
         >
           {t("hero_title_1")}
           <br />
-          {t("hero_title_2")}
-          <br />
-          <span className="italic font-light">{t("hero_title_3a")}</span> {t("hero_title_3b")}
+          <span className="rp-type-accent-word">{t("hero_title_2")}</span>{" "}
+          {t("hero_title_3")}
         </motion.h1>
 
+        {/* Sub-tagline to add weight + clarity */}
+        <motion.p
+          initial={{ opacity: 0, y: 16 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.8, delay: 0.55, ease: EASE }}
+          className="text-[15px] sm:text-[16px] text-[#9CA3AF] max-w-[540px] leading-relaxed mb-10"
+        >
+          {t("hero_subtitle")}
+        </motion.p>
+
+        {/* CTA — single primary, secondary as inline link */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.8, delay: 0.65, ease: EASE }}
-          className="flex flex-col sm:flex-row items-center gap-4"
+          transition={{ duration: 0.8, delay: 0.7, ease: EASE }}
+          className="flex flex-col items-center gap-4 w-full max-w-[420px]"
         >
-          <Link to="/register" className="btn-primary" data-testid="hero-cta-primary">{t("hero_cta_primary")}</Link>
-          <a href="#gallery" className="btn-ghost" data-testid="hero-cta-ghost">{t("hero_cta_secondary")}</a>
+          <Link
+            to={primaryHref}
+            className="btn-primary group w-full sm:w-auto active:scale-[0.98]"
+            data-testid="hero-cta-primary"
+          >
+            <span className="text-[14px] font-semibold tracking-wide">
+              {primaryLabel}
+            </span>
+            <ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-0.5" strokeWidth={2} />
+          </Link>
+
+          <div className="flex items-center gap-5 text-[12px] text-[#6B7280]">
+            <Link to="/explore" className="hover:text-[#D1D5DB] transition-colors" data-testid="hero-cta-gallery">
+              {t("hero_cta_gallery")}
+            </Link>
+            <span className="w-px h-3 bg-white/10" aria-hidden />
+            <Link to="/discover" className="hover:text-[#D1D5DB] transition-colors" data-testid="hero-cta-learn">
+              {t("hero_cta_learn")}
+            </Link>
+          </div>
         </motion.div>
       </div>
 
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ delay: 1.2 }}
-        className="absolute bottom-10 left-1/2 -translate-x-1/2 z-10"
-      >
-        <motion.div animate={{ y: [0, 6, 0] }} transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}>
-          <ChevronDown className="w-5 h-5 text-[#5A5A5E]" />
+      <div className="absolute bottom-8 inset-x-0 z-10 flex justify-center pointer-events-none">
+        <motion.div
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 1.25, duration: 0.7, ease: EASE }}
+          className="pointer-events-auto"
+        >
+          <HeroScrollCue />
         </motion.div>
-      </motion.div>
+      </div>
     </section>
   );
 }

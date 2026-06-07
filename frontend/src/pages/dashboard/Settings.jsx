@@ -1,237 +1,314 @@
 import { useEffect, useState } from "react";
-import { api } from "../../lib/api";
+import { Link } from "react-router-dom";
+import {
+  Globe,
+  Lock,
+  User,
+  CreditCard,
+  Users,
+  ChevronRight,
+  Image as ImageIcon,
+  Mail,
+  MessageCircle,
+} from "lucide-react";
+import { useAuth } from "../../lib/auth";
 import { useI18n } from "../../lib/i18n";
-import { toast } from "sonner";
+import { LANG_LABELS, LANG_ORDER } from "../../lib/localeStrings";
+import { readUserSettings, writeUserSettings } from "../../lib/userSettings";
+import { normalizeWhatsAppPhone } from "../../lib/whatsappNotify";
+import { setLanguageAndReload } from "../../lib/remakepixLanguage";
 import useTitle from "../../lib/useTitle";
-import { Save, Zap, Scale, Sparkles, Globe, Bell, Moon, Image as ImageIcon, Hash, Bot } from "lucide-react";
+import { toast } from "sonner";
+import AspectPicker from "../../components/AspectPicker";
 
 const ASPECTS = ["1:1", "4:5", "9:16", "16:9", "3:2"];
-const PERSONALITIES = [
-  { id: "creative",     label: "Criativo",     desc: "Sugestões fora-da-caixa, mais arte" },
-  { id: "technical",    label: "Técnico",      desc: "Linguagem precisa, foco no detalhe" },
-  { id: "casual",       label: "Casual",       desc: "Tom relaxado e direto" },
-  { id: "professional", label: "Profissional", desc: "Saída editorial e polida" },
-];
-const QUALITIES = [
-  { id: "fast",     label: "Rápida",     desc: "Velocidade primeiro" },
-  { id: "balanced", label: "Equilibrada", desc: "Recomendado" },
-  { id: "high",     label: "Alta",        desc: "Máxima fidelidade" },
-];
-const MODES = [
-  { id: "creative",  label: "Criativo",   desc: "Mais variação artística" },
-  { id: "balanced",  label: "Equilibrado", desc: "Recomendado" },
-  { id: "realistic", label: "Realista",    desc: "Mantém-se fiel à realidade" },
-];
 
 export default function Settings() {
-  const { t, lang, switchLang, langs } = useI18n();
+  const { user, changePassword } = useAuth();
+  const { t, lang } = useI18n();
   useTitle(t("sidebar_settings"));
-  const [settings, setSettings] = useState(null);
-  const [saving, setSaving] = useState(false);
-  const [dirty, setDirty] = useState(false);
+
+  const [aspect, setAspect] = useState(() => readUserSettings().aspect_ratio_default || "match");
+  const [pwCurrent, setPwCurrent] = useState("");
+  const [pwNew, setPwNew] = useState("");
+  const [pwConfirm, setPwConfirm] = useState("");
+  const [pwSaving, setPwSaving] = useState(false);
+  const [waPhone, setWaPhone] = useState("");
+  const [waNotify, setWaNotify] = useState(false);
+  const isGoogle = String(user?.id || "").startsWith("google_");
 
   useEffect(() => {
-    api.get("/settings").then((r) => setSettings(r.data)).catch(() => toast.error("Erro a carregar definições."));
+    const s = readUserSettings();
+    if (s.aspect_ratio_default) setAspect(s.aspect_ratio_default);
+    setWaPhone(s.whatsapp_phone || "");
+    setWaNotify(Boolean(s.whatsapp_notify));
   }, []);
 
-  if (!settings) {
-    return <p className="text-[#8A8A8E] text-sm">A carregar…</p>;
-  }
+  const saveWhatsApp = (patch) => {
+    const next = writeUserSettings(patch);
+    setWaPhone(next.whatsapp_phone || "");
+    setWaNotify(Boolean(next.whatsapp_notify));
+    toast.success(t("wa_saved"));
+  };
 
-  const update = (k, v) => { setSettings({ ...settings, [k]: v }); setDirty(true); };
+  const pickLang = (code) => {
+    if (code === lang) return;
+    writeUserSettings({ lang: code });
+    toast.success(t("set_lang_reload"));
+    setLanguageAndReload(code);
+  };
 
-  const save = async () => {
-    setSaving(true);
+  const pickAspect = (value) => {
+    setAspect(value);
+    writeUserSettings({ aspect_ratio_default: value });
+    toast.success(t("set_aspect_saved"));
+  };
+
+  const submitPassword = async (e) => {
+    e.preventDefault();
+    if (pwNew.length < 6) {
+      toast.error(t("set_pw_too_short"));
+      return;
+    }
+    if (pwNew !== pwConfirm) {
+      toast.error(t("set_pw_mismatch"));
+      return;
+    }
+    setPwSaving(true);
     try {
-      await api.put("/settings", settings);
-      if (settings.lang) switchLang(settings.lang);
-      toast.success("Definições guardadas.");
-      setDirty(false);
-    } catch {
-      toast.error("Falhou a guardar.");
+      await changePassword(pwCurrent, pwNew);
+      setPwCurrent("");
+      setPwNew("");
+      setPwConfirm("");
+      toast.success(t("set_pw_success"));
+    } catch (err) {
+      toast.error(err?.message || t("set_pw_fail"));
     } finally {
-      setSaving(false);
+      setPwSaving(false);
     }
   };
 
   return (
-    <div className="max-w-[820px] mx-auto pb-32" data-testid="settings-page">
-      {/* === Header === */}
-      <header className="mb-12">
-        <p className="text-[10px] font-mono uppercase tracking-[0.22em] text-[#7C3AED] mb-3">Preferências</p>
-        <h1 className="text-[#F4F1EA] font-light leading-[1.05] tracking-[-0.02em] text-[42px] md:text-[56px] mb-4">
-          As <span className="italic text-[#C4B5FD]">tuas</span> definições.
-        </h1>
-        <p className="text-[#8A8A8E] text-[15px] max-w-[560px]">
-          Personaliza a forma como geras, a personalidade da IA e a tua experiência no Remake Pixel.
+    <div className="max-w-[640px] mx-auto pb-16" data-testid="settings-page">
+      <header className="mb-8">
+        <p className="text-[10px] font-mono uppercase tracking-[0.22em] text-[#7C3AED] mb-2">
+          {t("set_page_cap")}
         </p>
+        <h1 className="text-[#F4F1EA] text-3xl font-light tracking-tight font-['Inter_Tight'] mb-2">
+          {t("set_page_title")}
+        </h1>
+        <p className="text-[#8A8A8E] text-sm leading-relaxed">{t("set_page_desc")}</p>
       </header>
 
-      <div className="space-y-10">
-        {/* Geração */}
-        <Group icon={<ImageIcon className="w-4 h-4" />} label="Geração">
-          <Block label="Formato por Defeito" icon={<ImageIcon className="w-3.5 h-3.5" />}>
-            <ChipRow>
-              {ASPECTS.map((a) => (
-                <Chip key={a} active={settings.aspect_ratio_default === a} onClick={() => update("aspect_ratio_default", a)} testId={`ar-${a}`}>{a}</Chip>
-              ))}
-            </ChipRow>
-          </Block>
+      <div className="space-y-4">
+        <Section title={t("set_section_account")} icon={User}>
+          <Row
+            icon={Mail}
+            label={t("set_email")}
+            value={user?.email || "—"}
+            testId="settings-email"
+          />
+          <LinkRow to="/app/profile" label={t("set_edit_profile")} testId="settings-link-profile" />
+        </Section>
 
-          <Block label="Variações por Defeito" icon={<Hash className="w-3.5 h-3.5" />}>
-            <ChipRow>
-              {[1, 2, 3, 4].map((n) => (
-                <Chip key={n} active={settings.num_variations_default === n} onClick={() => update("num_variations_default", n)} square testId={`var-${n}`}>{n}</Chip>
-              ))}
-            </ChipRow>
-          </Block>
+        <Section title={t("set_section_language")} icon={Globe}>
+          <p className="text-xs text-[#8A8A8E] mb-3 leading-relaxed">{t("set_lang_hint")}</p>
+          <div className="grid grid-cols-2 gap-2">
+            {LANG_ORDER.map((code) => (
+              <button
+                key={code}
+                type="button"
+                onClick={() => pickLang(code)}
+                data-testid={`lang-${code}`}
+                className={`rounded-xl border px-4 py-3 text-left transition-all ${
+                  lang === code
+                    ? "border-[#A855F7] bg-[#7C3AED]/15 text-white shadow-[0_0_20px_-8px_rgba(168,85,247,0.45)]"
+                    : "border-[#2E2E30] bg-[#13131A] text-[#8A8A8E] hover:border-[#7C3AED]/40 hover:text-white"
+                }`}
+              >
+                <span className="block text-sm font-medium">{LANG_LABELS[code]}</span>
+                <span className="block text-[10px] font-mono uppercase tracking-wider mt-0.5 opacity-70">
+                  {code}
+                </span>
+              </button>
+            ))}
+          </div>
+        </Section>
 
-          <Block label="Qualidade Padrão" icon={<Zap className="w-3.5 h-3.5" />}>
-            <CardRow>
-              {QUALITIES.map((q) => (
-                <Card key={q.id} active={settings.quality === q.id} onClick={() => update("quality", q.id)} testId={`q-${q.id}`}>
-                  <p className="text-[14px] font-medium text-[#F4F1EA]">{q.label}</p>
-                  <p className="text-[11px] text-[#8A8A8E]">{q.desc}</p>
-                </Card>
-              ))}
-            </CardRow>
-          </Block>
+        <Section title={t("set_section_security")} icon={Lock}>
+          {isGoogle ? (
+            <p className="text-sm text-[#8A8A8E] leading-relaxed" data-testid="settings-google-hint">
+              {t("set_pw_google")}
+            </p>
+          ) : (
+            <form onSubmit={submitPassword} className="space-y-3" data-testid="settings-password-form">
+              <p className="text-xs text-[#8A8A8E] mb-1">{t("set_pw_hint")}</p>
+              <Field
+                label={t("set_pw_current")}
+                type="password"
+                value={pwCurrent}
+                onChange={setPwCurrent}
+                testId="settings-pw-current"
+                autoComplete="current-password"
+              />
+              <Field
+                label={t("set_pw_new")}
+                type="password"
+                value={pwNew}
+                onChange={setPwNew}
+                testId="settings-pw-new"
+                autoComplete="new-password"
+              />
+              <Field
+                label={t("set_pw_confirm")}
+                type="password"
+                value={pwConfirm}
+                onChange={setPwConfirm}
+                testId="settings-pw-confirm"
+                autoComplete="new-password"
+              />
+              <button
+                type="submit"
+                disabled={pwSaving || !pwCurrent || !pwNew}
+                className="w-full mt-1 rounded-xl bg-gradient-to-r from-[#7C3AED] to-[#9333EA] text-white text-sm font-medium py-2.5 disabled:opacity-45 transition-opacity"
+                data-testid="settings-pw-submit"
+              >
+                {pwSaving ? t("saving") : t("set_pw_submit")}
+              </button>
+              <Link
+                to="/forgot-password"
+                className="inline-block text-xs text-[#A855F7] hover:underline"
+                data-testid="settings-forgot-password"
+              >
+                {t("login_forgot")}
+              </Link>
+            </form>
+          )}
+        </Section>
 
-          <Block label="Modo de Geração" icon={<Scale className="w-3.5 h-3.5" />}>
-            <CardRow>
-              {MODES.map((m) => (
-                <Card key={m.id} active={settings.generation_mode === m.id} onClick={() => update("generation_mode", m.id)} testId={`mode-${m.id}`}>
-                  <p className="text-[14px] font-medium text-[#F4F1EA]">{m.label}</p>
-                  <p className="text-[11px] text-[#8A8A8E]">{m.desc}</p>
-                </Card>
-              ))}
-            </CardRow>
-          </Block>
-        </Group>
+        <Section title={t("wa_settings_title")} icon={MessageCircle}>
+          <p className="text-xs text-[#8A8A8E] mb-4 leading-relaxed">{t("wa_settings_desc")}</p>
+          <Field
+            label={t("wa_phone_label")}
+            type="tel"
+            value={waPhone}
+            onChange={setWaPhone}
+            testId="settings-whatsapp-phone"
+            autoComplete="tel"
+            placeholder={t("wa_phone_ph")}
+          />
+          <label className="mt-4 flex items-start gap-3 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={waNotify}
+              onChange={(e) => {
+                const on = e.target.checked;
+                const phone = normalizeWhatsAppPhone(waPhone);
+                if (on && !phone) {
+                  toast.error(t("wa_invalid_phone"));
+                  return;
+                }
+                saveWhatsApp({ whatsapp_notify: on, whatsapp_phone: phone || waPhone });
+              }}
+              className="mt-1 accent-[#7C3AED] w-4 h-4 rounded"
+              data-testid="settings-whatsapp-enable"
+            />
+            <span className="text-sm text-[#C4C4C8] leading-snug">{t("wa_enable")}</span>
+          </label>
+          <button
+            type="button"
+            onClick={() => {
+              const phone = normalizeWhatsAppPhone(waPhone);
+              if (!phone) {
+                toast.error(t("wa_invalid_phone"));
+                return;
+              }
+              saveWhatsApp({ whatsapp_phone: phone, whatsapp_notify: waNotify });
+            }}
+            className="w-full mt-4 rounded-xl border border-[#9333EA]/35 text-[#D8B4FE] text-sm font-medium py-2.5 hover:bg-[#7C3AED]/10 transition-colors"
+            data-testid="settings-whatsapp-save"
+          >
+            {t("wa_save_btn")}
+          </button>
+        </Section>
 
-        {/* IA */}
-        <Group icon={<Bot className="w-4 h-4" />} label="Inteligência Artificial">
-          <Block label="Personalidade da IA" icon={<Sparkles className="w-3.5 h-3.5" />}>
-            <CardRow>
-              {PERSONALITIES.map((p) => (
-                <Card key={p.id} active={settings.personality === p.id} onClick={() => update("personality", p.id)} testId={`personality-${p.id}`}>
-                  <p className="text-[14px] font-medium text-[#F4F1EA]">{p.label}</p>
-                  <p className="text-[11px] text-[#8A8A8E]">{p.desc}</p>
-                </Card>
-              ))}
-            </CardRow>
-          </Block>
-        </Group>
+        <Section title={t("set_section_studio")} icon={ImageIcon}>
+          <p className="text-xs text-[#8A8A8E] mb-3">{t("set_aspect_hint")}</p>
+          <AspectPicker
+            value={aspect}
+            onChange={pickAspect}
+            items={[
+              { key: "match", label: t("aspect_original"), hint: t("aspect_original_hint") },
+              ...ASPECTS.map((k) => ({ key: k, label: k })),
+            ]}
+            columns="grid grid-cols-3 sm:grid-cols-5 gap-2.5 max-w-md"
+            testIdPrefix="settings-ar"
+          />
+        </Section>
 
-        {/* Interface */}
-        <Group icon={<Globe className="w-4 h-4" />} label="Interface">
-          <Block label="Idioma" icon={<Globe className="w-3.5 h-3.5" />}>
-            <ChipRow>
-              {langs.map((l) => (
-                <Chip key={l} active={settings.lang === l} onClick={() => update("lang", l)} testId={`lang-${l}`}>{l.toUpperCase()}</Chip>
-              ))}
-            </ChipRow>
-          </Block>
-
-          <Block label="Tema" icon={<Moon className="w-3.5 h-3.5" />}>
-            <ChipRow>
-              <Chip active disabled>Dark</Chip>
-              <Chip active={false} disabled>Light · em breve</Chip>
-            </ChipRow>
-          </Block>
-
-          <Block label="Notificações" icon={<Bell className="w-3.5 h-3.5" />}>
-            <ToggleRow>
-              <Toggle active={!!settings.notifications} onClick={() => update("notifications", !settings.notifications)} testId="toggle-notifs">
-                Receber notificações de geração
-              </Toggle>
-            </ToggleRow>
-          </Block>
-        </Group>
-      </div>
-
-      {/* === Sticky save bar === */}
-      <div className={`fixed bottom-6 right-6 z-20 transition-all ${dirty ? "translate-y-0 opacity-100" : "translate-y-4 opacity-0 pointer-events-none"}`}>
-        <button onClick={save} disabled={saving} className="inline-flex items-center gap-2 px-6 py-3 rounded-lg bg-gradient-to-r from-[#7C3AED] to-[#9333EA] hover:from-[#8B5CF6] hover:to-[#A855F7] text-white text-[12px] font-mono uppercase tracking-[0.16em] shadow-2xl shadow-[#7C3AED]/40 hover:-translate-y-0.5 transition-all disabled:opacity-50" data-testid="settings-save">
-          <Save className="w-4 h-4" />
-          {saving ? "A guardar…" : "Guardar Alterações"}
-        </button>
+        <Section title={t("set_section_links")} icon={CreditCard}>
+          <LinkRow to="/app/billing" label={t("sidebar_billing")} testId="settings-link-billing" />
+          <LinkRow to="/app/referrals" label={t("sidebar_referrals")} testId="settings-link-referrals" />
+          <LinkRow to="/legal/terms" label={t("consent_terms")} testId="settings-link-terms" />
+          <LinkRow to="/legal/privacy" label={t("consent_privacy")} testId="settings-link-privacy" />
+        </Section>
       </div>
     </div>
   );
 }
 
-function Group({ icon, label, children }) {
+function Section({ title, icon: Icon, children }) {
   return (
-    <section>
-      <div className="flex items-center gap-2 mb-5 text-[#7C3AED]">
-        {icon}
-        <h2 className="text-[10px] font-mono uppercase tracking-[0.22em] text-[#C4B5FD]">{label}</h2>
-        <div className="flex-1 h-px bg-[#2E2E30]" />
+    <section className="rounded-2xl border border-[rgba(147,51,234,0.15)] bg-[#13131A]/80 backdrop-blur-sm overflow-hidden">
+      <div className="flex items-center gap-2 px-4 py-3 border-b border-white/[0.06] bg-white/[0.02]">
+        <Icon className="w-4 h-4 text-[#A855F7]" strokeWidth={1.75} />
+        <h2 className="text-sm font-semibold text-white">{title}</h2>
       </div>
-      <div className="space-y-6">{children}</div>
+      <div className="p-4">{children}</div>
     </section>
   );
 }
 
-function Block({ label, icon, children }) {
+function Row({ icon: Icon, label, value, testId }) {
   return (
-    <div>
-      <div className="flex items-center gap-2 mb-2.5 text-[#8A8A8E]">
-        {icon}
-        <p className="text-[11px] font-mono uppercase tracking-[0.18em]">{label}</p>
+    <div className="flex items-center justify-between gap-3 py-2" data-testid={testId}>
+      <div className="flex items-center gap-2 text-[#8A8A8E] text-xs uppercase tracking-wider">
+        {Icon && <Icon className="w-3.5 h-3.5" strokeWidth={1.75} />}
+        {label}
       </div>
-      {children}
+      <span className="text-sm text-[#F4F1EA] truncate max-w-[60%] text-right">{value}</span>
     </div>
   );
 }
 
-function ChipRow({ children }) {
-  return <div className="flex flex-wrap gap-2">{children}</div>;
-}
-
-function Chip({ active, onClick, disabled, square, children, testId }) {
-  const base = square ? "w-12 h-12 flex items-center justify-center" : "px-4 py-2.5";
+function LinkRow({ to, label, testId }) {
   return (
-    <button onClick={disabled ? undefined : onClick} disabled={disabled} data-testid={testId}
-      className={`${base} rounded-md text-[11px] font-mono uppercase tracking-[0.12em] transition-all
-        ${active
-          ? "border border-[#7C3AED] bg-[#7C3AED]/15 text-[#F4F1EA] shadow-[0_0_24px_-8px_rgba(124,58,237,0.6)]"
-          : "border border-[#2E2E30] text-[#8A8A8E] hover:text-[#F4F1EA] hover:border-[#5A5A5E]"}
-        ${disabled ? "opacity-50 cursor-not-allowed" : ""}`}>
-      {children}
-    </button>
+    <Link
+      to={to}
+      data-testid={testId}
+      className="flex items-center justify-between gap-3 py-3 border-t border-white/[0.06] first:border-t-0 first:pt-0 text-sm text-[#F4F1EA] hover:text-[#C4B5FD] transition-colors group"
+    >
+      <span>{label}</span>
+      <ChevronRight className="w-4 h-4 text-[#8A8A8E] group-hover:text-[#A855F7] transition-colors" strokeWidth={1.75} />
+    </Link>
   );
 }
 
-function CardRow({ children }) {
-  return <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5">{children}</div>;
-}
-
-function Card({ active, onClick, children, testId }) {
+function Field({ label, type, value, onChange, testId, autoComplete, placeholder }) {
   return (
-    <button onClick={onClick} data-testid={testId}
-      className={`text-left px-4 py-3.5 rounded-lg border transition-all
-        ${active
-          ? "border-[#7C3AED] bg-gradient-to-br from-[#7C3AED]/15 to-[#7C3AED]/5 shadow-[0_0_28px_-10px_rgba(124,58,237,0.6)]"
-          : "border-[#2E2E30] bg-[#0F0F12] hover:border-[#5A5A5E] hover:bg-[#13131A]"}`}>
-      {children}
-    </button>
-  );
-}
-
-function ToggleRow({ children }) { return <div className="space-y-2">{children}</div>; }
-function Toggle({ active, onClick, children, testId }) {
-  return (
-    <button onClick={onClick} data-testid={testId}
-      className={`w-full flex items-center justify-between px-4 py-3.5 rounded-lg border transition-all
-        ${active
-          ? "border-[#7C3AED] bg-[#7C3AED]/10"
-          : "border-[#2E2E30] bg-[#0F0F12] hover:border-[#5A5A5E]"}`}>
-      <span className="text-[#F4F1EA] text-[13px]">{children}</span>
-      <span className={`relative inline-flex h-5 w-9 rounded-full transition-colors ${active ? "bg-[#7C3AED]" : "bg-[#2E2E30]"}`}>
-        <span className={`inline-block h-4 w-4 rounded-full bg-white shadow transform transition-transform translate-y-0.5 ${active ? "translate-x-[18px]" : "translate-x-0.5"}`} />
+    <label className="block">
+      <span className="text-[11px] font-mono uppercase tracking-wider text-[#8A8A8E] mb-1.5 block">
+        {label}
       </span>
-    </button>
+      <input
+        type={type}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        data-testid={testId}
+        autoComplete={autoComplete}
+        placeholder={placeholder}
+        className="w-full rounded-xl border border-[#2E2E30] bg-[#0B0B0C] px-3 py-2.5 text-sm text-white placeholder:text-[#555] focus:outline-none focus:border-[#7C3AED]/60"
+      />
+    </label>
   );
 }

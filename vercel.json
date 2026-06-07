@@ -1,0 +1,55 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "env": {
+    "DISABLE_VERCEL_BLOB": "0",
+    "REACT_APP_BUILD_ID": "posters-grok-engines-v16"
+  },
+  "crons": [
+    {
+      "path": "/api/cron/weekly-report",
+      "schedule": "0 9 * * 6"
+    },
+    {
+      "path": "/api/cron/finalize-pending",
+      "schedule": "*/3 * * * *"
+    }
+  ],
+  "framework": "create-react-app",
+  "functions": {
+    "api/**/*.js": {
+      "maxDuration": 120,
+      "includeFiles": "{frontend/api/lib/**,node_modules/sharp/**,node_modules/@img/**}"
+    }
+  },
+  "installCommand": "ln -sfn frontend/api api; yarn install --frozen-lockfile || yarn install; cd frontend && yarn install --frozen-lockfile || yarn install",
+  "buildCommand": "cd frontend && REACT_APP_BUILD_ID=posters-grok-engines-v16 REACT_APP_DISABLE_VERCEL_BLOB=0 yarn build",
+  "headers": [
+    {
+      "source": "/index.html",
+      "headers": [
+        { "key": "Cache-Control", "value": "no-cache, no-store, must-revalidate" }
+      ]
+    },
+    {
+      "source": "/(.*)",
+      "headers": [
+        { "key": "Cache-Control", "value": "public, max-age=0, must-revalidate" }
+      ],
+      "has": [
+        { "type": "header", "key": "accept", "value": "text/html" }
+      ]
+    }
+  ],
+  "outputDirectory": "frontend/build",
+  "routes": [
+    { "handle": "filesystem" },
+    {
+      "src": "^/api/(.*)$",
+      "dest": "/api/[...path]?...path=$1"
+    },
+    {
+      "src": "/((?!api/).*)",
+      "dest": "/index.html"
+    }
+  ]
+}

@@ -5,50 +5,50 @@ const EASE = [0.16, 1, 0.3, 1];
 
 const features = [
   {
-    eyebrow: "Generate",
-    title: "From a sentence to a masterpiece.",
-    body: "Type what you imagine. Choose the look — cinematic, editorial, painted, anime, hyperreal. We render it in seconds, in any aspect ratio.",
-    tags: ["Grok Imagine", "Flux 2 Klein", "GPT Image 1"],
+    eyebrow: "Gerar",
+    title: "De uma frase para uma imagem pronta a publicar.",
+    body: "Escreve o que imaginas, escolhe o estilo e recebe uma imagem com estética cinematográfica, editorial, artística ou hiper-realista em segundos.",
+    tags: ["Motor Rápido", "Motor Pro", "Motor Premium"],
     image: "/images/generate.jpg",
     imageRight: true,
   },
   {
-    eyebrow: "Edit",
-    title: "Your face. Studio quality.",
-    body: "Upload any photo. Choose between Realism Presets (Cinematic, iPhone, Studio, Ultra-Real), Mood & Style (Editorial, Romantic, Intense, Full Body), or Enhancements (Lighting, Skin, Wardrobe, Eyes, Maximum Detail).",
-    tags: ["Realism", "Mood & Style", "Enhancements"],
+    eyebrow: "Editar",
+    title: "A tua foto com acabamento de estúdio.",
+    body: "Envia qualquer retrato e aplica realismo cinematográfico, mood editorial, melhorias de luz, pele, roupa, olhos e detalhe sem perder identidade.",
+    tags: ["Realismo", "Mood editorial", "Retoque pro"],
     image: "/images/edit.jpg",
     imageRight: false,
   },
   {
-    eyebrow: "Styles",
-    title: "96 looks. One photo.",
-    body: "Curated style packs across art history, contemporary cinema, and editorial photography. New styles drop every week.",
-    tags: ["96 Styles", "1 Credit/Style", "Weekly Drops"],
+    eyebrow: "Estilos",
+    title: "96 estilos. Uma só foto.",
+    body: "Pacotes visuais curados entre arte, cinema contemporâneo e fotografia editorial. Experimenta rápido, escolhe o melhor e publica.",
+    tags: ["96 estilos", "1 crédito/estilo", "Curadoria visual"],
     image: "/images/styles-grid.jpg",
     imageRight: true,
   },
   {
-    eyebrow: "Motion",
-    title: "Stills, into stories.",
-    body: "Animate any prompt into a 6-second cinematic clip. Text-to-video or image-to-video. Powered by Grok Imagine Video.",
-    tags: ["6-Second Clips", "Text-to-Video", "Image-to-Video"],
+    eyebrow: "Vídeo",
+    title: "Imagens paradas que ganham movimento.",
+    body: "Cria clipes cinematográficos de 6 segundos a partir de texto ou imagem. Ideal para Reels, teasers, anúncios e ideias visuais.",
+    tags: ["Clipes de 6s", "Texto → vídeo", "Imagem → vídeo"],
     image: "/images/motion.jpg",
     imageRight: false,
   },
   {
     eyebrow: "Design",
-    title: "Posters that look hired.",
-    body: "44 professional templates across music, events, and editorial. Drop your photo, fill the placeholders, ship.",
-    tags: ["44 Templates", "5 Categories", "Instant Fill"],
+    title: "Pôsteres com aparência de equipa contratada.",
+    body: "44 templates reais para música, comida, fitness, motivação e flyers. Envia a foto, troca os textos e gera um visual pronto para publicar.",
+    tags: ["44 templates", "5 categorias", "Textos editáveis"],
     image: "/images/posters.jpg",
     imageRight: true,
   },
   {
-    eyebrow: "Guided",
-    title: "Not sure where to start?",
-    body: "The Wizard asks five questions and writes the perfect prompt for you. The Suggest engine drops 20 ideas from any topic.",
-    tags: ["5-Step Wizard", "Suggest Engine", "20 Ideas"],
+    eyebrow: "Guiado",
+    title: "Não sabes por onde começar?",
+    body: "O assistente faz cinco perguntas e escreve um prompt forte por ti. O motor de sugestões transforma qualquer tema em ideias visuais.",
+    tags: ["Assistente 5 passos", "Sugestões IA", "20 ideias"],
     image: "/images/wizard.jpg",
     imageRight: false,
   },
@@ -68,9 +68,9 @@ function FeatureBlock({ feature }) {
   const imgFirst = !feature.imageRight;
 
   return (
-    <div ref={ref} className="py-16 md:py-24 border-t border-[#2E2E30]">
+    <div ref={ref} className="py-12 md:py-24 border-t border-[#2E2E30]">
       <div className="max-w-[1200px] mx-auto px-6 lg:px-10">
-        <div className={`grid grid-cols-1 lg:grid-cols-2 gap-10 lg:gap-16 items-center ${imgFirst ? "" : "lg:[direction:rtl]"}`}>
+        <div className={`grid grid-cols-1 lg:grid-cols-2 gap-7 lg:gap-16 items-center ${imgFirst ? "" : "lg:[direction:rtl]"}`}>
           <motion.div
             initial={{ opacity: 0, y: 30 }}
             animate={isInView ? { opacity: 1, y: 0 } : {}}
@@ -88,9 +88,9 @@ function FeatureBlock({ feature }) {
             transition={{ duration: 0.8, delay: 0.2, ease: EASE }}
             className={imgFirst ? "" : "lg:[direction:ltr]"}
           >
-            <p className="eyebrow mb-4">{feature.eyebrow}</p>
-            <h2 className="heading-lg mb-5">{feature.title}</h2>
-            <p className="body-text mb-6">{feature.body}</p>
+            <p className="eyebrow mb-3 md:mb-4">{feature.eyebrow}</p>
+            <h2 className="heading-lg mb-4 md:mb-5">{feature.title}</h2>
+            <p className="body-text mb-5 md:mb-6">{feature.body}</p>
             <div className="flex flex-wrap gap-2">
               {feature.tags.map((t) => <span key={t} className="tag-pill">{t}</span>)}
             </div>

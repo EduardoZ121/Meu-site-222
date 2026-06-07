@@ -24,16 +24,16 @@ export default function Referrals() {
 
   if (!user) return null;
   const link = `${window.location.origin}/register?ref=${user.referral_code}`;
-  const shareMsg = `Cria imagens IA cinematográficas no Remake Pixel. Usa o meu código ${user.referral_code} e ganhamos os 2 créditos: ${link}`;
+  const shareMsg = t("ref_share_msg", { code: user.referral_code, link });
 
   const copy = async (text, which) => {
     try {
       await navigator.clipboard.writeText(text);
-      toast.success("Copiado!");
+      toast.success(t("ref_copied_toast"));
       const setter = which === "code" ? setCopiedCode : setCopiedLink;
       setter(true); setTimeout(() => setter(false), 1800);
     } catch {
-      toast.error("Não consegui copiar — copia manualmente.");
+      toast.error(t("ref_copy_fail"));
     }
   };
 
@@ -49,22 +49,21 @@ export default function Referrals() {
     <div className="max-w-[1000px] mx-auto pb-20" data-testid="referrals-page">
       {/* === Header === */}
       <header className="mb-12">
-        <p className="text-[10px] font-mono uppercase tracking-[0.22em] text-[#7C3AED] mb-3">Partilhar</p>
+        <p className="text-[10px] font-mono uppercase tracking-[0.22em] text-[#7C3AED] mb-3">{t("ref_share_eyebrow")}</p>
         <h1 className="text-[#F4F1EA] font-light leading-[1.05] tracking-[-0.02em] text-[42px] md:text-[56px] mb-5">
-          Partilha o Studio e <span className="italic text-[#C4B5FD]">ganha créditos</span>.
+          {t("ref_title")}
         </h1>
         <p className="text-[#8A8A8E] text-[15px] max-w-[620px] leading-relaxed">
-          Por cada amigo que se inscreva com o teu código, ambos ganham{" "}
-          <span className="text-[#C4B5FD] font-medium">{stats.reward_per_referral} créditos grátis</span>. Sem limite,
-          sem letra pequena. Quanto mais partilhas, mais gerações desbloqueias.
+          {t("ref_intro")}{" "}
+          <span className="text-[#C4B5FD] font-medium">{stats.reward_per_referral} {t("credits")}</span>. {t("ref_intro_suffix")}
         </p>
       </header>
 
       {/* === Stats row === */}
       <section className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 mb-10">
-        <StatCard icon={<Users className="w-5 h-5" />} label="Convidados" value={stats.referred_count} suffix="amigos" testId="stat-referred" />
-        <StatCard icon={<Gift className="w-5 h-5" />}  label="Créditos Ganhos" value={stats.credits_earned} suffix="grátis" highlight testId="stat-earned" />
-        <StatCard icon={<Sparkles className="w-5 h-5" />} label="Por Convite" value={`+${stats.reward_per_referral}`} suffix="cada" testId="stat-reward" />
+        <StatCard icon={<Users className="w-5 h-5" />} label={t("ref_stat_invited")} value={stats.referred_count} suffix={t("ref_stat_invited_suffix")} testId="stat-referred" />
+        <StatCard icon={<Gift className="w-5 h-5" />} label={t("ref_stat_earned")} value={stats.credits_earned} suffix={t("ref_stat_earned_suffix")} highlight testId="stat-earned" />
+        <StatCard icon={<Sparkles className="w-5 h-5" />} label={t("ref_stat_per")} value={`+${stats.reward_per_referral}`} suffix={t("ref_stat_per_suffix")} testId="stat-reward" />
       </section>
 
       {/* === Code card === */}
@@ -73,7 +72,7 @@ export default function Referrals() {
         <div className="absolute -bottom-32 -left-20 w-72 h-72 rounded-full bg-[#9333EA]/15 blur-3xl pointer-events-none" />
 
         <div className="relative">
-          <p className="text-[10px] font-mono uppercase tracking-[0.22em] text-[#C4B5FD] mb-4">O Teu Código</p>
+          <p className="text-[10px] font-mono uppercase tracking-[0.22em] text-[#C4B5FD] mb-4">{t("ref_code_title")}</p>
           <div className="flex flex-col md:flex-row md:items-center gap-4 mb-8">
             <div className="flex-1 px-6 py-5 rounded-xl bg-[#0B0B0C]/60 border border-[#7C3AED]/40 backdrop-blur-sm">
               <p className="font-heading text-[40px] md:text-[52px] text-[#F4F1EA] tracking-[0.12em] leading-none break-all" data-testid="referral-code">
@@ -81,34 +80,34 @@ export default function Referrals() {
               </p>
             </div>
             <button onClick={() => copy(user.referral_code, "code")} className="inline-flex items-center justify-center gap-2 px-6 py-4 rounded-xl bg-gradient-to-r from-[#7C3AED] to-[#9333EA] hover:from-[#8B5CF6] hover:to-[#A855F7] text-white text-[12px] font-mono uppercase tracking-[0.16em] shadow-lg shadow-[#7C3AED]/30 hover:shadow-[#7C3AED]/50 hover:-translate-y-0.5 transition-all whitespace-nowrap" data-testid="copy-code">
-              {copiedCode ? (<><Check className="w-4 h-4" /> Copiado</>) : (<><Copy className="w-4 h-4" /> Copiar Código</>)}
+              {copiedCode ? (<><Check className="w-4 h-4" /> {t("ref_copied_toast")}</>) : (<><Copy className="w-4 h-4" /> {t("ref_copy_code")}</>)}
             </button>
           </div>
 
-          <p className="text-[10px] font-mono uppercase tracking-[0.22em] text-[#C4B5FD] mb-3">Link de Convite</p>
+          <p className="text-[10px] font-mono uppercase tracking-[0.22em] text-[#C4B5FD] mb-3">{t("ref_link_title")}</p>
           <div className="flex items-center gap-2 px-4 py-3 rounded-xl bg-[#0B0B0C]/60 border border-[#2E2E30] mb-6">
             <code className="flex-1 truncate text-[#F4F1EA] text-[13px] font-mono" data-testid="referral-link">{link}</code>
-            <button onClick={() => copy(link, "link")} className="shrink-0 p-2 rounded-md text-[#C4B5FD] hover:bg-[#7C3AED]/10 transition-colors" data-testid="copy-link" aria-label="Copiar link">
+            <button onClick={() => copy(link, "link")} className="shrink-0 p-2 rounded-md text-[#C4B5FD] hover:bg-[#7C3AED]/10 transition-colors" data-testid="copy-link" aria-label={t("ref_copy_link_aria")}>
               {copiedLink ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
             </button>
           </div>
 
           {/* Share buttons */}
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
-            <ShareButton onClick={shareWhatsApp} icon={<MessageCircle className="w-4 h-4" />} testId="share-whatsapp">WhatsApp</ShareButton>
-            <ShareButton onClick={shareTelegram} icon={<Send className="w-4 h-4" />} testId="share-telegram">Telegram</ShareButton>
-            <ShareButton onClick={shareNative} icon={<Share2 className="w-4 h-4" />} testId="share-other">Outras Apps</ShareButton>
+            <ShareButton onClick={shareWhatsApp} icon={<MessageCircle className="w-4 h-4" />} testId="share-whatsapp">{t("ref_whatsapp")}</ShareButton>
+            <ShareButton onClick={shareTelegram} icon={<Send className="w-4 h-4" />} testId="share-telegram">{t("ref_telegram")}</ShareButton>
+            <ShareButton onClick={shareNative} icon={<Share2 className="w-4 h-4" />} testId="share-other">{t("ref_other_apps")}</ShareButton>
           </div>
         </div>
       </section>
 
       {/* === Como funciona === */}
       <section className="mt-12">
-        <p className="text-[10px] font-mono uppercase tracking-[0.22em] text-[#7C3AED] mb-5">Como Funciona</p>
+        <p className="text-[10px] font-mono uppercase tracking-[0.22em] text-[#7C3AED] mb-5">{t("ref_how")}</p>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-2.5">
-          <StepCard n={1} title="Partilha o teu código" desc="Manda o link aos amigos ou copia o teu código pessoal." />
-          <StepCard n={2} title="Eles inscrevem-se grátis" desc="Cada novo registo com o teu código entra na contagem." />
-          <StepCard n={3} title="Ambos ganham créditos" desc={`Tu recebes +${stats.reward_per_referral} e o teu amigo também. Sem limites.`} />
+          <StepCard n={1} title={t("ref_step1_title")} desc={t("ref_step1_desc")} />
+          <StepCard n={2} title={t("ref_step2_title")} desc={t("ref_step2_desc")} />
+          <StepCard n={3} title={t("ref_step3_title")} desc={t("ref_step3_desc", { n: stats.reward_per_referral })} />
         </div>
       </section>
     </div>

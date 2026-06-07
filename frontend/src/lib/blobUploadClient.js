@@ -15,23 +15,29 @@ function joinApiPath(path) {
 }
 
 let blobUploadEnabledCache = null;
+let blobUploadEnabledCacheAt = 0;
+const BLOB_CACHE_TTL_MS = 5 * 60 * 1000; // 5 min — evita que um valor stale persista durante toda a sessão
 
 export function invalidateBlobUploadCache() {
   blobUploadEnabledCache = null;
+  blobUploadEnabledCacheAt = 0;
 }
 
 export async function isBlobUploadEnabled(opts = {}) {
   if (VERCEL_BLOB_DISABLED) {
     blobUploadEnabledCache = false;
+    blobUploadEnabledCacheAt = Date.now();
     return false;
   }
-  if (!opts.refresh && blobUploadEnabledCache !== null) return blobUploadEnabledCache;
+  const fresh = (Date.now() - blobUploadEnabledCacheAt) < BLOB_CACHE_TTL_MS;
+  if (!opts.refresh && blobUploadEnabledCache !== null && fresh) return blobUploadEnabledCache;
   if (typeof window === "undefined" || typeof fetch === "undefined") return false;
   try {
     const r = await fetch(joinApiPath("/blob/status"), { method: "GET", credentials: "same-origin" });
     if (!r.ok) return false;
     const j = await r.json();
     blobUploadEnabledCache = Boolean(j.blob) && !j.blob_disabled;
+    blobUploadEnabledCacheAt = Date.now();
     return blobUploadEnabledCache;
   } catch {
     return false;

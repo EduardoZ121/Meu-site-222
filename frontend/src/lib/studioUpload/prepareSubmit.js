@@ -3,6 +3,10 @@
  *
  * Imagens: pass-through (servidor sharp/HEIC). Sem materialize no cliente (evita hang Android).
  * Vídeos grandes: cloud upload.
+ *
+ * Mobile safety: cada File é re-lido para um Blob fresco antes de ir para o FormData.
+ * Sem isto, iOS Safari / Android Chrome podem servir um handle "stale" após
+ * compressão prévia ou recolha de memória, causando upload silenciosamente vazio.
  */
 
 import { MAX_IMAGE_DIRECT_BYTES, VIDEO_VERCEL_SAFE_BYTES } from "../uploadConstants";
@@ -19,6 +23,24 @@ function isVideoFile(file) {
   const t = (file.type || "").toLowerCase();
   if (t.startsWith("video/")) return true;
   return /\.(mp4|mov|webm)$/i.test(file.name || "");
+}
+
+/** Re-lê um File para um Blob novo (Uint8Array em memória). Resolve o problema
+ * "stale File" em mobile depois de compressão ou idle longo. Se a leitura
+ * falhar (ficheiro foi recolhido pelo OS), devolve o File original e o servidor
+ * trata do erro com mensagem clara. */
+async function refreshFileHandle(file) {
+  if (!file || typeof file.arrayBuffer !== "function") return file;
+  try {
+    const buf = await file.arrayBuffer();
+    const type = file.type || "application/octet-stream";
+    return new File([buf], file.name || "upload", {
+      type,
+      lastModified: file.lastModified || Date.now(),
+    });
+  } catch {
+    return file;
+  }
 }
 
 export async function prepareStudioFormDataForSubmit(formData, options = {}) {
@@ -55,6 +77,13 @@ export async function prepareStudioFormDataForSubmit(formData, options = {}) {
       } catch {
         /* servidor trata */
       }
+    }
+
+    // Mobile safety: re-read the file into a fresh Blob to avoid stale handles.
+    if (isImageFile(val)) {
+      const fresh = await refreshFileHandle(val);
+      out.append(key, fresh);
+      continue;
     }
 
     out.append(key, val);

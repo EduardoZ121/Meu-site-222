@@ -42,16 +42,28 @@ export default function InstantPhotoUpload({
     setPreviewUrl(null);
   }, []);
 
+  /* eslint-disable react-hooks/set-state-in-effect -- preview URL mirrors props.value lifecycle by design */
   useEffect(() => {
     if (!value) {
       releasePreview();
       return undefined;
     }
+    const prev = previewRef.current;
     const url = URL.createObjectURL(value);
     previewRef.current = url;
     setPreviewUrl(url);
-    return () => revokeFilePreviewUrl(url);
+    if (prev) revokeFilePreviewUrl(prev);
+    return undefined;
   }, [value, releasePreview]);
+  /* eslint-enable react-hooks/set-state-in-effect */
+
+  // Final cleanup on unmount
+  useEffect(() => {
+    return () => {
+      revokeFilePreviewUrl(previewRef.current);
+      previewRef.current = null;
+    };
+  }, []);
 
   const pick = useCallback((file) => {
     if (!file) return;

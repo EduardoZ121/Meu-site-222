@@ -1245,9 +1245,16 @@ async def generate_poster_route(
     if not tpl:
         if photo_path: cleanup(photo_path)
         raise HTTPException(status_code=400, detail="Unknown template")
+    # v2 templates (with replacements map) are forgiving: every placeholder
+    # falls back to its original phrase in the prompt if not filled.
+    v2_lenient = bool(tpl.get("replacements"))
+    if v2_lenient:
+        optional_set = set(tpl["placeholders"])
+    else:
+        optional_set = set(tpl.get("optional") or [])
     missing = [
         p for p in tpl["placeholders"]
-        if p not in (tpl.get("optional") or [])
+        if p not in optional_set
         and not (placeholders.get(p) or "").strip()
     ]
     if missing:

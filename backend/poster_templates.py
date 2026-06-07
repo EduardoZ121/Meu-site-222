@@ -339,8 +339,33 @@ POSTER_TEMPLATES = [ { 'id': 'fl_general',
     'appends': 'extra_text'}]
 
 
+def _load_v2_templates():
+    """Load extended templates from poster_templates_v2.json (frontend-synced).
+    Cached after first read."""
+    global _V2_TEMPLATES_CACHE
+    if _V2_TEMPLATES_CACHE is not None:
+        return _V2_TEMPLATES_CACHE
+    try:
+        import json, os
+        path = os.path.join(os.path.dirname(__file__), "poster_templates_v2.json")
+        if os.path.exists(path):
+            with open(path, "r", encoding="utf-8") as fh:
+                _V2_TEMPLATES_CACHE = json.load(fh) or []
+        else:
+            _V2_TEMPLATES_CACHE = []
+    except Exception:
+        _V2_TEMPLATES_CACHE = []
+    return _V2_TEMPLATES_CACHE
+
+
+_V2_TEMPLATES_CACHE = None
+
+
 def get_poster(template_id: str):
     for t in POSTER_TEMPLATES:
         if t["id"] == template_id:
+            return t
+    for t in _load_v2_templates():
+        if t.get("id") == template_id:
             return t
     return None

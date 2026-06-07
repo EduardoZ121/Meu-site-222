@@ -2,6 +2,7 @@ import { useState } from "react";
 import { ChevronDown } from "lucide-react";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "./ui/collapsible";
 import { cn } from "../lib/utils";
+import { useI18n } from "../lib/i18n";
 
 /**
  * Accordion-style section for studio editors.
@@ -18,6 +19,7 @@ export default function CollapsibleSection({
   variant = "boxed",
   className,
 }) {
+  const { t } = useI18n();
   const [open, setOpen] = useState(defaultOpen);
 
   const isBoxed = variant === "boxed";
@@ -53,7 +55,7 @@ export default function CollapsibleSection({
               {title}
             </p>
             {optional && (
-              <span className="text-[#5A5A5E] text-[10px] font-mono uppercase tracking-wider">opcional</span>
+              <span className="text-[#5A5A5E] text-[10px] font-mono uppercase tracking-wider">{t("common_optional")}</span>
             )}
           </div>
           {hint && !open && hint.length < 60 && (

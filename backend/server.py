@@ -8,7 +8,7 @@ from pathlib import Path
 
 from fastapi import FastAPI, APIRouter, HTTPException, Depends, Request, Header, UploadFile, File, Form
 import json
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, Response
 from starlette.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
 from pydantic import BaseModel
@@ -609,20 +609,40 @@ async def generations_pending(current=Depends(get_current_user)):
 
 @api.get("/generations/{creation_id}/media")
 async def generation_media(creation_id: str, current=Depends(get_current_user)):
-    """Return the media URL(s) for a finished creation. Used by the
-    gallery to refresh expired Replicate URLs."""
+    """Devolve os BYTES da media de uma criação (paridade com a API Vercel).
+    O frontend (useCreationMedia) espera binário, não JSON."""
+    import base64
+    import httpx
     doc = await db.creations.find_one(
         {"id": creation_id, "user_id": current["sub"]},
         {"_id": 0, "result_url": 1, "result_urls": 1, "type": 1},
     )
     if not doc:
         raise HTTPException(status_code=404, detail="Creation not found")
-    return {
-        "id": creation_id,
-        "type": doc.get("type"),
-        "url": doc.get("result_url"),
-        "urls": doc.get("result_urls") or ([doc["result_url"]] if doc.get("result_url") else []),
-    }
+    urls = [u for u in (doc.get("result_urls") or [doc.get("result_url")]) if u]
+    if not urls:
+        raise HTTPException(status_code=404, detail="Ficheiro indisponível ou link expirado.")
+
+    for url in urls:
+        if url.startswith("data:"):
+            try:
+                header, b64 = url.split(",", 1)
+                ct = header.split(":", 1)[1].split(";", 1)[0] or "image/png"
+                buf = base64.b64decode(b64)
+                if len(buf) >= 64:
+                    return Response(content=buf, media_type=ct, headers={"Cache-Control": "private, max-age=3600"})
+            except Exception:
+                continue
+        elif url.startswith("http"):
+            try:
+                async with httpx.AsyncClient(follow_redirects=True, timeout=45) as client:
+                    res = await client.get(url, headers={"User-Agent": "RemakePixel/1.0", "Accept": "image/*,video/*,*/*"})
+                if res.status_code == 200 and len(res.content) >= 64:
+                    ct = (res.headers.get("content-type") or "image/jpeg").split(";")[0].strip()
+                    return Response(content=res.content, media_type=ct, headers={"Cache-Control": "private, max-age=3600"})
+            except Exception:
+                continue
+    raise HTTPException(status_code=404, detail="Ficheiro indisponível ou link expirado.")
 
 
 # ============== Credits ==============
@@ -696,6 +716,32 @@ async def generations_history(limit: int = 30, only_favorites: bool = False, cur
         q["is_favorite"] = True
     docs = await db.creations.find(q, {"_id": 0}).sort("created_at", -1).limit(limit).to_list(length=limit)
     return {"creations": docs}
+
+
+@api.get("/generations/proxy-media")
+async def proxy_media(u: str = ""):
+    """Proxy same-origin para media (Replicate/Vercel Blob) — paridade com a API Vercel."""
+    import httpx
+    from urllib.parse import urlparse
+    target = (u or "").strip()
+    parsed = urlparse(target)
+    host = (parsed.hostname or "").lower()
+    allowed = parsed.scheme == "https" and (
+        host.endswith("replicate.delivery")
+        or host == "replicate.com"
+        or host.endswith(".blob.vercel-storage.com")
+    )
+    if not allowed:
+        raise HTTPException(status_code=400, detail="URL de media inválida.")
+    try:
+        async with httpx.AsyncClient(follow_redirects=True, timeout=30) as client:
+            upstream = await client.get(target)
+    except Exception:
+        raise HTTPException(status_code=502, detail="Falha ao obter media.")
+    if upstream.status_code != 200:
+        raise HTTPException(status_code=502, detail="Não foi possível obter a imagem.")
+    ct = upstream.headers.get("content-type", "image/jpeg")
+    return Response(content=upstream.content, media_type=ct, headers={"Cache-Control": "public, max-age=86400"})
 
 
 @api.post("/generations/{creation_id}/favorite")
@@ -1836,8 +1882,8 @@ async def admin_purchases(limit: int = 50, _=Depends(require_admin)):
 @api.get("/admin/finance")
 async def admin_finance_endpoint(_=Depends(require_admin)):
     """Resumo financeiro + reserva Replicate (paridade com API Vercel)."""
-    from services.finance_model import aggregate_finance  # local helper if exists
     try:
+        from services.finance_model import aggregate_finance  # local helper if exists
         settings = await db["platform_settings"].find_one({"_id": "finance"}) or {}
         balance = settings.get("replicate_balance_usd")
         return await aggregate_finance(db, replicate_balance_usd=balance)

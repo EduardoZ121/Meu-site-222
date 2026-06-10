@@ -16,8 +16,12 @@ export function useStudioMediaPreview(file) {
   }, [file]);
 
   useEffect(() => () => {
-    revokePreviewUrl(storeRef.current);
-    storeRef.current = null;
+    const store = storeRef.current;
+    if (store) {
+      revokePreviewUrl(store.current);
+      store.current = null;
+      store.key = "";
+    }
   }, []);
 
   return {

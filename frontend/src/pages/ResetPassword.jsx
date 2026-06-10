@@ -3,12 +3,14 @@ import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
 import { useAuth } from "../lib/auth";
+import { useI18n } from "../lib/i18n";
 import useTitle from "../lib/useTitle";
 import Logo from "../components/Logo";
 import PublicLanguageBar from "../components/PublicLanguageBar";
 
 export default function ResetPassword() {
-  useTitle("Nova palavra-passe");
+  const { t } = useI18n();
+  useTitle(t("auth_reset_title"));
   const [params] = useSearchParams();
   const navigate = useNavigate();
   const { resetPassword } = useAuth();

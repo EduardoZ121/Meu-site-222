@@ -165,3 +165,45 @@ class TestValidation:
     def test_generate_pro_missing_preset(self, admin_auth):
         r = admin_auth.post(f"{BASE_URL}/api/generate/pro", json={"photo": "x"}, timeout=15)
         assert r.status_code in (400, 422)
+
+
+# ---------------- Fix verification (iteration 5) ----------------
+class TestFixes:
+    def test_proxy_media_bad_host(self, session):
+        # Non-whitelisted host must be rejected with 400
+        r = session.get(f"{BASE_URL}/api/generations/proxy-media", params={"u": "https://evil.example.com/a.jpg"}, timeout=15)
+        assert r.status_code == 400, f"expected 400, got {r.status_code} {r.text[:200]}"
+
+    def test_proxy_media_missing_param(self, session):
+        r = session.get(f"{BASE_URL}/api/generations/proxy-media", timeout=15)
+        # missing u param -> 400 or 422
+        assert r.status_code in (400, 422)
+
+    def test_proxy_media_valid_host(self, session):
+        # A whitelisted host (replicate.delivery) — even if the resource itself
+        # doesn't exist, validation should succeed. Accept 2xx (image bytes) OR
+        # any upstream failure (404/502/504/410). Critically NOT 400 / 405.
+        r = session.get(
+            f"{BASE_URL}/api/generations/proxy-media",
+            params={"u": "https://replicate.delivery/pbxt/doesnotexist/test.png"},
+            timeout=20,
+        )
+        assert r.status_code not in (400, 405), f"host validation/route wrong: {r.status_code}"
+
+    def test_generation_media_endpoint_shape(self, admin_auth):
+        # Find an existing generation id
+        r = admin_auth.get(f"{BASE_URL}/api/generations/history", timeout=20)
+        assert r.status_code == 200
+        data = r.json()
+        items = data if isinstance(data, list) else data.get("creations") or data.get("items") or data.get("generations") or []
+        if not items:
+            pytest.skip("no generations to test media endpoint")
+        gid = items[0].get("id") or items[0].get("_id") or items[0].get("generation_id")
+        if not gid:
+            pytest.skip("could not determine generation id")
+        r2 = admin_auth.get(f"{BASE_URL}/api/generations/{gid}/media", timeout=30, allow_redirects=False)
+        # binary bytes (2xx) OR redirect OR 404/410 for missing media — but NOT 405 nor a JSON body claiming bytes
+        assert r2.status_code in (200, 204, 301, 302, 404, 410, 502, 504), f"unexpected {r2.status_code}"
+        if r2.status_code == 200:
+            ctype = r2.headers.get("content-type", "")
+            assert ctype.startswith("image/") or "octet-stream" in ctype, f"expected binary, got {ctype}"

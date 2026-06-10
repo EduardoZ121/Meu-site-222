@@ -72,15 +72,8 @@ export default function GoogleAuthButton({ onCredential, label = "Continuar com 
   }, [onCredential]);
 
   if (!GOOGLE_CLIENT_ID) {
-    return (
-      <button
-        type="button"
-        disabled
-        className="w-full border border-rp-border px-4 py-3 text-rp-mute2 text-[11px] font-mono uppercase tracking-[0.14em] opacity-70"
-      >
-        Google Login · falta Client ID
-      </button>
-    );
+    // Sem client ID configurado — não mostrar botão partido aos utilizadores.
+    return null;
   }
 
   return (

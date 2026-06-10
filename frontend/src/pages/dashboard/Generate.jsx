@@ -187,12 +187,18 @@ export default function Generate() {
   };
 
   return (
-    <div className="rp-studio-shell max-w-[1200px] mx-auto pb-28" data-testid="generate-page">
-      <header className="mb-10 pb-8 border-b border-[rgba(244,241,234,0.06)]">
+    <div className="compact-page rp-studio-shell max-w-[1200px] mx-auto pb-28" data-testid="generate-page">
+      <header data-rp-marketing="true" className="mb-10 pb-8 border-b border-[rgba(244,241,234,0.06)]">
         <p className="rp-editor-section-cap mb-2">{t("studio_eyebrow")}</p>
         <h1 className="rp-studio-page-title mb-3 font-['Inter_Tight']">{t("studio_title")}</h1>
         <p className="rp-studio-page-desc">{t("studio_desc")}</p>
       </header>
+
+      {/* Mobile-only compact title bar (OpenArt-style) */}
+      <div className="md:hidden flex items-center justify-between mb-3 px-0.5">
+        <h1 className="text-white text-[17px] font-bold font-['Inter_Tight'] truncate">{t("sidebar_generate")}</h1>
+        <span className="text-[#7C3AED] text-[10px] font-mono uppercase tracking-[0.18em] tabular-nums">{user?.is_unlimited ? "∞" : (user?.credits ?? 0)} cr.</span>
+      </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-[1fr_380px] gap-8 lg:gap-10">
         <div className="space-y-4">

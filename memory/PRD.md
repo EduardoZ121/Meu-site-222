@@ -300,3 +300,41 @@ the `except`-block refund never executes, credits are LOST.
 - Phase D — Public gallery, "Ver Prompt", Admin Instagram queue.
 - Phase E — Admin god mode.
 - Refactor `server.py` (~1500 lines) into routers.
+
+
+---
+
+# Changelog — 2026-02-XX (Compact OpenArt-style Mobile Studio Layout)
+
+## What changed
+- **Mobile-first overhaul** of the 4 main studio pages (Posters · Generate · Pro · Artistic) to match the OpenArt reference UI provided by the user (compact, dense, minimal scroll).
+- Rewrote `/app/frontend/src/styles/compact-page.css` to be **aggressively mobile-first** (`@media (max-width: 767px)`):
+  - Hides ALL elements marked `data-rp-marketing="true"` and their inner `h1`/`p` (eyebrow + giant title + description).
+  - Slashes paddings (`p-5/p-7` → 12px), section gaps (24/32 → 10/12px), card radius (24 → 14px).
+  - Tightens template/preset grids to 2 cols on phones.
+  - Compresses headings (`pro-step-title`, `section h2`) to 14px bold.
+  - Engine grid + chip rows forced to 2-col grids.
+  - Trims tabs/pills to 6×12 padding · 12px font.
+- Added a **mobile-only compact title bar** under the global header on all 4 pages: `[Page Title] · [credits·]` — matches OpenArt's "Tiro Inteligente" layout.
+- Marked all 4 page marketing headers with `data-rp-marketing="true"` so the CSS reliably hides them on mobile only (desktop UI untouched).
+- Added `compact-page` class to `PosterEditor` and `VariantPicker` (they were missing it).
+- Removed the broken `t("post_grid_count_suffix")` translation key from the Posters mobile title.
+
+## Files touched
+- `/app/frontend/src/styles/compact-page.css` (rewritten, mobile-first)
+- `/app/frontend/src/pages/dashboard/Posters.jsx` (3 edits — grid header marked, mobile title bar, editor + variant picker wrappers)
+- `/app/frontend/src/pages/dashboard/Generate.jsx` (mobile title bar)
+- `/app/frontend/src/pages/dashboard/Pro.jsx` (mobile title bar)
+- `/app/frontend/src/pages/dashboard/Artistic.jsx` (mobile title bar)
+
+## Verified
+- Screenshot tests at 390×844 mobile viewport for all 4 pages → matches OpenArt reference.
+- Desktop layout (≥768px) remains unchanged (CSS only fires under 767px).
+
+## Pending after this push
+- `/api/generations/history` returning 0 items (Gallery shows empty) — P1.
+- Extend async polling to `/generate/pro`, `/api/tools/*`, `/generate/video` (Vercel/K8s 60s timeout risk) — P2.
+- Phase C — Conversational Chat IA + Onboarding.
+- Phase D — Public gallery + "Ver Prompt" + Admin Instagram queue.
+- Refactor `server.py` into FastAPI routers.
+

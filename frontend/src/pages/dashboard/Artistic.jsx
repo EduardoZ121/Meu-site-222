@@ -413,14 +413,20 @@ export default function Artistic() {
 
   return (
     <div
-      className="rp-artistic-page w-full min-w-0 max-w-full mx-auto px-1 sm:px-0 pb-8 md:pb-14 md:max-w-[1680px]"
+      className="compact-page rp-artistic-page w-full min-w-0 max-w-full mx-auto px-1 sm:px-0 pb-8 md:pb-14 md:max-w-[1680px]"
       data-testid="artistic-studio-page"
     >
-      <ArtisticStudioHeader />
+      <div data-rp-marketing="true"><ArtisticStudioHeader /></div>
 
-      <p className="md:hidden text-[#9CA3AF] text-[13px] leading-relaxed mb-4 px-0.5">
+      <p data-rp-marketing="true" className="md:hidden text-[#9CA3AF] text-[13px] leading-relaxed mb-4 px-0.5">
         {t("art_hero_subtitle")}
       </p>
+
+      {/* Mobile-only compact title bar (OpenArt-style) */}
+      <div className="md:hidden flex items-center justify-between mb-3 px-0.5">
+        <h1 className="text-white text-[17px] font-bold font-['Inter_Tight'] truncate">{t("sidebar_artistic") || t("art_page_title")}</h1>
+        <span className="text-[#7C3AED] text-[10px] font-mono uppercase tracking-[0.18em] tabular-nums">{user?.is_unlimited ? "∞" : (user?.credits ?? 0)} cr.</span>
+      </div>
 
       <ArtisticFlowSteps
         activeStep={mobileTab}

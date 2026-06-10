@@ -1,0 +1,200 @@
+/* ============================================================
+   COMPACT-PAGE — Mobile-first OpenArt-inspired studio layout
+   Apply to a page wrapper: <div class="compact-page" data-page="...">
+   This rewrites layout for MOBILE (<768px) only. Desktop stays intact.
+   ============================================================ */
+
+/* ----------------------------------------------------------------
+   MOBILE (<768px) — aggressive compaction
+   ---------------------------------------------------------------- */
+@media (max-width: 767px) {
+
+  /* Reduce the outer page paddings */
+  .compact-page {
+    padding-left: 12px !important;
+    padding-right: 12px !important;
+    padding-top: 4px !important;
+    padding-bottom: calc(96px + env(safe-area-inset-bottom, 0px)) !important;
+    max-width: 100% !important;
+  }
+
+  /* Hide ALL marketing eyebrow/hero/intro on mobile */
+  .compact-page [data-rp-marketing="true"],
+  .compact-page .rp-page-eyebrow,
+  .compact-page .rp-page-hero,
+  .compact-page .rp-page-subhero,
+  .compact-page .rp-editor-section-cap:first-of-type {
+    display: none !important;
+  }
+
+  /* The studio "back" link if present */
+  .compact-page .rp-studio-back {
+    margin-bottom: 8px !important;
+    font-size: 12px !important;
+  }
+
+  /* Big page H1 + description — hide on mobile only when marked as marketing */
+  .compact-page [data-rp-marketing="true"] h1,
+  .compact-page [data-rp-marketing="true"] p {
+    display: none !important;
+  }
+
+  /* Cards/sections — denser padding + smaller radius */
+  .compact-page .rp-card,
+  .compact-page .rp-editor-panel,
+  .compact-page [data-rp-card] {
+    padding: 12px !important;
+    border-radius: 14px !important;
+  }
+
+  /* Slash all vertical stacks: 24/32 -> 10/12 */
+  .compact-page .space-y-2 > * + *,
+  .compact-page .space-y-3 > * + *,
+  .compact-page .space-y-4 > * + *,
+  .compact-page .space-y-5 > * + * {
+    margin-top: 10px !important;
+  }
+  .compact-page .space-y-6 > * + *,
+  .compact-page .space-y-7 > * + *,
+  .compact-page .space-y-8 > * + *,
+  .compact-page .space-y-10 > * + * {
+    margin-top: 12px !important;
+  }
+
+  /* Tighten gaps in grids/flex */
+  .compact-page .gap-6 { gap: 12px !important; }
+  .compact-page .gap-8 { gap: 12px !important; }
+  .compact-page .gap-10 { gap: 14px !important; }
+
+  /* Margins on big sections drastically reduced */
+  .compact-page .mb-6 { margin-bottom: 10px !important; }
+  .compact-page .mb-8 { margin-bottom: 12px !important; }
+  .compact-page .mb-10 { margin-bottom: 14px !important; }
+  .compact-page .pb-7 { padding-bottom: 14px !important; }
+  .compact-page .pb-8 { padding-bottom: 14px !important; }
+
+  /* Section/inner padding: 5/7 -> 12px */
+  .compact-page .p-5 { padding: 12px !important; }
+  .compact-page .p-7 { padding: 12px !important; }
+  .compact-page .sm\:p-5 { padding: 12px !important; }
+  .compact-page .sm\:p-7 { padding: 12px !important; }
+
+  /* Headings inside sections — small + bold like OpenArt "ADICIONAR REFERÊNCIAS" */
+  .compact-page section h2,
+  .compact-page .rp-section h2,
+  .compact-page [data-rp-section-title],
+  .compact-page .pro-step-title {
+    font-size: 14px !important;
+    line-height: 1.2 !important;
+    font-weight: 700 !important;
+    margin-bottom: 6px !important;
+    letter-spacing: -0.005em !important;
+  }
+  .compact-page .pro-step-hint {
+    font-size: 11.5px !important;
+    line-height: 1.35 !important;
+    color: #8A8A8E !important;
+  }
+  .compact-page .pro-step-num {
+    width: 22px !important;
+    height: 22px !important;
+    font-size: 11px !important;
+  }
+  /* Reduce left-indent on numbered steps (Pro page) */
+  .compact-page section > div.pl-\[calc\(2\.25rem\+0\.875rem\)\],
+  .compact-page section > div[class*="pl-[calc(2.25rem"] {
+    padding-left: 0 !important;
+  }
+  .compact-page section > div.flex.gap-3\.5 {
+    margin-bottom: 8px !important;
+    gap: 8px !important;
+  }
+
+  /* Textareas: taller, no fuss */
+  .compact-page textarea,
+  .compact-page .rp-editor-textarea {
+    min-height: 88px !important;
+    font-size: 14px !important;
+    line-height: 1.4 !important;
+    padding: 10px !important;
+    border-radius: 12px !important;
+  }
+
+  /* Engine grid — keep 2 columns by default */
+  .compact-page [data-rp-engine-grid="true"] {
+    display: grid !important;
+    grid-template-columns: 1fr 1fr !important;
+    gap: 8px !important;
+  }
+  .compact-page [data-rp-engine-grid="true"] > *:nth-child(3) {
+    grid-column: 1 / -1;
+  }
+
+  /* Settings chips row */
+  .compact-page [data-rp-chip-row="true"] {
+    display: grid !important;
+    grid-template-columns: 1fr 1fr !important;
+    gap: 8px !important;
+  }
+
+  /* Tabs / category pills — keep clickable but smaller */
+  .compact-page .rp-pill,
+  .compact-page [data-testid^="postercat-"],
+  .compact-page [data-testid^="procat-"],
+  .compact-page [data-testid^="pcat-"] {
+    padding: 6px 12px !important;
+    font-size: 12px !important;
+  }
+
+  /* The 4 main studio template/preset grids — 2 cols on phones */
+  .compact-page [data-testid="poster-templates-grid"],
+  .compact-page [data-testid="poster-variants-grid"],
+  .compact-page [data-testid="padrao-grid"],
+  .compact-page [data-testid="pro-presets"] {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 8px !important;
+  }
+
+  /* Hide internal "balance / credits" centered line — sticky bar shows it */
+  .compact-page p.text-center {
+    font-size: 11px !important;
+  }
+
+  /* StudioGenerateBar inline → keep its built-in look but compact */
+  .compact-page .rp-primary-cta,
+  .compact-page [data-testid$="generate-button"],
+  .compact-page [data-testid$="-create"],
+  .compact-page [data-testid="generate-button"] {
+    padding: 12px 14px !important;
+    font-size: 14px !important;
+    border-radius: 12px !important;
+  }
+
+  /* Collapse the desktop "right column" result anchor when on mobile — it
+     already stacks; just trim the surrounding padding */
+  .compact-page .rp-editor-panel-accent {
+    display: none !important;
+  }
+
+  /* Hide the giant "1200/1400/1680 max-w" desktop helpers on mobile */
+  .compact-page.max-w-\[1400px\],
+  .compact-page.max-w-\[1200px\],
+  .compact-page.md\:max-w-\[1680px\] {
+    max-width: 100% !important;
+  }
+
+  /* Posters: hide the desktop "back" header bar (we use shell header) */
+  .compact-page [data-testid="poster-templates-grid"] + * {
+    margin-top: 12px !important;
+  }
+}
+
+/* ----------------------------------------------------------------
+   DESKTOP (>=768px) — minor tweaks only (don't break existing UI)
+   ---------------------------------------------------------------- */
+@media (min-width: 768px) {
+  .compact-page {
+    --rp-section-gap: 0.875rem;
+    --rp-section-pad: 1rem;
+  }
+}

@@ -403,8 +403,9 @@ export default function Posters() {
   /*  GRID                                                         */
   /* ============================================================ */
   return (
-    <div className="max-w-[1400px] mx-auto" data-testid="posters-page">
-      <header className="mb-8 md:mb-10">
+    <div className="compact-page max-w-[1400px] mx-auto" data-testid="posters-page">
+      <div data-rp-marketing="true">{/* old marketing intro hidden via compact-page CSS */}</div>
+      <header data-rp-marketing="true" className="mb-8 md:mb-10">
         <p className="text-[#7C3AED] text-[10px] font-mono uppercase tracking-[0.22em] mb-3">{t("sidebar_posters")}</p>
         <h1 className="text-[#F4F1EA] text-[36px] md:text-[52px] font-light tracking-[-0.02em] leading-[1.02] mb-3 font-['Inter_Tight']">
           {t("post_grid_title")}
@@ -413,6 +414,12 @@ export default function Posters() {
           {t("post_grid_desc", { n: templates.length || 44 })}
         </p>
       </header>
+
+      {/* Mobile-only compact title bar (OpenArt-style) */}
+      <div className="md:hidden flex items-center justify-between mb-3 px-0.5">
+        <h1 className="text-white text-[17px] font-bold font-['Inter_Tight'] truncate">{t("sidebar_posters")}</h1>
+        <span className="text-[#7C3AED] text-[10px] font-mono uppercase tracking-[0.18em] tabular-nums">{templates.length || 0}</span>
+      </div>
 
       {/* Tabs */}
       <div className="flex flex-wrap gap-1.5 mb-10" data-testid="poster-cats">
@@ -457,12 +464,12 @@ export default function Posters() {
 
 function VariantPicker({ base, variants, onBack, onPick, catLabel, t }) {
   return (
-    <div className="max-w-[1400px] mx-auto pb-20" data-testid="poster-variant-picker">
+    <div className="compact-page max-w-[1400px] mx-auto pb-20" data-testid="poster-variant-picker">
       <button type="button" onClick={onBack} className="rp-studio-back" data-testid="posters-back-to-grid">
         <ArrowLeft className="w-4 h-4" /> {t("post_back_templates")}
       </button>
 
-      <header className="mb-8 md:mb-10">
+      <header data-rp-marketing="true" className="mb-8 md:mb-10">
         <p className="text-[#7C3AED] text-[10px] font-mono uppercase tracking-[0.22em] mb-3">
           {catLabel(base.category)} · {t("post_variant_picker_eyebrow")}
         </p>
@@ -686,7 +693,7 @@ function Editor(props) {
         : t("post_generating_poster");
 
   return (
-    <div className="max-w-[1400px] mx-auto pb-32" data-testid="posters-editor">
+    <div className="compact-page max-w-[1400px] mx-auto pb-32" data-testid="posters-editor">
       <button
         onClick={onBack}
         className="rp-studio-back"
@@ -696,7 +703,7 @@ function Editor(props) {
       </button>
 
       {/* Header */}
-      <div className="mb-10 flex items-start gap-5">
+      <div data-rp-marketing="true" className="mb-10 flex items-start gap-5">
         <div
           className="shrink-0 w-16 h-20 rounded-lg shadow-lg shadow-black/40 relative overflow-hidden"
           style={{ background: CAT_GRADIENTS[picked.category] }}

@@ -88,6 +88,7 @@ const { listPosterTemplates } = require("./lib/posterTemplatesData.cjs");
 const { improvePrompt } = require("./lib/promptAssist.cjs");
 const { signSession, verifySessionToken } = require("./lib/sessionToken.cjs");
 const { loginWithGoogleCredential, handleGoogleRedirectCallback } = require("./lib/googleAuth.cjs");
+const {
   computeVideoGenerateCost,
   computeVideoEditCostFromConfig,
   computeArtisticEffectSurcharge,

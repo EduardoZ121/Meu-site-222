@@ -300,3 +300,31 @@ the `except`-block refund never executes, credits are LOST.
 - Phase D — Public gallery, "Ver Prompt", Admin Instagram queue.
 - Phase E — Admin god mode.
 - Refactor `server.py` (~1500 lines) into routers.
+
+---
+
+# Changelog — 2026-06-10 (Re-import do GitHub + Auditoria completa pré-lançamento)
+
+## Contexto
+O utilizador pediu para descartar todas as edições locais, re-importar o site atualizado do repositório `https://github.com/EduardoZ121/Meu-site-222` (branch main) e corrigir TODOS os erros antes do lançamento. Os .env locais (MONGO_URL, chaves OpenAI/Replicate/Stripe live, EMERGENT_LLM_KEY) foram preservados.
+
+## Auditoria + correções (todas verificadas — pytest 40/40, frontend 100%)
+1. **`GET /api/generations/{id}/media` devolvia JSON** mas o frontend (`useCreationMedia`) espera BYTES binários → todas as thumbnails da galeria apareciam vazias. Reescrito em `server.py` para devolver binário (suporta data-URIs base64 + URLs https com fallback entre result_urls). Links Replicate expirados → 404 → placeholder "Indisponível" (comportamento correto).
+2. **`GET /api/generations/proxy-media` não existia no FastAPI** (só na API Node/Vercel). Implementado com whitelist de hosts (replicate.delivery, replicate.com, *.blob.vercel-storage.com), 400 para hosts inválidos.
+3. **5 páginas de Tools com white-screen** (bg-remove, upscale, restore, colorize, inpaint): `useStudioMediaPreview` anulava `storeRef.current` no cleanup → crash no remount (StrictMode). Corrigido o cleanup (revoga o URL e mantém o objeto do ref vivo).
+4. **`GET /api/admin/finance` devolvia 500**: import de `services.finance_model` estava FORA do try/except ImportError. Movido para dentro — fallback inline funciona.
+5. **127 chaves i18n em falta em runtime** (auth_*, manga_*, notif_*, profile_menu_*, vid_edit_*, badge_soon, etc.) — páginas Login/Register/MangaStudio/Notificações mostravam texto "humanizado" em inglês. Adicionadas todas a `en.json` e `pt.json` (es/fr caem para en). Verificação por simulação runtime: 0 em falta.
+6. **Botão Google "falta Client ID"** visível para utilizadores finais → agora oculto quando `REACT_APP_GOOGLE_CLIENT_ID` não está definido.
+7. **Título da página /reset-password hardcoded em PT** → usa `t("auth_reset_title")` (nova chave en+pt).
+8. **Smoke test de geração real**: POST /generate/image (fast/Grok) → succeeded em ~6s, 10 créditos debitados, proxy-media 200 image/jpeg com URL fresca.
+
+## Estado
+- Backend: 40/40 testes pytest (`/app/backend/tests/test_full_audit.py` com classe TestFixes de regressão).
+- Frontend: todas as páginas públicas + dashboard + 6 tools + manga studio renderizam sem erros; i18n EN/PT limpo; mobile 390px sem overflow.
+- O site está PRONTO PARA LANÇAMENTO. O utilizador fará "Save to GitHub" para levar estas correções para o repositório.
+
+## Backlog pós-lançamento (não bloqueante)
+- P2: Refatorar `server.py` (~1966 linhas) em routers FastAPI (auth/generate/admin/stripe/tools/generations).
+- P2: Rate limiting no endpoint proxy-media.
+- P2: Espelhar resultados Replicate para storage permanente no backend Python (a API Node/Vercel já faz mirror para Vercel Blob; criações antigas com URLs Replicate expiradas só recuperam com nova geração).
+- Definir `REACT_APP_GOOGLE_CLIENT_ID` no ambiente de produção para ativar o login Google.

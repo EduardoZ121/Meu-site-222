@@ -1,0 +1,53 @@
+{
+  "summary": "Full pre-launch audit of Remake Pixel (public + auth + dashboard + tools + mobile + admin). Backend 35/36 pytest passing. Frontend public pages and most dashboard pages load OK, BUT 3 CRITICAL issues found: (1) /api/generations/proxy-media not implemented in Python backend → all gallery thumbnails are broken (visible blank boxes), (2) 5 of 6 Tools sub-pages crash with white screen (Cannot read properties of null reading 'current') — bg-remove, upscale, restore, colorize, inpaint; only clothes works, (3) /api/admin/finance returns 500 because the `from services.finance_model import` is OUTSIDE the try/except ImportError block. Mobile responsiveness at 390px is good (no overflow on landing/generate/posters/pro/artistic). Language switcher present. Login works. Smoke image-generation NOT triggered (Tools workflows blocked by tool-page crash; backend validation paths for /generate/easy and /generate/pro work).",
+  "backend_issues": {
+    "critical": [
+      {"endpoint": "GET /api/admin/finance", "issue": "Returns 500 — `from services.finance_model import aggregate_finance` is placed BEFORE the try block at server.py line 1839; the `except ImportError` at line 1844 never catches the ModuleNotFoundError. Move the import inside the try.", "priority": "HIGH"},
+      {"endpoint": "GET /api/generations/proxy-media", "issue": "Endpoint is referenced by frontend (lib/creationUrls.js line 63) for proxying Replicate image URLs, but Python backend server.py does NOT implement it. Returns 405 (matches DELETE /api/generations/{creation_id}). Consequence: ALL gallery/dashboard images that are proxied (gallery thumbnails, explore feed) render as blank boxes. The Node Vercel API (/app/api/lib/creationsRoutes.cjs) has it; FastAPI parity is missing.", "priority": "CRITICAL"}
+    ],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "/app/tools/bg-remove, /app/tools/upscale, /app/tools/restore, /app/tools/colorize, /app/tools/inpaint", "issue": "White screen / runtime crash on mount with pageerror: 'Cannot read properties of null (reading \\'current\\')'. body.innerText is empty. The only Tools subpage that still works is /app/tools/clothes (ClothesChanger does not use useStudioMediaPreview). The common dependency across all 5 broken pages is `useStudioMediaPreview` (src/hooks/useStudioMediaPreview.js) + StudioGenerateBar/StudioGenerateCostMeta stack. Likely root cause: a hook in that chain receives a null ref/value (suspect: storeRef.current race in useStudioMediaPreview.js, or PricingContext returning undefined for `costs` before resolved — needs main agent to add a null guard).", "selector": "page route", "priority": "CRITICAL"},
+      {"component": "Gallery (/app/gallery)", "issue": "All 29 image tiles render as blank placeholders. Root cause is the missing /api/generations/proxy-media backend route — img src returns 405. Visible to user as empty cards.", "selector": "img inside gallery cards", "priority": "CRITICAL"},
+      {"component": "Explore (/explore)", "issue": "Same 405 on /api/generations/proxy-media — public explore gallery images broken.", "selector": "img", "priority": "HIGH"}
+    ],
+    "integration_issues": [
+      {"flow": "Background tools workflow", "issue": "Tool pages crash on entry, blocking BG remove / Upscale / Restore / Colorize / Inpaint flows entirely.", "affected_selectors": ["/app/tools/bg-remove", "/app/tools/upscale", "/app/tools/restore", "/app/tools/colorize", "/app/tools/inpaint"]},
+      {"flow": "Gallery thumbnails / past generation viewing", "issue": "Images do not load due to missing proxy endpoint; user sees empty gallery despite having 29+ generations.", "affected_selectors": ["[data-testid*='gallery'] img"]}
+    ],
+    "design_issues": [
+      {"screen": "/reset-password", "issues": ["Page title hard-coded in Portuguese ('Nova palavra-passe · Remake Pixel') even when language is EN — minor i18n inconsistency, no impact on flow."]}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_full_audit.py",
+    "/app/test_reports/pytest/iter4_audit.xml",
+    "/app/backend/tests/test_remake_pixel.py (previous iteration regression)"
+  ],
+  "action_items": [
+    "FIX server.py admin_finance_endpoint: move `from services.finance_model import aggregate_finance` INSIDE the try block (or wrap in `try: import ... except ImportError: fallback`).",
+    "IMPLEMENT /api/generations/proxy-media GET endpoint in backend/server.py — port logic from /app/api/lib/creationsRoutes.cjs lines 156+ (validate URL host whitelist e.g. replicate.delivery, stream image bytes back). Without this, gallery + explore images are completely broken.",
+    "FIX white-screen crash in 5 Tools pages. Add null guards in src/hooks/useStudioMediaPreview.js (storeRef may be null after cleanup) and/or check that usePricing() returns a non-null `costs` object before destructuring in BgRemove/Upscale/Restore/Colorize/Inpaint. Compare with ClothesChanger which works.",
+    "(minor) Localize /reset-password page title."
+  ],
+  "critical_code_review_comments": [
+    "server.py is 1919 lines — should be split into routers (auth/generate/wizard/admin/stripe/tools).",
+    "admin_finance_endpoint has `from services.finance_model import` outside its try block — defeats the `except ImportError` fallback. Classic bug.",
+    "Backend FastAPI route parity vs the Node Vercel API is incomplete. /api/generations/proxy-media exists in /app/api/lib/creationsRoutes.cjs but not in server.py. There may be other Node-only routes missing — main agent should diff /app/api/* against server.py before launch.",
+    "useStudioMediaPreview cleanup sets storeRef.current = null AFTER passing it to revokePreviewUrl as if it were a URL string (it is actually the wrapper object {current, key}) — revokePreviewUrl(store.current) would have been correct. Logic appears confused.",
+    "All 5 broken tool pages share PricingContext + useStudioMediaPreview imports — if costs is undefined on first render the destructure `const { costs } = usePricing()` is fine, but `costs.bgRemove` would throw 'Cannot read properties of undefined'. Suspect this is the actual crash path; add a default `{}` fallback.",
+    "Test user (test@remakepix.com) login returned non-200 — file /app/memory/test_credentials.md still advertises this account but it doesn't appear seeded. Either seed it or remove from docs."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_full_audit.py (new — 36 tests, 35 passing)"
+  ],
+  "success_rate": {"backend": "97% (35/36 pytest)", "frontend": "70% — public pages OK, dashboard OK except 5/6 tool subpages crash, gallery/explore images broken"},
+  "test_credentials": "Admin admin@remakepix.com / Admin@2026Remake works (99924 credits visible). test@remakepix.com / Test@2026Remake login FAILED — account not seeded; update /app/memory/test_credentials.md or seed it.",
+  "seed_data_creation": "None. Admin already has 99k credits and ~29 historical generations in gallery.",
+  "retest_needed": true,
+  "main_agent_can_self_test": false,
+  "context_for_next_testing_agent": "Reuse /app/backend/tests/test_full_audit.py for backend regression. The proxy-media issue impacts every screen showing generation thumbnails. After main agent fixes the 3 critical bugs, re-run the same Playwright flow: login → visit all dashboard pages → confirm no console pageerror and that gallery/explore images load (HTTP 200, not 405). Smoke generation on /app/generate was intentionally not triggered to avoid burning paid API credits — main agent should validate that manually once tool pages render.",
+  "rca of the issue": "1) /api/admin/finance 500 — `from services.finance_model import ...` on line 1839 is positioned BEFORE the `try:` on line 1840, so the ModuleNotFoundError escapes the `except ImportError` on line 1844. Fix: indent the import into the try, or wrap as `try: from services.finance_model import aggregate_finance\\nexcept ImportError: aggregate_finance = None` and branch accordingly. 2) /api/generations/proxy-media 405 — the Python FastAPI backend was migrated from the Node Vercel API but this route was never ported. Frontend (lib/creationUrls.js) builds URLs assuming it exists; FastAPI router matches the request against DELETE /api/generations/{creation_id} for the path component, returning 405. Fix: add a GET endpoint accepting `u` query param, validate against allowed hosts (replicate.delivery, etc.), stream via httpx. 3) Tool pages white screen — runtime TypeError 'reading current of null'. All 5 broken pages share `useStudioMediaPreview(photo)` + `usePricing()` + StudioGenerateBar stack. Most likely a null deref inside one of those hooks/components during first render. Needs source-level fix by main agent."
+}

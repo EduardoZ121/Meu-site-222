@@ -1,0 +1,11 @@
+# https://remakepix.com
+User-agent: *
+Allow: /
+Allow: /discover
+Allow: /explore
+Allow: /register
+Allow: /legal/
+Disallow: /app/
+Disallow: /api/
+
+Sitemap: https://remakepix.com/sitemap.xml

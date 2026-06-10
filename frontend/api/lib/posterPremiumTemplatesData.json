@@ -1,0 +1,166 @@
+[
+  {
+    "id": "business_executive",
+    "source_id": "business_executive",
+    "familyId": "business_executive",
+    "styleVariants": true,
+    "category": "business",
+    "label": "EMPRESARIAL",
+    "subtag": "6 estilos · Forbes",
+    "placeholders": [
+      "FIRST_NAME",
+      "SURNAME",
+      "HEADLINE",
+      "LEFT_1",
+      "LEFT_2",
+      "LEFT_3",
+      "SUPPORT",
+      "GOLD_1",
+      "GOLD_2",
+      "GOLD_3",
+      "SVC_1",
+      "SVC_2",
+      "SVC_3"
+    ],
+    "optional": [
+      "SUPPORT"
+    ],
+    "replacements": {
+      "FIRST_NAME": "JOÃO",
+      "SURNAME": "SILVA",
+      "HEADLINE": "NEGÓCIOS\nQUE CONSTROEM\nO FUTURO",
+      "LEFT_1": "ESTRATÉGIA",
+      "LEFT_2": "GESTÃO",
+      "LEFT_3": "RESULTADOS",
+      "SUPPORT": "TRANSFORMAMOS DESAFIOS EM OPORTUNIDADES REAIS",
+      "GOLD_1": "LIDERANÇA",
+      "GOLD_2": "VISÃO",
+      "GOLD_3": "IMPACTO",
+      "SVC_1": "MENTORIA",
+      "SVC_2": "CONSULTORIA",
+      "SVC_3": "PALESTRAS"
+    },
+    "prompt": "REFERENCE PHOTO (mandatory): Use the uploaded photo as the exact same person — preserve 100% of their face, facial features, skin tone, ethnicity, hair texture and likeness. Seamlessly composite them into this poster like professional photo retouching: unified lighting on face and body, natural skin blend, no floating cutout, no pasted sticker look, no disjointed face layer. Place the subject in the pose/position described below while keeping their real identity. Typography and graphic elements must sit in clear layout zones — never let text overlap, cut through or hide behind the face; place headlines in negative space or on background layers behind the subject when needed.\n\nHighly detailed vertical editorial business poster in premium corporate magazine style, luxury executive branding aesthetic, cinematic office photography, ultra-detailed commercial flyer design.\n\nCentral composition:\nConfident businessman sitting on a dark leather executive chair, low-angle perspective emphasizing authority and leadership. One hand pointing directly toward the camera, strong commanding body language. Wearing an elegant black tailored suit, white dress shirt, black tie, luxury wristwatch. Legs crossed in a relaxed but dominant posture.\n\nTypography layout:\nMassive distressed condensed sans-serif typography occupying the upper-left area.\n\nMain title:\nLarge white uppercase \"{{FIRST_NAME}}\".\nLarge gold textured uppercase \"{{SURNAME}}\" directly underneath.\n\nRight-center text block:\n\"{{HEADLINE}}\"\n\nLeft lower text stack:\n{{LEFT_1}}\n{{LEFT_2}}\n{{LEFT_3}}\n\nSmall supporting text:\n\"{{SUPPORT}}\"\n\nLower-right highlighted gold box:\n{{GOLD_1}}\n{{GOLD_2}}\n{{GOLD_3}}\n\nBottom-left information section:\n{{SVC_1}}\n{{SVC_2}}\n{{SVC_3}}\n\nBackground:\nModern luxury office interior with subtle city skyline visible through windows. Dark moody atmosphere with heavy urban grunge textures, distressed overlays, scratches, dust particles and premium editorial finish.\n\nLighting:\nCinematic studio lighting, dramatic contrast, strong key light illuminating subject, soft rim lighting around silhouette, deep shadows creating power and authority.\n\nColor palette:\nBlack, charcoal gray, white typography, luxury gold accents.\n\nStyle:\nForbes magazine cover meets luxury business advertisement, ultra realistic, premium branding poster, high-end editorial design, print-ready quality.",
+    "aspect": "4:5"
+  },
+  {
+    "id": "dj_nightlife",
+    "source_id": "dj_nightlife",
+    "familyId": "dj_nightlife",
+    "styleVariants": true,
+    "category": "dj",
+    "label": "DJ / CLUB",
+    "subtag": "5 estilos · Neon",
+    "placeholders": [
+      "ARTIST_NAME",
+      "SECONDARY",
+      "RIGHT_1",
+      "RIGHT_2",
+      "RIGHT_3",
+      "BOX_1",
+      "BOX_2",
+      "BOX_3",
+      "BOT_1",
+      "BOT_2",
+      "BOT_3"
+    ],
+    "optional": [],
+    "replacements": {
+      "ARTIST_NAME": "DJ REMAKE",
+      "SECONDARY": "SPIN",
+      "RIGHT_1": "VIBES",
+      "RIGHT_2": "QUE",
+      "RIGHT_3": "CONECTAM",
+      "BOX_1": "MÚSICA",
+      "BOX_2": "ENERGIA",
+      "BOX_3": "EXPERIÊNCIA",
+      "BOT_1": "DEEJAY",
+      "BOT_2": "PRODUTOR",
+      "BOT_3": "REMIXES"
+    },
+    "prompt": "REFERENCE PHOTO (mandatory): Use the uploaded photo as the exact same person — preserve 100% of their face, facial features, skin tone, ethnicity, hair texture and likeness. Seamlessly composite them into this poster like professional photo retouching: unified lighting on face and body, natural skin blend, no floating cutout, no pasted sticker look, no disjointed face layer. Place the subject in the pose/position described below while keeping their real identity. Typography and graphic elements must sit in clear layout zones — never let text overlap, cut through or hide behind the face; place headlines in negative space or on background layers behind the subject when needed.\n\nHighly detailed vertical DJ promotional poster in premium nightlife editorial style, luxury urban music branding, cinematic club photography.\n\nCentral composition:\nProfessional DJ standing behind a high-end DJ controller with one hand adjusting the mixer and the other resting naturally over the setup. Relaxed but confident posture. Wearing modern streetwear including fitted black t-shirt, cap, layered chains, luxury watch and headphones around the neck.\n\nTypography layout:\nMassive distressed bold condensed typography occupying the upper section.\n\nMain Title:\nLarge turquoise uppercase \"{{ARTIST_NAME}}\".\n\nSecondary brush typography:\n\"{{SECONDARY}}\"\n\nRight-side text:\n{{RIGHT_1}}\n{{RIGHT_2}}\n{{RIGHT_3}}\n\nTurquoise highlight box:\n{{BOX_1}}\n{{BOX_2}}\n{{BOX_3}}\n\nBottom information:\n{{BOT_1}}\n{{BOT_2}}\n{{BOT_3}}\n\nBackground:\nLuxury nightclub atmosphere with speakers, DJ booth equipment and industrial grunge textures.\n\nLighting:\nCinematic nightclub lighting with turquoise neon accents and dramatic shadows.\n\nColor palette:\nBlack, turquoise, white.\n\nStyle:\nPremium DJ flyer, nightlife editorial, luxury club branding.",
+    "aspect": "4:5"
+  },
+  {
+    "id": "concert_live",
+    "source_id": "concert_live",
+    "familyId": "concert_live",
+    "styleVariants": true,
+    "category": "concert",
+    "label": "CANTOR / SHOW",
+    "subtag": "5 estilos · Live",
+    "placeholders": [
+      "ARTIST_NAME",
+      "SECONDARY",
+      "RIGHT_HEAD",
+      "HIGHLIGHT_1",
+      "HIGHLIGHT_2",
+      "BOTTOM_LEFT",
+      "EVENT_DATE",
+      "EVENT_WEEKDAY",
+      "EVENT_TIME",
+      "BANNER"
+    ],
+    "optional": [
+      "BOTTOM_LEFT"
+    ],
+    "replacements": {
+      "ARTIST_NAME": "DANTE",
+      "SECONDARY": "LIVE",
+      "RIGHT_HEAD": "UMA VOZ\nMIL HISTÓRIAS\nEMOÇÕES REAIS",
+      "HIGHLIGHT_1": "SHOW AO VIVO",
+      "HIGHLIGHT_2": "IMPERDÍVEL",
+      "BOTTOM_LEFT": "NOVO EP\nDISPONÍVEL\nEM TODAS\nPLATAFORMAS",
+      "EVENT_DATE": "15 JUN",
+      "EVENT_WEEKDAY": "SÁBADO",
+      "EVENT_TIME": "21:00",
+      "BANNER": "INGRESSOS LIMITADOS"
+    },
+    "prompt": "REFERENCE PHOTO (mandatory): Use the uploaded photo as the exact same person — preserve 100% of their face, facial features, skin tone, ethnicity, hair texture and likeness. Seamlessly composite them into this poster like professional photo retouching: unified lighting on face and body, natural skin blend, no floating cutout, no pasted sticker look, no disjointed face layer. Place the subject in the pose/position described below while keeping their real identity. Typography and graphic elements must sit in clear layout zones — never let text overlap, cut through or hide behind the face; place headlines in negative space or on background layers behind the subject when needed.\n\nHighly detailed vertical concert promotional poster in premium music editorial style, cinematic live performance photography, luxury entertainment branding.\n\nCentral composition:\nModern singer performing energetically on stage holding a wireless microphone close to the mouth. Confident rockstar posture, expressive performance stance. Wearing black leather jacket over a fitted black outfit, layered silver chains, stylish sunglasses, modern concert aesthetic.\n\nTypography layout:\nMassive distressed bold condensed sans-serif typography occupying the upper-left section.\n\nMain Title:\nLarge textured red uppercase \"{{ARTIST_NAME}}\".\n\nSecondary title:\nDynamic white brush lettering \"{{SECONDARY}}\".\n\nRight-side headline:\n{{RIGHT_HEAD}}\n\nRed highlight box:\n{{HIGHLIGHT_1}}\n{{HIGHLIGHT_2}}\n\nBottom-left information panel:\n{{BOTTOM_LEFT}}\n\nBottom-right event box:\n{{EVENT_DATE}}\n{{EVENT_WEEKDAY}}\n{{EVENT_TIME}}\n\nBottom banner:\n{{BANNER}}\n\nBackground:\nDark concert stage environment with subtle audience atmosphere, heavy grunge textures and premium editorial finish.\n\nLighting:\nPowerful stage spotlights, dramatic red accent lighting, cinematic concert contrast.\n\nColor palette:\nBlack, dark gray, white, deep red accents.\n\nStyle:\nPremium concert flyer, luxury entertainment branding, ultra-detailed live music editorial design.",
+    "aspect": "4:5"
+  },
+  {
+    "id": "fitness_premium",
+    "source_id": "fitness_premium",
+    "familyId": "fitness_premium",
+    "styleVariants": true,
+    "category": "fitness",
+    "label": "ACADEMIA PREMIUM",
+    "subtag": "5 estilos · Gold",
+    "placeholders": [
+      "TITLE_A",
+      "TITLE_B",
+      "RIGHT_1",
+      "RIGHT_2",
+      "RIGHT_3",
+      "GOLD_1",
+      "GOLD_2",
+      "GOLD_3",
+      "BOTTOM_L",
+      "SVC_1",
+      "SVC_2",
+      "SVC_3",
+      "SVC_4"
+    ],
+    "optional": [
+      "SVC_4"
+    ],
+    "replacements": {
+      "TITLE_A": "ALPHA",
+      "TITLE_B": "ZONE",
+      "RIGHT_1": "DISCIPLINA",
+      "RIGHT_2": "FOCO",
+      "RIGHT_3": "EVOLUÇÃO",
+      "GOLD_1": "TREINE SUA MENTE",
+      "GOLD_2": "SUPERE SEUS",
+      "GOLD_3": "LIMITES",
+      "BOTTOM_L": "SEU CORPO\nSUA MELHOR\nVERSÃO",
+      "SVC_1": "MUSCULAÇÃO",
+      "SVC_2": "FUNCIONAL",
+      "SVC_3": "PERSONAL",
+      "SVC_4": "NUTRIÇÃO"
+    },
+    "prompt": "REFERENCE PHOTO (mandatory): Use the uploaded photo as the exact same person — preserve 100% of their face, facial features, skin tone, ethnicity, hair texture and likeness. Seamlessly composite them into this poster like professional photo retouching: unified lighting on face and body, natural skin blend, no floating cutout, no pasted sticker look, no disjointed face layer. Place the subject in the pose/position described below while keeping their real identity. Typography and graphic elements must sit in clear layout zones — never let text overlap, cut through or hide behind the face; place headlines in negative space or on background layers behind the subject when needed.\n\nHighly detailed vertical fitness promotional poster in premium sports editorial style, luxury gym branding, cinematic fitness photography.\n\nCentral composition:\nPowerful athletic woman standing confidently inside a modern gym environment. Strong posture emphasizing discipline and determination. Holding a dumbbell naturally at her side. Wearing premium black sports bra and high-waisted athletic leggings. Defined muscular physique showcasing strength and dedication.\n\nTypography layout:\nMassive distressed condensed sans-serif typography occupying the upper section.\n\nMain Title:\nLarge textured white uppercase \"{{TITLE_A}}\".\n\nSecondary Title:\nLarge gold textured uppercase \"{{TITLE_B}}\".\n\nRight-side motivational text:\n{{RIGHT_1}}\n{{RIGHT_2}}\n{{RIGHT_3}}\n\nHighlighted gold box:\n{{GOLD_1}}\n{{GOLD_2}}\n{{GOLD_3}}\n\nBottom-left motivational text:\n{{BOTTOM_L}}\n\nBottom-right services:\n{{SVC_1}}\n{{SVC_2}}\n{{SVC_3}}\n{{SVC_4}}\n\nBackground:\nModern industrial gym with dumbbells and premium fitness equipment. Heavy grunge textures and editorial overlays.\n\nLighting:\nDramatic fitness lighting emphasizing muscle definition with high contrast shadows.\n\nColor palette:\nBlack, white, gold accents.\n\nStyle:\nLuxury fitness campaign, premium gym advertisement, ultra-detailed sports editorial design.",
+    "aspect": "4:5"
+  }
+]

@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet"/>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { width: 1080px; height: 1080px; overflow: hidden; }
+  body {
+    font-family: Inter, system-ui, sans-serif;
+    background: #fff;
+    padding: 64px 56px 40px;
+    display: flex;
+    flex-direction: column;
+  }
+  h1 { font-size: 56px; font-weight: 800; line-height: 1.08; letter-spacing: -0.03em; color: #0a0a0a; }
+  .grad { background: linear-gradient(90deg, #7c3aed, #a855f7); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+  .sub { margin-top: 14px; font-size: 24px; color: #6b7280; }
+  .bar {
+    margin-top: 36px;
+    display: flex;
+    align-items: center;
+    background: #fff;
+    border: 2px solid #e5e7eb;
+    border-radius: 999px;
+    padding: 8px 8px 8px 28px;
+    box-shadow: 0 8px 30px rgba(0,0,0,.06);
+  }
+  .bar span { flex: 1; font-size: 26px; color: #374151; }
+  .btn {
+    background: #0a0a0a;
+    color: #fff;
+    font-weight: 700;
+    font-size: 20px;
+    padding: 16px 36px;
+    border-radius: 999px;
+    border: none;
+  }
+  .grid {
+    margin-top: 36px;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+    flex: 1;
+  }
+  .card {
+    border-radius: 16px;
+    overflow: hidden;
+    position: relative;
+    min-height: 0;
+    box-shadow: 0 12px 32px rgba(0,0,0,.1);
+  }
+  .c1 { background: linear-gradient(135deg, #0b0b0c 0%, #1a1025 100%); padding: 28px; color: #f4f1ea; }
+  .c1 p { font-size: 13px; opacity: .7; margin-bottom: 12px; }
+  .c1 h3 { font-size: 26px; font-weight: 800; line-height: 1.2; }
+  .c2 {
+    background: url('https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=600&q=80') center/cover;
+    padding: 28px;
+    color: #fff;
+  }
+  .c2::before { content:''; position:absolute; inset:0; background: linear-gradient(180deg, rgba(0,0,0,.2), rgba(0,0,0,.75)); }
+  .c2 h3 { position: relative; font-size: 24px; font-weight: 800; margin-top: 120px; }
+  .c3 {
+    background: linear-gradient(160deg, #4c1d95, #7c3aed);
+    padding: 28px;
+    color: #fff;
+  }
+  .c3 h3 { font-size: 32px; font-weight: 800; font-style: italic; letter-spacing: -0.02em; }
+  .c3 p { margin-top: 8px; font-size: 14px; opacity: .9; }
+  .c4 {
+    background: url('https://images.unsplash.com/photo-1571019614242-c5c5dee9f50b?w=600&q=80') center/cover;
+    padding: 28px;
+    color: #fff;
+  }
+  .c4::before { content:''; position:absolute; inset:0; background: rgba(0,0,0,.55); }
+  .c4 h3 { position: relative; font-size: 28px; font-weight: 800; margin-top: 100px; color: #fbbf24; }
+  .brand { text-align: center; font-size: 17px; color: #9ca3af; margin-top: 16px; }
+</style>
+</head>
+<body>
+  <h1>Post every day without <span class="grad">writing a word.</span></h1>
+  <p class="sub">Type a topic. Remake Pixel builds your carousel.</p>
+  <div class="bar"><span>Instagram content ideas |</span><button class="btn">Generate</button></div>
+  <div class="grid">
+    <div class="card c1"><p>Quote card</p><h3>5 AI tools creators use daily</h3></div>
+    <div class="card c2"><h3>FOCUS · BUILD · SHIP</h3></div>
+    <div class="card c3"><h3>NIGHT BEATS</h3><p>Sat · Live set · 10PM</p></div>
+    <div class="card c4"><h3>TRAIN HARD</h3></div>
+  </div>
+  <p class="brand">R. Remake Pixel · 50 free credits · remakepix.com</p>
+</body>
+</html>

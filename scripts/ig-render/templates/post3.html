@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet"/>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { width: 1080px; height: 1080px; overflow: hidden; }
+  body {
+    font-family: Inter, system-ui, sans-serif;
+    background: #fafafa;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 48px 40px 56px;
+  }
+  .logo { align-self: flex-start; font-size: 28px; font-weight: 800; color: #0a0a0a; letter-spacing: -0.04em; }
+  .logo span { color: #a855f7; }
+  .fan {
+    position: relative;
+    width: 720px;
+    height: 520px;
+    margin-top: 24px;
+  }
+  .pc {
+    position: absolute;
+    width: 200px;
+    height: 320px;
+    border-radius: 14px;
+    overflow: hidden;
+    box-shadow: 0 24px 60px rgba(0,0,0,.18);
+    bottom: 40px;
+  }
+  .pc img { width: 100%; height: 100%; object-fit: cover; }
+  .p1 { left: 60px; transform: rotate(-12deg); z-index: 1; background: linear-gradient(180deg,#1e1b4b,#312e81); }
+  .p2 { left: 200px; transform: rotate(-4deg); z-index: 2; background: #fff; }
+  .p3 { left: 340px; transform: rotate(4deg); z-index: 3; background: #0b0b0c; }
+  .p4 { left: 480px; transform: rotate(12deg); z-index: 4; background: linear-gradient(180deg,#451a03,#78350f); }
+  .mini {
+    padding: 16px;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    color: #fff;
+  }
+  .mini h4 { font-size: 22px; font-weight: 800; line-height: 1.1; }
+  .mini p { font-size: 11px; opacity: .85; margin-top: 6px; }
+  .title { margin-top: auto; text-align: center; }
+  .title .l1 { font-size: 56px; font-weight: 800; color: #0a0a0a; letter-spacing: -0.03em; }
+  .title .l2 { font-family: 'Instrument Serif', Georgia, serif; font-size: 58px; font-style: italic; color: #6b7280; font-weight: 400; }
+  .title .l3 { font-size: 56px; font-weight: 800; color: #0a0a0a; }
+  .pill {
+    margin-top: 20px;
+    display: inline-block;
+    border: 2px solid #d1d5db;
+    border-radius: 999px;
+    padding: 10px 28px;
+    font-size: 18px;
+    color: #374151;
+    font-weight: 600;
+  }
+</style>
+</head>
+<body>
+  <div class="logo">R<span>.</span> Remake Pixel</div>
+  <div class="fan">
+    <div class="pc p1"><div class="mini"><h4>SOUND<br/>WAVES</h4><p>Live music · Aug 24</p></div></div>
+    <div class="pc p2"><div class="mini" style="color:#111"><h4 style="color:#b45309">BOLD<br/>Flavors</h4><p style="color:#666">Food promo · 20% off</p></div></div>
+    <div class="pc p3"><div class="mini"><h4>DISCIPLINE<br/>STRENGTH</h4><p>Fitness · Strive Gym</p></div></div>
+    <div class="pc p4"><div class="mini"><h4>TIMELESS<br/>FORM</h4><p>Fashion · FW Collection</p></div></div>
+  </div>
+  <div class="title">
+    <div class="l1">Pro posters</div>
+    <div class="l2">from one photo.</div>
+    <div class="pill">44 templates · Remake Pixel</div>
+  </div>
+</body>
+</html>

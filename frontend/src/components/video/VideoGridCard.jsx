@@ -1,0 +1,82 @@
+import { Link } from "react-router-dom";
+import { motion } from "framer-motion";
+import { ArrowUpRight, Clapperboard, ImageIcon, Sparkles, Type } from "lucide-react";
+import { usePricing } from "../../lib/PricingContext";
+
+const cardEase = [0.16, 1, 0.3, 1];
+
+const ICONS = {
+  type: Type,
+  image: ImageIcon,
+  clapperboard: Clapperboard,
+};
+
+const ICON_STYLES = {
+  type: "from-violet-600/40 to-indigo-900/60 text-violet-200",
+  image: "from-cyan-600/35 to-violet-900/55 text-cyan-100",
+  clapperboard: "from-fuchsia-600/35 to-violet-900/55 text-fuchsia-100",
+};
+
+export default function VideoGridCard({ category, index, t }) {
+  const { costs } = usePricing();
+  const cost = costs[category.costKey] ?? costs.video ?? 80;
+  const Icon = ICONS[category.icon] || Type;
+  const iconStyle = ICON_STYLES[category.icon] || ICON_STYLES.type;
+
+  return (
+    <motion.article
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{
+        duration: 0.45,
+        delay: Math.min(index * 0.06, 0.35),
+        ease: cardEase,
+      }}
+      className="h-full"
+    >
+      <Link
+        to={category.to}
+        className="rp-glass-card rp-glass-card--roomy group relative flex h-full flex-col hover:scale-[1.01] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500/50"
+        data-testid={`video-card-${category.id}`}
+      >
+        <div className={`rp-glass-card__media aspect-[16/10] bg-gradient-to-br ${iconStyle}`}>
+          <div className="absolute inset-0 flex items-center justify-center z-[3]">
+            <div className="w-16 h-16 rounded-2xl border border-white/20 bg-white/[0.08] backdrop-blur-md flex items-center justify-center shadow-[0_0_40px_-8px_rgba(124,58,237,0.5)]">
+              <Icon className="w-8 h-8" strokeWidth={1.5} />
+            </div>
+          </div>
+          <div className="rp-glass-card__media-shade" aria-hidden />
+
+          <div className="absolute top-3 right-3 z-[2]">
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold tabular-nums text-[#f4e8d4] bg-[#c7a77a]/15 border border-[#c7a77a]/35 backdrop-blur-md">
+              <Sparkles className="w-3 h-3 text-[#c7a77a]" strokeWidth={2} />
+              {cost}
+              <span className="text-[#c7a77a]/90 font-medium">{t("label_credits_short")}</span>
+            </span>
+          </div>
+
+          <span className="absolute bottom-3 right-3 z-[2] flex h-9 w-9 items-center justify-center rounded-xl bg-white/10 text-white border border-white/15 backdrop-blur-md opacity-0 translate-y-1 transition-all duration-300 group-hover:opacity-100 group-hover:translate-y-0 group-hover:bg-violet-500/25">
+            <ArrowUpRight className="w-4 h-4" strokeWidth={2} />
+          </span>
+        </div>
+
+        <div className="rp-glass-card__body gap-2 p-4 sm:p-5">
+          <h3 className="text-[17px] sm:text-[18px] font-semibold text-white leading-snug tracking-[-0.02em] font-['Inter_Tight'] group-hover:text-violet-50 transition-colors line-clamp-2">
+            {t(category.nameKey)}
+          </h3>
+          <p className="text-[13px] sm:text-[14px] text-zinc-400 leading-relaxed line-clamp-3 flex-1">
+            {t(category.descKey)}
+          </p>
+          <div className="pt-2 flex items-center justify-between gap-3 mt-auto">
+            <span className="text-[11px] font-semibold tracking-wide rp-type-value">
+              {cost} {t("label_credits")}
+            </span>
+            <span className="text-[11px] font-medium text-zinc-500 group-hover:text-[#d4bc94] transition-colors">
+              {t("vid_grid_open")}
+            </span>
+          </div>
+        </div>
+      </Link>
+    </motion.article>
+  );
+}

@@ -1,0 +1,38 @@
+﻿Vercel CLI 54.10.3 (Node.js 22.22.0) | curl is in beta ÔÇö https://vercel.com/feedback
+  % Total    % Received % Xferd  Average Speed  Time    Time    Time   Current
+                                 Dload  Upload  Total   Spent   Left   Speed
+System.Management.Automation.RemoteException
+<!doctype html><html lang="en" data-default-lang="en"><head><meta charset="utf-8"/><script>!function(){var a=location.hostname.toLowerCase();(a.endsWith(".vercel.app")||"remakepix.com"===a)&&location.replace("https://www.remakepix.com"+location.pathname+location.search+location.hash)}()</script><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,minimum-scale=1,viewport-fit=cover"/><meta name="mobile-web-app-capable" content="yes"/><meta name="theme-color" content="#0B0B0C"/><meta name="description" content="Create and edit images with AI: 96+ styles, professional posters, video generation, background removal, upscale, and Pro retouching. Pay-as-you-go credits ÔÇö no subscription required."/><meta name="keywords" content="AI image generator, AI photo editor, remove background, AI video, poster maker, image upscale, photo restore, AI art studio, Remake Pixel"/><meta name="robots" content="index, follow, max-image-preview:large"/><link rel="canonical" href="https://www.remakepix.com/"/><meta property="og:type" content="website"/><meta property="og:site_name" content="Remake Pixel"/><meta property="og:locale" content="en_US"/><meta property="og:url" content="https://www.remakepix.com/"/><meta property="og:title" content="Remake Pixel ÔÇö AI Image &amp; Video Studio"/><meta property="og:description" content="Create and edit images with AI: 96+ styles, professional posters, video generation, and Pro tools. Pay-as-you-go credits ÔÇö no subscription required."/><meta property="og:image" content="https://remakepix.com/og-image.jpg"/><meta property="og:image:secure_url" content="https://remakepix.com/og-image.jpg"/><meta property="og:image:type" content="image/jpeg"/><meta property="og:image:width" content="1200"/><meta property="og:image:height" content="630"/><meta property="og:image:alt" content="Remake Pixel ÔÇö AI creative studio"/><meta name="twitter:card" content="summary_large_image"/><meta name="twitter:title" content="Remake Pixel ÔÇö AI Image &amp; Video Studio"/><meta name="twitter:description" content="Create and edit images with AI: styles, posters, video, and Pro tools. Pay-as-you-go credits."/><meta name="twitter:image" content="https://remakepix.com/og-image.jpg"/><meta name="twitter:image:alt" content="Remake Pixel ÔÇö AI creative studio"/><link rel="icon" href="/favicon.svg" type="image/svg+xml"/><link rel="icon" href="/favicon-32x32.png" type="image/png" sizes="32x32"/><link rel="icon" href="/favicon-16x16.png" type="image/png" sizes="16x16"/><link rel="shortcut icon" href="/favicon.ico"/><link rel="apple-touch-icon" href="/apple-touch-icon.png" sizes="180x180"/><link rel="manifest" href="/manifest.webmanifest"/><link rel="preconnect" href="https://fonts.googleapis.com"/><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/><link href="https://fonts.googleapis.com/css2?family=Inter:wght@600&display=swap" rel="stylesheet"/><title>Remake Pixel ÔÇö AI Image &amp; Video Studio</title><script type="application/ld+json">{
+            "@context": "https://schema.org",
+            "@graph": [
+              {
+                "@type": "Organization",
+                "name": "Remake Pixel",
+                "url": "https://remakepix.com",
+                "logo": "https://remakepix.com/favicon-32x32.png"
+              },
+              {
+                "@type": "WebSite",
+                "name": "Remake Pixel",
+                "url": "https://remakepix.com",
+                "inLanguage": "en",
+                "description": "AI image and video studio with pay-as-you-go credits."
+              },
+              {
+                "@type": "SoftwareApplication",
+                "name": "Remake Pixel",
+                "applicationCategory": "MultimediaApplication",
+                "operatingSystem": "Web",
+                "url": "https://remakepix.com",
+                "offers": {
+                  "@type": "Offer",
+                  "price": "0",
+                  "priceCurrency": "USD"
+                }
+              }
+            ]
+  0      0   0      0   0      0      0      0                              0
+100   7085 100   7085   0      0  21915      0                              0
+100   7085 100   7085   0      0  21910      0                              0
+100   7085 100   7085   0      0  21907      0                              0
+          }</script><script>!function(){var e="remakepix_language",t=["pt","en","es","fr"],a=localStorage.getItem(e);if(!a||t.indexOf(a)<0){var n=localStorage.getItem("rp_lang");n&&t.indexOf(n)>=0&&(a=n),(!a||t.indexOf(a)<0)&&(a="en"),localStorage.setItem(e,a)}document.documentElement.lang=a}()</script><script>window.addEventListener("error",function(e){e.error instanceof DOMException&&"DataCloneError"===e.error.name&&e.message&&e.message.includes("PerformanceServerTiming")&&(e.stopImmediatePropagation(),e.preventDefault())},!0)</script><script>!function(){var e=function(e){e.preventDefault()};document.addEventListener("gesturestart",e,{passive:!1}),document.addEventListener("gesturechange",e,{passive:!1}),document.addEventListener("gestureend",e,{passive:!1})}()</script><script defer="defer" src="/static/js/main.938470ee.js"></script><link href="/static/css/main.5fe81235.css" rel="stylesheet"></head><body><noscript>You need to enable JavaScript to run this app.</noscript><div id="root"></div><script>!function(e,t){var r,s,o,i;t.__SV||(window.posthog=t,t._i=[],t.init=function(n,a,p){function c(e,t){var r=t.split(".");2==r.length&&(e=e[r[0]],t=r[1]),e[t]=function(){e.push([t].concat(Array.prototype.slice.call(arguments,0)))}}(o=e.createElement("script")).type="text/javascript",o.crossOrigin="anonymous",o.async=!0,o.src=a.api_host.replace(".i.posthog.com","-assets.i.posthog.com")+"/static/array.js",(i=e.getElementsByTagName("script")[0]).parentNode.insertBefore(o,i);var g=t;for(void 0!==p?g=t[p]=[]:p="posthog",g.people=g.people||[],g.toString=function(e){var t="posthog";return"posthog"!==p&&(t+="."+p),e||(t+=" (stub)"),t},g.people.toString=function(){return g.toString(1)+".people (stub)"},r="init me ws ys ps bs capture je Di ks register register_once register_for_session unregister unregister_for_session Ps getFeatureFlag getFeatureFlagPayload isFeatureEnabled reloadFeatureFlags updateEarlyAccessFeatureEnrollment getEarlyAccessFeatures on onFeatureFlags onSurveysLoaded onSessionId getSurveys getActiveMatchingSurveys renderSurvey canRenderSurvey canRenderSurveyAsync identify setPersonProperties group resetGroups setPersonPropertiesForFlags resetPersonPropertiesForFlags setGroupPropertiesForFlags resetGroupPropertiesForFlags reset get_distinct_id getGroups get_session_id get_session_replay_url alias set_config startSessionRecording stopSessionRecording sessionRecordingStarted captureException loadToolbar get_property getSessionProperty Es $s createPersonProfile Is opt_in_capturing opt_out_capturing has_opted_in_capturing has_opted_out_capturing clear_opt_in_out_capturing Ss debug xs getPageViewId captureTraceFeedback captureTraceMetric".split(" "),s=0;s<r.length;s++)c(g,r[s]);t._i.push([n,a,p])},t.__SV=1)}(document,window.posthog||[]),posthog.init("phc_xAvL2Iq4tFmANRE7kzbKwaSqp1HJjN7x48s3vr0CMjs",{api_host:"https://us.i.posthog.com",person_profiles:"identified_only",session_recording:{recordCrossOriginIframes:!0,capturePerformance:!1}})</script></body></html>

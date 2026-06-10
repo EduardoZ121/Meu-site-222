@@ -1,0 +1,72 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "env": {
+    "DISABLE_VERCEL_BLOB": "0",
+    "REACT_APP_BUILD_ID": "rp-cache-fix-v49",
+    "APP_BUILD_ID": "rp-fashion-split-v42",
+    "SITE_URL": "https://www.remakepix.com",
+    "VERCEL_PRO_MAX_DURATION_SEC": "800"
+  },
+  "crons": [
+    {
+      "path": "/api/cron/weekly-report",
+      "schedule": "0 9 * * 6"
+    },
+    {
+      "path": "/api/cron/finalize-pending",
+      "schedule": "*/3 * * * *"
+    }
+  ],
+  "framework": "create-react-app",
+  "build": {
+    "env": {
+      "NPM_CONFIG_LEGACY_PEER_DEPS": "true"
+    }
+  },
+  "functions": {
+    "api/**/*.js": {
+      "maxDuration": 800,
+      "memory": 3009,
+      "includeFiles": "{frontend/api/lib/**,node_modules/sharp/**,node_modules/@img/**}"
+    }
+  },
+  "installCommand": "ln -sfn frontend/api api; yarn install --ignore-engines || yarn install; cd frontend && yarn install --ignore-engines || yarn install; cd .. && npm install --legacy-peer-deps",
+  "buildCommand": "cd frontend && REACT_APP_BUILD_ID=rp-cache-fix-v49 REACT_APP_DISABLE_VERCEL_BLOB=0 yarn build",
+  "redirects": [
+    {
+      "source": "/:path*",
+      "has": [{ "type": "host", "value": "remakepix.com" }],
+      "destination": "https://www.remakepix.com/:path*",
+      "permanent": true
+    }
+  ],
+  "headers": [
+    {
+      "source": "/index.html",
+      "headers": [
+        { "key": "Cache-Control", "value": "no-cache, no-store, must-revalidate" }
+      ]
+    },
+    {
+      "source": "/(.*)",
+      "headers": [
+        { "key": "Cache-Control", "value": "public, max-age=0, must-revalidate" }
+      ],
+      "has": [
+        { "type": "header", "key": "accept", "value": "text/html" }
+      ]
+    }
+  ],
+  "outputDirectory": "frontend/build",
+  "routes": [
+    { "handle": "filesystem" },
+    {
+      "src": "^/api/(.*)$",
+      "dest": "/api/[...path]?...path=$1"
+    },
+    {
+      "src": "/((?!api/).*)",
+      "dest": "/index.html"
+    }
+  ]
+}

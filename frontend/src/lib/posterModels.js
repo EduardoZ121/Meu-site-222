@@ -1,12 +1,12 @@
-/** Normaliza modelos de pôster vindos da API (legado dizia «GPT» mas o motor é Replicate Pro). */
+/** Normaliza modelos de pôster vindos da API. */
 export function normalizePosterModel(model) {
   if (!model) return model;
   const key = model.key;
   if (key === "gpt_image") {
     return {
       ...model,
-      label: "Motor Premium",
-      tag: "Texto nítido · Grok",
+      label: "Motor GPT",
+      tag: "GPT Image 1 · texto nítido · com foto",
       supports_photo: true,
     };
   }
@@ -14,18 +14,16 @@ export function normalizePosterModel(model) {
     return {
       ...model,
       label: model.label || "Motor Pro",
-      tag: "Grok + logo",
+      tag: "Grok · com foto",
       supports_photo: true,
     };
   }
-  const label = String(model.label || "");
-  if (/gpt/i.test(label)) {
+  if (key === "grok") {
     return {
       ...model,
-      label: label
-        .replace(/motor\s*gpt/gi, "Motor Premium")
-        .replace(/\bgpt\b/gi, "Premium")
-        .trim(),
+      label: model.label || "Motor Rápido",
+      tag: model.tag || "Grok · com foto",
+      supports_photo: true,
     };
   }
   return model;

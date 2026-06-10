@@ -136,8 +136,8 @@ export default function Pro() {
   ]);
 
   return (
-    <div className="compact-page rp-studio-shell max-w-[1400px] mx-auto pb-28" data-testid="pro-page">
-      <header data-rp-marketing="true" className="mb-6 pb-5 border-b border-[rgba(244,241,234,0.06)]">
+    <div className="rp-studio-shell max-w-[1400px] mx-auto pb-28" data-testid="pro-page">
+      <header className="mb-6 pb-5 border-b border-[rgba(244,241,234,0.06)]">
         <div className="flex items-center gap-3 mb-2">
           <div className="w-9 h-9 rounded-xl bg-[rgba(124,58,237,0.14)] border border-[rgba(124,58,237,0.28)] flex items-center justify-center">
             <Camera className="w-4 h-4 text-[#C4B5FD]" strokeWidth={1.5} />
@@ -149,12 +149,6 @@ export default function Pro() {
         </h1>
         <p className="rp-studio-page-desc text-[14px] max-w-[640px]">{t("pro_empty")}</p>
       </header>
-
-      {/* Mobile-only compact title bar (OpenArt-style) */}
-      <div className="md:hidden flex items-center justify-between mb-3 px-0.5">
-        <h1 className="text-white text-[17px] font-bold font-['Inter_Tight'] truncate">{t("sidebar_pro") || "Pro"}</h1>
-        <span className="text-[#7C3AED] text-[10px] font-mono uppercase tracking-[0.18em] tabular-nums">{user?.is_unlimited ? "∞" : (user?.credits ?? 0)} cr.</span>
-      </div>
 
       <div className="grid grid-cols-1 xl:grid-cols-[1fr_380px] gap-6 xl:gap-8">
         <div className="rp-editor-panel overflow-hidden">

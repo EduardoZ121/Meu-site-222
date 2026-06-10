@@ -10,10 +10,18 @@ import { formatHttpError } from "./uploadErrors";
 import { isBrowserOnlineFlag } from "./uploadReachability";
 import { normalizeCreation } from "./creationUrls";
 import { notifyCreditsUpdate, notifyGenerationComplete } from "./notifyUser";
+import { isProductionHost, isRemakePixSiteHost } from "./canonicalOrigin";
 
 /** Evita mixed content: página em https + backend em http → o browser bloqueia e parece "Network Error". */
 function resolveBaseUrl() {
+  if (typeof window !== "undefined") {
+    const host = window.location.hostname || "";
+    // remakepix.com + URLs Vercel do projeto → API local (/api), nunca Emergent.
+    if (isRemakePixSiteHost(host)) return "";
+  }
+
   const raw = String(process.env.REACT_APP_BACKEND_URL || "").trim().replace(/\/$/, "");
+  if (/emergentagent\.com/i.test(raw)) return "";
   if (
     typeof window !== "undefined"
     && window.location?.protocol === "https:"
@@ -42,7 +50,7 @@ export function formatApiError(err, fallback = "Falhou.", opts) {
 
 export const api = axios.create({
   baseURL: API,
-  timeout: 180000, // 3 min — image generation can take 30–90s
+  timeout: 300000, // Vercel Pro — gerações longas (GPT/vídeo) até ~13 min
 });
 
 function pricingRegionHeaderValue() {

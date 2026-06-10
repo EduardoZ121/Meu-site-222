@@ -61,9 +61,16 @@ function elapsedSeconds(pending) {
   }
 }
 
-/** Video-to-video / Grok video can exceed 4 min on Replicate. */
+function isOpenAIPosterJob(pending) {
+  const rid = String(pending?.replicate_prediction_id || "");
+  return rid.startsWith("openai-poster");
+}
+
+/** Vercel Pro: até 800s por função; vídeo Replicate pode levar 30 min. */
 function maxPollSeconds(pending) {
-  return pending?.type === "video" ? 1800 : 600;
+  if (pending?.type === "video") return 1800;
+  if (isOpenAIPosterJob(pending)) return 780;
+  return 600;
 }
 
 function creationFromPending(pending, urls) {
@@ -130,7 +137,7 @@ async function finalizePending(pending, replicateInfo) {
 
     if (pending.type === "video" && pending.notify_email) {
       const videoUrl = urls[0];
-      const galleryUrl = `https://remakepix.com/app/gallery?focus=${encodeURIComponent(creation.id)}`;
+      const galleryUrl = `https://www.remakepix.com/app/gallery?focus=${encodeURIComponent(creation.id)}`;
       sendResendEmail({
         to: pending.notify_email,
         subject: "O teu vídeo está pronto — Remake Pixel",
@@ -199,6 +206,22 @@ async function pollPending(pending, getReplicatePrediction) {
       new_balance: user?.credits,
       prediction_id: pending.id,
       refunded: true,
+    };
+  }
+
+  if (isOpenAIPosterJob(pending)) {
+    const elapsed = elapsedSeconds(pending);
+    if (elapsed > maxPollSeconds(pending)) {
+      return finalizePending(pending, {
+        status: "failed",
+        error: `Timeout after ${elapsed}s waiting for OpenAI poster`,
+      });
+    }
+    await updatePending(pending.id, { polled_count: (pending.polled_count || 0) + 1 });
+    return {
+      status: "processing",
+      elapsed_seconds: elapsed,
+      prediction_id: pending.id,
     };
   }
 
@@ -338,4 +361,5 @@ module.exports = {
   refreshUserPendingJobs,
   processActivePendingBatch,
   maxPollSeconds,
+  isOpenAIPosterJob,
 };

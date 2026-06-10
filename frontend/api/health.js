@@ -8,19 +8,31 @@ module.exports = async function handler(req, res) {
   if (req.method === "OPTIONS") return res.status(204).end();
 
   const replicate = Boolean(String(process.env.REPLICATE_API_TOKEN || "").trim());
-  const openai = Boolean(String(process.env.OPENAI_API_KEY || "").trim());
+  const { openaiConfigured, getOpenAIKey } = require("./lib/openaiEnv.cjs");
+  const openaiKey = getOpenAIKey();
+  const openai = openaiConfigured();
   const stripe = Boolean(String(process.env.STRIPE_SECRET_KEY || "").trim());
   const blobDisabled = isBlobDisabled();
   const blob = isBlobConfigured();
   const mongo = storageEnabled();
+  const maxDurationSec = Number(process.env.VERCEL_PRO_MAX_DURATION_SEC || 800) || 800;
   return res.status(200).json({
     ok: true,
     api: "remakepix",
     build: process.env.REACT_APP_BUILD_ID || "upload-generate-v11",
     ts: Date.now(),
+    platform: {
+      vercel_env: process.env.VERCEL_ENV || null,
+      vercel_region: process.env.VERCEL_REGION || null,
+      max_duration_sec: maxDurationSec,
+      fluid_compute: true,
+      crons: ["finalize-pending", "weekly-report"],
+      background_tasks: true,
+    },
     integrations: {
       replicate,
       openai,
+      openai_env: openaiKey.source,
       mongo,
       stripe,
       blob,
@@ -34,6 +46,7 @@ module.exports = async function handler(req, res) {
       billing: stripe && mongo,
       gallery_persist: mongo,
       large_upload: blob,
+      long_running_jobs: maxDurationSec >= 300,
     },
   });
 };

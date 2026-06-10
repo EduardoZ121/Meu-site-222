@@ -912,10 +912,10 @@ export const FALLBACK_POSTER_MODELS = [
   },
   {
     "key": "gpt_image",
-    "label": "Motor Premium",
+    "label": "Motor GPT",
     "cost": 45,
     "tier": "premium",
     "supports_photo": true,
-    "tag": "Qualidade Máxima"
+    "tag": "GPT Image 1 · texto nítido · com foto"
   }
 ];

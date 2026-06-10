@@ -5,7 +5,12 @@
 import { VERCEL_BLOB_DISABLED } from "./blobDisabled";
 import { formatHttpError } from "./uploadErrors";
 import { isBrowserOnlineFlag } from "./uploadReachability";
+import { isRemakePixSiteHost } from "./canonicalOrigin";
 function joinApiPath(path) {
+  if (typeof window !== "undefined" && isRemakePixSiteHost(window.location.hostname)) {
+    const p = path.startsWith("/") ? path : `/${path}`;
+    return `/api${p}`;
+  }
   const raw = String(process.env.REACT_APP_BACKEND_URL || "").trim().replace(/\/$/, "");
   const base = raw && !(typeof window !== "undefined" && window.location?.protocol === "https:" && raw.startsWith("http:"))
     ? `${raw.replace(/\/$/, "")}/api`
@@ -118,7 +123,7 @@ async function uploadFileToVercelBlob(key, fileLike, perFileMs, onProgress) {
   );
 }
 
-function uploadImageViaServerProxy(file, opts = {}) {
+export function uploadImageViaServerProxy(file, opts = {}) {
   const timeoutMs = opts.timeoutMs ?? 120_000;
   return new Promise((resolve, reject) => {
     const fd = new FormData();

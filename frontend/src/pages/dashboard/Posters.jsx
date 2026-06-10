@@ -138,7 +138,7 @@ export default function Posters() {
 
   const [templates, setTemplates] = useState([]);
   const [models, setModels] = useState([]);
-  const [category, setCategory] = useState("food");
+  const [category, setCategory] = useState("music");
   const [picked, setPicked] = useState(null);
   const [variantBase, setVariantBase] = useState(null);
 
@@ -189,13 +189,7 @@ export default function Posters() {
     return m;
   }, [templates]);
 
-  /** API legada pode devolver supports_photo:false no Premium — forçar desbloqueio com foto. */
-  const engineModels = useMemo(
-    () => models.map((m) => (m.key === "gpt_image" ? { ...m, supports_photo: true } : m)),
-    [models],
-  );
-
-  const selectedModel = engineModels.find((m) => m.key === modelKey) || { cost: 24 };
+  const selectedModel = models.find((m) => m.key === modelKey) || { cost: 24 };
   const totalCost = selectedModel.cost * numOutputs;
 
   const missing = useMemo(
@@ -217,13 +211,15 @@ export default function Posters() {
     if (!photo) {
       if (tpl.aspect) {
         setAspect(tpl.aspect);
-      } else {
+      } else if (!tpl.styleVariants) {
         const p = (tpl.prompt || "").toLowerCase();
         if (p.includes("9:16")) setAspect("9:16");
         else if (p.includes("2:3")) setAspect("2:3");
         else if (p.includes("16:9")) setAspect("16:9");
         else if (p.includes("1:1") || p.includes("square")) setAspect("1:1");
         else setAspect("4:5");
+      } else {
+        setAspect("4:5");
       }
     }
   };
@@ -308,10 +304,11 @@ export default function Posters() {
     setResult(null);
     setGenProgress(0);
     setGenPhase("upload");
+    const isGptPoster = modelKey === "gpt_image";
     let submitData;
     try {
       ({ data: submitData } = await uploadPost("/generate/poster", fd, {
-        timeout: 90_000,
+        timeout: isGptPoster ? 300_000 : 120_000,
         headers: { "X-Skip-Auto-Poll": "1" },
         skipBlobOffload: !photo || photo.size < 3_500_000,
         blobOffloadTimeoutMs: 50_000,
@@ -328,7 +325,7 @@ export default function Posters() {
       });
       const polled = await pollPrediction(submitData.prediction_id, {
         onTick: (sec) => setGenProgress(sec),
-        timeoutMs: 300_000,
+        timeoutMs: isGptPoster ? 120_000 : 600_000,
         credits_spent: submitData.credits_spent ?? totalCost,
         type: "poster",
       });
@@ -377,7 +374,6 @@ export default function Posters() {
         outputLang={outputLang} setOutputLang={setOutputLang}
         modelKey={modelKey} setModelKey={setModelKey}
         models={models}
-        engineModels={engineModels}
         aspect={aspect} setAspect={setAspect}
         numOutputs={numOutputs} setNumOutputs={setNumOutputs}
         mood={mood} setMood={setMood}
@@ -403,9 +399,8 @@ export default function Posters() {
   /*  GRID                                                         */
   /* ============================================================ */
   return (
-    <div className="compact-page max-w-[1400px] mx-auto" data-testid="posters-page">
-      <div data-rp-marketing="true">{/* old marketing intro hidden via compact-page CSS */}</div>
-      <header data-rp-marketing="true" className="mb-8 md:mb-10">
+    <div className="max-w-[1400px] mx-auto" data-testid="posters-page">
+      <header className="mb-8 md:mb-10">
         <p className="text-[#7C3AED] text-[10px] font-mono uppercase tracking-[0.22em] mb-3">{t("sidebar_posters")}</p>
         <h1 className="text-[#F4F1EA] text-[36px] md:text-[52px] font-light tracking-[-0.02em] leading-[1.02] mb-3 font-['Inter_Tight']">
           {t("post_grid_title")}
@@ -414,12 +409,6 @@ export default function Posters() {
           {t("post_grid_desc", { n: templates.length || 44 })}
         </p>
       </header>
-
-      {/* Mobile-only compact title bar (OpenArt-style) */}
-      <div className="md:hidden flex items-center justify-between mb-3 px-0.5">
-        <h1 className="text-white text-[17px] font-bold font-['Inter_Tight'] truncate">{t("sidebar_posters")}</h1>
-        <span className="text-[#7C3AED] text-[10px] font-mono uppercase tracking-[0.18em] tabular-nums">{templates.length || 0}</span>
-      </div>
 
       {/* Tabs */}
       <div className="flex flex-wrap gap-1.5 mb-10" data-testid="poster-cats">
@@ -462,16 +451,24 @@ export default function Posters() {
 /*  Flyer variant picker                                               */
 /* ------------------------------------------------------------------ */
 
+function variantDisplayLabel(variant, t) {
+  if (variant?.label) return variant.label;
+  const key = variant?.labelKey;
+  if (!key) return variant?.variantKey || "";
+  const tr = t(key);
+  return tr !== key ? tr : (variant?.variantKey || key);
+}
+
 function VariantPicker({ base, variants, onBack, onPick, catLabel, t }) {
   return (
-    <div className="compact-page max-w-[1400px] mx-auto pb-20" data-testid="poster-variant-picker">
+    <div className="max-w-[1400px] mx-auto pb-20" data-testid="poster-variant-picker">
       <button type="button" onClick={onBack} className="rp-studio-back" data-testid="posters-back-to-grid">
         <ArrowLeft className="w-4 h-4" /> {t("post_back_templates")}
       </button>
 
-      <header data-rp-marketing="true" className="mb-8 md:mb-10">
+      <header className="mb-8 md:mb-10">
         <p className="text-[#7C3AED] text-[10px] font-mono uppercase tracking-[0.22em] mb-3">
-          {catLabel(base.category)} · {t("post_variant_picker_eyebrow")}
+          {catLabel(base.category)} · {t("post_variant_picker_eyebrow_n", { n: variants.length })}
         </p>
         <h1 className="text-[#F4F1EA] text-[32px] md:text-[44px] font-light tracking-[-0.02em] mb-3 font-['Inter_Tight']">
           {base.label || base.id}
@@ -502,7 +499,7 @@ function VariantPicker({ base, variants, onBack, onPick, catLabel, t }) {
                   {t("post_variant_n", { n: i + 1 })}
                 </span>
                 <span className="text-white text-[15px] sm:text-[17px] font-medium font-['Inter_Tight'] leading-snug">
-                  {t(variant.labelKey)}
+                  {variantDisplayLabel(variant, t)}
                 </span>
               </div>
               <div className="absolute inset-0 z-[3] hidden sm:flex items-center justify-center bg-[#7C3AED]/85 backdrop-blur-md opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
@@ -512,7 +509,7 @@ function VariantPicker({ base, variants, onBack, onPick, catLabel, t }) {
               </div>
             </div>
             <div className="flex items-center justify-between gap-1 border-t border-[#2E2E30]/80 px-2 py-2 sm:px-3 sm:py-2.5">
-              <p className="text-[#8A8A8E] text-[11px] truncate">{t(variant.labelKey)}</p>
+              <p className="text-[#8A8A8E] text-[11px] truncate">{variantDisplayLabel(variant, t)}</p>
               <Sparkles className="w-3.5 h-3.5 text-[#7C3AED] shrink-0 opacity-70" />
             </div>
           </motion.button>
@@ -622,7 +619,7 @@ function Editor(props) {
   const {
     picked, onBack, values, setValues, photo, setPhoto, logo, setLogo,
     outputLang, setOutputLang,
-    modelKey, setModelKey, models, engineModels,
+    modelKey, setModelKey, models,
     aspect, setAspect, numOutputs, setNumOutputs,
     mood, setMood, paletteColors, setPaletteColors,
     customBlocks, setCustomBlocks,
@@ -633,10 +630,9 @@ function Editor(props) {
   } = props;
 
   const modelsForPicker = useMemo(() => {
-    if (engineModels?.length) return engineModels;
     if (models?.length) return models;
     return FALLBACK_POSTER_MODELS;
-  }, [engineModels, models]);
+  }, [models]);
 
   const promptPreview = useMemo(() => {
     try {
@@ -693,7 +689,7 @@ function Editor(props) {
         : t("post_generating_poster");
 
   return (
-    <div className="compact-page max-w-[1400px] mx-auto pb-32" data-testid="posters-editor">
+    <div className="max-w-[1400px] mx-auto pb-32" data-testid="posters-editor">
       <button
         onClick={onBack}
         className="rp-studio-back"
@@ -703,7 +699,7 @@ function Editor(props) {
       </button>
 
       {/* Header */}
-      <div data-rp-marketing="true" className="mb-10 flex items-start gap-5">
+      <div className="mb-10 flex items-start gap-5">
         <div
           className="shrink-0 w-16 h-20 rounded-lg shadow-lg shadow-black/40 relative overflow-hidden"
           style={{ background: CAT_GRADIENTS[picked.category] }}

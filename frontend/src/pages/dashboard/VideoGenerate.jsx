@@ -92,7 +92,7 @@ export default function VideoGenerate({ mode = "text" }) {
         hasPhoto: aspect === "match",
       }));
       if (photo) fd.append("photo", photo);
-      const { data } = await uploadPost("/generate/video", fd, { timeout: 300000 });
+      const { data } = await uploadPost("/generate/video", fd, { timeout: 600_000 });
       if (data?.deferred) {
         await refresh().catch(() => {});
         return;

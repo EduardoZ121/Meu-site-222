@@ -15,6 +15,7 @@ import { usePricing } from "../../lib/PricingContext";
 import { setStoredPricingRegion } from "../../lib/pricingRegions";
 import { BILLING_FAQ_KEYS, BILLING_PKG_KEYS } from "../../lib/billingLocales";
 import { customPurchasePrice, getPricingMeta } from "../../lib/creditPricing";
+import { resolveCanonicalOrigin } from "../../lib/canonicalOrigin";
 
 const PKG_ICONS = { starter: Sparkles, creator: Zap, studio: Rocket, pro: Rocket };
 
@@ -112,7 +113,7 @@ export default function Billing() {
   const buy = async (pkgId) => {
     setCheckoutLoading(pkgId);
     try {
-      const { data } = await api.post("/stripe/checkout", { package: pkgId, origin: window.location.origin });
+      const { data } = await api.post("/stripe/checkout", { package: pkgId, origin: resolveCanonicalOrigin() });
       window.location.href = data.checkout_url;
     } catch (err) {
       toast.error(err?.response?.data?.detail || t("bill_checkout_fail"));
@@ -129,7 +130,7 @@ export default function Billing() {
     try {
       const { data } = await api.post("/stripe/checkout", {
         custom_credits: customQuote.credits,
-        origin: window.location.origin,
+        origin: resolveCanonicalOrigin(),
       });
       window.location.href = data.checkout_url;
     } catch (err) {

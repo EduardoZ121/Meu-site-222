@@ -6,10 +6,13 @@
 import { POSTER_REFERENCE_PERSON } from "./identityPrompts";
 import { FLYER_PALETTES } from "./posterFlyerVariantsData.js";
 
-/** @typedef {{ variantKey: string, labelKey: string, useBase?: boolean, gradient?: string, prompt?: string }} PosterFlyerVariant */
+/** @typedef {{ variantKey: string, labelKey?: string, label?: string, useBase?: boolean, gradient?: string, prompt?: string }} PosterFlyerVariant */
 
 /** @type {Record<string, PosterFlyerVariant[]>} */
 export const FLYER_VARIANTS_BY_TEMPLATE_ID = {};
+
+/** @type {Record<string, PosterFlyerVariant[]>} */
+export const STYLE_VARIANTS_BY_TEMPLATE_ID = {};
 
 const VARIANT_META = [
   {
@@ -113,6 +116,7 @@ export function registerFlyerVariants(templateId, displayTexts, palette) {
     if (meta.useBase) return { ...meta };
     return { ...meta, prompt: prompts[meta.variantKey] };
   });
+  STYLE_VARIANTS_BY_TEMPLATE_ID[templateId] = FLYER_VARIANTS_BY_TEMPLATE_ID[templateId];
 }
 
 /** Garante 5 variações para o template (API usa line_1 + replacements). */
@@ -125,12 +129,18 @@ export function ensureFlyerVariants(template) {
 }
 
 export function posterTemplateHasVariants(template) {
+  if (template?.styleVariants && STYLE_VARIANTS_BY_TEMPLATE_ID[template.id]?.length) {
+    return true;
+  }
   if (template?.category !== "flyers") return false;
   ensureFlyerVariants(template);
   return Boolean(FLYER_VARIANTS_BY_TEMPLATE_ID[template.id]?.length);
 }
 
 export function getFlyerVariants(templateId, template) {
+  if (STYLE_VARIANTS_BY_TEMPLATE_ID[templateId]?.length) {
+    return STYLE_VARIANTS_BY_TEMPLATE_ID[templateId];
+  }
   if (template) ensureFlyerVariants(template);
   return FLYER_VARIANTS_BY_TEMPLATE_ID[templateId] || [];
 }

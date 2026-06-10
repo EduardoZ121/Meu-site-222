@@ -25,7 +25,7 @@ const {
   repairUserAccountIfNeeded,
   isAdminEmail,
   addCredits,
-  recordPurchase,
+  fulfillStripeCheckoutSession,
   recordCreation,
   storageEnabled,
 } = require("./lib/usersDb.cjs");
@@ -36,6 +36,8 @@ const {
   pollPending,
   newPendingId,
   completePendingWithUrls,
+  updatePending,
+  isOpenAIPosterJob,
 } = require("./lib/pendingPredictions.cjs");
 const {
   resolvePosterModel,
@@ -44,7 +46,7 @@ const {
   aspectToOpenAISize,
 } = require("./lib/posterEngine.cjs");
 const { preparePosterReference } = require("./lib/posterImagePrep.cjs");
-const { generateOpenAIPosterImage } = require("./lib/openaiPoster.cjs");
+const { generateOpenAIPosterImageDetailed } = require("./lib/openaiPoster.cjs");
 const { formatGenerationError } = require("./lib/generationErrors.cjs");
 const { appendAspectOutputInstruction, MATCH_ASPECT } = require("./lib/aspectOutputPrompt.cjs");
 const { fitImageRefToAspect } = require("./lib/fitImageToAspect.cjs");
@@ -835,11 +837,18 @@ async function getPrediction(id) {
   return await replicateFetch(`https://api.replicate.com/v1/predictions/${id}`);
 }
 
-/** Best-effort server poll after submit (cron covers long video jobs). */
+function serverPollDeadlineMs(pending) {
+  if (pending?.type === "video") return 780_000;
+  if (isOpenAIPosterJob(pending)) return 780_000;
+  if (pending?.type === "poster") return 600_000;
+  return 105_000;
+}
+
+/** Best-effort server poll after submit (cron + Vercel Pro waitUntil cover long jobs). */
 function scheduleServerPendingPoll(pending) {
   if (!pending?.id) return;
   const run = async () => {
-    const deadline = Date.now() + 105_000;
+    const deadline = Date.now() + serverPollDeadlineMs(pending);
     while (Date.now() < deadline) {
       const fresh = await getPending(pending.id);
       if (!fresh || fresh.status === "completed" || fresh.status === "refunded") return;
@@ -1606,21 +1615,26 @@ async function routePost(path, fields, files, req) {
     const logoInstr = buildPosterLogoInstruction(Boolean(logoRef), Boolean(photoRef));
     if (logoInstr) prompt = `${prompt}\n\n${logoInstr}`;
 
-    const resolved = resolvePosterModel(selected, { hasPhoto });
+    const resolved = resolvePosterModel(selected);
     const cost = perImage * count;
 
     if (resolved.engine === "openai") {
+      const preparedRef = await preparePosterReference(photoRef, logoRef, aspectRatio);
+      const imageRef = preparedRef || photoRef || logoRef || null;
       const size = aspectToOpenAISize(aspectRatio);
       const urls = [];
+      let modelUsed = resolved.modelUsed;
       for (let i = 0; i < count; i += 1) {
         // eslint-disable-next-line no-await-in-loop
-        urls.push(await generateOpenAIPosterImage(prompt, size));
+        const result = await generateOpenAIPosterImageDetailed(prompt, size, imageRef);
+        urls.push(result.url);
+        modelUsed = result.modelUsed || modelUsed;
       }
       return submitInstantPosterGeneration(req, fields, {
         cost,
         prompt,
         aspectRatio,
-        modelUsed: resolved.modelUsed,
+        modelUsed,
         urls,
       });
     }
@@ -2054,6 +2068,12 @@ async function routePost(path, fields, files, req) {
   }
 
   if (path === "stripe/checkout") {
+    const { user: checkoutUser, isLocal: checkoutLocal } = resolveSessionUser(req);
+    if (!checkoutUser || checkoutLocal) {
+      const err = new Error("Inicia sessão para comprar créditos.");
+      err.status = 401;
+      throw err;
+    }
     const packageId = text(fields, "package", "starter");
     const customCreditsRaw = Number(text(fields, "custom_credits", 0));
     const region = regionFromRequest(req, fields);
@@ -2077,11 +2097,20 @@ async function routePost(path, fields, files, req) {
     const packageLabel = hasCustom ? "Custom" : pkg.name;
     const packageTagline = hasCustom ? `${credits} créditos personalizados` : pkg.tagline;
     const metadataPackage = hasCustom ? "custom" : packageId;
-    const origin = fields.origin || "https://remakepix.com";
+    let origin = String(fields.origin || process.env.SITE_URL || "https://www.remakepix.com").replace(/\/$/, "");
+    try {
+      const u = new URL(origin);
+      if (u.hostname.endsWith(".vercel.app") || u.hostname === "remakepix.com") {
+        origin = "https://www.remakepix.com";
+      }
+    } catch {
+      origin = "https://www.remakepix.com";
+    }
     const stripe = stripeClient();
     const session = await stripe.checkout.sessions.create({
       mode: "payment",
       payment_method_types: ["card"],
+      customer_email: checkoutUser.email || undefined,
       line_items: [{
         price_data: {
           currency: cfg.currency,
@@ -2094,6 +2123,7 @@ async function routePost(path, fields, files, req) {
         quantity: 1,
       }],
       metadata: {
+        user_id: checkoutUser.id,
         package: metadataPackage,
         credits: String(credits),
         pricing_region: region,
@@ -2157,11 +2187,11 @@ async function handlePath(path, req, res) {
           },
           {
             key: "gpt_image",
-            label: "Motor Premium",
+            label: "Motor GPT",
             cost: CREDIT.posterPremium,
             tier: "premium",
             supports_photo: true,
-            tag: "Qualidade Máxima",
+            tag: "GPT Image 1 · texto nítido · com foto",
           },
         ],
       });
@@ -2300,31 +2330,29 @@ async function handlePath(path, req, res) {
               ? session.amount_total / 100
               : 0;
           const currency = cfg.currency || "eur";
-          await recordPurchase({
-            userId: tokenUser.id,
-            sessionId,
-            packageId,
-            credits,
-            amount,
-            currency,
-            pricingRegion,
-          });
-          const balance = await addCredits(
-            tokenUser.id,
-            credits,
-            "purchase",
-            `Stripe purchase (${packageId || "package"})`,
-            { stripe_session_id: sessionId },
-          );
-          if (balance != null) {
-            return json(res, 200, {
-              id: session.id,
-              paid,
-              package: packageId,
+          try {
+            const fulfilled = await fulfillStripeCheckoutSession({
+              userId: tokenUser.id,
+              sessionId,
+              packageId,
               credits,
-              pricing_region: pricingRegion,
-              new_balance: balance,
+              amount,
+              currency,
+              pricingRegion,
             });
+            if (fulfilled?.new_balance != null) {
+              return json(res, 200, {
+                id: session.id,
+                paid,
+                package: packageId,
+                credits,
+                pricing_region: pricingRegion,
+                new_balance: fulfilled.new_balance,
+                already_claimed: fulfilled.already_claimed,
+              });
+            }
+          } catch (claimErr) {
+            return json(res, claimErr.status || 500, { detail: claimErr.message || "Erro ao creditar compra." });
           }
         }
       }

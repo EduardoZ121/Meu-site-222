@@ -91,6 +91,24 @@ async function mirrorUrlsToBlob(urls) {
       out.push(url);
       continue;
     }
+    if (url.startsWith("data:")) {
+      try {
+        const comma = url.indexOf(",");
+        if (comma < 0) continue;
+        const header = url.slice(0, comma);
+        const b64 = url.slice(comma + 1);
+        const buf = Buffer.from(b64, "base64");
+        if (buf.length < 128) continue;
+        const ct = header.match(/^data:([^;]+)/)?.[1] || "image/png";
+        const ext = ct.includes("png") ? "png" : ct.includes("webp") ? "webp" : "jpg";
+        const name = `rp/creations/${Date.now()}-${crypto.randomBytes(5).toString("hex")}.${ext}`;
+        const blob = await put(name, buf, { access: "public", contentType: ct });
+        out.push(blob.url);
+      } catch {
+        /* keep trying other urls */
+      }
+      continue;
+    }
     if (!url.startsWith("http")) continue;
     try {
       const res = await fetch(url, { redirect: "follow" });

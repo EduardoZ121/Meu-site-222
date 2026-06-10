@@ -42,7 +42,6 @@ export default function InstantPhotoUpload({
     setPreviewUrl(null);
   }, []);
 
-  /* eslint-disable react-hooks/set-state-in-effect -- preview URL mirrors props.value lifecycle by design */
   useEffect(() => {
     if (!value) {
       releasePreview();
@@ -55,7 +54,6 @@ export default function InstantPhotoUpload({
     if (prev) revokeFilePreviewUrl(prev);
     return undefined;
   }, [value, releasePreview]);
-  /* eslint-enable react-hooks/set-state-in-effect */
 
   // Final cleanup on unmount
   useEffect(() => {

@@ -2,7 +2,10 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "env": {
     "DISABLE_VERCEL_BLOB": "0",
-    "REACT_APP_BUILD_ID": "posters-grok-engines-v16"
+    "REACT_APP_BUILD_ID": "rp-gpt-fix-v27",
+    "APP_BUILD_ID": "rp-gpt-fix-v27",
+    "SITE_URL": "https://www.remakepix.com",
+    "VERCEL_PRO_MAX_DURATION_SEC": "800"
   },
   "crons": [
     {
@@ -17,12 +20,21 @@
   "framework": "create-react-app",
   "functions": {
     "api/**/*.js": {
-      "maxDuration": 120,
+      "maxDuration": 800,
+      "memory": 3009,
       "includeFiles": "{frontend/api/lib/**,node_modules/sharp/**,node_modules/@img/**}"
     }
   },
   "installCommand": "ln -sfn frontend/api api; yarn install --frozen-lockfile || yarn install; cd frontend && yarn install --frozen-lockfile || yarn install",
-  "buildCommand": "cd frontend && REACT_APP_BUILD_ID=posters-grok-engines-v16 REACT_APP_DISABLE_VERCEL_BLOB=0 yarn build",
+  "buildCommand": "cd frontend && REACT_APP_BUILD_ID=rp-gpt-fix-v27 REACT_APP_DISABLE_VERCEL_BLOB=0 yarn build",
+  "redirects": [
+    {
+      "source": "/:path*",
+      "has": [{ "type": "host", "value": "remakepix.com" }],
+      "destination": "https://www.remakepix.com/:path*",
+      "permanent": true
+    }
+  ],
   "headers": [
     {
       "source": "/index.html",

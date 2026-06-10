@@ -2,17 +2,25 @@
 <html lang="en" data-default-lang="en">
     <head>
         <meta charset="utf-8" />
+        <script>
+          (function () {
+            var h = location.hostname.toLowerCase();
+            if (h.endsWith(".vercel.app") || h === "remakepix.com") {
+              location.replace("https://www.remakepix.com" + location.pathname + location.search + location.hash);
+            }
+          })();
+        </script>
         <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, viewport-fit=cover" />
         <meta name="mobile-web-app-capable" content="yes" />
         <meta name="theme-color" content="#0B0B0C" />
         <meta name="description" content="Create and edit images with AI: 96+ styles, professional posters, video generation, background removal, upscale, and Pro retouching. Pay-as-you-go credits — no subscription required." />
         <meta name="keywords" content="AI image generator, AI photo editor, remove background, AI video, poster maker, image upscale, photo restore, AI art studio, Remake Pixel" />
         <meta name="robots" content="index, follow, max-image-preview:large" />
-        <link rel="canonical" href="https://remakepix.com/" />
+        <link rel="canonical" href="https://www.remakepix.com/" />
         <meta property="og:type" content="website" />
         <meta property="og:site_name" content="Remake Pixel" />
         <meta property="og:locale" content="en_US" />
-        <meta property="og:url" content="https://remakepix.com/" />
+        <meta property="og:url" content="https://www.remakepix.com/" />
         <meta property="og:title" content="Remake Pixel — AI Image &amp; Video Studio" />
         <meta property="og:description" content="Create and edit images with AI: 96+ styles, professional posters, video generation, and Pro tools. Pay-as-you-go credits — no subscription required." />
         <meta property="og:image" content="https://remakepix.com/og-image.jpg" />

@@ -5,9 +5,6 @@
 import { isAndroid, isIOS } from "./device";
 import { uploadImageToCloud } from "./blobUploadClient";
 
-/** Exportado para fallback em prepareSubmit / vídeo. */
-export { uploadImageViaServerProxy } from "./blobUploadClient";
-
 async function withTimeout(promise, ms, message) {
   let tid;
   const timeout = new Promise((_, reject) => {

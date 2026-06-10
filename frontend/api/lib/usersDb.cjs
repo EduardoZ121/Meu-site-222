@@ -266,6 +266,15 @@ async function addCredits(userId, amount, type, description, metadata = {}) {
   return res.credits;
 }
 
+async function findPurchaseBySessionId(sessionId) {
+  if (!storageEnabled() || !sessionId) return null;
+  const db = await getDb();
+  return db.collection("purchases").findOne(
+    { stripe_session_id: sessionId },
+    { projection: { _id: 0 } },
+  );
+}
+
 async function recordPurchase({
   userId,
   sessionId,
@@ -276,7 +285,7 @@ async function recordPurchase({
   pricingRegion,
   status = "completed",
 }) {
-  if (!storageEnabled() || !sessionId) return;
+  if (!storageEnabled() || !sessionId) return false;
   const db = await getDb();
   const amountField = currency === "usd" ? "amount_usd" : "amount_eur";
   const econ = purchaseEconomics({ amount, currency, credits });
@@ -298,9 +307,61 @@ async function recordPurchase({
   };
   try {
     await db.collection("purchases").insertOne(doc);
+    return true;
   } catch (e) {
-    if (e?.code !== 11000) throw e;
+    if (e?.code === 11000) return false;
+    throw e;
   }
+}
+
+/** Credita uma sessão Stripe paga uma única vez (idempotente por stripe_session_id). */
+async function fulfillStripeCheckoutSession({
+  userId,
+  sessionId,
+  packageId,
+  credits,
+  amount,
+  currency,
+  pricingRegion,
+}) {
+  if (!storageEnabled() || !userId || !sessionId || !credits) return null;
+  const existing = await findPurchaseBySessionId(sessionId);
+  if (existing) {
+    if (existing.user_id && existing.user_id !== userId) {
+      const err = new Error("Esta compra já foi associada a outra conta.");
+      err.status = 403;
+      throw err;
+    }
+    const u = await getUserById(userId);
+    return { new_balance: u?.credits ?? null, already_claimed: true, credits };
+  }
+  const inserted = await recordPurchase({
+    userId,
+    sessionId,
+    packageId,
+    credits,
+    amount,
+    currency,
+    pricingRegion,
+  });
+  if (!inserted) {
+    const again = await findPurchaseBySessionId(sessionId);
+    if (again?.user_id && again.user_id !== userId) {
+      const err = new Error("Esta compra já foi associada a outra conta.");
+      err.status = 403;
+      throw err;
+    }
+    const u = await getUserById(userId);
+    return { new_balance: u?.credits ?? null, already_claimed: true, credits };
+  }
+  const balance = await addCredits(
+    userId,
+    credits,
+    "purchase",
+    `Stripe purchase (${packageId || "package"})`,
+    { stripe_session_id: sessionId },
+  );
+  return { new_balance: balance, already_claimed: false, credits };
 }
 
 async function recordCreation(userId, creation) {
@@ -330,5 +391,7 @@ module.exports = {
   setUserAccountByEmail,
   addCredits,
   recordPurchase,
+  findPurchaseBySessionId,
+  fulfillStripeCheckoutSession,
   recordCreation,
 };

@@ -2,32 +2,41 @@ const MODELS = {
   grok: "xai/grok-imagine-image",
 };
 
+const { openaiConfigured } = require("./openaiEnv.cjs");
+
 /**
- * Posters: Pro/Premium deixam de usar Flux (texto ilegível). Todos com foto → Grok.
+ * grok / flux2 → Grok (Replicate)
+ * gpt_image → OpenAI GPT Image 1 (texto + foto via JSON edits)
  */
-function resolvePosterModel(modelKey, { hasPhoto } = {}) {
+function resolvePosterModel(modelKey) {
   const key = String(modelKey || "grok").trim();
-  if (key === "gpt_image" && !hasPhoto && openaiPosterEnabled()) {
+
+  if (key === "gpt_image") {
+    if (!openaiConfigured()) {
+      const err = new Error("Motor GPT indisponível — OPENAI_API_KEY em falta na Vercel.");
+      err.status = 503;
+      throw err;
+    }
     return {
       engine: "openai",
-      modelKey: "openai_poster",
+      modelKey: "gpt_image",
       modelId: null,
       modelUsed: "openai/gpt-image-1",
     };
   }
+
   return {
     engine: "grok",
-    modelKey: "standard",
+    modelKey: key === "flux2" ? "pro" : "standard",
     modelId: MODELS.grok,
     modelUsed: MODELS.grok,
   };
 }
 
 function openaiPosterEnabled() {
-  return Boolean(String(process.env.OPENAI_API_KEY || "").trim());
+  return openaiConfigured();
 }
 
-/** Lista explícita de copy para o modelo não inventar texto. */
 function buildPosterTextManifest(placeholders = {}, templatePlaceholders = []) {
   const keys = templatePlaceholders?.length
     ? templatePlaceholders

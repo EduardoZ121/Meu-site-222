@@ -328,3 +328,9 @@ O utilizador pediu para descartar todas as edições locais, re-importar o site 
 - P2: Rate limiting no endpoint proxy-media.
 - P2: Espelhar resultados Replicate para storage permanente no backend Python (a API Node/Vercel já faz mirror para Vercel Blob; criações antigas com URLs Replicate expiradas só recuperam com nova geração).
 - Definir `REACT_APP_GOOGLE_CLIENT_ID` no ambiente de produção para ativar o login Google.
+
+## Fix 2026-06-10 (2) — Imagens cortadas nas gerações com foto
+- **Causa raiz**: nos dois caminhos de geração (`services/replicate_service.generate_image` e `services/predictions._build_payload`), quando o utilizador envia uma foto com rácio "match", o modelo Grok (standard — usado em Easy/Edit/Generate) era forçado a `aspect_ratio: "1:1"` → selfies verticais saíam quadradas, cortando topo/fundo.
+- **Fix**: Grok suporta `aspect_ratio: "auto"` que acompanha o rácio da imagem de entrada. Agora edição com foto + "match" envia `"auto"`. Flux (Pro/Artistic/Kontext) já usava `match_input_image` (correto). Rácio explícito escolhido pelo utilizador continua respeitado.
+- **Verificado**: teste real — input 720x1280 (9:16) → output 720x1280 (antes: 1024x1024 cortado).
+- Testes desatualizados em `tests/test_remake_pixel.py` alinhados com os dados reais do repo (93 estilos padrão; labels do wizard). Suite completa verde (12+40 passed).

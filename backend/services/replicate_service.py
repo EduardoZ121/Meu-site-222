@@ -129,8 +129,8 @@ async def generate_image(
         if aspect_ratio in AR_MATCH:
             if model_key in ("pro", "artistic", "kontext"):
                 payload["aspect_ratio"] = "match_input_image"
-            else:  # standard (Grok) ignores aspect when editing — keep something valid
-                payload["aspect_ratio"] = "1:1"
+            else:  # standard (Grok) — "auto" segue o rácio da foto (sem cortes)
+                payload["aspect_ratio"] = "auto"
         else:
             if model_key in ("pro", "artistic", "kontext"):
                 payload["aspect_ratio"] = normalize_aspect_ratio(aspect_ratio, model_key)

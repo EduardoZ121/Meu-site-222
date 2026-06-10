@@ -63,7 +63,7 @@ def _build_payload(
     if image_path:
         if aspect_ratio in AR_MATCH:
             payload["aspect_ratio"] = (
-                "match_input_image" if model_key in ("pro", "artistic", "kontext") else "1:1"
+                "match_input_image" if model_key in ("pro", "artistic", "kontext") else "auto"
             )
         else:
             payload["aspect_ratio"] = normalize_aspect_ratio(aspect_ratio, model_key)

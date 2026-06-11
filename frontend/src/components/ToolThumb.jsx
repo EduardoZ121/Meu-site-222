@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { getImageToolCover } from "../lib/toolsCoverCatalogue";
 import {
   Wand2, Image as ImageIcon, Scissors, Maximize2, Palette,
   Eraser, FileText, Camera, Film, Layers, Lightbulb, Brush, RefreshCw, Shirt,
@@ -24,7 +25,7 @@ const ICONS = {
 const HAS_PHOTO = new Set([
   "studio", "clothes", "art", "pro",
   "bg_remove", "upscale", "restore", "colorize",
-  "inpaint", "posters", "carousel", "wizard", "video",
+  "inpaint", "posters", "carousel", "wizard", "video", "manga_studio",
 ]);
 
 function CssThumb({ id, premium }) {
@@ -89,7 +90,7 @@ export default function ToolThumb({ id, name, variant = "default" }) {
       )}
       <img
         ref={imgRef}
-        src={`/images/tools/${id}.jpg`}
+        src={getImageToolCover(id)}
         alt={name || id}
         className={`absolute inset-0 w-full h-full object-cover object-center transition-opacity duration-300 ${
           loaded ? "opacity-100" : "opacity-0"

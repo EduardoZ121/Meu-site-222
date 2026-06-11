@@ -49,6 +49,50 @@ const WIZ_MAP = {
     "5": "4:5",
     "6": "21:9",
   },
+  q4: {
+    "1": "golden hour warm sunset lighting",
+    "2": "soft overcast diffused lighting",
+    "3": "hard studio key and fill lighting",
+    "4": "neon cyberpunk practical lighting",
+    "5": "Rembrandt dramatic side lighting",
+    "6": "low-key noir lighting",
+    "7": "high-key beauty fashion lighting",
+    "8": "volumetric god rays",
+    "9": "moonlit blue hour",
+    "10": "natural window light",
+  },
+  q5: {
+    "1": "85mm portrait shallow depth of field",
+    "2": "35mm documentary wide framing",
+    "3": "24mm environmental wide shot",
+    "4": "50mm natural eye-level perspective",
+    "5": "100mm macro detail shot",
+    "6": "anamorphic 2.39:1 cinematic framing",
+    "7": "aerial drone establishing shot",
+    "8": "low-angle hero perspective",
+    "9": "top-down flat lay",
+    "10": "Dutch angle dynamic framing",
+  },
+  q6: {
+    "1": "warm earthy color palette",
+    "2": "cool teal and orange grade",
+    "3": "monochrome black and white high contrast",
+    "4": "pastel soft dreamy palette",
+    "5": "neon saturated pop colors",
+    "6": "muted desaturated film look",
+    "7": "luxury gold and black palette",
+    "8": "melancholic blue mood",
+    "9": "vibrant tropical colors",
+    "10": "clinical clean white palette",
+  },
+  q8: {
+    "1": "8K photorealistic ultra sharp",
+    "2": "editorial magazine finish",
+    "3": "cinematic film still quality",
+    "4": "Unreal Engine 3D render quality",
+    "5": "fine art gallery print quality",
+    "6": "commercial product hero shot quality",
+  },
 };
 
 function normalizeWizardAnswers(raw) {
@@ -155,11 +199,73 @@ async function suggestPrompts(theme, lang) {
     .slice(0, 8);
 }
 
+const VIDEO_EDIT_PRESET_HINTS = {
+  outfit:
+    "Preset: OUTFIT CHANGE ONLY. Keep face, body, pose, motion, and background identical. "
+    + "Replace clothing with specific garments (type, color, fabric, fit, accessories).",
+  background:
+    "Preset: BACKGROUND CHANGE ONLY. Keep the person, pose, motion, and subject lighting identical. "
+    + "Replace only the environment/scenery behind them.",
+  restyle:
+    "Preset: FULL RESTYLE. Preserve identity, pose, and motion while applying the new look globally.",
+};
+
+function userAskedForQuality(text) {
+  return /\b(quality|qualidade|resolution|resolução|resolu[cç][aã]o|8k|4k|hd|uhd|sharp|n[ií]tid|nitidez|detalhe|detail|crisp|clearer|melhorar qualidade|improve quality|enhance quality|upscale|mais n[ií]tido)\b/i.test(
+    String(text || ""),
+  );
+}
+
 function buildImproveSystemPrompt(context = {}) {
   const tool = String(context.tool || "").trim();
   const styleLabel = String(context.style_label || "").trim();
   const styleSuffix = String(context.style_suffix || "").trim();
   const imageMode = Boolean(context.image_mode);
+  const videoPreset = String(context.video_preset || "").trim().toLowerCase();
+  const userPrompt = String(context.user_prompt || "").trim();
+
+  if (tool === "video_edit") {
+    let system =
+      "You are an expert prompt engineer for AI VIDEO EDITING (Wan VideoEdit). "
+      + "The user already has a video clip and wants a targeted edit — NOT a generic quality upgrade. "
+      + "Rewrite their instruction into ONE precise English edit prompt (80–140 words). "
+      + "Respond ONLY with the improved prompt — no quotes, no labels, no explanations.\n\n"
+      + "CRITICAL RULES:\n"
+      + "1) Identify the PRIMARY edit intent (outfit/clothing, background/scene, lighting/color, or full restyle).\n"
+      + "2) State explicitly what MUST stay unchanged (face, identity, body, pose, motion, camera angle).\n"
+      + "3) Describe ONLY the requested change with concrete, plausible details "
+      + "(garment type, color, fabric, fit, shoes; or background location, time of day, weather; etc.).\n"
+      + "4) Expand vague user text with context-fitting specifics — never swap their goal for something else.\n"
+      + "5) NEVER add unrelated quality/resolution boosters (8K, ultra sharp, professional photography, HDR) "
+      + "unless the user explicitly asked for quality or restyle improvements.\n"
+      + "6) If the user wants clothing/outfit change, focus 100% on wardrobe — do NOT mention resolution or sharpness.\n"
+      + "7) Keep ALL user-requested subjects, wardrobe choices, and actions — never remove or censor them.\n\n"
+      + "OUTFIT examples: 'gym wear' → fitted moisture-wicking tank top, athletic leggings, trainers; "
+      + "'evening dress' → elegant floor-length fabric, neckline, color.\n"
+      + "BACKGROUND examples: 'beach' → tropical shoreline, golden hour sand and sky.\n"
+      + "Always write in clear imperative/descriptive English suitable for a video edit model.";
+
+    if (videoPreset && VIDEO_EDIT_PRESET_HINTS[videoPreset]) {
+      system += `\n\n${VIDEO_EDIT_PRESET_HINTS[videoPreset]}`;
+    }
+    if (userAskedForQuality(userPrompt)) {
+      system += "\n\nThe user DID ask for quality/resolution — you may include moderate quality cues tied to their request.";
+    } else {
+      system += "\n\nThe user did NOT ask for quality/resolution — forbid quality-only changes.";
+    }
+    return system;
+  }
+
+  if (tool === "video") {
+    return (
+      "You are an expert at crafting AI video generation prompts. "
+      + "Transform the user's idea into one vivid English prompt for text/image-to-video. "
+      + "Include subject, action, camera motion, lighting, and mood. "
+      + "Keep ALL user-requested subjects, wardrobe, and actions. "
+      + "Do not add unrelated 8K/quality spam unless the user asked for it. "
+      + "Respond ONLY with the improved English prompt, no quotes, no explanations."
+    );
+  }
 
   let system =
     "You are an expert at crafting image generation prompts. "
@@ -193,13 +299,15 @@ function buildImproveSystemPrompt(context = {}) {
 async function improvePrompt(prompt, lang = "en", context = {}) {
   const trimmed = String(prompt || "").trim();
   if (trimmed.length < 3) return trimmed;
-  const system = buildImproveSystemPrompt(context);
+  const tool = String(context.tool || "").trim();
+  const isVideoEdit = tool === "video_edit";
+  const system = buildImproveSystemPrompt({ ...context, user_prompt: trimmed });
   try {
     const improved = await chatText({
       system,
       user: trimmed,
-      maxTokens: 280,
-      temperature: 0.8,
+      maxTokens: isVideoEdit ? 360 : 280,
+      temperature: isVideoEdit ? 0.55 : 0.8,
     });
     if (!improved || improved.length < 3) return trimmed;
     return improved;
@@ -213,13 +321,20 @@ async function improvePrompt(prompt, lang = "en", context = {}) {
 
 async function wizardCompose(answers) {
   const normalized = normalizeWizardAnswers(answers);
+  if (answers.q7) normalized.q7 = String(answers.q7).trim();
+  if (answers.q9) normalized.q9 = String(answers.q9).trim();
+  if (answers.perchance_tags) normalized.perchance_tags = String(answers.perchance_tags).trim();
   try {
     return await chatText({
       system:
-        "You are a senior creative director writing world-class image-generation prompts. "
-        + "Given JSON of user answers, produce ONE strong English prompt (90–140 words) with subject, style, lighting, "
-        + "palette, lens/framing, and quality boosters. Single paragraph only — no quotes or labels.",
+        "You are a senior creative director and prompt engineer writing world-class AI image-generation prompts. "
+        + "Given JSON of user answers (project type, style, format, lighting, camera, mood, detailed subject, quality tier, optional references and Perchance tags), "
+        + "produce ONE dense English prompt of 220–380 words. Include: subject and action, environment, lighting setup, camera/lens/framing, color palette/mood, "
+        + "composition rules, material/texture detail, and technical quality boosters (8K, ray-traced, editorial grade, etc.). "
+        + "Use professional photography and CGI vocabulary. Single flowing paragraph — no bullet lists, no quotes, no section labels.",
       user: JSON.stringify(normalized),
+      maxTokens: 900,
+      temperature: 0.82,
     });
   } catch {
     return Object.values(normalized).filter(Boolean).join(", ");
@@ -270,7 +385,7 @@ async function handlePromptAssistRoute(path, req, res, { verifySessionToken, jso
     }
     const { getUserById, addCredits } = require("./usersDb.cjs");
     const { getSurcharges } = require("./creditPricing.cjs");
-    const PROMPT_IMPROVE_COST = getSurcharges().enhancePrompt ?? 3;
+    const PROMPT_IMPROVE_COST = getSurcharges().enhancePrompt ?? 5;
     const dbUser = await getUserById(sessionUser.id);
     const balance = Number(dbUser?.credits ?? sessionUser?.credits ?? 0);
     if (!sessionUser?.is_unlimited && balance < PROMPT_IMPROVE_COST) {

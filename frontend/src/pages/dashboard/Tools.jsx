@@ -1,200 +1,274 @@
-import { useMemo, useState } from "react";
-import { motion, AnimatePresence } from "framer-motion";
-import { ImageIcon, Film } from "lucide-react";
-import ToolsGridCard from "../../components/tools/ToolsGridCard";
-import VideoGridCard from "../../components/video/VideoGridCard";
+import { useMemo, useState, useEffect } from "react";
+import { AnimatePresence, motion } from "framer-motion";
+import ToolsHubCard from "../../components/tools/ToolsHubCard";
 import useTitle from "../../lib/useTitle";
 import { usePricing } from "../../lib/PricingContext";
 import { useI18n } from "../../lib/i18n";
+import { useAuth } from "../../lib/auth";
+import { canAccessVideoFeatures } from "../../lib/isAdmin";
 import { useLocalizedTools } from "../../lib/useLocalizedTools";
-import { IMAGE_TOOL_SECTIONS } from "../../lib/toolsCatalogue";
-import { VIDEO_CATEGORIES } from "../../lib/videoCatalogue";
+import { usePinnedTools } from "../../hooks/usePinnedTools";
+import { toolCatalogueCost } from "../../lib/pricingRegions";
+import { getVideoCategoriesForUser } from "../../lib/videoCatalogue";
+import { cn } from "../../lib/utils";
 
 const pageEase = [0.16, 1, 0.3, 1];
 
-const TOOL_GRID_CLASS =
-  "grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-2.5 sm:gap-3";
+const GRID_CLASS =
+  "grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-2 sm:gap-2.5 md:gap-3";
 
-function ToolsCategorySection({ title, description, children, testId }) {
+const IMAGE_CATEGORIES = [
+  { id: "all", labelKey: "tools_grid.filter_all" },
+  { id: "generation", labelKey: "tools_grid.cat_generation" },
+  { id: "utility", labelKey: "tools_grid.cat_utility" },
+  { id: "creative", labelKey: "tools_grid.cat_creative" },
+];
+
+const VIDEO_CATEGORIES_FILTER = [
+  { id: "all", labelKey: "tools_grid.filter_all" },
+  { id: "create", labelKey: "vid_section_create" },
+  { id: "edit", labelKey: "vid_section_edit" },
+];
+
+function FilterPills({ items, value, onChange, testIdPrefix }) {
   return (
-    <section className="mb-10 md:mb-12 last:mb-0" data-testid={testId}>
-      <header className="mb-4 md:mb-5 flex flex-col sm:flex-row sm:items-end sm:justify-between gap-2">
-        <div>
-          <h2 className="rp-type-section-title">{title}</h2>
-          {description && (
-            <p className="rp-type-section-lead">{description}</p>
-          )}
-        </div>
-      </header>
-      {children}
-    </section>
+    <div
+      className="rp-tools-hub-filters flex gap-2 overflow-x-auto pb-1 -mx-0.5 px-0.5 scrollbar-none"
+      role="tablist"
+      data-testid={testIdPrefix}
+    >
+      {items.map(({ id, label }) => {
+        const active = value === id;
+        return (
+          <button
+            key={id}
+            type="button"
+            role="tab"
+            aria-selected={active}
+            onClick={() => onChange(id)}
+            data-testid={`${testIdPrefix}-${id}`}
+            className={active ? "rp-tools-hub-pill rp-tools-hub-pill--active" : "rp-tools-hub-pill"}
+          >
+            {label}
+          </button>
+        );
+      })}
+    </div>
   );
 }
 
 export default function Tools() {
   const { t } = useI18n();
+  const { user } = useAuth();
   const tools = useLocalizedTools();
+  const { region, costs } = usePricing();
+  const { isPinned, togglePin, pinnedIds } = usePinnedTools();
   useTitle(t("tools_grid.page_eyebrow"));
-  const { region } = usePricing();
-  const [tab, setTab] = useState("image");
+
+  const [view, setView] = useState("all");
+  const [tier, setTier] = useState("image");
+  const [imageCategory, setImageCategory] = useState("all");
+  const [videoCategory, setVideoCategory] = useState("all");
+
+  const videoAccess = canAccessVideoFeatures(user);
+  const videoCategories = useMemo(() => getVideoCategoriesForUser(user), [user]);
+
+  useEffect(() => {
+    if (!videoAccess && tier === "video") setTier("image");
+  }, [videoAccess, tier]);
 
   const imageTools = useMemo(
     () => tools.filter((tool) => tool.tier === "image"),
     [tools],
   );
 
-  const sections = useMemo(() => {
-    return IMAGE_TOOL_SECTIONS.map((section) => ({
-      ...section,
-      tools: imageTools.filter((tool) => tool.category === section.id),
-    })).filter((section) => section.tools.length > 0);
-  }, [imageTools]);
+  const imageCategoryFilters = useMemo(
+    () => IMAGE_CATEGORIES.map((c) => ({ ...c, label: t(c.labelKey) })),
+    [t],
+  );
 
-  const tabCount = tab === "image" ? imageTools.length : VIDEO_CATEGORIES.length;
+  const videoCategoryFilters = useMemo(
+    () => VIDEO_CATEGORIES_FILTER.map((c) => ({ ...c, label: t(c.labelKey) })),
+    [t],
+  );
 
-  const tabs = [
-    { id: "image", label: t("tools_grid.tab_image"), testId: "tab-image", icon: ImageIcon },
-    { id: "video", label: t("tools_grid.tab_video"), testId: "tab-video", icon: Film },
-  ];
+  const tierTabs = useMemo(() => {
+    const items = [{ id: "image", label: t("tools_grid.tab_image") }];
+    if (videoAccess) items.push({ id: "video", label: t("tools_grid.tab_video") });
+    return items;
+  }, [t, videoAccess]);
+
+  const filteredImageTools = useMemo(() => {
+    let list = imageTools;
+    if (imageCategory !== "all") {
+      list = list.filter((tool) => tool.category === imageCategory);
+    }
+    if (view === "pinned") {
+      list = list.filter((tool) => isPinned(tool.id));
+    }
+    return list;
+  }, [imageTools, imageCategory, view, isPinned]);
+
+  const filteredVideoTools = useMemo(() => {
+    let list = videoCategories;
+    if (videoCategory !== "all") {
+      list = list.filter((cat) => cat.section === videoCategory);
+    }
+    if (view === "pinned") {
+      list = list.filter((cat) => isPinned(cat.id));
+    }
+    return list;
+  }, [videoCategories, videoCategory, view, isPinned]);
+
+  const activeList = tier === "image" ? filteredImageTools : filteredVideoTools;
+  const tabCount = tier === "image" ? imageTools.length : videoCategories.length;
 
   return (
-    <div
-      className="relative w-full max-w-[1400px] mx-auto -mt-8 md:-mt-12 pb-20 md:pb-24"
-      data-testid="tools-page"
-    >
-      <motion.section
-        className="relative -mx-4 sm:-mx-6 md:-mx-10 px-4 sm:px-6 md:px-10 pt-8 pb-10 md:pt-10 md:pb-12 mb-6 md:mb-8 border-b border-white/5 overflow-hidden"
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ duration: 0.45, ease: pageEase }}
-        aria-labelledby="tools-hero-title"
+    <div className="rp-tools-hub w-full max-w-[1200px] mx-auto pb-20" data-testid="tools-page">
+      <header className="mb-4 md:mb-6">
+        <h1 className="sr-only">{t("tools_grid.page_title")}</h1>
+        <p className="hidden md:block text-[11px] uppercase tracking-[0.18em] text-[#8A8A8E] mb-2">
+          {t("tools_grid.page_eyebrow")}
+        </p>
+        <p className="hidden md:block text-[15px] text-[#8A8A8E] max-w-lg leading-snug">
+          {t("tools_grid.page_desc", { n: tabCount })}
+        </p>
+      </header>
+
+      <div className="mb-3 flex items-center gap-4 border-b border-white/[0.06]">
+        {[
+          { id: "all", label: t("tools_grid.tab_all") },
+          { id: "pinned", label: t("tools_grid.tab_pinned") },
+        ].map(({ id, label }) => {
+          const active = view === id;
+          return (
+            <button
+              key={id}
+              type="button"
+              onClick={() => setView(id)}
+              data-testid={`tools-view-${id}`}
+              className={cn(
+                "relative pb-2.5 text-[14px] font-medium transition-colors",
+                active ? "text-[#EDEBE8]" : "text-[#6b6b70] hover:text-[#a8a8ad]",
+              )}
+            >
+              {label}
+              {id === "pinned" && pinnedIds.length > 0 && (
+                <span className="ml-1.5 text-[11px] text-violet-300 tabular-nums">
+                  {pinnedIds.length}
+                </span>
+              )}
+              {active && (
+                <span className="absolute inset-x-0 -bottom-px h-0.5 rounded-full bg-violet-500" />
+              )}
+            </button>
+          );
+        })}
+      </div>
+
+      <div
+        className="mb-3 flex gap-2 overflow-x-auto pb-1 scrollbar-none"
+        role="tablist"
+        aria-label={t("tools_grid.page_eyebrow")}
+        data-testid="tools-tier-tabs"
       >
-        <div className="absolute inset-0 bg-gradient-to-b from-zinc-950 to-black" aria-hidden />
-        <div className="absolute inset-0 bg-[#6b21a8]/[0.06]" aria-hidden />
-        <div
-          className="absolute inset-0 pointer-events-none"
-          aria-hidden
-          style={{
-            background:
-              "radial-gradient(ellipse 80% 50% at 50% 0%, rgba(107,33,168,0.12), transparent 55%)",
-          }}
-        />
+        {tierTabs.map(({ id, label }) => {
+          const active = tier === id;
+          return (
+            <button
+              key={id}
+              type="button"
+              role="tab"
+              aria-selected={active}
+              onClick={() => setTier(id)}
+              data-testid={id === "image" ? "tab-image" : "tab-video"}
+              className={active ? "rp-tools-hub-pill rp-tools-hub-pill--active" : "rp-tools-hub-pill"}
+            >
+              {label}
+            </button>
+          );
+        })}
+      </div>
 
-        <div className="relative mx-auto flex w-full max-w-xl flex-col items-center text-center">
-          <p className="rp-type-eyebrow mb-2">
-            {t("tools_grid.page_eyebrow")}
-          </p>
+      <div className="mb-4">
+        {tier === "image" ? (
+          <FilterPills
+            items={imageCategoryFilters}
+            value={imageCategory}
+            onChange={setImageCategory}
+            testIdPrefix="tools-image-filter"
+          />
+        ) : (
+          <FilterPills
+            items={videoCategoryFilters}
+            value={videoCategory}
+            onChange={setVideoCategory}
+            testIdPrefix="tools-video-filter"
+          />
+        )}
+      </div>
 
-          <h1
-            id="tools-hero-title"
-            className="rp-type-page-title mb-3 text-4xl sm:text-5xl md:text-6xl"
-          >
-            {t("tools_grid.page_title")}
-          </h1>
-
-          <p className="rp-type-lead max-w-[420px] mx-auto">
-            {t("tools_grid.page_desc", { n: tabCount })}
-          </p>
-
-          <div
-            className="mt-4 flex flex-wrap items-center justify-center gap-3"
-            data-testid="tools-tabs"
-            role="tablist"
-            aria-label={t("tools_grid.page_eyebrow")}
-          >
-            {tabs.map(({ id, label, testId, icon: Icon }) => {
-              const active = tab === id;
-              return (
-                <button
-                  key={id}
-                  type="button"
-                  role="tab"
-                  aria-selected={active}
-                  onClick={() => setTab(id)}
-                  data-testid={testId}
-                  className={active ? "rp-glass-tab rp-glass-tab--active" : "rp-glass-tab"}
-                >
-                  <Icon className="w-4 h-4 shrink-0" strokeWidth={1.75} />
-                  {label}
-                </button>
-              );
-            })}
-          </div>
-
-          <p className="rp-type-meta mt-3">
-            {t("tools_grid.count_label", { n: tabCount })}
-          </p>
-        </div>
-      </motion.section>
+      <p className="text-[11px] text-[#5A5A5E] mb-3 font-mono uppercase tracking-[0.12em]">
+        {t("tools_grid.count_label", { n: activeList.length })}
+      </p>
 
       <AnimatePresence mode="wait">
-        {tab === "image" ? (
-          <motion.div
-            key="image"
-            role="tabpanel"
-            initial={{ opacity: 0, y: 12 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -8 }}
-            transition={{ duration: 0.35, ease: pageEase }}
-            data-testid="tools-grid-sections"
-            className="rp-grid-ambient"
-          >
-            {sections.map((section, sectionIdx) => {
-              const indexOffset = sections
-                .slice(0, sectionIdx)
-                .reduce((n, s) => n + s.tools.length, 0);
-              return (
-                <ToolsCategorySection
-                  key={section.id}
-                  title={t(section.labelKey)}
-                  description={t(`tools_grid.cat_${section.id}_desc`)}
-                  testId={`tools-section-${section.id}`}
-                >
-                  <div className={TOOL_GRID_CLASS} data-testid={`tools-grid-${section.id}`}>
-                    {section.tools.map((tool, i) => (
-                      <ToolsGridCard
-                        key={tool.id}
-                        tool={tool}
-                        index={indexOffset + i}
-                        region={region}
-                        t={t}
-                        compact
-                      />
-                    ))}
-                  </div>
-                </ToolsCategorySection>
-              );
-            })}
-          </motion.div>
-        ) : (
-          <motion.div
-            key="video"
-            role="tabpanel"
-            initial={{ opacity: 0, y: 12 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -8 }}
-            transition={{ duration: 0.35, ease: pageEase }}
-            data-testid="tools-video-sections"
-            className="rp-grid-ambient"
-          >
-            <ToolsCategorySection
-              title={t("tools_grid.cat_video")}
-              description={t("tools_grid.cat_video_desc")}
-              testId="tools-section-video"
+        <motion.div
+          key={`${tier}-${view}-${tier === "image" ? imageCategory : videoCategory}`}
+          role="tabpanel"
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -6 }}
+          transition={{ duration: 0.25, ease: pageEase }}
+          data-testid={tier === "image" ? "tools-grid-sections" : "tools-video-sections"}
+        >
+          {activeList.length === 0 ? (
+            <div
+              className="rounded-2xl border border-white/[0.08] bg-[#141418]/80 px-6 py-12 text-center"
+              data-testid="tools-empty"
             >
-              <div className={TOOL_GRID_CLASS} data-testid="tools-grid-video">
-                {VIDEO_CATEGORIES.map((category, index) => (
-                  <VideoGridCard
-                    key={category.id}
-                    category={category}
-                    index={index}
-                    t={t}
-                  />
-                ))}
-              </div>
-            </ToolsCategorySection>
-          </motion.div>
-        )}
+              <p className="text-[#8A8A8E] text-[14px]">
+                {view === "pinned" ? t("tools_grid.pinned_empty") : t("tools_grid.empty_filter")}
+              </p>
+            </div>
+          ) : (
+            <div className={GRID_CLASS} data-testid={`tools-grid-${tier}`}>
+              {tier === "image"
+                ? filteredImageTools.map((tool, index) => (
+                    <ToolsHubCard
+                      key={tool.id}
+                      id={tool.id}
+                      name={tool.name}
+                      to={tool.to}
+                      tier="image"
+                      cost={toolCatalogueCost(tool.id, region)}
+                      isFree={tool.cost <= 0}
+                      isNew={tool.isNew}
+                      isBeta={tool.isBeta}
+                      index={index}
+                      pinned={isPinned(tool.id)}
+                      onTogglePin={togglePin}
+                      t={t}
+                    />
+                  ))
+                : filteredVideoTools.map((category, index) => (
+                    <ToolsHubCard
+                      key={category.id}
+                      id={category.id}
+                      name={t(category.nameKey)}
+                      to={category.to}
+                      tier="video"
+                      cost={costs[category.costKey] ?? costs.video ?? 50}
+                      index={index}
+                      pinned={isPinned(category.id)}
+                      onTogglePin={togglePin}
+                      t={t}
+                      testId={`video-card-${category.id}`}
+                    />
+                  ))}
+            </div>
+          )}
+        </motion.div>
       </AnimatePresence>
     </div>
   );

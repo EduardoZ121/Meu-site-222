@@ -166,7 +166,7 @@ export default function SupportChat({ open, onClose }) {
               lang: lang || "en",
               page: location.pathname,
             },
-            { timeout: 32000 },
+            { timeout: 45000 },
           );
           reply = String(data?.reply || "").trim();
           if (!reply) throw new Error(t("support_error"));
@@ -174,15 +174,18 @@ export default function SupportChat({ open, onClose }) {
 
         setMessages((prev) => [...prev, { role: "assistant", content: reply }]);
       } catch (err) {
+        const status = err?.response?.status;
         const fallback = supportFallbackReply({ lang: lang || "pt", user, userText: trimmed });
-        setMessages((prev) => [
-          ...prev,
-          {
-            role: "assistant",
-            content: fallback || `${formatApiError(err, t("support_error"))}\n\n${t("support_contact_hint")}`,
-          },
-        ]);
-        if (err?.response?.status === 503) toast.error(t("support_unavailable"));
+        const apiMsg = formatApiError(err, t("support_error"));
+        let content = fallback;
+        if (status === 401) {
+          content = `${fallback}\n\n${t("support_session_expired")}`;
+          toast.error(t("support_session_expired"), { duration: 8000 });
+        } else if (!content) {
+          content = `${apiMsg}\n\n${t("support_contact_hint")}`;
+        }
+        setMessages((prev) => [...prev, { role: "assistant", content }]);
+        if (status === 503) toast.error(t("support_unavailable"));
       } finally {
         setLoading(false);
       }

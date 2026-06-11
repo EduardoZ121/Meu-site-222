@@ -35,8 +35,11 @@ function customPurchaseAmountCents(credits) {
   return Math.ceil(cr / rate) * 100;
 }
 
-function computeVideoGenerateCost(CREDIT, surcharges, { duration = 6 } = {}) {
-  let cost = CREDIT.video ?? 80;
+function computeVideoGenerateCost(CREDIT, surcharges, { duration = 6, mode = "text", testMode = false } = {}) {
+  if (testMode) return 0;
+  let cost = mode === "image"
+    ? (CREDIT.videoImage ?? CREDIT.video ?? 150)
+    : (CREDIT.video ?? 40);
   const dur = Math.round(Number(duration));
   if (dur >= 10) cost += surcharges.videoDuration10 ?? 50;
   else if (dur >= 8) cost += surcharges.videoDuration8 ?? 25;
@@ -83,7 +86,7 @@ function applyGenerationSurcharges(cost, surcharges, {
   hdMode = "image",
 } = {}) {
   let total = cost;
-  if (improvePrompt) total += surcharges.enhancePrompt ?? 3;
+  if (improvePrompt) total += surcharges.enhancePrompt ?? 5;
   if (hdQuality) {
     total += hdMode === "simple"
       ? (surcharges.hdSimple ?? 5)

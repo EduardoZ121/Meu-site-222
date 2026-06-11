@@ -2,6 +2,7 @@ import { Outlet, NavLink, useNavigate, useLocation } from "react-router-dom";
 import { isWorkspacePath } from "../../lib/dashboardRouteMode";
 import { useAuth } from "../../lib/auth";
 import { useI18n } from "../../lib/i18n";
+import { isAdminUser } from "../../lib/isAdmin";
 import {
   Sparkles, Images, Heart, CreditCard, User, Users, ShieldCheck, LogOut,
   Film, FileText, BookOpen, Menu, Settings, LayoutGrid, Camera, Wand2, Lock, Palette,
@@ -112,7 +113,9 @@ export default function DashboardLayout() {
         { to: "/app/pro", icon: Camera, label: t("sidebar.pro") },
         { to: "/app/artistic", icon: Palette, label: t("sidebar_artistic") },
         { to: "/app/posters", icon: FileText, label: t("sidebar.posters") },
-        { to: "/app/video", icon: Film, label: t("sidebar.video") },
+        ...(isAdminUser(user)
+          ? [{ to: "/app/video", icon: Film, label: t("sidebar.video") }]
+          : []),
         {
           to: "/app/manga-studio",
           icon: BookOpen,
@@ -139,7 +142,7 @@ export default function DashboardLayout() {
         { to: "/app/settings", icon: Settings, label: t("sidebar.settings") },
       ],
     },
-  ], [t]);
+  ], [t, user]);
 
   const flatLinks = useMemo(() => {
     const items = [];

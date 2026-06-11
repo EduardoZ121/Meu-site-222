@@ -8,7 +8,7 @@ import { api } from "../../lib/api";
 import { useAuth } from "../../lib/auth";
 import { useI18n } from "../../lib/i18n";
 import { toast } from "sonner";
-import { optionLabel, wizardLocale } from "../../lib/wizardData";
+import { wizardLocale, composeLocalPromptFromAnswers } from "../../lib/wizardData";
 
 const STEP_ICONS = {
   image: ImageIcon,
@@ -16,35 +16,21 @@ const STEP_ICONS = {
   crop: Crop,
   file: FileText,
   camera: Camera,
+  light: Sparkles,
+  spark: Sparkles,
 };
 
-function composeLocalPrompt(answers, locale) {
-  const { q1, q2, q3, compose } = locale;
-  const type = optionLabel(q1, answers.q1);
-  const style = optionLabel(q2, answers.q2);
-  const format = optionLabel(q3, answers.q3);
-  const subject = answers.q4;
-  const reference = answers.q5
-    ? compose.reference.replace("{ref}", answers.q5)
-    : "";
-  return [
-    compose.create.replace("{type}", type).replace("{style}", style),
-    compose.format.replace("{format}", format),
-    compose.subject.replace("{subject}", subject),
-    compose.footer,
-    reference,
-  ].join(" ").trim();
-}
+const OPTION_STEPS = new Set(["q1", "q2", "q3", "q4", "q5", "q6", "q8"]);
 
 export default function WizardPromptModal({ open, onOpenChange, onApply }) {
   const { t, lang } = useI18n();
   const locale = useMemo(() => wizardLocale(lang), [lang]);
-  const { steps, q1, q2, q3, q4Examples, compose } = locale;
+  const { steps, q1, q2, q3, q4, q5, q6, q8, q7Examples } = locale;
   const { user } = useAuth();
   const [stepIdx, setStepIdx] = useState(0);
   const [answers, setAnswers] = useState({});
-  const [q4Text, setQ4Text] = useState("");
-  const [q5Text, setQ5Text] = useState("");
+  const [q7Text, setQ7Text] = useState("");
+  const [q9Text, setQ9Text] = useState("");
   const [busy, setBusy] = useState(false);
   const [composed, setComposed] = useState(null);
   const [editing, setEditing] = useState(false);
@@ -53,8 +39,8 @@ export default function WizardPromptModal({ open, onOpenChange, onApply }) {
   const reset = () => {
     setStepIdx(0);
     setAnswers({});
-    setQ4Text("");
-    setQ5Text("");
+    setQ7Text("");
+    setQ9Text("");
     setComposed(null);
     setEditing(false);
     setBusy(false);
@@ -70,18 +56,29 @@ export default function WizardPromptModal({ open, onOpenChange, onApply }) {
   const StepIcon = STEP_ICONS[step?.iconKey] || ImageIcon;
   const progress = useMemo(() => steps.map((_, i) => i <= stepIdx), [stepIdx, steps]);
 
+  const optionsForStep = (stepId) => {
+    if (stepId === "q1") return q1;
+    if (stepId === "q2") return q2;
+    if (stepId === "q3") return q3;
+    if (stepId === "q4") return q4;
+    if (stepId === "q5") return q5;
+    if (stepId === "q6") return q6;
+    if (stepId === "q8") return q8;
+    return [];
+  };
+
   const canAdvance = () => {
-    if (id === "q1" || id === "q2" || id === "q3") return !!answers[id];
-    if (id === "q4") return q4Text.trim().length > 4;
+    if (OPTION_STEPS.has(id)) return !!answers[id];
+    if (id === "q7") return q7Text.trim().length > 4;
     return true;
   };
 
   const submit = async () => {
     const final = { ...answers };
-    if (q4Text.trim()) final.q4 = q4Text.trim();
-    if (q5Text.trim()) final.q5 = q5Text.trim();
-    if (!final.q1 || !final.q2 || !final.q3 || !final.q4) {
-      toast.error(t("wiz_complete_first4"));
+    if (q7Text.trim()) final.q7 = q7Text.trim();
+    if (q9Text.trim()) final.q9 = q9Text.trim();
+    if (!final.q1 || !final.q2 || !final.q3 || !final.q4 || !final.q5 || !final.q6 || !final.q7 || !final.q8) {
+      toast.error(t("wiz_complete_required"));
       return;
     }
     setBusy(true);
@@ -90,9 +87,9 @@ export default function WizardPromptModal({ open, onOpenChange, onApply }) {
         answers: final,
         lang: user?.lang || lang || "en",
       });
-      setComposed(data.prompt || composeLocalPrompt(final, { q1, q2, q3, compose }));
+      setComposed(data.prompt || composeLocalPromptFromAnswers(final, locale));
     } catch {
-      setComposed(composeLocalPrompt(final, { q1, q2, q3, compose }));
+      setComposed(composeLocalPromptFromAnswers(final, locale));
       toast.info(t("wiz_compose_local"));
     } finally {
       setBusy(false);
@@ -101,7 +98,7 @@ export default function WizardPromptModal({ open, onOpenChange, onApply }) {
 
   const goNext = () => {
     if (!canAdvance()) {
-      toast.error(id === "q4" ? t("wiz_detail_more") : t("wiz_pick_option"));
+      toast.error(id === "q7" ? t("wiz_detail_more") : t("wiz_pick_option"));
       return;
     }
     if (stepIdx < steps.length - 1) setStepIdx(stepIdx + 1);
@@ -204,7 +201,7 @@ export default function WizardPromptModal({ open, onOpenChange, onApply }) {
                 </button>
                 <button
                   type="button"
-                  onClick={() => { setComposed(null); setStepIdx(0); setAnswers({}); setQ4Text(""); setQ5Text(""); }}
+                  onClick={() => { setComposed(null); setStepIdx(0); setAnswers({}); setQ7Text(""); setQ9Text(""); }}
                   className="px-3 py-2 rounded-lg border border-[rgba(147,51,234,0.3)] text-[11px] text-[#9CA3AF] hover:text-white"
                 >
                   {t("wiz_restart")}
@@ -246,62 +243,38 @@ export default function WizardPromptModal({ open, onOpenChange, onApply }) {
                   </h3>
                   <p className="text-[#9CA3AF] text-[13px] mb-5">{step.subtitle}</p>
 
-                  {id === "q1" && (
+                  {OPTION_STEPS.has(id) && (
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                      {q1.map((opt) => (
+                      {optionsForStep(id).map((opt) => (
                         <OptionCard
                           key={opt.v}
-                          active={answers.q1 === opt.v}
+                          active={answers[id] === opt.v}
                           onClick={() => pickOption(opt.v)}
                           label={opt.label}
+                          hint={opt.hint}
                           emoji={opt.emoji}
                         />
                       ))}
                     </div>
                   )}
-                  {id === "q2" && (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                      {q2.map((opt) => (
-                        <OptionCard
-                          key={opt.v}
-                          active={answers.q2 === opt.v}
-                          onClick={() => pickOption(opt.v)}
-                          label={opt.label}
-                        />
-                      ))}
-                    </div>
-                  )}
-                  {id === "q3" && (
-                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                      {q3.map((opt) => (
-                        <OptionCard
-                          key={opt.v}
-                          active={answers.q3 === opt.v}
-                          onClick={() => pickOption(opt.v)}
-                          label={opt.label}
-                          hint={opt.hint}
-                        />
-                      ))}
-                    </div>
-                  )}
-                  {id === "q4" && (
+                  {id === "q7" && (
                     <div>
                       <textarea
-                        value={q4Text}
-                        onChange={(e) => setQ4Text(e.target.value)}
+                        value={q7Text}
+                        onChange={(e) => setQ7Text(e.target.value)}
                         rows={5}
-                        maxLength={500}
+                        maxLength={800}
                         placeholder={t("wiz_q4_ph")}
                         className="w-full bg-[#0A0A0F] border border-[rgba(147,51,234,0.25)] focus:border-[#9333EA] rounded-xl text-white text-[14px] px-3 py-3 resize-none focus:outline-none"
-                        data-testid="wizard-modal-q4"
+                        data-testid="wizard-modal-q7"
                         autoFocus
                       />
                       <div className="flex flex-wrap gap-2 mt-3">
-                        {q4Examples.map((s) => (
+                        {q7Examples.map((s) => (
                           <button
                             key={s}
                             type="button"
-                            onClick={() => setQ4Text(s)}
+                            onClick={() => setQ7Text(s)}
                             className="text-[#A855F7] text-[11px] underline decoration-dashed underline-offset-2 text-left"
                           >
                             {s.slice(0, 48)}…
@@ -310,13 +283,13 @@ export default function WizardPromptModal({ open, onOpenChange, onApply }) {
                       </div>
                     </div>
                   )}
-                  {id === "q5" && (
+                  {id === "q9" && (
                     <input
-                      value={q5Text}
-                      onChange={(e) => setQ5Text(e.target.value)}
+                      value={q9Text}
+                      onChange={(e) => setQ9Text(e.target.value)}
                       placeholder={t("wiz_q5_ph")}
                       className="w-full bg-[#0A0A0F] border border-[rgba(147,51,234,0.25)] focus:border-[#9333EA] rounded-xl text-white text-[14px] px-3 py-3 focus:outline-none"
-                      data-testid="wizard-modal-q5"
+                      data-testid="wizard-modal-q9"
                       autoFocus
                     />
                   )}

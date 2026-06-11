@@ -1,18 +1,19 @@
 import { useId, useLayoutEffect, useRef, useState } from "react";
-import { ChevronDown } from "lucide-react";
+import { ChevronDown, ChevronRight } from "lucide-react";
 import { cn } from "../lib/utils";
 
 /**
- * Accordion para o Estúdio: cabeçalho escuro, título mono dourado, seta (fechado ↓ · aberto ↑).
- * Estado independente por instância. Animação com max-height medido + transition.
+ * Secção compacta estilo OpenArt — card empilhado, label pequena, pouco padding.
  */
 export default function StudioAccordionSection({
   title,
   defaultOpen = true,
+  collapsible = true,
   children,
   testId,
   className,
   titleClassName,
+  hint,
 }) {
   const headerId = useId();
   const panelId = useId();
@@ -51,44 +52,69 @@ export default function StudioAccordionSection({
   return (
     <div
       className={cn(
-        "rounded-xl border border-[#2E2E30] bg-[#13131A]/50 overflow-hidden",
-        "shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]",
+        "rounded-2xl border border-white/[0.08] bg-[#141418]/90 overflow-hidden",
         className,
       )}
       data-testid={testId}
     >
-      <button
-        type="button"
-        id={headerId}
-        className={cn(
-          "w-full flex items-center justify-between gap-3 px-4 py-3.5 sm:px-5 text-left",
-          "bg-[#0B0B0C] hover:bg-[#101014] border-b border-[#2E2E30] transition-colors",
-          "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FACC15]/35 focus-visible:ring-inset",
-        )}
-        aria-expanded={open}
-        aria-controls={panelId}
-        onClick={() => setOpen((v) => !v)}
-      >
-        <span className={cn("text-[11px] sm:text-[12px] font-mono font-semibold uppercase tracking-[0.12em] text-[#FACC15]", titleClassName)}>
-          {title}
-        </span>
-        <ChevronDown
-          aria-hidden
+      {collapsible ? (
+        <button
+          type="button"
+          id={headerId}
           className={cn(
-            "w-4 h-4 shrink-0 text-[#FACC15] transition-transform duration-300 ease-out",
-            open ? "rotate-180" : "rotate-0",
+            "w-full flex items-center gap-2 px-3 py-2.5 sm:px-3.5 text-left",
+            "hover:bg-white/[0.03] transition-colors",
+            open ? "border-b border-white/[0.06]" : "",
+            "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#7C3AED]/40 focus-visible:ring-inset",
           )}
-          strokeWidth={2.5}
-        />
-      </button>
+          aria-expanded={open}
+          aria-controls={panelId}
+          onClick={() => setOpen((v) => !v)}
+        >
+          <span
+            className={cn(
+              "flex-1 min-w-0 text-[13px] font-medium text-[#EDEBE8] truncate",
+              titleClassName,
+            )}
+          >
+            {title}
+          </span>
+          {hint && !open ? (
+            <span className="hidden sm:inline text-[11px] text-[#6b6b70] truncate max-w-[40%]">{hint}</span>
+          ) : null}
+          {open ? (
+            <ChevronDown
+              aria-hidden
+              className="w-4 h-4 shrink-0 text-[#8A8A8E] transition-transform duration-200 rotate-180"
+              strokeWidth={2}
+            />
+          ) : (
+            <ChevronRight
+              aria-hidden
+              className="w-4 h-4 shrink-0 text-[#8A8A8E]"
+              strokeWidth={2}
+            />
+          )}
+        </button>
+      ) : (
+        <div
+          id={headerId}
+          className="px-3 py-2 border-b border-white/[0.06] text-[13px] font-medium text-[#EDEBE8]"
+        >
+          {title}
+        </div>
+      )}
       <div
         id={panelId}
         role="region"
         aria-labelledby={headerId}
-        className="overflow-hidden transition-[max-height] duration-300 ease-out"
-        style={{ maxHeight }}
+        className={cn(
+          "overflow-hidden transition-[max-height] duration-250 ease-out",
+          !collapsible || open ? "" : "max-h-0",
+        )}
+        style={collapsible ? { maxHeight: open ? maxHeight : "0px" } : undefined}
       >
-        <div ref={innerRef} className="p-6 sm:p-8">
+        <div ref={innerRef} className="p-3 sm:p-3.5">
           {children}
         </div>
       </div>

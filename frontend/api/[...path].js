@@ -523,6 +523,7 @@ async function routeUploadImageBlob(req, res) {
 async function routeUploadVideoBlob(req, res) {
   if (isBlobDisabled()) return blobDisabledResponse(res);
   try {
+    await requireAdminSession(req);
     if (!isBlobConfigured()) {
       return json(res, 503, { detail: "Armazenamento Blob não configurado." });
     }
@@ -572,6 +573,82 @@ async function routeUploadVideoBlob(req, res) {
   }
 }
 
+const VIDEO_BLOB_CONTENT_TYPES = [
+  "video/mp4",
+  "video/webm",
+  "video/quicktime",
+  "video/x-matroska",
+  "video/avi",
+  "application/octet-stream",
+];
+const MAX_VIDEO_BLOB_BYTES = 200 * 1024 * 1024;
+
+function injectAuthFromClientPayload(req, clientPayload) {
+  if (req.headers.authorization) return;
+  if (!clientPayload) return;
+  try {
+    const parsed = JSON.parse(clientPayload);
+    const token = String(parsed.token || "").trim();
+    if (token) req.headers.authorization = `Bearer ${token}`;
+  } catch {
+    /* ignore */
+  }
+}
+
+async function routeVideoUpload(req, res) {
+  if (isBlobDisabled()) return blobDisabledResponse(res);
+  try {
+    const blobToken = getBlobReadWriteToken();
+    if (!blobToken) {
+      return json(res, 503, {
+        detail: "Armazenamento Blob não configurado. Liga remakepix-blob ao projeto na Vercel.",
+      });
+    }
+    const body = await readJsonRequestBody(req);
+    // eslint-disable-next-line global-require
+    const { handleUpload } = require("@vercel/blob/client");
+    const jsonResponse = await handleUpload({
+      body,
+      request: req,
+      token: blobToken,
+      onBeforeGenerateToken: async (pathname, clientPayload) => {
+        injectAuthFromClientPayload(req, clientPayload);
+        const auth = req.headers.authorization || "";
+        const m = auth.match(/^Bearer\s+(.+)$/i);
+        if (!m?.[1]?.trim()) {
+          const err = new Error("Não autenticado.");
+          err.status = 401;
+          throw err;
+        }
+        const bearer = m[1].trim();
+        if (!bearer.startsWith("local:") && !verifySessionToken(bearer)) {
+          const err = new Error("Sessão inválida ou expirada.");
+          err.status = 401;
+          throw err;
+        }
+        await requireAdminSession(req);
+        if (String(pathname || "").includes("..")) {
+          const err = new Error("Nome de ficheiro inválido.");
+          err.status = 400;
+          throw err;
+        }
+        return {
+          allowedContentTypes: VIDEO_BLOB_CONTENT_TYPES,
+          addRandomSuffix: true,
+          maximumSizeInBytes: MAX_VIDEO_BLOB_BYTES,
+          tokenPayload: clientPayload,
+        };
+      },
+      onUploadCompleted: async () => {
+        /* URL devolvida ao browser pelo SDK upload(); webhook opcional */
+      },
+    });
+    return json(res, 200, jsonResponse);
+  } catch (err) {
+    return json(res, err.status || 400, { detail: err.message || "Falha no upload de vídeo." });
+  }
+}
+
 async function routeBlobPrepare(req, res) {
   if (isBlobDisabled()) return blobDisabledResponse(res);
   try {
@@ -590,6 +667,9 @@ async function routeBlobPrepare(req, res) {
     }
     const body = await readJsonRequestBody(req);
     const isVideo = String(body.kind || body.media_kind || "").toLowerCase() === "video";
+    if (isVideo) {
+      await requireAdminSession(req);
+    }
     let fn = String(body.filename || (isVideo ? "upload.mp4" : "upload.jpg")).replace(/[^\w.\-]+/g, "_");
     if (!/\.[a-z0-9]{2,5}$/i.test(fn)) fn += isVideo ? ".mp4" : ".jpg";
     fn = fn.slice(0, 100);
@@ -600,7 +680,7 @@ async function routeBlobPrepare(req, res) {
       token: blobToken,
       pathname,
       access: "public",
-      maximumSizeInBytes: isVideo ? 52 * 1024 * 1024 : 12 * 1024 * 1024,
+      maximumSizeInBytes: isVideo ? 200 * 1024 * 1024 : 12 * 1024 * 1024,
       allowedContentTypes: isVideo
         ? [
           "video/mp4",
@@ -1386,10 +1466,17 @@ async function routePost(path, fields, files, req) {
   }
 
   if (path === "generate/edit") {
-    const prompt = text(fields, "prompt", "professional photo edit, preserve identity");
+    let prompt = text(fields, "prompt", "professional photo edit, preserve identity");
+    const lang = text(fields, "lang", "en").slice(0, 2);
+    const surcharges = getSurcharges(region);
+    let editCost = CREDIT.edit;
+    if (truthyField(fields, "improve_prompt")) {
+      prompt = await improvePrompt(prompt, lang, { tool: "edit" });
+      editCost += surcharges.enhancePrompt ?? 5;
+    }
     const input = await imageInput(fields, files, "standard", prompt);
     return submitBillableGeneration(req, fields, {
-      cost: CREDIT.edit,
+      cost: editCost,
       type: "image",
       modelId: MODELS.standard,
       input,
@@ -1793,30 +1880,105 @@ async function routePost(path, fields, files, req) {
   }
 
   if (path === "generate/video") {
-    const prompt = text(fields, "prompt", "").trim();
+    await requireAdminSession(req);
+    const {
+      MODELS: VIDEO_MODELS,
+      resolveToolId,
+      computeVideoToolCost,
+      buildWanFastInput,
+      buildKlingInput,
+      applyPresetPrefix,
+    } = require("./lib/videoModels.cjs");
+    const lang = text(fields, "lang", "en").slice(0, 2);
+    const testMode = truthyField(fields, "test_mode");
+    const preset = text(fields, "video_preset", "").trim();
+    const rawTool = text(fields, "video_tool", "").trim();
+    let prompt = text(fields, "prompt", "").trim();
     if (!prompt) throw new Error("Descreve o vídeo.");
+    const photoRef = await resolveImageRef(files, fields, "photo", "photo_url");
+    const refRef = await resolveImageRef(files, fields, "reference_image", "reference_image_url");
+    const toolId = resolveToolId(rawTool || (photoRef ? "grok" : "kling_turbo"), {
+      hasPhoto: Boolean(photoRef),
+      preset,
+    });
+    if (preset) prompt = applyPresetPrefix(preset, prompt);
     const surcharges = getSurcharges(region);
-    const duration = Number(text(fields, "duration", "6"));
-    const videoCost = computeVideoGenerateCost(CREDIT, surcharges, { duration });
-    const input = await imageInput(fields, files, "video", prompt);
+    const duration = testMode ? 4 : Number(text(fields, "duration", "6"));
+    const aspect = text(fields, "aspect_ratio", "16:9");
+    let videoCost = computeVideoToolCost(CREDIT, surcharges, toolId, {
+      duration,
+      testMode,
+      hasPhoto: Boolean(photoRef),
+    });
+    if (truthyField(fields, "improve_prompt") && !testMode) {
+      prompt = await improvePrompt(prompt, lang, { tool: "video" });
+      videoCost += surcharges.enhancePrompt ?? 5;
+    }
+
+    let modelId;
+    let input;
+    let aspectRatio = aspect;
+
+    if (toolId === "grok") {
+      modelId = VIDEO_MODELS.grok;
+      input = await imageInput(fields, files, "video", prompt);
+      aspectRatio = input.aspect_ratio;
+    } else if (toolId === "kling_turbo" || toolId === "kling_elements") {
+      if (toolId === "kling_elements" && !photoRef) {
+        throw new Error("Envia a imagem principal.");
+      }
+      modelId = VIDEO_MODELS.kling_turbo;
+      input = buildKlingInput({
+        prompt,
+        aspect,
+        photo: photoRef,
+        reference: refRef,
+        duration,
+        elements: toolId === "kling_elements",
+      });
+      aspectRatio = input.aspect_ratio || aspect;
+    } else if (toolId === "wan_t2v_fast") {
+      modelId = VIDEO_MODELS.wan_t2v_fast;
+      input = buildWanFastInput({ prompt, aspect, isI2v: false });
+    } else if (toolId === "wan_i2v_fast") {
+      if (!photoRef) throw new Error("Envia uma imagem.");
+      modelId = VIDEO_MODELS.wan_i2v_fast;
+      input = buildWanFastInput({ prompt, aspect, photo: photoRef, reference: refRef, isI2v: true });
+    } else {
+      modelId = VIDEO_MODELS.kling_turbo;
+      input = buildKlingInput({ prompt, aspect, photo: photoRef, reference: refRef, duration });
+      aspectRatio = input.aspect_ratio || aspect;
+    }
+
     return submitBillableGeneration(req, fields, {
       cost: videoCost,
       type: "video",
-      modelId: MODELS.video,
+      modelId,
       input,
       prompt,
-      aspectRatio: input.aspect_ratio,
-      modelUsed: MODELS.video,
+      aspectRatio,
+      modelUsed: modelId,
       spendDescription: "Vídeo IA",
     });
   }
 
   if (path === "generate/video-edit") {
+    await requireAdminSession(req);
+    const { applyPresetPrefix } = require("./lib/videoModels.cjs");
     const lang = text(fields, "lang", "en").slice(0, 2);
+    const preset = text(fields, "video_preset", "").trim();
+    let rawPrompt = text(fields, "prompt", "").trim();
+    if (preset && rawPrompt.length >= 3) {
+      rawPrompt = applyPresetPrefix(preset, rawPrompt);
+      fields.prompt = rawPrompt;
+    }
     if (truthyField(fields, "improve_prompt")) {
       const raw = text(fields, "prompt", "").trim();
       if (raw.length >= 3) {
-        fields.prompt = await improvePrompt(raw, lang, { tool: "video_edit" });
+        fields.prompt = await improvePrompt(raw, lang, {
+          tool: "video_edit",
+          video_preset: preset,
+        });
       }
     }
     const { input, prompt } = await videoEditInput(fields, files);
@@ -1828,7 +1990,22 @@ async function routePost(path, fields, files, req) {
     });
     let cost = computeVideoEditCostFromConfig(CREDIT, surcharges, resOpts);
     if (truthyField(fields, "improve_prompt")) {
-      cost += surcharges.enhancePrompt ?? 3;
+      cost += surcharges.enhancePrompt ?? 5;
+    }
+    const { isValidEmail } = require("./lib/videoNotifyEmail.cjs");
+    const wantsNotify = truthyField(fields, "notify_by_email")
+      || Boolean(String(text(fields, "notify_email", "")).trim());
+    let notifyEmail = null;
+    if (wantsNotify) {
+      const session = resolveSessionUser(req);
+      const explicit = String(text(fields, "notify_email", "")).trim().toLowerCase();
+      if (isValidEmail(explicit)) {
+        notifyEmail = explicit;
+      } else if (session.user?.id && storageEnabled() && !session.isLocal) {
+        const dbUser = await getUserById(session.user.id);
+        const fromDb = String(dbUser?.email || "").trim().toLowerCase();
+        if (isValidEmail(fromDb)) notifyEmail = fromDb;
+      }
     }
     return submitBillableGeneration(req, fields, {
       cost,
@@ -1839,7 +2016,7 @@ async function routePost(path, fields, files, req) {
       aspectRatio: input.aspect_ratio,
       modelUsed: MODELS.video_edit,
       spendDescription: "Editor vídeo",
-      notifyEmail: text(fields, "notify_email", "").trim() || null,
+      notifyEmail,
     });
   }
 
@@ -2007,7 +2184,14 @@ async function routePost(path, fields, files, req) {
   if (path === "tools/inpaint") {
     const image = await resolveImageRef(files, fields, "photo", "photo_url");
     const mask = await resolveImageRef(files, fields, "mask", "mask_url");
-    const prompt = text(fields, "prompt", "background");
+    let prompt = text(fields, "prompt", "background");
+    const lang = text(fields, "lang", "en").slice(0, 2);
+    const surcharges = getSurcharges(region);
+    let inpaintCost = CREDIT.inpaint;
+    if (truthyField(fields, "improve_prompt")) {
+      prompt = await improvePrompt(prompt, lang, { tool: "inpaint" });
+      inpaintCost += surcharges.enhancePrompt ?? 5;
+    }
     const input = {
       image,
       mask,
@@ -2015,7 +2199,7 @@ async function routePost(path, fields, files, req) {
       output_format: "jpg",
     };
     return submitBillableGeneration(req, fields, {
-      cost: CREDIT.inpaint,
+      cost: inpaintCost,
       type: "image",
       modelId: MODELS.inpaint,
       input,
@@ -2385,6 +2569,10 @@ async function handlePath(path, req, res) {
 
     if (req.method === "POST" && path === "blob/prepare") {
       return await routeBlobPrepare(req, res);
+    }
+
+    if (req.method === "POST" && path === "video/upload") {
+      return await routeVideoUpload(req, res);
     }
 
     if (req.method === "POST" && path === "upload/video-blob") {

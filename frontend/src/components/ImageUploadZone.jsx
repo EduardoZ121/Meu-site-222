@@ -11,6 +11,8 @@ import {
   readVideoDurationSeconds,
   validateVideoUpload,
   VIDEO_UPLOAD_ACCEPT,
+  VIDEO_VERCEL_SAFE_BYTES,
+  MAX_VIDEO_UPLOAD_BYTES,
 } from "../lib/videoMedia";
 import { MAX_IMAGE_DIRECT_BYTES } from "../lib/uploadConstants";
 import { CLIENT_BUILD_ID } from "../lib/buildInfo";
@@ -21,6 +23,7 @@ import {
   persistVideoToBlobStore,
 } from "../lib/persistImage";
 import { useI18n } from "../lib/i18n";
+import { materializeUploadFile } from "../lib/durableUploadFile";
 
 const LAYOUT = {
   portrait: "aspect-[4/5] min-h-[200px]",
@@ -53,6 +56,7 @@ export default function ImageUploadZone({
   previewImgClassName = "",
   mediaType = "image",
   maxVideoDurationSec = null,
+  maxVideoBytes = MAX_VIDEO_UPLOAD_BYTES,
   disabled = false,
   /** When true, onChange fires only after prepare (avoids double-callback races in Manga Flow). */
   notifyOnPreparedOnly = false,
@@ -71,6 +75,7 @@ export default function ImageUploadZone({
   const [previewUrl, setPreviewUrl] = useState(null);
   const [previewImgError, setPreviewImgError] = useState(false);
   const [persistState, setPersistState] = useState("idle");
+  const [rejectMessage, setRejectMessage] = useState(null);
   const lastPreparedRef = useRef(null);
   const runIdRef = useRef(0);
 
@@ -90,6 +95,7 @@ export default function ImageUploadZone({
       setPersistState("idle");
       lastPreparedRef.current = null;
       notifyStatus("idle");
+      setRejectMessage(null);
       return undefined;
     }
 
@@ -148,14 +154,23 @@ export default function ImageUploadZone({
   }, [compressOptions, enableRemotePersist, onChange, notifyStatus, t]);
 
   const runBackgroundVideo = useCallback(async (rawFile, rid) => {
-    setPersistState("saving");
-    notifyStatus("saving");
     lastPreparedRef.current = rawFile;
-    onChange(rawFile);
     if (rid !== runIdRef.current) return;
     setPersistState("saved");
     notifyStatus("saved");
-  }, [onChange, notifyStatus]);
+
+    if (!enableRemotePersist || rawFile.size <= VIDEO_VERCEL_SAFE_BYTES) return;
+
+    void (async () => {
+      const blobOk = await isBlobPersistAvailable();
+      if (!blobOk || rid !== runIdRef.current) return;
+      try {
+        await persistVideoToBlobStore(rawFile);
+      } catch (err) {
+        console.warn("[video upload] optional cloud copy failed:", err);
+      }
+    })();
+  }, [enableRemotePersist, notifyStatus]);
 
   const retryPersist = useCallback(async () => {
     const f = lastPreparedRef.current || value;
@@ -187,26 +202,19 @@ export default function ImageUploadZone({
     if (!file) return;
 
     if (isVideo) {
-      const check = validateVideoUpload(file, t);
+      const check = validateVideoUpload(file, t, { maxBytes: maxVideoBytes });
       if (!check.ok) {
-        toast.error(check.message);
+        setRejectMessage(check.message);
+        toast.error(check.message, { duration: 12000 });
+        if (inputRef.current) inputRef.current.value = "";
         return;
       }
-      if (Number.isFinite(maxVideoDurationSec) && maxVideoDurationSec > 0) {
-        try {
-          const dur = await readVideoDurationSeconds(file);
-          if (dur > maxVideoDurationSec) {
-            toast.error(t("vid_err_too_long", { n: Math.round(maxVideoDurationSec) }));
-            return;
-          }
-        } catch {
-          // If metadata can't be read, keep flow working and let upload continue.
-        }
-      }
+      setRejectMessage(null);
       if (looksLikeImageFile(file) && !looksLikeVideoUpload(file)) {
         toast.error(t("vid_err_use_video_zone"));
         return;
       }
+
       runIdRef.current += 1;
       const rid = runIdRef.current;
       lastPreparedRef.current = null;
@@ -214,6 +222,27 @@ export default function ImageUploadZone({
       notifyStatus("saving");
       onChange(file);
       void runBackgroundVideo(file, rid);
+
+      if (Number.isFinite(maxVideoDurationSec) && maxVideoDurationSec > 0) {
+        void readVideoDurationSeconds(file, { timeoutMs: 6000 })
+          .then((dur) => {
+            if (dur > maxVideoDurationSec) {
+              const msg = t("vid_err_too_long", { n: Math.round(maxVideoDurationSec) });
+              setRejectMessage(msg);
+              toast.error(msg, { duration: 12000 });
+              if (rid !== runIdRef.current) return;
+              runIdRef.current += 1;
+              lastPreparedRef.current = null;
+              setPersistState("idle");
+              notifyStatus("idle");
+              onChange(null);
+              if (inputRef.current) inputRef.current.value = "";
+            }
+          })
+          .catch(() => {
+            /* HEVC/MOV: preview stays; server validates on generate */
+          });
+      }
       return;
     }
 
@@ -230,9 +259,22 @@ export default function ImageUploadZone({
     lastPreparedRef.current = file;
 
     if (!prepareOnPick) {
-      if (!notifyOnPreparedOnly) onChange(file);
-      setPersistState("saved");
-      notifyStatus("saved");
+      setPersistState("saving");
+      notifyStatus("saving");
+      try {
+        const durable = await materializeUploadFile(file);
+        if (rid !== runIdRef.current) return;
+        lastPreparedRef.current = durable;
+        if (!notifyOnPreparedOnly) onChange(durable);
+        setPersistState("saved");
+        notifyStatus("saved");
+      } catch (err) {
+        if (rid !== runIdRef.current) return;
+        setPersistState("error");
+        notifyStatus("error");
+        toast.error(err?.message || t("img_err_read_failed"), { duration: 6000 });
+        if (inputRef.current) inputRef.current.value = "";
+      }
       return;
     }
 
@@ -249,6 +291,7 @@ export default function ImageUploadZone({
     notifyStatus,
     notifyOnPreparedOnly,
     prepareOnPick,
+    maxVideoBytes,
     t,
   ]);
 
@@ -262,6 +305,7 @@ export default function ImageUploadZone({
     setPersistState("idle");
     onChange(null);
     notifyStatus("idle");
+    setRejectMessage(null);
     if (inputRef.current) inputRef.current.value = "";
   }, [onChange, notifyStatus]);
 
@@ -334,9 +378,11 @@ export default function ImageUploadZone({
             ? "border-solid border-emerald-500 shadow-[0_0_28px_rgba(16,185,129,0.3)] bg-gradient-to-br from-[#14141c]/90 via-[#0e0e12] to-[#0a0a0f]"
             : uploadBusy
               ? "border-dashed border-amber-500/70 bg-gradient-to-br from-[#14141c]/90 via-[#0e0e12] to-[#0a0a0f]"
-              : drag
+              :           drag
                 ? "border-dashed border-[#9333EA] bg-[radial-gradient(ellipse_at_center,rgba(147,51,234,0.35),rgba(12,12,18,0.95))] shadow-[0_0_32px_rgba(147,51,234,0.45)]"
-                : "border-dashed border-[#9333EA]/55 bg-gradient-to-br from-[#14141c]/90 via-[#0e0e12] to-[#0a0a0f]",
+                : rejectMessage
+                  ? "border-dashed border-red-500/80 bg-gradient-to-br from-red-950/40 via-[#0e0e12] to-[#0a0a0f] shadow-[0_0_28px_-8px_rgba(239,68,68,0.45)]"
+                  : "border-dashed border-[#9333EA]/55 bg-gradient-to-br from-[#14141c]/90 via-[#0e0e12] to-[#0a0a0f]",
           "min-h-[12rem]",
           disabled ? "pointer-events-none opacity-60" : "",
         ].join(" ")}
@@ -356,6 +402,7 @@ export default function ImageUploadZone({
                 playsInline
                 muted
                 data-testid={`${testId}-preview`}
+                onError={() => setPreviewImgError(true)}
               />
             ) : (
               <>
@@ -379,6 +426,12 @@ export default function ImageUploadZone({
                   </div>
                 )}
               </>
+            )}
+            {previewImgError && isVideo && (
+              <div className="absolute inset-0 z-[1] flex flex-col items-center justify-center gap-2 bg-black/90 px-4 text-center pb-12">
+                <p className="text-sm font-medium text-zinc-200">{value?.name || t("vid_upload_title")}</p>
+                <p className="text-xs text-zinc-500 max-w-[240px]">{t("vid_preview_codec_hint")}</p>
+              </div>
             )}
             {uploadBusy && (
               <span className="pointer-events-none absolute bottom-2 left-2 z-20 rounded-md bg-black/75 px-2 py-1 text-[10px] font-medium text-white/90 backdrop-blur-sm">
@@ -420,6 +473,29 @@ export default function ImageUploadZone({
               {drag ? t("upload_drop") : resolvedLabel}
             </p>
             <p className="relative max-w-xs text-sm text-[#8a8a8e]">{resolvedHint}</p>
+            {rejectMessage ? (
+              <p
+                role="alert"
+                className="relative z-10 max-w-sm rounded-xl border border-red-500/50 bg-red-950/70 px-4 py-3 text-sm font-medium text-red-100"
+                data-testid={`${testId}-reject`}
+              >
+                {rejectMessage}
+              </p>
+            ) : null}
+            {isVideo ? (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  if (!disabled) inputRef.current?.click();
+                }}
+                className="relative z-10 mt-1 min-h-11 rounded-xl border border-[#9333EA]/50 bg-[#9333EA]/20 px-5 text-sm font-semibold text-[#e9d5ff] shadow-[0_0_20px_-8px_rgba(147,51,234,0.6)] hover:bg-[#9333EA]/30"
+                data-testid={`${testId}-choose`}
+              >
+                {t("vid_upload_choose")}
+              </button>
+            ) : null}
           </div>
         )}
       </label>

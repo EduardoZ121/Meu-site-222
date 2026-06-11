@@ -15,6 +15,8 @@ import { useStudioMediaPreview } from "../../../hooks/useStudioMediaPreview";
 import ImageUploadZone from "../../../components/ImageUploadZone";
 import CollapsibleSection from "../../../components/CollapsibleSection";
 import StudioResultAnchor from "../../../components/StudioResultAnchor";
+import StudioCompactShell from "../../../components/studio/StudioCompactShell";
+import StudioInlineHeader from "../../../components/studio/StudioInlineHeader";
 import { useI18n } from "../../../lib/i18n";
 import { useStudioI18n } from "../../../lib/useStudioI18n";
 import { RESTORE_LEVEL_KEYS } from "../../../lib/toolPagesLocales";
@@ -96,24 +98,15 @@ export default function Restore() {
   };
 
   return (
-    <div className="max-w-[1400px] mx-auto pb-32" data-testid="restore-frame">
-      {/* Hero header */}
-      <div className="mb-12 flex items-start gap-5">
-        <div className="shrink-0 w-14 h-14 rounded-2xl bg-[#7C3AED]/15 border border-[#7C3AED]/30 flex items-center justify-center">
-          <History className="w-7 h-7 text-[#C4B5FD]" strokeWidth={1.5} />
-        </div>
-        <div>
-          <h1 className="text-[#F4F1EA] text-[32px] md:text-[44px] font-light tracking-[-0.02em] leading-[1.05] mb-2 font-['Inter_Tight']">
-            {tCat("tool_restore_name")}
-          </h1>
-          <p className="text-[#8A8A8E] text-[15px] max-w-[640px] leading-relaxed">
-            {t("restore_desc_long")}
-          </p>
-        </div>
-      </div>
+    <StudioCompactShell testId="restore-frame" maxWidth="1400px" className="pb-4 md:pb-8">
+      <StudioInlineHeader
+        title={tCat("tool_restore_name")}
+        description={t("restore_desc_long")}
+        testId="restore-header"
+      />
 
-      <div className="grid grid-cols-1 xl:grid-cols-[1fr_440px] gap-10">
-        <div className="space-y-5">
+      <div className="grid grid-cols-1 xl:grid-cols-[1fr_360px] gap-3 xl:gap-8">
+        <div className="rp-studio-card-stack">
           {/* 1) UPLOAD */}
           <CollapsibleSection title={t("restore_section_photo")} defaultOpen testId="restore-section-photo">
             <div className="flex items-baseline justify-between mb-4">
@@ -210,7 +203,7 @@ export default function Restore() {
               rows={3}
               maxLength={280}
               placeholder={t("restore_prompt_ph")}
-              className="w-full bg-[#13131A] border border-[#2E2E30] focus:border-[#7C3AED] text-[#F4F1EA] text-[14px] placeholder:text-[#5A5A5E] px-4 py-3 rounded-lg focus:outline-none resize-none font-['Inter_Tight'] transition-colors"
+              className="rp-editor-textarea rp-editor-textarea--compact min-h-[88px]"
               data-testid="restore-custom-prompt"
             />
             <div className="flex flex-wrap gap-2 mt-2.5">
@@ -227,8 +220,8 @@ export default function Restore() {
           </CollapsibleSection>
         </div>
 
-        <StudioResultAnchor busy={busy} ready={Boolean(result?.url)} className="xl:sticky xl:top-[80px] self-start">
-          <p className="text-[#5A5A5E] text-[10px] font-mono uppercase tracking-[0.2em] mb-3">{t("common_output")}</p>
+        <StudioResultAnchor busy={busy} ready={Boolean(result?.url)} className="xl:sticky xl:top-[72px] self-start space-y-2">
+          <p className="hidden md:block text-[11px] text-[#6b6b70] uppercase tracking-wide">{t("common_output")}</p>
           <ResultArea busy={busy} result={result} originalPreview={resultOriginalUrl} level={level} />
         </StudioResultAnchor>
       </div>
@@ -243,7 +236,7 @@ export default function Restore() {
         testId="restore-create-btn"
         costMeta={<StudioGenerateCostMeta cost={cost} user={user} />}
       />
-    </div>
+    </StudioCompactShell>
   );
 }
 

@@ -18,10 +18,13 @@ import { PADRAO_STYLE_COVER_BY_ID } from "../../lib/padraoStyleCovers";
 import useTitle from "../../lib/useTitle";
 import StudioAccordionSection from "../../components/StudioAccordionSection";
 import StudioGenerateBar from "../../components/StudioGenerateBar";
+import StudioCompactShell from "../../components/studio/StudioCompactShell";
+import StudioInlineHeader from "../../components/studio/StudioInlineHeader";
+import StudioGenerateCostMeta from "../../components/StudioGenerateCostMeta";
 import { readUserSettings } from "../../lib/userSettings";
 import { usePhotoAspectDefault, ASPECT_MATCH } from "../../lib/usePhotoAspectDefault";
 import { apiAspectRatio } from "../../lib/apiAspectRatio";
-import { useStudioGenerateGate } from "../../lib/useStudioGenerateGate";
+import { hasStudioCredits, useStudioGenerateGate } from "../../lib/useStudioGenerateGate";
 import PromptEnhanceToggle from "../../components/promptAssist/PromptEnhanceToggle";
 import { applyGenerationSurcharges, getSurcharges } from "../../lib/creditPricing";
 
@@ -72,35 +75,40 @@ export default function Generate() {
 
   const catLabel = (c) => t(`cat_${c}`) || c;
 
-  const { mode, cost, ctaLabel } = useMemo(() => {
-    if (photo && pickedStyle) return { mode: "easy", cost: costs.easy, ctaLabel: t("studio_cta_easy", { n: costs.easy }) };
-    if (photo && !pickedStyle) return { mode: "edit", cost: costs.edit, ctaLabel: t("studio_cta_edit", { n: costs.edit }) };
-    if (!photo && pickedStyle) return { mode: "blocked", cost: 0, ctaLabel: t("studio_cta_blocked") };
+  const { mode, cost, ctaLabel, styleNeedsPhoto } = useMemo(() => {
+    if (photo && pickedStyle) {
+      return { mode: "easy", cost: costs.easy, ctaLabel: t("studio_cta_easy", { n: costs.easy }), styleNeedsPhoto: false };
+    }
+    if (photo && !pickedStyle) {
+      const editCost = applyGenerationSurcharges(costs.edit, surcharges, { improvePrompt: improve });
+      return { mode: "edit", cost: editCost, ctaLabel: t("studio_cta_edit", { n: editCost }), styleNeedsPhoto: false };
+    }
     const textCost = applyGenerationSurcharges(costs.image, surcharges, {
       improvePrompt: improve,
       hdQuality,
       hdMode: "image",
     });
-    return { mode: "text", cost: textCost, ctaLabel: t("studio_cta_text", { n: textCost }) };
+    return {
+      mode: "text",
+      cost: textCost,
+      ctaLabel: t("studio_cta_text", { n: textCost }),
+      styleNeedsPhoto: Boolean(pickedStyle),
+    };
   }, [photo, pickedStyle, costs, surcharges, t, improve, hdQuality]);
 
-  const generateReady = mode !== "blocked"
-    && (mode === "easy" || prompt.trim().length >= 3);
+  const generateReady = mode === "easy" || prompt.trim().length >= 3;
 
   const { ready: gateReady, hint: gateHint } = useStudioGenerateGate({
     busy,
     user,
     cost,
     readyOverride: generateReady,
-    hintOverride: mode === "blocked"
-      ? t("studio_gen_hint_blocked")
-      : (mode === "text" || mode === "edit") && prompt.trim().length < 3
-        ? t("studio_gen_hint_prompt")
-        : null,
+    hintOverride: (mode === "text" || mode === "edit") && prompt.trim().length < 3
+      ? t("studio_gen_hint_prompt")
+      : null,
   });
 
   const generate = async () => {
-    if (mode === "blocked") { toast.error(t("studio_err_blocked")); return; }
     if (mode === "text" && prompt.trim().length < 3) {
       toast.error(t("studio_err_text"));
       return;
@@ -109,9 +117,12 @@ export default function Generate() {
       toast.error(t("studio_err_edit"));
       return;
     }
-    if ((user?.credits ?? 0) < cost) {
+    if (!hasStudioCredits(user, cost)) {
       toast.error(t("studio_err_credits", { need: cost, have: user?.credits ?? 0 }));
       return;
+    }
+    if (styleNeedsPhoto) {
+      toast.message(t("studio_style_ignored_hint"));
     }
 
     clearUploadToast();
@@ -149,6 +160,7 @@ export default function Generate() {
           hasPhoto: aspect === "match" || aspect === ASPECT_MATCH,
         }));
         fd.append("lang", lang || "en");
+        if (improve) fd.append("improve_prompt", "1");
         ({ data: submitData } = await uploadPost("/generate/edit", fd, { timeout: 120000, headers: { "X-Skip-Auto-Poll": "1" } }));
       } else {
         ({ data: submitData } = await api.post("/generate/image", {
@@ -187,15 +199,16 @@ export default function Generate() {
   };
 
   return (
-    <div className="rp-studio-shell max-w-[1200px] mx-auto pb-28" data-testid="generate-page">
-      <header className="mb-10 pb-8 border-b border-[rgba(244,241,234,0.06)]">
-        <p className="rp-editor-section-cap mb-2">{t("studio_eyebrow")}</p>
-        <h1 className="rp-studio-page-title mb-3 font-['Inter_Tight']">{t("studio_title")}</h1>
-        <p className="rp-studio-page-desc">{t("studio_desc")}</p>
-      </header>
+    <StudioCompactShell testId="generate-page" maxWidth="1200px" className="pb-4 md:pb-8">
+      <StudioInlineHeader
+        eyebrow={t("studio_eyebrow")}
+        title={t("studio_title")}
+        description={t("studio_desc")}
+        testId="generate-header"
+      />
 
-      <div className="grid grid-cols-1 lg:grid-cols-[1fr_380px] gap-8 lg:gap-10">
-        <div className="space-y-4">
+      <div className="grid grid-cols-1 lg:grid-cols-[1fr_340px] gap-3 lg:gap-8">
+        <div className="rp-studio-card-stack">
           <StudioAccordionSection title={t("studio_acc_photo")} defaultOpen={false} testId="studio-acc-photo">
             <div className="flex items-baseline justify-end mb-3">
               {photo && (
@@ -211,10 +224,10 @@ export default function Generate() {
             <textarea
               value={prompt}
               onChange={(e) => setPrompt(e.target.value)}
-              rows={4}
+              rows={3}
               maxLength={800}
               placeholder={photo ? t("studio_placeholder_photo") : t("studio_placeholder_text")}
-              className="rp-editor-textarea min-h-[120px]"
+              className="rp-editor-textarea rp-editor-textarea--compact min-h-[88px]"
               data-testid="prompt-input"
             />
             <div className="flex flex-col gap-2.5 mt-3">
@@ -224,7 +237,7 @@ export default function Generate() {
                 locked={false}
                 onLockedClick={undefined}
                 testId="improve-toggle"
-                cost={surcharges.enhancePrompt ?? 3}
+                cost={surcharges.enhancePrompt ?? 5}
               />
               <label className="inline-flex items-center gap-2.5 cursor-pointer group">
                 <input
@@ -267,9 +280,16 @@ export default function Generate() {
               <span className="text-[#5A5A5E] ml-auto font-mono text-[11px]">{showStyles ? "−" : "+"}</span>
             </button>
             {pickedStyle && picked && (
-              <div className="mb-4 inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-[rgba(124,58,237,0.35)] bg-[rgba(124,58,237,0.08)]">
-                <span className="text-[#E9E4DC] text-[12px] font-medium font-['Inter_Tight']">{picked.nome}</span>
-                <button type="button" onClick={() => setPickedStyle(null)} className="text-[#8A8A8E] hover:text-[#F4F1EA] text-lg leading-none w-7 h-7 flex items-center justify-center rounded-md hover:bg-white/5" aria-label={t("studio_remove_style")}>×</button>
+              <div className="mb-4 space-y-2">
+                <div className="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-[rgba(124,58,237,0.35)] bg-[rgba(124,58,237,0.08)]">
+                  <span className="text-[#E9E4DC] text-[12px] font-medium font-['Inter_Tight']">{picked.nome}</span>
+                  <button type="button" onClick={() => setPickedStyle(null)} className="text-[#8A8A8E] hover:text-[#F4F1EA] text-lg leading-none w-7 h-7 flex items-center justify-center rounded-md hover:bg-white/5" aria-label={t("studio_remove_style")}>×</button>
+                </div>
+                {styleNeedsPhoto && (
+                  <p className="text-[#C4B5FD] text-[12px] leading-relaxed max-w-[520px]" data-testid="studio-style-needs-photo">
+                    {t("studio_style_needs_photo")}
+                  </p>
+                )}
               </div>
             )}
             {showStyles && (
@@ -301,31 +321,27 @@ export default function Generate() {
 
           <StudioAccordionSection title={t("studio_acc_format")} defaultOpen testId="studio-acc-format">
             <AspectPicker value={aspect} onChange={setAspect} hasPhoto={!!photo} testIdPrefix="aspect" />
-            <StudioGenerateBar
-              layout="inline"
-              ready={gateReady}
-              busy={busy}
-              onClick={generate}
-              label={ctaLabel}
-              busyLabel={progress > 0 ? t("studio_generating", { n: progress }) : t("studio_sending")}
-              hint={gateHint}
-              testId="generate-button"
-              className="mt-8"
-              alignHint="center"
-            />
-            <p className="text-[#6b6b70] text-[11px] mt-3 text-center font-['Inter_Tight']">
-              {t("studio_balance")} <span className="text-[#C4B5FD] font-medium tabular-nums">{user?.is_unlimited ? "∞" : (user?.credits ?? 0)}</span> {t("credits")}
-            </p>
           </StudioAccordionSection>
         </div>
 
-        <StudioResultAnchor busy={busy} ready={Boolean(primaryResultUrl(result))} className="lg:sticky lg:top-[88px] self-start space-y-3">
-          <p className="rp-editor-section-cap !text-[#6b6b70]">{t("last_result")}</p>
-          <div className="rp-editor-panel overflow-hidden p-4 sm:p-5">
+        <StudioResultAnchor busy={busy} ready={Boolean(primaryResultUrl(result))} className="lg:sticky lg:top-[72px] self-start space-y-2">
+          <p className="hidden md:block text-[11px] text-[#6b6b70] uppercase tracking-wide">{t("last_result")}</p>
+          <div className="rounded-2xl border border-white/[0.08] bg-[#141418]/90 overflow-hidden p-3">
             <ResultPanel creation={result} loading={busy} onChange={setResult} emptyLabel={t("studio_result_next")} />
           </div>
         </StudioResultAnchor>
       </div>
-    </div>
+
+      <StudioGenerateBar
+        ready={gateReady}
+        busy={busy}
+        onClick={generate}
+        label={ctaLabel}
+        busyLabel={progress > 0 ? t("studio_generating", { n: progress }) : t("studio_sending")}
+        hint={gateHint}
+        testId="generate-button"
+        costMeta={<StudioGenerateCostMeta cost={cost} user={user} />}
+      />
+    </StudioCompactShell>
   );
 }

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Sparkles, Camera, Sliders } from "lucide-react";
+import { Sparkles, Sliders } from "lucide-react";
 import { api, formatApiError, uploadPost } from "../../lib/api";
 import { normalizeCreation, primaryResultUrl } from "../../lib/creationUrls";
 import { useAuth } from "../../lib/auth";
@@ -18,22 +18,18 @@ import useTitle from "../../lib/useTitle";
 import { useI18n } from "../../lib/i18n";
 import StudioGenerateBar from "../../components/StudioGenerateBar";
 import StudioGenerateCostMeta from "../../components/StudioGenerateCostMeta";
+import StudioCompactShell from "../../components/studio/StudioCompactShell";
+import StudioInlineHeader from "../../components/studio/StudioInlineHeader";
+import CollapsibleSection from "../../components/CollapsibleSection";
 import StudioPhotoUploadNotice, { isPhotoUploadBusy } from "../../components/studio/StudioPhotoUploadNotice";
 import { useStudioGenerateGate } from "../../lib/useStudioGenerateGate";
 import { useStudioI18n } from "../../lib/useStudioI18n";
 
-function ProStep({ step, title, hint, children }) {
+function ProStep({ title, hint, children, defaultOpen = false }) {
   return (
-    <section className="border-b border-white/[0.05] pb-7 last:border-0 last:pb-0">
-      <div className="flex gap-3.5 mb-4">
-        <span className="pro-step-num" aria-hidden>{step}</span>
-        <div className="min-w-0 pt-0.5">
-          <h2 className="pro-step-title">{title}</h2>
-          {hint ? <p className="pro-step-hint">{hint}</p> : null}
-        </div>
-      </div>
-      <div className="pl-[calc(2.25rem+0.875rem)] sm:pl-[calc(2.25rem+1rem)]">{children}</div>
-    </section>
+    <CollapsibleSection title={title} hint={hint} defaultOpen={defaultOpen}>
+      {children}
+    </CollapsibleSection>
   );
 }
 
@@ -136,25 +132,17 @@ export default function Pro() {
   ]);
 
   return (
-    <div className="rp-studio-shell max-w-[1400px] mx-auto pb-28" data-testid="pro-page">
-      <header className="mb-6 pb-5 border-b border-[rgba(244,241,234,0.06)]">
-        <div className="flex items-center gap-3 mb-2">
-          <div className="w-9 h-9 rounded-xl bg-[rgba(124,58,237,0.14)] border border-[rgba(124,58,237,0.28)] flex items-center justify-center">
-            <Camera className="w-4 h-4 text-[#C4B5FD]" strokeWidth={1.5} />
-          </div>
-          <p className="rp-editor-section-cap !text-[#a89bc9] !mb-0">{t("pro_cap")}</p>
-        </div>
-        <h1 className="rp-studio-page-title mb-2 text-[2rem] sm:text-[2.75rem] font-['Inter_Tight']">
-          {t("pro_title_a")} <span className="italic text-[#d4c4f7]">{t("pro_title_b")}</span>{t("pro_title_dot")}
-        </h1>
-        <p className="rp-studio-page-desc text-[14px] max-w-[640px]">{t("pro_empty")}</p>
-      </header>
+    <StudioCompactShell testId="pro-page" maxWidth="1400px" className="pb-4 md:pb-8">
+      <StudioInlineHeader
+        eyebrow={t("pro_cap")}
+        title={`${t("pro_title_a")} ${t("pro_title_b")}${t("pro_title_dot")}`}
+        description={t("pro_empty")}
+        testId="pro-header"
+      />
 
-      <div className="grid grid-cols-1 xl:grid-cols-[1fr_380px] gap-6 xl:gap-8">
-        <div className="rp-editor-panel overflow-hidden">
-          <div className="rp-editor-panel-accent" />
-          <div className="p-5 sm:p-7 space-y-7">
-            <ProStep step="1" title={t("pro_step_photo")} hint={t("pro_upload_hint")}>
+      <div className="grid grid-cols-1 xl:grid-cols-[1fr_360px] gap-3 xl:gap-8">
+        <div className="rp-studio-card-stack">
+            <ProStep title={t("pro_step_photo")} hint={t("pro_upload_hint")} defaultOpen>
               <div className="max-w-[560px]">
                 <ImageUploadZone
                   value={photo}
@@ -169,7 +157,7 @@ export default function Pro() {
               </div>
             </ProStep>
 
-            <ProStep step="2" title={t("pro_step_family")}>
+            <ProStep title={t("pro_step_family")}>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5" data-testid="pro-cats">
                 {cats.map((c) => (
                   <button
@@ -192,7 +180,6 @@ export default function Pro() {
             </ProStep>
 
             <ProStep
-              step="3"
               title={t("pro_step_preset")}
               hint={pickedPreset ? pickedPreset.nome : undefined}
             >
@@ -224,7 +211,7 @@ export default function Pro() {
               </div>
             </ProStep>
 
-            <ProStep step="4" title={t("pro_step_intensity")}>
+            <ProStep title={t("pro_step_intensity")}>
               <div
                 className="pro-intensity-track max-w-[520px]"
                 style={{ "--pro-intensity-pct": `${intensity}%` }}
@@ -258,22 +245,19 @@ export default function Pro() {
               </div>
             </ProStep>
 
-            <ProStep
-              step="5"
-              title={`${t("pro_step_extra")} (${t("studio_styles_optional")})`}
-            >
+            <ProStep title={`${t("pro_step_extra")} (${t("studio_styles_optional")})`}>
               <textarea
                 value={customPrompt}
                 onChange={(e) => setCustomPrompt(e.target.value)}
                 rows={3}
                 maxLength={300}
                 placeholder={t("pro_extra_ph")}
-                className="rp-editor-textarea min-h-[88px] text-[14px] max-w-[560px]"
+                className="rp-editor-textarea rp-editor-textarea--compact min-h-[88px] max-w-[560px]"
                 data-testid="pro-custom"
               />
             </ProStep>
 
-            <ProStep step="6" title={t("pro_step_format")}>
+            <ProStep title={t("pro_step_format")}>
               <div className="max-w-[560px]">
                 <AspectPicker
                   value={aspect}
@@ -284,18 +268,17 @@ export default function Pro() {
                 />
               </div>
             </ProStep>
-          </div>
         </div>
 
-        <StudioResultAnchor busy={busy} ready={Boolean(primaryResultUrl(result))} className="xl:sticky xl:top-[80px] self-start space-y-2">
-          <p className="rp-editor-section-cap !text-[#6b6b70] !mb-2">{t("last_result")}</p>
-          <div className="rp-editor-panel overflow-hidden p-4">
+        <StudioResultAnchor busy={busy} ready={Boolean(primaryResultUrl(result))} className="xl:sticky xl:top-[72px] self-start space-y-2">
+          <p className="hidden md:block text-[11px] text-[#6b6b70] uppercase tracking-wide">{t("last_result")}</p>
+          <div className="rounded-2xl border border-white/[0.08] bg-[#141418]/90 overflow-hidden p-3">
             <ResultPanel creation={result} loading={busy} onChange={setResult} emptyLabel={t("pro_empty_result")} />
           </div>
         </StudioResultAnchor>
       </div>
 
-      <StudioPhotoUploadNotice status={photoUploadStatus} className="mb-3" />
+      <StudioPhotoUploadNotice status={photoUploadStatus} className="mb-2 mt-2" />
 
       <StudioGenerateBar
         variant="pro"
@@ -309,6 +292,6 @@ export default function Pro() {
         testId="pro-create"
         costMeta={<StudioGenerateCostMeta cost={cost} user={user} />}
       />
-    </div>
+    </StudioCompactShell>
   );
 }

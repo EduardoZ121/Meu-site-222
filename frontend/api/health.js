@@ -13,6 +13,7 @@ module.exports = async function handler(req, res) {
   const openai = openaiConfigured();
   const openaiStatus = openaiConfigStatus();
   const stripe = Boolean(String(process.env.STRIPE_SECRET_KEY || "").trim());
+  const resend = Boolean(String(process.env.RESEND_API_KEY || "").trim());
   const blobDisabled = isBlobDisabled();
   const blob = isBlobConfigured();
   const mongo = storageEnabled();
@@ -37,6 +38,7 @@ module.exports = async function handler(req, res) {
       openai_status: openaiStatus.reason || (openai ? "ok" : "missing"),
       mongo,
       stripe,
+      resend,
       blob,
       blob_disabled: blobDisabled,
       blob_store: Boolean(getBlobStoreId()),
@@ -46,6 +48,7 @@ module.exports = async function handler(req, res) {
       generate: replicate && mongo,
       prompt_assist: openai,
       billing: stripe && mongo,
+      email_notify: resend,
       gallery_persist: mongo,
       large_upload: blob,
       long_running_jobs: maxDurationSec >= 300,

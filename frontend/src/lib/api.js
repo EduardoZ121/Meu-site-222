@@ -212,6 +212,14 @@ export async function uploadPost(url, formData, config = {}) {
   }
 
   for (let i = 0; i < attempts; i += 1) {
+    if (typeof window !== "undefined" && i > 0) {
+      const { prepareStudioFormDataForSubmit } = await import("./studioUpload/prepareSubmit");
+      baseFd = await prepareStudioFormDataForSubmit(cloneFormData(formData), {
+        emergencyCompress,
+        skipBlobOffload: config.skipBlobOffload,
+        blobOffloadTimeoutMs: config.blobOffloadTimeoutMs,
+      });
+    }
     const body = cloneFormData(baseFd);
     try {
       if (useXhr) {

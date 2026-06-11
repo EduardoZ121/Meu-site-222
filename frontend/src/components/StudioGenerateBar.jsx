@@ -108,7 +108,7 @@ export default function StudioGenerateBar({
       className={`rp-sticky-cta rp-sticky-cta--sidebar ${className}`.trim()}
       data-testid={`${testId}-bar`}
     >
-      <div className="rp-studio-shell max-w-[1400px] mx-auto flex items-center justify-between gap-4 px-2 sm:px-4">
+      <div className="rp-studio-compact-page max-w-[520px] md:max-w-[1400px] mx-auto flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2 sm:gap-4 px-0.5">
         {costMeta}
         {action}
       </div>

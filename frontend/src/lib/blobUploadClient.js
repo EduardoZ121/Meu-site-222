@@ -84,15 +84,57 @@ async function blobPrepare(filename, kind, timeoutMs) {
   }
 }
 
+function authClientPayload() {
+  const token = typeof localStorage !== "undefined" ? localStorage.getItem("rp_token") : null;
+  return token ? JSON.stringify({ token }) : undefined;
+}
+
+function mapUploadProgress(onProgress) {
+  if (!onProgress) return undefined;
+  return (ev) => {
+    const pct = Number(ev?.percentage);
+    if (Number.isFinite(pct)) onProgress(Math.round(pct));
+    else if (ev?.loaded && ev?.total) onProgress(Math.round((ev.loaded / ev.total) * 100));
+  };
+}
+
+function safeVideoPathname(file) {
+  const base = String(file?.name || "video.mp4").replace(/[^\w.\-]+/g, "_").slice(0, 80);
+  return `rp/${Date.now()}-${base}`;
+}
+
+/** Vídeo → Blob directo no browser (sem passar pelo body da função serverless). */
+async function uploadVideoDirectToBlob(file, opts = {}) {
+  const { upload } = await import("@vercel/blob/client");
+  const pathname = safeVideoPathname(file);
+  const result = await withTimeout(
+    upload(pathname, file, {
+      access: "public",
+      handleUploadUrl: joinApiPath("/video/upload"),
+      clientPayload: authClientPayload(),
+      contentType: file.type || "video/mp4",
+      multipart: file.size > 8_000_000,
+      onUploadProgress: mapUploadProgress(opts.onProgress),
+    }),
+    opts.timeoutMs ?? 600_000,
+    "Upload do vídeo (nuvem)",
+  );
+  return result.url;
+}
+
 async function uploadFileToVercelBlob(key, fileLike, perFileMs, onProgress) {
   const { put } = await import("@vercel/blob/client");
   const isVideo = key === "video";
+  if (isVideo) {
+    const url = await uploadVideoDirectToBlob(fileLike, { timeoutMs: perFileMs, onProgress });
+    return { url };
+  }
   let data;
   try {
     data = await blobPrepare(
-      fileLike.name || `${key}.${isVideo ? "mp4" : "jpg"}`,
-      isVideo ? "video" : undefined,
-      isVideo ? 90_000 : 45_000,
+      fileLike.name || "upload.jpg",
+      undefined,
+      45_000,
     );
   } catch (err) {
     invalidateBlobUploadCache();
@@ -103,23 +145,16 @@ async function uploadFileToVercelBlob(key, fileLike, perFileMs, onProgress) {
     invalidateBlobUploadCache();
     throw new Error("Armazenamento em nuvem indisponível. Tenta um ficheiro mais pequeno ou mais tarde.");
   }
-  const label = isVideo ? "Upload do vídeo (nuvem)" : "Upload em nuvem";
   return withTimeout(
     put(pathname, fileLike, {
       access: "public",
       token: clientToken,
-      contentType: fileLike.type || (isVideo ? "video/mp4" : "image/jpeg"),
-      multipart: fileLike.size > (isVideo ? 8_000_000 : 4_500_000),
-      onUploadProgress: onProgress
-        ? (ev) => {
-          const pct = Number(ev?.percentage);
-          if (Number.isFinite(pct)) onProgress(Math.round(pct));
-          else if (ev?.loaded && ev?.total) onProgress(Math.round((ev.loaded / ev.total) * 100));
-        }
-        : undefined,
+      contentType: fileLike.type || "image/jpeg",
+      multipart: fileLike.size > 4_500_000,
+      onUploadProgress: mapUploadProgress(onProgress),
     }),
     perFileMs,
-    label,
+    "Upload em nuvem",
   );
 }
 
@@ -237,29 +272,26 @@ export async function uploadImageToCloud(file, opts = {}) {
   }
 }
 
-/** Vídeo grande → URL no Blob. */
+/** Vídeo grande → URL no Blob (browser directo; sem proxy servidor para ficheiros pesados). */
 export async function uploadVideoToCloud(file, opts = {}) {
   if (!file) throw new Error("Vídeo em falta.");
   if (VERCEL_BLOB_DISABLED) {
-    throw new Error("Blob desligado. Usa um vídeo até ~3 MB ou configura BLOB_READ_WRITE_TOKEN.");
+    if (file.size > 50 * 1024 * 1024) {
+      throw new Error("Vídeo demasiado grande sem Blob. Ativa BLOB_READ_WRITE_TOKEN na Vercel.");
+    }
+    return uploadVideoViaServerProxy(file, opts);
   }
   invalidateBlobUploadCache();
   const blobOn = await isBlobUploadEnabled({ refresh: true });
   if (!blobOn) {
-    throw new Error("Vercel Blob não configurado. Adiciona BLOB_READ_WRITE_TOKEN no projeto remakepix.");
+    if (file.size > 50 * 1024 * 1024) {
+      throw new Error("Nuvem indisponível para vídeos grandes. Verifica BLOB_READ_WRITE_TOKEN na Vercel.");
+    }
+    return uploadVideoViaServerProxy(file, opts);
   }
   try {
-    const result = await uploadFileToVercelBlob("video", file, opts.timeoutMs ?? 600_000, opts.onProgress);
-    return result.url;
+    return await uploadVideoDirectToBlob(file, opts);
   } catch (directErr) {
-    const msg = String(directErr?.message || directErr);
-    const tryServer = /fetch|network|failed|nuvem|blob|abort|timeout|ligação/i.test(msg)
-      || directErr?.code === "ERR_NETWORK";
-    if (!tryServer) throw directErr;
-    try {
-      return await uploadVideoViaServerProxy(file, opts);
-    } catch (proxyErr) {
-      throw new Error(formatHttpError(proxyErr, "Upload do vídeo falhou."));
-    }
+    throw new Error(formatHttpError(directErr, "Upload do vídeo falhou."));
   }
 }

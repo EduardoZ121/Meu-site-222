@@ -7,7 +7,10 @@ export const MAX_IMAGE_PICKER_BYTES = 10 * 1024 * 1024;
 export const MAX_IMAGE_DIRECT_BYTES = 3_500_000;
 export const MAX_IMAGE_S3_BYTES = 12 * 1024 * 1024;
 
-export const MAX_VIDEO_USER_BYTES = 50 * 1024 * 1024;
+/** Limite de vídeo enviado para IA (Blob multipart — clipes curtos com bitrate alto). */
+export const MAX_VIDEO_USER_BYTES = 200 * 1024 * 1024;
+/** Ficheiros grandes entram no estúdio de corte (antes de ir para a IA). */
+export const MAX_VIDEO_SOURCE_PICKER_BYTES = 200 * 1024 * 1024;
 export const VIDEO_VERCEL_SAFE_BYTES = 3_200_000;
 
 /** Timeout de offload para nuvem conforme tamanho do ficheiro. */

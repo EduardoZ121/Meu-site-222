@@ -56,17 +56,8 @@ export async function persistImageToBlobStore(file) {
 
 export async function persistVideoToBlobStore(file) {
   if (VERCEL_BLOB_DISABLED) return;
-  const { put } = await import("@vercel/blob/client");
-  const { clientToken, pathname } = await blobPrepareJson({
-    filename: file.name || "upload.mp4",
-    kind: "video",
-  }, 90_000);
-  await put(pathname, file, {
-    access: "public",
-    token: clientToken,
-    contentType: file.type || "video/mp4",
-    multipart: file.size > 8_000_000,
-  });
+  const { uploadVideoToCloud } = await import("./blobUploadClient");
+  await uploadVideoToCloud(file, { timeoutMs: 600_000 });
 }
 
 export function invalidateBlobPersistCache() {

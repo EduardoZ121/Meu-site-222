@@ -3,7 +3,7 @@ const { getDb, storageEnabled, ensureIndexes } = require("./mongo.cjs");
 const { addCredits, recordCreation } = require("./usersDb.cjs");
 const { formatGenerationError } = require("./generationErrors.cjs");
 const { extractUrls, mirrorUrlsToBlob } = require("./creationMedia.cjs");
-const { sendResendEmail } = require("./emailReport.cjs");
+const { sendVideoReadyEmail } = require("./videoNotifyEmail.cjs");
 
 function nowIso() {
   return new Date().toISOString();
@@ -32,6 +32,8 @@ async function createPending(doc) {
     balance_after_spend: doc.balance_after_spend ?? null,
     lang: doc.lang || "en",
     notify_email: doc.notify_email || null,
+    notify_email_sent_at: null,
+    notify_email_error: null,
     polled_count: 0,
     created_at: nowIso(),
     completed_at: null,
@@ -59,6 +61,31 @@ function elapsedSeconds(pending) {
   } catch {
     return 0;
   }
+}
+
+async function deliverVideoNotifyEmail(pending, creation, urls) {
+  if (pending?.type !== "video" || !pending?.notify_email) {
+    return { skipped: true, reason: "no_notify" };
+  }
+  if (pending.notify_email_sent_at) {
+    return { skipped: true, reason: "already_sent" };
+  }
+  const videoUrl = Array.isArray(urls) && urls.length ? urls[0] : null;
+  const galleryUrl = creation?.id
+    ? `https://www.remakepix.com/app/gallery?focus=${encodeURIComponent(creation.id)}`
+    : "https://www.remakepix.com/app/gallery";
+  const result = await sendVideoReadyEmail({
+    to: pending.notify_email,
+    lang: pending.lang || "pt",
+    videoUrl,
+    galleryUrl,
+    creationId: creation?.id,
+  });
+  await updatePending(pending.id, {
+    notify_email_sent_at: result.ok ? nowIso() : null,
+    notify_email_error: result.ok ? null : String(result.error || result.reason || "send_failed").slice(0, 200),
+  });
+  return result;
 }
 
 function isOpenAIPosterJob(pending) {
@@ -135,24 +162,7 @@ async function finalizePending(pending, replicateInfo) {
       completed_at: now,
     });
 
-    if (pending.type === "video" && pending.notify_email) {
-      const videoUrl = urls[0];
-      const galleryUrl = `https://www.remakepix.com/app/gallery?focus=${encodeURIComponent(creation.id)}`;
-      sendResendEmail({
-        to: pending.notify_email,
-        subject: "O teu vídeo está pronto — Remake Pixel",
-        html: [
-          "<p>O teu vídeo editado está pronto.</p>",
-          videoUrl ? `<p><a href="${videoUrl}">Ver vídeo</a></p>` : "",
-          `<p><a href="${galleryUrl}">Abrir na galeria</a></p>`,
-        ].join(""),
-        text: [
-          "O teu vídeo editado está pronto.",
-          videoUrl ? `Ver: ${videoUrl}` : "",
-          `Galeria: ${galleryUrl}`,
-        ].filter(Boolean).join("\n"),
-      }).catch(() => {});
-    }
+    await deliverVideoNotifyEmail(pending, creation, urls);
 
     const db = await getDb();
     const user = await db.collection("users").findOne({ id: userId }, { projection: { credits: 1 } });
@@ -186,6 +196,10 @@ async function pollPending(pending, getReplicatePrediction) {
   const lang = pending.lang || "en";
 
   if (pending.status === "completed") {
+    if (pending.notify_email && !pending.notify_email_sent_at && pending.result_urls?.length) {
+      const creation = creationFromPending(pending, pending.result_urls || []);
+      await deliverVideoNotifyEmail(pending, creation, pending.result_urls);
+    }
     const db = await getDb();
     const user = await db.collection("users").findOne({ id: pending.user_id }, { projection: { credits: 1 } });
     return {
@@ -333,7 +347,30 @@ async function processActivePendingBatch(getReplicatePrediction, { limit = 8 } =
     const result = await pollPending(pending, getReplicatePrediction);
     if (result.status === "succeeded" || result.status === "failed") finalized += 1;
   }
-  return { processed: docs.length, finalized };
+
+  const retryDocs = await db
+    .collection("pending_predictions")
+    .find(
+      {
+        status: "completed",
+        type: "video",
+        notify_email: { $type: "string", $ne: "" },
+        notify_email_sent_at: null,
+        result_urls: { $exists: true, $ne: [] },
+      },
+      { projection: { _id: 0 } },
+    )
+    .sort({ completed_at: 1 })
+    .limit(5)
+    .toArray();
+
+  for (const pending of retryDocs) {
+    const creation = creationFromPending(pending, pending.result_urls || []);
+    // eslint-disable-next-line no-await-in-loop
+    await deliverVideoNotifyEmail(pending, creation, pending.result_urls);
+  }
+
+  return { processed: docs.length, finalized, email_retries: retryDocs.length };
 }
 
 async function completePendingWithUrls(pending, urls) {

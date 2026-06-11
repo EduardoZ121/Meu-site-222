@@ -3,7 +3,7 @@ import { getRegionConfig, pricingData } from "./pricingRegions";
 export function getPricingMeta() {
   const root = pricingData?.meta || {};
   return {
-    creditsPerEuro: root.creditsPerEuro ?? 30,
+    creditsPerEuro: root.creditsPerEuro ?? 50,
     minCustomCredits: root.minCustomCredits ?? 150,
     marginTargetPct: root.marginTargetPct ?? 75,
   };
@@ -35,8 +35,11 @@ export function customPurchasePrice(credits) {
   return { credits: cr, price, perUnit: (cr / price).toFixed(1) };
 }
 
-export function computeVideoGenerateCost(costs, surcharges, { duration = 6 } = {}) {
-  let cost = costs.video ?? 80;
+export function computeVideoGenerateCost(costs, surcharges, { duration = 6, mode = "text", testMode = false } = {}) {
+  if (testMode) return 0;
+  let cost = mode === "image"
+    ? (costs.videoImage ?? costs.video ?? 150)
+    : (costs.video ?? 40);
   const dur = Math.round(Number(duration));
   if (dur >= 10) cost += surcharges.videoDuration10 ?? 50;
   else if (dur >= 8) cost += surcharges.videoDuration8 ?? 25;
@@ -83,7 +86,7 @@ export function applyGenerationSurcharges(cost, surcharges, {
   hdMode = "image",
 } = {}) {
   let total = cost;
-  if (improvePrompt) total += surcharges.enhancePrompt ?? 3;
+  if (improvePrompt) total += surcharges.enhancePrompt ?? 5;
   if (hdQuality) {
     total += hdMode === "simple"
       ? (surcharges.hdSimple ?? 5)

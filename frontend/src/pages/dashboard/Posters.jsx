@@ -70,7 +70,7 @@ const CAT_ORDER = POSTER_CAT_ORDER;
 
 /** Grelha compacta — 2 colunas no telemóvel (igual /app/tools). */
 const POSTER_GRID_CLASS =
-  "grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-2.5 sm:gap-3";
+  "grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-2 sm:gap-2.5 md:gap-3";
 
 // Gradient backgrounds per category — gives visual hierarchy to template cards
 const CAT_GRADIENTS = {
@@ -474,31 +474,24 @@ export default function Posters() {
   /* ============================================================ */
   return (
     <div className="max-w-[1400px] mx-auto pb-6" data-testid="posters-page">
-      <header className="mb-5 md:mb-10">
-        <p className="text-[#7C3AED] text-[10px] font-mono uppercase tracking-[0.18em] sm:tracking-[0.22em] mb-2 sm:mb-3">{t("sidebar_posters")}</p>
-        <h1 className="text-[#F4F1EA] text-[26px] sm:text-[36px] md:text-[52px] font-light tracking-[-0.02em] leading-[1.08] mb-2 sm:mb-3 font-['Inter_Tight'] break-words">
-          {t("post_grid_title")}
-        </h1>
-        <p className="text-[#8A8A8E] text-[13px] sm:text-[15px] max-w-[680px] break-words leading-relaxed">
+      <header className="mb-4 md:mb-8 hidden md:block">
+        <p className="text-[11px] uppercase tracking-[0.18em] text-[#8A8A8E] mb-2">{t("sidebar_posters")}</p>
+        <p className="text-[15px] text-[#8A8A8E] max-w-lg leading-snug">
           {t("post_grid_desc", { n: templates.length || 44 })}
         </p>
       </header>
 
       {/* Tabs */}
-      <div className="grid grid-cols-2 sm:flex sm:flex-wrap gap-2 mb-6 md:mb-10" data-testid="poster-cats">
+      <div className="flex flex-wrap gap-2 mb-4 md:mb-6 overflow-x-auto pb-1 scrollbar-none" data-testid="poster-cats">
         {activeCategories.map((c) => (
           <button
             key={c}
             onClick={() => setCategory(c)}
-            className={`px-3 py-2 sm:px-4 sm:py-2.5 rounded-full text-[11.5px] sm:text-[12.5px] font-medium transition-all flex items-center justify-center sm:justify-start gap-1.5 sm:gap-2 min-w-0 ${
-              category === c
-                ? "bg-[#7C3AED] text-white shadow-lg shadow-[#7C3AED]/30"
-                : "bg-[#13131A] border border-[#2E2E30] text-[#8A8A8E] hover:text-[#F4F1EA] hover:border-[#7C3AED]/40"
-            }`}
+            className={`rp-tools-hub-pill shrink-0 ${category === c ? "rp-tools-hub-pill--active" : ""}`}
             data-testid={`postercat-${c}`}
           >
             <span className="truncate">{catLabel(c)}</span>
-            <span className={`text-[10px] font-mono shrink-0 ${category === c ? "text-white/70" : "text-[#5A5A5E]"}`}>
+            <span className={`text-[10px] font-mono shrink-0 ml-1 ${category === c ? "text-black/45" : "text-[#5A5A5E]"}`}>
               {counts[c] ?? "—"}
             </span>
           </button>
@@ -616,17 +609,16 @@ function TemplateCard({ tpl, index, onClick, catLabel, t }) {
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.35, delay: Math.min(index * 0.04, 0.4), ease: [0.16, 1, 0.3, 1] }}
-      className="group relative flex h-full flex-col overflow-hidden rounded-xl border border-[rgba(147,51,234,0.2)] bg-[#13131A] text-left shadow-md transition-all duration-300 hover:-translate-y-0.5 hover:border-[#A855F7]/45 hover:shadow-[0_12px_32px_-14px_rgba(124,58,237,0.4)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500/50"
+      className="group relative flex h-full flex-col text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500/50 rounded-2xl"
       data-testid={`tpl-${tpl.id}`}
     >
-      <div className="relative aspect-[4/5] overflow-hidden" style={{ background: gradient }}>
+      <div className="relative aspect-square overflow-hidden rounded-2xl border border-white/[0.08] bg-[#0a0a0c]" style={{ background: gradient }}>
         <StyleCover
           id={tpl.id}
           title={tpl.label || tpl.id}
           prompt={tpl.prompt}
           category={tpl.category}
-          eyebrow={catLabel(tpl.category)}
-          compact
+          imageOnly
           coverSrc={posterCoverSrc(tpl.id) || ""}
           className="pro-poster-card__cover"
         />
@@ -648,11 +640,11 @@ function TemplateCard({ tpl, index, onClick, catLabel, t }) {
         </div>
       </div>
 
-      <div className="flex items-center justify-between gap-1 border-t border-[#2E2E30]/80 px-2 py-2 sm:px-3 sm:py-2.5">
-        <p className="text-[#F4F1EA] text-xs sm:text-[13px] font-medium font-['Inter_Tight'] truncate leading-snug">
+      <div className="mt-1.5 px-0.5 flex items-start justify-between gap-1">
+        <p className="text-[#EDEBE8] text-[12px] sm:text-[13px] font-medium font-['Inter_Tight'] line-clamp-2 leading-snug flex-1">
           {tpl.label || tpl.id}
         </p>
-        <Layers className="hidden sm:block w-3.5 h-3.5 text-[#5A5A5E] shrink-0" />
+        <Layers className="hidden sm:block w-3.5 h-3.5 text-[#5A5A5E] shrink-0 mt-0.5" />
       </div>
     </motion.button>
   );

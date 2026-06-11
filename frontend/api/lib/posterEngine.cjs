@@ -17,9 +17,9 @@ function normalizePosterModelKey(modelKey) {
 /** Custo por imagem consoante o motor escolhido. */
 function posterCreditCost(modelKey, CREDIT = {}) {
   const key = normalizePosterModelKey(modelKey);
-  if (key === "gpt_image") return CREDIT.posterPremium ?? 20;
-  if (key === "nano_banana") return CREDIT.posterPro ?? 15;
-  return CREDIT.posterFast ?? 10;
+  if (key === "gpt_image") return CREDIT.posterPremium ?? 50;
+  if (key === "nano_banana") return CREDIT.posterPro ?? 38;
+  return CREDIT.posterFast ?? 28;
 }
 
 function resolvePosterModel(modelKey) {

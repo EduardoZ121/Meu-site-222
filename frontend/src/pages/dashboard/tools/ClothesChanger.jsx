@@ -6,6 +6,9 @@ import { uploadPost } from "../../../lib/api";
 import { normalizeCreation, primaryResultUrl } from "../../../lib/creationUrls";
 import { useAuth } from "../../../lib/auth";
 import { usePricing } from "../../../lib/PricingContext";
+import { getSurcharges } from "../../../lib/creditPricing";
+import { improvePromptClient } from "../../../lib/promptEnhance";
+import PromptEnhanceToggle from "../../../components/promptAssist/PromptEnhanceToggle";
 import ResultPanel from "../../../components/ResultPanel";
 import ImageUploadZone from "../../../components/ImageUploadZone";
 import CollapsibleSection from "../../../components/CollapsibleSection";
@@ -48,17 +51,20 @@ function PhotoBox({ photo, onChange, label, helper, emptyLabel, testId }) {
 
 export default function ClothesChanger() {
   const { t, errToast, clearUploadToast } = useStudioI18n();
-  const { t: tCat } = useI18n();
+  const { t: tCat, lang } = useI18n();
   useTitle(tCat("tool_clothes_name"));
   const { refresh, user } = useAuth();
-  const { costs } = usePricing();
+  const { costs, region } = usePricing();
+  const surcharges = useMemo(() => getSurcharges(region), [region]);
   const [photo, setPhoto] = useState(null);
   const [garment, setGarment] = useState(null);
   const [prompt, setPrompt] = useState("");
+  const [improve, setImprove] = useState(false);
   const [changeType, setChangeType] = useState("full");
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState(null);
-  const cost = costs.clothes;
+  const enhanceCost = surcharges.enhancePrompt ?? 5;
+  const cost = costs.clothes + (improve && prompt.trim().length >= 3 ? enhanceCost : 0);
 
   const changeTypes = useMemo(
     () => [
@@ -87,7 +93,17 @@ export default function ClothesChanger() {
     setBusy(true); setResult(null);
     try {
       const fd = new FormData();
-      const finalPrompt = prompt.trim();
+      let finalPrompt = prompt.trim();
+      if (improve && finalPrompt.length >= 3) {
+        try {
+          finalPrompt = await improvePromptClient(finalPrompt, { tool: "clothes", lang });
+          setPrompt(finalPrompt.slice(0, 500));
+        } catch (err) {
+          toast.error(err?.message || tCat("studio_improve_fail"));
+          setBusy(false);
+          return;
+        }
+      }
       if (garment) {
         fd.append("photo", photo);
         fd.append("garment", garment);
@@ -193,6 +209,9 @@ export default function ClothesChanger() {
 
           {!garment && (
             <CollapsibleSection title={t("clothes_section_prompt")} testId="clothes-section-prompt">
+              <div className="mb-3">
+                <PromptEnhanceToggle checked={improve} onChange={setImprove} testId="clothes-enhance" cost={enhanceCost} />
+              </div>
               <div className="relative">
                 <textarea
                   value={prompt}

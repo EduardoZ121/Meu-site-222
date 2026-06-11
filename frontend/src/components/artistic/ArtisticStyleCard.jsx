@@ -103,7 +103,7 @@ export default function ArtisticStyleCard({ style, selected, onSelect }) {
             </div>
           </>
         )}
-        <div className="art-style-card__overlay" />
+        <div className="art-style-card__overlay art-style-card__overlay--subtle" />
         {badge && (
           <span className={BADGE_CLASS[badge]}>
             {t(`art_badge_${badge}`)}
@@ -117,7 +117,7 @@ export default function ArtisticStyleCard({ style, selected, onSelect }) {
       </div>
       <div className="art-style-card__body">
         <p className="art-style-card__title">{style.label}</p>
-        <p className="art-style-card__desc">{style.desc}</p>
+        <p className="art-style-card__desc hidden md:line-clamp-2">{style.desc}</p>
       </div>
     </button>
   );

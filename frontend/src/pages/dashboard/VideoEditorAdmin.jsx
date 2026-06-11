@@ -11,6 +11,7 @@ import { useAuth } from "../../lib/auth";
 import { usePricing } from "../../lib/PricingContext";
 import { useI18n } from "../../lib/i18n";
 import { computeVideoEditCost, buildVideoEditSurcharge } from "../../lib/videoEditPricing";
+import { pickBlobOffloadTimeoutMs } from "../../lib/uploadConstants";
 import { getSurcharges } from "../../lib/creditPricing";
 import { toast } from "sonner";
 import ResultPanel from "../../components/ResultPanel";
@@ -19,10 +20,18 @@ import StudioAccordionSection from "../../components/StudioAccordionSection";
 import ImageUploadZone from "../../components/ImageUploadZone";
 import StudioVideoUpload from "../../components/StudioVideoUpload";
 import StudioGenerateBar from "../../components/StudioGenerateBar";
+import StudioGenerateCostMeta from "../../components/StudioGenerateCostMeta";
+import StudioPhotoUploadNotice from "../../components/studio/StudioPhotoUploadNotice";
+import { isPhotoUploadBusy } from "../../components/studio/StudioPhotoUploadNotice";
 import PromptEnhanceToggle from "../../components/promptAssist/PromptEnhanceToggle";
 import { useStudioGenerateGate } from "../../lib/useStudioGenerateGate";
 
-const EDIT_IDEAS = ["vid_edit_idea_1", "vid_edit_idea_2", "vid_edit_idea_3"];
+const EDIT_IDEAS = {
+  "": ["vid_edit_idea_1", "vid_edit_idea_2", "vid_edit_idea_3"],
+  background: ["vid_bg_idea_1", "vid_bg_idea_2", "vid_bg_idea_3"],
+  outfit: ["vid_outfit_idea_1", "vid_outfit_idea_2", "vid_outfit_idea_3"],
+  restyle: ["vid_restyle_idea_1", "vid_restyle_idea_2", "vid_restyle_idea_3"],
+};
 const DURATIONS = [4, 6, 8, 10];
 const RESOLUTIONS = [
   { v: "original", labelKey: "vid_res_original", premium: false },
@@ -44,9 +53,12 @@ function selectCard(active) {
   }`;
 }
 
-export default function VideoEditorAdmin() {
+export default function VideoEditorAdmin({ category }) {
+  const preset = category?.preset || "";
+  const modeId = category?.id || "edit";
   const { t, lang } = useI18n();
-  const ideas = useMemo(() => EDIT_IDEAS.map((k) => t(k)), [t]);
+  const ideaKeys = EDIT_IDEAS[preset] || EDIT_IDEAS[""];
+  const ideas = useMemo(() => ideaKeys.map((k) => t(k)), [t, ideaKeys]);
   const { refresh, user } = useAuth();
   const { costs, region } = usePricing();
   const surcharges = useMemo(() => getSurcharges(region), [region]);
@@ -54,6 +66,7 @@ export default function VideoEditorAdmin() {
   const baseCost = costs.videoEdit ?? costs.video ?? 120;
 
   const [video, setVideo] = useState(null);
+  const [videoCloudUrl, setVideoCloudUrl] = useState(null);
   const [sourceDurationSec, setSourceDurationSec] = useState(0);
   const [reference, setReference] = useState(null);
   const [prompt, setPrompt] = useState("");
@@ -64,6 +77,7 @@ export default function VideoEditorAdmin() {
   const [audioSetting, setAudioSetting] = useState("origin");
   const [notifyByEmail, setNotifyByEmail] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [videoUploadStatus, setVideoUploadStatus] = useState("idle");
   const [uploadPhase, setUploadPhase] = useState("");
   const [progress, setProgress] = useState(0);
   const [result, setResult] = useState(null);
@@ -83,9 +97,11 @@ export default function VideoEditorAdmin() {
 
   const cost = useMemo(() => {
     let total = computeVideoEditCost(baseCost, { resolution, duration, regionId: region });
-    if (improve) total += surcharges.enhancePrompt ?? 3;
+    if (improve) total += surcharges.enhancePrompt ?? 5;
     return total;
   }, [baseCost, resolution, duration, improve, surcharges.enhancePrompt, region]);
+
+  const videoUploading = isPhotoUploadBusy(videoUploadStatus);
 
   const { ready, hint } = useStudioGenerateGate({
     busy,
@@ -95,7 +111,7 @@ export default function VideoEditorAdmin() {
     video,
     requirePrompt: true,
     prompt,
-    readyOverride: Boolean(video) && prompt.trim().length >= 3,
+    uploading: videoUploading,
   });
 
   const eta = useMemo(() => {
@@ -130,6 +146,10 @@ export default function VideoEditorAdmin() {
   };
 
   const run = async () => {
+    if (videoUploading) {
+      toast.message(t("upload_wait_generate"), { duration: 6000 });
+      return;
+    }
     if (!video) {
       toast.error(t("vid_edit_err_video"));
       return;
@@ -157,13 +177,23 @@ export default function VideoEditorAdmin() {
       fd.append("aspect_ratio", aspect);
       fd.append("audio_setting", audioSetting);
       fd.append("lang", lang || "pt");
+      if (preset) fd.append("video_preset", preset);
       if (improve) fd.append("improve_prompt", "1");
-      fd.append("video", video);
+      if (videoCloudUrl) {
+        fd.append("video_url", videoCloudUrl);
+      } else {
+        fd.append("video", video);
+      }
       if (reference) fd.append("reference_image", reference);
-      if (notifyByEmail && user?.email) fd.append("notify_email", user.email);
+      if (notifyByEmail) {
+        fd.append("notify_by_email", "1");
+        if (user?.email) fd.append("notify_email", user.email);
+      }
 
       ({ data: submitData } = await uploadPost("/generate/video-edit", fd, {
         timeout: 600_000,
+        blobOffloadTimeoutMs: video?.size ? pickBlobOffloadTimeoutMs(video.size, true) : undefined,
+        skipBlobOffload: Boolean(videoCloudUrl),
         headers: { "X-Skip-Auto-Poll": "1" },
       }));
 
@@ -173,6 +203,10 @@ export default function VideoEditorAdmin() {
         creditsSpent: submitData.credits_spent || cost,
         label: t("vid_edit_title") || "Vídeo",
       });
+      if (notifyByEmail) {
+        const target = user?.email || t("vid_edit_notify_fallback");
+        toast.info(t("vid_edit_notify_scheduled", { email: target }), { duration: 9000 });
+      }
       await refresh();
       // Result lands in gallery + notifications when ready (also via email
       // for video edits, if the backend so chooses — opt-in via `notify_email`
@@ -190,18 +224,24 @@ export default function VideoEditorAdmin() {
   };
 
   const controls = (
-    <div className="space-y-4 min-w-0">
+    <div className="rp-studio-card-stack min-w-0">
       <StudioAccordionSection title={t("vid_acc_my_video")} defaultOpen testId="video-edit-acc-source">
+        <p className="text-[#6f6f76] text-[11px] mb-3">
+          {t("vid_edit_public_note")}
+        </p>
         <p className="text-[#6f6f76] text-[11px] mb-3">
           {t("vid_edit_eta_hint", { min: eta.min, max: eta.max })}
         </p>
         <StudioVideoUpload
           value={video}
-          onChange={setVideo}
+          onChange={(f) => { setVideo(f); if (!f) setVideoCloudUrl(null); }}
+          onCloudUrlChange={setVideoCloudUrl}
+          onStatusChange={setVideoUploadStatus}
           disabled={busy}
           maxDurationSec={10}
           testId="video-edit-source"
         />
+        <StudioPhotoUploadNotice status={videoUploadStatus} className="mt-3" />
       </StudioAccordionSection>
 
       <StudioAccordionSection title={t("vid_edit_prompt_label")} defaultOpen testId="video-edit-acc-prompt">
@@ -211,9 +251,9 @@ export default function VideoEditorAdmin() {
           <textarea
             value={prompt}
             onChange={(e) => setPrompt(e.target.value.slice(0, 800))}
-            rows={5}
+            rows={3}
             placeholder={t("vid_edit_prompt_placeholder")}
-            className="rp-editor-textarea min-h-[140px]"
+            className="rp-editor-textarea rp-editor-textarea--compact min-h-[88px]"
             data-testid="video-edit-prompt"
           />
           <div className="mt-3">
@@ -223,7 +263,7 @@ export default function VideoEditorAdmin() {
               locked={false}
               onLockedClick={undefined}
               testId="video-edit-improve"
-              cost={surcharges.enhancePrompt ?? 3}
+              cost={surcharges.enhancePrompt ?? 5}
             />
           </div>
           <div className="flex flex-wrap gap-2 mt-3">
@@ -346,46 +386,26 @@ export default function VideoEditorAdmin() {
       </StudioAccordionSection>
 
       <StudioAccordionSection title={t("vid_edit_notify") || "Notificação"} defaultOpen={false} testId="video-edit-acc-notify">
-        <label className="flex items-start gap-3 cursor-pointer group">
-          <input
-            type="checkbox"
-            checked={notifyByEmail}
-            onChange={(e) => setNotifyByEmail(e.target.checked)}
-            className="mt-1 rounded border-[#2E2E30] bg-[#0F0F12] text-[#7C3AED] focus:ring-[#7C3AED]"
-            data-testid="video-edit-notify-email"
-          />
-          <span>
-            <span className="block text-[#F4F1EA] text-[13px] font-medium group-hover:text-white transition-colors">
-              {t("vid_edit_notify_email") || "Notificar-me por email"}
+          <label className="flex items-start gap-3 cursor-pointer group">
+            <input
+              type="checkbox"
+              checked={notifyByEmail}
+              onChange={(e) => setNotifyByEmail(e.target.checked)}
+              disabled={!user?.email}
+              className="mt-1 rounded border-[#2E2E30] bg-[#0F0F12] text-[#7C3AED] focus:ring-[#7C3AED] disabled:opacity-40"
+              data-testid="video-edit-notify-email"
+            />
+            <span>
+              <span className="block text-[#F4F1EA] text-[13px] font-medium group-hover:text-white transition-colors">
+                {t("vid_edit_notify_email") || "Notificar-me por email"}
+              </span>
+              <span className="block text-[#8A8A8E] text-[11px] mt-0.5 leading-snug">
+                {user?.email
+                  ? t("vid_edit_notify_email_hint", { email: user.email })
+                  : t("vid_edit_notify_no_email")}
+              </span>
             </span>
-            <span className="block text-[#8A8A8E] text-[11px] mt-0.5 leading-snug">
-              {t("vid_edit_notify_email_hint") || "Recebes um email quando o vídeo editado estiver pronto (podes sair da página)."}
-            </span>
-          </span>
-        </label>
-      </StudioAccordionSection>
-
-      <StudioAccordionSection title={t("vid_acc_generate")} defaultOpen testId="video-edit-acc-generate">
-          <StudioGenerateBar
-            layout="inline"
-            ready={ready}
-            busy={busy}
-            onClick={run}
-            label={t("vid_edit_btn", { n: cost })}
-            busyLabel={
-              uploadPhase === "processing" && progress > 0
-                ? `${t("vid_edit_processing")} (${progress}s)`
-                : uploadPhase === "processing"
-                  ? t("vid_edit_processing_eta", { min: eta.min, max: eta.max })
-                  : t("vid_edit_processing")
-            }
-            hint={hint}
-            testId="video-edit-submit"
-            icon={Clapperboard}
-          />
-          <p className="text-[#5A5A5E] text-[11px] mt-3 text-center font-mono uppercase tracking-[0.14em]">
-            {t("vid_balance", { n: user?.is_unlimited ? "∞" : (user?.credits ?? 0) })}
-          </p>
+          </label>
       </StudioAccordionSection>
     </div>
   );
@@ -394,21 +414,41 @@ export default function VideoEditorAdmin() {
     <StudioResultAnchor
       busy={busy}
       ready={Boolean(primaryResultUrl(result))}
-      className="lg:sticky lg:top-[88px] self-start space-y-3"
+      className="lg:sticky lg:top-[72px] self-start space-y-2"
     >
-      <p className="text-[10px] font-mono uppercase tracking-[0.22em] text-[#7C3AED]">
+      <p className="hidden md:block text-[11px] text-[#6b6b70] uppercase tracking-wide">
         {t("vid_edit_result_label")}
       </p>
-      <div className="rp-editor-panel overflow-hidden p-3 sm:p-4">
+      <div className="rounded-2xl border border-white/[0.08] bg-[#141418]/90 overflow-hidden p-3">
         <ResultPanel creation={result} loading={busy} onChange={setResult} emptyLabel={t("vid_edit_result_empty")} />
       </div>
     </StudioResultAnchor>
   );
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-[1fr_380px] gap-8 lg:gap-10" data-testid="video-editor-admin">
-      {controls}
-      {resultBlock}
-    </div>
+    <>
+      <div className="grid grid-cols-1 lg:grid-cols-[1fr_340px] gap-3 lg:gap-8" data-testid={`video-editor-${modeId}`}>
+        {controls}
+        {resultBlock}
+      </div>
+      <StudioGenerateBar
+        ready={ready}
+        busy={busy}
+        onClick={run}
+        label={t("vid_edit_btn", { n: cost })}
+        busyLabel={
+          uploadPhase === "processing" && progress > 0
+            ? `${t("vid_edit_processing")} (${progress}s)`
+            : uploadPhase === "processing"
+              ? t("vid_edit_processing_eta", { min: eta.min, max: eta.max })
+              : t("vid_edit_processing")
+        }
+        hint={hint}
+        blockedNotify="message"
+        testId="video-edit-submit"
+        icon={Clapperboard}
+        costMeta={<StudioGenerateCostMeta cost={cost} user={user} />}
+      />
+    </>
   );
 }

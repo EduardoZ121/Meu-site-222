@@ -61,9 +61,10 @@ export default function Inpaint() {
 
   const clearMask = () => initCanvas();
 
-  const run = async () => {
+  const run = async (ctx) => {
     if (!photo) { toast.error(t("pro_upload_photo")); return; }
-    if (prompt.trim().length < 3) { toast.error(t("tool_prompt_ph")); return; }
+    const finalPrompt = ctx?.improvedPrompt ?? prompt.trim();
+    if (finalPrompt.length < 3) { toast.error(t("tool_prompt_ph")); return; }
       const c = canvasRef.current;
       if (!c) { toast.error(t("inpaint_paint_first")); return; }
       clearUploadToast();
@@ -83,7 +84,7 @@ export default function Inpaint() {
       const fd = new FormData();
       fd.append("photo", photo);
       fd.append("mask", new File([maskBlob], "mask.png", { type: "image/png" }));
-      fd.append("prompt", prompt.trim());
+      fd.append("prompt", finalPrompt);
       const { data } = await uploadPost("/tools/inpaint", fd, { timeout: 240000 });
       const creation = normalizeCreation(data?.creation);
       if (!primaryResultUrl(creation)) throw new Error(t("pro_no_result"));
@@ -109,6 +110,7 @@ export default function Inpaint() {
       cost={cost}
       busy={busy} result={result} onResultChange={setResult}
       onCreate={run}
+      improveTool="inpaint"
       extraFields={
         photoUrl && (
           <section>

@@ -1,51 +1,67 @@
 import { Link, Navigate, useParams } from "react-router-dom";
 import { ArrowLeft } from "lucide-react";
 import { useI18n } from "../../lib/i18n";
-import { useAuth } from "../../lib/auth";
-import { isAdminUser } from "../../lib/isAdmin";
 import useTitle from "../../lib/useTitle";
-import { VIDEO_CATEGORIES, VIDEO_FLOW_MODES } from "../../lib/videoCatalogue";
+import {
+  VIDEO_FLOW_MODES,
+  VIDEO_LEGACY_REDIRECTS,
+  findVideoCategory,
+} from "../../lib/videoCatalogue";
+import { getVideoToolMeta } from "../../lib/videoModels";
 import VideoGenerate from "./VideoGenerate";
 import VideoEditorAdmin from "./VideoEditorAdmin";
+import StudioCompactShell from "../../components/studio/StudioCompactShell";
+import StudioInlineHeader from "../../components/studio/StudioInlineHeader";
 
 export default function VideoFlow() {
   const { mode } = useParams();
   const { t } = useI18n();
-  const { user } = useAuth();
   const valid = VIDEO_FLOW_MODES.has(mode);
-  const meta = valid ? VIDEO_CATEGORIES.find((c) => c.id === mode) : null;
+  const meta = valid ? findVideoCategory(mode) : null;
   useTitle(t(meta ? meta.nameKey : "sidebar_video"));
 
   if (!valid) {
     return <Navigate to="/app/video" replace />;
   }
-  // Block video-to-video for non-admins
-  if (mode === "edit" && !isAdminUser(user)) {
+
+  if (VIDEO_LEGACY_REDIRECTS[mode]) {
+    return <Navigate to={`/app/video/${VIDEO_LEGACY_REDIRECTS[mode]}`} replace />;
+  }
+
+  if (!meta) {
     return <Navigate to="/app/video" replace />;
   }
 
+  const toolMeta = getVideoToolMeta(meta.tool);
+  const isEdit = meta.flow === "edit";
+
   return (
-    <div className="max-w-[1200px] mx-auto pb-20" data-testid={`video-flow-${mode}`}>
+    <StudioCompactShell testId={`video-flow-${mode}`} maxWidth="1200px" className="pb-4 md:pb-8">
       <Link
         to="/app/video"
-        className="inline-flex items-center gap-2 mb-6 text-[13px] text-[#8A8A8E] hover:text-[#F4F1EA] transition-colors"
+        className="rp-studio-back mb-3 md:mb-5"
         data-testid="video-back-hub"
       >
         <ArrowLeft className="w-4 h-4" strokeWidth={1.75} />
         {t("vid_back_hub")}
       </Link>
 
-      <header className="mb-8 md:mb-10">
-        <p className="text-[10px] font-mono uppercase tracking-[0.22em] text-[#7C3AED] mb-3">{t("vid_cap")}</p>
-        <h1 className="text-[#F4F1EA] font-light leading-[1.05] tracking-[-0.02em] text-[32px] md:text-[44px] mb-3 font-['Inter_Tight']">
-          {meta ? t(meta.nameKey) : t("sidebar_video")}
-        </h1>
-        <p className="text-[#8A8A8E] text-[15px] max-w-[640px]">
-          {meta ? t(meta.descKey) : t("vid_desc_body")}
-        </p>
-      </header>
+      <StudioInlineHeader
+        eyebrow={t("vid_cap")}
+        title={t(meta.nameKey)}
+        description={
+          toolMeta?.modelLabel
+            ? `${t(meta.descKey)} · ${t("vid_model_label")}: ${toolMeta.modelLabel}`
+            : t(meta.descKey)
+        }
+        testId="video-flow-header"
+      />
 
-      {mode === "edit" ? <VideoEditorAdmin /> : <VideoGenerate mode={mode} />}
-    </div>
+      {isEdit ? (
+        <VideoEditorAdmin category={meta} />
+      ) : (
+        <VideoGenerate category={meta} />
+      )}
+    </StudioCompactShell>
   );
 }

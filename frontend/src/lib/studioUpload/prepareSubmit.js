@@ -10,6 +10,7 @@
  */
 
 import { MAX_IMAGE_DIRECT_BYTES, VIDEO_VERCEL_SAFE_BYTES } from "../uploadConstants";
+import { materializeUploadFile } from "../durableUploadFile";
 
 function isImageFile(file) {
   if (!file) return false;
@@ -25,22 +26,9 @@ function isVideoFile(file) {
   return /\.(mp4|mov|webm)$/i.test(file.name || "");
 }
 
-/** Re-lê um File para um Blob novo (Uint8Array em memória). Resolve o problema
- * "stale File" em mobile depois de compressão ou idle longo. Se a leitura
- * falhar (ficheiro foi recolhido pelo OS), devolve o File original e o servidor
- * trata do erro com mensagem clara. */
+/** Re-lê um File para um Blob novo (Uint8Array em memória). */
 async function refreshFileHandle(file) {
-  if (!file || typeof file.arrayBuffer !== "function") return file;
-  try {
-    const buf = await file.arrayBuffer();
-    const type = file.type || "application/octet-stream";
-    return new File([buf], file.name || "upload", {
-      type,
-      lastModified: file.lastModified || Date.now(),
-    });
-  } catch {
-    return file;
-  }
+  return materializeUploadFile(file);
 }
 
 export async function prepareStudioFormDataForSubmit(formData, options = {}) {
@@ -58,12 +46,15 @@ export async function prepareStudioFormDataForSubmit(formData, options = {}) {
           const { uploadVideoToCloud } = await import("../api");
           const url = await uploadVideoToCloud(val, {
             onProgress: options.onVideoProgress,
-            timeoutMs: options.timeoutMs,
+            timeoutMs: options.blobOffloadTimeoutMs ?? options.timeoutMs,
           });
           out.append(key === "video" ? "video_url" : `${key}_url`, url);
           continue;
-        } catch {
-          /* fall through */
+        } catch (err) {
+          throw new Error(
+            err?.message
+            || "Não foi possível enviar o vídeo para a nuvem. Tenta um clip mais curto ou recarrega (Ctrl+F5).",
+          );
         }
       }
     }

@@ -4,6 +4,8 @@ import { useI18n } from "../../lib/i18n";
 import { CLIENT_BUILD_ID } from "../../lib/buildInfo";
 import { IMAGE_ACCEPT } from "../../lib/imageCompress";
 import { revokeFilePreviewUrl } from "../../lib/previewDataUrl";
+import { materializeUploadFile } from "../../lib/durableUploadFile";
+import { toast } from "sonner";
 
 const LAYOUT = {
   portrait: "aspect-[4/5] min-h-[200px]",
@@ -63,14 +65,20 @@ export default function InstantPhotoUpload({
     };
   }, []);
 
-  const pick = useCallback((file) => {
+  const pick = useCallback(async (file) => {
     if (!file) return;
-    onChange(file);
-  }, [onChange]);
+    try {
+      const durable = await materializeUploadFile(file);
+      onChange(durable);
+    } catch (err) {
+      toast.error(err?.message || t("img_err_read_failed"), { duration: 6000 });
+      if (inputRef.current) inputRef.current.value = "";
+    }
+  }, [onChange, t]);
 
   const onPick = (e) => {
     const f = e.target.files?.[0];
-    if (f) pick(f);
+    if (f) void pick(f);
   };
 
   const clear = useCallback(() => {
@@ -110,7 +118,7 @@ export default function InstantPhotoUpload({
           e.preventDefault();
           setDrag(false);
           const f = e.dataTransfer.files?.[0];
-          if (f) pick(f);
+          if (f) void pick(f);
         }}
         data-testid={testId}
         data-upload-state={hasFile ? "ready" : "idle"}

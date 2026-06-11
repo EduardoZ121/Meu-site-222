@@ -15,7 +15,7 @@ const FALLBACK = {
   upload_err_payload_video:
     "Ficheiro demasiado grande. Aguarda o upload para a nuvem ou usa um clip mais curto.",
   upload_err_image_large: "Imagem demasiado grande. Máximo 5 MB.",
-  upload_err_video_large: "Vídeo demasiado grande. Máximo 50 MB.",
+  upload_err_video_large: "Vídeo demasiado grande. Máximo 200 MB.",
   upload_err_file_large: "Ficheiro demasiado grande. Tenta um mais pequeno.",
   upload_err_cloud: "Falhou o envio para a nuvem. Tenta outra vez ou usa um ficheiro mais pequeno.",
   upload_err_server: "Erro no servidor. Tenta dentro de um minuto.",

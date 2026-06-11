@@ -10,3 +10,8 @@ export function isAdminUser(user) {
   if (user.role === "admin" || user.is_unlimited) return true;
   return ADMIN_EMAILS.has(String(user.email || "").trim().toLowerCase());
 }
+
+/** Vídeo IA — só admin até estabilizar o fluxo de upload. */
+export function canAccessVideoFeatures(user) {
+  return isAdminUser(user);
+}

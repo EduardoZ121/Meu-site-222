@@ -23,6 +23,8 @@ import PhotoUpload from "../../../components/PhotoUpload";
 import StudioPhotoUploadNotice, { isPhotoUploadBusy } from "../../../components/studio/StudioPhotoUploadNotice";
 import CollapsibleSection from "../../../components/CollapsibleSection";
 import StudioResultAnchor from "../../../components/StudioResultAnchor";
+import StudioCompactShell from "../../../components/studio/StudioCompactShell";
+import StudioInlineHeader from "../../../components/studio/StudioInlineHeader";
 
 /* ------------------------------------------------------------------ */
 /*  Scene presets + solid color palette                                */
@@ -158,27 +160,17 @@ export default function BgRemove() {
   };
 
   return (
-    <div className="max-w-[1400px] mx-auto pb-32" data-testid="bg-remove-frame">
-      {/* Hero header */}
-      <div className="mb-12 flex items-start gap-5">
-        <div className="shrink-0 w-14 h-14 rounded-2xl bg-[#7C3AED]/15 border border-[#7C3AED]/30 flex items-center justify-center">
-          <Scissors className="w-7 h-7 text-[#C4B5FD]" strokeWidth={1.5} />
-        </div>
-        <div>
-          <h1 className="text-[#F4F1EA] text-[32px] md:text-[44px] font-light tracking-[-0.02em] leading-[1.05] mb-2 font-['Inter_Tight']">
-            {tCatalogue("tool_bg_remove_name")}
-          </h1>
-          <p className="text-[#8A8A8E] text-[15px] max-w-[640px] leading-relaxed">
-            {tCatalogue("tool_bg_remove_desc")}
-          </p>
-        </div>
-      </div>
+    <StudioCompactShell testId="bg-remove-frame" maxWidth="1400px" className="pb-4 md:pb-8">
+      <StudioInlineHeader
+        title={tCatalogue("tool_bg_remove_name")}
+        description={tCatalogue("tool_bg_remove_desc")}
+        testId="bg-remove-header"
+      />
 
-      <div className="grid grid-cols-1 xl:grid-cols-[1fr_440px] gap-10">
-        {/* ====== LEFT: controls ====== */}
-        <div className="space-y-5">
+      <div className="grid grid-cols-1 xl:grid-cols-[1fr_360px] gap-3 xl:gap-8">
+        <div className="rp-studio-card-stack">
           <CollapsibleSection title={t("common_section_upload_photo")} defaultOpen testId="bg-remove-section-photo">
-            <div className="flex items-baseline justify-between mb-4">
+            <div className="flex items-baseline justify-between mb-2">
               {photo && (
                 <button
                   onClick={reset}
@@ -201,7 +193,7 @@ export default function BgRemove() {
           </CollapsibleSection>
 
           <CollapsibleSection title={t("bg_section_mode")} hint={t("bg_mode_hint")} testId="bg-remove-section-mode">
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5" data-testid="bg-remove-mode-tabs">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2" data-testid="bg-remove-mode-tabs">
               <ModeTab
                 active={mode === "transparent"}
                 onClick={() => setMode("transparent")}
@@ -364,8 +356,8 @@ export default function BgRemove() {
           </CollapsibleSection>
         </div>
 
-        <StudioResultAnchor busy={busy} ready={Boolean(result?.url)} className="xl:sticky xl:top-[80px] self-start">
-          <p className="text-[#5A5A5E] text-[10px] font-mono uppercase tracking-[0.2em] mb-3">{t("bg_output")}</p>
+        <StudioResultAnchor busy={busy} ready={Boolean(result?.url)} className="xl:sticky xl:top-[72px] self-start space-y-2">
+          <p className="hidden md:block text-[11px] text-[#6b6b70] uppercase tracking-wide">{t("bg_output")}</p>
           <ResultArea
             busy={busy}
             result={result}
@@ -388,7 +380,7 @@ export default function BgRemove() {
         testId="bg-remove-create-btn"
         costMeta={<StudioGenerateCostMeta cost={cost} user={user} />}
       />
-    </div>
+    </StudioCompactShell>
   );
 }
 

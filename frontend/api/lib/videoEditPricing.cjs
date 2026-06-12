@@ -20,7 +20,7 @@ function computeVideoEditCost(baseCost, { resolution = "original", duration = 6,
   return fromConfig;
 }
 
-const GROK_VIDEO_EDIT_MAX_SEC = 7;
+const GROK_VIDEO_EDIT_MAX_SEC = 8;
 
 function validateVideoEditOptions({ resolution, duration, engine = "kling_edit" }) {
   if (engine === "grok_edit") {

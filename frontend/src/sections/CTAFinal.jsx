@@ -1,10 +1,13 @@
 import { useRef } from "react";
 import { motion, useInView } from "framer-motion";
 import { Link } from "react-router-dom";
+import { useI18n } from "../lib/i18n";
+import { LANDING_STARTER_CREDITS } from "../lib/landingI18n";
 
 const EASE = [0.16, 1, 0.3, 1];
 
 export default function CTAFinal() {
+  const { t } = useI18n();
   const ref = useRef(null);
   const isInView = useInView(ref, { once: true, margin: "-80px" });
 
@@ -22,15 +25,19 @@ export default function CTAFinal() {
             animate={isInView ? { opacity: 1, y: 0 } : {}}
             transition={{ duration: 0.8, ease: EASE }}
           >
-            <p className="eyebrow mb-3 md:mb-4">Remake Pixel</p>
+            <p className="eyebrow mb-3 md:mb-4">{t("cta_eyebrow")}</p>
             <h2 className="heading-xl mb-5 md:mb-6">
-              Não esperes pela imagem perfeita.
+              {t("cta_title_1")}
               <br />
-              <span className="italic font-light">Cria-a.</span>
+              <span className="italic font-light">{t("cta_title_2")}</span>
             </h2>
             <div className="flex flex-col sm:flex-row flex-wrap gap-3">
-              <Link to="/register" className="btn-primary" data-testid="cta-primary">Começar grátis — 50 créditos</Link>
-              <a href="#pricing" className="btn-secondary" data-testid="cta-secondary">Ver pacotes</a>
+              <Link to="/register" className="btn-primary" data-testid="cta-primary">
+                {t("cta_primary", { n: LANDING_STARTER_CREDITS })}
+              </Link>
+              <a href="#pricing" className="btn-secondary" data-testid="cta-secondary">
+                {t("cta_secondary")}
+              </a>
             </div>
           </motion.div>
         </div>

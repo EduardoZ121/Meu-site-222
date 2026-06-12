@@ -1,9 +1,11 @@
 import { useRef } from "react";
 import { motion, useInView } from "framer-motion";
+import { useI18n } from "../lib/i18n";
 
 const EASE = [0.16, 1, 0.3, 1];
 
 export default function InsideRemakePixel() {
+  const { t } = useI18n();
   const ref = useRef(null);
   const isInView = useInView(ref, { once: true, margin: "-80px" });
 
@@ -17,7 +19,7 @@ export default function InsideRemakePixel() {
             transition={{ duration: 0.8, ease: EASE }}
           >
             <div className="rounded-sm overflow-hidden border border-[#2E2E30]">
-              <img src="/images/discover/generate.jpg" alt="Remake Pixel studio" className="w-full object-cover" loading="lazy" />
+              <img src="/images/discover/generate.jpg" alt="" className="w-full object-cover" loading="lazy" />
             </div>
           </motion.div>
           <motion.div
@@ -25,9 +27,9 @@ export default function InsideRemakePixel() {
             animate={isInView ? { opacity: 1, y: 0 } : {}}
             transition={{ duration: 0.8, delay: 0.15, ease: EASE }}
           >
-            <p className="eyebrow mb-3 md:mb-4">Por dentro do Remake Pixel</p>
-            <h2 className="heading-lg mb-4 md:mb-5">Gerar. Editar. Animar. Um estúdio só.</h2>
-            <p className="body-text">Todas as ferramentas criativas numa conta, com um único saldo de créditos e fluxos pensados para publicar mais rápido.</p>
+            <p className="eyebrow mb-3 md:mb-4">{t("inside_eyebrow")}</p>
+            <h2 className="heading-lg mb-4 md:mb-5">{t("inside_title")}</h2>
+            <p className="body-text">{t("inside_body")}</p>
           </motion.div>
         </div>
       </div>

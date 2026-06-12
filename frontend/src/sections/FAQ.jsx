@@ -1,27 +1,23 @@
 import { useRef, useState } from "react";
 import { motion, useInView, AnimatePresence } from "framer-motion";
 import { ChevronDown } from "lucide-react";
-
-const faqs = [
-  { q: "O que é o Remake Pixel?", a: "Um estúdio de imagem com IA que junta geração, edição, estilos, pôsteres, vídeo e ferramentas utilitárias numa única conta por créditos." },
-  { q: "Como funcionam os créditos?", a: "Cada ferramenta mostra o custo antes de gerar. Imagem por texto desde 9 créditos; vídeo, retoque Pro e opções HD/melhorar prompt acrescentam créditos conforme o uso." },
-  { q: "Recebo créditos grátis?", a: "Sim. Cada nova conta começa com 50 créditos grátis, suficientes para testar o estúdio antes de comprar." },
-  { q: "Que modelos de IA usam?", a: "Usamos um stack curado de motores internos: rápido, pro, premium e utilitários especializados para edição, vídeo e tarefas técnicas." },
-  { q: "Posso usar as minhas fotos?", a: "Sim. Podes enviar fotos para retoque, estilos, pôsteres, remoção de fundo, upscale, colorização e outros fluxos." },
-  { q: "Que formatos são suportados?", a: "Os principais formatos de imagem e rácios de publicação: 1:1, 4:5, 3:4, 9:16, 16:9 e 21:9." },
-  { q: "Posso vender o que crio?", a: "Sim. As imagens geradas com saldo pago podem ser usadas em projetos comerciais, respeitando os direitos das imagens que carregas." },
-  { q: "Qual é a política de reembolso?", a: "Se uma geração falhar por erro técnico, os créditos podem ser devolvidos. Créditos usados em resultados gerados não são reembolsáveis." },
-  { q: "Existe subscrição obrigatória?", a: "Não. O modelo principal é compra única de créditos, sem renovação automática escondida." },
-  { q: "Em que idiomas funciona?", a: "A interface está a ser preparada para português, inglês, espanhol e francês. A versão principal agora está focada em português." },
-  { q: "Como contacto o suporte?", a: "Abre a Sofia no menu da app ou escreve para suporte@remakepix.com — a equipa responde o mais rápido possível." },
-];
+import { useI18n } from "../lib/i18n";
+import { LANDING_FAQ_IDS, LANDING_STARTER_CREDITS } from "../lib/landingI18n";
+import { getCreditCostsForRegion } from "../lib/pricingRegions";
 
 const EASE = [0.16, 1, 0.3, 1];
 
 export default function FAQ() {
+  const { t } = useI18n();
   const ref = useRef(null);
   const isInView = useInView(ref, { once: true, margin: "-80px" });
   const [open, setOpen] = useState(null);
+  const imageCost = getCreditCostsForRegion("intl").image;
+
+  const faqs = LANDING_FAQ_IDS.map((id) => ({
+    q: t(`landing_faq_${id}_q`),
+    a: t(`landing_faq_${id}_a`, { n: LANDING_STARTER_CREDITS, image: imageCost }),
+  }));
 
   return (
     <section id="faq" className="relative bg-[#F4F1EA] py-16 md:py-28 border-t border-[#E4E4E7]" ref={ref} data-testid="faq-section">
@@ -32,8 +28,10 @@ export default function FAQ() {
           transition={{ duration: 0.6, ease: EASE }}
           className="text-center mb-10 md:mb-16"
         >
-          <h2 className="text-[#0B0B0C] text-3xl md:text-4xl font-light tracking-[-0.02em] mb-3 md:mb-4">Perguntas frequentes</h2>
-          <p className="text-[#8A8A8E] text-lg">Respostas claras antes de começares.</p>
+          <h2 className="text-[#0B0B0C] text-3xl md:text-4xl font-light tracking-[-0.02em] mb-3 md:mb-4">
+            {t("faq_title")}
+          </h2>
+          <p className="text-[#8A8A8E] text-lg">{t("faq_subtitle")}</p>
         </motion.div>
 
         <div className="space-y-2">

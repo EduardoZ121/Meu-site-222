@@ -221,7 +221,7 @@ export const VIDEO_CATEGORIES = [
 
     to: "/app/video/edit",
 
-    tool: VIDEO_TOOL_IDS.kling_edit,
+    tool: VIDEO_TOOL_IDS.wan_edit,
 
     flow: "edit",
 
@@ -243,7 +243,7 @@ export const VIDEO_CATEGORIES = [
 
     to: "/app/video/change-bg",
 
-    tool: VIDEO_TOOL_IDS.kling_edit,
+    tool: VIDEO_TOOL_IDS.wan_edit,
 
     flow: "edit",
 
@@ -267,7 +267,7 @@ export const VIDEO_CATEGORIES = [
 
     to: "/app/video/change-outfit",
 
-    tool: VIDEO_TOOL_IDS.kling_edit,
+    tool: VIDEO_TOOL_IDS.wan_edit,
 
     flow: "edit",
 
@@ -291,7 +291,7 @@ export const VIDEO_CATEGORIES = [
 
     to: "/app/video/restyle",
 
-    tool: VIDEO_TOOL_IDS.kling_edit,
+    tool: VIDEO_TOOL_IDS.wan_edit,
 
     flow: "edit",
 

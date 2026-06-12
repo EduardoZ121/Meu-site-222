@@ -5,7 +5,7 @@ import { ADMIN_EMAILS } from "./isAdmin";
 const AuthCtx = createContext(null);
 const LOCAL_USERS_KEY = "rp_local_users";
 const LOCAL_TX_KEY = "rp_local_transactions";
-const STARTER_CREDITS = 50;
+const STARTER_CREDITS = 100;
 
 function readLocalUsers() {
   try { return JSON.parse(localStorage.getItem(LOCAL_USERS_KEY) || "{}"); } catch { return {}; }

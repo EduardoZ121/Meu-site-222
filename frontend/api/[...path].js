@@ -445,13 +445,30 @@ async function resolveVideoRef(files, fields, fileKey = "video", urlKey = "video
   return `data:${mime};base64,${buffer.toString("base64")}`;
 }
 
-async function videoEditInput(fields, files) {
-  const video = await resolveVideoRef(files, fields, "video", "video_url");
-  if (!video) {
-    const err = new Error("Envia um vídeo (MP4/MOV, idealmente 2–10 segundos).");
-    err.status = 400;
-    throw err;
+async function resolveVideoEditMediaUrl(files, fields) {
+  let fromUrl = trustedMediaUrl(text(fields, "video_url", ""));
+  if (fromUrl) return fromUrl;
+  const file = fileOf(files, "video");
+  if (file) {
+    fromUrl = await uploadFormVideoToBlob(file);
+    if (fromUrl) return fromUrl;
   }
+  const hadUrl = Boolean(String(text(fields, "video_url", "")).trim());
+  let msg = "Envia um vídeo (MP4/MOV, idealmente 2–10 segundos).";
+  if (isBlobConfigured() || isS3Configured()) {
+    msg = hadUrl
+      ? "URL do vídeo na nuvem inválida ou inacessível. Recarrega a página (Ctrl+F5) e tenta Gerar outra vez."
+      : "O upload para a nuvem não concluiu. Aguarda «Pronto para gerar» ou recarrega (Ctrl+F5) e tenta outra vez.";
+  } else {
+    msg += " Configura Vercel Blob (BLOB_READ_WRITE_TOKEN) na Vercel.";
+  }
+  const err = new Error(msg);
+  err.status = file || hadUrl ? 413 : 400;
+  throw err;
+}
+
+async function videoEditInput(fields, files) {
+  const video = await resolveVideoEditMediaUrl(files, fields);
   const userPrompt = text(fields, "prompt", "").trim();
   const prompt = buildVideoEditPrompt(userPrompt);
   const resolution = text(fields, "resolution", "original");
@@ -474,19 +491,8 @@ async function videoEditInput(fields, files) {
 
 async function grokVideoEditInput(fields, files) {
   const { buildGrokEditInput } = require("./lib/videoModels.cjs");
-  const GROK_MAX_SEC = 7;
-  let fromUrl = trustedMediaUrl(text(fields, "video_url", ""));
-  if (!fromUrl) {
-    const file = fileOf(files, "video");
-    if (file) {
-      fromUrl = await uploadFormVideoToBlob(file);
-    }
-  }
-  if (!fromUrl) {
-    const err = new Error("Grok precisa do vídeo na nuvem — aguarda «Pronto para gerar» ou recarrega e tenta outra vez.");
-    err.status = 400;
-    throw err;
-  }
+  const GROK_MAX_SEC = 8;
+  const fromUrl = await resolveVideoEditMediaUrl(files, fields);
   const dur = Math.round(Number(text(fields, "duration", String(GROK_MAX_SEC))));
   if (dur !== GROK_MAX_SEC) {
     const err = new Error(`Grok só gera clips até ${GROK_MAX_SEC} segundos.`);
@@ -506,12 +512,7 @@ async function grokVideoEditInput(fields, files) {
 
 async function klingVideoEditInput(fields, files) {
   const { buildKlingEditInput } = require("./lib/videoModels.cjs");
-  const video = await resolveVideoRef(files, fields, "video", "video_url");
-  if (!video) {
-    const err = new Error("Envia um vídeo (MP4/MOV, idealmente 2–10 segundos).");
-    err.status = 400;
-    throw err;
-  }
+  const video = await resolveVideoEditMediaUrl(files, fields);
   const userPrompt = text(fields, "prompt", "").trim();
   const prompt = buildVideoEditPrompt(userPrompt);
   const resolution = text(fields, "resolution", "original");

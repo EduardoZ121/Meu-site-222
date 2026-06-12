@@ -1,29 +1,53 @@
-import { useRef } from "react";
+import { useMemo, useRef } from "react";
 import { motion, useInView } from "framer-motion";
 import { Link } from "react-router-dom";
 import { Sparkles, Zap } from "lucide-react";
+import { useI18n } from "../lib/i18n";
+import { getCreditCostsForRegion, getPackagesForRegion } from "../lib/pricingRegions";
+import { LANDING_STARTER_CREDITS } from "../lib/landingI18n";
 
 const EASE = [0.16, 1, 0.3, 1];
 
-const packages = [
-  { name: "Starter", price: "5", credits: "150", tagline: "Promoção de lançamento", featured: false, promo: true },
-  { name: "Creator", price: "10", credits: "345", tagline: "Mais popular · +15% bónus", featured: true },
-  { name: "Studio", price: "20", credits: "780", tagline: "Melhor valor · +30% bónus", featured: false },
-  { name: "Pro", price: "50", credits: "2100", tagline: "Volume máximo · +40% bónus", featured: false },
-];
-
-const costTable = [
-  { action: "Gerar imagem (texto)", cost: "9 cr (+2 melhorar · +4 HD)" },
-  { action: "Estúdio artístico", cost: "12 cr (+ efeitos premium)" },
-  { action: "Retoque Pro", cost: "18 créditos" },
-  { action: "Texto / imagem → vídeo", cost: "40 cr (+12 em 8s)" },
-  { action: "Editar vídeo", cost: "60 cr (+ HD / duração)" },
-  { action: "Pôsteres", cost: "10–20 créditos (Grok 10 · Flux 15 · GPT 20)" },
-];
+const PKG_TAGLINE_KEYS = {
+  starter: "landing_pkg_starter_tagline",
+  creator: "landing_pkg_creator_tagline",
+  studio: "landing_pkg_studio_tagline",
+  pro: "landing_pkg_pro_tagline",
+};
 
 export default function Pricing() {
+  const { t } = useI18n();
   const ref = useRef(null);
   const isInView = useInView(ref, { once: true, margin: "-80px" });
+
+  const packages = useMemo(() => {
+    return getPackagesForRegion("intl").map((pkg) => ({
+      ...pkg,
+      featured: pkg.id === "creator",
+      promo: pkg.badge === "promo",
+      taglineKey: PKG_TAGLINE_KEYS[pkg.id] || "landing_pkg_starter_tagline",
+    }));
+  }, []);
+
+  const costs = useMemo(() => getCreditCostsForRegion("intl"), []);
+
+  const costRows = useMemo(
+    () => [
+      { label: t("landing_cost_image"), value: t("landing_cost_image_val", { n: costs.image }) },
+      { label: t("landing_cost_artistic"), value: t("landing_cost_artistic_val", { n: costs.artistic }) },
+      { label: t("landing_cost_pro"), value: t("landing_cost_pro_val", { n: costs.pro }) },
+      {
+        label: t("landing_cost_video"),
+        value: t("landing_cost_video_val", { n: costs.video, image: costs.videoImage }),
+      },
+      { label: t("landing_cost_video_edit"), value: t("landing_cost_video_edit_val", { n: costs.videoEdit }) },
+      {
+        label: t("landing_cost_posters"),
+        value: t("landing_cost_posters_val", { fast: costs.posterFast, premium: costs.posterPremium }),
+      },
+    ],
+    [costs, t],
+  );
 
   return (
     <section
@@ -47,13 +71,13 @@ export default function Pricing() {
           className="text-center mb-8 md:mb-12"
         >
           <p className="text-rp-lavender text-[10px] font-mono font-semibold uppercase tracking-[0.22em] mb-4">
-            Créditos, não subscrições.
+            {t("pricing_eyebrow")}
           </p>
           <h2 className="text-[#fafafa] text-3xl md:text-[52px] font-semibold tracking-[-0.03em] leading-tight">
-            Paga apenas pelo que crias.
+            {t("pricing_title")}
           </h2>
           <p className="text-[#8A8A8E] text-[15px] mt-4 max-w-[560px] mx-auto">
-            Taxa base 30 créditos/€. Pacotes maiores incluem bónus progressivo — até 42 cr/€ no Pro.
+            {t("pricing_subtitle", { n: LANDING_STARTER_CREDITS })}
           </p>
         </motion.div>
 
@@ -65,7 +89,7 @@ export default function Pricing() {
         >
           {packages.map((pkg) => (
             <div
-              key={pkg.name}
+              key={pkg.id}
               className={`rounded-2xl border p-6 backdrop-blur-md transition-all ${
                 pkg.featured
                   ? "border-[#7C3AED] bg-gradient-to-br from-[#1B0D3A]/80 to-[#0a0a0a] shadow-[0_0_50px_-15px_rgba(124,58,237,0.5)]"
@@ -73,12 +97,16 @@ export default function Pricing() {
               }`}
             >
               {pkg.promo && (
-                <span className="text-[10px] font-mono uppercase tracking-wider text-[#C4B5FD] mb-2 block">Promo</span>
+                <span className="text-[10px] font-mono uppercase tracking-wider text-[#C4B5FD] mb-2 block">
+                  {t("pricing_promo_badge")}
+                </span>
               )}
               <h3 className="text-[#fafafa] text-xl font-semibold mb-1">{pkg.name}</h3>
-              <p className="text-[#7C3AED] text-[11px] mb-4">{pkg.tagline}</p>
-              <p className="text-[#fafafa] text-4xl font-light mb-1">€{pkg.price}</p>
-              <p className="text-[#C4B5FD] text-sm font-medium">{pkg.credits} créditos</p>
+              <p className="text-[#7C3AED] text-[11px] mb-4">{t(pkg.taglineKey)}</p>
+              <p className="text-[#fafafa] text-4xl font-light mb-1">€{pkg.amount_display}</p>
+              <p className="text-[#C4B5FD] text-sm font-medium">
+                {t("pricing_credits_unit", { n: pkg.credits })}
+              </p>
             </div>
           ))}
         </motion.div>
@@ -89,12 +117,12 @@ export default function Pricing() {
           transition={{ duration: 0.5, delay: 0.15, ease: EASE }}
           className="rounded-2xl border border-[#2E2E30] bg-[#0a0a0a]/80 p-6 md:p-8 mb-10"
         >
-          <h3 className="text-[#fafafa] text-lg font-semibold mb-4">Custos por ferramenta (exemplos)</h3>
+          <h3 className="text-[#fafafa] text-lg font-semibold mb-4">{t("cost_table_title")}</h3>
           <ul className="space-y-2">
-            {costTable.map((row) => (
-              <li key={row.action} className="flex justify-between gap-4 text-[14px]">
-                <span className="text-[#a1a1aa]">{row.action}</span>
-                <span className="text-[#C4B5FD] font-mono shrink-0">{row.cost}</span>
+            {costRows.map((row) => (
+              <li key={row.label} className="flex justify-between gap-4 text-[14px]">
+                <span className="text-[#a1a1aa]">{row.label}</span>
+                <span className="text-[#C4B5FD] font-mono shrink-0 text-right">{row.value}</span>
               </li>
             ))}
           </ul>
@@ -110,13 +138,13 @@ export default function Pricing() {
             to="/app/billing"
             className="inline-flex items-center gap-2 px-8 py-3.5 rounded-xl bg-gradient-to-r from-[#7C3AED] to-[#9333ea] text-white text-sm font-semibold uppercase tracking-wider hover:brightness-110 transition-all"
           >
-            <Zap className="w-4 h-4" /> Comprar créditos
+            <Zap className="w-4 h-4" /> {t("pricing_buy")}
           </Link>
           <Link
             to="/register"
             className="inline-flex items-center gap-2 px-8 py-3.5 rounded-xl border border-[#3f3f46] text-[#e4e4e7] text-sm font-medium hover:border-[#7C3AED]/50 transition-all"
           >
-            <Sparkles className="w-4 h-4" /> Começar grátis
+            <Sparkles className="w-4 h-4" /> {t("pricing_start_free")}
           </Link>
         </motion.div>
       </div>

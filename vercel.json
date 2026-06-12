@@ -2,8 +2,8 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "env": {
     "DISABLE_VERCEL_BLOB": "0",
-    "REACT_APP_BUILD_ID": "rp-cache-fix-v49",
-    "APP_BUILD_ID": "rp-fashion-split-v42",
+    "REACT_APP_BUILD_ID": "rp-video-edit-i18n-v50",
+    "APP_BUILD_ID": "rp-video-edit-i18n-v50",
     "SITE_URL": "https://www.remakepix.com",
     "VERCEL_PRO_MAX_DURATION_SEC": "800"
   },
@@ -31,7 +31,7 @@
     }
   },
   "installCommand": "ln -sfn frontend/api api; yarn install --ignore-engines || yarn install; cd frontend && yarn install --ignore-engines || yarn install; cd .. && npm install --legacy-peer-deps",
-  "buildCommand": "cd frontend && REACT_APP_BUILD_ID=rp-cache-fix-v49 REACT_APP_DISABLE_VERCEL_BLOB=0 yarn build",
+  "buildCommand": "cd frontend && REACT_APP_BUILD_ID=rp-video-edit-i18n-v50 REACT_APP_DISABLE_VERCEL_BLOB=0 yarn build",
   "redirects": [
     {
       "source": "/:path*",

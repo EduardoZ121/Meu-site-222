@@ -74,7 +74,7 @@ export default function VideoEditorAdmin({ category }) {
   const baseCost = costs.videoEdit ?? costs.video ?? 120;
 
   const [engineId, setEngineId] = useState(
-    engineLocked ? VIDEO_TOOL_IDS.kling_edit : defaultVideoEditEngineId(),
+    engineLocked ? VIDEO_TOOL_IDS.wan_edit : defaultVideoEditEngineId(),
   );
   const engine = useMemo(() => getVideoEditEngine(engineId), [engineId]);
 
@@ -121,6 +121,8 @@ export default function VideoEditorAdmin({ category }) {
 
   const videoUploading = isPhotoUploadBusy(videoUploadStatus);
 
+  const cloudReady = !engine.requiresCloudUrl || Boolean(videoCloudUrl);
+
   const { ready, hint } = useStudioGenerateGate({
     busy,
     user,
@@ -130,6 +132,8 @@ export default function VideoEditorAdmin({ category }) {
     requirePrompt: true,
     prompt,
     uploading: videoUploading,
+    readyOverride: cloudReady ? undefined : false,
+    hintOverride: !cloudReady && video ? t("vid_edit_cloud_required") : undefined,
   });
 
   const eta = useMemo(() => {
@@ -180,6 +184,10 @@ export default function VideoEditorAdmin({ category }) {
       toast.error(t("vid_edit_err_video"));
       return;
     }
+    if (engine.requiresCloudUrl && !videoCloudUrl) {
+      toast.error(t("vid_edit_cloud_required"));
+      return;
+    }
     if (prompt.trim().length < 3) {
       toast.error(t("vid_edit_err_short"));
       return;
@@ -208,8 +216,6 @@ export default function VideoEditorAdmin({ category }) {
       if (improve) fd.append("improve_prompt", "1");
       if (videoCloudUrl) {
         fd.append("video_url", videoCloudUrl);
-      } else if (!engine.requiresCloudUrl) {
-        fd.append("video", video);
       } else if (video) {
         fd.append("video", video);
       }
@@ -222,7 +228,7 @@ export default function VideoEditorAdmin({ category }) {
       ({ data: submitData } = await uploadPost("/generate/video-edit", fd, {
         timeout: 600_000,
         blobOffloadTimeoutMs: video?.size ? pickBlobOffloadTimeoutMs(video.size, true) : undefined,
-        skipBlobOffload: engine.requiresCloudUrl ? false : Boolean(videoCloudUrl),
+        skipBlobOffload: Boolean(videoCloudUrl),
         headers: { "X-Skip-Auto-Poll": "1" },
       }));
 

@@ -62,7 +62,7 @@ export const SEO_FAQ = [
   },
   {
     q: "Do I get free credits?",
-    a: "Yes. Every new account starts with 50 free credits — enough to try the studio before buying more.",
+    a: "Yes. Every new account starts with 100 free credits — enough to try the studio before buying more.",
   },
   {
     q: "Which AI models do you use?",

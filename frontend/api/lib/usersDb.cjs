@@ -12,7 +12,7 @@ const ADMIN_EMAILS = new Set(
     .filter(Boolean),
 );
 
-const STARTER_CREDITS = 50;
+const STARTER_CREDITS = 100;
 const UNLIMITED_CREDITS = 999999999;
 const ABUSE_CREDITS_THRESHOLD = 500_000;
 

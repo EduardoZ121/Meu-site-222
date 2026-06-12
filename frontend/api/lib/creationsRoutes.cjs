@@ -1,6 +1,6 @@
 const { getDb, storageEnabled, ensureIndexes } = require("./mongo.cjs");
 const { sanitizeCreation, trustedProxyTarget, loadCreationMedia, normalizeResultUrls } = require("./creationMedia.cjs");
-const { refreshUserPendingJobs } = require("./pendingPredictions.cjs");
+const { refreshUserPendingJobs, repairMissingCreationsForUser } = require("./pendingPredictions.cjs");
 
 function dedupeCreations(docs) {
   const seenIds = new Set();
@@ -97,6 +97,12 @@ async function handleCreationsRoute(path, req, res, { verifySessionToken, json }
     if (sess.error) {
       json(res, sess.error.status, { detail: sess.error.detail });
       return true;
+    }
+    try {
+      await refreshUserPendingJobs(sess.user.id, 12);
+      await repairMissingCreationsForUser(sess.user.id, 32);
+    } catch (e) {
+      console.warn("[creations] history pending refresh failed", e?.message);
     }
     const url = new URL(req.url, `https://${req.headers.host || "localhost"}`);
     const limit = Math.min(80, Math.max(1, Number(url.searchParams.get("limit") || 30)));

@@ -199,8 +199,12 @@ async function finalizePending(pending, replicateInfo) {
     if (!claimed) {
       const existing = await getPending(pending.id);
       if (existing?.status === "completed") {
-        const creation = creationFromPending(existing, existing.result_urls || urls);
-        await deliverVideoNotifyEmail(existing, creation, existing.result_urls || urls);
+        const doneUrls = existing.result_urls || urls;
+        const creation = creationFromPending(existing, doneUrls);
+        if (doneUrls.length) {
+          await recordCreation(userId, creation);
+        }
+        await deliverVideoNotifyEmail(existing, creation, doneUrls);
         const user = await db.collection("users").findOne({ id: userId }, { projection: { credits: 1 } });
         return {
           status: "succeeded",
@@ -260,9 +264,13 @@ async function pollPending(pending, getReplicatePrediction) {
   const lang = pending.lang || "en";
 
   if (pending.status === "completed") {
-    const creation = creationFromPending(pending, pending.result_urls || []);
-    if (pending.notify_email && !pending.notify_email_sent_at && pending.result_urls?.length) {
-      await deliverVideoNotifyEmail(pending, creation, pending.result_urls);
+    const urls = pending.result_urls || [];
+    const creation = creationFromPending(pending, urls);
+    if (urls.length) {
+      await recordCreation(pending.user_id, creation);
+    }
+    if (pending.notify_email && !pending.notify_email_sent_at && urls.length) {
+      await deliverVideoNotifyEmail(pending, creation, urls);
     }
     const db = await getDb();
     const user = await db.collection("users").findOne({ id: pending.user_id }, { projection: { credits: 1 } });
@@ -353,6 +361,43 @@ async function getReplicatePredictionById(id) {
     throw new Error(text || `Replicate ${res.status}`);
   }
   return res.json();
+}
+
+/** Repara criações em falta na galeria (pending completed mas sem doc em creations). */
+async function repairMissingCreationsForUser(userId, limit = 24) {
+  if (!storageEnabled() || !userId) return 0;
+  await ensureIndexes();
+  const db = await getDb();
+  const rows = await db
+    .collection("pending_predictions")
+    .find(
+      {
+        user_id: userId,
+        status: "completed",
+        result_urls: { $exists: true, $ne: [] },
+      },
+      { projection: { _id: 0 } },
+    )
+    .sort({ completed_at: -1 })
+    .limit(Math.min(40, Math.max(1, limit)))
+    .toArray();
+
+  let repaired = 0;
+  for (const pending of rows) {
+    // eslint-disable-next-line no-await-in-loop
+    const exists = await db.collection("creations").findOne(
+      { id: pending.id, user_id: userId },
+      { projection: { id: 1 } },
+    );
+    if (exists) continue;
+    const urls = Array.isArray(pending.result_urls) ? pending.result_urls : [];
+    if (!urls.length) continue;
+    const creation = creationFromPending(pending, urls);
+    // eslint-disable-next-line no-await-in-loop
+    await recordCreation(userId, creation);
+    repaired += 1;
+  }
+  return repaired;
 }
 
 /** Força poll no servidor (galeria mesmo com o browser fechado). */
@@ -476,6 +521,7 @@ module.exports = {
   completePendingWithUrls,
   listActivePendingForUser,
   refreshUserPendingJobs,
+  repairMissingCreationsForUser,
   processActivePendingBatch,
   maxPollSeconds,
   isOpenAIPosterJob,

@@ -129,20 +129,23 @@ export default function Gallery({ favoritesOnly = false }) {
   }, [t]);
 
   const load = useCallback((opts = {}) => {
-    if (loadingRef.current) return Promise.resolve();
-    loadingRef.current = true;
     const isBackground = Boolean(opts.background);
-    if (!isBackground) setLoading(true);
-    if (isBackground) setRefreshing(true);
+    if (!isBackground && loadingRef.current) return Promise.resolve();
+    if (!isBackground) {
+      loadingRef.current = true;
+      setLoading(true);
+    } else {
+      setRefreshing(true);
+    }
     return api
       .get(`/generations/history?limit=60${favoritesOnly ? "&only_favorites=true" : ""}`)
       .then((r) => setItems(dedupeCreations(r.data.creations)))
       .catch((err) => {
         if (!isBackground) toast.error(formatApiError(err, tRef.current("gal_load_fail")));
-        setItems([]);
+        if (!isBackground) setItems([]);
       })
       .finally(() => {
-        loadingRef.current = false;
+        if (!isBackground) loadingRef.current = false;
         if (!isBackground) setLoading(false);
         if (isBackground) setRefreshing(false);
       });

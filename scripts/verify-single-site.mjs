@@ -32,6 +32,7 @@ const required = [
   "frontend/src/App.js",
   "frontend/public/index.html",
   "frontend/public/images/hero-bg.jpg",
+  "frontend/vercel.json",
   "vercel.json",
 ];
 
@@ -62,6 +63,20 @@ if (fs.existsSync(pagesDir)) {
     console.error(`WARN: only ${count} page components in frontend/src/pages`);
   } else {
     console.log(`OK: ${count} page files in frontend/src/pages`);
+  }
+}
+
+const feVercel = path.join(root, "frontend/vercel.json");
+if (fs.existsSync(feVercel)) {
+  try {
+    const cfg = JSON.parse(fs.readFileSync(feVercel, "utf8"));
+    if (cfg.outputDirectory !== "build") {
+      console.error("INVALID: frontend/vercel.json must set outputDirectory to \"build\" (Vercel Root Directory = frontend)");
+      failed = true;
+    }
+  } catch (e) {
+    console.error("INVALID: frontend/vercel.json is not valid JSON", e?.message);
+    failed = true;
   }
 }
 

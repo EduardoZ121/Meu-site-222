@@ -47,7 +47,7 @@ export function computeVideoGenerateCost(costs, surcharges, { duration = 6, mode
 }
 
 export function computeVideoEditCostFromConfig(costs, surcharges, { resolution = "original", duration = 6 } = {}) {
-  let cost = costs.videoEdit ?? 120;
+  let cost = costs.videoEdit ?? 100;
   const res = String(resolution || "original").trim().toLowerCase();
   const dur = Math.round(Number(duration));
   if (res === "720p" || res === "1080p") cost += surcharges.videoEditResolutionHd ?? 15;

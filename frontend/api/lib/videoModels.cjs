@@ -215,13 +215,9 @@ function applyPresetPrefix(preset, userPrompt) {
   return `${prefix}${userPrompt}`;
 }
 
-/** Vídeo→vídeo — motor escolhido na UI (kling_edit | grok_edit | wan_edit). */
-function resolveVideoEditToolId(raw) {
-  const id = String(raw || "kling_edit").trim().toLowerCase();
-  if (id === "grok_edit" || id === "grok-edit" || id === "grok") return "grok_edit";
-  if (id === "wan_edit" || id === "wan-2.7" || id === "wan") return "wan_edit";
-  if (id === "kling_edit" || id === "kling-o1" || id === "kling_o1" || id === "kling") return "kling_edit";
-  return "kling_edit";
+/** Vídeo→vídeo — apenas Wan 2.7 (Grok/Kling desactivados). */
+function resolveVideoEditToolId(_raw) {
+  return "wan_edit";
 }
 
 function klingEditModeFromResolution(resolution) {

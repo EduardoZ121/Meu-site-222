@@ -57,7 +57,7 @@ function computeVideoExtendCostFromConfig(CREDIT, surcharges, { resolution = "10
 }
 
 function computeVideoEditCostFromConfig(CREDIT, surcharges, { resolution = "original", duration = 6 } = {}) {
-  let cost = CREDIT.videoEdit ?? 120;
+  let cost = CREDIT.videoEdit ?? 100;
   const res = String(resolution || "original").trim().toLowerCase();
   const dur = Math.round(Number(duration));
   if (res === "720p" || res === "1080p") cost += surcharges.videoEditResolutionHd ?? 15;

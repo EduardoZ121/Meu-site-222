@@ -2,7 +2,6 @@ import {
   ARTISTIC_STUDIO_STYLES,
   ARTISTIC_EFFECT_SECTIONS,
 } from "./artisticStudioData";
-import { buildAiLabEditPrompt } from "./artisticLabPrompt";
 import {
   isStylizedArtCategory,
   resolveArtisticStyleSuffix,
@@ -33,13 +32,6 @@ export function buildArtisticStudioPrompt({
   const trimmed = String(userPrompt || "").trim();
   const style = getStyleById(styleId);
   const styleSuffix = resolveArtisticStyleSuffix(style);
-
-  if (style?.cat === "nsfw") {
-    return buildAiLabEditPrompt({
-      userPrompt: trimmed,
-      styleSuffix,
-    });
-  }
 
   const parts = [];
 

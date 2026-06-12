@@ -718,5 +718,115 @@ module.exports = [
     "cat": "sensual",
     "subject": "the woman",
     "prompt": "Fashion/lifestyle portrait of [subject] with voluminous curly hair, wearing oversized red streetwear hoodie (no visible brand) combined with fitted bottom piece in light leopard texture print, following body curves naturally. Pose: side position with hip projected, well-marked body line, looking over shoulder with intense confident expression. Outfit interaction: hoodie slightly displaced by body movement, contrast between volume on top and fitted bottom. Modern apartment with large mirror in background, clean contemporary aesthetic. Side natural lighting with moderate contrast, shadows highlighting silhouette and contours. Realistic fabric and skin texture, natural shine, clear shape definition without exaggeration. Editorial framing with mirror presence for depth. Strong sensual marked atmosphere, modern street-fashion attitude. Ultra-realistic 8k sharp focus cinematic color grading. --ar 4:5. Edit the reference photo in-place like professional retouching: preserve exact identity, same face, facial structure, bone structure, skin tone and ethnicity (do not lighten, darken or alter undertones), maintain original identity, do not change person or race, realistic face consistency for all skin tones including deep and melanin-rich skin, preserve original facial expression, keep same emotion, keep same eye expression, natural symmetric anatomy, no warped or melted features, keep same pose and head angle unless the style explicitly requires otherwise"
+  },
+  {
+    "id": "men_ceo_boardroom",
+    "nome": "💼 CEO Boardroom",
+    "cat": "men",
+    "subject": "the man",
+    "prompt": "Ultra-realistic executive portrait of [subject] in a modern glass boardroom, tailored charcoal suit, crisp white shirt, no tie, confident direct gaze. Soft window light from the side, shallow depth of field, premium Forbes magazine cover aesthetic, 85mm lens, 4K detail. Edit the reference photo in-place like professional retouching: preserve exact identity, same face, facial structure, bone structure, skin tone and ethnicity (do not lighten, darken or alter undertones), maintain original identity, do not change person or race, realistic face consistency for all skin tones including deep and melanin-rich skin, preserve original facial expression, keep same emotion, keep same eye expression, natural symmetric anatomy, no warped or melted features, keep same pose and head angle unless the style explicitly requires otherwise"
+  },
+  {
+    "id": "men_street_night",
+    "nome": "🌃 Streetwear Noite",
+    "cat": "men",
+    "subject": "the man",
+    "prompt": "Cinematic night street portrait of [subject] in premium streetwear, oversized jacket, urban neon reflections on wet pavement, moody teal and amber city lights, low-angle fashion editorial, sharp focus on face, shallow bokeh background. Edit the reference photo in-place like professional retouching: preserve exact identity, same face, facial structure, bone structure, skin tone and ethnicity (do not lighten, darken or alter undertones), maintain original identity, do not change person or race, realistic face consistency for all skin tones including deep and melanin-rich skin, preserve original facial expression, keep same emotion, keep same eye expression, natural symmetric anatomy, no warped or melted features, keep same pose and head angle unless the style explicitly requires otherwise"
+  },
+  {
+    "id": "men_athlete_gym",
+    "nome": "🏋️ Atleta Gym",
+    "cat": "men",
+    "subject": "the man",
+    "prompt": "Athletic fitness editorial portrait of [subject] in modern gym environment, performance activewear, defined physique, dramatic rim light and sweat highlights, motivational sports campaign look, 50mm f/2.0, ultra sharp 8K. Edit the reference photo in-place like professional retouching: preserve exact identity, same face, facial structure, bone structure, skin tone and ethnicity (do not lighten, darken or alter undertones), maintain original identity, do not change person or race, realistic face consistency for all skin tones including deep and melanin-rich skin, preserve original facial expression, keep same emotion, keep same eye expression, natural symmetric anatomy, no warped or melted features, keep same pose and head angle unless the style explicitly requires otherwise"
+  },
+  {
+    "id": "men_noir_detective",
+    "nome": "🕵️ Film Noir Detective",
+    "cat": "men",
+    "subject": "the man",
+    "prompt": "Classic film noir portrait of [subject], black and white high contrast, venetian blind shadow patterns across face, detective trench coat, cigarette smoke atmosphere optional, mysterious introspective mood, 1940s cinematic still. Edit the reference photo in-place like professional retouching: preserve exact identity, same face, facial structure, bone structure, skin tone and ethnicity (do not lighten, darken or alter undertones), maintain original identity, do not change person or race, realistic face consistency for all skin tones including deep and melanin-rich skin, preserve original facial expression, keep same emotion, keep same eye expression, natural symmetric anatomy, no warped or melted features, keep same pose and head angle unless the style explicitly requires otherwise"
+  },
+  {
+    "id": "men_tech_founder",
+    "nome": "💻 Tech Founder",
+    "cat": "men",
+    "subject": "the man",
+    "prompt": "Modern tech founder portrait of [subject], minimalist startup office, casual premium hoodie or blazer, clean neutral background, soft natural daylight, approachable confident expression, Apple keynote speaker aesthetic, crisp commercial photography. Edit the reference photo in-place like professional retouching: preserve exact identity, same face, facial structure, bone structure, skin tone and ethnicity (do not lighten, darken or alter undertones), maintain original identity, do not change person or race, realistic face consistency for all skin tones including deep and melanin-rich skin, preserve original facial expression, keep same emotion, keep same eye expression, natural symmetric anatomy, no warped or melted features, keep same pose and head angle unless the style explicitly requires otherwise"
+  },
+  {
+    "id": "wom_runway_gold",
+    "nome": "👠 Passarela Dourada",
+    "cat": "women",
+    "subject": "the woman",
+    "prompt": "High-fashion runway editorial of [subject], elegant evening gown, golden spotlight, dramatic catwalk atmosphere, Vogue cover quality, flowing hair, powerful confident pose, warm luxury palette, 85mm portrait lens. Edit the reference photo in-place like professional retouching: preserve exact identity, same face, facial structure, bone structure, skin tone and ethnicity (do not lighten, darken or alter undertones), maintain original identity, do not change person or race, realistic face consistency for all skin tones including deep and melanin-rich skin, preserve original facial expression, keep same emotion, keep same eye expression, natural symmetric anatomy, no warped or melted features, keep same pose and head angle unless the style explicitly requires otherwise"
+  },
+  {
+    "id": "wom_power_suit",
+    "nome": "🔴 Power Suit",
+    "cat": "women",
+    "subject": "the woman",
+    "prompt": "Bold power-dressing editorial portrait of [subject] in sharp red tailored blazer, studio seamless backdrop, strong beauty lighting, executive confidence, Harper's Bazaar aesthetic, crisp fabric texture, 4K commercial quality. Edit the reference photo in-place like professional retouching: preserve exact identity, same face, facial structure, bone structure, skin tone and ethnicity (do not lighten, darken or alter undertones), maintain original identity, do not change person or race, realistic face consistency for all skin tones including deep and melanin-rich skin, preserve original facial expression, keep same emotion, keep same eye expression, natural symmetric anatomy, no warped or melted features, keep same pose and head angle unless the style explicitly requires otherwise"
+  },
+  {
+    "id": "wom_golden_field",
+    "nome": "🌾 Golden Hour Campo",
+    "cat": "women",
+    "subject": "the woman",
+    "prompt": "Dreamy golden-hour portrait of [subject] in open wheat field, warm sunset backlight, soft lens flare, flowing natural hair, romantic lifestyle campaign, pastel sky, gentle wind movement, cinematic 8K photography. Edit the reference photo in-place like professional retouching: preserve exact identity, same face, facial structure, bone structure, skin tone and ethnicity (do not lighten, darken or alter undertones), maintain original identity, do not change person or race, realistic face consistency for all skin tones including deep and melanin-rich skin, preserve original facial expression, keep same emotion, keep same eye expression, natural symmetric anatomy, no warped or melted features, keep same pose and head angle unless the style explicitly requires otherwise"
+  },
+  {
+    "id": "wom_editorial_bw",
+    "nome": "⬛ Editorial P&B",
+    "cat": "women",
+    "subject": "the woman",
+    "prompt": "Striking black and white fashion editorial of [subject], high contrast monochrome, sculptural shadows, minimalist styling, intense direct gaze, fine-art magazine portrait, medium format film look. Edit the reference photo in-place like professional retouching: preserve exact identity, same face, facial structure, bone structure, skin tone and ethnicity (do not lighten, darken or alter undertones), maintain original identity, do not change person or race, realistic face consistency for all skin tones including deep and melanin-rich skin, preserve original facial expression, keep same emotion, keep same eye expression, natural symmetric anatomy, no warped or melted features, keep same pose and head angle unless the style explicitly requires otherwise"
+  },
+  {
+    "id": "wom_rooftop_sunset",
+    "nome": "🌆 Rooftop Sunset",
+    "cat": "women",
+    "subject": "the woman",
+    "prompt": "Urban rooftop portrait of [subject] at sunset, city skyline bokeh behind, chic casual outfit, wind in hair, cinematic lifestyle editorial, warm orange and pink sky, confident relaxed pose, 35mm environmental portrait. Edit the reference photo in-place like professional retouching: preserve exact identity, same face, facial structure, bone structure, skin tone and ethnicity (do not lighten, darken or alter undertones), maintain original identity, do not change person or race, realistic face consistency for all skin tones including deep and melanin-rich skin, preserve original facial expression, keep same emotion, keep same eye expression, natural symmetric anatomy, no warped or melted features, keep same pose and head angle unless the style explicitly requires otherwise"
+  },
+  {
+    "id": "u_magazine_cover",
+    "nome": "📰 Capa de Revista",
+    "cat": "unisex",
+    "grp": "editorial",
+    "subject": "the person",
+    "prompt": "Premium magazine cover portrait of [subject], bold masthead space above, clean commercial lighting, confident star presence, glossy fashion editorial finish, sharp 8K detail, timeless cover composition. Edit the reference photo in-place like professional retouching: preserve exact identity, same face, facial structure, bone structure, skin tone and ethnicity (do not lighten, darken or alter undertones), maintain original identity, do not change person or race, realistic face consistency for all skin tones including deep and melanin-rich skin, preserve original facial expression, keep same emotion, keep same eye expression, natural symmetric anatomy, no warped or melted features, keep same pose and head angle unless the style explicitly requires otherwise"
+  },
+  {
+    "id": "u_rain_moody",
+    "nome": "🌧️ Retrato na Chuva",
+    "cat": "unisex",
+    "grp": "emotion",
+    "subject": "the person",
+    "prompt": "Moody cinematic portrait of [subject] in the rain, wet hair and skin, neon city reflections, melancholic introspective expression, blade runner atmosphere, shallow depth of field, dramatic cool tones. Edit the reference photo in-place like professional retouching: preserve exact identity, same face, facial structure, bone structure, skin tone and ethnicity (do not lighten, darken or alter undertones), maintain original identity, do not change person or race, realistic face consistency for all skin tones including deep and melanin-rich skin, preserve original facial expression, keep same emotion, keep same eye expression, natural symmetric anatomy, no warped or melted features, keep same pose and head angle unless the style explicitly requires otherwise"
+  },
+  {
+    "id": "u_golden_studio",
+    "nome": "✨ Estúdio Dourado",
+    "cat": "unisex",
+    "grp": "classic",
+    "subject": "the person",
+    "prompt": "Warm golden studio portrait of [subject], soft beauty dish lighting, creamy bokeh background, luxury skincare campaign aesthetic, flawless natural skin texture, elegant minimal styling. Edit the reference photo in-place like professional retouching: preserve exact identity, same face, facial structure, bone structure, skin tone and ethnicity (do not lighten, darken or alter undertones), maintain original identity, do not change person or race, realistic face consistency for all skin tones including deep and melanin-rich skin, preserve original facial expression, keep same emotion, keep same eye expression, natural symmetric anatomy, no warped or melted features, keep same pose and head angle unless the style explicitly requires otherwise"
+  },
+  {
+    "id": "u_neon_street",
+    "nome": "🟣 Neon Urban Night",
+    "cat": "unisex",
+    "grp": "neon",
+    "subject": "the person",
+    "prompt": "Cyberpunk street portrait of [subject] at night, purple and cyan neon signs, wet asphalt reflections, edgy streetwear, vibrant color contrast, urban fashion campaign, cinematic wide aperture look. Edit the reference photo in-place like professional retouching: preserve exact identity, same face, facial structure, bone structure, skin tone and ethnicity (do not lighten, darken or alter undertones), maintain original identity, do not change person or race, realistic face consistency for all skin tones including deep and melanin-rich skin, preserve original facial expression, keep same emotion, keep same eye expression, natural symmetric anatomy, no warped or melted features, keep same pose and head angle unless the style explicitly requires otherwise"
+  },
+  {
+    "id": "u_cinematic_close",
+    "nome": "🎬 Close Cinematográfico",
+    "cat": "unisex",
+    "grp": "hero",
+    "subject": "the person",
+    "prompt": "Extreme cinematic close-up of [subject], shallow depth of field, anamorphic lens flare, blockbuster movie still color grade, intense eye contact, dramatic rim light, IMAX quality detail. Edit the reference photo in-place like professional retouching: preserve exact identity, same face, facial structure, bone structure, skin tone and ethnicity (do not lighten, darken or alter undertones), maintain original identity, do not change person or race, realistic face consistency for all skin tones including deep and melanin-rich skin, preserve original facial expression, keep same emotion, keep same eye expression, natural symmetric anatomy, no warped or melted features, keep same pose and head angle unless the style explicitly requires otherwise"
   }
 ];

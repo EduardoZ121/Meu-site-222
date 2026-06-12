@@ -13,7 +13,6 @@ export const ARTISTIC_STYLE_CATEGORIES = [
   { id: "modern", label: "Design Moderno", labelEn: "Modern Design" },
   { id: "fantasy", label: "Fantasia & Épico", labelEn: "Fantasy & Epic" },
   { id: "vintage", label: "Vintage & Retro", labelEn: "Vintage & Retro" },
-  { id: "nsfw", label: "AI Lab", labelEn: "AI Lab", labCategory: true },
 ];
 
 export function canAccessNsfwArtisticStyles(user) {
@@ -122,51 +121,6 @@ export const ARTISTIC_STUDIO_STYLES = [
   { id: "vin_polaroid", cat: "vintage", label: "Polaroid", labelEn: "Polaroid", desc: "Instantâneo, bordas, nostalgia", descEn: "Instant film, borders, nostalgia", suffix: "Polaroid instant film photograph, white frame border, faded warm analog colors, nostalgic snapshot", gradient: ["#fef3c7", "#d6d3d1", "#78716c"], icon: "camera" },
   { id: "vin_film_grain", cat: "vintage", label: "Film Grain Analog", labelEn: "Analog Film Grain", desc: "Grão de filme, analógico", descEn: "Film grain, analog look", suffix: "analog film photography, heavy authentic film grain, Kodak Portra color science, nostalgic celluloid", gradient: ["#422006", "#a8a29e", "#ecfccb"], icon: "aperture" },
   { id: "vin_retro_comic", cat: "vintage", label: "Vintage Comic", labelEn: "Vintage Comic", desc: "HQ antiga, papel amarelado", descEn: "Old comic, yellowed paper", suffix: "vintage comic book print, aged yellowed newsprint, retro halftone printing, golden age comic", gradient: ["#fef08a", "#f97316", "#1d4ed8"], icon: "lines" },
-
-  // —— AI Lab experimental (admin only) — presets edit rápido / Qwen-style ——
-  { id: "lab_qwen_edit", cat: "nsfw", adminOnly: true, labPreset: true, labBadge: "QWEN", label: "Qwen Edit Rapid", labelEn: "Qwen Edit Rapid", desc: "Edição rápida IA, identidade preservada", descEn: "Rapid AI edit, identity preserved", suffix: "rapid photoreal edit pass, sharpen skin detail, preserve exact face and body from reference", gradient: ["#0c0a1f", "#6366f1", "#22d3ee"], icon: "zap" },
-  { id: "lab_ai_rapid", cat: "nsfw", adminOnly: true, labPreset: true, textEngine: "flux", editEngine: "kontext", labBadge: "RAPID", label: "AI Rapid", labelEn: "AI Rapid", desc: "Preset ultra-rápido, look cinematográfico", descEn: "Ultra-fast preset, cinematic look", suffix: "rapid AI image generation edit, fast inference aesthetic, sharp details, cinematic color grade, professional finish, cohesive lighting", gradient: ["#1e1b4b", "#ec4899", "#f97316"], icon: "zap" },
-  { id: "lab_cinematic_edit", cat: "nsfw", adminOnly: true, labPreset: true, textEngine: "flux", editEngine: "kontext", labBadge: "CINE", label: "Cinematic Edit", labelEn: "Cinematic Edit", desc: "Edição moody, luz de filme, drama", descEn: "Moody film lighting, drama", suffix: "cinematic AI image edit, anamorphic mood, dramatic rim lighting, teal orange grade, blockbuster still quality, mature atmospheric edit", gradient: ["#0f172a", "#7c3aed", "#f59e0b"], icon: "camera" },
-  { id: "lab_advanced_prompt", cat: "nsfw", adminOnly: true, labPreset: true, textEngine: "flux", editEngine: "kontext", labBadge: "PROMPT", label: "Advanced Prompt Edit", labelEn: "Advanced Prompt Edit", desc: "Segue prompt complexo com precisão", descEn: "Follows complex prompts precisely", suffix: "advanced prompt-driven image edit, precise instruction following, layered semantic edit, high coherence, studio-grade refinement, detail preservation", gradient: ["#312e81", "#a855f7", "#38bdf8"], icon: "sparkles" },
-  { id: "lab_experimental_ai", cat: "nsfw", adminOnly: true, labPreset: true, textEngine: "flux", editEngine: "kontext", labBadge: "EXP", label: "Experimental AI", labelEn: "Experimental AI", desc: "Look laboratório, cores neon suaves", descEn: "Lab look, soft neon colors", suffix: "experimental AI art lab aesthetic, soft neon accents, futuristic edit pipeline, hyper-clean edges, gallery experimental style", gradient: ["#4c0519", "#db2777", "#67e8f9"], icon: "sparkles" },
-  { id: "lab_ultra_style", cat: "nsfw", adminOnly: true, labPreset: true, textEngine: "flux", editEngine: "kontext", labBadge: "ULTRA", label: "Ultra Style", labelEn: "Ultra Style", desc: "Máximo detalhe e nitidez premium", descEn: "Maximum detail and premium sharpness", suffix: "ultra high definition AI style transfer, 8K micro-detail, premium skin texture, crisp edges, luxury editorial finish", gradient: ["#0a0a0a", "#52525b", "#fafafa"], icon: "gem" },
-  { id: "lab_flux_edit", cat: "nsfw", adminOnly: true, labPreset: true, textEngine: "flux", editEngine: "kontext", labBadge: "FLUX", label: "Flux Edit", labelEn: "Flux Edit", desc: "Estética Flux — cores ricas e fluidez", descEn: "Flux aesthetic — rich colors and flow", suffix: "Flux model aesthetic image edit, rich color depth, smooth gradients, modern diffusion quality, polished commercial edit", gradient: ["#172554", "#7c3aed", "#f472b6"], icon: "waves" },
-  { id: "lab_realistic_edit", cat: "nsfw", adminOnly: true, labPreset: true, textEngine: "flux", editEngine: "kontext", labBadge: "REAL", label: "Realistic Edit", labelEn: "Realistic Edit", desc: "Fotorrealismo extremo pós-edição", descEn: "Extreme photorealism after edit", suffix: "photorealistic AI image edit, natural skin tones, accurate lighting physics, DSLR quality, believable materials, mature realistic portrait edit", gradient: ["#1c1917", "#78716c", "#fde68a"], icon: "camera" },
-  { id: "lab_hybrid_nsfw", cat: "nsfw", adminOnly: true, labPreset: true, labBadge: "AIO", label: "Rapid AIO Blend", labelEn: "Rapid AIO Blend", desc: "Preset all-in-one estilo HF rapid", descEn: "All-in-one rapid HF-style preset", suffix: "rapid all-in-one edit, identity-locked, follow user prompt precisely, same face and body", gradient: ["#831843", "#9333ea", "#06b6d4"], icon: "zap" },
-  // —— AI Lab leve (texto ou foto) ——
-  { id: "nsfw_swimwear", cat: "nsfw", adminOnly: true, tier: "light", textEngine: "flux", editEngine: "kontext", label: "Bikini Editorial", labelEn: "Swimwear Editorial", desc: "Praia, bikini, moda swim — segue o teu prompt", descEn: "Beach, bikini, swim fashion — follows your prompt", suffix: "swimwear bikini editorial photography, beach fashion campaign, sun-kissed skin, tasteful mature swimwear styling, follow user wardrobe and pose instructions precisely", gradient: ["#0ea5e9", "#f472b6", "#fef08a"], icon: "sun" },
-  { id: "nsfw_beach", cat: "nsfw", adminOnly: true, tier: "light", textEngine: "flux", editEngine: "kontext", label: "Beach Lifestyle", labelEn: "Beach Lifestyle", desc: "Areia, ondas, golden hour na praia", descEn: "Sand, waves, beach golden hour", suffix: "beach lifestyle mature photography, ocean backdrop, golden hour sand and waves, relaxed sensual vacation mood, natural sunlight", gradient: ["#fbbf24", "#38bdf8", "#fef3c7"], icon: "sun" },
-  { id: "nsfw_lingerie_soft", cat: "nsfw", adminOnly: true, tier: "light", textEngine: "flux", editEngine: "kontext", label: "Lingerie Soft", labelEn: "Soft Lingerie", desc: "Renda suave, luz romântica, editorial", descEn: "Soft lace, romantic light, editorial", suffix: "soft lingerie editorial photography, delicate lace fabrics, romantic window light, elegant mature boudoir atmosphere, artistic not explicit", gradient: ["#fce7f3", "#f9a8d4", "#831843"], icon: "gem" },
-  { id: "nsfw_fitness_glam", cat: "nsfw", adminOnly: true, tier: "light", textEngine: "flux", editEngine: "kontext", label: "Fitness Glam", labelEn: "Fitness Glam", desc: "Sporty, corpo atlético, activewear", descEn: "Sporty, athletic body, activewear", suffix: "fitness glamour photography, athletic mature physique, sporty activewear or bikini, gym or studio lighting, energetic sensual editorial", gradient: ["#dc2626", "#1e293b", "#f97316"], icon: "zap" },
-  { id: "nsfw_boudoir", cat: "nsfw", adminOnly: true, tier: "light", textEngine: "flux", editEngine: "kontext", label: "Boudoir", labelEn: "Boudoir", desc: "Retrato íntimo artístico", descEn: "Artistic intimate portrait", suffix: "artistic boudoir photography style, intimate mood, soft romantic lighting, elegant sensual atmosphere, mature artistic portrait", gradient: ["#1e1b4b", "#be185d", "#fce7f3"], icon: "gem" },
-  { id: "nsfw_pinup", cat: "nsfw", adminOnly: true, tier: "light", textEngine: "flux", editEngine: "kontext", label: "Pin-up Glam", labelEn: "Pin-up Glam", desc: "Glamour retro sensual", descEn: "Sensual retro glam", suffix: "glamorous pin-up photography style, retro sensual pose, studio beauty lighting, mature editorial glamour", gradient: ["#9f1239", "#fbbf24", "#1e3a8a"], icon: "sparkles" },
-  { id: "nsfw_dark", cat: "nsfw", adminOnly: true, tier: "light", textEngine: "flux", editEngine: "kontext", label: "Dark Sensual", labelEn: "Dark Sensual", desc: "Mood sombrio sensual", descEn: "Dark sensual mood", suffix: "dark sensual artistic photography, moody shadows, mysterious mature atmosphere, cinematic intimate drama", gradient: ["#0a0a0a", "#4c0519", "#7c3aed"], icon: "moon" },
-  { id: "nsfw_fantasy", cat: "nsfw", adminOnly: true, tier: "light", textEngine: "flux", editEngine: "kontext", label: "Fantasy Pin-up", labelEn: "Fantasy Pin-up", desc: "Fantasia mature ilustrada", descEn: "Mature fantasy illustration", suffix: "fantasy pin-up illustration, heroic mature fantasy character, stylized sensual fantasy art, digital painting", gradient: ["#312e81", "#ec4899", "#fbbf24"], icon: "star" },
-  // —— AI Lab pesado (admin) ——
-  { id: "nsfw_sheer", cat: "nsfw", adminOnly: true, tier: "heavy", textEngine: "flux", editEngine: "kontext", label: "Sheer Editorial", labelEn: "Sheer Editorial", desc: "Tecidos transparentes, luz dramática", descEn: "Sheer fabrics, dramatic light", suffix: "sheer fabric mature editorial photography, translucent textiles, dramatic studio lighting, high-fashion sensual art direction, explicit artistic mood", gradient: ["#1e1b4b", "#a855f7", "#fdf4ff"], icon: "sparkles" },
-  { id: "nsfw_figure_study", cat: "nsfw", adminOnly: true, tier: "heavy", textEngine: "flux", editEngine: "kontext", label: "Figure Study", labelEn: "Figure Study", desc: "Nu artístico clássico, estudo de luz", descEn: "Classical artistic nude, light study", suffix: "classical figure study fine art photography, artistic nude form, museum lighting, sculptural body composition, mature fine art nude", gradient: ["#292524", "#78716c", "#fef3c7"], icon: "frame" },
-  { id: "nsfw_explicit_art", cat: "nsfw", adminOnly: true, tier: "heavy", textEngine: "flux", editEngine: "kontext", label: "Explicit Art", labelEn: "Explicit Art", desc: "Arte adulta explícita controlada", descEn: "Controlled explicit adult art", suffix: "explicit mature fine art photography, adult artistic nudity, bold sensual composition, gallery explicit art direction, follow user instructions for pose and framing", gradient: ["#450a0a", "#be123c", "#0a0a0a"], icon: "gem" },
-  { id: "nsfw_intimate_couple", cat: "nsfw", adminOnly: true, tier: "heavy", label: "Intimate Couple", labelEn: "Intimate Couple", desc: "Casal íntimo, mood cinematográfico", descEn: "Intimate couple, cinematic mood", suffix: "intimate couple mature photography, romantic sensual connection, cinematic bedroom or hotel mood, warm skin tones, editorial adult romance", gradient: ["#4c0519", "#7c2d12", "#fbbf24"], icon: "sparkles" },
-  { id: "nsfw_cosplay", cat: "nsfw", adminOnly: true, tier: "light", label: "Cosplay Mature", labelEn: "Mature Cosplay", desc: "Personagem sensual, fantasia", descEn: "Sensual character cosplay", suffix: "mature cosplay photography, detailed costume, playful sensual pose, convention or studio lighting, follow user character and outfit", gradient: ["#312e81", "#ec4899", "#22d3ee"], icon: "star" },
-  { id: "nsfw_wet_look", cat: "nsfw", adminOnly: true, tier: "light", label: "Wet Look", labelEn: "Wet Look", desc: "Pele molhada, shower ou piscina", descEn: "Wet skin, shower or pool", suffix: "wet look mature photography, glistening skin, water droplets, shower or pool scene, sensual editorial lighting", gradient: ["#0c4a6e", "#38bdf8", "#1e293b"], icon: "droplet" },
-  { id: "nsfw_stockings", cat: "nsfw", adminOnly: true, tier: "light", label: "Stockings & Heels", labelEn: "Stockings & Heels", desc: "Meias, ligas, salto alto", descEn: "Stockings, garters, heels", suffix: "stockings and high heels mature fashion photography, legs focus, luxury boudoir styling, follow user hosiery color", gradient: ["#1e1b4b", "#f472b6", "#0a0a0a"], icon: "gem" },
-  { id: "nsfw_oil_body", cat: "nsfw", adminOnly: true, tier: "heavy", label: "Oil & Gloss Body", labelEn: "Oil & Gloss Body", desc: "Óleo na pele, brilho corporal", descEn: "Oiled glossy skin", suffix: "add glossy wet oily skin sheen with specular highlights on shoulders arms legs and torso, cinematic studio key and rim light, keep same face and body", gradient: ["#422006", "#fbbf24", "#1c1917"], icon: "sun" },
-  {
-    id: "nsfw_oil_render",
-    cat: "nsfw",
-    adminOnly: true,
-    tier: "heavy",
-    labBadge: "OIL",
-    label: "Oil 3D Masterpiece",
-    labelEn: "Oil 3D Masterpiece",
-    desc: "Pele óleo ultra detalhada, render 3D cinematográfico",
-    descEn: "Ultra detailed oily skin, cinematic 3D render",
-    suffix:
-      "masterpiece, best quality, ultra detailed semi-realistic 3D character render, full body view, stylized realism hybrid, highly detailed skin over entire body, glossy wet skin, oily specular highlights across shoulders arms legs and torso, visible pores and micro skin texture, subtle imperfections, natural color variation, soft subsurface scattering, realistic skin translucency, reflective sweat sheen, physically based rendering, athletic feminine physique, natural muscle definition, smooth curves, cinematic studio lighting, strong key light soft fill rim light outlining silhouette, high contrast reflections, clean soft shadows, HDR lighting, unreal engine 5 octane render quality, sharp focus, high resolution, depth of field, neutral background",
-    gradient: ["#422006", "#fbbf24", "#78716c"],
-    icon: "gem",
-  },
-  { id: "nsfw_explicit_pose", cat: "nsfw", adminOnly: true, tier: "heavy", label: "Explicit Pose", labelEn: "Explicit Pose", desc: "Pose adulta explícita — segue prompt", descEn: "Explicit adult pose — follows prompt", suffix: "explicit adult pose photography, full mature nudity allowed, follow user pose and framing exactly, high detail skin", gradient: ["#450a0a", "#1e1b4b", "#f43f5e"], icon: "camera" },
 ];
 
 export const ARTISTIC_EFFECT_SECTIONS = [
@@ -187,6 +141,10 @@ export const ARTISTIC_EFFECT_SECTIONS = [
       { id: "butterfly", label: "Butterfly Lighting", labelEn: "Butterfly Lighting", prompt: "butterfly lighting from above" },
       { id: "rim", label: "Rim Light", labelEn: "Rim Light", prompt: "pronounced rim light edge separation" },
       { id: "silhouette", label: "Silhueta", labelEn: "Silhouette", prompt: "silhouette against bright background" },
+      { id: "candlelight", label: "Luz de Vela", labelEn: "Candlelight", prompt: "warm flickering candlelight illumination" },
+      { id: "neon_rim", label: "Neon Rim", labelEn: "Neon Rim", prompt: "neon colored rim light on edges" },
+      { id: "overcast", label: "Céu Nublado", labelEn: "Overcast Sky", prompt: "soft overcast diffused daylight" },
+      { id: "hard_flash", label: "Flash Direto", labelEn: "Direct Flash", prompt: "direct on-camera flash aesthetic" },
     ],
   },
   {
@@ -229,6 +187,10 @@ export const ARTISTIC_EFFECT_SECTIONS = [
       { id: "leaks", label: "Light Leaks", labelEn: "Light Leaks", prompt: "analog light leak overlays" },
       { id: "ca", label: "Chromatic Aberration", labelEn: "Chromatic Aberration", prompt: "subtle chromatic aberration fringing" },
       { id: "flare", label: "Lens Flare", labelEn: "Lens Flare", prompt: "cinematic lens flare" },
+      { id: "smoke", label: "Fumo/Smoke", labelEn: "Smoke", prompt: "atmospheric smoke haze in the scene" },
+      { id: "aurora", label: "Aurora Boreal", labelEn: "Aurora", prompt: "subtle aurora borealis glow in sky background" },
+      { id: "fireflies", label: "Vaga-lumes", labelEn: "Fireflies", prompt: "tiny glowing fireflies in the atmosphere" },
+      { id: "petals", label: "Pétalas", labelEn: "Falling Petals", prompt: "soft falling flower petals in the air" },
     ],
   },
   {
@@ -248,6 +210,38 @@ export const ARTISTIC_EFFECT_SECTIONS = [
       { id: "neon_mood", label: "Neon", labelEn: "Neon", prompt: "neon saturated color mood" },
       { id: "sepia", label: "Sepia", labelEn: "Sepia", prompt: "sepia color wash on the overall image (same face age)" },
       { id: "teal_orange", label: "Teal/Orange Cinema", labelEn: "Teal/Orange Cinema", prompt: "teal and orange cinematic color grade" },
+      { id: "high_key", label: "High Key", labelEn: "High Key", prompt: "bright high-key exposure, airy whites" },
+      { id: "low_key", label: "Low Key", labelEn: "Low Key", prompt: "dark low-key moody exposure" },
+      { id: "earthy", label: "Tons Terrosos", labelEn: "Earthy Tones", prompt: "earthy natural brown and green tones" },
+      { id: "cinematic_bleach", label: "Bleach Bypass", labelEn: "Bleach Bypass", prompt: "bleach bypass cinematic desaturated contrast" },
+    ],
+  },
+  {
+    id: "texture",
+    title: "Textura",
+    titleEn: "Texture",
+    type: "radio",
+    icon: "brush",
+    options: [
+      { id: "matte", label: "Mate", labelEn: "Matte", prompt: "matte non-reflective surface finish" },
+      { id: "glossy", label: "Brilho", labelEn: "Glossy", prompt: "glossy reflective polished finish" },
+      { id: "film", label: "Película", labelEn: "Film Stock", prompt: "analog film stock texture on the image" },
+      { id: "canvas", label: "Tela", labelEn: "Canvas", prompt: "visible canvas weave texture overlay" },
+      { id: "paper", label: "Papel", labelEn: "Paper", prompt: "fine art paper grain texture" },
+    ],
+  },
+  {
+    id: "composition",
+    title: "Composição",
+    titleEn: "Composition",
+    type: "radio",
+    icon: "frame",
+    options: [
+      { id: "rule_thirds", label: "Regra dos Terços", labelEn: "Rule of Thirds", prompt: "rule of thirds balanced composition" },
+      { id: "centered", label: "Centrado", labelEn: "Centered", prompt: "symmetrical centered subject composition" },
+      { id: "close_up", label: "Close-up", labelEn: "Close-up", prompt: "tight close-up framing on face" },
+      { id: "wide", label: "Plano Aberto", labelEn: "Wide Shot", prompt: "wide environmental shot with subject in scene" },
+      { id: "profile", label: "Perfil", labelEn: "Profile", prompt: "elegant side profile composition" },
     ],
   },
 ];

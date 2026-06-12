@@ -2083,12 +2083,10 @@ async function routePost(path, fields, files, req) {
     await requireAdminSession(req);
     const {
       applyPresetPrefix,
-      resolveVideoEditToolId,
       MODELS: VIDEO_MODELS,
     } = require("./lib/videoModels.cjs");
     const lang = text(fields, "lang", "en").slice(0, 2);
     const preset = text(fields, "video_preset", "").trim();
-    const editTool = resolveVideoEditToolId(text(fields, "video_tool", "kling_edit"));
     let rawPrompt = text(fields, "prompt", "").trim();
     if (preset && rawPrompt.length >= 3) {
       rawPrompt = applyPresetPrefix(preset, rawPrompt);
@@ -2103,55 +2101,36 @@ async function routePost(path, fields, files, req) {
         });
       }
     }
-    const useWan = editTool === "wan_edit";
-    const useGrok = editTool === "grok_edit";
-    let input;
-    let prompt;
-    if (useWan) {
-      ({ input, prompt } = await videoEditInput(fields, files));
-    } else if (useGrok) {
-      ({ input, prompt } = await grokVideoEditInput(fields, files));
-    } else {
-      ({ input, prompt } = await klingVideoEditInput(fields, files));
-    }
+    const { input, prompt } = await videoEditInput(fields, files);
     const surcharges = getSurcharges(region);
     const { validateVideoEditOptions, computeVideoEditCostForEngine } = require("./lib/videoEditPricing.cjs");
     const resOpts = validateVideoEditOptions({
       resolution: text(fields, "resolution", "original"),
       duration: text(fields, "duration", "6"),
-      engine: editTool,
     });
-    let cost = computeVideoEditCostForEngine(CREDIT, surcharges, editTool, resOpts);
+    let cost = computeVideoEditCostForEngine(CREDIT, surcharges, "wan_edit", resOpts);
     if (truthyField(fields, "improve_prompt")) {
       cost += surcharges.enhancePrompt ?? 5;
     }
     const { isValidEmail } = require("./lib/videoNotifyEmail.cjs");
-    const wantsNotify = truthyField(fields, "notify_by_email")
-      || Boolean(String(text(fields, "notify_email", "")).trim());
     let notifyEmail = null;
-    if (wantsNotify) {
-      const session = resolveSessionUser(req);
-      const explicit = String(text(fields, "notify_email", "")).trim().toLowerCase();
-      if (isValidEmail(explicit)) {
-        notifyEmail = explicit;
-      } else if (session.user?.id && storageEnabled() && !session.isLocal) {
-        const dbUser = await getUserById(session.user.id);
-        const fromDb = String(dbUser?.email || "").trim().toLowerCase();
-        if (isValidEmail(fromDb)) notifyEmail = fromDb;
-      }
+    const session = resolveSessionUser(req);
+    const explicit = String(text(fields, "notify_email", "")).trim().toLowerCase();
+    if (isValidEmail(explicit)) {
+      notifyEmail = explicit;
+    } else if (session.user?.id && storageEnabled() && !session.isLocal) {
+      const dbUser = await getUserById(session.user.id);
+      const fromDb = String(dbUser?.email || "").trim().toLowerCase();
+      if (isValidEmail(fromDb)) notifyEmail = fromDb;
     }
-    const modelId = useWan
-      ? MODELS.video_edit
-      : useGrok
-        ? VIDEO_MODELS.grok_edit
-        : VIDEO_MODELS.kling_edit;
+    const modelId = VIDEO_MODELS.wan_edit;
     return submitBillableGeneration(req, fields, {
       cost,
       type: "video",
       modelId,
       input,
       prompt,
-      aspectRatio: useWan ? input.aspect_ratio : "auto",
+      aspectRatio: input.aspect_ratio,
       modelUsed: modelId,
       spendDescription: "Editor vídeo",
       notifyEmail,

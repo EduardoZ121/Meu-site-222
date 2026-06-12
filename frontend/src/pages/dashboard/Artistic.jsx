@@ -12,7 +12,6 @@ import { computeArtisticEffectSurcharge } from "../../lib/creditPricing";
 import { toast } from "sonner";
 import { apiAspectRatio } from "../../lib/apiAspectRatio";
 import ArtisticStyleCard from "../../components/artistic/ArtisticStyleCard";
-import ArtisticLabStyleCard from "../../components/artistic/ArtisticLabStyleCard";
 import ArtisticEffectOption from "../../components/artistic/ArtisticEffectOption";
 import DraggableRecipeBubble from "../../components/artistic/DraggableRecipeBubble";
 import ArtisticStudioHeader from "../../components/artistic/ArtisticStudioHeader";
@@ -26,7 +25,6 @@ import { pushArtisticPromptHistory } from "../../lib/artisticPromptHistory";
 import { localizeArtisticCatalog } from "../../lib/artisticStudioLocales";
 import { canAccessNsfwArtisticStyles } from "../../lib/artisticStudioData";
 import { isArtisticExperimentalStyle } from "../../lib/artisticLabStyles";
-import { ARTISTIC_LAB_MODEL_LABEL } from "../../lib/artisticStudioEngines";
 import {
   buildArtisticStudioPrompt,
   buildRecipeChips,
@@ -46,6 +44,8 @@ const SECTION_ICONS = {
   lens: Camera,
   cloud: Cloud,
   palette: Palette,
+  brush: Palette,
+  frame: Sparkles,
 };
 
 export default function Artistic() {
@@ -115,24 +115,6 @@ export default function Artistic() {
     [catalog.styles, styleCat],
   );
 
-  const isLabCategory = styleCat === "nsfw";
-  const labPresets = useMemo(
-    () => stylesInCat.filter((s) => s.labPreset),
-    [stylesInCat],
-  );
-  const classicExperimental = useMemo(
-    () => stylesInCat.filter((s) => !s.labPreset),
-    [stylesInCat],
-  );
-  const labLightStyles = useMemo(
-    () => classicExperimental.filter((s) => s.tier !== "heavy"),
-    [classicExperimental],
-  );
-  const labHeavyStyles = useMemo(
-    () => classicExperimental.filter((s) => s.tier === "heavy"),
-    [classicExperimental],
-  );
-
   const isLabStyle = useMemo(
     () => isArtisticExperimentalStyle(styleId),
     [styleId],
@@ -169,10 +151,6 @@ export default function Artistic() {
       setStyleId(id);
       setMobileTab("generate");
       const picked = catalog.styles.find((s) => s.id === id);
-      if (picked?.cat === "nsfw" && inputMode !== "image") {
-        setInputMode("image");
-        toast.message(t("art_lab_image_hint"));
-      }
       if (picked?.cat === "photography" && inputMode !== "image") {
         setInputMode("image");
         toast.message(t("art_photo_image_hint"));
@@ -379,54 +357,12 @@ export default function Artistic() {
       />
       <p className="text-[#9CA3AF] text-[10px] font-mono uppercase tracking-[0.14em] mb-3">
         {catalog.categories.find((c) => c.id === styleCat)?.label}
-        {includeNsfw ? ` · ${t("art_nsfw_admin_badge")}` : ""}
       </p>
-      {isLabCategory && includeNsfw ? (
-        <div className="art-lab-panel mb-4 rounded-xl border border-[rgba(236,72,153,0.25)] bg-gradient-to-br from-[#1a0a1f]/80 via-[#111118] to-[#0a0a0f] p-3 md:p-4 max-h-[min(calc(100dvh-12rem),720px)] overflow-y-auto overflow-x-hidden">
-          <p className="text-[#f0abfc] text-[11px] font-semibold mb-1">{t("art_lab_title")}</p>
-          <p className="text-[#6B7280] text-[9px] font-mono uppercase tracking-wider mb-1">
-            {t("art_lab_engine_note", { model: ARTISTIC_LAB_MODEL_LABEL })}
-          </p>
-          <p className="text-[#9CA3AF] text-[10px] leading-snug mb-3">{t("art_lab_desc")}</p>
-          <div className="art-lab-scroll flex gap-2.5 overflow-x-auto pb-2 w-full min-w-0 snap-x snap-mandatory [-webkit-overflow-scrolling:touch] md:grid md:grid-cols-2 md:gap-2.5 md:overflow-visible md:pb-0 lg:grid-cols-2">
-            {labPresets.map((s) => (
-              <div key={s.id} className="snap-start shrink-0 w-[min(72vw,220px)] md:w-auto md:shrink">
-                <ArtisticLabStyleCard style={s} selected={styleId === s.id} onSelect={selectStyle} />
-              </div>
-            ))}
-          </div>
-          {labLightStyles.length > 0 && (
-            <>
-              <p className="text-[#6B7280] text-[9px] font-mono uppercase tracking-[0.16em] mt-4 mb-2">
-                {t("art_lab_light_row")}
-              </p>
-              <div className="art-studio-styles-grid !max-h-none">
-                {labLightStyles.map((s) => (
-                  <ArtisticStyleCard key={s.id} style={s} selected={styleId === s.id} onSelect={selectStyle} />
-                ))}
-              </div>
-            </>
-          )}
-          {labHeavyStyles.length > 0 && (
-            <>
-              <p className="text-[#6B7280] text-[9px] font-mono uppercase tracking-[0.16em] mt-4 mb-2">
-                {t("art_lab_heavy_row")}
-              </p>
-              <div className="art-studio-styles-grid !max-h-none">
-                {labHeavyStyles.map((s) => (
-                  <ArtisticStyleCard key={s.id} style={s} selected={styleId === s.id} onSelect={selectStyle} />
-                ))}
-              </div>
-            </>
-          )}
-        </div>
-      ) : (
-        <div className="art-studio-styles-grid">
-          {stylesInCat.map((s) => (
-            <ArtisticStyleCard key={s.id} style={s} selected={styleId === s.id} onSelect={selectStyle} />
-          ))}
-        </div>
-      )}
+      <div className="art-studio-styles-grid">
+        {stylesInCat.map((s) => (
+          <ArtisticStyleCard key={s.id} style={s} selected={styleId === s.id} onSelect={selectStyle} />
+        ))}
+      </div>
     </>
   );
 

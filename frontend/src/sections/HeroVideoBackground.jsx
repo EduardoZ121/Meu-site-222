@@ -1,6 +1,6 @@
 import { useEffect, useRef } from "react";
 
-const VIDEO_SRC = "/videos/hero-bg.mp4?v=1";
+const VIDEO_SRC = "/videos/hero-bg.mp4?v=2";
 const POSTER = "/images/hero-bg.jpg?v=14";
 
 export default function HeroVideoBackground() {
@@ -33,7 +33,7 @@ export default function HeroVideoBackground() {
         ref={videoRef}
         src={VIDEO_SRC}
         poster={POSTER}
-        className="w-full h-full object-cover object-[center_42%] opacity-[0.38]"
+        className="w-full h-full object-cover object-[center_42%] opacity-[0.50]"
         autoPlay
         muted
         loop

@@ -25,7 +25,7 @@ export default function Hero() {
         <HeroVideoBackground />
         <div className="hero-aurora hero-aurora--static absolute inset-0" aria-hidden />
         {/* Vignette + tighter bottom fade for premium feel */}
-        <div className="absolute inset-0 bg-gradient-to-b from-[#0B0B0C]/85 via-[#0B0B0C]/45 to-[#0B0B0C]" />
+        <div className="absolute inset-0 bg-gradient-to-b from-[#0B0B0C]/75 via-[#0B0B0C]/35 to-[#0B0B0C]/90" />
         <div className="absolute inset-0 bg-[radial-gradient(120%_60%_at_50%_30%,rgba(124,58,237,0.18),transparent_60%)]" aria-hidden />
       </div>
       <HeroFloatingPreviews />

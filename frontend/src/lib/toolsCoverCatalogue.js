@@ -3,11 +3,11 @@
  */
 
 const IMAGE_COVERS = {
-  studio: "/images/tools/studio.jpg",
-  clothes: "/images/tools/clothes.jpg",
-  pro: "/images/tools/pro.jpg",
+  studio: "/images/tools/studio.mp4",
+  clothes: "/images/tools/clothes.mp4",
+  pro: "/images/tools/pro.mp4",
   art: "/images/tools/art.jpg",
-  bg_remove: "/images/tools/bg_remove.jpg",
+  bg_remove: "/images/tools/bg_remove.mp4",
   upscale: "/images/tools/upscale.jpg",
   restore: "/images/tools/restore.jpg",
   colorize: "/images/tools/colorize.jpg",
@@ -37,6 +37,7 @@ const VIDEO_COVERS = {
 
 /** Capas em vídeo (autoplay nas grelhas). */
 export const VIDEO_COVER_IDS = new Set(["text-fast", "image", "edit"]);
+export const IMAGE_VIDEO_COVER_IDS = new Set(["studio", "clothes", "pro", "bg_remove"]);
 
 /** Posição do crop — útil quando a cena principal não está ao centro */
 const OBJECT_POSITION = {
@@ -58,7 +59,7 @@ const OBJECT_POSITION = {
 };
 
 /** Bump quando substituir capas — evita cache antigo no browser */
-const COVER_VERSION = "5";
+const COVER_VERSION = "6";
 
 function withVersion(path) {
   return `${path}?v=${COVER_VERSION}`;
@@ -76,10 +77,25 @@ export function getVideoToolPoster(id) {
   return withVersion(`/images/tools/video/${id}.jpg`);
 }
 
+export function getImageToolPoster(id) {
+  return withVersion(`/images/tools/${id}.jpg`);
+}
+
+export function getToolPoster(id, tier = "image") {
+  if (tier === "video") return getVideoToolPoster(id);
+  return getImageToolPoster(id);
+}
+
 export function isVideoToolCover(id, tier = "video") {
-  if (tier !== "video" || !VIDEO_COVER_IDS.has(id)) return false;
-  const path = VIDEO_COVERS[id] || "";
-  return /\.(mp4|webm)$/i.test(path);
+  const coverPath =
+    tier === "video"
+      ? VIDEO_COVER_IDS.has(id)
+        ? VIDEO_COVERS[id]
+        : ""
+      : IMAGE_VIDEO_COVER_IDS.has(id)
+        ? IMAGE_COVERS[id]
+        : "";
+  return /\.(mp4|webm)$/i.test(coverPath || "");
 }
 
 export function getToolCover(id, tier = "image") {

@@ -5,7 +5,7 @@ import { Pin, Sparkles } from "lucide-react";
 import {
   getToolCover,
   getToolCoverPosition,
-  getVideoToolPoster,
+  getToolPoster,
   isVideoToolCover,
 } from "../../lib/toolsCoverCatalogue";
 import { cn } from "../../lib/utils";
@@ -16,7 +16,7 @@ function CoverMedia({ id, tier }) {
   const src = getToolCover(id, tier);
   const objectPosition = getToolCoverPosition(id);
   const useVideo = isVideoToolCover(id, tier);
-  const poster = useVideo ? getVideoToolPoster(id) : null;
+  const poster = useVideo ? getToolPoster(id, tier) : null;
   const [loaded, setLoaded] = useState(false);
   const [errored, setErrored] = useState(false);
   const mediaRef = useRef(null);

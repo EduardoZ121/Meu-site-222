@@ -46,6 +46,20 @@ function appendPhotoEditIdentity(prompt) {
   return `${base}\n\n${PHOTO_EDIT_IDENTITY_BLOCK}`;
 }
 
+/** Pro retouch: block models from adding wrinkles/pores that age the subject. */
+const PRO_RETOUCH_AGE_GUARD =
+  "PRO RETOUCH — AGE LOCK (mandatory): Keep the exact same apparent age as the reference — never older, never younger. "
+  + "Do not add or amplify wrinkles, smile lines, crow's feet, forehead lines, nasolabial folds, under-eye hollows, "
+  + "neck lines, sagging, or aged skin texture. Do not add visible pores or harsh micro-detail unless already clear "
+  + "in the original photo. Use flattering beauty-retouch skin: even tone, healthy natural glow, soft realistic finish. "
+  + "Same person, same age, same core expression unless this preset explicitly changes expression only.";
+
+function appendProRetouchIdentity(prompt) {
+  let base = appendPhotoEditIdentity(prompt);
+  if (base.includes("PRO RETOUCH — AGE LOCK")) return base;
+  return `${base}\n\n${PRO_RETOUCH_AGE_GUARD}`;
+}
+
 function upgradePadraoPrompt(prompt) {
   let out = String(prompt || "");
   if (out.includes(PADRAO_IDENTITY_TRAIL)) return out;
@@ -228,6 +242,8 @@ module.exports = {
   LEGACY_POSTER_REFERENCE_PERSON,
   LEGACY_POSTER_REFERENCE_FOOD,
   appendPhotoEditIdentity,
+  appendProRetouchIdentity,
+  PRO_RETOUCH_AGE_GUARD,
   upgradePadraoPrompt,
   buildMangaDualCharacterBlock,
   buildMangaComicSheetBlock,

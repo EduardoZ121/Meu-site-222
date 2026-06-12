@@ -59,6 +59,7 @@ const PADRAO_STYLES_LIST = require("./lib/padraoStylesData.cjs");
 const { finalizeImagePrompt } = require("./lib/imageQualityPrompts.cjs");
 const {
   appendPhotoEditIdentity,
+  appendProRetouchIdentity,
   upgradePadraoPrompt,
   buildMangaDualCharacterBlock,
   buildMangaComicSheetBlock,
@@ -1638,10 +1639,13 @@ async function routePost(path, fields, files, req) {
       || "Professional portrait retouch. Preserve identity and natural facial features.";
     if (extra) prompt += `\n\nAdditional instructions: ${extra}`;
     if (Number.isFinite(intensity)) {
-      if (intensity < 34) prompt += "\n\nApply a very subtle, gentle enhancement.";
-      else if (intensity > 66) prompt += "\n\nApply a stronger visible enhancement while strictly preserving identity.";
+      if (intensity < 34) {
+        prompt += "\n\nApply a very subtle, gentle enhancement. Do not change apparent age or add facial lines.";
+      } else if (intensity > 66) {
+        prompt += "\n\nApply a stronger visible enhancement while strictly preserving identity and exact apparent age — never add wrinkles, aged texture, or make the subject look older.";
+      }
     }
-    prompt = appendPhotoEditIdentity(prompt);
+    prompt = appendProRetouchIdentity(prompt);
     const input = await imageInput(fields, files, "pro", prompt);
     return submitBillableGeneration(req, fields, {
       cost: CREDIT.pro,

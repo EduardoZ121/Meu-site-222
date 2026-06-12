@@ -54,7 +54,7 @@ export default function Pro() {
   const [preset, setPreset] = useState("ultra_real");
   const [photo, setPhoto] = useState(null);
   const [aspect, setAspect] = usePhotoAspectDefault(photo, "4:5", "4:5");
-  const [intensity, setIntensity] = useState(70);
+  const [intensity, setIntensity] = useState(55);
   const [customPrompt, setCustomPrompt] = useState("");
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState(null);

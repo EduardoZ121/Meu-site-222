@@ -5,6 +5,7 @@ import { useI18n } from "../lib/i18n";
 import { useAuth } from "../lib/auth";
 import HeroFloatingPreviews from "../components/landing/HeroFloatingPreviews";
 import HeroScrollCue from "../components/landing/HeroScrollCue";
+import HeroVideoBackground from "./HeroVideoBackground";
 
 const EASE = [0.16, 1, 0.3, 1];
 
@@ -21,12 +22,7 @@ export default function Hero() {
     >
       {/* Backdrop layers */}
       <div className="absolute inset-0 z-0">
-        <img
-          src="/images/hero-bg.jpg?v=13"
-          alt=""
-          className="w-full h-full object-cover opacity-[0.38]"
-          draggable={false}
-        />
+        <HeroVideoBackground />
         <div className="hero-aurora hero-aurora--static absolute inset-0" aria-hidden />
         {/* Vignette + tighter bottom fade for premium feel */}
         <div className="absolute inset-0 bg-gradient-to-b from-[#0B0B0C]/85 via-[#0B0B0C]/45 to-[#0B0B0C]" />

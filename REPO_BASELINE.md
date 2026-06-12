@@ -40,7 +40,7 @@ Capa nova → **sempre** `frontend/public/images/hero-bg.jpg`.
 
 - `src/`, `components/`, `public/` na raiz — cópias CRA antigas
 - `frontend/frontend/` — clone Emergent duplicado
-- `frontend/vercel.json` — deploy usa só `vercel.json` na raiz
+- `frontend/vercel.json` — **obrigatório** se o projeto Vercel tiver Root Directory = `frontend` (config atual do remakepix)
 - `test_reports/`, `memory/`, `plan.md` — artefactos internos (histórico em `docs/PRD.md`)
 
 ## Antes de push

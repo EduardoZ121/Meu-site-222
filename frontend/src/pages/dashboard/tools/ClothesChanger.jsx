@@ -12,6 +12,7 @@ import PromptEnhanceToggle from "../../../components/promptAssist/PromptEnhanceT
 import ResultPanel from "../../../components/ResultPanel";
 import ImageUploadZone from "../../../components/ImageUploadZone";
 import CollapsibleSection from "../../../components/CollapsibleSection";
+import StudioHelpTip from "../../../components/studio/StudioHelpTip";
 import StudioResultAnchor from "../../../components/StudioResultAnchor";
 import useTitle from "../../../lib/useTitle";
 import { useI18n } from "../../../lib/i18n";
@@ -135,21 +136,26 @@ export default function ClothesChanger() {
   return (
     <div className="max-w-[1400px] mx-auto pb-32" data-testid="clothes-page">
       <header className="mb-8 md:mb-10">
-        <div className="flex items-center gap-3 mb-3">
-          <div className="w-9 h-9 rounded-full bg-[#7C3AED]/15 flex items-center justify-center">
-            <Shirt className="w-4 h-4 text-[#C4B5FD]" strokeWidth={1.5} />
+        <div className="flex items-start justify-between gap-3">
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-3 mb-3">
+              <div className="w-9 h-9 rounded-full bg-[#7C3AED]/15 flex items-center justify-center">
+                <Shirt className="w-4 h-4 text-[#C4B5FD]" strokeWidth={1.5} />
+              </div>
+              <p className="text-[#7C3AED] text-[10px] font-mono uppercase tracking-[0.22em]">{tCat("tool_clothes_name")}</p>
+            </div>
+            <h1 className="text-[#F4F1EA] text-[32px] md:text-[44px] font-light tracking-[-0.02em] leading-[1.1] mb-3 font-['Inter_Tight']">
+              {tCat("tool_clothes_name")}
+            </h1>
+            <p className="text-[#8A8A8E] text-[15px] max-w-[640px]">{t("clothes_changer.description")}</p>
           </div>
-          <p className="text-[#7C3AED] text-[10px] font-mono uppercase tracking-[0.22em]">{tCat("tool_clothes_name")}</p>
+          <StudioHelpTip helpKey="help_tool_clothes" size="lg" testId="clothes-page-help" className="mt-1 shrink-0" />
         </div>
-        <h1 className="text-[#F4F1EA] text-[32px] md:text-[44px] font-light tracking-[-0.02em] leading-[1.1] mb-3 font-['Inter_Tight']">
-          {tCat("tool_clothes_name")}
-        </h1>
-        <p className="text-[#8A8A8E] text-[15px] max-w-[640px]">{t("clothes_changer.description")}</p>
       </header>
 
       <div className="grid grid-cols-1 xl:grid-cols-[1fr_400px] gap-10">
         <div className="space-y-5">
-          <CollapsibleSection title={t("clothes_section_photos")} defaultOpen testId="clothes-section-photos">
+          <CollapsibleSection title={t("clothes_section_photos")} defaultOpen testId="clothes-section-photos" helpKey="help_sec_clothes_person">
             <div className="grid grid-cols-2 gap-3 max-w-[600px]">
               <PhotoBox
                 photo={photo}
@@ -170,7 +176,7 @@ export default function ClothesChanger() {
             </div>
           </CollapsibleSection>
 
-          <CollapsibleSection title={t("clothes_section_type")} testId="clothes-section-type">
+          <CollapsibleSection title={t("clothes_section_type")} testId="clothes-section-type" helpKey="help_sec_clothes_garment">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2" data-testid="change-types">
               {changeTypes.map((ct) => (
                 <button
@@ -191,7 +197,7 @@ export default function ClothesChanger() {
           </CollapsibleSection>
 
           {!garment && (
-            <CollapsibleSection title={t("clothes_section_presets")} optional testId="clothes-section-presets">
+            <CollapsibleSection title={t("clothes_section_presets")} optional testId="clothes-section-presets" helpKey="help_sec_presets">
               <div className="flex flex-wrap gap-2" data-testid="presets">
                 {STYLE_PRESETS.map((p) => (
                   <button
@@ -208,7 +214,7 @@ export default function ClothesChanger() {
           )}
 
           {!garment && (
-            <CollapsibleSection title={t("clothes_section_prompt")} testId="clothes-section-prompt">
+            <CollapsibleSection title={t("clothes_section_prompt")} testId="clothes-section-prompt" helpKey="help_sec_prompt">
               <div className="mb-3">
                 <PromptEnhanceToggle checked={improve} onChange={setImprove} testId="clothes-enhance" cost={enhanceCost} />
               </div>

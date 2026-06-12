@@ -27,7 +27,7 @@ function textPositions(t) {
 }
 
 export function PosterSection({
-  title, optional, hint, children, defaultOpen = false, testId,
+  title, optional, hint, children, defaultOpen = false, testId, helpKey,
 }) {
   return (
     <CollapsibleSection
@@ -37,6 +37,7 @@ export function PosterSection({
       defaultOpen={defaultOpen}
       testId={testId}
       variant="boxed"
+      helpKey={helpKey}
     >
       {children}
     </CollapsibleSection>

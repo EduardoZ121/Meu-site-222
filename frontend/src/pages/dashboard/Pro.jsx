@@ -25,9 +25,9 @@ import StudioPhotoUploadNotice, { isPhotoUploadBusy } from "../../components/stu
 import { useStudioGenerateGate } from "../../lib/useStudioGenerateGate";
 import { useStudioI18n } from "../../lib/useStudioI18n";
 
-function ProStep({ title, hint, children, defaultOpen = false }) {
+function ProStep({ title, hint, children, defaultOpen = false, helpKey }) {
   return (
-    <CollapsibleSection title={title} hint={hint} defaultOpen={defaultOpen}>
+    <CollapsibleSection title={title} hint={hint} defaultOpen={defaultOpen} helpKey={helpKey}>
       {children}
     </CollapsibleSection>
   );
@@ -138,11 +138,12 @@ export default function Pro() {
         title={`${t("pro_title_a")} ${t("pro_title_b")}${t("pro_title_dot")}`}
         description={t("pro_empty")}
         testId="pro-header"
+        helpKey="help_page_pro"
       />
 
       <div className="grid grid-cols-1 xl:grid-cols-[1fr_360px] gap-3 xl:gap-8">
         <div className="rp-studio-card-stack">
-            <ProStep title={t("pro_step_photo")} hint={t("pro_upload_hint")} defaultOpen>
+            <ProStep title={t("pro_step_photo")} hint={t("pro_upload_hint")} defaultOpen helpKey="help_sec_upload">
               <div className="max-w-[560px]">
                 <ImageUploadZone
                   value={photo}
@@ -157,7 +158,7 @@ export default function Pro() {
               </div>
             </ProStep>
 
-            <ProStep title={t("pro_step_family")}>
+            <ProStep title={t("pro_step_family")} helpKey="help_sec_presets">
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5" data-testid="pro-cats">
                 {cats.map((c) => (
                   <button
@@ -182,6 +183,7 @@ export default function Pro() {
             <ProStep
               title={t("pro_step_preset")}
               hint={pickedPreset ? pickedPreset.nome : undefined}
+              helpKey="help_sec_presets"
             >
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-2" data-testid="pro-presets">
                 {filtered.map((p) => {
@@ -211,7 +213,7 @@ export default function Pro() {
               </div>
             </ProStep>
 
-            <ProStep title={t("pro_step_intensity")}>
+            <ProStep title={t("pro_step_intensity")} helpKey="help_sec_intensity">
               <div
                 className="pro-intensity-track max-w-[520px]"
                 style={{ "--pro-intensity-pct": `${intensity}%` }}
@@ -245,7 +247,7 @@ export default function Pro() {
               </div>
             </ProStep>
 
-            <ProStep title={`${t("pro_step_extra")} (${t("studio_styles_optional")})`}>
+            <ProStep title={`${t("pro_step_extra")} (${t("studio_styles_optional")})`} helpKey="help_sec_custom_prompt">
               <textarea
                 value={customPrompt}
                 onChange={(e) => setCustomPrompt(e.target.value)}
@@ -257,7 +259,7 @@ export default function Pro() {
               />
             </ProStep>
 
-            <ProStep title={t("pro_step_format")}>
+            <ProStep title={t("pro_step_format")} helpKey="help_sec_format">
               <div className="max-w-[560px]">
                 <AspectPicker
                   value={aspect}

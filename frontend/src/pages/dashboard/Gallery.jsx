@@ -1,18 +1,60 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import {
-  Heart, Trash2, Download, X, Loader2, Eye, RefreshCw,
+  Heart, Trash2, Download, X, Loader2, Eye, RefreshCw, Film,
 } from "lucide-react";
 import { api, formatApiError } from "../../lib/api";
+import { useAuth } from "../../lib/auth";
 import { useI18n } from "../../lib/i18n";
 import { toast } from "sonner";
 import useTitle from "../../lib/useTitle";
 import GalleryMedia from "../../components/GalleryMedia";
-import { isVideoCreation, primaryResultUrl } from "../../lib/creationUrls";
-import { useCreationMedia } from "../../lib/useCreationMedia";
+import GalleryExtendModal from "../../components/gallery/GalleryExtendModal";
+import StudioHelpTip from "../../components/studio/StudioHelpTip";
+import { canAccessVideoFeatures } from "../../lib/isAdmin";
+import {
+  displayMediaUrl,
+  isVideoCreation,
+  primaryResultUrl,
+  proxiedMediaUrl,
+} from "../../lib/creationUrls";
+
+function dedupeCreations(list) {
+  const seenIds = new Set();
+  const seenUrls = new Set();
+  return (list || []).filter((c) => {
+    if (!c?.id || seenIds.has(c.id)) return false;
+    const url = primaryResultUrl(c);
+    if (url && seenUrls.has(url)) return false;
+    seenIds.add(c.id);
+    if (url) seenUrls.add(url);
+    return true;
+  });
+}
 
 function GalleryLightbox({ item, onClose, t }) {
-  const { src, broken, loading, isVideo } = useCreationMedia(item);
+  const rawUrl = primaryResultUrl(item);
+  const isVideo = isVideoCreation(item, rawUrl);
+  const [src, setSrc] = useState("");
+  const [broken, setBroken] = useState(false);
+  const [loaded, setLoaded] = useState(false);
+
+  useEffect(() => {
+    if (!item) return;
+    setBroken(false);
+    setLoaded(false);
+    setSrc(displayMediaUrl(rawUrl, false));
+  }, [item, rawUrl]);
+
+  const onMediaError = () => {
+    const proxy = proxiedMediaUrl(rawUrl);
+    if (proxy && src !== proxy) {
+      setSrc(proxy);
+      return;
+    }
+    setBroken(true);
+    setLoaded(true);
+  };
 
   if (!item) return null;
 
@@ -36,16 +78,29 @@ function GalleryLightbox({ item, onClose, t }) {
         className="relative max-w-5xl max-h-[90vh] w-full flex flex-col items-center"
         onClick={(e) => e.stopPropagation()}
       >
-        {loading && (
+        {!loaded && !broken && rawUrl && (
           <Loader2 className="w-8 h-8 text-white animate-spin" />
         )}
-        {!loading && src && !broken ? (
+        {src && !broken ? (
           isVideo ? (
-            <video src={src} controls autoPlay className="max-h-[80vh] max-w-full rounded-lg" />
+            <video
+              src={src}
+              controls
+              autoPlay
+              className="max-h-[80vh] max-w-full rounded-lg"
+              onError={onMediaError}
+              onLoadedData={() => setLoaded(true)}
+            />
           ) : (
-            <img src={src} alt="" className="max-h-[80vh] max-w-full object-contain rounded-lg" />
+            <img
+              src={src}
+              alt=""
+              className="max-h-[80vh] max-w-full object-contain rounded-lg"
+              onError={onMediaError}
+              onLoad={() => setLoaded(true)}
+            />
           )
-        ) : !loading ? (
+        ) : broken || !rawUrl ? (
           <p className="text-white/70 text-sm">{t("gal_file_unavailable")}</p>
         ) : null}
         <p className="mt-4 text-white/80 text-sm text-center max-w-xl line-clamp-4">{item.prompt}</p>
@@ -56,6 +111,8 @@ function GalleryLightbox({ item, onClose, t }) {
 
 export default function Gallery({ favoritesOnly = false }) {
   const { t } = useI18n();
+  const { user } = useAuth();
+  const videoExtendAccess = canAccessVideoFeatures(user);
   const [searchParams, setSearchParams] = useSearchParams();
   useTitle(favoritesOnly ? t("sidebar_favorites") : t("sidebar_gallery"));
   const [items, setItems] = useState([]);
@@ -63,6 +120,7 @@ export default function Gallery({ favoritesOnly = false }) {
   const [refreshing, setRefreshing] = useState(false);
   const [busyId, setBusyId] = useState(null);
   const [viewItem, setViewItem] = useState(null);
+  const [extendItem, setExtendItem] = useState(null);
   const loadingRef = useRef(false);
   const tRef = useRef(t);
 
@@ -78,7 +136,7 @@ export default function Gallery({ favoritesOnly = false }) {
     if (isBackground) setRefreshing(true);
     return api
       .get(`/generations/history?limit=60${favoritesOnly ? "&only_favorites=true" : ""}`)
-      .then((r) => setItems(r.data.creations || []))
+      .then((r) => setItems(dedupeCreations(r.data.creations)))
       .catch((err) => {
         if (!isBackground) toast.error(formatApiError(err, tRef.current("gal_load_fail")));
         setItems([]);
@@ -183,9 +241,12 @@ export default function Gallery({ favoritesOnly = false }) {
   return (
     <div className="max-w-[1200px] mx-auto" data-testid="gallery-page">
       <div className="mb-10 flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <p className="eyebrow mb-3">{favoritesOnly ? t("fav_eyebrow") : t("gal_eyebrow")}</p>
-          <h1 className="heading-xl">{favoritesOnly ? t("fav_title") : t("gal_title")}</h1>
+        <div className="flex items-start gap-3 flex-1 min-w-0">
+          <div>
+            <p className="eyebrow mb-3">{favoritesOnly ? t("fav_eyebrow") : t("gal_eyebrow")}</p>
+            <h1 className="heading-xl">{favoritesOnly ? t("fav_title") : t("gal_title")}</h1>
+          </div>
+          <StudioHelpTip helpKey="help_page_gallery" size="lg" testId="gallery-page-help" className="mt-6 shrink-0" />
         </div>
         <button
           type="button"
@@ -251,6 +312,18 @@ export default function Gallery({ favoritesOnly = false }) {
                   >
                     <Download className="w-3.5 h-3.5" />
                   </button>
+                  {videoExtendAccess && isVideoCreation(c) && hasMedia && (
+                    <button
+                      type="button"
+                      disabled={busy}
+                      onClick={() => setExtendItem(c)}
+                      className="min-h-10 min-w-10 flex items-center justify-center rounded border border-rp-border text-rp-text hover:border-[#A855F7] hover:text-[#A855F7] disabled:opacity-40"
+                      title={t("vid_extend_title")}
+                      data-testid={`gallery-extend-${c.id}`}
+                    >
+                      <Film className="w-3.5 h-3.5" />
+                    </button>
+                  )}
                   <button
                     type="button"
                     disabled={busy}
@@ -285,6 +358,13 @@ export default function Gallery({ favoritesOnly = false }) {
       )}
 
       <GalleryLightbox item={viewItem} onClose={() => setViewItem(null)} t={t} />
+      {extendItem && (
+        <GalleryExtendModal
+          item={extendItem}
+          onClose={() => setExtendItem(null)}
+          onStarted={() => load({ background: true })}
+        />
+      )}
     </div>
   );
 }

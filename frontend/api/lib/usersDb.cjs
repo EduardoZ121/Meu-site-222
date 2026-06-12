@@ -365,13 +365,19 @@ async function fulfillStripeCheckoutSession({
 }
 
 async function recordCreation(userId, creation) {
-  if (!storageEnabled() || !userId) return;
+  if (!storageEnabled() || !userId || !creation?.id) return;
   const db = await getDb();
-  await db.collection("creations").insertOne({
-    ...creation,
-    user_id: userId,
-    created_at: creation.created_at || nowIso(),
-  });
+  await db.collection("creations").updateOne(
+    { id: creation.id, user_id: userId },
+    {
+      $setOnInsert: {
+        ...creation,
+        user_id: userId,
+        created_at: creation.created_at || nowIso(),
+      },
+    },
+    { upsert: true },
+  );
 }
 
 module.exports = {

@@ -1,6 +1,7 @@
 import { useId, useLayoutEffect, useRef, useState } from "react";
 import { ChevronDown, ChevronRight } from "lucide-react";
 import { cn } from "../lib/utils";
+import StudioHelpTip from "./studio/StudioHelpTip";
 
 /**
  * Secção compacta estilo OpenArt — card empilhado, label pequena, pouco padding.
@@ -14,6 +15,7 @@ export default function StudioAccordionSection({
   className,
   titleClassName,
   hint,
+  helpKey,
 }) {
   const headerId = useId();
   const panelId = useId();
@@ -79,6 +81,15 @@ export default function StudioAccordionSection({
           >
             {title}
           </span>
+          {helpKey ? (
+            <span
+              className="shrink-0 flex items-center"
+              onClick={(e) => e.stopPropagation()}
+              onPointerDown={(e) => e.stopPropagation()}
+            >
+              <StudioHelpTip helpKey={helpKey} testId={`${testId || "acc"}-help`} />
+            </span>
+          ) : null}
           {hint && !open ? (
             <span className="hidden sm:inline text-[11px] text-[#6b6b70] truncate max-w-[40%]">{hint}</span>
           ) : null}
@@ -99,9 +110,14 @@ export default function StudioAccordionSection({
       ) : (
         <div
           id={headerId}
-          className="px-3 py-2 border-b border-white/[0.06] text-[13px] font-medium text-[#EDEBE8]"
+          className="px-3 py-2 border-b border-white/[0.06] text-[13px] font-medium text-[#EDEBE8] flex items-center gap-2"
         >
-          {title}
+          <span className="flex-1">{title}</span>
+          {helpKey ? (
+            <span onClick={(e) => e.stopPropagation()} onPointerDown={(e) => e.stopPropagation()}>
+              <StudioHelpTip helpKey={helpKey} />
+            </span>
+          ) : null}
         </div>
       )}
       <div

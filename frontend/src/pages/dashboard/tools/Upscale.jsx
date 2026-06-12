@@ -90,12 +90,13 @@ export default function Upscale() {
         title={tCat("tool_upscale_name")}
         description={t("upscale_desc_long")}
         testId="upscale-header"
+        helpKey="help_tool_upscale"
       />
 
       <div className="grid grid-cols-1 xl:grid-cols-[1fr_360px] gap-3 xl:gap-8">
         <div className="rp-studio-card-stack">
           {/* 1) UPLOAD */}
-          <CollapsibleSection title={t("common_section_upload_image")} defaultOpen testId="upscale-section-photo">
+          <CollapsibleSection title={t("common_section_upload_image")} defaultOpen testId="upscale-section-photo" helpKey="help_sec_upload">
             <div className="flex items-baseline justify-between mb-4">
               {photo && (
                 <button
@@ -119,7 +120,7 @@ export default function Upscale() {
             />
           </CollapsibleSection>
 
-          <CollapsibleSection title={t("upscale_section_scale")} hint={t("upscale_section_scale_hint")} testId="upscale-section-scale">
+          <CollapsibleSection title={t("upscale_section_scale")} hint={t("upscale_section_scale_hint")} testId="upscale-section-scale" helpKey="help_sec_upscale_scale">
             <div className="grid grid-cols-2 gap-3" data-testid="upscale-scale-options">
               {scaleOptions.map(({ s, label, hint }) => (
                 <button
@@ -154,7 +155,7 @@ export default function Upscale() {
             </div>
           </CollapsibleSection>
 
-          <CollapsibleSection title={t("common_section_tuning")} optional testId="upscale-section-tuning">
+          <CollapsibleSection title={t("common_section_tuning")} optional testId="upscale-section-tuning" helpKey="help_sec_upscale_options">
             <div className="space-y-2.5">
               <Toggle
                 active={sharpen}

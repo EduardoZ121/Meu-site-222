@@ -6,6 +6,7 @@ import { normalizeCreation, primaryResultUrl } from "../../../lib/creationUrls";
 import { useAuth } from "../../../lib/auth";
 import { usePricing } from "../../../lib/PricingContext";
 import ToolFrame from "../../../components/ToolFrame";
+import StudioHelpTip from "../../../components/studio/StudioHelpTip";
 import { Brush, Eraser } from "lucide-react";
 import { useStudioMediaPreview } from "../../../hooks/useStudioMediaPreview";
 import { useI18n } from "../../../lib/i18n";
@@ -98,6 +99,7 @@ export default function Inpaint() {
   return (
     <ToolFrame
       testId="inpaint"
+      pageHelpKey="help_tool_inpaint"
       title={tool?.name || t("tool_inpaint_name")}
       subtitle={tool?.desc}
       photo={photo} onPhotoChange={setPhoto}
@@ -114,7 +116,10 @@ export default function Inpaint() {
       extraFields={
         photoUrl && (
           <section>
-            <label className="block text-[#F4F1EA] text-[14px] font-medium mb-3 font-['Inter_Tight']">Pinta a zona a alterar</label>
+            <label className="flex items-center gap-2 text-[#F4F1EA] text-[14px] font-medium mb-3 font-['Inter_Tight']">
+              Pinta a zona a alterar
+              <StudioHelpTip helpKey="help_sec_inpaint_mask" testId="inpaint-mask-help" />
+            </label>
             <div className="relative bg-[#13131A] rounded-md overflow-hidden border border-[#2E2E30]" data-testid="inpaint-canvas-wrapper">
               <img ref={imgRef} src={photoUrl} alt="" className="w-full block" onLoad={initCanvas} />
               <canvas

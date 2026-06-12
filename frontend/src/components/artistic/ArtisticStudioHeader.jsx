@@ -1,6 +1,7 @@
 import { Link } from "react-router-dom";
 import { ArrowLeft, Palette } from "lucide-react";
 import { useI18n } from "../../lib/i18n";
+import StudioHelpTip from "../studio/StudioHelpTip";
 
 export default function ArtisticStudioHeader() {
   const { t } = useI18n();
@@ -9,20 +10,25 @@ export default function ArtisticStudioHeader() {
     <header className="art-studio-header hidden md:block" data-testid="artistic-studio-header">
       <div className="art-studio-header__glow" aria-hidden />
       <div className="flex flex-wrap items-start justify-between gap-4 relative z-[1]">
-        <div className="flex items-start gap-4 min-w-0">
+        <div className="flex items-start gap-4 min-w-0 flex-1">
           <div className="art-studio-header__icon">
             <Palette className="w-6 h-6 text-[#E9D5FF]" strokeWidth={1.5} />
           </div>
-          <div className="min-w-0">
+          <div className="min-w-0 flex-1">
             <p className="text-[#A855F7] text-[10px] font-mono uppercase tracking-[0.24em] mb-1.5">
               {t("art_brand")}
             </p>
-            <h1 className="text-[#F4F1EA] text-[32px] lg:text-[40px] font-light tracking-[-0.03em] leading-[1.08] font-['Inter_Tight']">
-              {t("art_hero_title")}
-            </h1>
-            <p className="text-[#9CA3AF] text-[15px] mt-2 max-w-2xl leading-relaxed">
-              {t("art_hero_subtitle")}
-            </p>
+            <div className="flex items-start gap-3">
+              <div className="min-w-0">
+                <h1 className="text-[#F4F1EA] text-[32px] lg:text-[40px] font-light tracking-[-0.03em] leading-[1.08] font-['Inter_Tight']">
+                  {t("art_hero_title")}
+                </h1>
+                <p className="text-[#9CA3AF] text-[15px] mt-2 max-w-2xl leading-relaxed">
+                  {t("art_hero_subtitle")}
+                </p>
+              </div>
+              <StudioHelpTip helpKey="help_page_artistic" size="lg" testId="artistic-page-help" className="mt-2 shrink-0" />
+            </div>
           </div>
         </div>
         <Link

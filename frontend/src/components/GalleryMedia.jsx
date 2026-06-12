@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
 import { ImageOff, Loader2 } from "lucide-react";
-import { useCreationMedia } from "../lib/useCreationMedia";
 import {
   displayMediaUrl,
   isVideoCreation,
@@ -53,11 +52,30 @@ function PublicGalleryMedia({ creation, className, onClick }) {
   return inner;
 }
 
-/** Galeria do utilizador — API autenticada + reparo no servidor. */
+/** Galeria do utilizador — URL directa (rápido) com fallback proxy. */
 function AuthGalleryMedia({ creation, className, onClick }) {
-  const { src, broken, loading, isVideo } = useCreationMedia(creation);
+  const rawUrl = primaryResultUrl(creation);
+  const isVideo = isVideoCreation(creation, rawUrl);
+  const [src, setSrc] = useState(() => displayMediaUrl(rawUrl, false));
+  const [broken, setBroken] = useState(false);
+  const [loaded, setLoaded] = useState(false);
 
-  if (broken || (!src && !loading)) {
+  useEffect(() => {
+    setBroken(false);
+    setLoaded(false);
+    setSrc(displayMediaUrl(rawUrl, false));
+  }, [rawUrl, creation?.id]);
+
+  const onError = () => {
+    const proxy = proxiedMediaUrl(rawUrl);
+    if (proxy && src !== proxy) {
+      setSrc(proxy);
+      return;
+    }
+    setBroken(true);
+  };
+
+  if (!rawUrl || broken) {
     return (
       <div
         className="w-full h-full flex flex-col items-center justify-center gap-2 bg-rp-surface text-rp-mute2"
@@ -67,31 +85,45 @@ function AuthGalleryMedia({ creation, className, onClick }) {
         <span className="text-[10px] font-mono uppercase tracking-wider text-center px-2">
           Indisponível
         </span>
-        <span className="text-[9px] text-rp-mute2 text-center px-3 leading-snug">
-          Gera de novo para guardar na galeria
-        </span>
       </div>
     );
   }
+
+  const inner = isVideo ? (
+    <video
+      src={src}
+      muted
+      playsInline
+      preload="metadata"
+      className={className}
+      onError={onError}
+      onLoadedData={() => setLoaded(true)}
+    />
+  ) : (
+    <img
+      src={src}
+      alt=""
+      className={className}
+      loading="lazy"
+      referrerPolicy="no-referrer"
+      onError={onError}
+      onLoad={() => setLoaded(true)}
+    />
+  );
 
   return (
     <button
       type="button"
       onClick={onClick}
       className="relative block w-full h-full p-0 border-0 bg-transparent cursor-pointer text-left"
-      aria-label="Ver imagem"
-      disabled={!src}
+      aria-label="Ver"
     >
-      {loading && (
-        <div className="absolute inset-0 z-10 flex items-center justify-center bg-rp-bg/40">
+      {!loaded && (
+        <div className="absolute inset-0 z-10 flex items-center justify-center bg-rp-bg/50">
           <Loader2 className="w-5 h-5 text-rp-lavender animate-spin" />
         </div>
       )}
-      {src && isVideo ? (
-        <video src={src} muted playsInline preload="metadata" className={className} />
-      ) : src ? (
-        <img src={src} alt="" className={className} />
-      ) : null}
+      {inner}
     </button>
   );
 }

@@ -103,12 +103,13 @@ export default function Restore() {
         title={tCat("tool_restore_name")}
         description={t("restore_desc_long")}
         testId="restore-header"
+        helpKey="help_tool_restore"
       />
 
       <div className="grid grid-cols-1 xl:grid-cols-[1fr_360px] gap-3 xl:gap-8">
         <div className="rp-studio-card-stack">
           {/* 1) UPLOAD */}
-          <CollapsibleSection title={t("restore_section_photo")} defaultOpen testId="restore-section-photo">
+          <CollapsibleSection title={t("restore_section_photo")} defaultOpen testId="restore-section-photo" helpKey="help_sec_upload">
             <div className="flex items-baseline justify-between mb-4">
               {photo && (
                 <button
@@ -130,7 +131,7 @@ export default function Restore() {
             />
           </CollapsibleSection>
 
-          <CollapsibleSection title={t("restore_section_level")} testId="restore-section-level">
+          <CollapsibleSection title={t("restore_section_level")} testId="restore-section-level" helpKey="help_sec_restore_level">
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3" data-testid="restore-levels">
               {levels.map(({ key, label, hint }) => (
                 <button
@@ -163,7 +164,7 @@ export default function Restore() {
             </div>
           </CollapsibleSection>
 
-          <CollapsibleSection title={t("restore_section_advanced")} testId="restore-section-options">
+          <CollapsibleSection title={t("restore_section_advanced")} testId="restore-section-options" helpKey="help_sec_restore_level">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
               <Toggle
                 active={enhanceFaces}
@@ -196,7 +197,7 @@ export default function Restore() {
             </div>
           </CollapsibleSection>
 
-          <CollapsibleSection title={t("restore_section_extra")} optional testId="restore-section-prompt">
+          <CollapsibleSection title={t("restore_section_extra")} optional testId="restore-section-prompt" helpKey="help_sec_prompt">
             <textarea
               value={customPrompt}
               onChange={(e) => setCustomPrompt(e.target.value)}

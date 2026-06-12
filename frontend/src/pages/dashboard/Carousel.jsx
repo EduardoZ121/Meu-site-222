@@ -13,6 +13,7 @@ import { toast } from "sonner";
 import useTitle from "../../lib/useTitle";
 import ImageUploadZone from "../../components/ImageUploadZone";
 import StudioAccordionSection from "../../components/StudioAccordionSection";
+import StudioHelpTip from "../../components/studio/StudioHelpTip";
 import StudioResultAnchor from "../../components/StudioResultAnchor";
 import { emptySlide, slideText, normalizeSlides } from "../../lib/carouselSlides";
 import { getCarouselExample, getCarouselSlideRoles } from "../../lib/carouselLocales";
@@ -371,15 +372,20 @@ export default function CarouselPage() {
       </button>
 
       <header className="mb-10 pb-8 border-b border-[rgba(244,241,234,0.06)]">
-        <p className="rp-editor-section-cap mb-2">{t("car_page_title")}</p>
-        <h1 className="rp-studio-page-title mb-3 font-['Inter_Tight']">
-          {t("car_title")}
-        </h1>
-        <p className="rp-studio-page-desc">
-          {isPanoramic
-            ? t("car_desc_panoramic", { n: slides.length })
-            : t("car_desc_per_slide", { per: perSlide })}
-        </p>
+        <div className="flex items-start gap-3">
+          <div className="flex-1 min-w-0">
+            <p className="rp-editor-section-cap mb-2">{t("car_page_title")}</p>
+            <h1 className="rp-studio-page-title mb-3 font-['Inter_Tight']">
+              {t("car_title")}
+            </h1>
+            <p className="rp-studio-page-desc">
+              {isPanoramic
+                ? t("car_desc_panoramic", { n: slides.length })
+                : t("car_desc_per_slide", { per: perSlide })}
+            </p>
+          </div>
+          <StudioHelpTip helpKey="help_page_carousel" size="lg" testId="carousel-page-help" className="mt-1 shrink-0" />
+        </div>
         <div className="mt-4 flex flex-wrap gap-2">
           <button
             type="button"
@@ -392,7 +398,12 @@ export default function CarouselPage() {
         </div>
       </header>
 
-      <div className="mb-6 grid grid-cols-1 sm:grid-cols-2 gap-2.5" data-testid="carousel-generation-mode">
+      <div className="mb-6">
+        <div className="flex items-center gap-2 mb-2">
+          <span className="text-[#8A8A8E] text-[11px] font-mono uppercase tracking-wider">{t("car_mode_label")}</span>
+          <StudioHelpTip helpKey="help_sec_car_mode" testId="carousel-mode-help" />
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5" data-testid="carousel-generation-mode">
         {generationModes.map((mode) => (
           <button
             key={mode.key}
@@ -409,6 +420,7 @@ export default function CarouselPage() {
             <p className="text-[#8A8A8E] text-[11px] leading-snug">{mode.hint}</p>
           </button>
         ))}
+        </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-[1fr_380px] gap-8 lg:gap-10">
@@ -417,6 +429,7 @@ export default function CarouselPage() {
             title={t("car_sec_ref")}
             defaultOpen
             testId="carousel-section-photo"
+            helpKey="help_sec_car_ref"
           >
             <p className="text-[#8A8A8E] text-[12px] mb-4 font-['Inter_Tight'] leading-relaxed">
               {t("car_sec_ref_hint")}
@@ -435,6 +448,7 @@ export default function CarouselPage() {
             title={t("car_sec_brief")}
             defaultOpen
             testId="carousel-section-brief"
+            helpKey="help_sec_car_brief"
           >
             <textarea
               value={campaignBrief}
@@ -454,6 +468,7 @@ export default function CarouselPage() {
             title={t("car_sec_style")}
             defaultOpen={false}
             testId="carousel-section-style"
+            helpKey="help_sec_car_style"
           >
             <input
               value={styleSuffix}
@@ -485,6 +500,7 @@ export default function CarouselPage() {
             title={t("car_sec_continuity")}
             defaultOpen={false}
             testId="carousel-section-continuity"
+            helpKey="help_sec_car_continuity"
           >
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
               <Toggle active={keepCharacter} onClick={() => setKeepCharacter(!keepCharacter)} label={t("car_toggle_character")} hint={t("car_toggle_character_hint")} testId="carousel-toggle-character" />
@@ -505,6 +521,7 @@ export default function CarouselPage() {
             title={t("car_sec_panels", { n: slides.length, max: MAX_SLIDES })}
             defaultOpen
             testId="carousel-section-slides"
+            helpKey="help_sec_car_slides"
           >
             {slides.length < MAX_SLIDES && (
               <div className="flex justify-end mb-4">
@@ -583,7 +600,7 @@ export default function CarouselPage() {
             </div>
           </StudioAccordionSection>
 
-          <StudioAccordionSection title={t("car_sec_model")} defaultOpen={false} testId="carousel-section-model">
+          <StudioAccordionSection title={t("car_sec_model")} defaultOpen={false} testId="carousel-section-model" helpKey="help_sec_car_model">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3" data-testid="carousel-model-toggle">
               {MODELS.map((m) => {
                 const active = modelKey === m.key;
@@ -608,7 +625,7 @@ export default function CarouselPage() {
             </div>
           </StudioAccordionSection>
 
-          <StudioAccordionSection title={t("car_sec_format")} defaultOpen testId="carousel-section-format">
+          <StudioAccordionSection title={t("car_sec_format")} defaultOpen testId="carousel-section-format" helpKey="help_sec_car_format">
             <AspectPicker
               value={aspect}
               onChange={setAspect}

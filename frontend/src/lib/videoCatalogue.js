@@ -221,7 +221,7 @@ export const VIDEO_CATEGORIES = [
 
     to: "/app/video/edit",
 
-    tool: VIDEO_TOOL_IDS.wan_edit,
+    tool: VIDEO_TOOL_IDS.kling_edit,
 
     flow: "edit",
 
@@ -243,7 +243,7 @@ export const VIDEO_CATEGORIES = [
 
     to: "/app/video/change-bg",
 
-    tool: VIDEO_TOOL_IDS.wan_edit,
+    tool: VIDEO_TOOL_IDS.kling_edit,
 
     flow: "edit",
 
@@ -267,7 +267,7 @@ export const VIDEO_CATEGORIES = [
 
     to: "/app/video/change-outfit",
 
-    tool: VIDEO_TOOL_IDS.wan_edit,
+    tool: VIDEO_TOOL_IDS.kling_edit,
 
     flow: "edit",
 
@@ -291,7 +291,7 @@ export const VIDEO_CATEGORIES = [
 
     to: "/app/video/restyle",
 
-    tool: VIDEO_TOOL_IDS.wan_edit,
+    tool: VIDEO_TOOL_IDS.kling_edit,
 
     flow: "edit",
 
@@ -311,11 +311,28 @@ export const VIDEO_CATEGORIES = [
 
 
 
+/** Ocultas no hub por enquanto — rotas directas redireccionam para /app/video */
+export const VIDEO_HIDDEN_IDS = new Set([
+  "text-marketing",
+  "image-marketing",
+  "image-fast",
+  "elements",
+  "marketing",
+  "fun",
+  "change-bg",
+  "change-outfit",
+  "restyle",
+]);
+
 export const VIDEO_LEGACY_REDIRECTS = {
 
-  text: "text-marketing",
+  text: "text-fast",
 
 };
+
+export function isVideoCategoryVisible(id) {
+  return !VIDEO_HIDDEN_IDS.has(id);
+}
 
 
 
@@ -333,9 +350,13 @@ export function findVideoCategory(mode) {
 
   const legacy = VIDEO_LEGACY_REDIRECTS[mode];
 
-  if (legacy) return VIDEO_CATEGORIES.find((c) => c.id === legacy);
+  const resolved = legacy || mode;
 
-  return VIDEO_CATEGORIES.find((c) => c.id === mode) || null;
+  const cat = VIDEO_CATEGORIES.find((c) => c.id === resolved);
+
+  if (!cat || !isVideoCategoryVisible(cat.id)) return null;
+
+  return cat;
 
 }
 
@@ -348,7 +369,7 @@ export function categoriesForSection(sectionId, user = null) {
 
 export function getVideoCategoriesForUser(user) {
   if (!canAccessVideoFeatures(user)) return [];
-  return VIDEO_CATEGORIES;
+  return VIDEO_CATEGORIES.filter((c) => isVideoCategoryVisible(c.id));
 }
 
 export { canAccessVideoFeatures };

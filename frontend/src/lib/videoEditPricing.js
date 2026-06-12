@@ -11,13 +11,23 @@ export function buildVideoEditSurcharge(regionId = "intl") {
 
 export const SURCHARGE = buildVideoEditSurcharge();
 
-export function computeVideoEditCost(baseCost, { resolution = "original", duration = 6, regionId = "intl" } = {}) {
+export function computeVideoEditCost(baseCost, {
+  resolution = "original",
+  duration = 6,
+  regionId = "intl",
+  engine = "kling_edit",
+} = {}) {
   const costs = getCreditCostsForRegion(regionId);
   const surcharges = getSurcharges(regionId);
+  const base = costs.videoEdit ?? 120;
+  if (engine === "grok_edit") {
+    if (baseCost && baseCost !== base) return Math.max(1, Number(baseCost) || base);
+    return base;
+  }
   const fromConfig = computeVideoEditCostFromConfig(costs, surcharges, { resolution, duration });
-  if (baseCost && baseCost !== costs.videoEdit) {
-    const delta = fromConfig - (costs.videoEdit ?? 120);
-    return Math.max(1, Number(baseCost) || 120) + delta;
+  if (baseCost && baseCost !== base) {
+    const delta = fromConfig - base;
+    return Math.max(1, Number(baseCost) || base) + delta;
   }
   return fromConfig;
 }

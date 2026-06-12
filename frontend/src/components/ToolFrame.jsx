@@ -66,6 +66,7 @@ export default function ToolFrame({
   busy,
   result,
   onResultChange,
+  pageHelpKey,
   testId = "tool",
   generateReady,
   generateHint,
@@ -127,6 +128,7 @@ export default function ToolFrame({
         title={title}
         description={subtitle}
         testId={`${testId}-header`}
+        helpKey={pageHelpKey}
       />
 
       <div className="grid grid-cols-1 xl:grid-cols-[1fr_360px] gap-3 xl:gap-8">
@@ -138,6 +140,7 @@ export default function ToolFrame({
               defaultOpen
               variant="boxed"
               testId={`${testId}-section-photo`}
+              helpKey="help_sec_upload"
             >
               <ImageUploadZone
                 value={photo}
@@ -153,7 +156,7 @@ export default function ToolFrame({
           )}
 
           {models && models.length > 0 && (
-            <CollapsibleSection title={t("tool_model")} variant="boxed" testId={`${testId}-section-models`}>
+            <CollapsibleSection title={t("tool_model")} variant="boxed" testId={`${testId}-section-models`} helpKey="help_sec_presets">
               {models.length > 8 && (
                 <div className="flex justify-end mb-3">
                   <button
@@ -197,7 +200,7 @@ export default function ToolFrame({
 
           {/* Prompt */}
           {promptLabel && (
-            <CollapsibleSection title={promptLabel} variant="boxed" testId={`${testId}-section-prompt`}>
+            <CollapsibleSection title={promptLabel} variant="boxed" testId={`${testId}-section-prompt`} helpKey="help_sec_prompt">
               {showEnhanceToggle && (
                 <div className="mb-3">
                   <PromptEnhanceToggle
@@ -245,7 +248,7 @@ export default function ToolFrame({
           )}
 
           {aspectRatios && aspectRatios.length > 0 && onAspectChange && (
-            <CollapsibleSection title={t("tool_output_format")} variant="boxed" testId={`${testId}-section-aspect`}>
+            <CollapsibleSection title={t("tool_output_format")} variant="boxed" testId={`${testId}-section-aspect`} helpKey="help_sec_format">
               <AspectPicker
                 value={aspect || aspectRatios[0]}
                 onChange={onAspectChange}

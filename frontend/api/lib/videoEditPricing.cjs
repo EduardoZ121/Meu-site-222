@@ -20,7 +20,18 @@ function computeVideoEditCost(baseCost, { resolution = "original", duration = 6,
   return fromConfig;
 }
 
-function validateVideoEditOptions({ resolution, duration }) {
+const GROK_VIDEO_EDIT_MAX_SEC = 7;
+
+function validateVideoEditOptions({ resolution, duration, engine = "kling_edit" }) {
+  if (engine === "grok_edit") {
+    const dur = Math.round(Number(duration));
+    if (dur !== GROK_VIDEO_EDIT_MAX_SEC) {
+      const err = new Error(`Grok só gera clips até ${GROK_VIDEO_EDIT_MAX_SEC} segundos.`);
+      err.status = 400;
+      throw err;
+    }
+    return { resolution: "original", duration: GROK_VIDEO_EDIT_MAX_SEC };
+  }
   const res = String(resolution || "original").trim().toLowerCase();
   const dur = Math.round(Number(duration));
 
@@ -39,8 +50,8 @@ function validateVideoEditOptions({ resolution, duration }) {
 
 function mapResolutionForModel(resolution) {
   const res = String(resolution || "original").trim().toLowerCase();
-  if (res === "720p") return "720p";
-  return "1080p";
+  if (res === "1080p") return "1080p";
+  return "720p";
 }
 
 function buildSurchargeDisplay(regionId = "intl") {
@@ -51,9 +62,16 @@ function buildSurchargeDisplay(regionId = "intl") {
   };
 }
 
+function computeVideoEditCostForEngine(CREDIT, surcharges, editTool, resOpts) {
+  const base = CREDIT.videoEdit ?? 65;
+  if (editTool === "grok_edit") return base;
+  return computeVideoEditCostFromConfig(CREDIT, surcharges, resOpts);
+}
+
 module.exports = {
   SURCHARGE: buildSurchargeDisplay(),
   computeVideoEditCost,
+  computeVideoEditCostForEngine,
   validateVideoEditOptions,
   mapResolutionForModel,
   PREMIUM_RESOLUTIONS,

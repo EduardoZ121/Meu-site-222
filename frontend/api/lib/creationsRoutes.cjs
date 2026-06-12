@@ -1,6 +1,21 @@
 const { getDb, storageEnabled, ensureIndexes } = require("./mongo.cjs");
-const { sanitizeCreation, trustedProxyTarget, loadCreationMedia } = require("./creationMedia.cjs");
+const { sanitizeCreation, trustedProxyTarget, loadCreationMedia, normalizeResultUrls } = require("./creationMedia.cjs");
 const { refreshUserPendingJobs } = require("./pendingPredictions.cjs");
+
+function dedupeCreations(docs) {
+  const seenIds = new Set();
+  const seenUrls = new Set();
+  const out = [];
+  for (const doc of docs) {
+    if (!doc?.id || seenIds.has(doc.id)) continue;
+    const url = normalizeResultUrls(doc.result_urls)[0] || "";
+    if (url && seenUrls.has(url)) continue;
+    seenIds.add(doc.id);
+    if (url) seenUrls.add(url);
+    out.push(doc);
+  }
+  return out;
+}
 
 function sessionFromReq(req, verifySessionToken) {
   const auth = req.headers.authorization || "";
@@ -94,7 +109,7 @@ async function handleCreationsRoute(path, req, res, { verifySessionToken, json }
       .sort({ created_at: -1 })
       .limit(limit)
       .toArray();
-    json(res, 200, { creations: docs.map(sanitizeCreation) });
+    json(res, 200, { creations: dedupeCreations(docs).map(sanitizeCreation) });
     return true;
   }
 

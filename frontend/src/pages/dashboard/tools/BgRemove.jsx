@@ -165,11 +165,12 @@ export default function BgRemove() {
         title={tCatalogue("tool_bg_remove_name")}
         description={tCatalogue("tool_bg_remove_desc")}
         testId="bg-remove-header"
+        helpKey="help_tool_bgremove"
       />
 
       <div className="grid grid-cols-1 xl:grid-cols-[1fr_360px] gap-3 xl:gap-8">
         <div className="rp-studio-card-stack">
-          <CollapsibleSection title={t("common_section_upload_photo")} defaultOpen testId="bg-remove-section-photo">
+          <CollapsibleSection title={t("common_section_upload_photo")} defaultOpen testId="bg-remove-section-photo" helpKey="help_sec_upload">
             <div className="flex items-baseline justify-between mb-2">
               {photo && (
                 <button
@@ -192,7 +193,7 @@ export default function BgRemove() {
             </div>
           </CollapsibleSection>
 
-          <CollapsibleSection title={t("bg_section_mode")} hint={t("bg_mode_hint")} testId="bg-remove-section-mode">
+          <CollapsibleSection title={t("bg_section_mode")} hint={t("bg_mode_hint")} testId="bg-remove-section-mode" helpKey="help_sec_bgremove_options">
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2" data-testid="bg-remove-mode-tabs">
               <ModeTab
                 active={mode === "transparent"}
@@ -334,7 +335,7 @@ export default function BgRemove() {
             </AnimatePresence>
           </CollapsibleSection>
 
-          <CollapsibleSection title={t("bg_section_tuning")} optional hint="Cabelo, sombra e refinamentos." testId="bg-remove-section-tuning">
+          <CollapsibleSection title={t("bg_section_tuning")} optional hint="Cabelo, sombra e refinamentos." testId="bg-remove-section-tuning" helpKey="help_sec_bgremove_options">
             <div className="space-y-2.5">
               <Toggle
                 active={refineHair}

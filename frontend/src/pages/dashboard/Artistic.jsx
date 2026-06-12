@@ -458,6 +458,7 @@ export default function Artistic() {
           icon={Sparkles}
           className={`${panelVisibility("generate")} flex flex-col lg:order-1`}
           testId="artistic-module-prompt"
+          helpKey="help_sec_art_prompt"
         >
           <ArtisticPromptStudio
             inputMode={inputMode}
@@ -504,6 +505,7 @@ export default function Artistic() {
           icon={Palette}
           className={`${panelVisibility("style")} lg:order-2`}
           testId="artistic-module-style"
+          helpKey="help_sec_art_style"
         >
           <p className="text-[#6B7280] text-[10px] mb-3">
             {t("art_styles_count", { n: catalog.styles.length })}
@@ -519,6 +521,7 @@ export default function Artistic() {
           accent="cyan"
           className={`${panelVisibility("effects")} max-h-[min(calc(100dvh-12rem),820px)] lg:max-h-[min(88vh,820px)] overflow-y-auto lg:order-3`}
           testId="artistic-module-effects"
+          helpKey="help_sec_art_effects"
         >
           <div className="space-y-6">
             {catalog.sections.map((section) => {

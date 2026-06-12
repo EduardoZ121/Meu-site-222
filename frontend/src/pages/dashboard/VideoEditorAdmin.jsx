@@ -11,6 +11,13 @@ import { useAuth } from "../../lib/auth";
 import { usePricing } from "../../lib/PricingContext";
 import { useI18n } from "../../lib/i18n";
 import { computeVideoEditCost, buildVideoEditSurcharge } from "../../lib/videoEditPricing";
+import {
+  VIDEO_EDIT_ENGINES,
+  GROK_VIDEO_EDIT_MAX_SEC,
+  getVideoEditEngine,
+  defaultVideoEditEngineId,
+} from "../../lib/videoEditEngines";
+import { VIDEO_TOOL_IDS } from "../../lib/videoModels";
 import { pickBlobOffloadTimeoutMs } from "../../lib/uploadConstants";
 import { getSurcharges } from "../../lib/creditPricing";
 import { toast } from "sonner";
@@ -56,6 +63,7 @@ function selectCard(active) {
 export default function VideoEditorAdmin({ category }) {
   const preset = category?.preset || "";
   const modeId = category?.id || "edit";
+  const engineLocked = Boolean(preset);
   const { t, lang } = useI18n();
   const ideaKeys = EDIT_IDEAS[preset] || EDIT_IDEAS[""];
   const ideas = useMemo(() => ideaKeys.map((k) => t(k)), [t, ideaKeys]);
@@ -64,6 +72,11 @@ export default function VideoEditorAdmin({ category }) {
   const surcharges = useMemo(() => getSurcharges(region), [region]);
   const videoSurcharge = useMemo(() => buildVideoEditSurcharge(region), [region]);
   const baseCost = costs.videoEdit ?? costs.video ?? 120;
+
+  const [engineId, setEngineId] = useState(
+    engineLocked ? VIDEO_TOOL_IDS.kling_edit : defaultVideoEditEngineId(),
+  );
+  const engine = useMemo(() => getVideoEditEngine(engineId), [engineId]);
 
   const [video, setVideo] = useState(null);
   const [videoCloudUrl, setVideoCloudUrl] = useState(null);
@@ -96,10 +109,15 @@ export default function VideoEditorAdmin({ category }) {
   }, []);
 
   const cost = useMemo(() => {
-    let total = computeVideoEditCost(baseCost, { resolution, duration, regionId: region });
+    let total = computeVideoEditCost(baseCost, {
+      resolution,
+      duration,
+      regionId: region,
+      engine: engineId,
+    });
     if (improve) total += surcharges.enhancePrompt ?? 5;
     return total;
-  }, [baseCost, resolution, duration, improve, surcharges.enhancePrompt, region]);
+  }, [baseCost, resolution, duration, improve, surcharges.enhancePrompt, region, engineId]);
 
   const videoUploading = isPhotoUploadBusy(videoUploadStatus);
 
@@ -145,6 +163,14 @@ export default function VideoEditorAdmin({ category }) {
     setDuration(d);
   };
 
+  const pickEngine = (id) => {
+    setEngineId(id);
+    if (id === VIDEO_TOOL_IDS.grok_edit) {
+      setReference(null);
+      setDuration(GROK_VIDEO_EDIT_MAX_SEC);
+    }
+  };
+
   const run = async () => {
     if (videoUploading) {
       toast.message(t("upload_wait_generate"), { duration: 6000 });
@@ -173,18 +199,21 @@ export default function VideoEditorAdmin({ category }) {
       const fd = new FormData();
       fd.append("prompt", prompt.trim());
       fd.append("resolution", resolution);
-      fd.append("duration", String(duration));
+      fd.append("duration", String(engine.fixedDurationSec ?? duration));
       fd.append("aspect_ratio", aspect);
       fd.append("audio_setting", audioSetting);
       fd.append("lang", lang || "pt");
       if (preset) fd.append("video_preset", preset);
+      fd.append("video_tool", engineId);
       if (improve) fd.append("improve_prompt", "1");
       if (videoCloudUrl) {
         fd.append("video_url", videoCloudUrl);
-      } else {
+      } else if (!engine.requiresCloudUrl) {
+        fd.append("video", video);
+      } else if (video) {
         fd.append("video", video);
       }
-      if (reference) fd.append("reference_image", reference);
+      if (reference && engine.showReference) fd.append("reference_image", reference);
       if (notifyByEmail) {
         fd.append("notify_by_email", "1");
         if (user?.email) fd.append("notify_email", user.email);
@@ -193,7 +222,7 @@ export default function VideoEditorAdmin({ category }) {
       ({ data: submitData } = await uploadPost("/generate/video-edit", fd, {
         timeout: 600_000,
         blobOffloadTimeoutMs: video?.size ? pickBlobOffloadTimeoutMs(video.size, true) : undefined,
-        skipBlobOffload: Boolean(videoCloudUrl),
+        skipBlobOffload: engine.requiresCloudUrl ? false : Boolean(videoCloudUrl),
         headers: { "X-Skip-Auto-Poll": "1" },
       }));
 
@@ -225,9 +254,37 @@ export default function VideoEditorAdmin({ category }) {
 
   const controls = (
     <div className="rp-studio-card-stack min-w-0">
+      {!engineLocked && (
+        <StudioAccordionSection title={t("vid_edit_engine_title")} defaultOpen testId="video-edit-acc-engine">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            {VIDEO_EDIT_ENGINES.map((eng) => {
+              const active = engineId === eng.id;
+              return (
+                <button
+                  key={eng.id}
+                  type="button"
+                  onClick={() => pickEngine(eng.id)}
+                  className={selectCard(active)}
+                  data-testid={`video-edit-engine-${eng.id}`}
+                >
+                  <p className="text-[#F4F1EA] text-[14px] font-medium">{t(eng.labelKey)}</p>
+                  <p className="text-[#8A8A8E] text-[10px] mt-1 leading-snug">{t(eng.descKey)}</p>
+                  <p className="text-[#A855F7] text-[10px] font-mono mt-2">{t(eng.badgeKey)}</p>
+                </button>
+              );
+            })}
+          </div>
+          {engineId === VIDEO_TOOL_IDS.grok_edit && (
+            <p className="text-[#6f6f76] text-[11px] mt-3 leading-snug">{t("vid_edit_grok_limits")}</p>
+          )}
+        </StudioAccordionSection>
+      )}
+
       <StudioAccordionSection title={t("vid_acc_my_video")} defaultOpen testId="video-edit-acc-source">
         <p className="text-[#6f6f76] text-[11px] mb-3">
-          {t("vid_edit_public_note")}
+          {engineId === VIDEO_TOOL_IDS.grok_edit
+            ? t("vid_edit_public_note_grok")
+            : t("vid_edit_public_note")}
         </p>
         <p className="text-[#6f6f76] text-[11px] mb-3">
           {t("vid_edit_eta_hint", { min: eta.min, max: eta.max })}
@@ -238,14 +295,20 @@ export default function VideoEditorAdmin({ category }) {
           onCloudUrlChange={setVideoCloudUrl}
           onStatusChange={setVideoUploadStatus}
           disabled={busy}
-          maxDurationSec={10}
+          maxDurationSec={engine.maxDurationSec}
+          requireCloudUrl={engine.requiresCloudUrl}
           testId="video-edit-source"
         />
         <StudioPhotoUploadNotice status={videoUploadStatus} className="mt-3" />
       </StudioAccordionSection>
 
-      <StudioAccordionSection title={t("vid_edit_prompt_label")} defaultOpen testId="video-edit-acc-prompt">
-          <div className="flex items-baseline justify-end mb-3 -mt-1">
+      <StudioAccordionSection
+        title={t("vid_edit_prompt_label")}
+        defaultOpen
+        testId="video-edit-acc-prompt"
+        helpKey="help_sec_video_edit_prompt"
+      >
+          <div className="flex items-baseline justify-end mb-3">
             <span className="text-[#5A5A5E] text-[11px] font-mono">{prompt.length}/800</span>
           </div>
           <textarea
@@ -280,6 +343,7 @@ export default function VideoEditorAdmin({ category }) {
           </div>
       </StudioAccordionSection>
 
+      {engine.showReference && (
       <StudioAccordionSection title={t("vid_edit_ref_label")} defaultOpen={false} testId="video-edit-acc-ref">
           <p className="text-[#8A8A8E] text-[13px] mb-4">{t("vid_edit_ref_hint")}</p>
           <div className="max-w-[280px]">
@@ -294,7 +358,9 @@ export default function VideoEditorAdmin({ category }) {
             />
           </div>
       </StudioAccordionSection>
+      )}
 
+      {engine.showResolution && (
       <StudioAccordionSection title={t("vid_edit_resolution")} defaultOpen testId="video-edit-acc-resolution">
         <div className="grid grid-cols-1 gap-2">
             {RESOLUTIONS.map((r) => {
@@ -321,9 +387,23 @@ export default function VideoEditorAdmin({ category }) {
             })}
           </div>
       </StudioAccordionSection>
+      )}
 
+      {engine.showDuration && (
       <StudioAccordionSection title={t("vid_edit_duration")} defaultOpen testId="video-edit-acc-duration">
-        <div className="grid grid-cols-2 gap-2">
+        {engine.fixedDurationSec ? (
+          <div className="grid grid-cols-2 gap-2">
+            <button
+              type="button"
+              className={selectCard(true)}
+              data-testid={`video-edit-dur-${engine.fixedDurationSec}`}
+            >
+              <p className="text-[#F4F1EA] text-[16px] font-light">{engine.fixedDurationSec}s</p>
+              <p className="text-[#8A8A8E] text-[10px] mt-1 leading-snug">{t("vid_edit_grok_duration_default")}</p>
+            </button>
+          </div>
+        ) : (
+          <div className="grid grid-cols-2 gap-2">
             {DURATIONS.map((d) => {
               const extra = videoSurcharge.duration[d];
               return (
@@ -344,8 +424,11 @@ export default function VideoEditorAdmin({ category }) {
               );
             })}
           </div>
+        )}
       </StudioAccordionSection>
+      )}
 
+      {engine.showAspect && (
       <StudioAccordionSection title={t("vid_edit_aspect")} defaultOpen={false} testId="video-edit-acc-aspect">
         <div className="grid grid-cols-2 gap-2">
             {ASPECTS.map((a) => (
@@ -363,7 +446,9 @@ export default function VideoEditorAdmin({ category }) {
             ))}
           </div>
       </StudioAccordionSection>
+      )}
 
+      {engine.showAudio && (
       <StudioAccordionSection title={t("vid_edit_audio")} defaultOpen={false} testId="video-edit-acc-audio">
         <div className="grid grid-cols-1 gap-2">
             <button
@@ -384,6 +469,7 @@ export default function VideoEditorAdmin({ category }) {
             </button>
           </div>
       </StudioAccordionSection>
+      )}
 
       <StudioAccordionSection title={t("vid_edit_notify") || "Notificação"} defaultOpen={false} testId="video-edit-acc-notify">
           <label className="flex items-start gap-3 cursor-pointer group">

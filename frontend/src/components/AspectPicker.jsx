@@ -2,6 +2,8 @@ import { Check } from "lucide-react";
 import { cn } from "../lib/utils";
 import { useI18n } from "../lib/i18n";
 import { AspectRatioShape } from "./AspectRatioShape";
+import StudioHelpTip from "./studio/StudioHelpTip";
+import { ASPECT_HELP_KEYS } from "../lib/studioHelpLocales";
 
 const DEFAULT_OPTIONS = ["1:1", "4:5", "3:4", "9:16", "16:9", "21:9"];
 
@@ -45,35 +47,44 @@ export default function AspectPicker({
     <div className={gridClass} data-testid={`${testIdPrefix}-row`}>
       {items.map(({ key, label, hint }) => {
         const active = value === key;
+        const aspectHelpKey = ASPECT_HELP_KEYS[key];
         return (
-          <button
-            type="button"
-            key={key}
-            onClick={() => onChange(key)}
-            data-testid={`${testIdPrefix}-${key}`}
-            className={cn(
-              "relative flex flex-col items-center justify-center gap-1 transition-all overflow-hidden border font-['Inter_Tight']",
-              compact ? "py-2 px-2 rounded-lg text-[10px]" : premium ? "py-3.5 rounded-xl text-[12px] font-medium" : "py-3 rounded-xl text-[11px] font-medium",
-              active
-                ? premium
-                  ? "border-purple-500 bg-zinc-900/90 text-white shadow-[0_0_32px_-8px_rgba(168,85,247,0.55),inset_0_0_0_1px_rgba(168,85,247,0.2)]"
-                  : "border-[#7C3AED] bg-[rgba(124,58,237,0.1)] text-[#E9E4DC] shadow-[inset_0_0_0_1px_rgba(124,58,237,0.12)]"
-                : premium
-                  ? "border-zinc-800 bg-zinc-950/60 text-zinc-500 hover:border-purple-500/40 hover:text-zinc-200 hover:bg-zinc-900/50"
-                  : "border-[rgba(244,241,234,0.08)] text-[#8A8A8E] hover:border-[rgba(124,58,237,0.35)] hover:text-[#F4F1EA]",
-            )}
-          >
-            <span className={cn("flex items-center justify-center", compact ? "h-5" : "h-6")}>
-              <AspectRatioShape ratio={key} active={active} maxSize={compact ? 18 : 22} />
-            </span>
-            <span>{label ?? key}</span>
-            {hint && <span className="text-[9px] text-[#5A5A5E] leading-none">{hint}</span>}
-            {active && (
-              <span className="absolute top-1.5 right-1.5 w-4 h-4 rounded-full bg-[#7C3AED] flex items-center justify-center border border-white/15 shadow-sm">
-                <Check className="w-2.5 h-2.5 text-white" strokeWidth={2.5} />
+          <div key={key} className="relative">
+            <button
+              type="button"
+              onClick={() => onChange(key)}
+              data-testid={`${testIdPrefix}-${key}`}
+              className={cn(
+                "relative flex flex-col items-center justify-center gap-1 transition-all overflow-hidden border font-['Inter_Tight'] w-full",
+                compact ? "py-2 px-2 rounded-lg text-[10px]" : premium ? "py-3.5 rounded-xl text-[12px] font-medium" : "py-3 rounded-xl text-[11px] font-medium",
+                active
+                  ? premium
+                    ? "border-purple-500 bg-zinc-900/90 text-white shadow-[0_0_32px_-8px_rgba(168,85,247,0.55),inset_0_0_0_1px_rgba(168,85,247,0.2)]"
+                    : "border-[#7C3AED] bg-[rgba(124,58,237,0.1)] text-[#E9E4DC] shadow-[inset_0_0_0_1px_rgba(124,58,237,0.12)]"
+                  : premium
+                    ? "border-zinc-800 bg-zinc-950/60 text-zinc-500 hover:border-purple-500/40 hover:text-zinc-200 hover:bg-zinc-900/50"
+                    : "border-[rgba(244,241,234,0.08)] text-[#8A8A8E] hover:border-[rgba(124,58,237,0.35)] hover:text-[#F4F1EA]",
+              )}
+            >
+              <span className={cn("flex items-center justify-center", compact ? "h-5" : "h-6")}>
+                <AspectRatioShape ratio={key} active={active} maxSize={compact ? 18 : 22} />
               </span>
+              <span>{label ?? key}</span>
+              {hint && <span className="text-[9px] text-[#5A5A5E] leading-none">{hint}</span>}
+              {active && (
+                <span className="absolute top-1.5 right-1.5 w-4 h-4 rounded-full bg-[#7C3AED] flex items-center justify-center border border-white/15 shadow-sm">
+                  <Check className="w-2.5 h-2.5 text-white" strokeWidth={2.5} />
+                </span>
+              )}
+            </button>
+            {aspectHelpKey && (
+              <StudioHelpTip
+                helpKey={aspectHelpKey}
+                testId={`${testIdPrefix}-help-${key}`}
+                className="absolute top-1 left-1 z-10"
+              />
             )}
-          </button>
+          </div>
         );
       })}
     </div>

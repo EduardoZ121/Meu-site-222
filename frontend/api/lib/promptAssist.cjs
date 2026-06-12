@@ -226,7 +226,7 @@ function buildImproveSystemPrompt(context = {}) {
 
   if (tool === "video_edit") {
     let system =
-      "You are an expert prompt engineer for AI VIDEO EDITING (Wan VideoEdit). "
+      "You are an expert prompt engineer for AI VIDEO EDITING (Kling O1 Edit). "
       + "The user already has a video clip and wants a targeted edit — NOT a generic quality upgrade. "
       + "Rewrite their instruction into ONE precise English edit prompt (80–140 words). "
       + "Respond ONLY with the improved prompt — no quotes, no labels, no explanations.\n\n"
@@ -267,6 +267,21 @@ function buildImproveSystemPrompt(context = {}) {
     );
   }
 
+  if (tool === "video_extend") {
+    return (
+      "You are an expert prompt engineer for AI VIDEO CONTINUATION (Wan 2.7 clip extension). "
+      + "The user has an existing video clip and wants MORE footage that continues seamlessly. "
+      + "Rewrite their instruction into ONE precise English continuation prompt (60–120 words). "
+      + "Respond ONLY with the improved prompt — no quotes, no labels.\n\n"
+      + "RULES:\n"
+      + "1) Describe what happens NEXT after the last frame — motion, action, camera, environment.\n"
+      + "2) Explicitly preserve identity, style, lighting and motion continuity from the source clip.\n"
+      + "3) Expand vague text with concrete details matching user intent — never change their goal.\n"
+      + "4) Do NOT ask for quality/resolution upgrades unless the user explicitly asked.\n"
+      + "5) Never suggest replacing the subject or restarting the scene."
+    );
+  }
+
   let system =
     "You are an expert at crafting image generation prompts. "
     + "Take the user's prompt in any language and transform it into a single concise, "
@@ -301,13 +316,14 @@ async function improvePrompt(prompt, lang = "en", context = {}) {
   if (trimmed.length < 3) return trimmed;
   const tool = String(context.tool || "").trim();
   const isVideoEdit = tool === "video_edit";
+  const isVideoExtend = tool === "video_extend";
   const system = buildImproveSystemPrompt({ ...context, user_prompt: trimmed });
   try {
     const improved = await chatText({
       system,
       user: trimmed,
-      maxTokens: isVideoEdit ? 360 : 280,
-      temperature: isVideoEdit ? 0.55 : 0.8,
+      maxTokens: isVideoEdit || isVideoExtend ? 360 : 280,
+      temperature: isVideoEdit || isVideoExtend ? 0.55 : 0.8,
     });
     if (!improved || improved.length < 3) return trimmed;
     return improved;

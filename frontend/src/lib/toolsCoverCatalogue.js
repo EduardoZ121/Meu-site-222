@@ -32,6 +32,7 @@ const VIDEO_COVERS = {
   "change-bg": "/images/tools/video/change-bg.jpg",
   "change-outfit": "/images/tools/video/change-outfit.jpg",
   restyle: "/images/tools/video/restyle.jpg",
+  extend: "/images/tools/video/edit.jpg",
 };
 
 /** Posição do crop — útil quando a cena principal não está ao centro */

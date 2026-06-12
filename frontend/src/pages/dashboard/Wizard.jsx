@@ -18,6 +18,7 @@ import {
 } from "../../lib/perchancePromptPools";
 import { scrollStudioToTop } from "../../lib/scrollToStudioResult";
 import { useStudioSessionBack } from "../../lib/useStudioSessionBack";
+import StudioHelpTip from "../../components/studio/StudioHelpTip";
 
 const STEP_ICONS = {
   image: ImageIcon,
@@ -305,13 +306,18 @@ export default function Wizard() {
         <div className="shrink-0 w-14 h-14 rounded-2xl bg-[#7C3AED]/15 border border-[#7C3AED]/30 flex items-center justify-center">
           <Wand2 className="w-7 h-7 text-[#C4B5FD]" strokeWidth={1.5} />
         </div>
-        <motion.div>
-          <p className="text-[#7C3AED] text-[10px] font-mono uppercase tracking-[0.22em] mb-2">{t("wiz_eyebrow")}</p>
-          <h1 className="text-[#F4F1EA] text-[32px] md:text-[44px] font-light tracking-[-0.02em] leading-[1.02] mb-2 font-['Inter_Tight']">
-            {t("wiz_title_a")}{" "}
-            <span className="italic text-[#C4B5FD]">{t("wiz_title_strong")}</span>
-          </h1>
-          <p className="text-[#8A8A8E] text-[14px] max-w-[640px]">{t("wiz_desc")}</p>
+        <motion.div className="flex-1 min-w-0">
+          <div className="flex items-start gap-3">
+            <div className="min-w-0 flex-1">
+              <p className="text-[#7C3AED] text-[10px] font-mono uppercase tracking-[0.22em] mb-2">{t("wiz_eyebrow")}</p>
+              <h1 className="text-[#F4F1EA] text-[32px] md:text-[44px] font-light tracking-[-0.02em] leading-[1.02] mb-2 font-['Inter_Tight']">
+                {t("wiz_title_a")}{" "}
+                <span className="italic text-[#C4B5FD]">{t("wiz_title_strong")}</span>
+              </h1>
+              <p className="text-[#8A8A8E] text-[14px] max-w-[640px]">{t("wiz_desc")}</p>
+            </div>
+            <StudioHelpTip helpKey="help_page_wizard" size="lg" testId="wizard-page-help" className="shrink-0 mt-1" />
+          </div>
         </motion.div>
       </motion.div>
 

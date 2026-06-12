@@ -42,6 +42,7 @@ import {
   splitPosterPlaceholders,
 } from "../../lib/posterPrompt";
 import { PosterSection, CustomTextLayersEditor } from "../../components/poster/PosterEditorParts";
+import StudioHelpTip from "../../components/studio/StudioHelpTip";
 import PosterMoodPalette from "../../components/poster/PosterMoodPalette";
 import AspectPicker from "../../components/AspectPicker";
 import { apiAspectRatio } from "../../lib/apiAspectRatio";
@@ -787,18 +788,21 @@ function Editor(props) {
             {catLabel(picked.category)}
           </div>
         </div>
-        <div className="flex-1 min-w-0">
-          <p className="text-[#7C3AED] text-[10px] font-mono uppercase tracking-[0.16em] sm:tracking-[0.22em] mb-1.5 sm:mb-2 break-words">
-            {catLabel(picked.category)}
-          </p>
-          <h1 className="text-[#F4F1EA] text-[22px] sm:text-[28px] md:text-[36px] font-light tracking-[-0.02em] mb-1.5 sm:mb-2 font-['Inter_Tight'] break-words leading-[1.1]">
-            {picked.label || picked.id}
-          </h1>
-          <p className="text-[#8A8A8E] text-[13px] sm:text-[14px] max-w-[640px] leading-relaxed break-words">
-            {picked.variantLabelKey
-              ? t("post_template_variant_ready", { style: t(picked.variantLabelKey) })
-              : t("post_template_ready")}
-          </p>
+        <div className="flex-1 min-w-0 flex items-start gap-3">
+          <div className="min-w-0 flex-1">
+            <p className="text-[#7C3AED] text-[10px] font-mono uppercase tracking-[0.16em] sm:tracking-[0.22em] mb-1.5 sm:mb-2 break-words">
+              {catLabel(picked.category)}
+            </p>
+            <h1 className="text-[#F4F1EA] text-[22px] sm:text-[28px] md:text-[36px] font-light tracking-[-0.02em] mb-1.5 sm:mb-2 font-['Inter_Tight'] break-words leading-[1.1]">
+              {picked.label || picked.id}
+            </h1>
+            <p className="text-[#8A8A8E] text-[13px] sm:text-[14px] max-w-[640px] leading-relaxed break-words">
+              {picked.variantLabelKey
+                ? t("post_template_variant_ready", { style: t(picked.variantLabelKey) })
+                : t("post_template_ready")}
+            </p>
+          </div>
+          <StudioHelpTip helpKey="help_page_posters" size="lg" testId="posters-page-help" className="shrink-0 mt-1" />
         </div>
       </div>
 
@@ -822,6 +826,7 @@ function Editor(props) {
                   ? t("post_sec_fashion_person_hint")
                   : t("post_sec_ref_hint")
             }
+            helpKey="help_sec_post_photo"
           >
             <div className="max-w-[560px]">
               <ImageUploadZone
@@ -849,7 +854,7 @@ function Editor(props) {
           </PosterSection>
 
           {isPosterFashionTemplate(picked) && (
-            <PosterSection title={t("post_sec_fashion_garment")} optional hint={t("post_sec_fashion_garment_hint")}>
+            <PosterSection title={t("post_sec_fashion_garment")} optional hint={t("post_sec_fashion_garment_hint")} helpKey="help_sec_post_garment">
               <div className="max-w-[280px]">
                 <ImageUploadZone
                   value={logo}
@@ -865,7 +870,7 @@ function Editor(props) {
           )}
 
           {isPosterFoodTemplate(picked) && (
-            <PosterSection title={t("post_sec_logo")} optional hint={t("post_sec_logo_hint")}>
+            <PosterSection title={t("post_sec_logo")} optional hint={t("post_sec_logo_hint")} helpKey="help_sec_post_logo">
               <div className="max-w-[280px]">
                 <ImageUploadZone
                   value={logo}
@@ -881,7 +886,7 @@ function Editor(props) {
           )}
 
           {isPosterFoodTemplate(picked) && (
-            <PosterSection title={t("post_sec_output_lang")} hint={t("post_sec_output_lang_hint")}>
+            <PosterSection title={t("post_sec_output_lang")} hint={t("post_sec_output_lang_hint")} helpKey="help_sec_post_lang">
               <select
                 value={outputLang}
                 onChange={(e) => setOutputLang(e.target.value)}
@@ -896,7 +901,7 @@ function Editor(props) {
           )}
 
           {menuFields.length > 0 && (
-            <PosterSection title={t("post_sec_menu")} hint={t("post_sec_menu_hint")}>
+            <PosterSection title={t("post_sec_menu")} hint={t("post_sec_menu_hint")} helpKey="help_sec_post_menu">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 {menuFields.map((p) => {
                   const fieldIndex = picked.placeholders.indexOf(p);
@@ -927,6 +932,7 @@ function Editor(props) {
             title={isPosterMenuTemplate(picked) ? t("post_sec_business") : t("post_sec_details")}
             optional={picked.optional?.length === picked.placeholders.length}
             hint={picked.category === "flyer" ? t("post_hint_flyer") : t("post_hint_default")}
+            helpKey="help_sec_post_details"
           >
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               {detailFields.map((p) => {
@@ -970,6 +976,7 @@ function Editor(props) {
             title={t("post_sec_layers")}
             optional
             hint={t("post_sec_layers_hint")}
+            helpKey="help_sec_post_layers"
           >
             <CustomTextLayersEditor blocks={customBlocks} onChange={setCustomBlocks} />
           </PosterSection>
@@ -979,6 +986,7 @@ function Editor(props) {
             title={t("post_sec_mood")}
             optional
             hint={t("post_visual_hint")}
+            helpKey="help_sec_post_mood"
           >
             <PosterMoodPalette
               mood={mood}
@@ -993,6 +1001,7 @@ function Editor(props) {
           <PosterSection
             title={t("post_sec_engine")}
             hint={t("post_sec_engine_hint")}
+            helpKey="help_sec_post_engine"
           >
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3" data-testid="poster-models">
               {modelsForPicker.map((m) => {
@@ -1045,6 +1054,7 @@ function Editor(props) {
           <PosterSection
             title={t("post_sec_format")}
             hint={t("post_sec_format_hint")}
+            helpKey="help_sec_post_format"
           >
             <AspectPicker
               value={
@@ -1088,6 +1098,7 @@ function Editor(props) {
             title={t("post_sec_prompt")}
             optional
             hint={t("post_sec_prompt_hint")}
+            helpKey="help_sec_post_prompt"
           >
             <p
               className="text-[#8A8A8E] text-[11px] leading-relaxed font-mono max-h-40 overflow-y-auto whitespace-pre-wrap break-words"

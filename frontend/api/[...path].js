@@ -52,7 +52,7 @@ const { generateOpenAIPosterImageDetailed } = require("./lib/openaiPoster.cjs");
 const { generateFashionClothesImage } = require("./lib/clothesFashionOpenAI.cjs");
 const { formatGenerationError } = require("./lib/generationErrors.cjs");
 const { appendAspectOutputInstruction, MATCH_ASPECT } = require("./lib/aspectOutputPrompt.cjs");
-const { fitImageRefToAspect } = require("./lib/fitImageToAspect.cjs");
+const { fitImageRefToAspect, detectNearestGrokAspect } = require("./lib/fitImageToAspect.cjs");
 const { handleCreationsRoute } = require("./lib/creationsRoutes.cjs");
 const { handlePromptAssistRoute } = require("./lib/promptAssist.cjs");
 const PADRAO_STYLES_LIST = require("./lib/padraoStylesData.cjs");
@@ -199,7 +199,7 @@ function normalizeRatio(ratio = "1:1", modelKey = "standard") {
     return { "4:5": "3:4", "5:4": "4:3", "21:9": "16:9", "9:21": "9:16" }[ratio] || "3:4";
   }
   if (!ratio || ["match", "match_input_image", "original"].includes(ratio)) {
-    return modelKey === "pro" || modelKey === "artistic" || modelKey === "kontext" ? "match_input_image" : "1:1";
+    return "match_input_image";
   }
   if (modelKey === "standard" || modelKey === "video") {
     if (GROK_SUPPORTED.has(ratio)) return ratio;
@@ -472,6 +472,90 @@ async function videoEditInput(fields, files) {
   return { input, prompt: userPrompt };
 }
 
+async function grokVideoEditInput(fields, files) {
+  const { buildGrokEditInput } = require("./lib/videoModels.cjs");
+  const GROK_MAX_SEC = 7;
+  let fromUrl = trustedMediaUrl(text(fields, "video_url", ""));
+  if (!fromUrl) {
+    const file = fileOf(files, "video");
+    if (file) {
+      fromUrl = await uploadFormVideoToBlob(file);
+    }
+  }
+  if (!fromUrl) {
+    const err = new Error("Grok precisa do vídeo na nuvem — aguarda «Pronto para gerar» ou recarrega e tenta outra vez.");
+    err.status = 400;
+    throw err;
+  }
+  const dur = Math.round(Number(text(fields, "duration", String(GROK_MAX_SEC))));
+  if (dur !== GROK_MAX_SEC) {
+    const err = new Error(`Grok só gera clips até ${GROK_MAX_SEC} segundos.`);
+    err.status = 400;
+    throw err;
+  }
+  const userPrompt = text(fields, "prompt", "").trim();
+  if (userPrompt.length < 3) {
+    const err = new Error("Descreve a edição (mín. 3 caracteres).");
+    err.status = 400;
+    throw err;
+  }
+  const prompt = `${userPrompt.trim()}. Keep everything else in the scene unchanged unless explicitly requested.`;
+  const input = buildGrokEditInput({ video: fromUrl, prompt });
+  return { input, prompt: userPrompt };
+}
+
+async function klingVideoEditInput(fields, files) {
+  const { buildKlingEditInput } = require("./lib/videoModels.cjs");
+  const video = await resolveVideoRef(files, fields, "video", "video_url");
+  if (!video) {
+    const err = new Error("Envia um vídeo (MP4/MOV, idealmente 2–10 segundos).");
+    err.status = 400;
+    throw err;
+  }
+  const userPrompt = text(fields, "prompt", "").trim();
+  const prompt = buildVideoEditPrompt(userPrompt);
+  const resolution = text(fields, "resolution", "original");
+  const audioSetting = text(fields, "audio_setting", "origin");
+  const ref = await resolveImageRef(files, fields, "reference_image", "reference_image_url");
+  const input = buildKlingEditInput({
+    video,
+    prompt,
+    referenceImage: ref,
+    resolution,
+    keepOriginalSound: audioSetting !== "auto",
+  });
+  return { input, prompt: userPrompt };
+}
+
+async function videoExtendInput(fields, files) {
+  const video = await resolveVideoRef(files, fields, "video", "video_url");
+  if (!video) {
+    const err = new Error("Envia um vídeo (MP4/MOV, idealmente 2–10 segundos).");
+    err.status = 400;
+    throw err;
+  }
+  const userPrompt = text(fields, "prompt", "").trim();
+  if (userPrompt.length < 3) {
+    const err = new Error("Descreve o que acontece a seguir (mín. 3 caracteres).");
+    err.status = 400;
+    throw err;
+  }
+  const { buildVideoExtendPrompt, buildWanExtendInput } = require("./lib/videoModels.cjs");
+  const { validateVideoExtendOptions } = require("./lib/videoExtendPricing.cjs");
+  const prompt = buildVideoExtendPrompt(userPrompt);
+  const opts = validateVideoExtendOptions({
+    resolution: text(fields, "resolution", "1080p"),
+    duration: text(fields, "duration", "6"),
+  });
+  const input = buildWanExtendInput({
+    firstClip: video,
+    prompt,
+    duration: opts.duration,
+    resolution: opts.resolution,
+  });
+  return { input, prompt: userPrompt };
+}
+
 async function resolveImageRef(files, fields, fileKey, urlKey) {
   const fromUrl = trustedMediaUrl(text(fields, urlKey, ""));
   if (fromUrl) return fromUrl;
@@ -571,6 +655,35 @@ async function routeUploadVideoBlob(req, res) {
       detail: err.message || "Falha ao guardar vídeo na nuvem.",
     });
   }
+}
+
+/** Vídeo multipart → URL pública Blob (Grok exige HTTPS, não data: URI). */
+async function uploadFormVideoToBlob(file) {
+  if (!file?.filepath || !isBlobConfigured()) return null;
+  const { MAX_VIDEO_BYTES, transcodeVideoToH264, shouldAttemptTranscode } = require("./lib/videoTranscode.cjs");
+  const st = await fs.stat(file.filepath).catch(() => null);
+  if (!st?.size || st.size > MAX_VIDEO_BYTES) return null;
+  let uploadPath = file.filepath;
+  let converted = false;
+  if (shouldAttemptTranscode(file.originalFilename, file.mimetype)) {
+    const out = await transcodeVideoToH264(file.filepath);
+    if (out?.outputPath) {
+      uploadPath = out.outputPath;
+      converted = true;
+    }
+  }
+  let fn = String(file.originalFilename || "video.mp4").replace(/[^\w.\-]+/g, "_");
+  if (converted) fn = fn.replace(/\.[^.]+$/, "") + ".mp4";
+  if (!/\.[a-z0-9]{2,5}$/i.test(fn)) fn += ".mp4";
+  const pathname = `rp/${Date.now()}-${crypto.randomBytes(6).toString("hex")}-${fn.slice(0, 80)}`;
+  const mime = converted ? "video/mp4" : (file.mimetype || "video/mp4");
+  const buf = await fs.readFile(uploadPath);
+  if (converted && uploadPath !== file.filepath) {
+    await fs.unlink(uploadPath).catch(() => {});
+  }
+  const { put } = require("@vercel/blob");
+  const blob = await put(pathname, buf, blobPutOptions({ contentType: mime }));
+  return blob.url;
 }
 
 const VIDEO_BLOB_CONTENT_TYPES = [
@@ -1220,7 +1333,10 @@ async function imageInput(fields, files, modelKey, prompt, opts = {}) {
   let primary = opts.preparedImage
     || (await resolveImageRef(files, fields, "photo", "photo_url"))
     || (await resolveImageRef(files, fields, "image", "image_url"));
-  const aspectRatio = normalizeRatio(text(fields, "aspect_ratio", "1:1"), modelKey);
+  let aspectRatio = normalizeRatio(text(fields, "aspect_ratio", "1:1"), modelKey);
+  if (primary && modelKey === "standard" && MATCH_ASPECT.has(aspectRatio)) {
+    aspectRatio = await detectNearestGrokAspect(primary);
+  }
   if (
     primary
     && !opts.preparedImage
@@ -1964,9 +2080,14 @@ async function routePost(path, fields, files, req) {
 
   if (path === "generate/video-edit") {
     await requireAdminSession(req);
-    const { applyPresetPrefix } = require("./lib/videoModels.cjs");
+    const {
+      applyPresetPrefix,
+      resolveVideoEditToolId,
+      MODELS: VIDEO_MODELS,
+    } = require("./lib/videoModels.cjs");
     const lang = text(fields, "lang", "en").slice(0, 2);
     const preset = text(fields, "video_preset", "").trim();
+    const editTool = resolveVideoEditToolId(text(fields, "video_tool", "kling_edit"));
     let rawPrompt = text(fields, "prompt", "").trim();
     if (preset && rawPrompt.length >= 3) {
       rawPrompt = applyPresetPrefix(preset, rawPrompt);
@@ -1981,14 +2102,83 @@ async function routePost(path, fields, files, req) {
         });
       }
     }
-    const { input, prompt } = await videoEditInput(fields, files);
+    const useWan = editTool === "wan_edit";
+    const useGrok = editTool === "grok_edit";
+    let input;
+    let prompt;
+    if (useWan) {
+      ({ input, prompt } = await videoEditInput(fields, files));
+    } else if (useGrok) {
+      ({ input, prompt } = await grokVideoEditInput(fields, files));
+    } else {
+      ({ input, prompt } = await klingVideoEditInput(fields, files));
+    }
     const surcharges = getSurcharges(region);
-    const { validateVideoEditOptions } = require("./lib/videoEditPricing.cjs");
+    const { validateVideoEditOptions, computeVideoEditCostForEngine } = require("./lib/videoEditPricing.cjs");
     const resOpts = validateVideoEditOptions({
       resolution: text(fields, "resolution", "original"),
       duration: text(fields, "duration", "6"),
+      engine: editTool,
     });
-    let cost = computeVideoEditCostFromConfig(CREDIT, surcharges, resOpts);
+    let cost = computeVideoEditCostForEngine(CREDIT, surcharges, editTool, resOpts);
+    if (truthyField(fields, "improve_prompt")) {
+      cost += surcharges.enhancePrompt ?? 5;
+    }
+    const { isValidEmail } = require("./lib/videoNotifyEmail.cjs");
+    const wantsNotify = truthyField(fields, "notify_by_email")
+      || Boolean(String(text(fields, "notify_email", "")).trim());
+    let notifyEmail = null;
+    if (wantsNotify) {
+      const session = resolveSessionUser(req);
+      const explicit = String(text(fields, "notify_email", "")).trim().toLowerCase();
+      if (isValidEmail(explicit)) {
+        notifyEmail = explicit;
+      } else if (session.user?.id && storageEnabled() && !session.isLocal) {
+        const dbUser = await getUserById(session.user.id);
+        const fromDb = String(dbUser?.email || "").trim().toLowerCase();
+        if (isValidEmail(fromDb)) notifyEmail = fromDb;
+      }
+    }
+    const modelId = useWan
+      ? MODELS.video_edit
+      : useGrok
+        ? VIDEO_MODELS.grok_edit
+        : VIDEO_MODELS.kling_edit;
+    return submitBillableGeneration(req, fields, {
+      cost,
+      type: "video",
+      modelId,
+      input,
+      prompt,
+      aspectRatio: useWan ? input.aspect_ratio : "auto",
+      modelUsed: modelId,
+      spendDescription: "Editor vídeo",
+      notifyEmail,
+    });
+  }
+
+  if (path === "generate/video-extend") {
+    await requireAdminSession(req);
+    const { MODELS: VIDEO_MODELS, buildVideoExtendPrompt } = require("./lib/videoModels.cjs");
+    const lang = text(fields, "lang", "en").slice(0, 2);
+    let rawPrompt = text(fields, "prompt", "").trim();
+    if (rawPrompt.length < 3) throw new Error("Descreve o que acontece a seguir (mín. 3 caracteres).");
+    if (truthyField(fields, "improve_prompt")) {
+      rawPrompt = await improvePrompt(rawPrompt, lang, { tool: "video_extend" });
+      fields.prompt = rawPrompt;
+    }
+    const { input, prompt } = await videoExtendInput(fields, files);
+    const surcharges = getSurcharges(region);
+    const { validateVideoExtendOptions, computeVideoExtendCost } = require("./lib/videoExtendPricing.cjs");
+    const resOpts = validateVideoExtendOptions({
+      resolution: text(fields, "resolution", "1080p"),
+      duration: text(fields, "duration", "6"),
+    });
+    let cost = computeVideoExtendCost({
+      resolution: resOpts.resolution,
+      duration: resOpts.duration,
+      regionId: region,
+    });
     if (truthyField(fields, "improve_prompt")) {
       cost += surcharges.enhancePrompt ?? 5;
     }
@@ -2010,12 +2200,12 @@ async function routePost(path, fields, files, req) {
     return submitBillableGeneration(req, fields, {
       cost,
       type: "video",
-      modelId: MODELS.video_edit,
+      modelId: VIDEO_MODELS.wan_extend,
       input,
       prompt,
-      aspectRatio: input.aspect_ratio,
-      modelUsed: MODELS.video_edit,
-      spendDescription: "Editor vídeo",
+      aspectRatio: "auto",
+      modelUsed: VIDEO_MODELS.wan_extend,
+      spendDescription: "Estender vídeo",
       notifyEmail,
     });
   }
@@ -2637,7 +2827,7 @@ async function handlePath(path, req, res) {
     }
 
     if (req.method === "POST") {
-      const maxFileSize = path === "generate/video-edit"
+      const maxFileSize = path === "generate/video-edit" || path === "generate/video-extend"
         ? 54 * 1024 * 1024
         : path.startsWith("upload/")
           ? 12 * 1024 * 1024
@@ -2666,16 +2856,17 @@ async function handlePath(path, req, res) {
       /FUNCTION_PAYLOAD_TOO_LARGE|Request Entity Too Large/i.test(msg)
       || /max file size|larger than|maxFields|maxFieldsSize|exceeded|MultipartParserError/i.test(msg)
     ) {
-      const isVideoEdit = String(pathFromRequest(req) || "").includes("video-edit");
+      const isVideoRoute = String(pathFromRequest(req) || "").includes("video-edit")
+        || String(pathFromRequest(req) || "").includes("video-extend");
       if (/FUNCTION_PAYLOAD_TOO_LARGE|Request Entity Too Large/i.test(msg)) {
         return json(res, 413, {
-          detail: isVideoEdit
+          detail: isVideoRoute
             ? "O vídeo ultrapassou o limite do servidor (Vercel). Aguarda o upload para a nuvem antes de Gerar, ou usa um clip mais curto."
             : "O pedido é demasiado grande para o servidor. Comprime a imagem ou ativa o upload em nuvem.",
         });
       }
       return json(res, 413, {
-        detail: isVideoEdit
+        detail: isVideoRoute
           ? "Vídeo muito grande. Máximo 50MB. Usa MP4 (H.264) ou MOV (ideal 2–10 s) ou recarrega para ativar o upload em nuvem."
           : "A imagem é demasiado grande para o servidor. Recarrega a página (Ctrl+F5) e tenta outra vez — o site comprime automaticamente antes de enviar.",
       });

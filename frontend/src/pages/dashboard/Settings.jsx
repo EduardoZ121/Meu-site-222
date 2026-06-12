@@ -20,6 +20,7 @@ import { setLanguageAndReload } from "../../lib/remakepixLanguage";
 import useTitle from "../../lib/useTitle";
 import { toast } from "sonner";
 import AspectPicker from "../../components/AspectPicker";
+import StudioHelpTip from "../../components/studio/StudioHelpTip";
 
 const ASPECTS = ["1:1", "4:5", "9:16", "16:9", "3:2"];
 
@@ -91,13 +92,18 @@ export default function Settings() {
   return (
     <div className="max-w-[640px] mx-auto pb-16" data-testid="settings-page">
       <header className="mb-8">
-        <p className="text-[10px] font-mono uppercase tracking-[0.22em] text-[#7C3AED] mb-2">
-          {t("set_page_cap")}
-        </p>
-        <h1 className="text-[#F4F1EA] text-3xl font-light tracking-tight font-['Inter_Tight'] mb-2">
-          {t("set_page_title")}
-        </h1>
-        <p className="text-[#8A8A8E] text-sm leading-relaxed">{t("set_page_desc")}</p>
+        <div className="flex items-start gap-3">
+          <div className="flex-1 min-w-0">
+            <p className="text-[10px] font-mono uppercase tracking-[0.22em] text-[#7C3AED] mb-2">
+              {t("set_page_cap")}
+            </p>
+            <h1 className="text-[#F4F1EA] text-3xl font-light tracking-tight font-['Inter_Tight'] mb-2">
+              {t("set_page_title")}
+            </h1>
+            <p className="text-[#8A8A8E] text-sm leading-relaxed">{t("set_page_desc")}</p>
+          </div>
+          <StudioHelpTip helpKey="help_page_settings" size="lg" testId="settings-page-help" className="shrink-0 mt-1" />
+        </div>
       </header>
 
       <div className="space-y-4">
@@ -111,7 +117,7 @@ export default function Settings() {
           <LinkRow to="/app/profile" label={t("set_edit_profile")} testId="settings-link-profile" />
         </Section>
 
-        <Section title={t("set_section_language")} icon={Globe}>
+        <Section title={t("set_section_language")} icon={Globe} helpKey="help_sec_set_language">
           <p className="text-xs text-[#8A8A8E] mb-3 leading-relaxed">{t("set_lang_hint")}</p>
           <div className="grid grid-cols-2 gap-2">
             {LANG_ORDER.map((code) => (
@@ -135,7 +141,7 @@ export default function Settings() {
           </div>
         </Section>
 
-        <Section title={t("set_section_security")} icon={Lock}>
+        <Section title={t("set_section_security")} icon={Lock} helpKey="help_sec_set_password">
           {isGoogle ? (
             <p className="text-sm text-[#8A8A8E] leading-relaxed" data-testid="settings-google-hint">
               {t("set_pw_google")}
@@ -186,7 +192,7 @@ export default function Settings() {
           )}
         </Section>
 
-        <Section title={t("wa_settings_title")} icon={MessageCircle}>
+        <Section title={t("wa_settings_title")} icon={MessageCircle} helpKey="help_sec_set_whatsapp">
           <p className="text-xs text-[#8A8A8E] mb-4 leading-relaxed">{t("wa_settings_desc")}</p>
           <Field
             label={t("wa_phone_label")}
@@ -232,7 +238,7 @@ export default function Settings() {
           </button>
         </Section>
 
-        <Section title={t("set_section_studio")} icon={ImageIcon}>
+        <Section title={t("set_section_studio")} icon={ImageIcon} helpKey="help_sec_set_aspect">
           <p className="text-xs text-[#8A8A8E] mb-3">{t("set_aspect_hint")}</p>
           <AspectPicker
             value={aspect}
@@ -257,12 +263,13 @@ export default function Settings() {
   );
 }
 
-function Section({ title, icon: Icon, children }) {
+function Section({ title, icon: Icon, children, helpKey }) {
   return (
     <section className="rounded-2xl border border-[rgba(147,51,234,0.15)] bg-[#13131A]/80 backdrop-blur-sm overflow-hidden">
       <div className="flex items-center gap-2 px-4 py-3 border-b border-white/[0.06] bg-white/[0.02]">
         <Icon className="w-4 h-4 text-[#A855F7]" strokeWidth={1.75} />
-        <h2 className="text-sm font-semibold text-white">{title}</h2>
+        <h2 className="text-sm font-semibold text-white flex-1 min-w-0">{title}</h2>
+        {helpKey ? <StudioHelpTip helpKey={helpKey} testId={`settings-${helpKey}-help`} /> : null}
       </div>
       <div className="p-4">{children}</div>
     </section>

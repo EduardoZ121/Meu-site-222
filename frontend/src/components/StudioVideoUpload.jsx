@@ -23,6 +23,8 @@ export default function StudioVideoUpload({
   emptyHint,
   className = "",
   maxDurationSec = 10,
+  /** Grok e outros motores que exigem URL pública — sempre envia para a nuvem. */
+  requireCloudUrl = false,
 }) {
   const { t } = useI18n();
   const [cloudProgress, setCloudProgress] = useState(null);
@@ -43,7 +45,8 @@ export default function StudioVideoUpload({
     onCloudUrlChange?.(null);
     onChange(file);
 
-    if (file.size <= VIDEO_VERCEL_SAFE_BYTES) {
+    const mustUploadToCloud = requireCloudUrl || file.size > VIDEO_VERCEL_SAFE_BYTES;
+    if (!mustUploadToCloud) {
       onStatusChange?.("saved");
       return;
     }
@@ -74,7 +77,7 @@ export default function StudioVideoUpload({
         setCloudProgress(null);
         toast.error(err?.message || t("vid_cloud_upload_fail"), { duration: 12000 });
       });
-  }, [onChange, onCloudUrlChange, onStatusChange, t]);
+  }, [onChange, onCloudUrlChange, onStatusChange, requireCloudUrl, t]);
 
   const handleChange = useCallback((file) => {
     uploadGenRef.current += 1;

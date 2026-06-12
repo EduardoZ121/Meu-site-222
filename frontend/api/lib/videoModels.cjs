@@ -6,6 +6,9 @@ const MODELS = {
   wan_t2v_fast: "wan-video/wan-2.2-t2v-fast",
   wan_i2v_fast: "wan-video/wan-2.2-i2v-fast",
   wan_edit: "wan-video/wan-2.7-videoedit",
+  kling_edit: "kwaivgi/kling-o1",
+  grok_edit: "xai/grok-imagine-video",
+  wan_extend: "wan-video/wan-2.7-i2v",
 };
 
 const WAN_ASPECT = {
@@ -76,6 +79,23 @@ const TOOL_META = {
     costKey: "videoEdit",
     flow: "edit",
   },
+  kling_edit: {
+    modelKey: "kling_edit",
+    costKey: "videoEdit",
+    flow: "edit",
+  },
+  grok_edit: {
+    modelKey: "grok_edit",
+    costKey: "videoEdit",
+    flow: "edit",
+  },
+  wan_extend: {
+    modelKey: "wan_extend",
+    costKey: "videoExtend",
+    flow: "extend",
+    durations: [4, 6, 8, 10],
+    defaultDuration: 6,
+  },
 };
 
 const PRESET_PROMPT_PREFIX = {
@@ -92,8 +112,10 @@ function resolveToolId(raw, { hasPhoto = false, preset = "" } = {}) {
   if (id === "kling_elements" || id === "elements") return "kling_elements";
   if (id === "wan_t2v_fast" || id === "text-fast" || id === "fun" || preset === "fun") return "wan_t2v_fast";
   if (id === "wan_i2v_fast" || id === "image-fast") return "wan_i2v_fast";
-  if (id === "wan_edit" || id === "edit" || id === "change-bg" || id === "change-outfit" || id === "restyle") {
-    return "wan_edit";
+  if (id === "wan_extend" || id === "extend") return "wan_extend";
+  if (id === "wan_edit" || id === "wan-2.7" || id === "wan") return "wan_edit";
+  if (id === "kling_edit" || id === "kling-o1" || id === "kling_o1") {
+    return "kling_edit";
   }
   if (id === "kling_turbo" || id === "kling" || id === "text-marketing" || id === "image-marketing" || preset === "marketing") {
     return "kling_turbo";
@@ -165,6 +187,27 @@ function buildKlingInput({ prompt, aspect, photo, reference, duration, elements 
   return input;
 }
 
+function buildWanExtendInput({ firstClip, prompt, duration, resolution = "1080p" }) {
+  const dur = Math.min(15, Math.max(2, Math.round(Number(duration) || 6)));
+  const res = String(resolution || "1080p").trim().toLowerCase() === "720p" ? "720p" : "1080p";
+  return {
+    first_clip: firstClip,
+    prompt,
+    duration: dur,
+    resolution: res,
+    enable_prompt_expansion: true,
+  };
+}
+
+function buildVideoExtendPrompt(userPrompt) {
+  const base = String(userPrompt || "").trim();
+  return (
+    `Continue seamlessly from the last frame of the input clip. `
+    + `Preserve subject identity, motion style, lighting and camera feel. `
+    + `Next action: ${base}`
+  );
+}
+
 function applyPresetPrefix(preset, userPrompt) {
   const p = String(preset || "").trim().toLowerCase();
   const prefix = PRESET_PROMPT_PREFIX[p];
@@ -172,15 +215,56 @@ function applyPresetPrefix(preset, userPrompt) {
   return `${prefix}${userPrompt}`;
 }
 
+/** Vídeo→vídeo — motor escolhido na UI (kling_edit | grok_edit | wan_edit). */
+function resolveVideoEditToolId(raw) {
+  const id = String(raw || "kling_edit").trim().toLowerCase();
+  if (id === "grok_edit" || id === "grok-edit" || id === "grok") return "grok_edit";
+  if (id === "wan_edit" || id === "wan-2.7" || id === "wan") return "wan_edit";
+  if (id === "kling_edit" || id === "kling-o1" || id === "kling_o1" || id === "kling") return "kling_edit";
+  return "kling_edit";
+}
+
+function klingEditModeFromResolution(resolution) {
+  return String(resolution || "original").trim().toLowerCase() === "1080p" ? "pro" : "std";
+}
+
+function buildKlingEditInput({
+  video,
+  prompt,
+  referenceImage = null,
+  resolution = "original",
+  keepOriginalSound = true,
+}) {
+  const input = {
+    prompt,
+    reference_video: video,
+    video_reference_type: "base",
+    mode: klingEditModeFromResolution(resolution),
+    keep_original_sound: keepOriginalSound,
+  };
+  if (referenceImage) input.reference_images = [referenceImage];
+  return input;
+}
+
+function buildGrokEditInput({ video, prompt }) {
+  return { video, prompt };
+}
+
 module.exports = {
   MODELS,
   TOOL_META,
   PRESET_PROMPT_PREFIX,
   resolveToolId,
+  resolveVideoEditToolId,
   costKeyForTool,
   computeVideoToolCost,
   klingDuration,
   buildWanFastInput,
   buildKlingInput,
+  buildKlingEditInput,
+  buildGrokEditInput,
+  buildWanExtendInput,
+  buildVideoExtendPrompt,
   applyPresetPrefix,
+  klingEditModeFromResolution,
 };

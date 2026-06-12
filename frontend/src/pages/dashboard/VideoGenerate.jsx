@@ -3,7 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Film, Sparkles, Wand2 } from "lucide-react";
 
 import { formatApiError, uploadPost } from "../../lib/api";
-
+import { dispatchBackgroundJob, ensureBackgroundSlot } from "../../lib/bgGeneration";
 import { normalizeCreation, primaryResultUrl } from "../../lib/creationUrls";
 
 import { useAuth } from "../../lib/auth";
@@ -15,7 +15,6 @@ import PromptEnhanceToggle from "../../components/promptAssist/PromptEnhanceTogg
 import { getSurcharges } from "../../lib/creditPricing";
 
 import { computeVideoToolCost, getVideoToolMeta } from "../../lib/videoModels";
-
 import { useI18n } from "../../lib/i18n";
 
 import { toast } from "sonner";
@@ -518,7 +517,7 @@ export default function VideoGenerate({ category }) {
 
         <StudioAccordionSection title={t("vid_step_duration")} defaultOpen testId={`video-${modeId}-acc-duration`}>
 
-          <div className="grid grid-cols-3 gap-2">
+          <div className="grid gap-2 grid-cols-3">
 
             {DURATIONS.map((d) => (
 
@@ -546,7 +545,11 @@ export default function VideoGenerate({ category }) {
 
                 <p className="text-[#F4F1EA] text-[16px] font-light">{d.label}</p>
 
-                <p className="text-[#8A8A8E] text-[10px]">{d.desc}</p>
+                {d.desc ? (
+
+                  <p className="text-[#8A8A8E] text-[10px]">{d.desc}</p>
+
+                ) : null}
 
               </button>
 
@@ -677,6 +680,8 @@ export default function VideoGenerate({ category }) {
         busyLabel={t("vid_rendering")}
 
         hint={hint}
+
+        blockedNotify="message"
 
         testId={`video-${modeId}-generate`}
 

@@ -26,6 +26,7 @@ import { usePhotoAspectDefault, ASPECT_MATCH } from "../../lib/usePhotoAspectDef
 import { apiAspectRatio } from "../../lib/apiAspectRatio";
 import { hasStudioCredits, useStudioGenerateGate } from "../../lib/useStudioGenerateGate";
 import PromptEnhanceToggle from "../../components/promptAssist/PromptEnhanceToggle";
+import StudioHelpTip from "../../components/studio/StudioHelpTip";
 import { applyGenerationSurcharges, getSurcharges } from "../../lib/creditPricing";
 
 const SUBJECT_KEYS = [
@@ -205,11 +206,12 @@ export default function Generate() {
         title={t("studio_title")}
         description={t("studio_desc")}
         testId="generate-header"
+        helpKey="help_page_generate"
       />
 
       <div className="grid grid-cols-1 lg:grid-cols-[1fr_340px] gap-3 lg:gap-8">
         <div className="rp-studio-card-stack">
-          <StudioAccordionSection title={t("studio_acc_photo")} defaultOpen={false} testId="studio-acc-photo">
+          <StudioAccordionSection title={t("studio_acc_photo")} defaultOpen={false} testId="studio-acc-photo" helpKey="help_sec_upload">
             <div className="flex items-baseline justify-end mb-3">
               {photo && (
                 <button type="button" onClick={() => setPhoto(null)} className="text-[10px] font-mono uppercase tracking-[0.12em] text-[#8A8A8E] hover:text-[#F4F1EA] transition-colors">{t("remove")}</button>
@@ -220,7 +222,7 @@ export default function Generate() {
             </div>
           </StudioAccordionSection>
 
-          <StudioAccordionSection title={t("studio_acc_prompt")} defaultOpen testId="studio-acc-prompt">
+          <StudioAccordionSection title={t("studio_acc_prompt")} defaultOpen testId="studio-acc-prompt" helpKey="help_sec_prompt">
             <textarea
               value={prompt}
               onChange={(e) => setPrompt(e.target.value)}
@@ -255,6 +257,7 @@ export default function Generate() {
                   <span className="text-[#A855F7] font-mono text-[10px]">+{surcharges.hdImage ?? 8}</span>
                 </span>
               </label>
+              <StudioHelpTip helpKey="help_ctrl_hd_quality" testId="hd-quality-help" />
             </div>
             <div className="flex justify-end mt-2">
               <span className="text-[#5A5A5E] text-[10px] font-mono tabular-nums">{prompt.length}/800</span>
@@ -263,9 +266,11 @@ export default function Generate() {
               <button type="button" onClick={() => navigate("/app/wizard")} className="rp-btn-surface" data-testid="open-wizard">
                 <Wand2 className="w-3.5 h-3.5" strokeWidth={1.5} /> {t("studio_wizard")}
               </button>
+              <StudioHelpTip helpKey="help_ctrl_wizard" testId="wizard-help" />
               <button type="button" onClick={() => navigate("/app/suggest")} className="rp-btn-surface" data-testid="open-suggest">
                 <Lightbulb className="w-3.5 h-3.5" strokeWidth={1.5} /> {t("studio_suggest")}
               </button>
+              <StudioHelpTip helpKey="help_ctrl_suggest" testId="suggest-help" />
             </div>
           </StudioAccordionSection>
 
@@ -274,6 +279,7 @@ export default function Generate() {
             defaultOpen={false}
             testId="studio-acc-styles"
             titleClassName="studio-customize-title"
+            helpKey="help_sec_styles"
           >
             <button type="button" onClick={() => setShowStyles(!showStyles)} className="flex items-center gap-2 w-full text-left rp-editor-section-cap !text-[#a89bc9] hover:!text-[#c4b8e6] transition-colors mb-4" data-testid="toggle-styles">
               {t("studio_styles_toggle")} <span className="text-[#5A5A5E] font-['Inter_Tight'] normal-case tracking-normal text-[12px] font-normal">{t("studio_styles_optional")}</span>
@@ -319,7 +325,7 @@ export default function Generate() {
             )}
           </StudioAccordionSection>
 
-          <StudioAccordionSection title={t("studio_acc_format")} defaultOpen testId="studio-acc-format">
+          <StudioAccordionSection title={t("studio_acc_format")} defaultOpen testId="studio-acc-format" helpKey="help_sec_format">
             <AspectPicker value={aspect} onChange={setAspect} hasPhoto={!!photo} testIdPrefix="aspect" />
           </StudioAccordionSection>
         </div>

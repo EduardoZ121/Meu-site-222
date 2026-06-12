@@ -46,6 +46,16 @@ function computeVideoGenerateCost(CREDIT, surcharges, { duration = 6, mode = "te
   return cost;
 }
 
+function computeVideoExtendCostFromConfig(CREDIT, surcharges, { resolution = "1080p", duration = 6 } = {}) {
+  let cost = CREDIT.videoExtend ?? CREDIT.videoEdit ?? 70;
+  const res = String(resolution || "1080p").trim().toLowerCase();
+  const dur = Math.round(Number(duration));
+  if (res === "720p" || res === "1080p") cost += surcharges.videoEditResolutionHd ?? 8;
+  if (dur >= 10) cost += surcharges.videoEditDuration10 ?? 25;
+  else if (dur >= 8) cost += surcharges.videoEditDuration8 ?? 12;
+  return cost;
+}
+
 function computeVideoEditCostFromConfig(CREDIT, surcharges, { resolution = "original", duration = 6 } = {}) {
   let cost = CREDIT.videoEdit ?? 120;
   const res = String(resolution || "original").trim().toLowerCase();
@@ -105,6 +115,7 @@ module.exports = {
   customPurchaseAmountCents,
   computeVideoGenerateCost,
   computeVideoEditCostFromConfig,
+  computeVideoExtendCostFromConfig,
   countPremiumArtisticEffects,
   computeArtisticEffectSurcharge,
   applyGenerationSurcharges,

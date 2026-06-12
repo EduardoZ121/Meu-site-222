@@ -56,6 +56,16 @@ export function computeVideoEditCostFromConfig(costs, surcharges, { resolution =
   return cost;
 }
 
+export function computeVideoExtendCostFromConfig(costs, surcharges, { resolution = "1080p", duration = 6 } = {}) {
+  let cost = costs.videoExtend ?? costs.videoEdit ?? 70;
+  const res = String(resolution || "1080p").trim().toLowerCase();
+  const dur = Math.round(Number(duration));
+  if (res === "720p" || res === "1080p") cost += surcharges.videoEditResolutionHd ?? 8;
+  if (dur >= 10) cost += surcharges.videoEditDuration10 ?? 25;
+  else if (dur >= 8) cost += surcharges.videoEditDuration8 ?? 12;
+  return cost;
+}
+
 function countPremiumArtisticEffects(effects, regionId = "intl") {
   const premium = new Set(getPremiumArtisticEffects(regionId));
   if (!effects || typeof effects !== "object") return 0;

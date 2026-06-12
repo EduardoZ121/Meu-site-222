@@ -113,12 +113,13 @@ export default function Colorize() {
         title={tCat("tool_colorize_name")}
         description={t("colorize_desc_long")}
         testId="colorize-header"
+        helpKey="help_tool_colorize"
       />
 
       <div className="grid grid-cols-1 xl:grid-cols-[1fr_360px] gap-3 xl:gap-8">
         <div className="rp-studio-card-stack">
           {/* 1) UPLOAD */}
-          <CollapsibleSection title={t("colorize_section_photo")} defaultOpen testId="colorize-section-photo">
+          <CollapsibleSection title={t("colorize_section_photo")} defaultOpen testId="colorize-section-photo" helpKey="help_sec_upload">
             <div className="flex items-baseline justify-between mb-4">
               {photo && (
                 <button
@@ -141,7 +142,7 @@ export default function Colorize() {
             />
           </CollapsibleSection>
 
-          <CollapsibleSection title={t("colorize_section_level")} testId="colorize-section-style">
+          <CollapsibleSection title={t("colorize_section_level")} testId="colorize-section-style" helpKey="help_sec_colorize_options">
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-3" data-testid="colorize-styles">
               {styles.map(({ key, label, hint, swatch }) => (
                 <button
@@ -177,7 +178,7 @@ export default function Colorize() {
             </div>
           </CollapsibleSection>
 
-          <CollapsibleSection title={t("colorize_section_tuning")} testId="colorize-section-tuning">
+          <CollapsibleSection title={t("colorize_section_tuning")} testId="colorize-section-tuning" helpKey="help_sec_colorize_options">
             <div className="space-y-3">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                 <Toggle
@@ -224,7 +225,7 @@ export default function Colorize() {
             </div>
           </CollapsibleSection>
 
-          <CollapsibleSection title={t("colorize_section_hint")} optional testId="colorize-section-prompt">
+          <CollapsibleSection title={t("colorize_section_hint")} optional testId="colorize-section-prompt" helpKey="help_sec_prompt">
             <textarea
               value={customPrompt}
               onChange={(e) => setCustomPrompt(e.target.value)}

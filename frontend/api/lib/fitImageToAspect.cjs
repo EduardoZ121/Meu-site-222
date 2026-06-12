@@ -31,6 +31,42 @@ async function loadImageBuffer(imageRef) {
   return null;
 }
 
+const GROK_ASPECTS = ["1:1", "16:9", "9:16", "4:3", "3:4", "3:2", "2:3", "2:1", "1:2"];
+
+function nearestSupportedAspect(width, height, supported = GROK_ASPECTS) {
+  const target = width / height;
+  let best = supported[0];
+  let bestDiff = Infinity;
+  for (const ar of supported) {
+    const parts = String(ar).split(":").map((n) => Number(n));
+    if (parts.length !== 2 || !parts[0] || !parts[1]) continue;
+    const diff = Math.abs(target - parts[0] / parts[1]);
+    if (diff < bestDiff) {
+      bestDiff = diff;
+      best = ar;
+    }
+  }
+  return best;
+}
+
+/** Proporção Grok mais próxima da foto (modo "Original"). */
+async function detectNearestGrokAspect(imageRef) {
+  const buf = await loadImageBuffer(imageRef);
+  if (!buf?.length) return "1:1";
+  let sharp;
+  try {
+    sharp = require("sharp");
+  } catch {
+    return "1:1";
+  }
+  try {
+    const meta = await sharp(buf, { failOn: "none" }).rotate().metadata();
+    return nearestSupportedAspect(meta.width || 1, meta.height || 1);
+  } catch {
+    return "1:1";
+  }
+}
+
 /**
  * Recorta/encaixa a referência no rácio pedido (Grok Imagine ignora aspect_ratio com image).
  *
@@ -92,5 +128,7 @@ module.exports = {
   fitImageRefToAspect,
   fitImageRefToPixelSize,
   parseAspectRatio,
+  detectNearestGrokAspect,
+  nearestSupportedAspect,
   OUTPUT_WIDTH,
 };

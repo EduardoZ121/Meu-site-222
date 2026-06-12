@@ -7,6 +7,9 @@ export const VIDEO_TOOL_IDS = {
   wan_i2v_fast: "wan_i2v_fast",
   kling_elements: "kling_elements",
   wan_edit: "wan_edit",
+  kling_edit: "kling_edit",
+  grok_edit: "grok_edit",
+  wan_extend: "wan_extend",
 };
 
 export const VIDEO_TOOL_META = {
@@ -62,6 +65,23 @@ export const VIDEO_TOOL_META = {
     costKey: "videoEdit",
     flow: "edit",
     modelLabel: "Wan 2.7 VideoEdit",
+  },
+  kling_edit: {
+    costKey: "videoEdit",
+    flow: "edit",
+    modelLabel: "Kling O1 Edit",
+  },
+  grok_edit: {
+    costKey: "videoEdit",
+    flow: "edit",
+    modelLabel: "Grok Imagine",
+  },
+  wan_extend: {
+    costKey: "videoExtend",
+    flow: "extend",
+    durations: [4, 6, 8, 10],
+    defaultDuration: 6,
+    modelLabel: "Wan 2.7 Continue",
   },
 };
 

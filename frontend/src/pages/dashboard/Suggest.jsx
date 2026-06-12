@@ -6,6 +6,7 @@ import { useI18n } from "../../lib/i18n";
 import { localSuggestions, randomSuggestPrompt } from "../../lib/suggestPromptPools";
 import { toast } from "sonner";
 import useTitle from "../../lib/useTitle";
+import StudioHelpTip from "../../components/studio/StudioHelpTip";
 
 const PRESET_KEYS = [
   "sug_preset_portrait", "sug_preset_brand", "sug_preset_editorial",
@@ -47,12 +48,17 @@ export default function Suggest() {
 
   return (
     <div className="max-w-[1000px] mx-auto" data-testid="suggest-page">
-      <p className="eyebrow mb-3">{t("sug_eyebrow")}</p>
-      <h1 className="heading-xl mb-5">
-        {t("sug_title_a")}{" "}
-        <span className="italic text-rp-lavender">{t("sug_title_b")}</span>
-        {t("sug_title_dot")}
-      </h1>
+      <div className="flex items-start gap-3 mb-5">
+        <div className="flex-1 min-w-0">
+          <p className="eyebrow mb-3">{t("sug_eyebrow")}</p>
+          <h1 className="heading-xl">
+            {t("sug_title_a")}{" "}
+            <span className="italic text-rp-lavender">{t("sug_title_b")}</span>
+            {t("sug_title_dot")}
+          </h1>
+        </div>
+        <StudioHelpTip helpKey="help_page_suggest" size="lg" testId="suggest-page-help" className="mt-8 shrink-0" />
+      </div>
       <p className="body-text max-w-[620px] mb-8">{t("sug_desc")}</p>
 
       <div className="inline-flex rounded-full border border-rp-border bg-rp-surface p-1 mb-6">

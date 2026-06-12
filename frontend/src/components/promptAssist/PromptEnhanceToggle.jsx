@@ -1,5 +1,6 @@
 import { Sparkles, Lock } from "lucide-react";
 import { useI18n } from "../../lib/i18n";
+import StudioHelpTip from "../studio/StudioHelpTip";
 
 export default function PromptEnhanceToggle({
   checked,
@@ -8,13 +9,15 @@ export default function PromptEnhanceToggle({
   onLockedClick,
   testId = "prompt-enhance",
   cost = 5,
+  helpKey = "help_ctrl_improve_prompt",
 }) {
   const { t } = useI18n();
   return (
-    <label
-      className={`inline-flex items-center gap-2.5 cursor-pointer group ${locked ? "opacity-80" : ""}`}
-      data-testid={testId}
-    >
+    <div className="inline-flex items-center gap-1.5">
+      <label
+        className={`inline-flex items-center gap-2.5 cursor-pointer group ${locked ? "opacity-80" : ""}`}
+        data-testid={testId}
+      >
       <input
         type="checkbox"
         checked={checked}
@@ -40,5 +43,7 @@ export default function PromptEnhanceToggle({
         )}
       </span>
     </label>
+      {helpKey ? <StudioHelpTip helpKey={helpKey} testId={`${testId}-help`} /> : null}
+    </div>
   );
 }

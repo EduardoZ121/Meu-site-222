@@ -33,6 +33,7 @@ async function createPending(doc) {
     lang: doc.lang || "en",
     notify_email: doc.notify_email || null,
     notify_email_sent_at: null,
+    notify_email_attempts: 0,
     notify_email_error: null,
     polled_count: 0,
     created_at: nowIso(),
@@ -70,6 +71,23 @@ async function deliverVideoNotifyEmail(pending, creation, urls) {
   if (pending.notify_email_sent_at) {
     return { skipped: true, reason: "already_sent" };
   }
+
+  const db = await getDb();
+  const claim = await db.collection("pending_predictions").findOneAndUpdate(
+    {
+      id: pending.id,
+      notify_email: { $type: "string", $ne: "" },
+      notify_email_sent_at: null,
+    },
+    {
+      $set: { notify_email_sent_at: nowIso(), notify_email_error: null },
+    },
+    { returnDocument: "before" },
+  );
+  if (!claim) {
+    return { skipped: true, reason: "already_sent" };
+  }
+
   const videoUrl = Array.isArray(urls) && urls.length ? urls[0] : null;
   const galleryUrl = creation?.id
     ? `https://www.remakepix.com/app/gallery?focus=${encodeURIComponent(creation.id)}`
@@ -81,10 +99,16 @@ async function deliverVideoNotifyEmail(pending, creation, urls) {
     galleryUrl,
     creationId: creation?.id,
   });
-  await updatePending(pending.id, {
-    notify_email_sent_at: result.ok ? nowIso() : null,
-    notify_email_error: result.ok ? null : String(result.error || result.reason || "send_failed").slice(0, 200),
-  });
+
+  if (!result.ok) {
+    const attempts = Number(claim.notify_email_attempts || 0) + 1;
+    await updatePending(pending.id, {
+      notify_email_sent_at: attempts >= 3 ? nowIso() : null,
+      notify_email_attempts: attempts,
+      notify_email_error: String(result.error || result.reason || "send_failed").slice(0, 200),
+    });
+  }
+
   return result;
 }
 
@@ -140,12 +164,16 @@ async function finalizePending(pending, replicateInfo) {
     let urls = extractUrls(replicateInfo.output);
     urls = await mirrorUrlsToBlob(urls);
     if (!urls.length) {
+      const db = await getDb();
+      const claimed = await db.collection("pending_predictions").findOneAndUpdate(
+        { id: pending.id, status: { $nin: ["completed", "refunded"] } },
+        { $set: { status: "refunded", error: "empty output", completed_at: now } },
+        { returnDocument: "after" },
+      );
+      if (!claimed) {
+        return pollPending(pending, async () => replicateInfo);
+      }
       const newBalance = await addCredits(userId, cost, "refund", "Refund: empty output");
-      await updatePending(pending.id, {
-        status: "refunded",
-        error: "empty output",
-        completed_at: now,
-      });
       return {
         status: "failed",
         error: formatGenerationError("empty output", lang),
@@ -154,17 +182,41 @@ async function finalizePending(pending, replicateInfo) {
         refunded: true,
       };
     }
-    const creation = creationFromPending(pending, urls);
-    await recordCreation(userId, creation);
-    await updatePending(pending.id, {
-      status: "completed",
-      result_urls: urls,
-      completed_at: now,
-    });
-
-    await deliverVideoNotifyEmail(pending, creation, urls);
 
     const db = await getDb();
+    const claimed = await db.collection("pending_predictions").findOneAndUpdate(
+      { id: pending.id, status: { $nin: ["completed", "refunded"] } },
+      {
+        $set: {
+          status: "completed",
+          result_urls: urls,
+          completed_at: now,
+        },
+      },
+      { returnDocument: "before" },
+    );
+
+    if (!claimed) {
+      const existing = await getPending(pending.id);
+      if (existing?.status === "completed") {
+        const creation = creationFromPending(existing, existing.result_urls || urls);
+        await deliverVideoNotifyEmail(existing, creation, existing.result_urls || urls);
+        const user = await db.collection("users").findOne({ id: userId }, { projection: { credits: 1 } });
+        return {
+          status: "succeeded",
+          creation,
+          new_balance: user?.credits ?? pending.balance_after_spend,
+          prediction_id: pending.id,
+          server_billing: true,
+        };
+      }
+      return pollPending(pending, async () => replicateInfo);
+    }
+
+    const creation = creationFromPending(claimed, urls);
+    await recordCreation(userId, creation);
+    await deliverVideoNotifyEmail({ ...claimed, result_urls: urls }, creation, urls);
+
     const user = await db.collection("users").findOne({ id: userId }, { projection: { credits: 1 } });
     return {
       status: "succeeded",
@@ -175,14 +227,26 @@ async function finalizePending(pending, replicateInfo) {
     };
   }
 
+  const db = await getDb();
+  const claimed = await db.collection("pending_predictions").findOneAndUpdate(
+    { id: pending.id, status: { $nin: ["completed", "refunded"] } },
+    {
+      $set: {
+        status: "refunded",
+        error: String(replicateInfo.error || "Generation failed").slice(0, 300),
+        completed_at: now,
+      },
+    },
+    { returnDocument: "before" },
+  );
+
+  if (!claimed) {
+    return pollPending(pending, async () => replicateInfo);
+  }
+
   const rawErr = replicateInfo.error || "Generation failed";
   const friendly = formatGenerationError(rawErr, lang);
   const newBalance = await addCredits(userId, cost, "refund", `Refund: ${String(rawErr).slice(0, 120)}`);
-  await updatePending(pending.id, {
-    status: "refunded",
-    error: String(rawErr).slice(0, 300),
-    completed_at: now,
-  });
   return {
     status: "failed",
     error: friendly,
@@ -196,15 +260,15 @@ async function pollPending(pending, getReplicatePrediction) {
   const lang = pending.lang || "en";
 
   if (pending.status === "completed") {
+    const creation = creationFromPending(pending, pending.result_urls || []);
     if (pending.notify_email && !pending.notify_email_sent_at && pending.result_urls?.length) {
-      const creation = creationFromPending(pending, pending.result_urls || []);
       await deliverVideoNotifyEmail(pending, creation, pending.result_urls);
     }
     const db = await getDb();
     const user = await db.collection("users").findOne({ id: pending.user_id }, { projection: { credits: 1 } });
     return {
       status: "succeeded",
-      creation: creationFromPending(pending, pending.result_urls || []),
+      creation,
       new_balance: user?.credits,
       prediction_id: pending.id,
       server_billing: true,
@@ -356,12 +420,13 @@ async function processActivePendingBatch(getReplicatePrediction, { limit = 8 } =
         type: "video",
         notify_email: { $type: "string", $ne: "" },
         notify_email_sent_at: null,
+        notify_email_attempts: { $lt: 3 },
         result_urls: { $exists: true, $ne: [] },
       },
       { projection: { _id: 0 } },
     )
     .sort({ completed_at: 1 })
-    .limit(5)
+    .limit(3)
     .toArray();
 
   for (const pending of retryDocs) {
@@ -375,14 +440,29 @@ async function processActivePendingBatch(getReplicatePrediction, { limit = 8 } =
 
 async function completePendingWithUrls(pending, urls) {
   const mirrored = await mirrorUrlsToBlob(urls);
-  const creation = creationFromPending(pending, mirrored);
+  const now = nowIso();
+  const db = await getDb();
+  const claimed = await db.collection("pending_predictions").findOneAndUpdate(
+    { id: pending.id, status: { $nin: ["completed", "refunded"] } },
+    {
+      $set: {
+        status: "completed",
+        result_urls: mirrored,
+        completed_at: now,
+        replicate_prediction_id: pending.replicate_prediction_id || "sync",
+      },
+    },
+    { returnDocument: "before" },
+  );
+  if (!claimed) {
+    const existing = await getPending(pending.id);
+    return {
+      creation: creationFromPending(existing || pending, existing?.result_urls || mirrored),
+      urls: existing?.result_urls || mirrored,
+    };
+  }
+  const creation = creationFromPending(claimed, mirrored);
   await recordCreation(pending.user_id, creation);
-  await updatePending(pending.id, {
-    status: "completed",
-    result_urls: mirrored,
-    completed_at: nowIso(),
-    replicate_prediction_id: pending.replicate_prediction_id || "sync",
-  });
   return { creation, urls: mirrored };
 }
 

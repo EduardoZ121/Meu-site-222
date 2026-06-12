@@ -11,6 +11,7 @@ import { usePinnedTools } from "../../hooks/usePinnedTools";
 import { toolCatalogueCost } from "../../lib/pricingRegions";
 import { getVideoCategoriesForUser } from "../../lib/videoCatalogue";
 import { cn } from "../../lib/utils";
+import StudioHelpTip from "../../components/studio/StudioHelpTip";
 
 const pageEase = [0.16, 1, 0.3, 1];
 
@@ -126,13 +127,18 @@ export default function Tools() {
   return (
     <div className="rp-tools-hub w-full max-w-[1200px] mx-auto pb-20" data-testid="tools-page">
       <header className="mb-4 md:mb-6">
-        <h1 className="sr-only">{t("tools_grid.page_title")}</h1>
-        <p className="hidden md:block text-[11px] uppercase tracking-[0.18em] text-[#8A8A8E] mb-2">
-          {t("tools_grid.page_eyebrow")}
-        </p>
-        <p className="hidden md:block text-[15px] text-[#8A8A8E] max-w-lg leading-snug">
-          {t("tools_grid.page_desc", { n: tabCount })}
-        </p>
+        <div className="flex items-start gap-3">
+          <div className="flex-1 min-w-0">
+            <h1 className="sr-only">{t("tools_grid.page_title")}</h1>
+            <p className="hidden md:block text-[11px] uppercase tracking-[0.18em] text-[#8A8A8E] mb-2">
+              {t("tools_grid.page_eyebrow")}
+            </p>
+            <p className="hidden md:block text-[15px] text-[#8A8A8E] max-w-lg leading-snug">
+              {t("tools_grid.page_desc", { n: tabCount })}
+            </p>
+          </div>
+          <StudioHelpTip helpKey="help_page_tools" size="lg" testId="tools-page-help" className="hidden md:flex mt-1 shrink-0" />
+        </div>
       </header>
 
       <div className="mb-3 flex items-center gap-4 border-b border-white/[0.06]">

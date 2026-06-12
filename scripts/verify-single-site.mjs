@@ -21,6 +21,10 @@ const forbidden = [
   "frontend-completo.zip",
   "api.symlink.txt",
   "src",
+  "public",
+  "frontend/frontend",
+  "test_reports",
+  "memory",
 ];
 
 const required = [

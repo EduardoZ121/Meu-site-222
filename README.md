@@ -1,70 +1,70 @@
-# Getting Started with Create React App
+# Remake Pixel
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+Plataforma SaaS de geração de imagens, vídeos, pôsteres e ferramentas criativas com IA.
 
-## Available Scripts
+- **Produção:** https://www.remakepix.com
+- **Repositório:** branch `main`
+- **Deploy:** Vercel (Root Directory = `.`)
 
-In the project directory, you can run:
+## Estrutura do projeto
 
-### `npm start`
+```
+Meu-site-222/
+├── frontend/              # Aplicação principal (React + API serverless)
+│   ├── src/               # UI, páginas, i18n (en, pt, es, fr)
+│   ├── public/            # Assets estáticos (imagens, vídeos, capas)
+│   ├── api/               # Backend Vercel (MongoDB, Stripe, Replicate, …)
+│   └── scripts/           # Utilitários de dev (i18n, Stripe, testes locais)
+├── backend/               # API Python FastAPI (desenvolvimento local / Railway)
+├── scripts/               # Geração de capas, marketing, verificações de deploy
+├── docs/                  # Guias de setup (Vercel, AWS, Google, SEO)
+├── vercel.json            # Configuração de deploy (autoritativa)
+├── middleware.js          # Redirect *.vercel.app → www.remakepix.com
+├── package.json           # Deps auxiliares para funções /api na Vercel
+└── REPO_BASELINE.md       # Regras de estrutura do repositório
+```
 
-Runs the app in the development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in your browser.
+## Desenvolvimento local
 
-The page will reload when you make changes.\
-You may also see any lint errors in the console.
+```bash
+cd frontend
+yarn install
+yarn start          # http://localhost:3000
+```
 
-### `npm test`
+Variáveis de ambiente: copiar `.env.example` (se existir) ou usar `vercel env pull` na pasta `frontend/`.
 
-Launches the test runner in the interactive watch mode.\
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
+## Build e verificação
 
-### `npm run build`
+```bash
+node scripts/verify-single-site.mjs   # estrutura do repo
+cd frontend && yarn build             # build de produção → frontend/build/
+```
 
-Builds the app for production to the `build` folder.\
-It correctly bundles React in production mode and optimizes the build for the best performance.
+## Deploy
 
-The build is minified and the filenames include the hashes.\
-Your app is ready to be deployed!
+Push para `main` dispara deploy na Vercel. O `vercel.json` na raiz:
 
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
+- Compila o CRA em `frontend/`
+- Expõe `frontend/api/` como serverless em `/api/*`
+- Cron a cada 3 min para finalizar gerações pendentes
 
-### `npm run eject`
+Ver `docs/VERCEL-UNIFICAR.md` e `docs/HANDOFF.md` para transferência de propriedade.
 
-**Note: this is a one-way operation. Once you `eject`, you can't go back!**
+## Onde editar
 
-If you aren't satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
+| Área | Caminho |
+|------|---------|
+| Páginas e componentes | `frontend/src/` |
+| Traduções | `frontend/src/i18n/*.json` |
+| API / billing / gerações | `frontend/api/` |
+| Capa hero | `frontend/public/images/hero-bg.jpg` |
+| Preços | `frontend/src/config/pricing.json` |
 
-Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you're on your own.
+## Documentação adicional
 
-You don't have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn't feel obligated to use this feature. However we understand that this tool wouldn't be useful if you couldn't customize it when you are ready for it.
-
-## Learn More
-
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
-
-To learn React, check out the [React documentation](https://reactjs.org/).
-
-### Code Splitting
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/code-splitting](https://facebook.github.io/create-react-app/docs/code-splitting)
-
-### Analyzing the Bundle Size
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size](https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size)
-
-### Making a Progressive Web App
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app](https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app)
-
-### Advanced Configuration
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/advanced-configuration](https://facebook.github.io/create-react-app/docs/advanced-configuration)
-
-### Deployment
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/deployment](https://facebook.github.io/create-react-app/docs/deployment)
-
-### `npm run build` fails to minify
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify](https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify)
+- `REPO_BASELINE.md` — layout canónico e pastas proibidas
+- `docs/HANDOFF.md` — checklist para venda / transferência
+- `docs/PRD.md` — histórico de funcionalidades e decisões
+- `docs/AWS-S3-SETUP.md`, `docs/GOOGLE-LOGIN.md`, `docs/GOOGLE-SEARCH-CONSOLE-PT.md`
+- `AGENTS.md` — regras para assistentes de código (Cursor)

@@ -1,12 +1,9 @@
-﻿# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
-
-# IDE and editors
+﻿# IDE and editors
 .idea/
 .vscode/
 
 # Dependencies
 node_modules/
-/node_modules
 /.pnp
 .pnp.js
 .yarn/install-state.gz
@@ -27,24 +24,32 @@ next-env.d.ts
 
 # Production builds
 /build
+frontend/build/
 dist/
-dist
 
-# Environment files (comprehensive coverage)
-
+# Environment and credentials
+.env
+.env.*
+*.env
+.env*
+credentials.json
 *token.json*
 *credentials.json*
+*.pem
+*.key
+.credentials
+frontend/scripts/.stripe-webhook-secret.local
+frontend/scripts/.test-video-*.mp4
 
-# Logs and debug files
+# Logs and debug
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
 dump.rdb
 
-# System files
+# System
 .DS_Store
-*.pem
 
 # Python
 __pycache__/
@@ -61,10 +66,10 @@ chainlit.md
 # Deployment
 .vercel
 
-# Data and databases
+# Data
 agenthub/agents/youtube/db
 
-# Archive files and large assets
+# Archives and large local assets
 **/*.zip
 **/*.tar.gz
 **/*.tar
@@ -73,38 +78,5 @@ agenthub/agents/youtube/db
 *.deb
 *.dylib
 
-# Build caches
+# Caches
 .cache/
-
-memory/test_credentials.md
-
-# Mobile development
-android-sdk/frontend/node_modules/.cache/default-development/0.pack
--e 
-# Environment and credential files
-.env
-.env.*
-*.env
-credentials.json
-*.pem
-*.key
-.credentials
--e 
-# Environment and credential files
-.env
-.env.*
-*.env
-credentials.json
-*.pem
-*.key
-.credentials
-frontend/node_modules/.cache/default-development/8.pack
-frontend/node_modules/.cache/default-development/3.pack
-frontend/node_modules/.cache/default-development/0.pack
-frontend/node_modules/.cache/default-development/2.pack
-frontend/node_modules/.cache/default-development/6.pack
-frontend/node_modules/.cache/default-development/7.pack
-frontend/node_modules/.cache/default-development/4.pack
-frontend/node_modules/.cache/default-development/9.pack
-
-.env*

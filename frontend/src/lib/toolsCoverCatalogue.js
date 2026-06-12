@@ -21,19 +21,22 @@ const IMAGE_COVERS = {
 
 const VIDEO_COVERS = {
   "text-marketing": "/images/tools/video/text-marketing.jpg",
-  "text-fast": "/images/tools/video/text-fast.jpg",
-  image: "/images/tools/video/image.jpg",
+  "text-fast": "/images/tools/video/text-fast.mp4",
+  image: "/images/tools/video/image.mp4",
   "image-marketing": "/images/tools/video/image-marketing.jpg",
   "image-fast": "/images/tools/video/image-fast.jpg",
   elements: "/images/tools/video/elements.jpg",
   marketing: "/images/tools/video/marketing.jpg",
   fun: "/images/tools/video/fun.jpg",
-  edit: "/images/tools/video/edit.jpg",
+  edit: "/images/tools/video/edit.mp4",
   "change-bg": "/images/tools/video/change-bg.jpg",
   "change-outfit": "/images/tools/video/change-outfit.jpg",
   restyle: "/images/tools/video/restyle.jpg",
   extend: "/images/tools/video/edit.jpg",
 };
+
+/** Capas em vídeo (autoplay nas grelhas). */
+export const VIDEO_COVER_IDS = new Set(["text-fast", "image", "edit"]);
 
 /** Posição do crop — útil quando a cena principal não está ao centro */
 const OBJECT_POSITION = {
@@ -55,7 +58,7 @@ const OBJECT_POSITION = {
 };
 
 /** Bump quando substituir capas — evita cache antigo no browser */
-const COVER_VERSION = "4";
+const COVER_VERSION = "5";
 
 function withVersion(path) {
   return `${path}?v=${COVER_VERSION}`;
@@ -67,6 +70,16 @@ export function getImageToolCover(id) {
 
 export function getVideoToolCover(id) {
   return withVersion(VIDEO_COVERS[id] || `/images/tools/video/${id}.jpg`);
+}
+
+export function getVideoToolPoster(id) {
+  return withVersion(`/images/tools/video/${id}.jpg`);
+}
+
+export function isVideoToolCover(id, tier = "video") {
+  if (tier !== "video" || !VIDEO_COVER_IDS.has(id)) return false;
+  const path = VIDEO_COVERS[id] || "";
+  return /\.(mp4|webm)$/i.test(path);
 }
 
 export function getToolCover(id, tier = "image") {

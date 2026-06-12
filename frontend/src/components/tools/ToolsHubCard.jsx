@@ -2,24 +2,31 @@ import { useState, useEffect, useRef } from "react";
 import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
 import { Pin, Sparkles } from "lucide-react";
-import { getToolCover, getToolCoverPosition } from "../../lib/toolsCoverCatalogue";
+import {
+  getToolCover,
+  getToolCoverPosition,
+  getVideoToolPoster,
+  isVideoToolCover,
+} from "../../lib/toolsCoverCatalogue";
 import { cn } from "../../lib/utils";
 
 const cardEase = [0.16, 1, 0.3, 1];
 
-function CoverImage({ id, tier }) {
+function CoverMedia({ id, tier }) {
   const src = getToolCover(id, tier);
   const objectPosition = getToolCoverPosition(id);
+  const useVideo = isVideoToolCover(id, tier);
+  const poster = useVideo ? getVideoToolPoster(id) : null;
   const [loaded, setLoaded] = useState(false);
   const [errored, setErrored] = useState(false);
-  const imgRef = useRef(null);
+  const mediaRef = useRef(null);
 
   useEffect(() => {
     setLoaded(false);
     setErrored(false);
-    const img = imgRef.current;
-    if (img?.complete && img.naturalWidth > 0) setLoaded(true);
-  }, [src]);
+    const el = mediaRef.current;
+    if (!useVideo && el?.complete && el.naturalWidth > 0) setLoaded(true);
+  }, [src, useVideo]);
 
   if (errored) {
     return (
@@ -27,29 +34,52 @@ function CoverImage({ id, tier }) {
     );
   }
 
+  const mediaClass = cn(
+    "absolute inset-0 h-full w-full object-cover transition-opacity duration-300",
+    loaded ? "opacity-100" : "opacity-0",
+  );
+
   return (
     <>
       {!loaded && (
         <div className="rp-tool-thumb-shimmer absolute inset-0 z-[1]" aria-hidden />
       )}
-      <img
-        ref={imgRef}
-        src={src}
-        alt=""
-        className={cn(
-          "absolute inset-0 h-full w-full object-cover transition-opacity duration-300",
-          loaded ? "opacity-100" : "opacity-0",
-        )}
-        style={{ objectPosition }}
-        loading="lazy"
-        decoding="async"
-        onLoad={() => setLoaded(true)}
-        onError={() => {
-          setErrored(true);
-          setLoaded(true);
-        }}
-        data-testid={`tool-cover-${id}`}
-      />
+      {useVideo ? (
+        <video
+          ref={mediaRef}
+          src={src}
+          poster={poster}
+          className={mediaClass}
+          style={{ objectPosition }}
+          autoPlay
+          muted
+          loop
+          playsInline
+          preload="metadata"
+          onLoadedData={() => setLoaded(true)}
+          onError={() => {
+            setErrored(true);
+            setLoaded(true);
+          }}
+          data-testid={`tool-cover-${id}`}
+        />
+      ) : (
+        <img
+          ref={mediaRef}
+          src={src}
+          alt=""
+          className={mediaClass}
+          style={{ objectPosition }}
+          loading="lazy"
+          decoding="async"
+          onLoad={() => setLoaded(true)}
+          onError={() => {
+            setErrored(true);
+            setLoaded(true);
+          }}
+          data-testid={`tool-cover-${id}`}
+        />
+      )}
     </>
   );
 }
@@ -91,7 +121,7 @@ export default function ToolsHubCard({
         data-testid={testId || `tool-${id}`}
       >
         <div className="rp-tools-hub-card__media relative aspect-square rounded-2xl overflow-hidden bg-[#0a0a0c] border border-white/[0.08]">
-          <CoverImage id={id} tier={tier} />
+          <CoverMedia id={id} tier={tier} />
           <div
             className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent pointer-events-none z-[2]"
             aria-hidden

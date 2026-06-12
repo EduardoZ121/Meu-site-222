@@ -79,6 +79,12 @@ export default function StudioVideoUpload({
       });
   }, [onChange, onCloudUrlChange, onStatusChange, requireCloudUrl, t]);
 
+  const handleZoneStatus = useCallback((status) => {
+    // ImageUploadZone marca "saved" antes do upload à nuvem terminar.
+    if (status === "saved") return;
+    onStatusChange?.(status);
+  }, [onStatusChange]);
+
   const handleChange = useCallback((file) => {
     uploadGenRef.current += 1;
     setCloudProgress(null);
@@ -91,7 +97,10 @@ export default function StudioVideoUpload({
       return;
     }
 
+    // Preview imediato na caixa — antes era só após validar duração/upload.
+    onChange(file);
     onStatusChange?.("saving");
+
     void readVideoDurationSeconds(file, { timeoutMs: 15000 })
       .then((dur) => {
         if (Number.isFinite(dur) && dur > maxDurationSec) {
@@ -135,7 +144,7 @@ export default function StudioVideoUpload({
       <ImageUploadZone
         value={value}
         onChange={handleChange}
-        onStatusChange={onStatusChange}
+        onStatusChange={handleZoneStatus}
         mediaType="video"
         layout="video"
         testId={testId}

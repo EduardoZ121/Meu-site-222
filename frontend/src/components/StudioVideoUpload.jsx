@@ -1,91 +1,105 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import ImageUploadZone, { VIDEO_DIRECT_MAX_BYTES } from "./ImageUploadZone";
-import VideoClipStudio from "./video/VideoClipStudio";
 import { uploadVideoToCloud } from "../lib/blobUploadClient";
 import { pickBlobOffloadTimeoutMs, MAX_VIDEO_SOURCE_PICKER_BYTES } from "../lib/uploadConstants";
-import { readVideoDurationSeconds, VIDEO_VERCEL_SAFE_BYTES } from "../lib/videoMedia";
+import { readVideoDurationSeconds } from "../lib/videoMedia";
 import { useI18n } from "../lib/i18n";
 import { toast } from "sonner";
 
 export { VIDEO_DIRECT_MAX_BYTES };
 
 /**
- * Vídeo-to-vídeo — ficheiros grandes vão automaticamente para Vercel Blob (sem cortar manualmente).
+ * Upload de vídeo → Vercel Blob (multipart, directo no browser).
+ * Sem compressor/recortador — ficheiro vai directo para a nuvem.
  */
 export default function StudioVideoUpload({
   value,
   onChange,
   onCloudUrlChange,
   onStatusChange,
+  onCloudProgressChange,
   testId = "studio-video-upload",
   disabled = false,
   emptyLabel,
   emptyHint,
   className = "",
   maxDurationSec = 10,
-  /** Grok e outros motores que exigem URL pública — sempre envia para a nuvem. */
-  requireCloudUrl = false,
+  requireCloudUrl = true,
 }) {
   const { t } = useI18n();
   const [cloudProgress, setCloudProgress] = useState(null);
-  const [clipSourceFile, setClipSourceFile] = useState(null);
+  const [cloudUrl, setCloudUrl] = useState(null);
   const [uploadError, setUploadError] = useState(null);
   const uploadGenRef = useRef(0);
   const valueRef = useRef(value);
   valueRef.current = value;
 
+  const setProgress = useCallback((pct) => {
+    setCloudProgress(pct);
+    onCloudProgressChange?.(pct);
+  }, [onCloudProgressChange]);
+
   useEffect(() => {
     if (!value) {
       setCloudProgress(null);
+      setCloudUrl(null);
       setUploadError(null);
       onCloudUrlChange?.(null);
+      onCloudProgressChange?.(null);
     }
-  }, [value, onCloudUrlChange]);
+  }, [value, onCloudUrlChange, onCloudProgressChange]);
 
   const startCloudUpload = useCallback((file) => {
     if (!file) return;
+
     uploadGenRef.current += 1;
     const gen = uploadGenRef.current;
-    setCloudProgress(null);
+    setCloudUrl(null);
     setUploadError(null);
     onCloudUrlChange?.(null);
-
-    const mustUploadToCloud = requireCloudUrl || file.size > VIDEO_VERCEL_SAFE_BYTES;
-    if (!mustUploadToCloud) {
-      onStatusChange?.("saved");
-      return;
-    }
-
+    setProgress(0);
     onStatusChange?.("saving");
-    setCloudProgress(0);
     toast.message(t("vid_cloud_upload_start"), { duration: 5000 });
+
+    void readVideoDurationSeconds(file, { timeoutMs: 8000 })
+      .then((dur) => {
+        if (Number.isFinite(dur) && dur > maxDurationSec) {
+          toast.message(
+            t("vid_edit_duration_cap_hint", { sec: maxDurationSec, actual: Math.round(dur) }),
+            { duration: 8000 },
+          );
+        }
+      })
+      .catch(() => { /* upload anyway */ });
 
     void uploadVideoToCloud(file, {
       timeoutMs: pickBlobOffloadTimeoutMs(file.size, true),
       onProgress: (pct) => {
         if (gen !== uploadGenRef.current) return;
-        setCloudProgress(pct);
+        setProgress(pct);
       },
     })
       .then((url) => {
         if (gen !== uploadGenRef.current) return;
         if (valueRef.current !== file) return;
+        setCloudUrl(url);
         onCloudUrlChange?.(url);
         onStatusChange?.("saved");
-        setCloudProgress(100);
+        setProgress(100);
         setUploadError(null);
         toast.success(t("vid_cloud_upload_done"), { duration: 6000 });
       })
       .catch((err) => {
         if (gen !== uploadGenRef.current) return;
+        setCloudUrl(null);
         onCloudUrlChange?.(null);
         onStatusChange?.("error");
-        setCloudProgress(null);
+        setProgress(null);
         const msg = err?.message || t("vid_cloud_upload_fail");
         setUploadError(msg);
         toast.error(msg, { duration: 12000 });
       });
-  }, [onCloudUrlChange, onStatusChange, requireCloudUrl, t]);
+  }, [maxDurationSec, onCloudUrlChange, onCloudProgressChange, onStatusChange, setProgress, t]);
 
   const retryCloudUpload = useCallback(() => {
     const file = valueRef.current;
@@ -94,17 +108,16 @@ export default function StudioVideoUpload({
   }, [startCloudUpload]);
 
   const handleZoneStatus = useCallback((status) => {
-    // ImageUploadZone marca "saved" cedo — o estado real vem do upload à nuvem.
     if (status === "saved") return;
     onStatusChange?.(status);
   }, [onStatusChange]);
 
   const handleChange = useCallback((file) => {
     uploadGenRef.current += 1;
-    setCloudProgress(null);
+    setProgress(null);
     setUploadError(null);
+    setCloudUrl(null);
     onCloudUrlChange?.(null);
-    setClipSourceFile(null);
 
     if (!file) {
       onChange(null);
@@ -113,54 +126,15 @@ export default function StudioVideoUpload({
     }
 
     onChange(file);
-    onStatusChange?.("saving");
-
-    void readVideoDurationSeconds(file, { timeoutMs: 15000 })
-      .then((dur) => {
-        if (Number.isFinite(dur) && dur > maxDurationSec) {
-          setClipSourceFile(file);
-          onChange(null);
-          onStatusChange?.("idle");
-          return;
-        }
-        startCloudUpload(file);
-      })
-      .catch(() => {
-        startCloudUpload(file);
-      });
-  }, [maxDurationSec, onChange, onCloudUrlChange, onStatusChange, startCloudUpload]);
-
-  const handleClipComplete = useCallback((trimmed) => {
-    setClipSourceFile(null);
-    onChange(trimmed);
-    startCloudUpload(trimmed);
-  }, [onChange, startCloudUpload]);
-
-  const handleClipClose = useCallback(() => {
-    uploadGenRef.current += 1;
-    setClipSourceFile(null);
-    onChange(null);
-    onCloudUrlChange?.(null);
-    onStatusChange?.("idle");
-    setCloudProgress(null);
-    setUploadError(null);
-  }, [onChange, onCloudUrlChange, onStatusChange]);
+    startCloudUpload(file);
+  }, [onChange, onCloudUrlChange, onStatusChange, setProgress, startCloudUpload]);
 
   const cloudReady = Boolean(value) && !uploadError && (
-    !requireCloudUrl || cloudProgress === 100
+    !requireCloudUrl || Boolean(cloudUrl)
   );
 
   return (
     <div className="relative">
-      {clipSourceFile ? (
-        <VideoClipStudio
-          file={clipSourceFile}
-          maxClipSec={maxDurationSec}
-          onClose={handleClipClose}
-          onComplete={handleClipComplete}
-          testId={`${testId}-clip-studio`}
-        />
-      ) : null}
       <ImageUploadZone
         value={value}
         onChange={handleChange}
@@ -169,7 +143,7 @@ export default function StudioVideoUpload({
         layout="video"
         testId={testId}
         className={className}
-        disabled={disabled || Boolean(clipSourceFile)}
+        disabled={disabled}
         enableRemotePersist={false}
         maxVideoBytes={MAX_VIDEO_SOURCE_PICKER_BYTES}
         emptyLabel={emptyLabel ?? t("vid_upload_title")}

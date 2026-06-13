@@ -692,11 +692,8 @@ const VIDEO_BLOB_CONTENT_TYPES = [
   "video/mp4",
   "video/webm",
   "video/quicktime",
-  "video/x-matroska",
-  "video/avi",
-  "application/octet-stream",
 ];
-const MAX_VIDEO_BLOB_BYTES = 200 * 1024 * 1024;
+const MAX_VIDEO_BLOB_BYTES = 500 * 1024 * 1024;
 
 function injectAuthFromClientPayload(req, clientPayload) {
   if (req.headers.authorization) return;

@@ -20,7 +20,7 @@ import ImageUploadZone from "../../components/ImageUploadZone";
 import StudioVideoUpload from "../../components/StudioVideoUpload";
 import StudioGenerateBar from "../../components/StudioGenerateBar";
 import StudioGenerateCostMeta from "../../components/StudioGenerateCostMeta";
-import StudioPhotoUploadNotice from "../../components/studio/StudioPhotoUploadNotice";
+import StudioVideoUploadNotice from "../../components/studio/StudioVideoUploadNotice";
 import { isPhotoUploadBusy } from "../../components/studio/StudioPhotoUploadNotice";
 import PromptEnhanceToggle from "../../components/promptAssist/PromptEnhanceToggle";
 import { useStudioGenerateGate } from "../../lib/useStudioGenerateGate";
@@ -77,6 +77,7 @@ export default function VideoEditorAdmin({ category }) {
   const [audioSetting, setAudioSetting] = useState("origin");
   const [busy, setBusy] = useState(false);
   const [videoUploadStatus, setVideoUploadStatus] = useState("idle");
+  const [videoCloudProgress, setVideoCloudProgress] = useState(null);
   const [uploadPhase, setUploadPhase] = useState("");
 
   const cost = useMemo(() => {
@@ -231,13 +232,18 @@ export default function VideoEditorAdmin({ category }) {
               value={video}
               onChange={(f) => { setVideo(f); if (!f) setVideoCloudUrl(null); }}
               onCloudUrlChange={setVideoCloudUrl}
+              onCloudProgressChange={setVideoCloudProgress}
               onStatusChange={setVideoUploadStatus}
               disabled={busy}
               maxDurationSec={engine.maxDurationSec}
               requireCloudUrl={engine.requiresCloudUrl}
               testId="video-edit-source"
             />
-            <StudioPhotoUploadNotice status={videoUploadStatus} className="mt-3" />
+            <StudioVideoUploadNotice
+              status={videoUploadStatus}
+              progress={videoCloudProgress}
+              className="mt-3"
+            />
           </StudioAccordionSection>
 
           <StudioAccordionSection

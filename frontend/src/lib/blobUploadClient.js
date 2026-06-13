@@ -103,17 +103,18 @@ function safeVideoPathname(file) {
   return `rp/${Date.now()}-${base}`;
 }
 
-/** Vídeo → Blob directo no browser (sem passar pelo body da função serverless). */
+/** Vídeo → Blob directo no browser (multipart sempre). */
 async function uploadVideoDirectToBlob(file, opts = {}) {
   const { upload } = await import("@vercel/blob/client");
   const pathname = safeVideoPathname(file);
+  if (opts.onProgress) opts.onProgress(0);
   const result = await withTimeout(
     upload(pathname, file, {
       access: "public",
       handleUploadUrl: joinApiPath("/video/upload"),
       clientPayload: authClientPayload(),
       contentType: file.type || "video/mp4",
-      multipart: file.size > 8_000_000,
+      multipart: true,
       onUploadProgress: mapUploadProgress(opts.onProgress),
     }),
     opts.timeoutMs ?? 600_000,

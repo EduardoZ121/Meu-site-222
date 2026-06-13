@@ -17,7 +17,8 @@ import StudioAccordionSection from "../../components/StudioAccordionSection";
 import StudioVideoUpload from "../../components/StudioVideoUpload";
 import StudioGenerateBar from "../../components/StudioGenerateBar";
 import StudioGenerateCostMeta from "../../components/StudioGenerateCostMeta";
-import StudioPhotoUploadNotice, { isPhotoUploadBusy } from "../../components/studio/StudioPhotoUploadNotice";
+import StudioVideoUploadNotice from "../../components/studio/StudioVideoUploadNotice";
+import { isPhotoUploadBusy } from "../../components/studio/StudioPhotoUploadNotice";
 import PromptEnhanceToggle from "../../components/promptAssist/PromptEnhanceToggle";
 import { useStudioGenerateGate } from "../../lib/useStudioGenerateGate";
 
@@ -55,6 +56,7 @@ export default function VideoExtend({ category }) {
   const [notifyByEmail, setNotifyByEmail] = useState(false);
   const [busy, setBusy] = useState(false);
   const [videoUploadStatus, setVideoUploadStatus] = useState("idle");
+  const [videoCloudProgress, setVideoCloudProgress] = useState(null);
   const [uploadPhase, setUploadPhase] = useState("");
   const [result, setResult] = useState(null);
 
@@ -77,6 +79,7 @@ export default function VideoExtend({ category }) {
   }, [resolution, duration, improve, surcharges.enhancePrompt, region]);
 
   const videoUploading = isPhotoUploadBusy(videoUploadStatus);
+  const cloudReady = Boolean(videoCloudUrl);
 
   const { ready, hint } = useStudioGenerateGate({
     busy,
@@ -87,6 +90,8 @@ export default function VideoExtend({ category }) {
     requirePrompt: true,
     prompt,
     uploading: videoUploading,
+    readyOverride: cloudReady ? undefined : false,
+    hintOverride: !cloudReady && video ? t("vid_edit_cloud_required") : undefined,
   });
 
   const eta = useMemo(() => {
@@ -118,6 +123,10 @@ export default function VideoExtend({ category }) {
     }
     if (!video) {
       toast.error(t("vid_edit_err_video"));
+      return;
+    }
+    if (!videoCloudUrl) {
+      toast.error(t("vid_edit_cloud_required"));
       return;
     }
     if (prompt.trim().length < 3) {
@@ -192,12 +201,18 @@ export default function VideoExtend({ category }) {
               value={video}
               onChange={(f) => { setVideo(f); if (!f) setVideoCloudUrl(null); }}
               onCloudUrlChange={setVideoCloudUrl}
+              onCloudProgressChange={setVideoCloudProgress}
               onStatusChange={setVideoUploadStatus}
               disabled={busy}
               maxDurationSec={10}
+              requireCloudUrl
               testId="video-extend-source"
             />
-            <StudioPhotoUploadNotice status={videoUploadStatus} className="mt-3" />
+            <StudioVideoUploadNotice
+              status={videoUploadStatus}
+              progress={videoCloudProgress}
+              className="mt-3"
+            />
           </StudioAccordionSection>
 
           <StudioAccordionSection title={t("vid_extend_prompt_label")} defaultOpen testId="video-extend-acc-prompt">

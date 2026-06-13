@@ -55,7 +55,7 @@ export async function readVideoMeta(file, { timeoutMs = 12000 } = {}) {
       v.muted = true;
       v.playsInline = true;
       v.src = url;
-      await waitForEvent(v, "loadedmetadata");
+      await withTimeout(waitForEvent(v, "loadedmetadata"), timeoutMs, "video_metadata");
       width = v.videoWidth || 0;
       height = v.videoHeight || 0;
     } catch {

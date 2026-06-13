@@ -54,6 +54,14 @@ export default function VideoClipStudio({
     let mounted = true;
     setAnalyzing(true);
     setAnalyzeProgress(0);
+    const safetyTimer = setTimeout(() => {
+      if (!mounted) return;
+      setMeta((prev) => prev || { duration: preferredClipSec, width: 0, height: 0, size: file.size });
+      setStartSec(0);
+      setClipSec(Math.min(preferredClipSec, maxClipSec));
+      setSuggestReason("start");
+      setAnalyzing(false);
+    }, 14_000);
     void (async () => {
       try {
         const suggestion = await suggestClipWindow(file, {
@@ -87,7 +95,7 @@ export default function VideoClipStudio({
         if (mounted) setAnalyzing(false);
       }
     })();
-    return () => { mounted = false; };
+    return () => { mounted = false; clearTimeout(safetyTimer); };
   }, [file, maxClipSec, minClipSec, preferredClipSec, onClose, t]);
 
   useEffect(() => {
@@ -316,7 +324,7 @@ export default function VideoClipStudio({
           <button
             type="button"
             onClick={() => void confirmTrim()}
-            disabled={analyzing || trimming || !totalSec}
+            disabled={analyzing || trimming || (!totalSec && !meta?.size)}
             className="rp-action-primary rp-action-primary--ready flex-1 sm:flex-none sm:min-w-[220px]"
             data-testid={`${testId}-confirm`}
           >

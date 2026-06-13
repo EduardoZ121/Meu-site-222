@@ -6,6 +6,18 @@ import { readVideoDurationSeconds } from "./videoMedia";
 
 export const DEFAULT_CLIP_SEC = 6;
 export const MIN_CLIP_SEC = 2;
+const CLIP_ANALYSIS_TIMEOUT_MS = 12_000;
+const CLIP_SEEK_TIMEOUT_MS = 4_000;
+const CLIP_MAX_MOTION_SAMPLES = 8;
+
+function withTimeout(promise, ms, label = "Operação") {
+  return Promise.race([
+    promise,
+    new Promise((_, reject) => {
+      setTimeout(() => reject(new Error(`${label}_timeout`)), ms);
+    }),
+  ]);
+}
 
 function waitForEvent(el, event) {
   return new Promise((resolve, reject) => {
@@ -112,6 +124,12 @@ export async function suggestClipWindow(file, {
     };
   }
 
+  // Clips grandes (ex. Telegram) — evita análise frame-a-frame que trava no browser.
+  if (file.size > 12 * 1024 * 1024 || total > maxClipSec * 2) {
+    const range = clampClipRange(total, 0, clipSec, { minClipSec, maxClipSec });
+    return { ...range, reason: "start", meta };
+  }
+
   const url = URL.createObjectURL(file);
   const video = document.createElement("video");
   video.src = url;
@@ -120,18 +138,24 @@ export async function suggestClipWindow(file, {
   video.preload = "auto";
 
   const seekTo = (t) => new Promise((resolve, reject) => {
+    let timer = null;
     const onSeeked = () => { cleanup(); resolve(); };
     const onErr = () => { cleanup(); reject(new Error("seek_failed")); };
     const cleanup = () => {
+      if (timer) clearTimeout(timer);
       video.removeEventListener("seeked", onSeeked);
       video.removeEventListener("error", onErr);
     };
+    timer = setTimeout(() => {
+      cleanup();
+      reject(new Error("seek_timeout"));
+    }, CLIP_SEEK_TIMEOUT_MS);
     video.addEventListener("seeked", onSeeked, { once: true });
     video.addEventListener("error", onErr, { once: true });
     video.currentTime = Math.min(Math.max(0, t), Math.max(0, total - 0.05));
   });
 
-  try {
+  const analyzeMotion = async () => {
     await waitForEvent(video, "loadedmetadata");
     const w = Math.min(320, video.videoWidth || 320);
     const h = Math.max(1, Math.round((w / (video.videoWidth || w)) * (video.videoHeight || 180)));
@@ -141,9 +165,10 @@ export async function suggestClipWindow(file, {
     const ctx = canvas.getContext("2d", { willReadFrequently: true });
 
     const sampleStarts = [];
-    const step = Math.max(0.75, (total - clipSec) / 20);
+    const step = Math.max(0.75, (total - clipSec) / CLIP_MAX_MOTION_SAMPLES);
     for (let t = 0; t <= Math.max(0, total - clipSec); t += step) {
       sampleStarts.push(Math.min(t, Math.max(0, total - clipSec)));
+      if (sampleStarts.length >= CLIP_MAX_MOTION_SAMPLES) break;
     }
 
     const scores = [];
@@ -151,7 +176,7 @@ export async function suggestClipWindow(file, {
       const start = sampleStarts[i];
       let motion = 0;
       let prev = null;
-      const probes = 3;
+      const probes = 2;
       for (let p = 0; p < probes; p += 1) {
         const at = start + (p * clipSec) / probes;
         await seekTo(at);
@@ -181,6 +206,10 @@ export async function suggestClipWindow(file, {
       reason: best.score > 0 ? "motion" : "start",
       meta,
     };
+  };
+
+  try {
+    return await withTimeout(analyzeMotion(), CLIP_ANALYSIS_TIMEOUT_MS, "clip_analysis");
   } catch {
     const range = clampClipRange(total, 0, clipSec, { minClipSec, maxClipSec });
     return { ...range, reason: "start", meta };

@@ -38,6 +38,7 @@ const {
   completePendingWithUrls,
   updatePending,
   isOpenAIPosterJob,
+  registerFluxFallbackHandler,
 } = require("./lib/pendingPredictions.cjs");
 const {
   resolvePosterModel,
@@ -55,7 +56,9 @@ const { appendAspectOutputInstruction, MATCH_ASPECT } = require("./lib/aspectOut
 const { fitImageRefToAspect, detectNearestGrokAspect } = require("./lib/fitImageToAspect.cjs");
 const { handleCreationsRoute } = require("./lib/creationsRoutes.cjs");
 const { handlePromptAssistRoute } = require("./lib/promptAssist.cjs");
-const PADRAO_STYLES_LIST = require("./lib/padraoStylesData.cjs");
+const PADRAO_STYLES_BASE = require("./lib/padraoStylesData.cjs");
+const PADRAO_STYLE_EXTENSIONS = require("./lib/padraoStyleExtensions.cjs");
+const PADRAO_STYLES_LIST = [...PADRAO_STYLES_BASE, ...PADRAO_STYLE_EXTENSIONS];
 const { finalizeImagePrompt } = require("./lib/imageQualityPrompts.cjs");
 const {
   appendPhotoEditIdentity,
@@ -170,6 +173,60 @@ const MODELS = {
   upscale: "philz1337x/clarity-upscaler",
   inpaint: "black-forest-labs/flux-fill-pro",
 };
+
+function nearestFluxAspect(ratio) {
+  const r = String(ratio || "1:1").trim();
+  if (FLUX_SUPPORTED.has(r)) return r;
+  if (r === "4:5" || r === "3:4") return "3:4";
+  if (r === "5:4") return "4:3";
+  return "1:1";
+}
+
+function buildFluxFallbackInputFromPending(pending) {
+  const imageUrl = pending.fallback_image_url;
+  if (!imageUrl) return null;
+  const basePrompt = pending.fallback_prompt || pending.prompt || "";
+  const aspectRatio = nearestFluxAspect(pending.aspect_ratio);
+  let fluxPrompt = finalizeImagePrompt(appendPhotoEditIdentity(basePrompt), {
+    modelKey: "pro",
+    hasPersonPhoto: true,
+    photoEdit: true,
+  });
+  fluxPrompt = appendAspectOutputInstruction(fluxPrompt, aspectRatio);
+  return {
+    prompt: fluxPrompt,
+    aspect_ratio: aspectRatio,
+    images: [imageUrl],
+    disable_safety_checker: true,
+  };
+}
+
+async function buildFluxEasyFallbackInput(grokInput, basePrompt) {
+  if (!grokInput?.image) return null;
+  const aspectRatio = nearestFluxAspect(grokInput.aspect_ratio);
+  let fluxPrompt = finalizeImagePrompt(appendPhotoEditIdentity(basePrompt), {
+    modelKey: "pro",
+    hasPersonPhoto: true,
+    photoEdit: true,
+  });
+  fluxPrompt = appendAspectOutputInstruction(fluxPrompt, aspectRatio);
+  return {
+    prompt: fluxPrompt,
+    aspect_ratio: aspectRatio,
+    images: [grokInput.image],
+    disable_safety_checker: true,
+  };
+}
+
+registerFluxFallbackHandler(async (pending) => {
+  const fluxInput = buildFluxFallbackInputFromPending(pending);
+  if (!fluxInput) return null;
+  const prediction = await createPrediction(MODELS.pro, fluxInput);
+  return {
+    replicate_prediction_id: prediction.id,
+    model_used: MODELS.pro,
+  };
+});
 
 function regionFromRequest(req, fields = {}) {
   const client = text(fields, "pricing_region", req?.headers?.["x-pricing-region"] || "");
@@ -1026,9 +1083,20 @@ async function submitBillableGeneration(req, fields, {
   modelUsed,
   spendDescription,
   notifyEmail,
+  fallbackImageUrl,
+  fallbackPrompt,
+  fluxFallbackInput,
 }) {
   const { user, isLocal } = resolveSessionUser(req);
   const lang = userLang(req, fields);
+
+  const pendingFallbackFields = fallbackImageUrl
+    ? {
+      fallback_image_url: fallbackImageUrl,
+      fallback_prompt: fallbackPrompt || prompt || input?.prompt || "",
+      primary_model: modelId,
+    }
+    : {};
 
   if (storageEnabled() && user?.id && !isLocal) {
     const dbUser = await getUserById(user.id);
@@ -1038,19 +1106,34 @@ async function submitBillableGeneration(req, fields, {
       throw err;
     }
     if (isAdminEmail(dbUser?.email)) {
-      const prediction = await createPrediction(modelId, input);
+      let prediction;
+      let resolvedModelUsed = modelUsed || modelId;
+      let fluxAttempted = false;
+      try {
+        prediction = await createPrediction(modelId, input);
+      } catch (e) {
+        if (fluxFallbackInput && modelId === MODELS.standard) {
+          prediction = await createPrediction(MODELS.pro, fluxFallbackInput);
+          resolvedModelUsed = MODELS.pro;
+          fluxAttempted = true;
+        } else {
+          throw e;
+        }
+      }
       const pending = await createPending({
         id: newPendingId(),
         user_id: user.id,
         replicate_prediction_id: prediction.id,
         type,
         prompt: prompt || input?.prompt || "",
-        model_used: modelUsed || modelId,
+        model_used: resolvedModelUsed,
         aspect_ratio: aspectRatio || input?.aspect_ratio || "1:1",
         credits_spent: 0,
         balance_after_spend: dbUser.credits ?? 999999999,
         lang,
         notify_email: notifyEmail || null,
+        ...pendingFallbackFields,
+        flux_fallback_attempted: fluxAttempted,
       });
       scheduleServerPendingPoll(pending);
       return {
@@ -1070,13 +1153,28 @@ async function submitBillableGeneration(req, fields, {
 
     const newBalance = await spendCredits(user.id, cost, spendDescription || "Geração");
     let prediction;
+    let resolvedModelUsed = modelUsed || modelId;
+    let fluxAttempted = false;
     try {
       prediction = await createPrediction(modelId, input);
     } catch (e) {
-      await addCredits(user.id, cost, "refund", `Refund: submit failed (${String(e.message || e).slice(0, 80)})`);
-      const err = new Error(formatGenerationError(e.message || "submit failed", lang));
-      err.status = e.status && e.status >= 400 && e.status < 600 ? e.status : 502;
-      throw err;
+      if (fluxFallbackInput && modelId === MODELS.standard) {
+        try {
+          prediction = await createPrediction(MODELS.pro, fluxFallbackInput);
+          resolvedModelUsed = MODELS.pro;
+          fluxAttempted = true;
+        } catch (e2) {
+          await addCredits(user.id, cost, "refund", `Refund: submit failed (${String(e2.message || e2).slice(0, 80)})`);
+          const err = new Error(formatGenerationError(e2.message || "submit failed", lang));
+          err.status = e2.status && e2.status >= 400 && e2.status < 600 ? e2.status : 502;
+          throw err;
+        }
+      } else {
+        await addCredits(user.id, cost, "refund", `Refund: submit failed (${String(e.message || e).slice(0, 80)})`);
+        const err = new Error(formatGenerationError(e.message || "submit failed", lang));
+        err.status = e.status && e.status >= 400 && e.status < 600 ? e.status : 502;
+        throw err;
+      }
     }
 
     const pending = await createPending({
@@ -1085,12 +1183,14 @@ async function submitBillableGeneration(req, fields, {
       replicate_prediction_id: prediction.id,
       type,
       prompt: prompt || input?.prompt || "",
-      model_used: modelUsed || modelId,
+      model_used: resolvedModelUsed,
       aspect_ratio: aspectRatio || input?.aspect_ratio || "1:1",
       credits_spent: cost,
       balance_after_spend: newBalance,
       lang,
       notify_email: notifyEmail || null,
+      ...pendingFallbackFields,
+      flux_fallback_attempted: fluxAttempted,
     });
     scheduleServerPendingPoll(pending);
 
@@ -1615,15 +1715,19 @@ async function routePost(path, fields, files, req) {
       prompt = `Apply the ${styleId || "editorial"} style to ${subject}. Preserve identity, face, pose and expression. ${extra}`;
     }
     const input = await imageInput(fields, files, "standard", appendPhotoEditIdentity(prompt));
+    const fluxFallbackInput = await buildFluxEasyFallbackInput(input, prompt);
     return submitBillableGeneration(req, fields, {
       cost: CREDIT.easy,
-      type: "image",
+      type: "easy",
       modelId: MODELS.standard,
       input,
       prompt,
       aspectRatio: input.aspect_ratio,
       modelUsed: MODELS.standard,
       spendDescription: "Estúdio: estilo pronto",
+      fallbackImageUrl: input.image || null,
+      fallbackPrompt: input.prompt || prompt,
+      fluxFallbackInput,
     });
   }
 

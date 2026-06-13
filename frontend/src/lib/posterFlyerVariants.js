@@ -8,6 +8,7 @@ import { FLYER_PALETTES } from "./posterFlyerVariantsData.js";
 import { registerPremiumStyleVariants } from "./posterPremiumFamilies.js";
 import { registerExtendedStyleVariants } from "./posterExtendedFamilies.js";
 import { registerRichStyleVariants } from "./posterRichFamilies.js";
+import { registerSocialMarketingStyleVariants } from "./posterSocialMarketingFamilies.js";
 
 /** @typedef {{ variantKey: string, labelKey?: string, label?: string, useBase?: boolean, gradient?: string, prompt?: string }} PosterFlyerVariant */
 
@@ -134,6 +135,10 @@ registerRichStyleVariants((familyId, variants) => {
   STYLE_VARIANTS_BY_TEMPLATE_ID[familyId] = variants;
 });
 
+registerSocialMarketingStyleVariants((familyId, variants) => {
+  STYLE_VARIANTS_BY_TEMPLATE_ID[familyId] = variants;
+});
+
 /** Garante 5 variações para o template (API usa line_1 + replacements). */
 export function ensureFlyerVariants(template) {
   const id = String(template?.id || "");
@@ -176,6 +181,7 @@ export function resolvePosterWithVariant(base, variant) {
     placeholders: variant.placeholders || base.placeholders,
     replacements: variant.replacements || base.replacements,
     optional: variant.optional ?? base.optional,
+    productTemplate: variant.productTemplate ?? base.productTemplate,
     id: `${base.id}__${variant.variantKey}`,
   };
 }

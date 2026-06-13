@@ -43,8 +43,16 @@ function loadEnv() {
 }
 
 function loadPadraoStyles() {
-  const modPath = path.join(ROOT, "frontend/api/lib/padraoStylesData.cjs");
-  return require(modPath);
+  const basePath = path.join(ROOT, "frontend/api/lib/padraoStylesData.cjs");
+  const extPath = path.join(ROOT, "frontend/api/lib/padraoStyleExtensions.cjs");
+  const base = require(basePath);
+  let ext = [];
+  try {
+    ext = require(extPath);
+  } catch {
+    /* extensions optional during rollout */
+  }
+  return [...base, ...ext];
 }
 
 function parseArgs() {

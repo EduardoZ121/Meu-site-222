@@ -13,6 +13,44 @@ function newPendingId() {
   return `rp_${crypto.randomUUID()}`;
 }
 
+/** Registered from [...path].js — retries easy/padrao jobs on Flux when Grok fails. */
+let fluxFallbackHandler = null;
+
+function registerFluxFallbackHandler(fn) {
+  fluxFallbackHandler = typeof fn === "function" ? fn : null;
+}
+
+function isFluxFallbackEligible(pending) {
+  if (pending?.flux_fallback_attempted || !pending?.fallback_image_url) return false;
+  if (pending.type === "easy") return true;
+  if (pending.type !== "image") return false;
+  const model = String(pending.model_used || pending.primary_model || "").toLowerCase();
+  return model.includes("grok") || model.includes("xai/");
+}
+
+async function attemptFluxFallback(pending) {
+  if (!isFluxFallbackEligible(pending) || !fluxFallbackHandler) return null;
+  try {
+    const retry = await fluxFallbackHandler(pending);
+    if (!retry?.replicate_prediction_id) return null;
+    await updatePending(pending.id, {
+      replicate_prediction_id: retry.replicate_prediction_id,
+      model_used: retry.model_used || pending.model_used,
+      flux_fallback_attempted: true,
+      status: "starting",
+      error: null,
+    });
+    return {
+      status: "processing",
+      prediction_id: pending.id,
+      flux_fallback: true,
+      server_billing: true,
+    };
+  } catch {
+    return null;
+  }
+}
+
 async function createPending(doc) {
   if (!storageEnabled()) return null;
   await ensureIndexes();
@@ -38,6 +76,10 @@ async function createPending(doc) {
     polled_count: 0,
     created_at: nowIso(),
     completed_at: null,
+    fallback_image_url: doc.fallback_image_url || null,
+    fallback_prompt: doc.fallback_prompt || null,
+    flux_fallback_attempted: Boolean(doc.flux_fallback_attempted),
+    primary_model: doc.primary_model || doc.model_used || null,
   };
   await db.collection("pending_predictions").insertOne(row);
   return row;
@@ -174,6 +216,7 @@ function creationFromPending(pending, urls) {
     manga: "manga",
     poster: "poster",
     carousel: "carousel",
+    easy: "image",
   };
   const resolved = typeMap[pending.type] || "image";
   return {
@@ -207,6 +250,9 @@ async function finalizePending(pending, replicateInfo) {
     let urls = extractUrls(replicateInfo.output);
     urls = await mirrorUrlsToBlob(urls);
     if (!urls.length) {
+      const fluxRetry = await attemptFluxFallback(pending);
+      if (fluxRetry) return fluxRetry;
+
       const db = await getDb();
       const claimed = await db.collection("pending_predictions").findOneAndUpdate(
         { id: pending.id, status: { $nin: ["completed", "refunded"] } },
@@ -275,6 +321,9 @@ async function finalizePending(pending, replicateInfo) {
       server_billing: true,
     };
   }
+
+  const fluxRetry = await attemptFluxFallback(pending);
+  if (fluxRetry) return fluxRetry;
 
   const db = await getDb();
   const claimed = await db.collection("pending_predictions").findOneAndUpdate(
@@ -578,4 +627,5 @@ module.exports = {
   processActivePendingBatch,
   maxPollSeconds,
   isOpenAIPosterJob,
+  registerFluxFallbackHandler,
 };

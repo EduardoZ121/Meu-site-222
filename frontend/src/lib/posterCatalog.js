@@ -4,6 +4,12 @@
 
 /** Tabs na ordem desejada (só aparecem se tiverem templates visíveis). */
 export const POSTER_CAT_ORDER = [
+  "social",
+  "automotive",
+  "beauty",
+  "retail",
+  "gaming",
+  "youtube",
   "business",
   "dj",
   "concert",
@@ -45,6 +51,14 @@ export const POSTER_TEMPLATE_SORT_RANK = {
   fashion_character_showcase: 0,
   fashion_portfolio_sheet: 1,
   fashion_editorial: 0,
+  fashion_ig_shop: 0,
+  social_typo_hero: 0,
+  automotive_showroom: 0,
+  beauty_glow: 0,
+  retail_product_3d: 0,
+  gaming_stream: 0,
+  youtube_creator: 0,
+  promo_flyer_3d: 0,
   music_artist: 0,
   music_nightlife: 1,
   motivational_impact: 0,

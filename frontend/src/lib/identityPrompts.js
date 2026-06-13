@@ -14,6 +14,11 @@ export const POSTER_REFERENCE_FOOD =
   + "and food identity. Composite it naturally into the poster with matching lighting, perspective and shadows; "
   + "no floating cutout look.";
 
+export const POSTER_REFERENCE_PRODUCT =
+  "REFERENCE PHOTO (mandatory): Use the uploaded photo as the exact same product — preserve shape, colors, materials, "
+  + "branding, packaging and proportions. Composite it naturally into the poster with matching lighting, perspective, "
+  + "reflections and soft shadows; no floating cutout look.";
+
 export const LEGACY_POSTER_REFERENCE_PERSON =
   "Use the provided reference image as the identity.\nReplace face and hair, preserve identity.";
 

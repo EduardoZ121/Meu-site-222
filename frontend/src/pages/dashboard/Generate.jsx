@@ -15,6 +15,7 @@ import StudioResultAnchor from "../../components/StudioResultAnchor";
 import StyleCover from "../../components/StyleCover";
 import { FALLBACK_PADRAO_STYLES } from "../../lib/publicFallbacks";
 import { PADRAO_STYLE_COVER_BY_ID } from "../../lib/padraoStyleCovers";
+import { PADRAO_CATEGORY_GRID_BY_CAT } from "../../lib/padraoCategoryGrids";
 import useTitle from "../../lib/useTitle";
 import StudioAccordionSection from "../../components/StudioAccordionSection";
 import StudioGenerateBar from "../../components/StudioGenerateBar";
@@ -314,6 +315,16 @@ export default function Generate() {
                     </button>
                   ))}
                 </div>
+                {PADRAO_CATEGORY_GRID_BY_CAT[padraoCat] && (
+                  <div className="mb-4 rounded-xl overflow-hidden border border-white/[0.08] bg-[#141418]/60" data-testid="padrao-category-grid-preview">
+                    <img
+                      src={PADRAO_CATEGORY_GRID_BY_CAT[padraoCat]}
+                      alt={catLabel(padraoCat)}
+                      className="w-full h-auto object-cover max-h-[180px]"
+                      loading="lazy"
+                    />
+                  </div>
+                )}
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 max-h-[460px] overflow-y-auto pr-1" data-testid="padrao-grid">
                   {padraoFiltered.map((s) => (
                     <button type="button" key={s.id} onClick={() => setPickedStyle(pickedStyle === s.id ? null : s.id)} className={`rp-style-card-shell relative aspect-[3/4] overflow-hidden rounded-xl text-left transition-all border group ${pickedStyle === s.id ? "border-rp-purple ring-2 ring-rp-purple/35 shadow-[0_0_36px_-10px_rgba(168,85,247,0.55),inset_0_0_0_1px_rgba(255,255,255,0.06)]" : "border-rp-border hover:border-rp-purple/45 hover:shadow-[0_16px_40px_-20px_rgba(124,58,237,0.35)]"} ${s.locked ? "opacity-90" : ""}`} data-testid={`pstyle-${s.id}`}>

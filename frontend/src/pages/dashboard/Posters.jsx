@@ -38,6 +38,7 @@ import {
   posterMissingFields,
   isPosterFoodTemplate,
   isPosterFashionTemplate,
+  isPosterProductTemplate,
   isPosterMenuTemplate,
   splitPosterPlaceholders,
 } from "../../lib/posterPrompt";
@@ -92,6 +93,12 @@ const CAT_GRADIENTS = {
   scifi:     "linear-gradient(135deg,#06122B 0%,#1E3A8A 55%,#06B6D4 100%)",
   hero:      "linear-gradient(135deg,#220505 0%,#7F1D1D 55%,#EF4444 100%)",
   phone:     "linear-gradient(135deg,#1B1340 0%,#7C3AED 50%,#EC4899 100%)",
+  social:    "linear-gradient(135deg,#E8F5E9 0%,#22C55E 52%,#064E3B 100%)",
+  automotive:"linear-gradient(135deg,#0B0B0C 0%,#374151 48%,#CA8A04 100%)",
+  beauty:    "linear-gradient(135deg,#FDF2F8 0%,#F472B6 52%,#831843 100%)",
+  retail:    "linear-gradient(135deg,#EFF6FF 0%,#3B82F6 52%,#1E3A8A 100%)",
+  gaming:    "linear-gradient(135deg,#020617 0%,#7C3AED 48%,#22D3EE 100%)",
+  youtube:   "linear-gradient(135deg,#0B0B0C 0%,#DC2626 48%,#FACC15 100%)",
 };
 
 const isLong = (k) => /text|description|tagline|story|notes|additional|caption|quote|details|deck|subhead|positions|extra_text|policy|description/i.test(k);
@@ -813,18 +820,22 @@ function Editor(props) {
             title={
               isPosterFoodTemplate(picked)
                 ? t("post_sec_food_ref")
-                : isPosterFashionTemplate(picked)
-                  ? t("post_sec_fashion_person")
-                  : t("post_sec_ref")
+                : isPosterProductTemplate(picked)
+                  ? t("post_sec_product_ref")
+                  : isPosterFashionTemplate(picked)
+                    ? t("post_sec_fashion_person")
+                    : t("post_sec_ref")
             }
             optional={!isPosterFashionTemplate(picked)}
             defaultOpen
             hint={
               isPosterFoodTemplate(picked)
                 ? t("post_sec_food_ref_hint")
-                : isPosterFashionTemplate(picked)
-                  ? t("post_sec_fashion_person_hint")
-                  : t("post_sec_ref_hint")
+                : isPosterProductTemplate(picked)
+                  ? t("post_sec_product_ref_hint")
+                  : isPosterFashionTemplate(picked)
+                    ? t("post_sec_fashion_person_hint")
+                    : t("post_sec_ref_hint")
             }
             helpKey="help_sec_post_photo"
           >
@@ -838,16 +849,20 @@ function Editor(props) {
                 emptyLabel={
                   isPosterFoodTemplate(picked)
                     ? t("post_food_upload_label")
-                    : isPosterFashionTemplate(picked)
-                      ? t("post_fashion_person_upload_label")
-                      : t("upload_drop")
+                    : isPosterProductTemplate(picked)
+                      ? t("post_product_upload_label")
+                      : isPosterFashionTemplate(picked)
+                        ? t("post_fashion_person_upload_label")
+                        : t("upload_drop")
                 }
                 emptyHint={
                   isPosterFoodTemplate(picked)
                     ? t("post_food_upload_hint")
-                    : isPosterFashionTemplate(picked)
-                      ? t("post_fashion_person_upload_hint")
-                      : t("tool_accept_formats")
+                    : isPosterProductTemplate(picked)
+                      ? t("post_product_upload_hint")
+                      : isPosterFashionTemplate(picked)
+                        ? t("post_fashion_person_upload_hint")
+                        : t("tool_accept_formats")
                 }
               />
             </div>

@@ -207,6 +207,14 @@ export function isPosterFoodTemplate(template) {
   return id.startsWith("food_");
 }
 
+export function isPosterProductTemplate(template) {
+  if (template?.productTemplate) return true;
+  const cat = String(template?.category || "").toLowerCase();
+  if (["automotive", "retail"].includes(cat)) return true;
+  const id = String(template?.id || "").toLowerCase();
+  return id.startsWith("auto_") || id.startsWith("retail_");
+}
+
 export function isPosterFashionTemplate(template) {
   const cat = String(template?.category || "").toLowerCase();
   if (cat === "fashion") return true;
@@ -234,10 +242,11 @@ function formatPosterOutputLanguage(langCode) {
   );
 }
 
-/** Com foto: todos os templates não-comida preservam rosto/corpo. */
+/** Com foto: templates comida/produto não usam guarda de identidade humana. */
 export function posterNeedsIdentityGuard(template, hasPhoto) {
   if (!hasPhoto) return false;
-  return !isPosterFoodTemplate(template);
+  if (isPosterFoodTemplate(template) || isPosterProductTemplate(template)) return false;
+  return true;
 }
 
 export function templateUsesPersonReference(template) {

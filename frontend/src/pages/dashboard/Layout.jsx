@@ -5,7 +5,7 @@ import { useI18n } from "../../lib/i18n";
 import { isAdminUser } from "../../lib/isAdmin";
 import {
   Sparkles, Images, Heart, CreditCard, User, Users, ShieldCheck, LogOut,
-  Film, FileText, BookOpen, Menu, Settings, LayoutGrid, Camera, Wand2, Lock, Palette,
+  Film, FileText, BookOpen, Menu, Settings, LayoutGrid, Camera, Wand2, Lock, Palette, Megaphone,
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
@@ -114,7 +114,10 @@ export default function DashboardLayout() {
         { to: "/app/artistic", icon: Palette, label: t("sidebar_artistic") },
         { to: "/app/posters", icon: FileText, label: t("sidebar.posters") },
         ...(isAdminUser(user)
-          ? [{ to: "/app/video", icon: Film, label: t("sidebar.video") }]
+          ? [
+            { to: "/app/video", icon: Film, label: t("sidebar.video") },
+            { to: "/app/marketing-video", icon: Megaphone, label: t("sidebar_marketing_video"), badge: t("mktvid_admin_badge") },
+          ]
           : []),
         {
           to: "/app/manga-studio",

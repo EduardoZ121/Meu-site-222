@@ -80,6 +80,10 @@ async function createPending(doc) {
     fallback_prompt: doc.fallback_prompt || null,
     flux_fallback_attempted: Boolean(doc.flux_fallback_attempted),
     primary_model: doc.primary_model || doc.model_used || null,
+    marketing_video_duration: doc.marketing_video_duration ?? null,
+    marketing_video_category: doc.marketing_video_category || null,
+    marketing_video_provider: doc.marketing_video_provider || null,
+    marketing_video_image_count: doc.marketing_video_image_count ?? null,
   };
   await db.collection("pending_predictions").insertOne(row);
   return row;
@@ -107,7 +111,7 @@ function elapsedSeconds(pending) {
 }
 
 async function deliverVideoNotifyEmail(pending, creation, urls) {
-  if (pending?.type !== "video" || !pending?.notify_email) {
+  if (!["video", "marketing_video"].includes(pending?.type) || !pending?.notify_email) {
     return { skipped: true, reason: "no_notify" };
   }
   if (pending.notify_email_sent_at) {
@@ -155,7 +159,7 @@ async function deliverVideoNotifyEmail(pending, creation, urls) {
 }
 
 async function deliverVideoFailureNotifyEmail(pending, friendlyError, rawError) {
-  if (pending?.type !== "video" || !pending?.notify_email) {
+  if (!["video", "marketing_video"].includes(pending?.type) || !pending?.notify_email) {
     return { skipped: true, reason: "no_notify" };
   }
   if (pending.notify_email_sent_at) {
@@ -204,7 +208,7 @@ function isOpenAIPosterJob(pending) {
 
 /** Vercel Pro: até 800s por função; vídeo Replicate pode levar 30 min. */
 function maxPollSeconds(pending) {
-  if (pending?.type === "video") return 1800;
+  if (pending?.type === "video" || pending?.type === "marketing_video") return 1800;
   if (isOpenAIPosterJob(pending)) return 780;
   return 600;
 }
@@ -212,6 +216,7 @@ function maxPollSeconds(pending) {
 function creationFromPending(pending, urls) {
   const typeMap = {
     video: "video",
+    marketing_video: "video",
     artistic: "artistic",
     manga: "manga",
     poster: "poster",
@@ -379,7 +384,7 @@ async function pollPending(pending, getReplicatePrediction) {
   }
 
   if (pending.status === "refunded") {
-    if (pending.type === "video" && pending.notify_email && !pending.notify_email_sent_at) {
+    if (["video", "marketing_video"].includes(pending.type) && pending.notify_email && !pending.notify_email_sent_at) {
       await deliverVideoFailureNotifyEmail(
         pending,
         formatGenerationError(pending.error || "Generation failed", lang),

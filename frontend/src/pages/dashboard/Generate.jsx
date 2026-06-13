@@ -15,7 +15,6 @@ import StudioResultAnchor from "../../components/StudioResultAnchor";
 import StyleCover from "../../components/StyleCover";
 import { FALLBACK_PADRAO_STYLES } from "../../lib/publicFallbacks";
 import { PADRAO_STYLE_COVER_BY_ID } from "../../lib/padraoStyleCovers";
-import { PADRAO_CATEGORY_GRID_BY_CAT } from "../../lib/padraoCategoryGrids";
 import useTitle from "../../lib/useTitle";
 import StudioAccordionSection from "../../components/StudioAccordionSection";
 import StudioGenerateBar from "../../components/StudioGenerateBar";
@@ -279,7 +278,6 @@ export default function Generate() {
             title={t("studio_acc_styles")}
             defaultOpen={false}
             testId="studio-acc-styles"
-            titleClassName="studio-customize-title"
             helpKey="help_sec_styles"
           >
             <button type="button" onClick={() => setShowStyles(!showStyles)} className="flex items-center gap-2 w-full text-left rp-editor-section-cap !text-[#a89bc9] hover:!text-[#c4b8e6] transition-colors mb-4" data-testid="toggle-styles">
@@ -308,27 +306,37 @@ export default function Generate() {
                     </button>
                   ))}
                 </div>
-                <div className="flex flex-wrap gap-2 mb-4" data-testid="padrao-cats">
+                <div className="flex flex-wrap gap-1.5 sm:gap-2 mb-3" data-testid="padrao-cats">
                   {padraoCats.map((c) => (
-                    <button type="button" key={c} onClick={() => { setPadraoCat(c); setPickedStyle(null); }} className={`rp-pill ${padraoCat === c ? "rp-pill-active" : ""}`} data-testid={`pcat-${c}`}>
+                    <button type="button" key={c} onClick={() => { setPadraoCat(c); setPickedStyle(null); }} className={`rp-pill text-[11px] sm:text-[12px] px-2.5 py-1 sm:px-3 sm:py-1.5 ${padraoCat === c ? "rp-pill-active" : ""}`} data-testid={`pcat-${c}`}>
                       {catLabel(c)}
                     </button>
                   ))}
                 </div>
-                {PADRAO_CATEGORY_GRID_BY_CAT[padraoCat] && (
-                  <div className="mb-4 rounded-xl overflow-hidden border border-white/[0.08] bg-[#141418]/60" data-testid="padrao-category-grid-preview">
-                    <img
-                      src={PADRAO_CATEGORY_GRID_BY_CAT[padraoCat]}
-                      alt={catLabel(padraoCat)}
-                      className="w-full h-auto object-cover max-h-[180px]"
-                      loading="lazy"
-                    />
-                  </div>
-                )}
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 max-h-[460px] overflow-y-auto pr-1" data-testid="padrao-grid">
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2 sm:gap-2.5" data-testid="padrao-grid">
                   {padraoFiltered.map((s) => (
-                    <button type="button" key={s.id} onClick={() => setPickedStyle(pickedStyle === s.id ? null : s.id)} className={`rp-style-card-shell relative aspect-[3/4] overflow-hidden rounded-xl text-left transition-all border group ${pickedStyle === s.id ? "border-rp-purple ring-2 ring-rp-purple/35 shadow-[0_0_36px_-10px_rgba(168,85,247,0.55),inset_0_0_0_1px_rgba(255,255,255,0.06)]" : "border-rp-border hover:border-rp-purple/45 hover:shadow-[0_16px_40px_-20px_rgba(124,58,237,0.35)]"} ${s.locked ? "opacity-90" : ""}`} data-testid={`pstyle-${s.id}`}>
-                      <StyleCover id={s.id} title={s.nome} prompt={s.prompt} category={s.cat} eyebrow={catLabel(s.cat)} premium={s.locked} selected={pickedStyle === s.id} coverSrc={PADRAO_STYLE_COVER_BY_ID[s.id] || ""} />
+                    <button
+                      type="button"
+                      key={s.id}
+                      onClick={() => setPickedStyle(pickedStyle === s.id ? null : s.id)}
+                      className={`group flex h-full flex-col text-left rounded-xl transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500/50 ${pickedStyle === s.id ? "ring-2 ring-rp-purple/50" : ""} ${s.locked ? "opacity-90" : ""}`}
+                      data-testid={`pstyle-${s.id}`}
+                    >
+                      <div className={`relative aspect-[4/5] overflow-hidden rounded-xl border ${pickedStyle === s.id ? "border-rp-purple shadow-[0_0_24px_-8px_rgba(168,85,247,0.45)]" : "border-white/[0.08] group-hover:border-rp-purple/40"}`}>
+                        <StyleCover
+                          id={s.id}
+                          title={s.nome}
+                          prompt={s.prompt}
+                          category={s.cat}
+                          imageOnly
+                          selected={pickedStyle === s.id}
+                          coverSrc={PADRAO_STYLE_COVER_BY_ID[s.id] || ""}
+                          className="absolute inset-0 h-full w-full"
+                        />
+                      </div>
+                      <p className="mt-1 px-0.5 text-[10px] sm:text-[11px] text-[#EDEBE8] font-medium line-clamp-2 leading-snug">
+                        {s.nome}
+                      </p>
                     </button>
                   ))}
                 </div>

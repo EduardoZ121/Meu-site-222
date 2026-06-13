@@ -25,6 +25,12 @@ const REPO_RAW = "https://raw.githubusercontent.com/EduardoZ121/Meu-site-222/mai
 const REF_WOMAN = `${REPO_RAW}/ref_user_woman.jpg`;
 const REF_MAN = `${REPO_RAW}/ref_user_man.jpg`;
 
+/** Prompts mais neutros só para capa da grelha (evita filtros de conteúdo). */
+const COVER_THUMB_OVERRIDES = {
+  sn_silk_slip:
+    "Soft fashion editorial of [subject] in an elegant full-length silk dress, warm window light, refined confident pose, luxury magazine cover, professional portrait, fully clothed SFW, ultra-realistic 8K.",
+};
+
 function loadEnv() {
   for (const name of [".env.vercel", ".env.local", ".env"]) {
     const envPath = path.join(ROOT, name);
@@ -169,7 +175,8 @@ async function generateOne(style, { force }) {
   }
 
   const subject = subjectLabel(style);
-  const prompt = style.prompt.replace(/\[subject\]/gi, subject);
+  const basePrompt = COVER_THUMB_OVERRIDES[style.id] || style.prompt;
+  const prompt = basePrompt.replace(/\[subject\]/gi, subject);
   const ref = refForStyle(style);
 
   console.log(`→ ${style.id} (${style.nome}) ref=${style.cat}`);
@@ -196,8 +203,8 @@ async function generateOne(style, { force }) {
       await new Promise((r) => setTimeout(r, 6000));
     }
   }
-  console.error(`  ✗ ${style.id} falhou`);
-  return false;
+  console.warn(`  replicate esgotado — fallback pollinations`);
+  return generatePollinations(style, prompt, ref);
 }
 
 async function main() {

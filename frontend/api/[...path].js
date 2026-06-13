@@ -621,6 +621,16 @@ async function resolveImageRef(files, fields, fileKey, urlKey) {
   return fileToDataUri(fileOf(files, fileKey));
 }
 
+/** 1–6 images: image_0 (main) … image_5 (references). Also accepts image_0_url … */
+async function resolveMarketingVideoImages(files, fields, max = 6) {
+  const urls = [];
+  for (let i = 0; i < max; i += 1) {
+    const ref = await resolveImageRef(files, fields, `image_${i}`, `image_${i}_url`);
+    if (ref) urls.push(ref);
+  }
+  return urls;
+}
+
 /** Upload de vídeo pelo servidor → Vercel Blob (fallback quando o browser não consegue PUT direto). */
 /** Upload de imagem pelo servidor → Vercel Blob (fallback quando o browser não consegue PUT directo). */
 async function routeUploadImageBlob(req, res) {
@@ -1010,7 +1020,7 @@ async function getPrediction(id) {
 }
 
 function serverPollDeadlineMs(pending) {
-  if (pending?.type === "video") return 780_000;
+  if (pending?.type === "video" || pending?.type === "marketing_video") return 780_000;
   if (isOpenAIPosterJob(pending)) return 780_000;
   if (pending?.type === "poster") return 600_000;
   return 105_000;
@@ -1086,6 +1096,7 @@ async function submitBillableGeneration(req, fields, {
   fallbackImageUrl,
   fallbackPrompt,
   fluxFallbackInput,
+  pendingMeta,
 }) {
   const { user, isLocal } = resolveSessionUser(req);
   const lang = userLang(req, fields);
@@ -1133,6 +1144,7 @@ async function submitBillableGeneration(req, fields, {
         lang,
         notify_email: notifyEmail || null,
         ...pendingFallbackFields,
+        ...(pendingMeta && typeof pendingMeta === "object" ? pendingMeta : {}),
         flux_fallback_attempted: fluxAttempted,
       });
       scheduleServerPendingPoll(pending);
@@ -1190,6 +1202,7 @@ async function submitBillableGeneration(req, fields, {
       lang,
       notify_email: notifyEmail || null,
       ...pendingFallbackFields,
+      ...(pendingMeta && typeof pendingMeta === "object" ? pendingMeta : {}),
       flux_fallback_attempted: fluxAttempted,
     });
     scheduleServerPendingPoll(pending);
@@ -2295,6 +2308,68 @@ async function routePost(path, fields, files, req) {
     });
   }
 
+  if (path === "generate/marketing-video") {
+    await requireAdminSession(req);
+    const {
+      runMarketingVideoPipeline,
+      validateMarketingVideoDuration,
+      computeMarketingVideoCost,
+      listMarketingCategories,
+    } = require("./lib/marketingVideo/index.cjs");
+    const { isValidEmail } = require("./lib/videoNotifyEmail.cjs");
+    const lang = text(fields, "lang", "pt").slice(0, 2);
+    const manualCategory = text(fields, "category", "").trim();
+    const duration = validateMarketingVideoDuration(text(fields, "duration", "6"));
+    const imageUrls = await resolveMarketingVideoImages(files, fields, 6);
+    if (!imageUrls.length) throw new Error("Envia pelo menos uma imagem principal.");
+
+    const pipeline = await runMarketingVideoPipeline({
+      imageUrls,
+      duration,
+      manualCategory,
+      lang,
+    });
+
+    if (!pipeline.ok && pipeline.needs_category) {
+      const err = new Error("Seleciona uma categoria para continuar.");
+      err.status = 422;
+      err.code = "NEEDS_CATEGORY";
+      err.payload = {
+        needs_category: true,
+        analysis: pipeline.analysis,
+        categories: listMarketingCategories(lang),
+      };
+      throw err;
+    }
+
+    const cost = computeMarketingVideoCost(region, duration);
+    const session = resolveSessionUser(req);
+    let notifyEmail = null;
+    if (session.user?.id && storageEnabled() && !session.isLocal) {
+      const dbUser = await getUserById(session.user.id);
+      const fromDb = String(dbUser?.email || session.user.email || "").trim().toLowerCase();
+      if (isValidEmail(fromDb)) notifyEmail = fromDb;
+    }
+
+    return submitBillableGeneration(req, fields, {
+      cost,
+      type: "marketing_video",
+      modelId: pipeline.modelId,
+      input: pipeline.input,
+      prompt: pipeline.prompt,
+      aspectRatio: pipeline.aspectRatio || "9:16",
+      modelUsed: pipeline.modelId,
+      spendDescription: `Vídeo marketing IA · ${duration}s`,
+      notifyEmail,
+      pendingMeta: {
+        marketing_video_duration: duration,
+        marketing_video_category: pipeline.analysis?.category || manualCategory,
+        marketing_video_provider: pipeline.providerId,
+        marketing_video_image_count: imageUrls.length,
+      },
+    });
+  }
+
   if (path === "tools/bg-remove") {
     const { buildBgScenePrompt, parseBgRemoveFields } = require("./lib/bgRemove.cjs");
     const image = await resolveImageRef(files, fields, "photo", "photo_url");
@@ -2653,6 +2728,28 @@ async function handlePath(path, req, res) {
       });
     }
 
+    if (req.method === "GET" && (path === "marketing-video/config" || path === "marketing-video/history")) {
+      await requireAdminSession(req);
+      const country = countryFromRequest(req);
+      const client = String(req.headers["x-pricing-region"] || "").trim();
+      const region = resolvePricingRegion({ countryCode: country, clientRegion: client });
+      const lang = String(req.headers["x-lang"] || req.headers["accept-language"] || "pt").slice(0, 2);
+      const mv = require("./lib/marketingVideo/index.cjs");
+      if (path === "marketing-video/config") {
+        return json(res, 200, {
+          provider: mv.getMarketingVideoProvider(),
+          durations: mv.ALLOWED_DURATIONS,
+          pricing: mv.getMarketingVideoPricingMap(region),
+          max_images: 6,
+          aspect_ratio: "9:16",
+          categories: mv.listMarketingCategories(lang),
+        });
+      }
+      const { user } = resolveSessionUser(req);
+      const jobs = await mv.listMarketingVideoHistory(user?.id, { limit: 30 });
+      return json(res, 200, { jobs });
+    }
+
     if (req.method === "GET" && path === "blob/status") {
       return json(res, 200, {
         blob: isBlobConfigured(),
@@ -2956,7 +3053,11 @@ async function handlePath(path, req, res) {
           : "A imagem é demasiado grande para o servidor. Recarrega a página (Ctrl+F5) e tenta outra vez — o site comprime automaticamente antes de enviar.",
       });
     }
-    return json(res, err.status || 500, { detail: err.message || "Erro no servidor de geração." });
+    return json(res, err.status || 500, {
+      detail: err.message || "Erro no servidor de geração.",
+      code: err.code || undefined,
+      ...(err.payload && typeof err.payload === "object" ? err.payload : {}),
+    });
   }
 }
 

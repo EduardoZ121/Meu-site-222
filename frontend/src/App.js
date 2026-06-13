@@ -24,6 +24,8 @@ import Artistic from "./pages/dashboard/Artistic";
 import Video from "./pages/dashboard/Video";
 import VideoFlow from "./pages/dashboard/VideoFlow";
 import VideoAdminGate from "./pages/dashboard/VideoAdminGate";
+import MarketingVideo from "./pages/dashboard/MarketingVideo";
+import MarketingVideoAdminGate from "./pages/dashboard/MarketingVideoAdminGate";
 import Posters from "./pages/dashboard/Posters";
 import MangaStudioGate from "./pages/dashboard/MangaStudioGate";
 import Wizard from "./pages/dashboard/Wizard";
@@ -145,6 +147,7 @@ function App() {
                   <Route path="artistic" element={<Artistic />} />
                   <Route path="video" element={<VideoAdminGate><Video /></VideoAdminGate>} />
                   <Route path="video/:mode" element={<VideoAdminGate><VideoFlow /></VideoAdminGate>} />
+                  <Route path="marketing-video" element={<MarketingVideoAdminGate><MarketingVideo /></MarketingVideoAdminGate>} />
                   <Route path="posters" element={<Posters />} />
                   <Route path="manga-studio" element={<MangaStudioGate />} />
                   <Route path="carousel" element={<Navigate to="/app/manga-studio" replace />} />

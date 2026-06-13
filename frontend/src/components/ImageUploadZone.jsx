@@ -62,6 +62,10 @@ export default function ImageUploadZone({
   notifyOnPreparedOnly = false,
   /** Comprime no pick (lento no telemóvel). Por defeito falso — servidor comprime no Gerar. */
   prepareOnPick = false,
+  /** Vídeo gerido pelo pai (StudioVideoUpload) — não marcar caixa verde antes da nuvem. */
+  videoDeferReadyState = false,
+  forceUploadReady = null,
+  forceUploadBusy = null,
 }) {
   const { t } = useI18n();
   const isVideo = mediaType === "video";
@@ -156,6 +160,11 @@ export default function ImageUploadZone({
   const runBackgroundVideo = useCallback(async (rawFile, rid) => {
     lastPreparedRef.current = rawFile;
     if (rid !== runIdRef.current) return;
+    if (videoDeferReadyState) {
+      setPersistState("saving");
+      notifyStatus("saving");
+      return;
+    }
     setPersistState("saved");
     notifyStatus("saved");
 
@@ -170,7 +179,7 @@ export default function ImageUploadZone({
         console.warn("[video upload] optional cloud copy failed:", err);
       }
     })();
-  }, [enableRemotePersist, notifyStatus]);
+  }, [enableRemotePersist, notifyStatus, videoDeferReadyState]);
 
   const retryPersist = useCallback(async () => {
     const f = lastPreparedRef.current || value;
@@ -332,8 +341,8 @@ export default function ImageUploadZone({
 
   const aspectClass = LAYOUT[layout] || (isVideo ? LAYOUT.video : LAYOUT.portrait);
   const savingLabel = t("upload_preparing");
-  const uploadBusy = persistState === "saving";
-  const uploadReady = persistState === "saved" && Boolean(value);
+  const uploadBusy = forceUploadBusy != null ? forceUploadBusy : persistState === "saving";
+  const uploadReady = forceUploadReady != null ? forceUploadReady : persistState === "saved" && Boolean(value);
   const hasPreview = Boolean(previewUrl && value);
   const showPreviewShell = Boolean(value) && (hasPreview || uploadBusy || previewImgError);
 

@@ -29,21 +29,26 @@ export default function StudioVideoUpload({
   const { t } = useI18n();
   const [cloudProgress, setCloudProgress] = useState(null);
   const [clipSourceFile, setClipSourceFile] = useState(null);
+  const [uploadError, setUploadError] = useState(null);
   const uploadGenRef = useRef(0);
+  const valueRef = useRef(value);
+  valueRef.current = value;
 
   useEffect(() => {
     if (!value) {
       setCloudProgress(null);
+      setUploadError(null);
       onCloudUrlChange?.(null);
     }
   }, [value, onCloudUrlChange]);
 
   const startCloudUpload = useCallback((file) => {
+    if (!file) return;
     uploadGenRef.current += 1;
     const gen = uploadGenRef.current;
     setCloudProgress(null);
+    setUploadError(null);
     onCloudUrlChange?.(null);
-    onChange(file);
 
     const mustUploadToCloud = requireCloudUrl || file.size > VIDEO_VERCEL_SAFE_BYTES;
     if (!mustUploadToCloud) {
@@ -64,23 +69,32 @@ export default function StudioVideoUpload({
     })
       .then((url) => {
         if (gen !== uploadGenRef.current) return;
+        if (valueRef.current !== file) return;
         onCloudUrlChange?.(url);
         onStatusChange?.("saved");
         setCloudProgress(100);
+        setUploadError(null);
         toast.success(t("vid_cloud_upload_done"), { duration: 6000 });
       })
       .catch((err) => {
         if (gen !== uploadGenRef.current) return;
-        onChange(null);
         onCloudUrlChange?.(null);
         onStatusChange?.("error");
         setCloudProgress(null);
-        toast.error(err?.message || t("vid_cloud_upload_fail"), { duration: 12000 });
+        const msg = err?.message || t("vid_cloud_upload_fail");
+        setUploadError(msg);
+        toast.error(msg, { duration: 12000 });
       });
-  }, [onChange, onCloudUrlChange, onStatusChange, requireCloudUrl, t]);
+  }, [onCloudUrlChange, onStatusChange, requireCloudUrl, t]);
+
+  const retryCloudUpload = useCallback(() => {
+    const file = valueRef.current;
+    if (!file) return;
+    startCloudUpload(file);
+  }, [startCloudUpload]);
 
   const handleZoneStatus = useCallback((status) => {
-    // ImageUploadZone marca "saved" antes do upload à nuvem terminar.
+    // ImageUploadZone marca "saved" cedo — o estado real vem do upload à nuvem.
     if (status === "saved") return;
     onStatusChange?.(status);
   }, [onStatusChange]);
@@ -88,6 +102,7 @@ export default function StudioVideoUpload({
   const handleChange = useCallback((file) => {
     uploadGenRef.current += 1;
     setCloudProgress(null);
+    setUploadError(null);
     onCloudUrlChange?.(null);
     setClipSourceFile(null);
 
@@ -97,7 +112,6 @@ export default function StudioVideoUpload({
       return;
     }
 
-    // Preview imediato na caixa — antes era só após validar duração/upload.
     onChange(file);
     onStatusChange?.("saving");
 
@@ -118,8 +132,9 @@ export default function StudioVideoUpload({
 
   const handleClipComplete = useCallback((trimmed) => {
     setClipSourceFile(null);
+    onChange(trimmed);
     startCloudUpload(trimmed);
-  }, [startCloudUpload]);
+  }, [onChange, startCloudUpload]);
 
   const handleClipClose = useCallback(() => {
     uploadGenRef.current += 1;
@@ -128,7 +143,12 @@ export default function StudioVideoUpload({
     onCloudUrlChange?.(null);
     onStatusChange?.("idle");
     setCloudProgress(null);
+    setUploadError(null);
   }, [onChange, onCloudUrlChange, onStatusChange]);
+
+  const cloudReady = Boolean(value) && !uploadError && (
+    !requireCloudUrl || cloudProgress === 100
+  );
 
   return (
     <div className="relative">
@@ -155,6 +175,9 @@ export default function StudioVideoUpload({
         emptyLabel={emptyLabel ?? t("vid_upload_title")}
         emptyHint={emptyHint ?? t("vid_edit_video_hint")}
         maxVideoDurationSec={null}
+        videoDeferReadyState
+        forceUploadReady={cloudReady && Boolean(value)}
+        forceUploadBusy={Boolean(value) && !cloudReady && !uploadError}
       />
       {cloudProgress != null && cloudProgress < 100 && value ? (
         <p
@@ -163,6 +186,22 @@ export default function StudioVideoUpload({
         >
           {t("vid_cloud_upload_progress", { n: cloudProgress })}
         </p>
+      ) : null}
+      {uploadError && value ? (
+        <div
+          className="mt-3 rounded-xl border border-red-500/40 bg-red-950/30 px-4 py-3"
+          data-testid={`${testId}-upload-error`}
+        >
+          <p className="text-[12px] text-red-100 leading-snug">{uploadError}</p>
+          <button
+            type="button"
+            onClick={retryCloudUpload}
+            className="mt-2 text-[12px] font-semibold text-[#C4B5FD] hover:text-white underline-offset-2 hover:underline"
+            data-testid={`${testId}-upload-retry`}
+          >
+            {t("vid_cloud_upload_retry")}
+          </button>
+        </div>
       ) : null}
     </div>
   );

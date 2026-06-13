@@ -42,6 +42,7 @@ export function notifyCreditsUpdate({ balance, refunded, spent }) {
       titleKey: "notif_refund_title",
       bodyKey: "notif_refund_body",
       credits: spent || 0,
+      spent: spent || 0,
       balance,
       href: "/app/billing",
     });
@@ -56,4 +57,19 @@ export function notifyCreditsUpdate({ balance, refunded, spent }) {
       balance,
     });
   }
+}
+
+/** Falha de geração — mensagem explícita no painel (vídeo ou imagem). */
+export function notifyGenerationFailed({ error, type = "video", balance, credits }) {
+  const msg = String(error || "").trim();
+  emitNotification({
+    type: "generation_failed",
+    titleKey: type === "video" ? "notif_video_failed_title" : "notif_generation_failed_title",
+    body: msg,
+    creationType: type,
+    balance,
+    credits: credits ?? 0,
+    spent: credits ?? 0,
+    href: type === "video" ? "/app/video/edit" : "/app/billing",
+  });
 }

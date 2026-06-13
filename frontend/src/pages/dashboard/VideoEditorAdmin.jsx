@@ -120,7 +120,17 @@ export default function VideoEditorAdmin({ category }) {
     }
     readVideoDurationSeconds(video)
       .then((s) => {
-        if (mounted) setSourceDurationSec(Math.max(0, Math.round(s)));
+        if (!mounted) return;
+        const sec = Math.max(0, Math.round(s));
+        setSourceDurationSec(sec);
+        if (sec > 0) {
+          const cap = Math.min(10, sec);
+          setDuration((prev) => {
+            if (prev <= cap) return prev;
+            const allowed = DURATIONS.filter((d) => d <= cap);
+            return allowed.length ? allowed[allowed.length - 1] : 4;
+          });
+        }
       })
       .catch(() => {
         if (mounted) setSourceDurationSec(0);

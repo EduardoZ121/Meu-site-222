@@ -292,6 +292,16 @@ export async function uploadVideoToCloud(file, opts = {}) {
   try {
     return await uploadVideoDirectToBlob(file, opts);
   } catch (directErr) {
-    throw new Error(formatHttpError(directErr, "Upload do vídeo falhou."));
+    const msg = String(directErr?.message || directErr);
+    const tryServer = /fetch|network|failed|nuvem|blob|abort|timeout|401|403|503/i.test(msg)
+      || directErr?.code === "ERR_NETWORK";
+    if (tryServer && file.size <= 50 * 1024 * 1024) {
+      try {
+        return await uploadVideoViaServerProxy(file, opts);
+      } catch (proxyErr) {
+        throw new Error(formatHttpError(proxyErr, "Upload do vídeo falhou.", { context: "video_upload" }));
+      }
+    }
+    throw new Error(formatHttpError(directErr, "Upload do vídeo falhou.", { context: "video_upload" }));
   }
 }

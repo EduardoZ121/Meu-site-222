@@ -9,7 +9,7 @@ import {
 import { formatHttpError } from "./uploadErrors";
 import { isBrowserOnlineFlag } from "./uploadReachability";
 import { normalizeCreation } from "./creationUrls";
-import { notifyCreditsUpdate, notifyGenerationComplete } from "./notifyUser";
+import { notifyCreditsUpdate, notifyGenerationComplete, notifyGenerationFailed } from "./notifyUser";
 import { isProductionHost, isRemakePixSiteHost } from "./canonicalOrigin";
 
 /** Evita mixed content: página em https + backend em http → o browser bloqueia e parece "Network Error". */
@@ -457,10 +457,31 @@ async function pollTrackedPredictionOnce(predictionId, meta = {}) {
   }
   if (data.status === "failed") {
     if (data.refunded) {
-      notifyCreditsUpdate({
+      if (data.new_balance != null && typeof window !== "undefined") {
+        window.dispatchEvent(new CustomEvent("rp:credits-sync", {
+          detail: { credits: data.new_balance, refunded: data.refunded },
+        }));
+      }
+      if (meta?.type === "video") {
+        notifyGenerationFailed({
+          error: data.error,
+          type: "video",
+          balance: data.new_balance,
+          credits: meta?.credits_spent,
+        });
+      } else {
+        notifyCreditsUpdate({
+          balance: data.new_balance,
+          refunded: true,
+          spent: meta?.credits_spent,
+        });
+      }
+    } else {
+      notifyGenerationFailed({
+        error: data.error,
+        type: meta?.type || "image",
         balance: data.new_balance,
-        refunded: true,
-        spent: meta?.credits_spent,
+        credits: meta?.credits_spent,
       });
     }
     notifyPredictionFailure(data.error || "Geração falhou.", {
@@ -595,10 +616,26 @@ export async function pollPrediction(predictionId, opts = {}) {
         }));
       }
       if (data.refunded) {
-        notifyCreditsUpdate({
+        if (opts.type === "video") {
+          notifyGenerationFailed({
+            error: data.error,
+            type: "video",
+            balance: data.new_balance,
+            credits: opts.credits_spent,
+          });
+        } else {
+          notifyCreditsUpdate({
+            balance: data.new_balance,
+            refunded: true,
+            spent: opts.credits_spent,
+          });
+        }
+      } else {
+        notifyGenerationFailed({
+          error: data.error,
+          type: opts.type || "image",
           balance: data.new_balance,
-          refunded: true,
-          spent: opts.credits_spent,
+          credits: opts.credits_spent,
         });
       }
       const err = new Error(data.error || "Geração falhou.");

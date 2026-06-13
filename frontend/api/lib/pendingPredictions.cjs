@@ -3,7 +3,7 @@ const { getDb, storageEnabled, ensureIndexes } = require("./mongo.cjs");
 const { addCredits, recordCreation } = require("./usersDb.cjs");
 const { formatGenerationError } = require("./generationErrors.cjs");
 const { extractUrls, mirrorUrlsToBlob } = require("./creationMedia.cjs");
-const { sendVideoReadyEmail } = require("./videoNotifyEmail.cjs");
+const { sendVideoReadyEmail, sendVideoFailedEmail } = require("./videoNotifyEmail.cjs");
 
 function nowIso() {
   return new Date().toISOString();
@@ -112,6 +112,49 @@ async function deliverVideoNotifyEmail(pending, creation, urls) {
   return result;
 }
 
+async function deliverVideoFailureNotifyEmail(pending, friendlyError, rawError) {
+  if (pending?.type !== "video" || !pending?.notify_email) {
+    return { skipped: true, reason: "no_notify" };
+  }
+  if (pending.notify_email_sent_at) {
+    return { skipped: true, reason: "already_sent" };
+  }
+
+  const db = await getDb();
+  const claim = await db.collection("pending_predictions").findOneAndUpdate(
+    {
+      id: pending.id,
+      notify_email: { $type: "string", $ne: "" },
+      notify_email_sent_at: null,
+    },
+    {
+      $set: { notify_email_sent_at: nowIso(), notify_email_error: null },
+    },
+    { returnDocument: "before" },
+  );
+  if (!claim) {
+    return { skipped: true, reason: "already_sent" };
+  }
+
+  const message = String(friendlyError || formatGenerationError(rawError, pending.lang || "pt")).trim();
+  const result = await sendVideoFailedEmail({
+    to: pending.notify_email,
+    lang: pending.lang || "pt",
+    errorMessage: message,
+  });
+
+  if (!result.ok) {
+    const attempts = Number(claim.notify_email_attempts || 0) + 1;
+    await updatePending(pending.id, {
+      notify_email_sent_at: attempts >= 3 ? nowIso() : null,
+      notify_email_attempts: attempts,
+      notify_email_error: String(result.error || result.reason || "send_failed").slice(0, 200),
+    });
+  }
+
+  return result;
+}
+
 function isOpenAIPosterJob(pending) {
   const rid = String(pending?.replicate_prediction_id || "");
   return rid.startsWith("openai-poster");
@@ -174,9 +217,11 @@ async function finalizePending(pending, replicateInfo) {
         return pollPending(pending, async () => replicateInfo);
       }
       const newBalance = await addCredits(userId, cost, "refund", "Refund: empty output");
+      const friendlyEmpty = formatGenerationError("empty output", lang);
+      await deliverVideoFailureNotifyEmail(claimed, friendlyEmpty, "empty output");
       return {
         status: "failed",
-        error: formatGenerationError("empty output", lang),
+        error: friendlyEmpty,
         new_balance: newBalance,
         prediction_id: pending.id,
         refunded: true,
@@ -251,6 +296,7 @@ async function finalizePending(pending, replicateInfo) {
   const rawErr = replicateInfo.error || "Generation failed";
   const friendly = formatGenerationError(rawErr, lang);
   const newBalance = await addCredits(userId, cost, "refund", `Refund: ${String(rawErr).slice(0, 120)}`);
+  await deliverVideoFailureNotifyEmail(claimed, friendly, rawErr);
   return {
     status: "failed",
     error: friendly,
@@ -284,6 +330,13 @@ async function pollPending(pending, getReplicatePrediction) {
   }
 
   if (pending.status === "refunded") {
+    if (pending.type === "video" && pending.notify_email && !pending.notify_email_sent_at) {
+      await deliverVideoFailureNotifyEmail(
+        pending,
+        formatGenerationError(pending.error || "Generation failed", lang),
+        pending.error,
+      );
+    }
     const db = await getDb();
     const user = await db.collection("users").findOne({ id: pending.user_id }, { projection: { credits: 1 } });
     return {

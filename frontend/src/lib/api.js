@@ -381,6 +381,16 @@ function notifyPredictionFailure(error, detail = {}) {
   }));
 }
 
+function dispatchWalletSync(data = {}, extra = {}) {
+  if (typeof window === "undefined") return;
+  const detail = { ...extra };
+  if (data.new_balance != null) detail.credits = data.new_balance;
+  if (data.new_premium_balance != null) detail.premium_credits = data.new_premium_balance;
+  if (detail.credits != null || detail.premium_credits != null) {
+    window.dispatchEvent(new CustomEvent("rp:credits-sync", { detail }));
+  }
+}
+
 export function trackPendingPrediction(predictionId, meta = {}) {
   if (typeof window === "undefined" || !predictionId) return;
   try {
@@ -442,6 +452,7 @@ async function pollTrackedPredictionOnce(predictionId, meta = {}) {
       notifyCreationSucceeded({
         ...creation,
         ...(data.new_balance != null ? { new_balance: data.new_balance } : {}),
+        ...(data.new_premium_balance != null ? { new_premium_balance: data.new_premium_balance } : {}),
       });
       window.dispatchEvent(new CustomEvent("rp:prediction-finished", {
         detail: { status: "succeeded", prediction_id: predictionId, source: "background" },
@@ -452,18 +463,12 @@ async function pollTrackedPredictionOnce(predictionId, meta = {}) {
         detail: { status: "succeeded", prediction_id: predictionId, source: "background", repair: true },
       }));
     }
-    if (data.new_balance != null && typeof window !== "undefined") {
-      window.dispatchEvent(new CustomEvent("rp:credits-sync", { detail: { credits: data.new_balance } }));
-    }
+    dispatchWalletSync(data, { refunded: data.refunded });
     return;
   }
   if (data.status === "failed") {
     if (data.refunded) {
-      if (data.new_balance != null && typeof window !== "undefined") {
-        window.dispatchEvent(new CustomEvent("rp:credits-sync", {
-          detail: { credits: data.new_balance, refunded: data.refunded },
-        }));
-      }
+      dispatchWalletSync(data, { refunded: data.refunded });
       if (meta?.type === "video") {
         notifyGenerationFailed({
           error: data.error,
@@ -588,17 +593,19 @@ export async function pollPrediction(predictionId, opts = {}) {
         removeTrackedPrediction(predictionId);
       } catch { /* ignore */ }
       if (data.new_balance != null && typeof window !== "undefined") {
-        window.dispatchEvent(new CustomEvent("rp:credits-sync", { detail: { credits: data.new_balance } }));
+        dispatchWalletSync(data);
       }
       if (!data.creation) {
         const err = new Error("Geração concluída sem resultado.");
         err.refunded = data.refunded;
         err.new_balance = data.new_balance;
+        err.new_premium_balance = data.new_premium_balance;
         throw err;
       }
       data.creation = normalizeCreation(data.creation);
       data.creation.server_billing = data.server_billing || data.creation.server_billing;
       if (data.new_balance != null) data.creation.new_balance = data.new_balance;
+      if (data.new_premium_balance != null) data.creation.new_premium_balance = data.new_premium_balance;
       if (!data.creation.result_urls?.length) {
         const err = new Error("Geração concluída sem ficheiro de resultado.");
         err.refunded = data.refunded;
@@ -612,11 +619,7 @@ export async function pollPrediction(predictionId, opts = {}) {
       return data;
     }
     if (data.status === "failed") {
-      if (data.new_balance != null && typeof window !== "undefined") {
-        window.dispatchEvent(new CustomEvent("rp:credits-sync", {
-          detail: { credits: data.new_balance, refunded: data.refunded },
-        }));
-      }
+      dispatchWalletSync(data, { refunded: data.refunded });
       if (data.refunded) {
         if (opts.type === "video") {
           notifyGenerationFailed({

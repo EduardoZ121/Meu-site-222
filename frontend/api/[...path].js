@@ -5,6 +5,7 @@ const Stripe = require("stripe");
 const {
   countryFromRequest,
   getPackagesForRegion,
+  getPremiumPackagesForRegion,
   getCreditCostsForRegion,
   getRegionConfig,
   resolvePricingRegion,
@@ -25,11 +26,13 @@ const {
   repairUserAccountIfNeeded,
   isAdminEmail,
   addCredits,
+  addPremiumCredits,
   fulfillStripeCheckoutSession,
   recordCreation,
   storageEnabled,
 } = require("./lib/usersDb.cjs");
-const { spendCredits } = require("./lib/creditsDb.cjs");
+const { spendCredits, spendPremiumCredits } = require("./lib/creditsDb.cjs");
+const { posterHqPremiumCost, getPosterHqPremiumCostPerOutput } = require("./lib/premiumCredits.cjs");
 const {
   createPending,
   getPending,
@@ -1107,6 +1110,8 @@ function predictionResponse(result) {
     type: result.type || "image",
   };
   if (result.new_balance != null) out.new_balance = result.new_balance;
+  if (result.new_premium_balance != null) out.new_premium_balance = result.new_premium_balance;
+  if (result.wallet) out.wallet = result.wallet;
   if (result.server_billing) out.server_billing = true;
   return out;
 }
@@ -1293,7 +1298,7 @@ function withMeta(input, cost, type = "image") {
   return { input, credits_spent: cost, type };
 }
 
-/** Pôster via OpenAI (síncrono) — regista pending já concluído para o cliente fazer poll. */
+/** Pôster via OpenAI (síncrono) — debita créditos HQ (premium wallet). */
 async function submitInstantPosterGeneration(req, fields, {
   cost,
   prompt,
@@ -1301,7 +1306,8 @@ async function submitInstantPosterGeneration(req, fields, {
   modelUsed,
   urls,
   type = "poster",
-  spendDescription = "Pôster",
+  spendDescription = "Pôster HQ",
+  usePremiumWallet = true,
 }) {
   const { user, isLocal } = resolveSessionUser(req);
   const lang = userLang(req, fields);
@@ -1326,16 +1332,29 @@ async function submitInstantPosterGeneration(req, fields, {
       err.status = 403;
       throw err;
     }
-    const balance = dbUser?.credits ?? user.credits ?? 0;
-    if (!isAdminEmail(dbUser?.email) && balance < cost) {
+    const premiumBalance = dbUser?.premium_credits ?? 0;
+    const standardBalance = dbUser?.credits ?? user.credits ?? 0;
+    if (usePremiumWallet) {
+      if (!isAdminEmail(dbUser?.email) && premiumBalance < cost) {
+        const err = new Error("Créditos HQ insuficientes.");
+        err.status = 402;
+        err.detail = "Insufficient premium credits";
+        throw err;
+      }
+    } else if (!isAdminEmail(dbUser?.email) && standardBalance < cost) {
       const err = new Error("Créditos insuficientes.");
       err.status = 402;
       throw err;
     }
 
-    let newBalance = balance;
+    let newBalance = standardBalance;
+    let newPremiumBalance = premiumBalance;
     if (!isAdminEmail(dbUser?.email)) {
-      newBalance = await spendCredits(user.id, cost, spendDescription);
+      if (usePremiumWallet) {
+        newPremiumBalance = await spendPremiumCredits(user.id, cost, spendDescription);
+      } else {
+        newBalance = await spendCredits(user.id, cost, spendDescription);
+      }
     }
 
     const pending = await createPending({
@@ -1347,7 +1366,8 @@ async function submitInstantPosterGeneration(req, fields, {
       model_used: modelUsed || "openai/gpt-image-1",
       aspect_ratio: aspectRatio || "4:5",
       credits_spent: isAdminEmail(dbUser?.email) ? 0 : cost,
-      balance_after_spend: newBalance,
+      balance_after_spend: usePremiumWallet ? newPremiumBalance : newBalance,
+      wallet: usePremiumWallet ? "premium" : "standard",
       lang,
       notify_email: notifyEmail || null,
     });
@@ -1356,7 +1376,11 @@ async function submitInstantPosterGeneration(req, fields, {
       await completePendingWithUrls(pending, urls);
     } catch (e) {
       if (!isAdminEmail(dbUser?.email)) {
-        await addCredits(user.id, cost, "refund", `Refund: ${type} sync failed (${String(e.message || e).slice(0, 80)})`);
+        if (usePremiumWallet) {
+          await addPremiumCredits(user.id, cost, "refund", `Refund: ${type} sync failed (${String(e.message || e).slice(0, 80)})`);
+        } else {
+          await addCredits(user.id, cost, "refund", `Refund: ${type} sync failed (${String(e.message || e).slice(0, 80)})`);
+        }
       }
       const err = new Error(formatGenerationError(e.message || "submit failed", lang));
       err.status = 502;
@@ -1366,8 +1390,10 @@ async function submitInstantPosterGeneration(req, fields, {
     return {
       prediction_id: pending.id,
       credits_spent: isAdminEmail(dbUser?.email) ? 0 : cost,
+      wallet: usePremiumWallet ? "premium" : "standard",
       type,
-      new_balance: newBalance,
+      new_balance: usePremiumWallet ? undefined : newBalance,
+      new_premium_balance: usePremiumWallet ? newPremiumBalance : undefined,
       server_billing: true,
     };
   }
@@ -1376,6 +1402,7 @@ async function submitInstantPosterGeneration(req, fields, {
   return {
     prediction_id: newPendingId(),
     credits_spent: cost,
+    wallet: usePremiumWallet ? "premium" : "standard",
     type,
     creation: {
       type,
@@ -2078,7 +2105,9 @@ async function routePost(path, fields, files, req) {
     }
 
     const resolved = resolvePosterModel(selected);
-    const cost = perImage * count;
+    const cost = resolved.engine === "openai"
+      ? posterHqPremiumCost(count)
+      : perImage * count;
 
     if (resolved.engine === "openai") {
       const size = aspectToOpenAISize(aspectRatio);
@@ -2780,10 +2809,58 @@ async function routePost(path, fields, files, req) {
       err.status = 401;
       throw err;
     }
-    const packageId = text(fields, "package", "starter");
+    const wallet = text(fields, "wallet", "standard");
+    const packageId = text(fields, "package", wallet === "premium" ? "hq_5" : "starter");
     const customCreditsRaw = Number(text(fields, "custom_credits", 0));
     const region = regionFromRequest(req, fields);
     const cfg = getRegionConfig(region);
+
+    if (wallet === "premium") {
+      const hqPkg = (cfg.premium_packages || {})[packageId];
+      if (!hqPkg) {
+        const err = new Error("Pacote HQ inválido.");
+        err.status = 400;
+        throw err;
+      }
+      const premiumCredits = Number(hqPkg.premium_credits) || 0;
+      let origin = String(fields.origin || process.env.SITE_URL || "https://www.remakepix.com").replace(/\/$/, "");
+      try {
+        const u = new URL(origin);
+        if (u.hostname.endsWith(".vercel.app") || u.hostname === "remakepix.com") {
+          origin = "https://www.remakepix.com";
+        }
+      } catch {
+        origin = "https://www.remakepix.com";
+      }
+      const stripe = stripeClient();
+      const session = await stripe.checkout.sessions.create({
+        mode: "payment",
+        payment_method_types: ["card"],
+        customer_email: checkoutUser.email || undefined,
+        line_items: [{
+          price_data: {
+            currency: cfg.currency,
+            unit_amount: hqPkg.amount_cents,
+            product_data: {
+              name: `Remake Pixel HQ — ${hqPkg.name} (${premiumCredits} créditos HQ)`,
+              description: hqPkg.tagline || "Créditos para posters alta qualidade",
+            },
+          },
+          quantity: 1,
+        }],
+        metadata: {
+          user_id: checkoutUser.id,
+          package: packageId,
+          wallet: "premium",
+          premium_credits: String(premiumCredits),
+          pricing_region: region,
+        },
+        success_url: `${origin}/app/billing?checkout=success&session_id={CHECKOUT_SESSION_ID}&wallet=premium`,
+        cancel_url: `${origin}/app/billing?checkout=cancel`,
+      });
+      return { checkout_url: session.url, pricing_region: region, wallet: "premium" };
+    }
+
     const pkg = cfg.packages[packageId];
     const hasCustom = Number.isFinite(customCreditsRaw) && customCreditsRaw > 0;
     if (!pkg && !hasCustom) {
@@ -2875,34 +2952,38 @@ async function handlePath(path, req, res) {
       const CREDIT = getCreditCostsForRegion(region);
       const { openaiConfigured } = require("./lib/openaiEnv.cjs");
       const openaiReady = openaiConfigured();
+      const hqCost = getPosterHqPremiumCostPerOutput();
       return json(res, 200, {
         openai_ready: openaiReady,
         models: [
           {
             key: "grok",
-            label: "Motor Rápido",
+            label: "Baixa qualidade",
             cost: CREDIT.posterFast,
             tier: "fast",
+            wallet: "standard",
             supports_photo: true,
-            tag: "Padrão · rápido",
+            tag: "Rápido · económico",
             available: true,
           },
           {
             key: "flux2",
-            label: "Motor Pro",
+            label: "Média qualidade",
             cost: CREDIT.posterPro,
             tier: "pro",
+            wallet: "standard",
             supports_photo: true,
             tag: "Foto-realista",
             available: true,
           },
           {
             key: "gpt_image",
-            label: "Motor GPT",
-            cost: CREDIT.posterPremium,
+            label: "Alta qualidade",
+            cost: hqCost,
             tier: "premium",
+            wallet: "premium",
             supports_photo: true,
-            tag: "GPT Image 1 · texto nítido · com foto",
+            tag: "Texto nítido · máximo detalhe",
             available: openaiReady,
           },
         ],
@@ -2940,6 +3021,8 @@ async function handlePath(path, req, res) {
         label: cfg.label,
         checkout_note: cfg.checkoutNote,
         packages: getPackagesForRegion(region),
+        premium_packages: getPremiumPackagesForRegion(region),
+        poster_hq_cost: getPosterHqPremiumCostPerOutput(),
       });
     }
 
@@ -3075,20 +3158,27 @@ async function handlePath(path, req, res) {
       const session = await stripe.checkout.sessions.retrieve(sessionId);
       const paid = session.payment_status === "paid";
       const packageId = session.metadata?.package;
+      const wallet = session.metadata?.wallet || "standard";
       const credits = Number(session.metadata?.credits || 0);
+      const premiumCredits = Number(session.metadata?.premium_credits || 0);
       const pricingRegion = session.metadata?.pricing_region || "intl";
-      if (paid && credits > 0) {
+      const isPremium = wallet === "premium";
+      const units = isPremium ? premiumCredits : credits;
+      if (paid && units > 0) {
         const auth = req.headers.authorization || "";
         const tm = auth.match(/^Bearer\s+(.+)$/i);
         const tokenUser = tm ? verifySessionToken(tm[1].trim()) : null;
         if (tokenUser?.id) {
           const cfg = getRegionConfig(pricingRegion);
-          const pkg = packageId && packageId !== "custom" ? cfg.packages[packageId] : null;
+          const pkg = !isPremium && packageId && packageId !== "custom" ? cfg.packages[packageId] : null;
+          const hqPkg = isPremium && packageId ? (cfg.premium_packages || {})[packageId] : null;
           const amount = pkg
             ? pkg.amount_cents / 100
-            : typeof session.amount_total === "number"
-              ? session.amount_total / 100
-              : 0;
+            : hqPkg
+              ? hqPkg.amount_cents / 100
+              : typeof session.amount_total === "number"
+                ? session.amount_total / 100
+                : 0;
           const currency = cfg.currency || "eur";
           try {
             const fulfilled = await fulfillStripeCheckoutSession({
@@ -3096,18 +3186,23 @@ async function handlePath(path, req, res) {
               sessionId,
               packageId,
               credits,
+              premiumCredits,
+              wallet,
               amount,
               currency,
               pricingRegion,
             });
-            if (fulfilled?.new_balance != null) {
+            if (fulfilled?.new_balance != null || fulfilled?.new_premium_balance != null) {
               return json(res, 200, {
                 id: session.id,
                 paid,
                 package: packageId,
-                credits,
+                wallet,
+                credits: isPremium ? 0 : credits,
+                premium_credits: isPremium ? premiumCredits : 0,
                 pricing_region: pricingRegion,
                 new_balance: fulfilled.new_balance,
+                new_premium_balance: fulfilled.new_premium_balance,
                 already_claimed: fulfilled.already_claimed,
               });
             }
@@ -3120,7 +3215,9 @@ async function handlePath(path, req, res) {
         id: session.id,
         paid,
         package: packageId,
-        credits,
+        wallet,
+        credits: isPremium ? 0 : credits,
+        premium_credits: isPremium ? premiumCredits : 0,
         pricing_region: pricingRegion,
       });
     }

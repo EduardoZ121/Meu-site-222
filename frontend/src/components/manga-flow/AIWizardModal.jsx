@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { X, ChevronRight, ChevronLeft, Sparkles, Loader2, Plus, Trash2, Check, Wand2, MessageCircle, BookOpen } from "lucide-react";
 import { generateMangaFromWizard } from "./generateMangaFromWizard";
-import { api } from "../../lib/api";
 import { toast } from "sonner";
 
 const STEPS = [
@@ -106,31 +105,8 @@ ${a.worldDetails ? `World details: ${a.worldDetails}\n` : ""}Characters:\n${char
 ${a.synopsis ? `Brief synopsis to expand: ${a.synopsis}\n` : ""}${a.keyMoments ? `Key moments to hit: ${a.keyMoments}\n` : ""}${a.sampleDialogue ? `Sample dialogue style: ${a.sampleDialogue}\n` : ""}
 Output a vivid scene-by-scene story with action, emotion and dialogue. Keep characters consistent. Make every page advance the plot.`;
 
-      const res = await Promise.race([
-        api.post(
-          "/prompt/manga-compose",
-          {
-            mode: "chapter",
-            lang: "en",
-            fallback_prompt: fallback,
-            project: {
-              characters: a.characters.filter((c) => c.name).map((c) => ({
-                name: c.name,
-                description: `${c.appearance}. ${c.personality}. ${c.powers || ""} ${c.weapon || ""}`,
-              })),
-              scenarios: [{ name: a.location, description: `${a.era} ${a.weather} ${a.worldDetails || ""}` }],
-            },
-          },
-          { timeout: 20000 },
-        ),
-        new Promise((_, rej) => setTimeout(() => rej(new Error("timeout")), 22000)),
-      ]);
-      if (res?.data?.prompt) {
-        set("storyPrompt", res.data.prompt);
-        toast.success("História gerada com IA — podes editar antes de gerar.");
-      } else {
-        toast.error("A IA não devolveu texto. Tenta novamente.");
-      }
+      set("storyPrompt", fallback);
+      toast.success("História gerada — podes editar antes de gerar.");
     } catch (err) {
       toast.error("Falha ao gerar história: " + (err.message || "erro"));
     } finally {
@@ -145,18 +121,7 @@ Output a vivid scene-by-scene story with action, emotion and dialogue. Keep char
       // Enhance story with GPT if enabled
       let enhancedSynopsis = a.synopsis || a.storyPrompt || "";
       if (a.enhanceStory && (a.synopsis || a.storyPrompt)) {
-        setStatusMsg("Enhancing story with AI...");
-        try {
-          const gptRes = await Promise.race([
-            api.post("/prompt/manga-compose", {
-              mode: "chapter", lang: "en",
-              fallback_prompt: `${a.genre} ${a.tone} story: ${a.synopsis || a.storyPrompt}. Characters: ${a.characters.map(c => c.name).join(", ")}. Setting: ${a.location} ${a.era}.`,
-              project: { characters: a.characters.filter(c => c.name).map(c => ({ name: c.name, description: `${c.appearance}. ${c.personality}. ${c.powers || ""}` })), scenarios: [{ name: a.location, description: `${a.era} ${a.weather}` }] },
-            }, { timeout: 12000 }),
-            new Promise((_, rej) => setTimeout(() => rej(new Error("timeout")), 13000)),
-          ]);
-          if (gptRes?.data?.prompt) enhancedSynopsis = gptRes.data.prompt;
-        } catch { /* use local */ }
+        enhancedSynopsis = `${a.genre} ${a.tone} story: ${a.synopsis || a.storyPrompt}. Characters: ${a.characters.map((c) => c.name).filter(Boolean).join(", ")}. Setting: ${a.location} ${a.era}.`;
       }
 
       setStatusMsg("Generating pages and cards...");

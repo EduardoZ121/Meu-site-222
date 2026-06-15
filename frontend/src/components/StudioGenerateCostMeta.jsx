@@ -5,16 +5,24 @@ export default function StudioGenerateCostMeta({
   cost,
   user,
   extra = null,
+  wallet = "standard",
   className = "",
 }) {
   const { t } = useI18n();
-  const balance = user?.is_unlimited ? "∞" : (user?.credits ?? 0);
+  const isPremium = wallet === "premium";
+  const balance = user?.is_unlimited
+    ? "∞"
+    : isPremium
+      ? (user?.premium_credits ?? 0)
+      : (user?.credits ?? 0);
 
   return (
     <div className={`hidden sm:flex items-center gap-3 text-[12px] font-['Inter_Tight'] flex-wrap ${className}`.trim()}>
       <span className="text-[#8A8A8E]">{t("tool_cost_label")}</span>
-      <span className="text-[#C4B5FD] font-semibold tabular-nums text-[15px]">{cost}</span>
-      <span className="text-[#5A5A5E] font-mono text-[10px] uppercase tracking-wider">{t("label_credits")}</span>
+      <span className={`font-semibold tabular-nums text-[15px] ${isPremium ? "text-[#FACC15]" : "text-[#C4B5FD]"}`}>{cost}</span>
+      <span className="text-[#5A5A5E] font-mono text-[10px] uppercase tracking-wider">
+        {isPremium ? t("label_hq_credits") : t("label_credits")}
+      </span>
       {extra ? (
         <>
           <span className="w-px h-4 bg-[#2E2E30]" />

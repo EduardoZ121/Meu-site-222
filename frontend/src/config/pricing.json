@@ -1,461 +1,281 @@
 {
-
   "meta": {
-
     "creditsPerEuro": 30,
-
     "minCustomCredits": 150,
-
     "marginTargetPct": 72,
-
     "replicateUsdPerCreditEstimate": 0.018,
-
+    "posterHqPremiumCostPerOutput": 1,
     "pricingNote": "Créditos calibrados vs custo Replicate (~68–74% margem bruta no pack Starter a 30 cr/€)."
-
   },
-
   "regions": {
-
     "intl": {
-
       "id": "intl",
-
       "currency": "eur",
-
       "symbol": "€",
-
       "label": "Internacional",
-
       "checkoutNote": "Pagamento em euros (€). Pacotes maiores incluem bónus de créditos.",
-
       "packages": {
-
         "starter": {
-
           "name": "Starter",
-
           "amount_cents": 500,
-
           "credits": 150,
-
           "credits_base": 150,
-
           "bonus_percent": 0,
-
           "tagline": "Promoção de lançamento",
-
           "badge": "promo"
-
         },
-
         "creator": {
-
           "name": "Creator",
-
           "amount_cents": 1000,
-
           "credits": 345,
-
           "credits_base": 300,
-
           "bonus_percent": 15,
-
           "tagline": "Para criadores activos",
-
           "badge": "popular"
-
         },
-
         "studio": {
-
           "name": "Studio",
-
           "amount_cents": 2000,
-
           "credits": 780,
-
           "credits_base": 600,
-
           "bonus_percent": 30,
-
           "tagline": "Melhor valor por crédito",
-
           "badge": "value"
-
         },
-
         "pro": {
-
           "name": "Pro",
-
           "amount_cents": 5000,
-
           "credits": 2100,
-
           "credits_base": 1500,
-
           "bonus_percent": 40,
-
           "tagline": "Volume máximo + 40% bónus",
-
           "badge": "bonus40"
-
         }
-
       },
-
       "costs": {
-
         "image": 15,
-
         "edit": 15,
-
         "easy": 15,
-
         "pro": 30,
-
         "artistic": 18,
-
         "video": 58,
-
         "videoImage": 160,
-
         "videoTest": 0,
-
         "videoFast": 42,
-
         "videoFastImage": 48,
-
         "videoMarketing": 65,
-
         "videoMarketingImage": 86,
-
         "videoElements": 92,
-
         "videoEdit": 112,
-
         "videoExtend": 86,
-
         "marketingVideoByDuration": {
-
           "15": 240
-
         },
-
         "motionFlyerByDuration": {
-
           "10": 200
-
         },
-
         "bgRemove": 6,
-
         "bgRemoveScene": 9,
-
         "upscale": 8,
-
         "restoreLight": 8,
-
         "restoreMedium": 12,
-
         "restoreDeep": 18,
-
         "restore": 12,
-
         "colorize": 10,
-
         "clothes": 22,
-
         "inpaint": 20,
-
         "carouselFastPerSlide": 5,
-
         "carouselPremiumPerSlide": 8,
-
         "mangaPanel": 15,
-
         "mangaPage": 32,
-
         "mangaChapter": 105,
-
         "posterFast": 28,
-
         "posterPro": 40,
-
         "posterPremium": 55
-
       },
-
-      "surcharges": {
-
-        "enhancePrompt": 5,
-
-        "hdImage": 5,
-
-        "hdSimple": 3,
-
-        "hdVideo": 12,
-
-        "videoDuration8": 16,
-
-        "videoDuration10": 32,
-
-        "videoEditResolutionHd": 18,
-
-        "videoEditDuration8": 22,
-
-        "videoEditDuration10": 38,
-
-        "artisticEffectPremium": 2,
-
-        "artisticEffectPremiumMax": 4,
-
-        "upscaleHd": 3,
-
-        "colorizeHd": 3
-
-      },
-
-      "premiumArtisticEffects": [
-
-        "color:neon_mood",
-
-        "color:teal_orange",
-
-        "atmosphere:godrays",
-
-        "atmosphere:flare",
-
-        "atmosphere:fog_dense",
-
-        "lens:anamorphic"
-
-      ]
-
-    },
-
-    "usd": {
-
-      "id": "usd",
-
-      "currency": "usd",
-
-      "symbol": "$",
-
-      "label": "Brasil e Angola",
-
-      "checkoutNote": "Preços em dólar (USD). Pacotes maiores incluem bónus de créditos.",
-
-      "countries": ["BR", "AO"],
-
-      "packages": {
-
-        "starter": {
-
-          "name": "Starter",
-
+      "premium_packages": {
+        "hq_5": {
+          "name": "HQ Pack 5",
           "amount_cents": 499,
-
-          "credits": 150,
-
-          "credits_base": 150,
-
-          "bonus_percent": 0,
-
-          "tagline": "Promo de lançamento",
-
-          "badge": "promo"
-
+          "premium_credits": 5,
+          "tagline": "5 gerações poster alta qualidade",
+          "badge": "hq"
         },
-
-        "creator": {
-
-          "name": "Creator",
-
+        "hq_15": {
+          "name": "HQ Pack 15",
           "amount_cents": 999,
-
-          "credits": 345,
-
-          "credits_base": 300,
-
-          "bonus_percent": 15,
-
-          "tagline": "Para criadores activos",
-
+          "premium_credits": 15,
+          "bonus_percent": 0,
+          "tagline": "Melhor valor HQ",
           "badge": "popular"
-
         },
-
-        "studio": {
-
-          "name": "Studio",
-
+        "hq_40": {
+          "name": "HQ Pack 40",
           "amount_cents": 1999,
-
-          "credits": 780,
-
-          "credits_base": 600,
-
-          "bonus_percent": 30,
-
-          "tagline": "Melhor valor por crédito",
-
+          "premium_credits": 40,
+          "bonus_percent": 0,
+          "tagline": "Volume posters premium",
           "badge": "value"
-
-        },
-
-        "pro": {
-
-          "name": "Pro",
-
-          "amount_cents": 4999,
-
-          "credits": 2100,
-
-          "credits_base": 1500,
-
-          "bonus_percent": 40,
-
-          "tagline": "Volume máximo + 40% bónus",
-
-          "badge": "bonus40"
-
         }
-
       },
-
-      "costs": {
-
-        "image": 15,
-
-        "edit": 15,
-
-        "easy": 15,
-
-        "pro": 30,
-
-        "artistic": 18,
-
-        "video": 58,
-
-        "videoImage": 160,
-
-        "videoTest": 0,
-
-        "videoFast": 42,
-
-        "videoFastImage": 48,
-
-        "videoMarketing": 65,
-
-        "videoMarketingImage": 86,
-
-        "videoElements": 92,
-
-        "videoEdit": 112,
-
-        "videoExtend": 86,
-
-        "marketingVideoByDuration": {
-
-          "15": 240
-
-        },
-
-        "motionFlyerByDuration": {
-
-          "10": 200
-
-        },
-
-        "bgRemove": 6,
-
-        "bgRemoveScene": 9,
-
-        "upscale": 8,
-
-        "restoreLight": 8,
-
-        "restoreMedium": 12,
-
-        "restoreDeep": 18,
-
-        "restore": 12,
-
-        "colorize": 10,
-
-        "clothes": 22,
-
-        "inpaint": 20,
-
-        "carouselFastPerSlide": 5,
-
-        "carouselPremiumPerSlide": 8,
-
-        "mangaPanel": 15,
-
-        "mangaPage": 32,
-
-        "mangaChapter": 105,
-
-        "posterFast": 28,
-
-        "posterPro": 40,
-
-        "posterPremium": 55
-
-      },
-
       "surcharges": {
-
         "enhancePrompt": 5,
-
         "hdImage": 5,
-
         "hdSimple": 3,
-
         "hdVideo": 12,
-
         "videoDuration8": 16,
-
         "videoDuration10": 32,
-
         "videoEditResolutionHd": 18,
-
         "videoEditDuration8": 22,
-
         "videoEditDuration10": 38,
-
         "artisticEffectPremium": 2,
-
         "artisticEffectPremiumMax": 4,
-
         "upscaleHd": 3,
-
         "colorizeHd": 3
-
       },
-
       "premiumArtisticEffects": [
-
         "color:neon_mood",
-
         "color:teal_orange",
-
         "atmosphere:godrays",
-
         "atmosphere:flare",
-
         "atmosphere:fog_dense",
-
         "lens:anamorphic"
-
       ]
-
+    },
+    "usd": {
+      "id": "usd",
+      "currency": "usd",
+      "symbol": "$",
+      "label": "Brasil e Angola",
+      "checkoutNote": "Preços em dólar (USD). Pacotes maiores incluem bónus de créditos.",
+      "countries": ["BR", "AO"],
+      "packages": {
+        "starter": {
+          "name": "Starter",
+          "amount_cents": 499,
+          "credits": 150,
+          "credits_base": 150,
+          "bonus_percent": 0,
+          "tagline": "Promo de lançamento",
+          "badge": "promo"
+        },
+        "creator": {
+          "name": "Creator",
+          "amount_cents": 999,
+          "credits": 345,
+          "credits_base": 300,
+          "bonus_percent": 15,
+          "tagline": "Para criadores activos",
+          "badge": "popular"
+        },
+        "studio": {
+          "name": "Studio",
+          "amount_cents": 1999,
+          "credits": 780,
+          "credits_base": 600,
+          "bonus_percent": 30,
+          "tagline": "Melhor valor por crédito",
+          "badge": "value"
+        },
+        "pro": {
+          "name": "Pro",
+          "amount_cents": 4999,
+          "credits": 2100,
+          "credits_base": 1500,
+          "bonus_percent": 40,
+          "tagline": "Volume máximo + 40% bónus",
+          "badge": "bonus40"
+        }
+      },
+      "costs": {
+        "image": 15,
+        "edit": 15,
+        "easy": 15,
+        "pro": 30,
+        "artistic": 18,
+        "video": 58,
+        "videoImage": 160,
+        "videoTest": 0,
+        "videoFast": 42,
+        "videoFastImage": 48,
+        "videoMarketing": 65,
+        "videoMarketingImage": 86,
+        "videoElements": 92,
+        "videoEdit": 112,
+        "videoExtend": 86,
+        "marketingVideoByDuration": {
+          "15": 240
+        },
+        "motionFlyerByDuration": {
+          "10": 200
+        },
+        "bgRemove": 6,
+        "bgRemoveScene": 9,
+        "upscale": 8,
+        "restoreLight": 8,
+        "restoreMedium": 12,
+        "restoreDeep": 18,
+        "restore": 12,
+        "colorize": 10,
+        "clothes": 22,
+        "inpaint": 20,
+        "carouselFastPerSlide": 5,
+        "carouselPremiumPerSlide": 8,
+        "mangaPanel": 15,
+        "mangaPage": 32,
+        "mangaChapter": 105,
+        "posterFast": 28,
+        "posterPro": 40,
+        "posterPremium": 55
+      },
+      "premium_packages": {
+        "hq_5": {
+          "name": "HQ Pack 5",
+          "amount_cents": 499,
+          "premium_credits": 5,
+          "tagline": "5 gerações poster alta qualidade",
+          "badge": "hq"
+        },
+        "hq_15": {
+          "name": "HQ Pack 15",
+          "amount_cents": 999,
+          "premium_credits": 15,
+          "bonus_percent": 0,
+          "tagline": "Melhor valor HQ",
+          "badge": "popular"
+        },
+        "hq_40": {
+          "name": "HQ Pack 40",
+          "amount_cents": 1999,
+          "premium_credits": 40,
+          "bonus_percent": 0,
+          "tagline": "Volume posters premium",
+          "badge": "value"
+        }
+      },
+      "surcharges": {
+        "enhancePrompt": 5,
+        "hdImage": 5,
+        "hdSimple": 3,
+        "hdVideo": 12,
+        "videoDuration8": 16,
+        "videoDuration10": 32,
+        "videoEditResolutionHd": 18,
+        "videoEditDuration8": 22,
+        "videoEditDuration10": 38,
+        "artisticEffectPremium": 2,
+        "artisticEffectPremiumMax": 4,
+        "upscaleHd": 3,
+        "colorizeHd": 3
+      },
+      "premiumArtisticEffects": [
+        "color:neon_mood",
+        "color:teal_orange",
+        "atmosphere:godrays",
+        "atmosphere:flare",
+        "atmosphere:fog_dense",
+        "lens:anamorphic"
+      ]
     }
-
   }
-
 }
-
-

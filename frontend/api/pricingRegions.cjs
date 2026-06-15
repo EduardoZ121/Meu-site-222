@@ -32,6 +32,29 @@ function getPackagesForRegion(regionId) {
   }));
 }
 
+function getPremiumPackagesForRegion(regionId) {
+  const cfg = getRegionConfig(regionId);
+  const pkgs = cfg.premium_packages || {};
+  return Object.entries(pkgs).map(([id, pkg]) => ({
+    id,
+    ...pkg,
+    currency: cfg.currency,
+    region: cfg.id,
+    amount_display: pkg.amount_cents / 100,
+    amount_eur: cfg.currency === "eur" ? pkg.amount_cents / 100 : undefined,
+  }));
+}
+
+function getPricingMeta() {
+  const root = pricingData?.meta || {};
+  return {
+    creditsPerEuro: root.creditsPerEuro ?? 30,
+    minCustomCredits: root.minCustomCredits ?? 150,
+    marginTargetPct: root.marginTargetPct ?? 72,
+    posterHqPremiumCostPerOutput: root.posterHqPremiumCostPerOutput ?? 1,
+  };
+}
+
 function getCreditCostsForRegion(regionId) {
   return { ...getRegionConfig(regionId).costs };
 }
@@ -59,6 +82,8 @@ module.exports = {
   countryToRegion,
   getRegionConfig,
   getPackagesForRegion,
+  getPremiumPackagesForRegion,
+  getPricingMeta,
   getCreditCostsForRegion,
   resolvePricingRegion,
   countryFromRequest,

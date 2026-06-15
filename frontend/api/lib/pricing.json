@@ -4,6 +4,7 @@
     "minCustomCredits": 150,
     "marginTargetPct": 72,
     "replicateUsdPerCreditEstimate": 0.018,
+    "posterHqPremiumCostPerOutput": 1,
     "pricingNote": "Créditos calibrados vs custo Replicate (~68–74% margem bruta no pack Starter a 30 cr/€)."
   },
   "regions": {
@@ -91,6 +92,31 @@
         "posterFast": 28,
         "posterPro": 40,
         "posterPremium": 55
+      },
+      "premium_packages": {
+        "hq_5": {
+          "name": "HQ Pack 5",
+          "amount_cents": 499,
+          "premium_credits": 5,
+          "tagline": "5 gerações poster alta qualidade",
+          "badge": "hq"
+        },
+        "hq_15": {
+          "name": "HQ Pack 15",
+          "amount_cents": 999,
+          "premium_credits": 15,
+          "bonus_percent": 0,
+          "tagline": "Melhor valor HQ",
+          "badge": "popular"
+        },
+        "hq_40": {
+          "name": "HQ Pack 40",
+          "amount_cents": 1999,
+          "premium_credits": 40,
+          "bonus_percent": 0,
+          "tagline": "Volume posters premium",
+          "badge": "value"
+        }
       },
       "surcharges": {
         "enhancePrompt": 5,
@@ -201,6 +227,31 @@
         "posterFast": 28,
         "posterPro": 40,
         "posterPremium": 55
+      },
+      "premium_packages": {
+        "hq_5": {
+          "name": "HQ Pack 5",
+          "amount_cents": 499,
+          "premium_credits": 5,
+          "tagline": "5 gerações poster alta qualidade",
+          "badge": "hq"
+        },
+        "hq_15": {
+          "name": "HQ Pack 15",
+          "amount_cents": 999,
+          "premium_credits": 15,
+          "bonus_percent": 0,
+          "tagline": "Melhor valor HQ",
+          "badge": "popular"
+        },
+        "hq_40": {
+          "name": "HQ Pack 40",
+          "amount_cents": 1999,
+          "premium_credits": 40,
+          "bonus_percent": 0,
+          "tagline": "Volume posters premium",
+          "badge": "value"
+        }
       },
       "surcharges": {
         "enhancePrompt": 5,

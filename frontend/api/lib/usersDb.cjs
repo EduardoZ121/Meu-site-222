@@ -32,12 +32,19 @@ function abuseCredits(credits) {
 function resolveAccountAccess(doc) {
   const email = String(doc?.email || "").trim().toLowerCase();
   if (isAdminEmail(email)) {
-    return { role: "admin", is_unlimited: true, credits: UNLIMITED_CREDITS };
+    return {
+      role: "admin",
+      is_unlimited: true,
+      credits: UNLIMITED_CREDITS,
+      premium_credits: UNLIMITED_CREDITS,
+    };
   }
   let credits = Number(doc?.credits);
   if (!Number.isFinite(credits) || credits < 0) credits = 0;
   if (doc?.is_unlimited || abuseCredits(credits)) credits = 0;
-  return { role: "user", is_unlimited: false, credits };
+  let premiumCredits = Number(doc?.premium_credits);
+  if (!Number.isFinite(premiumCredits) || premiumCredits < 0) premiumCredits = 0;
+  return { role: "user", is_unlimited: false, credits, premium_credits: premiumCredits };
 }
 
 function accountNeedsRepair(doc) {
@@ -65,6 +72,7 @@ function publicUser(doc) {
     role: access.role,
     lang: doc.lang || "en",
     credits: access.credits,
+    premium_credits: access.premium_credits ?? 0,
     is_unlimited: access.is_unlimited,
     referral_code: doc.referral_code || "",
     email_verified: Boolean(doc.email_verified),
@@ -133,6 +141,7 @@ async function upsertGoogleUser(googleProfile, req, opts = {}) {
       ...base,
       lang: startLang,
       credits: startCredits,
+      premium_credits: 0,
       referral_code: genReferralCode(),
       referred_by: null,
       banned: false,
@@ -197,7 +206,7 @@ async function repairUserAccountIfNeeded(userId) {
   const access = resolveAccountAccess(doc);
   await db.collection("users").updateOne(
     { id: userId },
-    { $set: { role: access.role, is_unlimited: access.is_unlimited, credits: access.credits } },
+    { $set: { role: access.role, is_unlimited: access.is_unlimited, credits: access.credits, premium_credits: access.premium_credits ?? 0 } },
   );
   const updated = await db.collection("users").findOne({ id: userId }, { projection: { _id: 0, password_hash: 0 } });
   return publicUser(updated);
@@ -264,9 +273,32 @@ async function addCredits(userId, amount, type, description, metadata = {}) {
     type,
     description,
     metadata,
+    wallet: "standard",
     created_at: nowIso(),
   });
   return res.credits;
+}
+
+async function addPremiumCredits(userId, amount, type, description, metadata = {}) {
+  if (!storageEnabled()) return null;
+  const db = await getDb();
+  const res = await db.collection("users").findOneAndUpdate(
+    { id: userId },
+    { $inc: { premium_credits: amount } },
+    { returnDocument: "after", projection: { _id: 0, premium_credits: 1 } },
+  );
+  if (!res) return null;
+  await db.collection("credit_transactions").insertOne({
+    id: `tx_${Date.now().toString(36)}_${crypto.randomBytes(3).toString("hex")}`,
+    user_id: userId,
+    amount,
+    type,
+    description,
+    metadata,
+    wallet: "premium",
+    created_at: nowIso(),
+  });
+  return res.premium_credits ?? 0;
 }
 
 async function findPurchaseBySessionId(sessionId) {
@@ -283,6 +315,8 @@ async function recordPurchase({
   sessionId,
   packageId,
   credits,
+  premiumCredits = 0,
+  wallet = "standard",
   amount,
   currency,
   pricingRegion,
@@ -291,18 +325,21 @@ async function recordPurchase({
   if (!storageEnabled() || !sessionId) return false;
   const db = await getDb();
   const amountField = currency === "usd" ? "amount_usd" : "amount_eur";
-  const econ = purchaseEconomics({ amount, currency, credits });
+  const creditUnits = wallet === "premium" ? premiumCredits : credits;
+  const econ = purchaseEconomics({ amount, currency, credits: creditUnits });
   const doc = {
     id: `pur_${Date.now().toString(36)}`,
     user_id: userId,
     package: packageId,
-    credits,
+    credits: wallet === "standard" ? credits : 0,
+    premium_credits: wallet === "premium" ? premiumCredits : 0,
+    wallet,
     currency,
     pricing_region: pricingRegion || "intl",
     [amountField]: amount,
     stripe_session_id: sessionId,
     status,
-    replicate_reserve_usd: econ.replicate_reserve_usd,
+    replicate_reserve_usd: wallet === "standard" ? econ.replicate_reserve_usd : 0,
     stripe_fee: econ.stripe_fee,
     margin_usd: econ.margin_usd,
     revenue_usd: econ.revenue_usd,
@@ -323,11 +360,15 @@ async function fulfillStripeCheckoutSession({
   sessionId,
   packageId,
   credits,
+  premiumCredits = 0,
+  wallet = "standard",
   amount,
   currency,
   pricingRegion,
 }) {
-  if (!storageEnabled() || !userId || !sessionId || !credits) return null;
+  const isPremium = wallet === "premium";
+  const units = isPremium ? Number(premiumCredits) : Number(credits);
+  if (!storageEnabled() || !userId || !sessionId || !units) return null;
   const existing = await findPurchaseBySessionId(sessionId);
   if (existing) {
     if (existing.user_id && existing.user_id !== userId) {
@@ -336,13 +377,22 @@ async function fulfillStripeCheckoutSession({
       throw err;
     }
     const u = await getUserById(userId);
-    return { new_balance: u?.credits ?? null, already_claimed: true, credits };
+    return {
+      new_balance: isPremium ? undefined : (u?.credits ?? null),
+      new_premium_balance: isPremium ? (u?.premium_credits ?? null) : undefined,
+      already_claimed: true,
+      credits: isPremium ? 0 : credits,
+      premium_credits: isPremium ? premiumCredits : 0,
+      wallet,
+    };
   }
   const inserted = await recordPurchase({
     userId,
     sessionId,
     packageId,
     credits,
+    premiumCredits,
+    wallet,
     amount,
     currency,
     pricingRegion,
@@ -355,30 +405,56 @@ async function fulfillStripeCheckoutSession({
       throw err;
     }
     const u = await getUserById(userId);
-    return { new_balance: u?.credits ?? null, already_claimed: true, credits };
+    return {
+      new_balance: isPremium ? undefined : (u?.credits ?? null),
+      new_premium_balance: isPremium ? (u?.premium_credits ?? null) : undefined,
+      already_claimed: true,
+      credits: isPremium ? 0 : credits,
+      premium_credits: isPremium ? premiumCredits : 0,
+      wallet,
+    };
   }
-  const balance = await addCredits(
-    userId,
-    credits,
-    "purchase",
-    `Stripe purchase (${packageId || "package"})`,
-    { stripe_session_id: sessionId },
-  );
-  try {
-    const { scheduleCreditPurchaseSync } = require("./replicateAutoReserve.cjs");
-    scheduleCreditPurchaseSync({
-      sessionId,
+  let balance;
+  let premiumBalance;
+  if (isPremium) {
+    premiumBalance = await addPremiumCredits(
+      userId,
+      premiumCredits,
+      "purchase",
+      `Stripe HQ purchase (${packageId || "package"})`,
+      { stripe_session_id: sessionId },
+    );
+  } else {
+    balance = await addCredits(
       userId,
       credits,
-      amount,
-      currency,
-      packageId,
-      pricingRegion,
-    });
-  } catch {
-    /* non-blocking */
+      "purchase",
+      `Stripe purchase (${packageId || "package"})`,
+      { stripe_session_id: sessionId },
+    );
+    try {
+      const { scheduleCreditPurchaseSync } = require("./replicateAutoReserve.cjs");
+      scheduleCreditPurchaseSync({
+        sessionId,
+        userId,
+        credits,
+        amount,
+        currency,
+        packageId,
+        pricingRegion,
+      });
+    } catch {
+      /* non-blocking */
+    }
   }
-  return { new_balance: balance, already_claimed: false, credits };
+  return {
+    new_balance: balance,
+    new_premium_balance: premiumBalance,
+    already_claimed: false,
+    credits: isPremium ? 0 : credits,
+    premium_credits: isPremium ? premiumCredits : 0,
+    wallet,
+  };
 }
 
 async function recordCreation(userId, creation) {
@@ -431,6 +507,7 @@ module.exports = {
   getUserByEmail,
   setUserAccountByEmail,
   addCredits,
+  addPremiumCredits,
   recordPurchase,
   findPurchaseBySessionId,
   fulfillStripeCheckoutSession,

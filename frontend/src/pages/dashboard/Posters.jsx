@@ -265,7 +265,9 @@ export default function Posters() {
   }, [catalogTemplates]);
 
   const selectedModel = models.find((m) => m.key === modelKey) || { cost: 10 };
+  const usesPremiumWallet = modelKey === "gpt_image" || selectedModel.wallet === "premium";
   const totalCost = selectedModel.cost * numOutputs;
+  const userBalance = usesPremiumWallet ? (user?.premium_credits ?? 0) : (user?.credits ?? 0);
 
   const missing = useMemo(
     () => (picked ? posterMissingFields(picked, values) : []),
@@ -371,8 +373,11 @@ export default function Posters() {
       toast.error(t("post_dual_photo_required"), { duration: 8000 });
       return;
     }
-    if ((user?.credits ?? 0) < totalCost && !user?.is_unlimited && user?.role !== "admin") {
-      toast.error(t("common_need_credits", { need: totalCost, have: user?.credits ?? 0 }), { duration: 8000 });
+    if (userBalance < totalCost && !user?.is_unlimited && user?.role !== "admin") {
+      const msg = usesPremiumWallet
+        ? t("post_need_hq_credits", { need: totalCost, have: userBalance })
+        : t("common_need_credits", { need: totalCost, have: userBalance });
+      toast.error(msg, { duration: 8000 });
       return;
     }
 
@@ -763,6 +768,9 @@ function Editor(props) {
     return FALLBACK_POSTER_MODELS;
   }, [models]);
 
+  const usesPremiumWallet = modelKey === "gpt_image"
+    || modelsForPicker.find((m) => m.key === modelKey)?.wallet === "premium";
+
   const promptPreview = useMemo(() => {
     try {
       return buildPosterPrompt(picked, values, {
@@ -1119,8 +1127,12 @@ function Editor(props) {
                       active ? "text-[#F4F1EA]" : "text-[#F4F1EA]/85"
                     }`}>{posterModelLabel(m, t)}</p>
                     <p className="relative text-[#8A8A8E] text-[11px] mb-2.5">{posterModelTag(m, t)}</p>
-                    <p className="relative text-[#C4B5FD] text-[12px] font-mono">
-                      {t("bill_credits_count", { n: m.cost })}
+                    <p className="relative text-[12px] font-mono">
+                      {m.wallet === "premium" || m.key === "gpt_image" ? (
+                        <span className="text-[#FACC15]">{t("bill_hq_credits_count", { n: m.cost })}</span>
+                      ) : (
+                        <span className="text-[#C4B5FD]">{t("bill_credits_count", { n: m.cost })}</span>
+                      )}
                     </p>
                   </button>
                 );
@@ -1205,6 +1217,7 @@ function Editor(props) {
           <StudioGenerateCostMeta
             cost={totalCost}
             user={user}
+            wallet={usesPremiumWallet ? "premium" : "standard"}
             extra={`${numOutputs}× ${perImageCost}`}
           />
         )}

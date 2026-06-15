@@ -1,6 +1,6 @@
 import { useCallback } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Crown } from "lucide-react";
 import { useAuth } from "../lib/auth";
 import { useI18n } from "../lib/i18n";
 import { getAppRelativePath, getWorkspaceHeaderKey } from "../lib/dashboardRouteMode";
@@ -19,19 +19,20 @@ export default function StudioTopBar({ titleKey }) {
   const { sessionBackHandler } = useStudioNav();
   const labelKey = titleKey || getWorkspaceHeaderKey(pathname);
   const title = t(labelKey) || t("nav_tools");
+  const rel = getAppRelativePath(pathname);
+  const onPosters = rel.startsWith("posters");
 
   const handleBack = useCallback(() => {
     if (typeof sessionBackHandler === "function") {
       sessionBackHandler();
       return;
     }
-    const rel = getAppRelativePath(pathname);
     if (rel.startsWith("video/")) {
       navigate("/app/video");
       return;
     }
     navigate("/app/tools");
-  }, [sessionBackHandler, pathname, navigate]);
+  }, [sessionBackHandler, rel, navigate]);
 
   return (
     <header
@@ -70,6 +71,21 @@ export default function StudioTopBar({ titleKey }) {
             {user?.is_unlimited ? "∞" : user?.credits ?? 0}
           </span>
         </Link>
+        {(onPosters || (user?.premium_credits ?? 0) > 0 || user?.is_unlimited) && (
+          <Link
+            to="/app/billing"
+            className="flex items-center gap-1.5 px-2 sm:px-3 py-1.5 rounded-full border border-[#FACC15]/30 bg-[#FACC15]/5 hover:border-[#FACC15]/50 transition-colors min-w-0"
+            data-testid="studio-hq-credits-badge"
+          >
+            <Crown className="w-3.5 h-3.5 text-[#FACC15] hidden sm:block" strokeWidth={1.75} />
+            <span className="hidden sm:inline text-[10px] font-mono uppercase tracking-wider text-[#FACC15]/70">
+              HQ
+            </span>
+            <span className="text-[#FACC15] text-sm font-mono font-semibold tabular-nums">
+              {user?.is_unlimited ? "∞" : user?.premium_credits ?? 0}
+            </span>
+          </Link>
+        )}
         <DashboardProfileMenu />
       </div>
     </header>

@@ -5,8 +5,9 @@ export function normalizePosterModel(model) {
   if (key === "gpt_image") {
     return {
       ...model,
-      label: "Motor GPT",
-      tag: "GPT Image 1 · texto nítido · com foto",
+      label: model.label || "High quality",
+      tag: model.tag || "Sharp text · max detail",
+      wallet: "premium",
       supports_photo: true,
     };
   }

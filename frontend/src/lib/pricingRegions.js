@@ -30,6 +30,24 @@ export function getPackagesForRegion(regionId) {
   }));
 }
 
+export function getPremiumPackagesForRegion(regionId) {
+  const cfg = getRegionConfig(regionId);
+  const pkgs = cfg.premium_packages || {};
+  return Object.entries(pkgs).map(([id, pkg]) => ({
+    id,
+    ...pkg,
+    currency: cfg.currency,
+    region: cfg.id,
+    amount_display: pkg.amount_cents / 100,
+    amount_eur: cfg.currency === "eur" ? pkg.amount_cents / 100 : undefined,
+  }));
+}
+
+export function getPosterHqPremiumCost() {
+  const n = Number(pricingData?.meta?.posterHqPremiumCostPerOutput);
+  return Number.isFinite(n) && n > 0 ? Math.round(n) : 1;
+}
+
 export function getCreditCostsForRegion(regionId) {
   return { ...getRegionConfig(regionId).costs };
 }
@@ -76,10 +94,11 @@ export function resolvePricingRegion({ countryCode, clientRegion } = {}) {
 
 export function posterModelCosts(regionId) {
   const c = getCreditCostsForRegion(regionId);
+  const hq = getPosterHqPremiumCost();
   return {
     grok: c.posterFast,
     flux2: c.posterPro,
-    gpt_image: c.posterPremium,
+    gpt_image: hq,
   };
 }
 

@@ -15,7 +15,7 @@ import { toast } from "sonner";
 const MODELS = [
   { id: "grok", name: "Fast", desc: "Quick", apiModel: "standard" },
   { id: "flux", name: "Flux Pro ★", desc: "Best", badge: null, apiModel: "pro" },
-  { id: "gpt_image", name: "Premium", desc: "Max", apiModel: "gpt_image" },
+  { id: "gpt_image", name: "High Quality", desc: "Flux Klein", apiModel: "pro" },
 ];
 const QUALITY = [
   { id: "medium", label: "Medium" },

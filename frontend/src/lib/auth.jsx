@@ -59,6 +59,7 @@ function publicLocalUser(user) {
     role: user.role || "user",
     lang: "en",
     credits: unlimited ? 999999999 : (user.credits ?? STARTER_CREDITS),
+    premium_credits: unlimited ? 999999999 : (user.premium_credits ?? 0),
     is_unlimited: unlimited,
     referral_code: user.referral_code || "",
     email_verified: !!user.email_verified,
@@ -159,10 +160,21 @@ export function AuthProvider({ children }) {
     });
   };
 
+  const syncPremiumCredits = (premiumCredits) => {
+    if (premiumCredits == null) return;
+    setUser((prev) => {
+      if (!prev) return prev;
+      const next = { ...prev, premium_credits: Number(premiumCredits) };
+      updateStoredUser(next);
+      return next;
+    });
+  };
+
   useEffect(() => {
     const onCreation = (event) => {
       if (event.detail?.server_billing) {
         if (event.detail?.new_balance != null) syncCredits(event.detail.new_balance);
+        if (event.detail?.new_premium_balance != null) syncPremiumCredits(event.detail.new_premium_balance);
         return;
       }
       const spent = Number(event.detail?.credits_spent || 0);
@@ -170,6 +182,7 @@ export function AuthProvider({ children }) {
     };
     const onCreditsSync = (event) => {
       if (event.detail?.credits != null) syncCredits(event.detail.credits);
+      if (event.detail?.premium_credits != null) syncPremiumCredits(event.detail.premium_credits);
     };
     window.addEventListener("rp:creation-succeeded", onCreation);
     window.addEventListener("rp:credits-sync", onCreditsSync);
@@ -334,6 +347,20 @@ export function AuthProvider({ children }) {
   const addCredits = (amount, description = "Compra de créditos") =>
     mutateLocalCredits(Math.abs(Number(amount || 0)), description, "purchase");
 
+  const addPremiumCredits = (amount, description = "Compra créditos HQ") => {
+    if (!user) return null;
+    if (user.is_unlimited) {
+      recordTransaction(Math.abs(Number(amount || 0)), description, "purchase");
+      return user;
+    }
+    const nextPremium = Math.max(0, Number(user.premium_credits || 0) + Math.abs(Number(amount || 0)));
+    const nextPublic = { ...user, premium_credits: nextPremium };
+    setUser(nextPublic);
+    updateStoredUser(nextPublic);
+    recordTransaction(Math.abs(Number(amount || 0)), description, "purchase");
+    return nextPublic;
+  };
+
   const spendCredits = (amount, description = "Geração") =>
     mutateLocalCredits(-Math.abs(Number(amount || 0)), description, "spend");
 
@@ -450,9 +477,11 @@ export function AuthProvider({ children }) {
       setUser,
       updateProfile,
       addCredits,
+      addPremiumCredits,
       spendCredits,
       refundCredits,
       syncCredits,
+      syncPremiumCredits,
       getLocalTransactions,
       changePassword,
       requestPasswordReset,

@@ -9,6 +9,7 @@ const {
   fulfillStripeCheckoutSession,
   findPurchaseBySessionId,
   addCredits,
+  addPremiumCredits,
   storageEnabled,
 } = require("../lib/usersDb.cjs");
 
@@ -59,22 +60,31 @@ module.exports = async function handler(req, res) {
       if (session.payment_status === "paid") {
         const meta = session.metadata || {};
         const userId = meta.user_id;
+        const wallet = meta.wallet || "standard";
         const credits = Number(meta.credits || 0);
+        const premiumCredits = Number(meta.premium_credits || 0);
         const packageId = meta.package || "unknown";
         const pricingRegion = meta.pricing_region || "intl";
-        if (userId && credits > 0) {
+        const isPremium = wallet === "premium";
+        const units = isPremium ? premiumCredits : credits;
+        if (userId && units > 0) {
           const cfg = getRegionConfig(pricingRegion);
-          const pkg = packageId && packageId !== "custom" ? cfg.packages[packageId] : null;
+          const pkg = !isPremium && packageId && packageId !== "custom" ? cfg.packages[packageId] : null;
+          const hqPkg = isPremium && packageId ? (cfg.premium_packages || {})[packageId] : null;
           const amount = pkg
             ? pkg.amount_cents / 100
-            : typeof session.amount_total === "number"
-              ? session.amount_total / 100
-              : 0;
+            : hqPkg
+              ? hqPkg.amount_cents / 100
+              : typeof session.amount_total === "number"
+                ? session.amount_total / 100
+                : 0;
           await fulfillStripeCheckoutSession({
             userId,
             sessionId: session.id,
             packageId,
             credits,
+            premiumCredits,
+            wallet,
             amount,
             currency: cfg.currency || "eur",
             pricingRegion,
@@ -91,11 +101,21 @@ module.exports = async function handler(req, res) {
         if (session?.id) {
           const purchase = await findPurchaseBySessionId(session.id);
           const userId = purchase?.user_id || session.metadata?.user_id;
+          const wallet = purchase?.wallet || session.metadata?.wallet || "standard";
+          const isPremium = wallet === "premium";
           const credits = Number(purchase?.credits || session.metadata?.credits || 0);
-          if (userId && credits > 0 && purchase?.status !== "refunded") {
-            await addCredits(userId, -credits, "refund", "Stripe refund", {
-              stripe_session_id: session.id,
-            });
+          const premiumCredits = Number(purchase?.premium_credits || session.metadata?.premium_credits || 0);
+          const refundUnits = isPremium ? premiumCredits : credits;
+          if (userId && refundUnits > 0 && purchase?.status !== "refunded") {
+            if (isPremium) {
+              await addPremiumCredits(userId, -premiumCredits, "refund", "Stripe refund", {
+                stripe_session_id: session.id,
+              });
+            } else {
+              await addCredits(userId, -credits, "refund", "Stripe refund", {
+                stripe_session_id: session.id,
+              });
+            }
             const { getDb } = require("../lib/mongo.cjs");
             const db = await getDb();
             await db.collection("purchases").updateOne(

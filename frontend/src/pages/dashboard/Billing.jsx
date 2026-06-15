@@ -8,11 +8,12 @@ import { toast } from "sonner";
 import useTitle from "../../lib/useTitle";
 import {
   Sparkles, Zap, Rocket, Check, ArrowRight, Coins, Receipt, RefreshCw,
-  TrendingUp, Plus, Minus, HelpCircle,
+  TrendingUp, Plus, Minus, HelpCircle, Crown,
 } from "lucide-react";
 import { FALLBACK_PACKAGES } from "../../lib/publicFallbacks";
 import { usePricing } from "../../lib/PricingContext";
 import { setStoredPricingRegion } from "../../lib/pricingRegions";
+import { getPremiumPackagesForRegion } from "../../lib/pricingRegions";
 import { BILLING_FAQ_KEYS, BILLING_PKG_KEYS } from "../../lib/billingLocales";
 import { customPurchasePrice, getPricingMeta } from "../../lib/creditPricing";
 import { resolveCanonicalOrigin } from "../../lib/canonicalOrigin";
@@ -37,10 +38,11 @@ export default function Billing() {
     };
   };
   useTitle(t("sidebar_billing"));
-  const { user, addCredits, getLocalTransactions } = useAuth();
+  const { user, addCredits, addPremiumCredits, getLocalTransactions } = useAuth();
   const { region, symbol, label, checkoutNote, refresh: refreshPricing } = usePricing();
   const [params, setParams] = useSearchParams();
   const [pkgs, setPkgs] = useState([]);
+  const [hqPkgs, setHqPkgs] = useState([]);
   const [txs, setTxs] = useState([]);
   const [loadingTx, setLoadingTx] = useState(true);
   const [checkoutLoading, setCheckoutLoading] = useState(null);
@@ -64,9 +66,14 @@ export default function Billing() {
       .then((r) => {
         if (r.data.packages?.length) setPkgs(r.data.packages);
         else setPkgs(FALLBACK_PACKAGES);
+        if (r.data.premium_packages?.length) setHqPkgs(r.data.premium_packages);
+        else setHqPkgs(getPremiumPackagesForRegion(region));
         if (r.data.region) setStoredPricingRegion(r.data.region);
       })
-      .catch(() => setPkgs(FALLBACK_PACKAGES));
+      .catch(() => {
+        setPkgs(FALLBACK_PACKAGES);
+        setHqPkgs(getPremiumPackagesForRegion(region));
+      });
     api.get("/credits/transactions?limit=40")
       .then((r) => setTxs(r.data.transactions || []))
       .catch(() => setTxs(getLocalTransactions?.() || []))
@@ -90,30 +97,60 @@ export default function Billing() {
     }
     api.get(`/stripe/session?session_id=${encodeURIComponent(sessionId)}`)
       .then((r) => {
-        if (!r.data?.paid || !r.data?.credits) throw new Error(t("bill_payment_pending"));
-        addCredits(r.data.credits, t("bill_purchase_desc", { pkg: r.data.package || "" }).trim());
-        emitNotification({
-          type: "credits_purchase",
-          titleKey: "notif_purchase_title",
-          bodyKey: "notif_purchase_body",
-          credits: r.data.credits,
-          balance: r.data.new_balance,
-          href: "/app/billing",
-        });
+        const isHq = r.data?.wallet === "premium" || params.get("wallet") === "premium";
+        const units = isHq ? Number(r.data?.premium_credits || 0) : Number(r.data?.credits || 0);
+        if (!r.data?.paid || !units) throw new Error(t("bill_payment_pending"));
+        if (isHq) {
+          addPremiumCredits(units, t("bill_hq_purchase_desc", { pkg: r.data.package || "" }).trim());
+          emitNotification({
+            type: "credits_purchase",
+            titleKey: "notif_purchase_title",
+            bodyKey: "bill_hq_credits_added",
+            credits: units,
+            balance: r.data.new_premium_balance,
+            href: "/app/billing",
+          });
+          toast.success(t("bill_hq_credits_added", { n: units }));
+        } else {
+          addCredits(units, t("bill_purchase_desc", { pkg: r.data.package || "" }).trim());
+          emitNotification({
+            type: "credits_purchase",
+            titleKey: "notif_purchase_title",
+            bodyKey: "notif_purchase_body",
+            credits: units,
+            balance: r.data.new_balance,
+            href: "/app/billing",
+          });
+          toast.success(t("bill_credits_added", { n: units }));
+        }
         if (r.data.pricing_region) setStoredPricingRegion(r.data.pricing_region, { lock: true });
         void refreshPricing();
         localStorage.setItem(claimedKey, "1");
         setTxs(getLocalTransactions?.() || []);
-        toast.success(t("bill_credits_added", { n: r.data.credits }));
       })
       .catch((err) => toast.error(err?.response?.data?.detail || err?.message || t("bill_confirm_fail")))
       .finally(() => setParams({}));
-  }, [params, setParams, addCredits, getLocalTransactions, refreshPricing, t]);
+  }, [params, setParams, addCredits, addPremiumCredits, getLocalTransactions, refreshPricing, t]);
 
   const buy = async (pkgId) => {
     setCheckoutLoading(pkgId);
     try {
       const { data } = await api.post("/stripe/checkout", { package: pkgId, origin: resolveCanonicalOrigin() });
+      window.location.href = data.checkout_url;
+    } catch (err) {
+      toast.error(err?.response?.data?.detail || t("bill_checkout_fail"));
+      setCheckoutLoading(null);
+    }
+  };
+
+  const buyHq = async (pkgId) => {
+    setCheckoutLoading(`hq_${pkgId}`);
+    try {
+      const { data } = await api.post("/stripe/checkout", {
+        package: pkgId,
+        wallet: "premium",
+        origin: resolveCanonicalOrigin(),
+      });
       window.location.href = data.checkout_url;
     } catch (err) {
       toast.error(err?.response?.data?.detail || t("bill_checkout_fail"));
@@ -161,15 +198,28 @@ export default function Billing() {
       )}
 
       {/* === Current balance pill === */}
-      <div className="inline-flex items-center gap-3 px-5 py-3 rounded-xl border border-rp-purple/35 bg-gradient-to-r from-rp-purple/15 to-rp-neonCyan/5 backdrop-blur-md shadow-[0_0_40px_-12px_rgba(124,58,237,0.35)] mb-10" data-testid="current-balance">
-        <Coins className="w-5 h-5 text-[#C4B5FD]" strokeWidth={1.5} />
-        <div>
-          <p className="text-[10px] font-mono uppercase tracking-[0.18em] text-[#C4B5FD]">{t("bill_balance_label")}</p>
-          <p className="text-rp-text text-[22px] font-light leading-none">
-            {user?.is_unlimited
-              ? t("bill_credits_unlimited")
-              : t("bill_credits_count", { n: user?.credits ?? 0 })}
-          </p>
+      <div className="flex flex-wrap gap-4 mb-10">
+        <div className="inline-flex items-center gap-3 px-5 py-3 rounded-xl border border-rp-purple/35 bg-gradient-to-r from-rp-purple/15 to-rp-neonCyan/5 backdrop-blur-md shadow-[0_0_40px_-12px_rgba(124,58,237,0.35)]" data-testid="current-balance">
+          <Coins className="w-5 h-5 text-[#C4B5FD]" strokeWidth={1.5} />
+          <div>
+            <p className="text-[10px] font-mono uppercase tracking-[0.18em] text-[#C4B5FD]">{t("bill_balance_label")}</p>
+            <p className="text-rp-text text-[22px] font-light leading-none">
+              {user?.is_unlimited
+                ? t("bill_credits_unlimited")
+                : t("bill_credits_count", { n: user?.credits ?? 0 })}
+            </p>
+          </div>
+        </div>
+        <div className="inline-flex items-center gap-3 px-5 py-3 rounded-xl border border-[#FACC15]/35 bg-gradient-to-r from-[#FACC15]/10 to-[#F59E0B]/5 backdrop-blur-md" data-testid="hq-balance">
+          <Crown className="w-5 h-5 text-[#FACC15]" strokeWidth={1.5} />
+          <div>
+            <p className="text-[10px] font-mono uppercase tracking-[0.18em] text-[#FACC15]">{t("bill_hq_balance_label")}</p>
+            <p className="text-rp-text text-[22px] font-light leading-none">
+              {user?.is_unlimited
+                ? t("bill_hq_credits_unlimited")
+                : t("bill_hq_credits_count", { n: user?.premium_credits ?? 0 })}
+            </p>
+          </div>
         </div>
       </div>
 
@@ -308,6 +358,65 @@ export default function Billing() {
               )}
             </button>
           </div>
+        </div>
+      </section>
+
+      {/* === HQ Poster credits === */}
+      <section className="mb-20">
+        <p className="text-[10px] font-mono uppercase tracking-[0.22em] text-[#FACC15] mb-3">{t("bill_hq_eyebrow")}</p>
+        <h2 className="text-rp-text text-[28px] font-semibold tracking-tight mb-3">{t("bill_hq_title")}</h2>
+        <p className="text-rp-mute text-[14px] max-w-[640px] mb-2">{t("bill_hq_subtitle")}</p>
+        <p className="text-[#FACC15]/80 text-[12px] font-mono uppercase tracking-[0.12em] mb-8">{t("bill_hq_per_gen")}</p>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+          {hqPkgs.map((p) => {
+            const isPopular = p.badge === "popular";
+            const amount = p.amount_display ?? (p.amount_cents / 100);
+            const unitLabel = (p.currency || "eur") === "usd" ? "$" : "€";
+            const perUnit = (p.premium_credits / amount).toFixed(1);
+            return (
+              <div
+                key={p.id}
+                data-testid={`billing-hq-pkg-${p.id}`}
+                className={`relative rounded-2xl border p-7 backdrop-blur-xl transition-all duration-300 flex flex-col hover:-translate-y-1 ${
+                  isPopular
+                    ? "border-[#FACC15]/50 bg-gradient-to-br from-[#1a1505] via-rp-surface to-rp-bg shadow-[0_0_60px_-20px_rgba(250,204,21,0.35)]"
+                    : "border-[#FACC15]/25 bg-rp-surface/90 hover:border-[#FACC15]/40"
+                }`}
+              >
+                {isPopular && (
+                  <div className="absolute -top-3 left-1/2 -translate-x-1/2 inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-gradient-to-r from-[#FACC15] to-[#F59E0B] text-black text-[10px] font-mono uppercase tracking-[0.16em]">
+                    <TrendingUp className="w-3 h-3" /> {t("bill_most_popular")}
+                  </div>
+                )}
+                <div className="w-11 h-11 rounded-xl flex items-center justify-center mb-5 border border-[#FACC15]/20 bg-[#FACC15]/10 text-[#FACC15]">
+                  <Crown className="w-5 h-5" strokeWidth={1.5} />
+                </div>
+                <h3 className="text-rp-text text-[22px] font-semibold tracking-tight mb-1">{p.name}</h3>
+                <p className="text-[#FACC15] text-[10px] font-mono uppercase tracking-[0.18em] mb-5">{p.tagline}</p>
+                <div className="flex items-baseline gap-1.5 mb-1">
+                  <span className="text-rp-mute text-[16px]">{symbol || unitLabel}</span>
+                  <span className="text-rp-text text-[42px] font-light leading-none tracking-tight">{amount}</span>
+                </div>
+                <p className="text-[#FACC15] text-[14px] font-medium mb-6">
+                  {t("bill_hq_credits_count", { n: p.premium_credits })}
+                </p>
+                <p className="text-rp-mute2 text-[11px] font-mono uppercase tracking-[0.14em] mb-6">
+                  {t("bill_credits_per_unit", { n: perUnit, unit: unitLabel })}
+                </p>
+                <button
+                  type="button"
+                  onClick={() => buyHq(p.id)}
+                  disabled={!!checkoutLoading}
+                  data-testid={`buy-hq-${p.id}`}
+                  className="mt-auto w-full inline-flex items-center justify-center gap-2 px-5 py-3.5 rounded-xl text-[12px] font-mono font-semibold uppercase tracking-[0.16em] bg-gradient-to-r from-[#FACC15] to-[#F59E0B] text-black hover:brightness-110 disabled:opacity-50 transition-all"
+                >
+                  {checkoutLoading === `hq_${p.id}` ? t("bill_opening_stripe") : (
+                    <>{t("bill_buy", { name: p.name })} <ArrowRight className="w-4 h-4" /></>
+                  )}
+                </button>
+              </div>
+            );
+          })}
         </div>
       </section>
 

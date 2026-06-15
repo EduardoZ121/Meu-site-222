@@ -1,6 +1,6 @@
 const crypto = require("crypto");
 const { getDb, storageEnabled, ensureIndexes } = require("./mongo.cjs");
-const { addCredits, recordCreation } = require("./usersDb.cjs");
+const { addCredits, addPremiumCredits, recordCreation } = require("./usersDb.cjs");
 const { formatGenerationError } = require("./generationErrors.cjs");
 const { extractUrls, mirrorUrlsToBlob, normalizeResultUrls } = require("./creationMedia.cjs");
 const { sendVideoReadyEmail, sendVideoFailedEmail, sendCreationReadyEmail, isValidEmail } = require("./videoNotifyEmail.cjs");
@@ -17,6 +17,33 @@ function nowIso() {
 
 function newPendingId() {
   return `rp_${crypto.randomUUID()}`;
+}
+
+function isPremiumWalletPending(pending) {
+  return pending?.wallet === "premium";
+}
+
+async function refundPendingCost(pending, description) {
+  const userId = pending.user_id;
+  const cost = pending.credits_spent;
+  if (isPremiumWalletPending(pending)) {
+    return addPremiumCredits(userId, cost, "refund", description);
+  }
+  return addCredits(userId, cost, "refund", description);
+}
+
+function pollBalanceFields(user, pending) {
+  if (isPremiumWalletPending(pending)) {
+    return { new_premium_balance: user?.premium_credits ?? pending.balance_after_spend };
+  }
+  return { new_balance: user?.credits ?? pending.balance_after_spend };
+}
+
+function balanceFieldFromAmount(pending, amount) {
+  if (isPremiumWalletPending(pending)) {
+    return { new_premium_balance: amount };
+  }
+  return { new_balance: amount };
 }
 
 /** Registered from [...path].js — retries easy/padrao jobs on Flux when Grok fails. */
@@ -286,13 +313,13 @@ async function finalizePending(pending, replicateInfo) {
       if (!claimed) {
         return pollPending(pending, async () => replicateInfo);
       }
-      const newBalance = await addCredits(userId, cost, "refund", "Refund: empty output");
+      const newBalance = await refundPendingCost(claimed, "Refund: empty output");
       const friendlyEmpty = formatGenerationError("empty output", lang);
       await deliverVideoFailureNotifyEmail(claimed, friendlyEmpty, "empty output");
       return {
         status: "failed",
         error: friendlyEmpty,
-        new_balance: newBalance,
+        ...balanceFieldFromAmount(claimed, newBalance),
         prediction_id: pending.id,
         refunded: true,
       };
@@ -320,11 +347,14 @@ async function finalizePending(pending, replicateInfo) {
           await recordCreation(userId, creation);
         }
         await deliverVideoNotifyEmail(existing, creation, doneUrls);
-        const user = await db.collection("users").findOne({ id: userId }, { projection: { credits: 1 } });
+        const user = await db.collection("users").findOne(
+          { id: userId },
+          { projection: { credits: 1, premium_credits: 1 } },
+        );
         return {
           status: "succeeded",
           creation,
-          new_balance: user?.credits ?? pending.balance_after_spend,
+          ...pollBalanceFields(user, existing),
           prediction_id: pending.id,
           server_billing: true,
         };
@@ -336,11 +366,14 @@ async function finalizePending(pending, replicateInfo) {
     await recordCreation(userId, creation);
     await deliverVideoNotifyEmail({ ...claimed, result_urls: urls }, creation, urls);
 
-    const user = await db.collection("users").findOne({ id: userId }, { projection: { credits: 1 } });
+    const user = await db.collection("users").findOne(
+      { id: userId },
+      { projection: { credits: 1, premium_credits: 1 } },
+    );
     return {
       status: "succeeded",
       creation,
-      new_balance: user?.credits ?? pending.balance_after_spend,
+      ...pollBalanceFields(user, claimed),
       prediction_id: pending.id,
       server_billing: true,
     };
@@ -368,12 +401,12 @@ async function finalizePending(pending, replicateInfo) {
 
   const rawErr = replicateInfo.error || "Generation failed";
   const friendly = formatGenerationError(rawErr, lang);
-  const newBalance = await addCredits(userId, cost, "refund", `Refund: ${String(rawErr).slice(0, 120)}`);
+  const newBalance = await refundPendingCost(claimed, `Refund: ${String(rawErr).slice(0, 120)}`);
   await deliverVideoFailureNotifyEmail(claimed, friendly, rawErr);
   return {
     status: "failed",
     error: friendly,
-    new_balance: newBalance,
+    ...balanceFieldFromAmount(claimed, newBalance),
     prediction_id: pending.id,
     refunded: true,
   };
@@ -392,11 +425,14 @@ async function pollPending(pending, getReplicatePrediction) {
       await deliverVideoNotifyEmail(pending, creation, urls);
     }
     const db = await getDb();
-    const user = await db.collection("users").findOne({ id: pending.user_id }, { projection: { credits: 1 } });
+    const user = await db.collection("users").findOne(
+      { id: pending.user_id },
+      { projection: { credits: 1, premium_credits: 1 } },
+    );
     return {
       status: "succeeded",
       creation: urls.length ? creation : null,
-      new_balance: user?.credits,
+      ...pollBalanceFields(user, pending),
       prediction_id: pending.id,
       server_billing: true,
     };
@@ -411,11 +447,14 @@ async function pollPending(pending, getReplicatePrediction) {
       );
     }
     const db = await getDb();
-    const user = await db.collection("users").findOne({ id: pending.user_id }, { projection: { credits: 1 } });
+    const user = await db.collection("users").findOne(
+      { id: pending.user_id },
+      { projection: { credits: 1, premium_credits: 1 } },
+    );
     return {
       status: "failed",
       error: formatGenerationError(pending.error || "Generation failed", lang),
-      new_balance: user?.credits,
+      ...pollBalanceFields(user, pending),
       prediction_id: pending.id,
       refunded: true,
     };

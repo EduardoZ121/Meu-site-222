@@ -1,6 +1,7 @@
 import { Outlet, NavLink, useNavigate, useLocation } from "react-router-dom";
 import { isWorkspacePath } from "../../lib/dashboardRouteMode";
 import { useAuth } from "../../lib/auth";
+import { isAdminUser } from "../../lib/isAdmin";
 import { useI18n } from "../../lib/i18n";
 import {
   Sparkles, Images, Heart, CreditCard, User, Users, ShieldCheck, LogOut,
@@ -114,7 +115,7 @@ export default function DashboardLayout() {
         { to: "/app/posters", icon: FileText, label: t("sidebar.posters") },
         { to: "/app/video", icon: Film, label: t("sidebar.video") },
         { to: "/app/marketing-video", icon: Megaphone, label: t("sidebar_marketing_video") },
-        { to: "/app/motion-flyer", icon: Megaphone, label: t("sidebar_motion_flyer") },
+        { to: "/app/motion-flyer", icon: Sparkles, label: t("sidebar_motion_flyer") },
         {
           to: "/app/manga-studio",
           icon: BookOpen,
@@ -151,7 +152,7 @@ export default function DashboardLayout() {
         items.push({ ...l, sectionId: sec.id, index: i++ });
       });
     });
-    if (user?.role === "admin") {
+    if (isAdminUser(user)) {
       items.push({
         to: "/app/admin",
         icon: ShieldCheck,
@@ -162,7 +163,7 @@ export default function DashboardLayout() {
       });
     }
     return items;
-  }, [nav, user?.role, t]);
+  }, [nav, user, t]);
 
   useEffect(() => {
     refresh().catch(() => {});

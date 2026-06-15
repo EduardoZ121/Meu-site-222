@@ -57,10 +57,14 @@ export function isWorkspacePath(pathname) {
   const rel = getAppRelativePath(pathname);
   if (!rel) return false;
   if (WORKSPACE_ROUTE_IDS.has(rel)) return true;
+  if (rel.startsWith("video/")) return true;
   return false;
 }
 
 export function getWorkspaceHeaderKey(pathname) {
   const rel = getAppRelativePath(pathname);
+  if (rel.startsWith("video/")) return WORKSPACE_HEADER_KEYS.video;
+  if (rel === "marketing-video") return WORKSPACE_HEADER_KEYS["marketing-video"];
+  if (rel === "motion-flyer") return WORKSPACE_HEADER_KEYS["motion-flyer"];
   return WORKSPACE_HEADER_KEYS[rel] || "sidebar.generate";
 }

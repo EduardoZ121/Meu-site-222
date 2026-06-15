@@ -1,13 +1,10 @@
-import { useMemo, useState, useEffect } from "react";
-import { useLocation } from "react-router-dom";
-import { toast } from "sonner";
+import { useMemo, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import ToolsHubCard from "../../components/tools/ToolsHubCard";
 import useTitle from "../../lib/useTitle";
 import { usePricing } from "../../lib/PricingContext";
 import { useI18n } from "../../lib/i18n";
 import { useAuth } from "../../lib/auth";
-import { canAccessVideoFeatures } from "../../lib/isAdmin";
 import { useLocalizedTools } from "../../lib/useLocalizedTools";
 import { usePinnedTools } from "../../hooks/usePinnedTools";
 import { toolCatalogueCost, videoCatalogueCost } from "../../lib/pricingRegions";
@@ -63,7 +60,6 @@ function FilterPills({ items, value, onChange, testIdPrefix }) {
 export default function Tools() {
   const { t } = useI18n();
   const { user } = useAuth();
-  const loc = useLocation();
   const tools = useLocalizedTools();
   const { region, costs } = usePricing();
   const { isPinned, togglePin, pinnedIds } = usePinnedTools();
@@ -74,19 +70,7 @@ export default function Tools() {
   const [imageCategory, setImageCategory] = useState("all");
   const [videoCategory, setVideoCategory] = useState("all");
 
-  const videoAccess = canAccessVideoFeatures(user);
   const videoCategories = useMemo(() => getVideoCategoriesForUser(user), [user]);
-
-  useEffect(() => {
-    if (!videoAccess && tier === "video") setTier("image");
-  }, [videoAccess, tier]);
-
-  useEffect(() => {
-    if (!loc.state?.videoAccessDenied) return;
-    const email = loc.state?.email ? ` (${loc.state.email})` : "";
-    toast.message(t("vid_access_admin_only", { email }), { duration: 10000 });
-    window.history.replaceState({}, "", loc.pathname);
-  }, [loc.state, loc.pathname, t]);
 
   const imageTools = useMemo(
     () => tools.filter((tool) => tool.tier === "image"),
@@ -103,11 +87,10 @@ export default function Tools() {
     [t],
   );
 
-  const tierTabs = useMemo(() => {
-    const items = [{ id: "image", label: t("tools_grid.tab_image") }];
-    if (videoAccess) items.push({ id: "video", label: t("tools_grid.tab_video") });
-    return items;
-  }, [t, videoAccess]);
+  const tierTabs = useMemo(() => [
+    { id: "image", label: t("tools_grid.tab_image") },
+    { id: "video", label: t("tools_grid.tab_video") },
+  ], [t]);
 
   const filteredImageTools = useMemo(() => {
     let list = imageTools;

@@ -34,7 +34,7 @@ export default function Video() {
         <p className="text-[15px] text-[#8A8A8E] max-w-lg leading-snug">{t("vid_grid_desc")}</p>
       </header>
 
-      <div className="mb-4 md:mb-6 rounded-xl border border-violet-500/30 bg-violet-500/10 px-3 py-2.5 md:px-4 md:py-3" data-testid="marketing-video-admin-cta">
+      <div className="mb-4 md:mb-6 rounded-xl border border-violet-500/30 bg-violet-500/10 px-3 py-2.5 md:px-4 md:py-3" data-testid="marketing-video-feature-cta">
         <p className="text-[11px] md:text-[12px] text-[#C4B5FD] leading-relaxed line-clamp-2 md:line-clamp-none">
           <strong className="text-[#E9E4DC]">{t("vid_cat_marketing_video_ai")}</strong>
           {" — "}
@@ -43,13 +43,13 @@ export default function Video() {
         <Link
           to="/app/marketing-video"
           className="inline-flex mt-2 text-[12px] font-medium text-violet-300 hover:text-white underline underline-offset-2"
-          data-testid="marketing-video-admin-link"
+          data-testid="marketing-video-feature-link"
         >
           {t("sidebar_marketing_video")} →
         </Link>
       </div>
 
-      <div className="mb-4 md:mb-6 rounded-xl border border-fuchsia-500/30 bg-fuchsia-500/10 px-3 py-2.5 md:px-4 md:py-3" data-testid="motion-flyer-admin-cta">
+      <div className="mb-4 md:mb-6 rounded-xl border border-fuchsia-500/30 bg-fuchsia-500/10 px-3 py-2.5 md:px-4 md:py-3" data-testid="motion-flyer-feature-cta">
         <p className="text-[11px] md:text-[12px] text-[#C4B5FD] leading-relaxed line-clamp-2 md:line-clamp-none">
           <strong className="text-[#E9E4DC]">{t("vid_cat_motion_flyer")}</strong>
           {" — "}
@@ -58,7 +58,7 @@ export default function Video() {
         <Link
           to="/app/motion-flyer"
           className="inline-flex mt-2 text-[12px] font-medium text-fuchsia-300 hover:text-white underline underline-offset-2"
-          data-testid="motion-flyer-admin-link"
+          data-testid="motion-flyer-feature-link"
         >
           {t("sidebar_motion_flyer")} →
         </Link>

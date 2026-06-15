@@ -1,3 +1,5 @@
+import { useState, useEffect } from "react";
+
 const CATEGORY_PALETTES = {
   men: ["#0B0B0C", "#334155", "#7C3AED"],
   women: ["#1F102A", "#EC4899", "#FBCFE8"],
@@ -77,10 +79,12 @@ export default function StyleCover({
   coverObjectPosition = "center center",
 }) {
   const visual = pickVisual(prompt, category, id || title);
+  const [photoFailed, setPhotoFailed] = useState(false);
+  useEffect(() => setPhotoFailed(false), [coverSrc]);
   const [a, b, c] = visual.colors;
   const words = (title || id || "Style").replace(/[^\p{L}\p{N}\s]/gu, "").split(/\s+/).filter(Boolean);
   const initials = words.slice(0, 2).map((w) => w[0]).join("").toUpperCase() || visual.symbol;
-  const hasPhoto = Boolean(coverSrc);
+  const hasPhoto = Boolean(coverSrc) && !photoFailed;
 
   return (
     <div
@@ -94,14 +98,15 @@ export default function StyleCover({
           }
       }
     >
-      {hasPhoto && (
+      {coverSrc && (
         <img
           src={coverSrc}
           alt=""
           decoding="async"
           loading="lazy"
-          className="absolute inset-0 h-full w-full object-cover"
+          className={`absolute inset-0 h-full w-full object-cover transition-opacity duration-300 ${hasPhoto ? "opacity-100" : "opacity-0"}`}
           style={{ objectPosition: coverObjectPosition }}
+          onError={() => setPhotoFailed(true)}
         />
       )}
 

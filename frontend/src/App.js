@@ -4,6 +4,7 @@ import { BrowserRouter, Routes, Route, Navigate, useLocation, useNavigate } from
 import { Toaster } from "sonner";
 import { toast } from "sonner";
 import { AuthProvider, useAuth } from "./lib/auth";
+import { isAdminUser } from "./lib/isAdmin";
 import { PricingProvider } from "./lib/PricingContext";
 import { isPwaStandalone } from "./lib/pwaMode";
 
@@ -90,7 +91,7 @@ function RequireAuth({ children, adminOnly = false }) {
   const loc = useLocation();
   if (loading) return <div className="min-h-screen bg-rp-bg" />;
   if (!user) return <Navigate to="/login" state={{ from: loc.pathname }} replace />;
-  if (adminOnly && user.role !== "admin") return <Navigate to="/app/generate" replace />;
+  if (adminOnly && !isAdminUser(user)) return <Navigate to="/app/tools" replace />;
   return children;
 }
 

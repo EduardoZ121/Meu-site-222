@@ -442,5 +442,7 @@ export const POSTER_TEMPLATE_COVER_BY_ID = {
 
 export function posterCoverSrc(id) {
   if (!id) return "";
-  return POSTER_TEMPLATE_COVER_BY_ID[id] || "";
+  const path = POSTER_TEMPLATE_COVER_BY_ID[id];
+  if (!path) return "";
+  return `${path}?v=nb2`;
 }

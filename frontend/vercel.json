@@ -1,7 +1,7 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "framework": "create-react-app",
-  "buildCommand": "REACT_APP_DISABLE_VERCEL_BLOB=0 yarn build",
+  "buildCommand": "yarn build",
   "outputDirectory": "build",
   "installCommand": "yarn install --ignore-engines || yarn install",
   "functions": {

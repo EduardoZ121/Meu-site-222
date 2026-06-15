@@ -210,7 +210,10 @@ export default function Posters() {
   useEffect(() => {
     api.get("/public/poster-templates")
       .then((r) => setTemplates(r.data.templates?.length ? r.data.templates : FALLBACK_POSTER_TEMPLATES))
-      .catch(() => setTemplates(FALLBACK_POSTER_TEMPLATES));
+      .catch(() => {
+        setTemplates(FALLBACK_POSTER_TEMPLATES);
+        toast.message(t("post_templates_offline"), { duration: 8000 });
+      });
     api.get("/public/poster-models")
       .then((r) => {
         setOpenaiReady(r.data.openai_ready !== false);
@@ -219,7 +222,7 @@ export default function Posters() {
         );
       })
       .catch(() => setModels(normalizePosterModels(FALLBACK_POSTER_MODELS)));
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     if (!openaiReady && modelKey === "gpt_image") {

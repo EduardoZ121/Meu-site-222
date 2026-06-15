@@ -240,7 +240,13 @@ export default function Gallery({ favoritesOnly = false }) {
     const focusId = String(searchParams.get("focus") || "").trim();
     if (!focusId || !items.length) return;
     const target = items.find((x) => x.id === focusId);
-    if (!target) return;
+    const next = new URLSearchParams(searchParams);
+    next.delete("focus");
+    if (!target) {
+      toast.message(t("gal_focus_not_found"));
+      setSearchParams(next, { replace: true });
+      return;
+    }
     setViewItem(target);
     requestAnimationFrame(() => {
       document.querySelector(`[data-testid="gallery-item-${focusId}"]`)?.scrollIntoView?.({
@@ -248,10 +254,8 @@ export default function Gallery({ favoritesOnly = false }) {
         block: "center",
       });
     });
-    const next = new URLSearchParams(searchParams);
-    next.delete("focus");
     setSearchParams(next, { replace: true });
-  }, [items, searchParams, setSearchParams]);
+  }, [items, searchParams, setSearchParams, t]);
 
   const toggleFav = async (id) => {
     setBusyId(id);

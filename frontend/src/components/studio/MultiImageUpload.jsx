@@ -1,5 +1,5 @@
 import {
-  useCallback, useEffect, useId, useRef, useState,
+  useCallback, useEffect, useId, useMemo, useRef, useState,
 } from "react";
 import { CheckCircle2, ImagePlus, Star, Upload, X } from "lucide-react";
 import { toast } from "sonner";
@@ -44,10 +44,16 @@ export default function MultiImageUpload({
   onStatusChange,
 }) {
   const { t } = useI18n();
-  const files = Array.isArray(value) ? value : [];
+  const files = useMemo(
+    () => (Array.isArray(value) ? value.filter(Boolean) : []),
+    [value],
+  );
+  const fileFingerprint = useMemo(
+    () => files.map((f) => `${f.name}:${f.size}:${f.lastModified}`).join("|"),
+    [files],
+  );
   const inputId = useId();
   const inputRef = useRef(null);
-  const previewUrlsRef = useRef([]);
   const runIdRef = useRef(0);
   const [drag, setDrag] = useState(false);
   const [previewUrls, setPreviewUrls] = useState([]);
@@ -61,21 +67,25 @@ export default function MultiImageUpload({
   }, [onStatusChange]);
 
   useEffect(() => {
-    previewUrlsRef.current.forEach(revokeFilePreviewUrl);
-    const urls = files.map((f) => (f ? URL.createObjectURL(f) : null)).filter(Boolean);
-    previewUrlsRef.current = urls;
+    if (!files.length) {
+      setPreviewUrls([]);
+      return undefined;
+    }
+    const urls = files.map((f) => URL.createObjectURL(f));
     setPreviewUrls(urls);
     return () => {
       urls.forEach(revokeFilePreviewUrl);
     };
-  }, [files]);
-
-  useEffect(() => () => {
-    previewUrlsRef.current.forEach(revokeFilePreviewUrl);
-    previewUrlsRef.current = [];
-  }, []);
+  }, [fileFingerprint, files]);
 
   const setFiles = useCallback((next) => {
+    if (typeof next === "function") {
+      onChange((prev) => {
+        const current = Array.isArray(prev) ? prev.filter(Boolean) : [];
+        return next(current).slice(0, maxFiles);
+      });
+      return;
+    }
     onChange(next.slice(0, maxFiles));
   }, [maxFiles, onChange]);
 
@@ -102,11 +112,10 @@ export default function MultiImageUpload({
     try {
       const prepared = await Promise.all(batch.map((f) => materializeUploadFile(f)));
       if (rid !== runIdRef.current) return;
-      setFiles([...files, ...prepared]);
+      setFiles((prev) => [...prev, ...prepared]);
       notifyStatus("saved");
       if (prepared.length > 0) {
-        const total = Math.min(files.length + prepared.length, maxFiles);
-        toast.success(t("upload_multi_added", { n: total }), { duration: 4000 });
+        toast.success(t("upload_multi_added", { n: prepared.length }), { duration: 4000 });
       }
     } catch (err) {
       if (rid !== runIdRef.current) return;
@@ -115,7 +124,7 @@ export default function MultiImageUpload({
     } finally {
       if (rid === runIdRef.current) setBusy(false);
     }
-  }, [files, maxFiles, notifyStatus, setFiles, t]);
+  }, [maxFiles, notifyStatus, setFiles, t]);
 
   const removeAt = (idx) => {
     const next = [...files];
@@ -171,7 +180,7 @@ export default function MultiImageUpload({
         >
           {files.map((file, idx) => (
             <div
-              key={`${file?.name}-${file?.size}-${idx}`}
+              key={`${file?.lastModified}-${file?.size}-${idx}`}
               className="relative h-20 w-20 shrink-0 overflow-hidden rounded-xl border-2 border-white/[0.12] bg-[#141418] group sm:h-16 sm:w-16"
               data-testid={`${testId}-thumb-${idx}`}
             >

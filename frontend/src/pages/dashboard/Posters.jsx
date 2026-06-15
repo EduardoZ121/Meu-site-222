@@ -208,21 +208,35 @@ export default function Posters() {
   const [result, setResult] = useState(null);
 
   useEffect(() => {
+    let cancelled = false;
     api.get("/public/poster-templates")
-      .then((r) => setTemplates(r.data.templates?.length ? r.data.templates : FALLBACK_POSTER_TEMPLATES))
+      .then((r) => {
+        if (cancelled) return;
+        setTemplates(r.data.templates?.length ? r.data.templates : FALLBACK_POSTER_TEMPLATES);
+      })
       .catch(() => {
+        if (cancelled) return;
         setTemplates(FALLBACK_POSTER_TEMPLATES);
         toast.message(t("post_templates_offline"), { duration: 8000 });
       });
     api.get("/public/poster-models")
       .then((r) => {
+        if (cancelled) return;
         setOpenaiReady(r.data.openai_ready !== false);
         setModels(
           normalizePosterModels(r.data.models?.length ? r.data.models : FALLBACK_POSTER_MODELS),
         );
       })
-      .catch(() => setModels(normalizePosterModels(FALLBACK_POSTER_MODELS)));
-  }, [t]);
+      .catch(() => {
+        if (cancelled) return;
+        setModels(normalizePosterModels(FALLBACK_POSTER_MODELS));
+      });
+    return () => {
+      cancelled = true;
+    };
+    // Mount-only: avoid re-fetch on every render (t() is recreated each time).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     if (!openaiReady && modelKey === "gpt_image") {

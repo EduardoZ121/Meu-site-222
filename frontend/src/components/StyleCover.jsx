@@ -80,7 +80,11 @@ export default function StyleCover({
 }) {
   const visual = pickVisual(prompt, category, id || title);
   const [photoFailed, setPhotoFailed] = useState(false);
-  useEffect(() => setPhotoFailed(false), [coverSrc]);
+  const [coverAttempt, setCoverAttempt] = useState(0);
+  useEffect(() => {
+    setPhotoFailed(false);
+    setCoverAttempt(0);
+  }, [coverSrc]);
   const [a, b, c] = visual.colors;
   const words = (title || id || "Style").replace(/[^\p{L}\p{N}\s]/gu, "").split(/\s+/).filter(Boolean);
   const initials = words.slice(0, 2).map((w) => w[0]).join("").toUpperCase() || visual.symbol;
@@ -100,13 +104,20 @@ export default function StyleCover({
     >
       {coverSrc && (
         <img
-          src={coverSrc}
+          key={`${coverSrc}-${coverAttempt}`}
+          src={coverAttempt > 0 ? `${coverSrc}${coverSrc.includes("?") ? "&" : "?"}retry=${coverAttempt}` : coverSrc}
           alt=""
           decoding="async"
           loading="lazy"
           className={`absolute inset-0 h-full w-full object-cover transition-opacity duration-300 ${hasPhoto ? "opacity-100" : "opacity-0"}`}
           style={{ objectPosition: coverObjectPosition }}
-          onError={() => setPhotoFailed(true)}
+          onError={() => {
+            if (coverAttempt < 1) {
+              setCoverAttempt((n) => n + 1);
+              return;
+            }
+            setPhotoFailed(true);
+          }}
         />
       )}
 

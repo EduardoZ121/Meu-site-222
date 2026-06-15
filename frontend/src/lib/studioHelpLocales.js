@@ -57,7 +57,9 @@ const en = {
   help_sec_post_details: "Business name, dates, prices, contact — fills the template text areas.",
   help_sec_post_layers: "Custom text blocks — title, subtitle, CTA. Add, move position, or remove before generating.",
   help_sec_post_mood: "Visual mood keywords — elegant, bold, minimal… steers colours and typography.",
-  help_sec_post_engine: "Grok = fast default. Pro / Premium = higher quality, more credits, slower.",
+  help_sec_post_engine: "Low = fast, normal credits. Medium = photo-realistic. High quality uses separate HQ credits (buy in Billing) — sharpest text and layout; we email you the image when done.",
+  help_sec_post_hq:
+    "HQ credits are a separate wallet — only for High quality posters (OpenAI). Normal site credits do not work here. Each poster costs 50 HQ credits. Buy packs in Billing (5 / 10 / 20 posters). When generation finishes, the image is sent to your account email automatically.",
   help_sec_post_format: "Poster proportions — story, square, landscape. “Original” matches your upload.",
   help_sec_post_prompt: "Extra creative direction for the AI — optional on top of template + fields.",
 
@@ -172,7 +174,9 @@ const pt = {
   help_sec_post_details: "Nome do negócio, datas, preços, contacto — preenche as áreas de texto do modelo.",
   help_sec_post_layers: "Blocos de texto personalizados — título, subtítulo, CTA. Adiciona, posiciona ou remove.",
   help_sec_post_mood: "Palavras-chave de ambiente — elegante, bold, minimal… influenciam cores e tipografia.",
-  help_sec_post_engine: "Grok = rápido padrão. Pro / Premium = mais qualidade, mais créditos, mais lento.",
+  help_sec_post_engine: "Baixa = rápido, créditos normais. Média = foto-realista. Alta qualidade usa créditos HQ (compra em Faturação) — texto e layout máximos; enviamos a imagem por email quando terminar.",
+  help_sec_post_hq:
+    "Créditos HQ são uma carteira separada — só para posters Alta qualidade (OpenAI). Os créditos normais do site não funcionam aqui. Cada poster gasta 50 créditos HQ. Compra packs em Faturação (5 / 10 / 20 posters). Quando a geração termina, recebes a imagem no email da tua conta automaticamente.",
   help_sec_post_format: "Proporções do poster — story, quadrado, paisagem. “Original” segue o upload.",
   help_sec_post_prompt: "Direção criativa extra para a IA — opcional por cima do modelo e campos.",
 

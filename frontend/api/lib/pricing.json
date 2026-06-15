@@ -4,7 +4,7 @@
     "minCustomCredits": 150,
     "marginTargetPct": 72,
     "replicateUsdPerCreditEstimate": 0.018,
-    "posterHqPremiumCostPerOutput": 1,
+    "posterHqPremiumCostPerOutput": 50,
     "pricingNote": "Créditos calibrados vs custo Replicate (~68–74% margem bruta no pack Starter a 30 cr/€)."
   },
   "regions": {
@@ -94,27 +94,27 @@
         "posterPremium": 55
       },
       "premium_packages": {
-        "hq_5": {
+        "hq_250": {
           "name": "HQ Pack 5",
-          "amount_cents": 499,
-          "premium_credits": 5,
-          "tagline": "5 gerações poster alta qualidade",
+          "amount_cents": 1000,
+          "premium_credits": 250,
+          "tagline": "5 posters alta qualidade (50 créditos HQ cada)",
           "badge": "hq"
         },
-        "hq_15": {
-          "name": "HQ Pack 15",
-          "amount_cents": 999,
-          "premium_credits": 15,
+        "hq_500": {
+          "name": "HQ Pack 10",
+          "amount_cents": 2000,
+          "premium_credits": 500,
           "bonus_percent": 0,
-          "tagline": "Melhor valor HQ",
+          "tagline": "10 posters · melhor valor",
           "badge": "popular"
         },
-        "hq_40": {
-          "name": "HQ Pack 40",
-          "amount_cents": 1999,
-          "premium_credits": 40,
+        "hq_1000": {
+          "name": "HQ Pack 20",
+          "amount_cents": 3000,
+          "premium_credits": 1000,
           "bonus_percent": 0,
-          "tagline": "Volume posters premium",
+          "tagline": "20 posters · volume máximo",
           "badge": "value"
         }
       },
@@ -229,27 +229,27 @@
         "posterPremium": 55
       },
       "premium_packages": {
-        "hq_5": {
+        "hq_250": {
           "name": "HQ Pack 5",
-          "amount_cents": 499,
-          "premium_credits": 5,
-          "tagline": "5 gerações poster alta qualidade",
+          "amount_cents": 1000,
+          "premium_credits": 250,
+          "tagline": "5 posters alta qualidade (50 créditos HQ cada)",
           "badge": "hq"
         },
-        "hq_15": {
-          "name": "HQ Pack 15",
-          "amount_cents": 999,
-          "premium_credits": 15,
+        "hq_500": {
+          "name": "HQ Pack 10",
+          "amount_cents": 2000,
+          "premium_credits": 500,
           "bonus_percent": 0,
-          "tagline": "Melhor valor HQ",
+          "tagline": "10 posters · melhor valor",
           "badge": "popular"
         },
-        "hq_40": {
-          "name": "HQ Pack 40",
-          "amount_cents": 1999,
-          "premium_credits": 40,
+        "hq_1000": {
+          "name": "HQ Pack 20",
+          "amount_cents": 3000,
+          "premium_credits": 1000,
           "bonus_percent": 0,
-          "tagline": "Volume posters premium",
+          "tagline": "20 posters · volume máximo",
           "badge": "value"
         }
       },

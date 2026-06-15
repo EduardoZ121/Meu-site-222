@@ -45,7 +45,7 @@ export function getPremiumPackagesForRegion(regionId) {
 
 export function getPosterHqPremiumCost() {
   const n = Number(pricingData?.meta?.posterHqPremiumCostPerOutput);
-  return Number.isFinite(n) && n > 0 ? Math.round(n) : 1;
+  return Number.isFinite(n) && n > 0 ? Math.round(n) : 50;
 }
 
 export function getCreditCostsForRegion(regionId) {

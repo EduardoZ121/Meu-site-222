@@ -51,7 +51,7 @@ function getPricingMeta() {
     creditsPerEuro: root.creditsPerEuro ?? 30,
     minCustomCredits: root.minCustomCredits ?? 150,
     marginTargetPct: root.marginTargetPct ?? 72,
-    posterHqPremiumCostPerOutput: root.posterHqPremiumCostPerOutput ?? 1,
+    posterHqPremiumCostPerOutput: root.posterHqPremiumCostPerOutput ?? 50,
   };
 }
 

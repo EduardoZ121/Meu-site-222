@@ -1322,7 +1322,13 @@ async function submitInstantPosterGeneration(req, fields, {
   if (storageEnabled() && user?.id && !isLocal) {
     const preUser = await getUserById(user.id);
     const { resolveGenerationNotifyEmail } = require("./lib/generationNotify.cjs");
-    notifyEmail = resolveGenerationNotifyEmail(fields, preUser, { type });
+    const notifyType = usePremiumWallet ? "poster_hq" : type;
+    notifyEmail = resolveGenerationNotifyEmail(fields, preUser, { type: notifyType });
+    if (usePremiumWallet && !notifyEmail) {
+      const err = new Error("Precisas de email na conta para receber o poster HQ.");
+      err.status = 400;
+      throw err;
+    }
   }
 
   if (storageEnabled() && user?.id && !isLocal) {
@@ -2810,7 +2816,7 @@ async function routePost(path, fields, files, req) {
       throw err;
     }
     const wallet = text(fields, "wallet", "standard");
-    const packageId = text(fields, "package", wallet === "premium" ? "hq_5" : "starter");
+    const packageId = text(fields, "package", wallet === "premium" ? "hq_250" : "starter");
     const customCreditsRaw = Number(text(fields, "custom_credits", 0));
     const region = regionFromRequest(req, fields);
     const cfg = getRegionConfig(region);

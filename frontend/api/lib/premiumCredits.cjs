@@ -3,7 +3,7 @@ const { pricingData } = require("../pricingRegions.cjs");
 
 function getPosterHqPremiumCostPerOutput() {
   const n = Number(pricingData?.meta?.posterHqPremiumCostPerOutput);
-  return Number.isFinite(n) && n > 0 ? Math.round(n) : 1;
+  return Number.isFinite(n) && n > 0 ? Math.round(n) : 50;
 }
 
 function posterHqPremiumCost(numOutputs = 1) {

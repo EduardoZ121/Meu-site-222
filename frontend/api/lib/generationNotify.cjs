@@ -8,7 +8,7 @@ function truthyField(fields, key) {
   return s === "1" || s === "true" || s === "yes" || s === "on";
 }
 
-const ALWAYS_NOTIFY_TYPES = new Set(["motion_flyer", "marketing_video"]);
+const ALWAYS_NOTIFY_TYPES = new Set(["motion_flyer", "marketing_video", "poster_hq"]);
 
 /** Opt-in global (definições), pedido explícito, ou tipos de vídeo longo que prometem email. */
 function resolveGenerationNotifyEmail(fields, dbUser, opts = {}) {

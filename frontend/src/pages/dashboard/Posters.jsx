@@ -1109,7 +1109,7 @@ function Editor(props) {
                   >
                     {m.key === "gpt_image" && !disabled && (
                       <div className="absolute -top-px -right-px bg-gradient-to-l from-[#FACC15] to-[#F59E0B] text-black text-[9px] font-bold uppercase tracking-wider px-2 py-1 rounded-bl-lg">
-                        Premium
+                        HQ
                       </div>
                     )}
                     {active && (
@@ -1117,11 +1117,23 @@ function Editor(props) {
                     )}
                     <div className="relative flex items-start justify-between mb-3">
                       <Icon className={`w-5 h-5 ${active ? "text-[#C4B5FD]" : "text-[#8A8A8E]"}`} strokeWidth={1.5} />
-                      {active && (
-                        <div className="w-5 h-5 rounded-full bg-[#7C3AED] flex items-center justify-center">
-                          <Check className="w-3 h-3 text-white" strokeWidth={3} />
-                        </div>
-                      )}
+                      <div className="flex items-center gap-1">
+                        {m.key === "gpt_image" && !disabled && (
+                          <span
+                            className="relative z-10"
+                            onClick={(e) => e.stopPropagation()}
+                            onKeyDown={(e) => e.stopPropagation()}
+                            role="presentation"
+                          >
+                            <StudioHelpTip helpKey="help_sec_post_hq" testId="poster-hq-help" />
+                          </span>
+                        )}
+                        {active && (
+                          <div className="w-5 h-5 rounded-full bg-[#7C3AED] flex items-center justify-center">
+                            <Check className="w-3 h-3 text-white" strokeWidth={3} />
+                          </div>
+                        )}
+                      </div>
                     </div>
                     <p className={`relative text-[15px] font-light tracking-[-0.01em] mb-1 font-['Inter_Tight'] ${
                       active ? "text-[#F4F1EA]" : "text-[#F4F1EA]/85"
@@ -1138,6 +1150,11 @@ function Editor(props) {
                 );
               })}
             </div>
+            {modelKey === "gpt_image" && openaiReady && (
+              <p className="mt-3 text-[#FACC15]/90 text-[12px] leading-relaxed border border-[#FACC15]/25 rounded-xl px-4 py-3 bg-[#FACC15]/5">
+                {t("post_hq_email_note")}
+              </p>
+            )}
           </PosterSection>
 
           <PosterSection

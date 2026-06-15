@@ -4,7 +4,7 @@
     "minCustomCredits": 150,
     "marginTargetPct": 72,
     "replicateUsdPerCreditEstimate": 0.018,
-    "posterHqPremiumCostPerOutput": 1,
+    "posterHqPremiumCostPerOutput": 50,
     "pricingNote": "Créditos calibrados vs custo Replicate (~68–74% margem bruta no pack Starter a 30 cr/€)."
   },
   "regions": {

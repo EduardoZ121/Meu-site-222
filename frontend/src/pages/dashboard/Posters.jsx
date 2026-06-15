@@ -267,8 +267,13 @@ export default function Posters() {
   const selectedModel = models.find((m) => m.key === modelKey) || { cost: 10 };
   const usesPremiumWallet = modelKey === "gpt_image" || selectedModel.wallet === "premium";
   const dualPhotoMode = Boolean(picked && isPosterDualPhotoTemplate(picked));
+  const igRefDualMode = Boolean(
+    picked && String(picked.id || "").startsWith("ig_ref_") && dualPhotoMode,
+  );
   const proModel = models.find((m) => m.key === "flux2");
-  const billablePerImage = dualPhotoMode ? (proModel?.cost ?? selectedModel.cost) : selectedModel.cost;
+  const billablePerImage = dualPhotoMode && !igRefDualMode
+    ? (proModel?.cost ?? selectedModel.cost)
+    : selectedModel.cost;
   const totalCost = billablePerImage * numOutputs;
   const userBalance = usesPremiumWallet ? (user?.premium_credits ?? 0) : (user?.credits ?? 0);
 
@@ -290,9 +295,7 @@ export default function Posters() {
     setNumOutputs(1);
     if (isPosterFashionTemplate(tpl)) {
       setModelKey("flux2");
-    } else if (isPosterDualPhotoTemplate(tpl)) {
-      setModelKey("flux2");
-    } else if (String(tpl.id || "").startsWith("ig_ref_")) {
+    } else if (isPosterDualPhotoTemplate(tpl) && !String(tpl.id || "").startsWith("ig_ref_")) {
       setModelKey("flux2");
     }
     if (!photo) {
@@ -345,7 +348,11 @@ export default function Posters() {
 
   useEffect(() => {
     if (!picked) return;
-    if (isPosterDualPhotoTemplate(picked) && modelKey === "grok") {
+    if (
+      isPosterDualPhotoTemplate(picked)
+      && modelKey === "grok"
+      && !String(picked.id || "").startsWith("ig_ref_")
+    ) {
       setModelKey("flux2");
     }
   }, [picked, modelKey]);

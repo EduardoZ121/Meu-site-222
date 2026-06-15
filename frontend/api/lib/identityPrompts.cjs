@@ -240,6 +240,29 @@ function buildPosterLayoutDualPersonBlock() {
   ].join("\n");
 }
 
+/** Pôster IG 2 pessoas — fotos primeiro, layout por último (identidade > capa). */
+function buildPosterIgDualIdentityBlock(hasLayout = false) {
+  const lines = [
+    "IG POSTER — PHOTOREALISTIC IDENTITY LOCK (mandatory):",
+    "- Image 1: Person A (MAIN upload) — preserve 100% of their face, hair, skin tone, ethnicity, body type, age and outfit from image 1 only.",
+    "- Image 2: Person B (REFERENCE upload) — preserve 100% of their face, hair, skin tone, ethnicity, body type, age and outfit from image 2 only.",
+  ];
+  if (hasLayout) {
+    lines.push(
+      "- Image 3: LAYOUT REFERENCE ONLY — match composition, typography zones, background colors and body POSES from this thumbnail.",
+      "- Replace the stock people in Image 3 with Person A (from Image 1) and Person B (from Image 2). Use their REAL faces and bodies — never keep the layout thumbnail models' faces.",
+    );
+  }
+  lines.push(
+    "- Output ONE finished poster with Person A AND Person B together — both FULL-SIZE adults at equal scale.",
+    "- Person B must NOT appear as a doll, toy, figurine, miniature, baby or prop in Person A's hands.",
+    "- Do NOT merge faces. Do NOT clone one person twice. Do NOT swap identities between images 1 and 2.",
+    "- Do NOT invent new faces or use stock models. Unified lighting — professional poster retouching finish.",
+    "- All headline/subhead copy from the brief must render exactly — crisp, legible, no gibberish.",
+  );
+  return lines.join("\n");
+}
+
 /** Pôster IG 1 pessoa: layout fixo + foto de identidade. */
 function buildPosterLayoutSinglePersonBlock() {
   return [
@@ -310,6 +333,7 @@ module.exports = {
   buildStudioMultiCombineBlock,
   buildStudioDualPersonBlock,
   buildPosterLayoutDualPersonBlock,
+  buildPosterIgDualIdentityBlock,
   buildPosterLayoutSinglePersonBlock,
   buildMangaDualCharacterBlock,
   buildMangaComicSheetBlock,

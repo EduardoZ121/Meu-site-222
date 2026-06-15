@@ -45,6 +45,7 @@ const {
 } = require("./lib/pendingPredictions.cjs");
 const {
   resolvePosterModel,
+  buildNanoBananaPosterInput,
   buildPosterTextManifest,
   buildPosterLogoInstruction,
   aspectToOpenAISize,
@@ -53,7 +54,7 @@ const {
 } = require("./lib/posterEngine.cjs");
 const { preparePosterReference, preparePosterReferenceForOpenAI } = require("./lib/posterImagePrep.cjs");
 const { isIgRefPosterTemplate } = require("./lib/posterLayoutCover.cjs");
-const { buildIgRefPosterGeneration } = require("./lib/posterIgRefGenerate.cjs");
+const { buildIgRefPosterGeneration, getIgRefTemplate } = require("./lib/posterIgRefGenerate.cjs");
 const { generateOpenAIPosterImageDetailed } = require("./lib/openaiPoster.cjs");
 const { generateFashionClothesImage } = require("./lib/clothesFashionOpenAI.cjs");
 const { formatGenerationError } = require("./lib/generationErrors.cjs");
@@ -2075,17 +2076,44 @@ async function routePost(path, fields, files, req) {
     const requiresDualPhoto = truthyField(fields, "requires_dual_photo");
     const secondPersonRef = await resolveImageRef(files, fields, "image_1", "image_1_url");
 
-    if (isIgRefPosterTemplate(templateId)) {
+    const igRefTpl = isIgRefPosterTemplate(templateId) ? getIgRefTemplate(templateId) : null;
+    const igRefDual = Boolean(igRefTpl && (requiresDualPhoto || igRefTpl.requiresDualPhoto));
+    const igRefPhotosReady = Boolean(
+      igRefTpl
+      && photoRef
+      && (!igRefDual || secondPersonRef),
+    );
+    const igRefUsePdfEngine = Boolean(
+      igRefPhotosReady
+      && (selected === "flux2" || selected === "grok"),
+    );
+    if (igRefUsePdfEngine) {
       const igGen = buildIgRefPosterGeneration({
         templateId,
         variantKey,
         placeholders,
-        requiresDualPhoto,
+        promptFinal: prompt,
+        requiresDualPhoto: igRefDual,
         photoRef,
         secondPersonRef,
+        selected,
       });
       if (igGen) {
-        const igPerImage = CREDIT.posterPro;
+        if (igGen.engine === "flux") {
+          igGen.input.prompt = finalizeImagePrompt(igGen.input.prompt, {
+            modelKey: "pro",
+            poster: true,
+            hasPersonPhoto: true,
+            photoEdit: true,
+          });
+          igGen.input.prompt = appendAspectOutputInstruction(
+            igGen.input.prompt,
+            igGen.input.aspect_ratio,
+          );
+        }
+        const igPerImage = igRefDual
+          ? (selected === "grok" ? CREDIT.posterFast : CREDIT.posterPro)
+          : (selected === "flux2" ? CREDIT.posterPro : CREDIT.posterFast);
         const igCost = igPerImage * count;
         return submitBillableGeneration(req, fields, {
           cost: igCost,
@@ -2095,7 +2123,9 @@ async function routePost(path, fields, files, req) {
           prompt: igGen.prompt,
           aspectRatio: igGen.aspectRatio,
           modelUsed: igGen.modelUsed,
-          spendDescription: "Pôster IG · layout ref",
+          spendDescription: igRefDual
+            ? (selected === "grok" ? "Pôster IG · 2 pessoas (económico)" : "Pôster IG · 2 pessoas")
+            : (selected === "flux2" ? "Pôster IG · identidade" : "Pôster IG · identidade (económico)"),
         });
       }
     }
@@ -2125,7 +2155,9 @@ async function routePost(path, fields, files, req) {
         output_quality: 95,
       };
       dualInput.prompt = appendAspectOutputInstruction(dualInput.prompt, dualRatio);
-      const dualPerImage = selected === "gpt_image" ? CREDIT.posterPremium : CREDIT.posterPro;
+      const dualPerImage = selected === "gpt_image"
+        ? CREDIT.posterPremium
+        : (selected === "grok" ? CREDIT.posterFast : CREDIT.posterPro);
       const dualCost = dualPerImage * count;
       return submitBillableGeneration(req, fields, {
         cost: dualCost,
@@ -2169,6 +2201,24 @@ async function routePost(path, fields, files, req) {
       });
     }
 
+    if (resolved.engine === "nano_banana") {
+      const nbInput = buildNanoBananaPosterInput({
+        prompt,
+        aspectRatio,
+        photoRef: photoRef || logoRef,
+      });
+      return submitBillableGeneration(req, fields, {
+        cost,
+        type: "poster",
+        modelId: resolved.modelId,
+        input: nbInput,
+        prompt,
+        aspectRatio: nbInput.aspect_ratio,
+        modelUsed: resolved.modelUsed,
+        spendDescription: "Pôster · média qualidade",
+      });
+    }
+
     const subjectPosition = posterFood ? "centre" : "bottom";
     const preparedRef = await preparePosterReference(photoRef, logoRef, aspectRatio, {
       subjectPosition,
@@ -2188,15 +2238,20 @@ async function routePost(path, fields, files, req) {
     }
     input.aspect_ratio = aspectRatio;
 
+    const fluxFallbackInput = await buildFluxEasyFallbackInput(input, prompt);
+
     return submitBillableGeneration(req, fields, {
       cost,
       type: "poster",
-      modelId: MODELS.standard,
+      modelId: resolved.modelId || MODELS.standard,
       input,
       prompt,
       aspectRatio: input.aspect_ratio,
       modelUsed: resolved.modelUsed,
       spendDescription: "Pôster",
+      fallbackImageUrl: input.image || photoRef || logoRef || null,
+      fallbackPrompt: input.prompt || prompt,
+      fluxFallbackInput,
     });
   }
 

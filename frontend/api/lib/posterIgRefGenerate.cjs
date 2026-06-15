@@ -1,12 +1,30 @@
 const PDF_RELEASE = require("./posterPdfReleaseTemplatesData.json");
-const { posterLayoutCoverUrl } = require("./posterLayoutCover.cjs");
 const { buildPosterTextManifest } = require("./posterEngine.cjs");
+const { posterLayoutCoverUrl } = require("./posterLayoutCover.cjs");
+const {
+  POSTER_REFERENCE_PERSON,
+  PHOTO_EDIT_IDENTITY_BLOCK,
+  buildPosterIgDualIdentityBlock,
+} = require("./identityPrompts.cjs");
 
 const NANO_BANANA_MODEL = "google/nano-banana";
+const FLUX_MODEL = "black-forest-labs/flux-2-klein-9b";
+
+const REALISM_BLOCK = (
+  "Ultra-realistic photorealistic commercial poster, cinematic lighting, natural human skin texture, "
+  + "realistic AI person (not cartoon, not 3D render, not illustration). "
+  + "Edit reference identity in-place like professional retouching: preserve exact face, bone structure, "
+  + "skin tone, ethnicity, body type, age and outfit from each uploaded photo. "
+  + "Crisp legible typography on layout layers — headlines in negative space, never covering the face. "
+  + "Premium quality: 8K, sharp focus, professional print design."
+);
 
 function getIgRefTemplate(templateId) {
   const id = String(templateId || "").trim();
-  return PDF_RELEASE.find((t) => t.id === id) || null;
+  const direct = PDF_RELEASE.find((t) => t.id === id);
+  if (direct) return direct;
+  const familyId = id.replace(/__[^/]+$/, "");
+  return PDF_RELEASE.find((t) => t.id === familyId) || null;
 }
 
 function applyPlaceholders(raw, placeholders = {}, replacements = {}) {
@@ -24,26 +42,28 @@ function applyPlaceholders(raw, placeholders = {}, replacements = {}) {
   return out;
 }
 
-function buildIgRefNanoBananaPrompt(basePrompt, placeholders, template, { dual }) {
+function buildIgRefIdentityPrompt(promptFinal, placeholders, template, { dual, hasLayout }) {
   const manifest = buildPosterTextManifest(placeholders, template?.placeholders);
+  const body = String(promptFinal || "").trim()
+    || applyPlaceholders(template?.prompt || "", placeholders, template?.replacements);
+
   const lines = [
-    "EDIT POSTER LAYOUT (mandatory):",
-    "- IMAGE 1 is the exact poster layout to preserve — same composition, crop, background, colors, typography zones, graphics and poses.",
+    REALISM_BLOCK,
+    dual ? buildPosterIgDualIdentityBlock(hasLayout) : POSTER_REFERENCE_PERSON,
+    PHOTO_EDIT_IDENTITY_BLOCK,
     dual
-      ? "- Replace ONLY the two people in IMAGE 1 with Person A from IMAGE 2 and Person B from IMAGE 3."
-      : "- Replace ONLY the person in IMAGE 1 with the person from IMAGE 2.",
-    "- Do NOT create a new design. Do NOT change the layout structure. Same poster, new faces.",
-    dual
-      ? "- Both people are full-size adults at equal scale — never dolls, toys, figurines or props."
-      : "- Preserve 100% face identity from the photo upload.",
-    "- All headline text must spell exactly as in EXACT COPY BLOCK — crisp, legible, no gibberish.",
+      ? "- Output must show TWO DIFFERENT REAL PEOPLE from the two uploads — same faces, hair, skin and bodies as the photos."
+      : "- Output must show the EXACT SAME PERSON as the uploaded photo — same face, hair, skin and body.",
+    "- Do NOT invent new faces. Do NOT use stock models. Do NOT create dolls, toys or figurines.",
     "",
-    String(basePrompt || "").trim(),
+    body,
   ];
-  if (manifest) {
+
+  if (manifest && !body.includes("EXACT COPY BLOCK")) {
     lines.push("", manifest);
   }
-  return lines.filter(Boolean).join("\n");
+
+  return lines.filter(Boolean).join("\n\n");
 }
 
 function resolveIgRefLayoutUrl(templateId, variantKey) {
@@ -51,22 +71,22 @@ function resolveIgRefLayoutUrl(templateId, variantKey) {
 }
 
 /**
- * Gera pôster IG com nano-banana — mesmo motor das capas da grelha.
- * @returns {null | { prompt: string, input: object, modelId: string, modelUsed: string, aspectRatio: string }}
+ * Gera pôster IG — fotos do utilizador = identidade; prompt PDF = layout/estilo.
+ * Dual (2 pessoas): FLUX Klein — melhor cópia de rosto/corpo.
+ * Single + flux2: nano-banana. Single + grok: null (Grok no caller).
  */
 function buildIgRefPosterGeneration({
   templateId,
   variantKey = "classic",
   placeholders = {},
+  promptFinal = "",
   requiresDualPhoto = false,
   photoRef,
   secondPersonRef,
+  selected = "flux2",
 }) {
   const tpl = getIgRefTemplate(templateId);
   if (!tpl) return null;
-
-  const layoutUrl = resolveIgRefLayoutUrl(templateId, variantKey);
-  if (!layoutUrl) return null;
 
   const dual = Boolean(requiresDualPhoto || tpl.requiresDualPhoto);
   if (dual && (!photoRef || !secondPersonRef)) {
@@ -80,31 +100,64 @@ function buildIgRefPosterGeneration({
     throw err;
   }
 
-  const basePrompt = applyPlaceholders(tpl.prompt, placeholders, tpl.replacements);
-  const prompt = buildIgRefNanoBananaPrompt(basePrompt, placeholders, tpl, { dual });
+  if (!dual && selected === "grok") {
+    return null;
+  }
 
-  const imageInput = dual
-    ? [layoutUrl, photoRef, secondPersonRef]
-    : [layoutUrl, photoRef];
+  const layoutUrl = resolveIgRefLayoutUrl(templateId, variantKey);
+  const prompt = buildIgRefIdentityPrompt(promptFinal, placeholders, tpl, {
+    dual,
+    hasLayout: Boolean(dual && layoutUrl),
+  });
+
+  if (dual) {
+    const images = layoutUrl
+      ? [photoRef, secondPersonRef, layoutUrl]
+      : [photoRef, secondPersonRef];
+    const input = {
+      prompt,
+      images,
+      aspect_ratio: "3:4",
+      disable_safety_checker: true,
+      go_fast: false,
+      output_format: "jpg",
+      output_quality: 95,
+    };
+    return {
+      prompt,
+      input,
+      modelId: FLUX_MODEL,
+      modelUsed: selected === "grok"
+        ? "FLUX Klein · IG 2 pessoas (económico)"
+        : "FLUX Klein · IG 2 pessoas",
+      aspectRatio: "3:4",
+      variantKey,
+      engine: "flux",
+    };
+  }
 
   const input = {
     prompt,
     aspect_ratio: "4:5",
     output_format: "jpg",
-    image_input: imageInput,
+    image_input: [photoRef],
   };
 
   return {
     prompt,
     input,
     modelId: NANO_BANANA_MODEL,
-    modelUsed: "google/nano-banana · layout IG",
+    modelUsed: "google/nano-banana · identidade IG",
     aspectRatio: "4:5",
+    variantKey,
+    engine: "nano",
   };
 }
 
 module.exports = {
   NANO_BANANA_MODEL,
+  FLUX_MODEL,
   getIgRefTemplate,
   buildIgRefPosterGeneration,
+  resolveIgRefLayoutUrl,
 };

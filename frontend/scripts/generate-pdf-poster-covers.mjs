@@ -56,9 +56,9 @@ function parseArgs() {
   return { force, only, limit, offset };
 }
 
-function sampleCoverPrompt(raw) {
+function sampleCoverPrompt(raw, replacements = {}) {
   const samples = {
-    MAIN_TITLE: "COSMIC WAVE",
+    MAIN_TITLE: "TITLE",
     ARTIST_NAME: "ARTIST NAME",
     SUBTITLE: "NEW SINGLE",
     EVENT_INFO: "LIVE · 9PM",
@@ -70,12 +70,13 @@ function sampleCoverPrompt(raw) {
     CHALLENGE_INFO: "30 DAY PROGRAM",
     SALE_INFO: "LIMITED TIME",
     EXHIBITION_INFO: "OPENING NIGHT",
+    ...replacements,
   };
   return String(raw).replace(/\{\{([A-Z0-9_]+)\}\}/g, (_, key) => samples[key] || key.replace(/_/g, " "));
 }
 
 function coverThumbPrompt(variant, familyId) {
-  const base = sampleCoverPrompt(variant.prompt || "");
+  const base = sampleCoverPrompt(variant.prompt || "", variant.replacements || {});
   const dual = variant.requiresDualPhoto
     ? " Two distinct real people in the composition (woman and man), natural poses, not clones."
     : "";

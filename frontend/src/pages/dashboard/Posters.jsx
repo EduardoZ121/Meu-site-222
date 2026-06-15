@@ -266,7 +266,10 @@ export default function Posters() {
 
   const selectedModel = models.find((m) => m.key === modelKey) || { cost: 10 };
   const usesPremiumWallet = modelKey === "gpt_image" || selectedModel.wallet === "premium";
-  const totalCost = selectedModel.cost * numOutputs;
+  const dualPhotoMode = Boolean(picked && isPosterDualPhotoTemplate(picked));
+  const proModel = models.find((m) => m.key === "flux2");
+  const billablePerImage = dualPhotoMode ? (proModel?.cost ?? selectedModel.cost) : selectedModel.cost;
+  const totalCost = billablePerImage * numOutputs;
   const userBalance = usesPremiumWallet ? (user?.premium_credits ?? 0) : (user?.credits ?? 0);
 
   const missing = useMemo(
@@ -288,6 +291,8 @@ export default function Posters() {
     if (isPosterFashionTemplate(tpl)) {
       setModelKey("flux2");
     } else if (isPosterDualPhotoTemplate(tpl)) {
+      setModelKey("flux2");
+    } else if (String(tpl.id || "").startsWith("ig_ref_")) {
       setModelKey("flux2");
     }
     if (!photo) {
@@ -337,6 +342,13 @@ export default function Posters() {
   useEffect(() => {
     scrollStudioToTop();
   }, [picked?.id, variantBase?.id]);
+
+  useEffect(() => {
+    if (!picked) return;
+    if (isPosterDualPhotoTemplate(picked) && modelKey === "grok") {
+      setModelKey("flux2");
+    }
+  }, [picked, modelKey]);
 
   const handleSessionBack = useCallback(() => {
     if (picked) {
@@ -1088,6 +1100,18 @@ function Editor(props) {
             hint={t("post_sec_engine_hint")}
             helpKey="help_sec_post_engine"
           >
+            <div className="mb-3 flex flex-col sm:flex-row sm:items-center gap-2 rounded-xl border border-[#2E2E30] bg-[#0E0E12]/80 px-3 py-2.5 text-[11px] leading-relaxed">
+              <span className="inline-flex items-center gap-1.5 text-[#C4B5FD] font-medium shrink-0">
+                <span className="w-2 h-2 rounded-full bg-[#A855F7]" aria-hidden />
+                {t("post_wallet_standard")}
+              </span>
+              <span className="hidden sm:inline text-[#5A5A5E]">·</span>
+              <span className="inline-flex items-center gap-1.5 text-[#FACC15] font-medium shrink-0">
+                <Crown className="w-3 h-3" strokeWidth={1.75} aria-hidden />
+                {t("post_wallet_hq")}
+              </span>
+              <span className="text-[#8A8A8E] sm:ml-auto">{t("post_sec_engine_wallets")}</span>
+            </div>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3" data-testid="poster-models">
               {modelsForPicker.map((m) => {
                 const Icon = MODEL_ICONS[m.key] || Zap;
@@ -1138,7 +1162,18 @@ function Editor(props) {
                     <p className={`relative text-[15px] font-light tracking-[-0.01em] mb-1 font-['Inter_Tight'] ${
                       active ? "text-[#F4F1EA]" : "text-[#F4F1EA]/85"
                     }`}>{posterModelLabel(m, t)}</p>
-                    <p className="relative text-[#8A8A8E] text-[11px] mb-2.5">{posterModelTag(m, t)}</p>
+                    <p className="relative text-[#8A8A8E] text-[11px] mb-1">{posterModelTag(m, t)}</p>
+                    <p className="relative mb-2">
+                      <span className={`inline-flex items-center gap-1 text-[9px] font-mono uppercase tracking-wider px-2 py-0.5 rounded-full border ${
+                        m.wallet === "premium" || m.key === "gpt_image"
+                          ? "text-[#FACC15] border-[#FACC15]/30 bg-[#FACC15]/10"
+                          : "text-[#C4B5FD] border-[#9333EA]/25 bg-[#9333EA]/10"
+                      }`}>
+                        {m.wallet === "premium" || m.key === "gpt_image"
+                          ? t("post_wallet_hq")
+                          : t("post_wallet_standard")}
+                      </span>
+                    </p>
                     <p className="relative text-[12px] font-mono">
                       {m.wallet === "premium" || m.key === "gpt_image" ? (
                         <span className="text-[#FACC15]">{t("bill_hq_credits_count", { n: m.cost })}</span>
@@ -1226,7 +1261,7 @@ function Editor(props) {
         ready={genReady}
         busy={busy}
         onClick={onGenerate}
-        label={t("post_gen_btn", { n: totalCost })}
+        label={usesPremiumWallet ? t("post_gen_btn_hq", { n: totalCost }) : t("post_gen_btn", { n: totalCost })}
         busyLabel={genBusyLabel}
         hint={genHint || (missing.length > 0 ? `${t("post_fill")}: ${missing.map((k) => labelFor(k, picked?.placeholders?.indexOf(k))).join(", ")}` : null)}
         testId="poster-generate"

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { api } from "../../lib/api";
 import { useAuth } from "../../lib/auth";
@@ -50,6 +50,7 @@ export default function Billing() {
   const pricingMeta = useMemo(() => getPricingMeta(), []);
   const minCustomCredits = pricingMeta.minCustomCredits || 150;
   const [customCredits, setCustomCredits] = useState(minCustomCredits);
+  const autoBuyAttempted = useRef(false);
 
   useEffect(() => {
     setCustomCredits((n) => Math.max(minCustomCredits, n));
@@ -132,7 +133,7 @@ export default function Billing() {
       .finally(() => setParams({}));
   }, [params, setParams, addCredits, addPremiumCredits, getLocalTransactions, refreshPricing, t]);
 
-  const buy = async (pkgId) => {
+  const buy = useCallback(async (pkgId) => {
     setCheckoutLoading(pkgId);
     try {
       const { data } = await api.post("/stripe/checkout", { package: pkgId, origin: resolveCanonicalOrigin() });
@@ -141,7 +142,22 @@ export default function Billing() {
       toast.error(err?.response?.data?.detail || t("bill_checkout_fail"));
       setCheckoutLoading(null);
     }
-  };
+  }, [t]);
+
+  useEffect(() => {
+    const highlightId = params.get("package");
+    if (!highlightId || !pkgs.length) return;
+    const el = document.querySelector(`[data-testid="billing-pkg-${highlightId}"]`);
+    if (el) el.scrollIntoView({ behavior: "smooth", block: "center" });
+  }, [params, pkgs]);
+
+  useEffect(() => {
+    const buyId = params.get("buy");
+    if (!buyId || !user || !pkgs.length || checkoutLoading || autoBuyAttempted.current) return;
+    if (!pkgs.some((p) => p.id === buyId)) return;
+    autoBuyAttempted.current = true;
+    void buy(buyId);
+  }, [params, user, pkgs, checkoutLoading, buy]);
 
   const buyHq = async (pkgId) => {
     setCheckoutLoading(`hq_${pkgId}`);

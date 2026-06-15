@@ -35,9 +35,11 @@ export default function Register() {
   const navigate = useNavigate();
   const { status: emailStatus, info: emailInfo } = useAuthEmailStatus(form.email);
 
+  const nextPath = params.get("next") || "/app/tools";
+
   useEffect(() => {
-    if (!authLoading && user) navigate("/app/tools", { replace: true });
-  }, [authLoading, user, navigate]);
+    if (!authLoading && user) navigate(nextPath, { replace: true });
+  }, [authLoading, user, navigate, nextPath]);
 
   useEffect(() => {
     const q = params.get("email");

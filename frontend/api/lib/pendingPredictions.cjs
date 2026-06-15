@@ -15,6 +15,10 @@ function nowIso() {
   return new Date().toISOString();
 }
 
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 function newPendingId() {
   return `rp_${crypto.randomUUID()}`;
 }
@@ -178,29 +182,41 @@ async function deliverVideoNotifyEmail(pending, creation, urls) {
   const galleryUrl = creation?.id
     ? `https://www.remakepix.com/app/gallery?focus=${encodeURIComponent(creation.id)}`
     : "https://www.remakepix.com/app/gallery";
-  const result = await sendCreationReadyEmail({
-    to: pending.notify_email,
-    lang: pending.lang || "pt",
-    mediaUrl,
-    galleryUrl,
-    creationId: creation?.id,
-    isVideo,
-  });
 
-  if (result.ok) {
-    await updatePending(pending.id, {
-      notify_email_sent_at: nowIso(),
-      notify_email_error: null,
+  let lastResult = { ok: false, reason: "send_failed" };
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    if (attempt > 0) {
+      // eslint-disable-next-line no-await-in-loop
+      await sleep(700 * attempt);
+    }
+    // eslint-disable-next-line no-await-in-loop
+    lastResult = await sendCreationReadyEmail({
+      to: pending.notify_email,
+      lang: pending.lang || "pt",
+      mediaUrl,
+      galleryUrl,
+      creationId: creation?.id,
+      isVideo,
     });
-  } else {
-    const attempts = Number(claim.notify_email_attempts || 0) + 1;
-    await updatePending(pending.id, {
-      notify_email_sent_at: attempts >= 3 ? nowIso() : null,
-      notify_email_error: String(result.error || result.reason || "send_failed").slice(0, 200),
-    });
+    if (lastResult.ok) {
+      await updatePending(pending.id, {
+        notify_email_sent_at: nowIso(),
+        notify_email_error: null,
+      });
+      return lastResult;
+    }
+    if (lastResult.skipped) {
+      return lastResult;
+    }
   }
 
-  return result;
+  const attempts = Number(claim.notify_email_attempts || 0) + 1;
+  await updatePending(pending.id, {
+    notify_email_sent_at: attempts >= 3 ? nowIso() : null,
+    notify_email_error: String(lastResult.error || lastResult.reason || "send_failed").slice(0, 200),
+  });
+
+  return lastResult;
 }
 
 async function deliverVideoFailureNotifyEmail(pending, friendlyError, rawError) {
@@ -566,12 +582,21 @@ async function repairMissingCreationsForUser(userId, limit = 24) {
             { $set: { created_at: pending.completed_at || pending.created_at || nowIso() } },
           );
         }
+        if (pending.notify_email && !pending.notify_email_sent_at) {
+          const creation = creationFromPending(pending, existingUrls);
+          // eslint-disable-next-line no-await-in-loop
+          await deliverVideoNotifyEmail(pending, creation, existingUrls);
+        }
         continue;
       }
     }
     const creation = creationFromPending(pending, urls);
     // eslint-disable-next-line no-await-in-loop
     await recordCreation(userId, creation);
+    if (pending.notify_email && !pending.notify_email_sent_at) {
+      // eslint-disable-next-line no-await-in-loop
+      await deliverVideoNotifyEmail(pending, creation, urls);
+    }
     repaired += 1;
   }
   return repaired;
@@ -610,7 +635,7 @@ async function repairGlobalMissingCreations(limit = 40) {
         if (!exists.created_at && pending.completed_at) {
           // eslint-disable-next-line no-await-in-loop
           await db.collection("creations").updateOne(
-            { id: pending.id, user_id: userId },
+            { id: pending.id, user_id: pending.user_id },
             { $set: { created_at: pending.completed_at || pending.created_at || nowIso() } },
           );
         }
@@ -627,6 +652,53 @@ async function repairGlobalMissingCreations(limit = 40) {
   return repaired;
 }
 
+async function resolvePendingNotifyEmail(db, pending) {
+  let email = String(pending?.notify_email || "").trim().toLowerCase();
+  if (isValidEmail(email)) return email;
+  const u = await db.collection("users").findOne({ id: pending.user_id }, { projection: { email: 1 } });
+  email = String(u?.email || "").trim().toLowerCase();
+  if (isValidEmail(email)) {
+    await updatePending(pending.id, { notify_email: email });
+    pending.notify_email = email;
+    return email;
+  }
+  return null;
+}
+
+/** Reenvia emails de gerações concluídas que ainda não foram entregues (por utilizador). */
+async function repairMissedNotifyEmailsForUser(userId, limit = 12) {
+  if (!storageEnabled() || !userId) return { checked: 0, sent: 0 };
+  const db = await getDb();
+  const docs = await db
+    .collection("pending_predictions")
+    .find(
+      {
+        user_id: userId,
+        status: "completed",
+        notify_email_sent_at: null,
+        notify_email_attempts: { $lt: 3 },
+        result_urls: { $exists: true, $ne: [] },
+      },
+      { projection: { _id: 0 } },
+    )
+    .sort({ completed_at: 1 })
+    .limit(Math.min(24, Math.max(1, limit)))
+    .toArray();
+
+  let sent = 0;
+  for (const pending of docs) {
+    // eslint-disable-next-line no-await-in-loop
+    const email = await resolvePendingNotifyEmail(db, pending);
+    if (!email) continue;
+    const urls = Array.isArray(pending.result_urls) ? pending.result_urls : [];
+    const creation = creationFromPending(pending, urls);
+    // eslint-disable-next-line no-await-in-loop
+    const result = await deliverVideoNotifyEmail(pending, creation, urls);
+    if (result.ok) sent += 1;
+  }
+  return { checked: docs.length, sent };
+}
+
 /** Força poll no servidor (galeria mesmo com o browser fechado). */
 async function refreshUserPendingJobs(userId, limit = 8) {
   const rows = await listActivePendingForUser(userId, limit);
@@ -637,6 +709,11 @@ async function refreshUserPendingJobs(userId, limit = 8) {
     } catch {
       /* próximo */
     }
+  }
+  try {
+    await repairMissedNotifyEmailsForUser(userId, 8);
+  } catch (e) {
+    console.warn("[pending] missed notify email repair failed", e?.message);
   }
   return listActivePendingForUser(userId, 12);
 }
@@ -660,7 +737,7 @@ async function listActivePendingForUser(userId, limit = 12) {
   return docs;
 }
 
-/** Reenvia email a motion_flyer / marketing_video concluídos sem notify_email registado. */
+/** Cron: reenvia emails de gerações concluídas sem notify_email registado (todos os tipos). */
 async function repairMissedVideoNotifyEmails(limit = 8) {
   if (!storageEnabled()) return { checked: 0, sent: 0 };
   const db = await getDb();
@@ -668,7 +745,6 @@ async function repairMissedVideoNotifyEmails(limit = 8) {
     .collection("pending_predictions")
     .find(
       {
-        type: { $in: ["motion_flyer", "marketing_video"] },
         status: "completed",
         notify_email_sent_at: null,
         notify_email_attempts: { $lt: 3 },
@@ -682,16 +758,9 @@ async function repairMissedVideoNotifyEmails(limit = 8) {
 
   let sent = 0;
   for (const pending of docs) {
-    let email = pending.notify_email;
-    if (!isValidEmail(email)) {
-      const u = await db.collection("users").findOne({ id: pending.user_id }, { projection: { email: 1 } });
-      email = String(u?.email || "").trim().toLowerCase();
-      if (isValidEmail(email)) {
-        await updatePending(pending.id, { notify_email: email });
-        pending.notify_email = email;
-      }
-    }
-    if (!isValidEmail(pending.notify_email)) continue;
+    // eslint-disable-next-line no-await-in-loop
+    const email = await resolvePendingNotifyEmail(db, pending);
+    if (!email) continue;
     const creation = creationFromPending(pending, pending.result_urls || []);
     // eslint-disable-next-line no-await-in-loop
     const result = await deliverVideoNotifyEmail(pending, creation, pending.result_urls);
@@ -800,6 +869,7 @@ module.exports = {
   listActivePendingForUser,
   refreshUserPendingJobs,
   repairMissingCreationsForUser,
+  repairMissedNotifyEmailsForUser,
   repairGlobalMissingCreations,
   processActivePendingBatch,
   maxPollSeconds,

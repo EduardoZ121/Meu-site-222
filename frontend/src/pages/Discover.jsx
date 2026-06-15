@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import Navbar from "../components/Navbar";
 import Footer from "../sections/Footer";
 import DiscoverIntro from "../components/landing/DiscoverIntro";
@@ -21,6 +22,17 @@ export default function Discover() {
     keywords: SEO_DISCOVER.keywords,
     path: SEO_DISCOVER.path,
   });
+
+  useEffect(() => {
+    const hash = window.location.hash?.slice(1);
+    if (!hash) return;
+    const scrollToHash = () => {
+      const el = document.getElementById(hash);
+      if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
+    };
+    const timer = window.setTimeout(scrollToHash, 120);
+    return () => window.clearTimeout(timer);
+  }, []);
 
   return (
     <div className="relative min-h-screen bg-[#0B0B0C]" data-testid="discover-page">

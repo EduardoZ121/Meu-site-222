@@ -134,7 +134,7 @@ export default function Pricing() {
           className="flex flex-col sm:flex-row items-center justify-center gap-4"
         >
           <Link
-            to="/app/billing"
+            to="/app/billing?package=starter"
             className="inline-flex items-center gap-2 px-8 py-3.5 rounded-xl bg-gradient-to-r from-[#7C3AED] to-[#9333ea] text-white text-sm font-semibold uppercase tracking-wider hover:brightness-110 transition-all"
           >
             <Zap className="w-4 h-4" /> {t("pricing_buy")}

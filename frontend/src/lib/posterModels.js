@@ -11,20 +11,22 @@ export function normalizePosterModel(model) {
       supports_photo: true,
     };
   }
+  if (key === "grok") {
+    return {
+      ...model,
+      label: model.label || "Baixa qualidade",
+      tag: model.tag || "Rápido · económico",
+      wallet: "standard",
+      supports_photo: true,
+    };
+  }
   if (key === "flux2" || key === "nano_banana") {
     return {
       ...model,
       key: "flux2",
-      label: model.label || "Nano Banana",
-      tag: "Google Gemini · rosto + roupa",
-      supports_photo: true,
-    };
-  }
-  if (key === "grok") {
-    return {
-      ...model,
-      label: model.label || "Motor Rápido",
-      tag: model.tag || "Grok · com foto",
+      label: model.label || "Média qualidade",
+      tag: model.tag || "Foto-realista",
+      wallet: "standard",
       supports_photo: true,
     };
   }

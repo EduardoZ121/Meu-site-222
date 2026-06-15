@@ -21,6 +21,7 @@ export default function StudioTopBar({ titleKey }) {
   const title = t(labelKey) || t("nav_tools");
   const rel = getAppRelativePath(pathname);
   const onPosters = rel.startsWith("posters");
+  const showHqBadge = onPosters || (user?.premium_credits ?? 0) > 0 || user?.is_unlimited;
 
   const handleBack = useCallback(() => {
     if (typeof sessionBackHandler === "function") {
@@ -33,6 +34,9 @@ export default function StudioTopBar({ titleKey }) {
     }
     navigate("/app/tools");
   }, [sessionBackHandler, rel, navigate]);
+
+  const stdLabel = t("header.credits") || t("header_credits") || "Créditos";
+  const hqLabel = t("header.hq_credits") || t("header_hq_credits") || "HQ";
 
   return (
     <header
@@ -58,28 +62,30 @@ export default function StudioTopBar({ titleKey }) {
         </h1>
       </div>
 
-      <div className="justify-self-end flex items-center gap-1.5 sm:gap-2 shrink-0">
+      <div className="justify-self-end flex items-center gap-1 sm:gap-1.5 shrink-0">
         <Link
           to="/app/billing"
-          className="flex items-center gap-1.5 px-2 sm:px-3 py-1.5 rounded-full border border-[#9333EA]/25 bg-white/[0.06] hover:border-[#A855F7]/50 transition-colors min-w-0"
+          className="flex items-center gap-1 px-1.5 sm:px-2.5 py-1.5 rounded-full border border-[#9333EA]/25 bg-white/[0.06] hover:border-[#A855F7]/50 transition-colors min-w-0"
           data-testid="studio-credits-badge"
+          title={stdLabel}
         >
-          <span className="hidden sm:inline text-[10px] font-mono uppercase tracking-wider text-white/50">
-            {t("header.credits")}
+          <span className="text-[9px] sm:text-[10px] font-mono uppercase tracking-wider text-[#C4B5FD]/80 max-w-[52px] sm:max-w-none truncate">
+            {onPosters ? stdLabel : (t("label_credits_short") || "cr")}
           </span>
           <span className="text-[#A855F7] text-sm font-mono font-semibold tabular-nums">
             {user?.is_unlimited ? "∞" : user?.credits ?? 0}
           </span>
         </Link>
-        {(onPosters || (user?.premium_credits ?? 0) > 0 || user?.is_unlimited) && (
+        {showHqBadge && (
           <Link
             to="/app/billing"
-            className="flex items-center gap-1.5 px-2 sm:px-3 py-1.5 rounded-full border border-[#FACC15]/30 bg-[#FACC15]/5 hover:border-[#FACC15]/50 transition-colors min-w-0"
+            className="flex items-center gap-1 px-1.5 sm:px-2.5 py-1.5 rounded-full border border-[#FACC15]/30 bg-[#FACC15]/5 hover:border-[#FACC15]/50 transition-colors min-w-0"
             data-testid="studio-hq-credits-badge"
+            title={hqLabel}
           >
-            <Crown className="w-3.5 h-3.5 text-[#FACC15] hidden sm:block" strokeWidth={1.75} />
-            <span className="hidden sm:inline text-[10px] font-mono uppercase tracking-wider text-[#FACC15]/70">
-              HQ
+            <Crown className="w-3 h-3 text-[#FACC15] shrink-0" strokeWidth={1.75} />
+            <span className="text-[9px] sm:text-[10px] font-mono uppercase tracking-wider text-[#FACC15]/80 max-w-[48px] sm:max-w-none truncate">
+              {onPosters ? hqLabel : (t("label_hq_credits_short") || "HQ")}
             </span>
             <span className="text-[#FACC15] text-sm font-mono font-semibold tabular-nums">
               {user?.is_unlimited ? "∞" : user?.premium_credits ?? 0}

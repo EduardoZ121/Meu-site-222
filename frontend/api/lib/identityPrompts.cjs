@@ -225,6 +225,32 @@ function buildStudioDualPersonBlock() {
   ].join("\n");
 }
 
+/** Pôster IG: layout fixo (capa) + 2 fotos de identidade. */
+function buildPosterLayoutDualPersonBlock() {
+  return [
+    "POSTER LAYOUT COMPOSE — THREE REFERENCES (mandatory):",
+    "- Image 1: LAYOUT REFERENCE — replicate this exact poster design: composition, crop, background, typography zones, graphic elements, and body poses/silhouettes.",
+    "- Image 2: Person A — preserve 100% of their face, hair, skin tone, ethnicity, body type, age and outfit from image 2 only.",
+    "- Image 3: Person B — preserve 100% of their face, hair, skin tone, ethnicity, body type, age and outfit from image 3 only.",
+    "- Replace ONLY the people in Image 1 with Person A and Person B — keep layout, text placement, colors and graphics identical to Image 1.",
+    "- Both people are FULL-SIZE ADULTS at equal scale in the same poses as Image 1 — NOT dolls, toys, figurines, miniatures or props.",
+    "- Do NOT merge faces, do NOT clone one person twice, do NOT swap identities between images 2 and 3.",
+    "- Render all headline/subhead copy from the brief exactly — crisp, legible, no gibberish.",
+    "- Natural unified lighting — professional photo retouching finish.",
+  ].join("\n");
+}
+
+/** Pôster IG 1 pessoa: layout fixo + foto de identidade. */
+function buildPosterLayoutSinglePersonBlock() {
+  return [
+    "POSTER LAYOUT COMPOSE — TWO REFERENCES (mandatory):",
+    "- Image 1: LAYOUT REFERENCE — replicate this exact poster design: composition, crop, background, typography zones and graphic elements.",
+    "- Image 2: Person — preserve 100% of their face, hair, skin tone, ethnicity, body type and outfit from image 2 only.",
+    "- Replace ONLY the person in Image 1 with the person from image 2 — keep layout, text placement, colors and graphics identical to Image 1.",
+    "- Render all copy from the brief exactly — crisp, legible, no gibberish.",
+  ].join("\n");
+}
+
 function buildMangaDualCharacterBlock(nameA, nameB, descA = "", descB = "", roleA = "primary", roleB = "support") {
   const a = String(nameA || "Character A").trim() || "Character A";
   const b = String(nameB || "Character B").trim() || "Character B";
@@ -283,6 +309,8 @@ module.exports = {
   upgradePadraoPrompt,
   buildStudioMultiCombineBlock,
   buildStudioDualPersonBlock,
+  buildPosterLayoutDualPersonBlock,
+  buildPosterLayoutSinglePersonBlock,
   buildMangaDualCharacterBlock,
   buildMangaComicSheetBlock,
 };

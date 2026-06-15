@@ -50,7 +50,7 @@ function BrowserLogin() {
     e.preventDefault();
     if (isNewEmail) {
       toast.message(t("auth_email_new_hint"));
-      navigate(`/register?email=${encodeURIComponent(email.trim().toLowerCase())}`);
+      navigate(`/register?email=${encodeURIComponent(email.trim().toLowerCase())}&next=${encodeURIComponent(from)}`);
       return;
     }
     if (isGoogleOnly) {
@@ -67,7 +67,7 @@ function BrowserLogin() {
       const code = err?.response?.data?.code;
       if (code === "NOT_FOUND" || /não encontrada|not found/i.test(String(detail))) {
         toast.error(t("auth_email_new_hint"));
-        navigate(`/register?email=${encodeURIComponent(email.trim().toLowerCase())}`);
+        navigate(`/register?email=${encodeURIComponent(email.trim().toLowerCase())}&next=${encodeURIComponent(from)}`);
       } else if (code === "USE_GOOGLE") {
         toast.error(t("auth_email_google_hint"));
       } else {

@@ -90,7 +90,10 @@ function RequireAuth({ children, adminOnly = false }) {
   const { user, loading } = useAuth();
   const loc = useLocation();
   if (loading) return <div className="min-h-screen bg-rp-bg" />;
-  if (!user) return <Navigate to="/login" state={{ from: loc.pathname }} replace />;
+  if (!user) {
+    const returnTo = `${loc.pathname}${loc.search || ""}`;
+    return <Navigate to="/login" state={{ from: returnTo }} replace />;
+  }
   if (adminOnly && !isAdminUser(user)) return <Navigate to="/app/tools" replace />;
   return children;
 }

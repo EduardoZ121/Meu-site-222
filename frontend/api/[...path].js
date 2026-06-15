@@ -52,6 +52,8 @@ const {
   POSTER_FULL_BLEED_GUARD,
 } = require("./lib/posterEngine.cjs");
 const { preparePosterReference, preparePosterReferenceForOpenAI } = require("./lib/posterImagePrep.cjs");
+const { isIgRefPosterTemplate } = require("./lib/posterLayoutCover.cjs");
+const { buildIgRefPosterGeneration } = require("./lib/posterIgRefGenerate.cjs");
 const { generateOpenAIPosterImageDetailed } = require("./lib/openaiPoster.cjs");
 const { generateFashionClothesImage } = require("./lib/clothesFashionOpenAI.cjs");
 const { formatGenerationError } = require("./lib/generationErrors.cjs");
@@ -2058,6 +2060,7 @@ async function routePost(path, fields, files, req) {
     const perImage = selected === "gpt_image" ? CREDIT.posterPremium : selected === "flux2" ? CREDIT.posterPro : CREDIT.posterFast;
     const count = Math.max(1, Math.min(Number(text(fields, "num_outputs", 1)) || 1, 4));
     const templateId = text(fields, "template_id", "");
+    const variantKey = text(fields, "variant_key", "classic");
     const templateCategory = text(fields, "template_category", "").trim().toLowerCase();
     const posterFood = templateCategory === "food" || String(templateId).startsWith("food_");
     const photoRef = await resolveImageRef(files, fields, "photo", "photo_url");
@@ -2071,6 +2074,32 @@ async function routePost(path, fields, files, req) {
 
     const requiresDualPhoto = truthyField(fields, "requires_dual_photo");
     const secondPersonRef = await resolveImageRef(files, fields, "image_1", "image_1_url");
+
+    if (isIgRefPosterTemplate(templateId)) {
+      const igGen = buildIgRefPosterGeneration({
+        templateId,
+        variantKey,
+        placeholders,
+        requiresDualPhoto,
+        photoRef,
+        secondPersonRef,
+      });
+      if (igGen) {
+        const igPerImage = CREDIT.posterPro;
+        const igCost = igPerImage * count;
+        return submitBillableGeneration(req, fields, {
+          cost: igCost,
+          type: "poster",
+          modelId: igGen.modelId,
+          input: igGen.input,
+          prompt: igGen.prompt,
+          aspectRatio: igGen.aspectRatio,
+          modelUsed: igGen.modelUsed,
+          spendDescription: "Pôster IG · layout ref",
+        });
+      }
+    }
+
     if (requiresDualPhoto) {
       if (!photoRef || !secondPersonRef) {
         const err = new Error("Este estilo exige 2 fotos — uma de cada pessoa (1.ª principal, 2.ª referência).");

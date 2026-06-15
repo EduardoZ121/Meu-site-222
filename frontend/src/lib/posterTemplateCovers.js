@@ -4,6 +4,12 @@
  * generate-extended-poster-covers.mjs, generate-rich-poster-covers.mjs e generate-pdf-poster-covers.mjs
  */
 export const POSTER_TEMPLATE_COVER_BY_ID = {
+  ig_ref_galaxy__classic: "/images/poster-covers/ig_ref_galaxy__classic.jpg",
+  ig_ref_galaxy__cinematic: "/images/poster-covers/ig_ref_galaxy__cinematic.jpg",
+  ig_ref_galaxy__vibrant: "/images/poster-covers/ig_ref_galaxy__vibrant.jpg",
+  ig_ref_galaxy__minimal: "/images/poster-covers/ig_ref_galaxy__minimal.jpg",
+  ig_ref_galaxy__editorial: "/images/poster-covers/ig_ref_galaxy__editorial.jpg",
+  ig_ref_galaxy: "/images/poster-covers/ig_ref_galaxy__classic.jpg",
   ig_ref_cosmic_wave__classic: "/images/poster-covers/ig_ref_cosmic_wave__classic.jpg",
   ig_ref_cosmic_wave__cinematic: "/images/poster-covers/ig_ref_cosmic_wave__cinematic.jpg",
   ig_ref_cosmic_wave__vibrant: "/images/poster-covers/ig_ref_cosmic_wave__vibrant.jpg",

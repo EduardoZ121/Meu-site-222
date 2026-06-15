@@ -1,6 +1,6 @@
 const { getDb, storageEnabled, ensureIndexes } = require("./mongo.cjs");
 const { sanitizeCreation, trustedProxyTarget, loadCreationMedia, normalizeResultUrls, repairCreationMedia } = require("./creationMedia.cjs");
-const { refreshUserPendingJobs, repairMissingCreationsForUser } = require("./pendingPredictions.cjs");
+const { refreshUserPendingJobs, repairMissingCreationsForUser, repairMissedNotifyEmailsForUser } = require("./pendingPredictions.cjs");
 
 function dedupeCreations(docs) {
   const seenIds = new Set();
@@ -101,6 +101,7 @@ async function handleCreationsRoute(path, req, res, { verifySessionToken, json }
     try {
       await refreshUserPendingJobs(sess.user.id, 12);
       await repairMissingCreationsForUser(sess.user.id, 32);
+      await repairMissedNotifyEmailsForUser(sess.user.id, 12);
     } catch (e) {
       console.warn("[creations] history pending refresh failed", e?.message);
     }
@@ -170,6 +171,7 @@ async function handleCreationsRoute(path, req, res, { verifySessionToken, json }
     try {
       await refreshUserPendingJobs(sess.user.id, 16);
       const repaired = await repairMissingCreationsForUser(sess.user.id, 48);
+      await repairMissedNotifyEmailsForUser(sess.user.id, 16);
       json(res, 200, { ok: true, repaired });
     } catch (e) {
       json(res, 500, { detail: e?.message || "Não foi possível recuperar criações." });

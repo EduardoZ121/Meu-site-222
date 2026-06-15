@@ -17,7 +17,7 @@ export default function StudioGenerateCostMeta({
       : (user?.credits ?? 0);
 
   return (
-    <div className={`hidden sm:flex items-center gap-3 text-[12px] font-['Inter_Tight'] flex-wrap ${className}`.trim()}>
+    <div className={`flex items-center gap-2 sm:gap-3 text-[11px] sm:text-[12px] font-['Inter_Tight'] flex-wrap ${className}`.trim()}>
       <span className="text-[#8A8A8E]">{t("tool_cost_label")}</span>
       <span className={`font-semibold tabular-nums text-[15px] ${isPremium ? "text-[#FACC15]" : "text-[#C4B5FD]"}`}>{cost}</span>
       <span className="text-[#5A5A5E] font-mono text-[10px] uppercase tracking-wider">

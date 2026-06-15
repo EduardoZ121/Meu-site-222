@@ -2,7 +2,7 @@ import { useRef, useState } from "react";
 import { motion, useInView, AnimatePresence } from "framer-motion";
 import { ChevronDown } from "lucide-react";
 import { useI18n } from "../lib/i18n";
-import { LANDING_FAQ_IDS, LANDING_STARTER_CREDITS } from "../lib/landingI18n";
+import { LANDING_FAQ_IDS } from "../lib/landingI18n";
 import { getCreditCostsForRegion } from "../lib/pricingRegions";
 
 const EASE = [0.16, 1, 0.3, 1];
@@ -16,7 +16,7 @@ export default function FAQ() {
 
   const faqs = LANDING_FAQ_IDS.map((id) => ({
     q: t(`landing_faq_${id}_q`),
-    a: t(`landing_faq_${id}_a`, { n: LANDING_STARTER_CREDITS, image: imageCost }),
+    a: t(`landing_faq_${id}_a`, { image: imageCost }),
   }));
 
   return (

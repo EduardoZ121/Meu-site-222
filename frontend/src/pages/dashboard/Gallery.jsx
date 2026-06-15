@@ -8,53 +8,17 @@ import { useAuth } from "../../lib/auth";
 import { useI18n } from "../../lib/i18n";
 import { toast } from "sonner";
 import useTitle from "../../lib/useTitle";
-import GalleryMedia from "../../components/GalleryMedia";
+import GalleryMedia, { useGalleryLightboxMedia } from "../../components/GalleryMedia";
 import GalleryExtendModal from "../../components/gallery/GalleryExtendModal";
 import StudioHelpTip from "../../components/studio/StudioHelpTip";
+import PosterMotionFlyerButton from "../../components/poster/PosterMotionFlyerButton";
 import { canAccessVideoFeatures } from "../../lib/isAdmin";
-import {
-  displayMediaUrl,
-  isVideoCreation,
-  primaryResultUrl,
-  proxiedMediaUrl,
-} from "../../lib/creationUrls";
+import { isVideoCreation, normalizeCreation, primaryResultUrl } from "../../lib/creationUrls";
+import { isPosterCreation } from "../../lib/posterMotionFlyerBridge";
 
-function dedupeCreations(list) {
-  const seenIds = new Set();
-  const seenUrls = new Set();
-  return (list || []).filter((c) => {
-    if (!c?.id || seenIds.has(c.id)) return false;
-    const url = primaryResultUrl(c);
-    if (url && seenUrls.has(url)) return false;
-    seenIds.add(c.id);
-    if (url) seenUrls.add(url);
-    return true;
-  });
-}
-
-function GalleryLightbox({ item, onClose, t }) {
-  const rawUrl = primaryResultUrl(item);
-  const isVideo = isVideoCreation(item, rawUrl);
-  const [src, setSrc] = useState("");
-  const [broken, setBroken] = useState(false);
-  const [loaded, setLoaded] = useState(false);
-
-  useEffect(() => {
-    if (!item) return;
-    setBroken(false);
-    setLoaded(false);
-    setSrc(displayMediaUrl(rawUrl, false));
-  }, [item, rawUrl]);
-
-  const onMediaError = () => {
-    const proxy = proxiedMediaUrl(rawUrl);
-    if (proxy && src !== proxy) {
-      setSrc(proxy);
-      return;
-    }
-    setBroken(true);
-    setLoaded(true);
-  };
+function GalleryLightbox({ item, onClose, t, videoExtendAccess }) {
+  const { src, broken, loading, isVideo, onDirectError } = useGalleryLightboxMedia(item);
+  const posterUrl = item && isPosterCreation(item) ? primaryResultUrl(item) : "";
 
   if (!item) return null;
 
@@ -78,34 +42,122 @@ function GalleryLightbox({ item, onClose, t }) {
         className="relative max-w-5xl max-h-[90vh] w-full flex flex-col items-center"
         onClick={(e) => e.stopPropagation()}
       >
-        {!loaded && !broken && rawUrl && (
-          <Loader2 className="w-8 h-8 text-white animate-spin" />
-        )}
-        {src && !broken ? (
+        {loading && <Loader2 className="w-8 h-8 text-white animate-spin" />}
+        {!loading && src && !broken ? (
           isVideo ? (
-            <video
-              src={src}
-              controls
-              autoPlay
-              className="max-h-[80vh] max-w-full rounded-lg"
-              onError={onMediaError}
-              onLoadedData={() => setLoaded(true)}
-            />
+            <video src={src} controls autoPlay className="max-h-[80vh] max-w-full rounded-lg" onError={onDirectError} />
           ) : (
-            <img
-              src={src}
-              alt=""
-              className="max-h-[80vh] max-w-full object-contain rounded-lg"
-              onError={onMediaError}
-              onLoad={() => setLoaded(true)}
-            />
+            <img src={src} alt="" className="max-h-[80vh] max-w-full object-contain rounded-lg" onError={onDirectError} />
           )
-        ) : broken || !rawUrl ? (
+        ) : !loading && (broken || !src) ? (
           <p className="text-white/70 text-sm">{t("gal_file_unavailable")}</p>
         ) : null}
-        <p className="mt-4 text-white/80 text-sm text-center max-w-xl line-clamp-4">{item.prompt}</p>
+        {videoExtendAccess && posterUrl && !isVideo ? (
+          <div className="mt-4 w-full max-w-md">
+            <PosterMotionFlyerButton
+              imageUrl={posterUrl}
+              creationId={item.id}
+              aspectRatio={item.aspect_ratio || item.aspectRatio}
+              testId={`gallery-lightbox-mfly-${item.id}`}
+            />
+          </div>
+        ) : null}
       </div>
     </div>
+  );
+}
+
+function GalleryCard({
+  item,
+  busy,
+  videoExtendAccess,
+  t,
+  onView,
+  onDownload,
+  onExtend,
+  onToggleFav,
+  onRemove,
+}) {
+  const posterUrl = isPosterCreation(item) ? primaryResultUrl(item) : "";
+
+  return (
+    <article
+      className="flex flex-col border border-rp-border bg-rp-surface overflow-hidden rounded-sm"
+      data-testid={`gallery-item-${item.id}`}
+    >
+      <div className="relative aspect-square overflow-hidden bg-rp-bg">
+        <GalleryMedia
+          creation={item}
+          className="w-full h-full object-cover"
+          onClick={() => onView(item)}
+        />
+      </div>
+
+      <div className="flex items-center gap-1 p-2 border-t border-rp-border">
+        <button
+          type="button"
+          disabled={busy}
+          onClick={() => onView(item)}
+          className="flex-1 min-h-10 flex items-center justify-center gap-1 rounded border border-rp-border text-rp-text hover:border-rp-lavender hover:text-rp-lavender text-[10px] uppercase tracking-wider disabled:opacity-40"
+          title={t("gal_view")}
+        >
+          <Eye className="w-3.5 h-3.5" />
+          <span className="hidden sm:inline">{t("gal_view")}</span>
+        </button>
+        {videoExtendAccess && posterUrl && (
+          <PosterMotionFlyerButton
+            imageUrl={posterUrl}
+            creationId={item.id}
+            aspectRatio={item.aspect_ratio || item.aspectRatio}
+            compact
+            testId={`gallery-mfly-${item.id}`}
+          />
+        )}
+        <button
+          type="button"
+          disabled={busy}
+          onClick={() => onDownload(item)}
+          className="min-h-10 min-w-10 flex items-center justify-center rounded border border-rp-border text-rp-text hover:border-rp-lavender hover:text-rp-lavender disabled:opacity-40"
+          title={t("gal_download")}
+        >
+          <Download className="w-3.5 h-3.5" />
+        </button>
+        {videoExtendAccess && isVideoCreation(item) && (
+          <button
+            type="button"
+            disabled={busy}
+            onClick={() => onExtend(item)}
+            className="min-h-10 min-w-10 flex items-center justify-center rounded border border-rp-border text-rp-text hover:border-[#A855F7] hover:text-[#A855F7] disabled:opacity-40"
+            title={t("vid_extend_title")}
+            data-testid={`gallery-extend-${item.id}`}
+          >
+            <Film className="w-3.5 h-3.5" />
+          </button>
+        )}
+        <button
+          type="button"
+          disabled={busy}
+          onClick={() => onToggleFav(item.id)}
+          className={`min-h-10 min-w-10 flex items-center justify-center rounded border ${
+            item.is_favorite
+              ? "border-rp-purple text-rp-lavender"
+              : "border-rp-border text-rp-text hover:border-rp-lavender"
+          } disabled:opacity-40`}
+          title={t("gal_favorite")}
+        >
+          <Heart className="w-3.5 h-3.5" fill={item.is_favorite ? "currentColor" : "none"} />
+        </button>
+        <button
+          type="button"
+          disabled={busy}
+          onClick={() => onRemove(item.id)}
+          className="min-h-10 min-w-10 flex items-center justify-center rounded border border-rp-border text-rp-text hover:border-red-400 hover:text-red-400 disabled:opacity-40"
+          title={t("remove")}
+        >
+          {busy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
+        </button>
+      </div>
+    </article>
   );
 }
 
@@ -115,7 +167,9 @@ export default function Gallery({ favoritesOnly = false }) {
   const videoExtendAccess = canAccessVideoFeatures(user);
   const [searchParams, setSearchParams] = useSearchParams();
   useTitle(favoritesOnly ? t("sidebar_favorites") : t("sidebar_gallery"));
+
   const [items, setItems] = useState([]);
+  const [pendingItems, setPendingItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [busyId, setBusyId] = useState(null);
@@ -137,12 +191,24 @@ export default function Gallery({ favoritesOnly = false }) {
     } else {
       setRefreshing(true);
     }
-    return api
-      .get(`/generations/history?limit=60${favoritesOnly ? "&only_favorites=true" : ""}`)
-      .then((r) => setItems(dedupeCreations(r.data.creations)))
+
+    const historyUrl = `/generations/history?limit=60${favoritesOnly ? "&only_favorites=true" : ""}`;
+
+    return Promise.all([
+      api.get(historyUrl),
+      favoritesOnly ? Promise.resolve({ data: { pending: [] } }) : api.get("/generations/pending"),
+    ])
+      .then(([historyRes, pendingRes]) => {
+        const list = (historyRes.data?.creations || []).map(normalizeCreation);
+        setItems(list);
+        setPendingItems((pendingRes.data?.pending || []).filter((p) => p.status !== "completed"));
+      })
       .catch((err) => {
-        if (!isBackground) toast.error(formatApiError(err, tRef.current("gal_load_fail")));
-        if (!isBackground) setItems([]);
+        if (!isBackground) {
+          toast.error(formatApiError(err, tRef.current("gal_load_fail")));
+          setItems([]);
+          setPendingItems([]);
+        }
       })
       .finally(() => {
         if (!isBackground) loadingRef.current = false;
@@ -156,17 +222,16 @@ export default function Gallery({ favoritesOnly = false }) {
   }, [load]);
 
   useEffect(() => {
-    const onCreation = () => load({ background: true });
-    const onFinished = () => load({ background: true });
+    const onRefresh = () => load({ background: true });
     const onVisible = () => {
       if (document.visibilityState === "visible") load({ background: true });
     };
-    window.addEventListener("rp:creation-succeeded", onCreation);
-    window.addEventListener("rp:prediction-finished", onFinished);
+    window.addEventListener("rp:creation-succeeded", onRefresh);
+    window.addEventListener("rp:prediction-finished", onRefresh);
     document.addEventListener("visibilitychange", onVisible);
     return () => {
-      window.removeEventListener("rp:creation-succeeded", onCreation);
-      window.removeEventListener("rp:prediction-finished", onFinished);
+      window.removeEventListener("rp:creation-succeeded", onRefresh);
+      window.removeEventListener("rp:prediction-finished", onRefresh);
       document.removeEventListener("visibilitychange", onVisible);
     };
   }, [load]);
@@ -177,10 +242,12 @@ export default function Gallery({ favoritesOnly = false }) {
     const target = items.find((x) => x.id === focusId);
     if (!target) return;
     setViewItem(target);
-    const el = document.querySelector(`[data-testid="gallery-item-${focusId}"]`);
-    if (el?.scrollIntoView) {
-      el.scrollIntoView({ behavior: "smooth", block: "center" });
-    }
+    requestAnimationFrame(() => {
+      document.querySelector(`[data-testid="gallery-item-${focusId}"]`)?.scrollIntoView?.({
+        behavior: "smooth",
+        block: "center",
+      });
+    });
     const next = new URLSearchParams(searchParams);
     next.delete("focus");
     setSearchParams(next, { replace: true });
@@ -233,7 +300,6 @@ export default function Gallery({ favoritesOnly = false }) {
       a.click();
       a.remove();
       setTimeout(() => URL.revokeObjectURL(objectUrl), 2000);
-      toast.success("Download iniciado.");
     } catch (err) {
       toast.error(formatApiError(err, t("gal_download_fail")));
     } finally {
@@ -241,9 +307,28 @@ export default function Gallery({ favoritesOnly = false }) {
     }
   };
 
+  const recoverMissing = async () => {
+    setRefreshing(true);
+    try {
+      const { data } = await api.post("/generations/repair");
+      await load({ background: true });
+      if (data?.repaired > 0) {
+        toast.success(`${data.repaired} criação(ões) recuperada(s).`);
+      } else {
+        toast.message("Nada em falta — se a geração ainda corre, aguarda mais um minuto.");
+      }
+    } catch (err) {
+      toast.error(formatApiError(err, "Não foi possível recuperar."));
+    } finally {
+      setRefreshing(false);
+    }
+  };
+
+  const empty = !loading && items.length === 0 && pendingItems.length === 0;
+
   return (
     <div className="max-w-[1200px] mx-auto" data-testid="gallery-page">
-      <div className="mb-10 flex flex-wrap items-end justify-between gap-4">
+      <header className="mb-10 flex flex-wrap items-end justify-between gap-4">
         <div className="flex items-start gap-3 flex-1 min-w-0">
           <div>
             <p className="eyebrow mb-3">{favoritesOnly ? t("fav_eyebrow") : t("gal_eyebrow")}</p>
@@ -251,23 +336,34 @@ export default function Gallery({ favoritesOnly = false }) {
           </div>
           <StudioHelpTip helpKey="help_page_gallery" size="lg" testId="gallery-page-help" className="mt-6 shrink-0" />
         </div>
-        <button
-          type="button"
-          onClick={() => load({ background: true })}
-          disabled={loading}
-          className="btn-secondary !py-2 !px-3 text-xs flex items-center gap-2"
-        >
-          <RefreshCw className={`w-3.5 h-3.5 ${loading || refreshing ? "animate-spin" : ""}`} />
-          Atualizar
-        </button>
-      </div>
+        <div className="flex flex-wrap gap-2">
+          <button
+            type="button"
+            onClick={() => load({ background: true })}
+            disabled={loading}
+            className="btn-secondary !py-2 !px-3 text-xs flex items-center gap-2"
+          >
+            <RefreshCw className={`w-3.5 h-3.5 ${loading || refreshing ? "animate-spin" : ""}`} />
+            {t("gal_refresh")}
+          </button>
+          <button
+            type="button"
+            onClick={recoverMissing}
+            disabled={loading || refreshing}
+            className="btn-secondary !py-2 !px-3 text-xs"
+            data-testid="gallery-recover"
+          >
+            Recuperar criações
+          </button>
+        </div>
+      </header>
 
       {loading ? (
         <div className="flex items-center gap-2 text-rp-mute text-sm py-12">
           <Loader2 className="w-4 h-4 animate-spin" />
           {t("loading")}
         </div>
-      ) : items.length === 0 ? (
+      ) : empty ? (
         <div className="border border-rp-border p-16 text-center" data-testid="gallery-empty">
           <p className="text-rp-mute mb-2 text-sm">{t("gal_empty")}</p>
           <a href="/app/generate" className="text-rp-lavender text-sm hover:underline">
@@ -276,91 +372,38 @@ export default function Gallery({ favoritesOnly = false }) {
         </div>
       ) : (
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3" data-testid="gallery-grid">
-          {items.map((c) => {
-            const busy = busyId === c.id;
-            const hasMedia = Boolean(primaryResultUrl(c));
-            return (
-              <article
-                key={c.id}
-                className="flex flex-col border border-rp-border bg-rp-surface overflow-hidden rounded-sm"
-                data-testid={`gallery-item-${c.id}`}
-              >
-                <div className="relative aspect-square overflow-hidden bg-rp-bg">
-                  <GalleryMedia
-                    creation={c}
-                    className="w-full h-full object-cover"
-                    onClick={() => hasMedia && setViewItem(c)}
-                  />
-                </div>
-
-                <p className="px-2 pt-2 text-rp-mute text-[11px] line-clamp-2 min-h-[2.5rem]">{c.prompt}</p>
-
-                <div className="flex items-center gap-1 p-2 border-t border-rp-border">
-                  <button
-                    type="button"
-                    disabled={busy || !hasMedia}
-                    onClick={() => setViewItem(c)}
-                    className="flex-1 min-h-10 flex items-center justify-center gap-1 rounded border border-rp-border text-rp-text hover:border-rp-lavender hover:text-rp-lavender text-[10px] uppercase tracking-wider disabled:opacity-40"
-                    title="Ver"
-                  >
-                    <Eye className="w-3.5 h-3.5" />
-                    <span className="hidden sm:inline">Ver</span>
-                  </button>
-                  <button
-                    type="button"
-                    disabled={busy || !hasMedia}
-                    onClick={() => handleDownload(c)}
-                    className="min-h-10 min-w-10 flex items-center justify-center rounded border border-rp-border text-rp-text hover:border-rp-lavender hover:text-rp-lavender disabled:opacity-40"
-                    title="Descarregar"
-                  >
-                    <Download className="w-3.5 h-3.5" />
-                  </button>
-                  {videoExtendAccess && isVideoCreation(c) && hasMedia && (
-                    <button
-                      type="button"
-                      disabled={busy}
-                      onClick={() => setExtendItem(c)}
-                      className="min-h-10 min-w-10 flex items-center justify-center rounded border border-rp-border text-rp-text hover:border-[#A855F7] hover:text-[#A855F7] disabled:opacity-40"
-                      title={t("vid_extend_title")}
-                      data-testid={`gallery-extend-${c.id}`}
-                    >
-                      <Film className="w-3.5 h-3.5" />
-                    </button>
-                  )}
-                  <button
-                    type="button"
-                    disabled={busy}
-                    onClick={() => toggleFav(c.id)}
-                    className={`min-h-10 min-w-10 flex items-center justify-center rounded border ${
-                      c.is_favorite
-                        ? "border-rp-purple text-rp-lavender"
-                        : "border-rp-border text-rp-text hover:border-rp-lavender"
-                    } disabled:opacity-40`}
-                    title="Favorito"
-                  >
-                    <Heart className="w-3.5 h-3.5" fill={c.is_favorite ? "currentColor" : "none"} />
-                  </button>
-                  <button
-                    type="button"
-                    disabled={busy}
-                    onClick={() => remove(c.id)}
-                    className="min-h-10 min-w-10 flex items-center justify-center rounded border border-rp-border text-rp-text hover:border-red-400 hover:text-red-400 disabled:opacity-40"
-                    title="Apagar"
-                  >
-                    {busy ? (
-                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                    ) : (
-                      <Trash2 className="w-3.5 h-3.5" />
-                    )}
-                  </button>
-                </div>
-              </article>
-            );
-          })}
+          {pendingItems.map((p) => (
+            <article
+              key={p.prediction_id}
+              className="flex flex-col border border-violet-500/30 bg-rp-surface overflow-hidden rounded-sm"
+              data-testid={`gallery-pending-${p.prediction_id}`}
+            >
+              <div className="relative aspect-square overflow-hidden bg-rp-bg flex flex-col items-center justify-center gap-2">
+                <Loader2 className="w-6 h-6 text-violet-400 animate-spin" />
+                <span className="text-[10px] text-violet-300/90 font-mono uppercase tracking-wide">
+                  {t("gal_processing")}
+                </span>
+              </div>
+            </article>
+          ))}
+          {items.map((item) => (
+            <GalleryCard
+              key={item.id}
+              item={item}
+              busy={busyId === item.id}
+              videoExtendAccess={videoExtendAccess}
+              t={t}
+              onView={setViewItem}
+              onDownload={handleDownload}
+              onExtend={setExtendItem}
+              onToggleFav={toggleFav}
+              onRemove={remove}
+            />
+          ))}
         </div>
       )}
 
-      <GalleryLightbox item={viewItem} onClose={() => setViewItem(null)} t={t} />
+      <GalleryLightbox item={viewItem} onClose={() => setViewItem(null)} t={t} videoExtendAccess={videoExtendAccess} />
       {extendItem && (
         <GalleryExtendModal
           item={extendItem}

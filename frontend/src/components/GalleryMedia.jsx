@@ -1,5 +1,6 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { ImageOff, Loader2 } from "lucide-react";
+import { api } from "../lib/api";
 import {
   displayMediaUrl,
   isVideoCreation,
@@ -7,7 +8,51 @@ import {
   proxiedMediaUrl,
 } from "../lib/creationUrls";
 
-/** Página pública Explore — URLs directas (blob é público). */
+/** Carrega media autenticada quando não há URL directa na criação. */
+function useAuthMediaBlob(creationId, enabled) {
+  const [blobSrc, setBlobSrc] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [failed, setFailed] = useState(false);
+
+  useEffect(() => {
+    if (!enabled || !creationId) {
+      setBlobSrc("");
+      setLoading(false);
+      setFailed(false);
+      return undefined;
+    }
+
+    let objectUrl;
+    let cancelled = false;
+    setLoading(true);
+    setFailed(false);
+    setBlobSrc("");
+
+    (async () => {
+      try {
+        const { data } = await api.get(`/generations/${encodeURIComponent(creationId)}/media`, {
+          responseType: "blob",
+          timeout: 180000,
+        });
+        if (cancelled) return;
+        objectUrl = URL.createObjectURL(data);
+        setBlobSrc(objectUrl);
+      } catch {
+        if (!cancelled) setFailed(true);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
+    };
+  }, [creationId, enabled]);
+
+  return { blobSrc, loading, failed };
+}
+
 function PublicGalleryMedia({ creation, className, onClick }) {
   const rawUrl = primaryResultUrl(creation);
   const [src, setSrc] = useState(() => displayMediaUrl(rawUrl, false));
@@ -52,30 +97,35 @@ function PublicGalleryMedia({ creation, className, onClick }) {
   return inner;
 }
 
-/** Galeria do utilizador — URL directa (rápido) com fallback proxy. */
 function AuthGalleryMedia({ creation, className, onClick }) {
   const rawUrl = primaryResultUrl(creation);
   const isVideo = isVideoCreation(creation, rawUrl);
-  const [src, setSrc] = useState(() => displayMediaUrl(rawUrl, false));
-  const [broken, setBroken] = useState(false);
-  const [loaded, setLoaded] = useState(false);
+  const [directSrc, setDirectSrc] = useState(() => (rawUrl ? displayMediaUrl(rawUrl, false) : ""));
+  const [directBroken, setDirectBroken] = useState(false);
+  const { blobSrc, loading: blobLoading, failed: blobFailed } = useAuthMediaBlob(
+    creation?.id,
+    !rawUrl || directBroken,
+  );
 
   useEffect(() => {
-    setBroken(false);
-    setLoaded(false);
-    setSrc(displayMediaUrl(rawUrl, false));
+    setDirectBroken(false);
+    setDirectSrc(rawUrl ? displayMediaUrl(rawUrl, false) : "");
   }, [rawUrl, creation?.id]);
 
-  const onError = () => {
+  const onDirectError = useCallback(() => {
     const proxy = proxiedMediaUrl(rawUrl);
-    if (proxy && src !== proxy) {
-      setSrc(proxy);
+    if (proxy && directSrc !== proxy) {
+      setDirectSrc(proxy);
       return;
     }
-    setBroken(true);
-  };
+    setDirectBroken(true);
+  }, [rawUrl, directSrc]);
 
-  if (!rawUrl || broken) {
+  const src = (!directBroken && directSrc) ? directSrc : blobSrc;
+  const loading = !src && (Boolean(rawUrl) ? false : blobLoading);
+  const broken = !src && !loading && (directBroken || blobFailed || !creation?.id);
+
+  if (broken) {
     return (
       <div
         className="w-full h-full flex flex-col items-center justify-center gap-2 bg-rp-surface text-rp-mute2"
@@ -89,36 +139,37 @@ function AuthGalleryMedia({ creation, className, onClick }) {
     );
   }
 
-  const inner = isVideo ? (
-    <video
-      src={src}
-      muted
-      playsInline
-      preload="metadata"
-      className={className}
-      onError={onError}
-      onLoadedData={() => setLoaded(true)}
-    />
-  ) : (
-    <img
-      src={src}
-      alt=""
-      className={className}
-      loading="lazy"
-      referrerPolicy="no-referrer"
-      onError={onError}
-      onLoad={() => setLoaded(true)}
-    />
-  );
+  const inner = src ? (
+    isVideo ? (
+      <video
+        src={src}
+        muted
+        playsInline
+        preload="metadata"
+        className={className}
+        onError={onDirectError}
+      />
+    ) : (
+      <img
+        src={src}
+        alt=""
+        className={className}
+        loading="lazy"
+        referrerPolicy="no-referrer"
+        onError={onDirectError}
+      />
+    )
+  ) : null;
 
   return (
     <button
       type="button"
       onClick={onClick}
-      className="relative block w-full h-full p-0 border-0 bg-transparent cursor-pointer text-left"
+      disabled={!src}
+      className="relative block w-full h-full p-0 border-0 bg-transparent cursor-pointer text-left disabled:cursor-default"
       aria-label="Ver"
     >
-      {!loaded && (
+      {loading && (
         <div className="absolute inset-0 z-10 flex items-center justify-center bg-rp-bg/50">
           <Loader2 className="w-5 h-5 text-rp-lavender animate-spin" />
         </div>
@@ -126,6 +177,33 @@ function AuthGalleryMedia({ creation, className, onClick }) {
       {inner}
     </button>
   );
+}
+
+export function useGalleryLightboxMedia(creation) {
+  const rawUrl = primaryResultUrl(creation);
+  const isVideo = isVideoCreation(creation, rawUrl);
+  const [directSrc, setDirectSrc] = useState(() => (rawUrl ? displayMediaUrl(rawUrl, false) : ""));
+  const [directBroken, setDirectBroken] = useState(false);
+  const { blobSrc, loading, failed } = useAuthMediaBlob(creation?.id, !rawUrl || directBroken);
+
+  useEffect(() => {
+    setDirectBroken(false);
+    setDirectSrc(rawUrl ? displayMediaUrl(rawUrl, false) : "");
+  }, [rawUrl, creation?.id]);
+
+  const onDirectError = useCallback(() => {
+    const proxy = proxiedMediaUrl(rawUrl);
+    if (proxy && directSrc !== proxy) {
+      setDirectSrc(proxy);
+      return;
+    }
+    setDirectBroken(true);
+  }, [rawUrl, directSrc]);
+
+  const src = (!directBroken && directSrc) ? directSrc : blobSrc;
+  const broken = !src && !loading && (directBroken || failed);
+
+  return { src, broken, loading, isVideo, onDirectError };
 }
 
 export default function GalleryMedia({ creation, className, onClick, publicView = false }) {

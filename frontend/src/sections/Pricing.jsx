@@ -4,7 +4,6 @@ import { Link } from "react-router-dom";
 import { Sparkles, Zap } from "lucide-react";
 import { useI18n } from "../lib/i18n";
 import { getCreditCostsForRegion, getPackagesForRegion } from "../lib/pricingRegions";
-import { LANDING_STARTER_CREDITS } from "../lib/landingI18n";
 
 const EASE = [0.16, 1, 0.3, 1];
 
@@ -77,7 +76,7 @@ export default function Pricing() {
             {t("pricing_title")}
           </h2>
           <p className="text-[#8A8A8E] text-[15px] mt-4 max-w-[560px] mx-auto">
-            {t("pricing_subtitle", { n: LANDING_STARTER_CREDITS })}
+            {t("pricing_subtitle")}
           </p>
         </motion.div>
 

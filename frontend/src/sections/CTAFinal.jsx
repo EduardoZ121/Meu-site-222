@@ -2,7 +2,6 @@ import { useRef } from "react";
 import { motion, useInView } from "framer-motion";
 import { Link } from "react-router-dom";
 import { useI18n } from "../lib/i18n";
-import { LANDING_STARTER_CREDITS } from "../lib/landingI18n";
 
 const EASE = [0.16, 1, 0.3, 1];
 
@@ -33,7 +32,7 @@ export default function CTAFinal() {
             </h2>
             <div className="flex flex-col sm:flex-row flex-wrap gap-3">
               <Link to="/register" className="btn-primary" data-testid="cta-primary">
-                {t("cta_primary", { n: LANDING_STARTER_CREDITS })}
+                {t("cta_primary")}
               </Link>
               <a href="#pricing" className="btn-secondary" data-testid="cta-secondary">
                 {t("cta_secondary")}

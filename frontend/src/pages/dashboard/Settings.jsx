@@ -11,6 +11,7 @@ import {
   Mail,
   MessageCircle,
 } from "lucide-react";
+import { api, formatApiError } from "../../lib/api";
 import { useAuth } from "../../lib/auth";
 import { useI18n } from "../../lib/i18n";
 import { LANG_LABELS, LANG_ORDER } from "../../lib/localeStrings";
@@ -25,7 +26,7 @@ import StudioHelpTip from "../../components/studio/StudioHelpTip";
 const ASPECTS = ["1:1", "4:5", "9:16", "16:9", "3:2"];
 
 export default function Settings() {
-  const { user, changePassword } = useAuth();
+  const { user, changePassword, refresh } = useAuth();
   const { t, lang } = useI18n();
   useTitle(t("sidebar_settings"));
 
@@ -36,6 +37,8 @@ export default function Settings() {
   const [pwSaving, setPwSaving] = useState(false);
   const [waPhone, setWaPhone] = useState("");
   const [waNotify, setWaNotify] = useState(false);
+  const [emailGenNotify, setEmailGenNotify] = useState(false);
+  const [emailSaving, setEmailSaving] = useState(false);
   const isGoogle = String(user?.id || "").startsWith("google_");
 
   useEffect(() => {
@@ -45,11 +48,29 @@ export default function Settings() {
     setWaNotify(Boolean(s.whatsapp_notify));
   }, []);
 
+  useEffect(() => {
+    setEmailGenNotify(Boolean(user?.email_notify_generations));
+  }, [user?.email_notify_generations]);
+
   const saveWhatsApp = (patch) => {
     const next = writeUserSettings(patch);
     setWaPhone(next.whatsapp_phone || "");
     setWaNotify(Boolean(next.whatsapp_notify));
     toast.success(t("wa_saved"));
+  };
+
+  const saveEmailNotify = async (checked) => {
+    setEmailSaving(true);
+    try {
+      await api.patch("/me/notifications", { email_notify_generations: checked });
+      setEmailGenNotify(checked);
+      await refresh();
+      toast.success(t("email_notify_saved"));
+    } catch (err) {
+      toast.error(formatApiError(err, t("email_notify_fail")));
+    } finally {
+      setEmailSaving(false);
+    }
   };
 
   const pickLang = (code) => {
@@ -115,6 +136,21 @@ export default function Settings() {
             testId="settings-email"
           />
           <LinkRow to="/app/profile" label={t("set_edit_profile")} testId="settings-link-profile" />
+        </Section>
+
+        <Section title={t("email_notify_title")} icon={Mail} helpKey="help_sec_set_email_notify">
+          <p className="text-xs text-[#8A8A8E] mb-4 leading-relaxed">{t("email_notify_desc")}</p>
+          <label className="flex items-start gap-3 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={emailGenNotify}
+              disabled={emailSaving || !user?.email}
+              onChange={(e) => saveEmailNotify(e.target.checked)}
+              className="mt-1 accent-[#7C3AED] w-4 h-4 rounded"
+              data-testid="settings-email-notify"
+            />
+            <span className="text-sm text-[#F4F1EA] leading-relaxed">{t("email_notify_label")}</span>
+          </label>
         </Section>
 
         <Section title={t("set_section_language")} icon={Globe} helpKey="help_sec_set_language">

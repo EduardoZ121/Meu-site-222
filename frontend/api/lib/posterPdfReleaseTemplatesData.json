@@ -1,0 +1,742 @@
+[
+  {
+    "id": "ig_ref_cosmic_wave",
+    "source_id": "ig_ref_cosmic_wave",
+    "familyId": "ig_ref_cosmic_wave",
+    "styleVariants": true,
+    "category": "music",
+    "label": "COSMIC WAVE",
+    "subtag": "2 pessoas · Release IG",
+    "requiresDualPhoto": true,
+    "productTemplate": false,
+    "placeholders": [
+      "MAIN_TITLE",
+      "ARTIST_NAME"
+    ],
+    "optional": [],
+    "replacements": {
+      "MAIN_TITLE": "COSMIC WAVE",
+      "ARTIST_NAME": "ARTIST NAME"
+    },
+    "prompt": "Use the uploaded reference image as the identity source. Replace ONLY the original models with the uploaded person(s) while preserving the exact composition, pose, facial orientation, camera distance, crop, typography placement, and graphic design layout.\n\nCreate a modern Instagram music release poster featuring two real people positioned exactly like the reference image. One person occupies the left side with a serious confident expression, while the second person stands slightly behind on the right with a relaxed smile. Maintain the exact upper-body framing and shoulder positioning. Dark urban nightlife background with cinematic bokeh city lights. Large bold neon green title text \"{{MAIN_TITLE}}\" occupying the center-left area with handwritten white brush script overlapping the typography. Include a bright neon green rectangular artist label beneath the title reading \"{{ARTIST_NAME}}\". Add subtle green glow effects around text elements. Modern music promotion aesthetic, realistic photography, editorial style, premium social media design, vibrant contrast, professional typography hierarchy, sharp focus, cinematic lighting, ultra detailed skin texture, realistic clothing textures, Instagram poster layout, masterpiece, best quality, 8k.",
+    "aspect": "4:5"
+  },
+  {
+    "id": "ig_ref_galaxy",
+    "source_id": "ig_ref_galaxy",
+    "familyId": "ig_ref_galaxy",
+    "styleVariants": true,
+    "category": "music",
+    "label": "GALAXY",
+    "subtag": "2 pessoas · Minimal",
+    "requiresDualPhoto": true,
+    "productTemplate": false,
+    "placeholders": [
+      "MAIN_TITLE",
+      "SUBTITLE"
+    ],
+    "optional": [],
+    "replacements": {
+      "MAIN_TITLE": "GALAXY",
+      "SUBTITLE": "NEW SINGLE"
+    },
+    "prompt": "Use the uploaded reference image as the identity source. Replace ONLY the original models with the uploaded person(s) while preserving the exact composition, pose, facial orientation, camera distance, crop, typography placement, and graphic design layout.\n\nCreate a minimalist Instagram music poster with a pure white background. Two real people positioned exactly as the reference: one seated casually on the floor in oversized neutral streetwear, while the second person crouches slightly behind with confident posture and sunglasses. Large bold black typography \"{{MAIN_TITLE}}\" at the top with secondary green accent text \"{{SUBTITLE}}\" underneath. Include small green starburst graphics, arrows, minimal icons, and clean editorial spacing throughout the design. Contemporary magazine aesthetic, Scandinavian minimalism, premium music promotion design, realistic photography, soft studio lighting, clean typography hierarchy, fashionable styling, professional social media layout, ultra detailed, masterpiece, best quality, 8k.",
+    "aspect": "4:5"
+  },
+  {
+    "id": "ig_ref_chaos_theory",
+    "source_id": "ig_ref_chaos_theory",
+    "familyId": "ig_ref_chaos_theory",
+    "styleVariants": true,
+    "category": "music",
+    "label": "CHAOS THEORY",
+    "subtag": "2 pessoas · Grunge",
+    "requiresDualPhoto": true,
+    "productTemplate": false,
+    "placeholders": [
+      "MAIN_TITLE"
+    ],
+    "optional": [],
+    "replacements": {
+      "MAIN_TITLE": "CHAOS THEORY"
+    },
+    "prompt": "Use the uploaded reference image as the identity source. Replace ONLY the original models with the uploaded person(s) while preserving the exact composition, pose, facial orientation, camera distance, crop, typography placement, and graphic design layout.\n\nCreate a bold Instagram music poster featuring two real people positioned exactly as shown in the reference image. One person stands in front wearing futuristic green sunglasses and edgy streetwear. The second person stands slightly behind with crossed arms and confident attitude. Black textured grunge background with white paint splashes. Large dynamic typography \"{{MAIN_TITLE}}\" in white and neon green brush style lettering occupying the top area. Include small handwritten annotations, stickers, crown icons, and green accent graphics. Urban streetwear editorial aesthetic, cyber-inspired fashion photography, high contrast lighting, premium music cover design, detailed clothing textures, confident expressions, modern typography composition, Instagram poster style, masterpiece, best quality, 8k.",
+    "aspect": "4:5"
+  },
+  {
+    "id": "ig_ref_neon_ghost",
+    "source_id": "ig_ref_neon_ghost",
+    "familyId": "ig_ref_neon_ghost",
+    "styleVariants": true,
+    "category": "music",
+    "label": "NEON GHOST",
+    "subtag": "1 pessoa · Cyberpunk",
+    "requiresDualPhoto": false,
+    "productTemplate": false,
+    "placeholders": [
+      "MAIN_TITLE"
+    ],
+    "optional": [],
+    "replacements": {
+      "MAIN_TITLE": "NEON GHOST"
+    },
+    "prompt": "Use the uploaded reference image as the identity source. Replace ONLY the original model with the uploaded person while preserving the exact composition, pose, facial angle, framing, typography placement, and poster structure.\n\nCreate a vertical Instagram music release poster featuring a real person occupying the right side of the composition. The subject wears dark streetwear and stylish glasses with a serious expression, maintaining the same upper-body crop and body orientation. Dark black background enhanced with intense purple neon lighting effects and atmospheric glow. Large condensed typography \"{{MAIN_TITLE}}\" stacked vertically on the left side. Include small music promotion details and futuristic decorative symbols. Cinematic portrait photography, neon cyberpunk atmosphere, premium music marketing aesthetic, dramatic lighting, realistic skin texture, fashion editorial style, modern typography, social media promotional design, masterpiece, best quality, 8k.",
+    "aspect": "4:5"
+  },
+  {
+    "id": "ig_ref_sunset_frenzy",
+    "source_id": "ig_ref_sunset_frenzy",
+    "familyId": "ig_ref_sunset_frenzy",
+    "styleVariants": true,
+    "category": "music",
+    "label": "SUNSET FRENZY",
+    "subtag": "1 pessoa · Tropical",
+    "requiresDualPhoto": false,
+    "productTemplate": false,
+    "placeholders": [
+      "MAIN_TITLE"
+    ],
+    "optional": [],
+    "replacements": {
+      "MAIN_TITLE": "SUNSET FRENZY"
+    },
+    "prompt": "Use the uploaded reference image as the identity source. Replace ONLY the original model with the uploaded person while preserving the exact composition, pose, facial angle, framing, typography placement, and poster structure.\n\nCreate an energetic Instagram music poster featuring a real person centered in the composition wearing vibrant orange fashion styling and orange sunglasses. Maintain the exact pose adjusting the sunglasses with one hand while facing the camera confidently. Bright tropical orange gradient background with playful doodles, arrows, and abstract graphic elements. Large torn-paper style typography \"{{MAIN_TITLE}}\" placed prominently across the center. Include tropical accents and dynamic visual energy. Summer festival aesthetic, fashion editorial photography, vibrant warm tones, premium social media design, realistic skin details, stylish accessories, music promotion layout, high energy atmosphere, masterpiece, best quality, 8k.",
+    "aspect": "4:5"
+  },
+  {
+    "id": "ig_ref_static_noise",
+    "source_id": "ig_ref_static_noise",
+    "familyId": "ig_ref_static_noise",
+    "styleVariants": true,
+    "category": "music",
+    "label": "STATIC NOISE",
+    "subtag": "1 pessoa · Mono editorial",
+    "requiresDualPhoto": false,
+    "productTemplate": false,
+    "placeholders": [
+      "MAIN_TITLE"
+    ],
+    "optional": [],
+    "replacements": {
+      "MAIN_TITLE": "STATIC NOISE"
+    },
+    "prompt": "Use the uploaded reference image as the identity source. Replace ONLY the original model with the uploaded person while preserving the exact composition, pose, facial angle, framing, typography placement, and poster structure.\n\nCreate a sophisticated Instagram music poster featuring a real person positioned on the right side in side profile view, wearing dark fashion clothing and sunglasses. Maintain the exact posture and head angle from the reference image. Minimalist black and white design with bold oversized typography \"{{MAIN_TITLE}}\" dominating the left side. Add yellow accent graphics, warning labels, geometric elements, and modern editorial details throughout the composition. Luxury fashion photography, premium music branding, clean contemporary typography, high contrast monochrome styling with yellow highlights, realistic portrait details, professional social media marketing design, masterpiece, best quality, 8k.",
+    "aspect": "4:5"
+  },
+  {
+    "id": "ig_ref_galaxy_boom",
+    "source_id": "ig_ref_galaxy_boom",
+    "familyId": "ig_ref_galaxy_boom",
+    "styleVariants": true,
+    "category": "music",
+    "label": "GALAXY BOOM ZAP!",
+    "subtag": "2 pessoas · Neon stack",
+    "requiresDualPhoto": true,
+    "productTemplate": false,
+    "placeholders": [
+      "MAIN_TITLE",
+      "ARTIST_NAME"
+    ],
+    "optional": [],
+    "replacements": {
+      "MAIN_TITLE": "GALAXY BOOM ZAP!",
+      "ARTIST_NAME": "ARTIST NAME"
+    },
+    "prompt": "Use the uploaded reference image as the identity source. Replace ONLY the original models with the uploaded person(s) while preserving the exact composition, pose, facial orientation, camera distance, crop, typography placement, and graphic design layout.\n\nCreate a high-energy Instagram music release poster featuring two real people positioned exactly like the reference. One subject occupies the left side with a confident serious expression, pointing slightly toward the viewer, while the second subject stands behind to the right with a relaxed smile. Dark urban nightlife background with cinematic city bokeh lights. Large stacked neon green typography \"{{MAIN_TITLE}}\" dominating the center. Add white handwritten brush lettering overlays and a bright green rectangular artist name banner \"{{ARTIST_NAME}}\" underneath. Modern music promotion aesthetic, realistic photography, streetwear editorial style, cinematic lighting, vibrant green neon glow effects, premium social media design, ultra detailed skin texture, realistic fashion styling, masterpiece, best quality, 8k.",
+    "aspect": "4:5"
+  },
+  {
+    "id": "ig_ref_sunday_crunch",
+    "source_id": "ig_ref_sunday_crunch",
+    "familyId": "ig_ref_sunday_crunch",
+    "styleVariants": true,
+    "category": "music",
+    "label": "SUNDAY CRUNCH",
+    "subtag": "2 pessoas · Studio clean",
+    "requiresDualPhoto": true,
+    "productTemplate": false,
+    "placeholders": [
+      "MAIN_TITLE"
+    ],
+    "optional": [],
+    "replacements": {
+      "MAIN_TITLE": "SUNDAY CRUNCH"
+    },
+    "prompt": "Use the uploaded reference image as the identity source. Replace ONLY the original models with the uploaded person(s) while preserving the exact composition, pose, facial orientation, camera distance, crop, typography placement, and graphic design layout.\n\nCreate a minimalist Instagram music poster with a bright white studio background. Two real people positioned exactly as shown: one seated comfortably on the floor in relaxed streetwear, while the second person crouches slightly behind with sunglasses and a confident attitude. Large bold black and blue typography \"{{MAIN_TITLE}}\" occupying the upper portion. Include blue spiral graphics, small arrows, editorial symbols, and clean spacing throughout the design. Contemporary editorial design, Scandinavian minimalist aesthetic, premium music branding, realistic studio photography, soft lighting, fashionable styling, modern typography hierarchy, professional Instagram poster, masterpiece, best quality, 8k.",
+    "aspect": "4:5"
+  },
+  {
+    "id": "ig_ref_thunder_clap",
+    "source_id": "ig_ref_thunder_clap",
+    "familyId": "ig_ref_thunder_clap",
+    "styleVariants": true,
+    "category": "music",
+    "label": "THUNDER CLAP",
+    "subtag": "2 pessoas · Alt street",
+    "requiresDualPhoto": true,
+    "productTemplate": false,
+    "placeholders": [
+      "MAIN_TITLE"
+    ],
+    "optional": [],
+    "replacements": {
+      "MAIN_TITLE": "THUNDER CLAP"
+    },
+    "prompt": "Use the uploaded reference image as the identity source. Replace ONLY the original models with the uploaded person(s) while preserving the exact composition, pose, facial orientation, camera distance, crop, typography placement, and graphic design layout.\n\nCreate an edgy Instagram music poster featuring two real people in bold alternative fashion. The front subject wears futuristic green sunglasses and statement streetwear, while the second person stands slightly behind maintaining a confident posture. Dark grunge black background with paint splatter textures. Large expressive typography \"{{MAIN_TITLE}}\" using white and vibrant green brush lettering. Include small doodles, sticker-like elements, and handwritten annotations. Alternative fashion editorial photography, cyber streetwear aesthetic, dramatic lighting, premium social media marketing design, realistic skin textures, urban music branding, masterpiece, best quality, 8k.",
+    "aspect": "4:5"
+  },
+  {
+    "id": "ig_ref_midnight_rumble",
+    "source_id": "ig_ref_midnight_rumble",
+    "familyId": "ig_ref_midnight_rumble",
+    "styleVariants": true,
+    "category": "music",
+    "label": "MIDNIGHT RUMBLE",
+    "subtag": "1 pessoa · Purple neon",
+    "requiresDualPhoto": false,
+    "productTemplate": false,
+    "placeholders": [
+      "MAIN_TITLE"
+    ],
+    "optional": [],
+    "replacements": {
+      "MAIN_TITLE": "MIDNIGHT RUMBLE"
+    },
+    "prompt": "Use the uploaded reference image as the identity source. Replace ONLY the original model with the uploaded person while preserving the exact composition, pose, facial angle, framing, typography placement, and poster structure.\n\nCreate a vertical Instagram music release poster featuring a real person positioned on the right side with a serious expression. The subject wears dark casual streetwear and transparent fashion glasses, maintaining the exact upper-body crop. Deep purple neon background with atmospheric glow effects. Large stacked typography \"{{MAIN_TITLE}}\" occupying the left side of the composition. Add minimal futuristic symbols and decorative elements near the bottom. Premium music cover design, cinematic portrait photography, urban editorial style, dramatic purple lighting, realistic skin texture, high-end social media design, masterpiece, best quality, 8k.",
+    "aspect": "4:5"
+  },
+  {
+    "id": "ig_ref_tropical_frenzy",
+    "source_id": "ig_ref_tropical_frenzy",
+    "familyId": "ig_ref_tropical_frenzy",
+    "styleVariants": true,
+    "category": "music",
+    "label": "TROPICAL FRENZY",
+    "subtag": "1 pessoa · Orange burst",
+    "requiresDualPhoto": false,
+    "productTemplate": false,
+    "placeholders": [
+      "MAIN_TITLE",
+      "SUBTITLE"
+    ],
+    "optional": [],
+    "replacements": {
+      "MAIN_TITLE": "TROPICAL FRENZY",
+      "SUBTITLE": "OUT NOW"
+    },
+    "prompt": "Use the uploaded reference image as the identity source. Replace ONLY the original model with the uploaded person while preserving the exact composition, pose, facial angle, framing, typography placement, and poster structure.\n\nCreate a vibrant Instagram music poster featuring a real person centered in the frame wearing tropical orange fashion styling and orange sunglasses. Maintain the exact pose with one hand adjusting the sunglasses confidently. Bright orange tropical background with playful hand-drawn arrows, abstract doodles, and energetic graphic accents. Large ripped-paper typography \"{{MAIN_TITLE}}\" placed centrally with additional smaller label \"{{SUBTITLE}}\" beneath. Summer festival editorial aesthetic, realistic fashion photography, energetic composition, premium social media branding, vibrant warm tones, ultra detailed skin textures, masterpiece, best quality, 8k.",
+    "aspect": "4:5"
+  },
+  {
+    "id": "ig_ref_friday_vibes",
+    "source_id": "ig_ref_friday_vibes",
+    "familyId": "ig_ref_friday_vibes",
+    "styleVariants": true,
+    "category": "concert",
+    "label": "FRIDAY VIBES",
+    "subtag": "2 pessoas · Club night",
+    "requiresDualPhoto": true,
+    "productTemplate": false,
+    "placeholders": [
+      "MAIN_TITLE",
+      "EVENT_INFO"
+    ],
+    "optional": [],
+    "replacements": {
+      "MAIN_TITLE": "FRIDAY VIBES",
+      "EVENT_INFO": "LIVE · 9PM"
+    },
+    "prompt": "Use the uploaded reference image as the identity source. Replace ONLY the original models with the uploaded person(s) while preserving the exact composition, pose, facial orientation, camera distance, crop, typography placement, and graphic design layout.\n\nCreate an energetic Instagram Friday music event poster featuring two real people positioned exactly like the reference. One subject stands in the foreground with crossed arms and a confident expression, while the second subject stands slightly behind with a relaxed attitude. Dark urban background with subtle red lighting accents. Large bold distressed typography \"{{MAIN_TITLE}}\" dominating the upper section. Include handwritten brush elements, event information \"{{EVENT_INFO}}\", and red geometric accents. Nightlife editorial photography, premium club promotion design, realistic portrait details, cinematic lighting, social media event marketing aesthetic, masterpiece, best quality, 8k.",
+    "aspect": "4:5"
+  },
+  {
+    "id": "ig_ref_friday_heat",
+    "source_id": "ig_ref_friday_heat",
+    "familyId": "ig_ref_friday_heat",
+    "styleVariants": true,
+    "category": "concert",
+    "label": "FRIDAY HEAT",
+    "subtag": "2 pessoas · Pink neon",
+    "requiresDualPhoto": true,
+    "productTemplate": false,
+    "placeholders": [
+      "MAIN_TITLE"
+    ],
+    "optional": [],
+    "replacements": {
+      "MAIN_TITLE": "FRIDAY HEAT"
+    },
+    "prompt": "Use the uploaded reference image as the identity source. Replace ONLY the original models with the uploaded person(s) while preserving the exact composition, pose, facial orientation, camera distance, crop, typography placement, and graphic design layout.\n\nCreate a bold Friday event poster featuring two real people styled in contemporary fashion. One person occupies the foreground with a confident attitude, while the second stands behind maintaining the exact composition. Dark background enhanced with vibrant pink and red graphic accents. Large expressive typography \"{{MAIN_TITLE}}\" combined with handwritten elements and decorative symbols. Fashion-forward nightlife photography, premium event branding, realistic skin textures, energetic social media design, urban editorial aesthetic, masterpiece, best quality, 8k.",
+    "aspect": "4:5"
+  },
+  {
+    "id": "ig_ref_friday_night",
+    "source_id": "ig_ref_friday_night",
+    "familyId": "ig_ref_friday_night",
+    "styleVariants": true,
+    "category": "concert",
+    "label": "FRIDAY NIGHT",
+    "subtag": "1 pessoa · Purple club",
+    "requiresDualPhoto": false,
+    "productTemplate": false,
+    "placeholders": [
+      "MAIN_TITLE",
+      "EVENT_INFO"
+    ],
+    "optional": [],
+    "replacements": {
+      "MAIN_TITLE": "FRIDAY NIGHT",
+      "EVENT_INFO": "DOORS 10PM"
+    },
+    "prompt": "Use the uploaded reference image as the identity source. Replace ONLY the original model with the uploaded person while preserving the exact composition, pose, facial angle, framing, typography placement, and poster structure.\n\nCreate a vertical Friday nightlife Instagram poster featuring a real person positioned exactly like the reference image. Maintain the same expression, body orientation, and portrait crop. Dark background with intense purple neon lighting effects. Large stacked typography \"{{MAIN_TITLE}}\" occupying the left side. Include subtle nightlife icons and promotional details \"{{EVENT_INFO}}\". Premium nightlife branding, cinematic portrait photography, urban editorial style, realistic portrait rendering, social media marketing design, masterpiece, best quality, 8k.",
+    "aspect": "4:5"
+  },
+  {
+    "id": "ig_ref_weekend_rush",
+    "source_id": "ig_ref_weekend_rush",
+    "familyId": "ig_ref_weekend_rush",
+    "styleVariants": true,
+    "category": "concert",
+    "label": "WEEKEND RUSH",
+    "subtag": "1 pessoa · Festival orange",
+    "requiresDualPhoto": false,
+    "productTemplate": false,
+    "placeholders": [
+      "MAIN_TITLE"
+    ],
+    "optional": [],
+    "replacements": {
+      "MAIN_TITLE": "WEEKEND RUSH"
+    },
+    "prompt": "Use the uploaded reference image as the identity source. Replace ONLY the original model with the uploaded person while preserving the exact composition, pose, facial angle, framing, typography placement, and poster structure.\n\nCreate a vibrant Friday promotional poster featuring a real person centered in the composition wearing modern stylish clothing. Maintain the same confident pose adjusting accessories or sunglasses. Bright orange background with energetic abstract doodles, arrows, and dynamic graphic elements. Large torn-paper typography \"{{MAIN_TITLE}}\" dominating the composition. Festival-inspired editorial photography, realistic fashion details, premium social media branding, energetic atmosphere, masterpiece, best quality, 8k.",
+    "aspect": "4:5"
+  },
+  {
+    "id": "ig_ref_after_dark",
+    "source_id": "ig_ref_after_dark",
+    "familyId": "ig_ref_after_dark",
+    "styleVariants": true,
+    "category": "concert",
+    "label": "AFTER DARK",
+    "subtag": "1 pessoa · Mono + yellow",
+    "requiresDualPhoto": false,
+    "productTemplate": false,
+    "placeholders": [
+      "MAIN_TITLE"
+    ],
+    "optional": [],
+    "replacements": {
+      "MAIN_TITLE": "AFTER DARK"
+    },
+    "prompt": "Use the uploaded reference image as the identity source. Replace ONLY the original model with the uploaded person while preserving the exact composition, pose, facial angle, framing, typography placement, and poster structure.\n\nCreate a sophisticated Friday event poster featuring a real person positioned exactly as shown in the reference image. Maintain the same side-profile orientation and confident attitude. Black background with oversized white typography \"{{MAIN_TITLE}}\" and yellow graphic accents. Include modern editorial symbols, warning-inspired labels, and geometric elements. Luxury nightlife editorial photography, premium event promotion design, monochrome aesthetic with yellow highlights, realistic portrait rendering, masterpiece, best quality, 8k.",
+    "aspect": "4:5"
+  },
+  {
+    "id": "ig_ref_focus",
+    "source_id": "ig_ref_focus",
+    "familyId": "ig_ref_focus",
+    "styleVariants": true,
+    "category": "motivational",
+    "label": "FOCUS",
+    "subtag": "1 pessoa · Minimal mono",
+    "requiresDualPhoto": false,
+    "productTemplate": false,
+    "placeholders": [
+      "MAIN_TITLE",
+      "QUOTE"
+    ],
+    "optional": [],
+    "replacements": {
+      "MAIN_TITLE": "FOCUS",
+      "QUOTE": "Discipline beats motivation."
+    },
+    "prompt": "Use the uploaded reference image as the identity source. Replace ONLY the original model with the uploaded person while preserving the exact composition, pose, facial angle, framing, typography placement, and poster structure.\n\nCreate a motivational Instagram poster featuring a real person positioned exactly as shown in the reference image. Maintain the same confident posture and direct gaze. Minimal black and white composition with massive bold typography \"{{MAIN_TITLE}}\" dominating most of the layout. Include a small motivational quote \"{{QUOTE}}\" underneath and subtle editorial details. Clean editorial aesthetic, realistic portrait photography, minimalist social media design, premium typography hierarchy, motivational branding, masterpiece, best quality, 8k.",
+    "aspect": "4:5"
+  },
+  {
+    "id": "ig_ref_keep_going",
+    "source_id": "ig_ref_keep_going",
+    "familyId": "ig_ref_keep_going",
+    "styleVariants": true,
+    "category": "motivational",
+    "label": "KEEP GOING",
+    "subtag": "1 pessoa · Editorial type",
+    "requiresDualPhoto": false,
+    "productTemplate": false,
+    "placeholders": [
+      "MAIN_TITLE",
+      "QUOTE"
+    ],
+    "optional": [],
+    "replacements": {
+      "MAIN_TITLE": "KEEP GOING",
+      "QUOTE": "One step at a time."
+    },
+    "prompt": "Use the uploaded reference image as the identity source. Replace ONLY the original model with the uploaded person while preserving the exact composition, pose, facial angle, framing, typography placement, and poster structure.\n\nCreate a motivational Instagram poster with a monochromatic background. Position the real person exactly like the reference image with a determined expression. Large typography \"{{MAIN_TITLE}}\" integrated into the background with elegant spacing. Include small inspirational quote \"{{QUOTE}}\" and minimal graphic elements. Modern editorial portrait style, realistic skin texture, inspirational social media design, sophisticated typography composition, masterpiece, best quality, 8k.",
+    "aspect": "4:5"
+  },
+  {
+    "id": "ig_ref_dream_big",
+    "source_id": "ig_ref_dream_big",
+    "familyId": "ig_ref_dream_big",
+    "styleVariants": true,
+    "category": "motivational",
+    "label": "DREAM BIG",
+    "subtag": "1 pessoa · Blue gradient",
+    "requiresDualPhoto": false,
+    "productTemplate": false,
+    "placeholders": [
+      "MAIN_TITLE",
+      "QUOTE"
+    ],
+    "optional": [],
+    "replacements": {
+      "MAIN_TITLE": "DREAM BIG",
+      "QUOTE": "Your future starts today."
+    },
+    "prompt": "Use the uploaded reference image as the identity source. Replace ONLY the original model with the uploaded person while preserving the exact composition, pose, facial angle, framing, typography placement, and poster structure.\n\nCreate a powerful motivational poster featuring a real person positioned exactly as shown in the reference image. Dark blue gradient background with large bold typography \"{{MAIN_TITLE}}\". Include inspirational quote \"{{QUOTE}}\" and subtle geometric accents. Premium portrait photography, modern self-development branding, realistic details, clean typography hierarchy, Instagram motivational aesthetic, masterpiece, best quality, 8k.",
+    "aspect": "4:5"
+  },
+  {
+    "id": "ig_ref_never_give_up",
+    "source_id": "ig_ref_never_give_up",
+    "familyId": "ig_ref_never_give_up",
+    "styleVariants": true,
+    "category": "motivational",
+    "label": "NEVER GIVE UP",
+    "subtag": "1 pessoa · Red grit",
+    "requiresDualPhoto": false,
+    "productTemplate": false,
+    "placeholders": [
+      "MAIN_TITLE"
+    ],
+    "optional": [],
+    "replacements": {
+      "MAIN_TITLE": "NEVER GIVE UP"
+    },
+    "prompt": "Use the uploaded reference image as the identity source. Replace ONLY the original model with the uploaded person while preserving the exact composition, pose, facial angle, framing, typography placement, and poster structure.\n\nCreate an intense motivational poster featuring a real person maintaining the exact pose from the reference image. Black textured background with red accent graphics. Large typography \"{{MAIN_TITLE}}\" dominating the composition. Include dynamic brush strokes and subtle motivational details. Cinematic portrait photography, bold motivational branding, realistic textures, social media poster aesthetic, masterpiece, best quality, 8k.",
+    "aspect": "4:5"
+  },
+  {
+    "id": "ig_ref_stay_strong",
+    "source_id": "ig_ref_stay_strong",
+    "familyId": "ig_ref_stay_strong",
+    "styleVariants": true,
+    "category": "motivational",
+    "label": "STAY STRONG",
+    "subtag": "1 pessoa · Clean white",
+    "requiresDualPhoto": false,
+    "productTemplate": false,
+    "placeholders": [
+      "MAIN_TITLE",
+      "QUOTE"
+    ],
+    "optional": [],
+    "replacements": {
+      "MAIN_TITLE": "STAY STRONG",
+      "QUOTE": "Strength grows in silence."
+    },
+    "prompt": "Use the uploaded reference image as the identity source. Replace ONLY the original model with the uploaded person while preserving the exact composition, pose, facial angle, framing, typography placement, and poster structure.\n\nCreate a clean motivational Instagram poster with a real person positioned exactly like the reference. Minimal white and gray background with large elegant typography \"{{MAIN_TITLE}}\". Include subtle quote section \"{{QUOTE}}\" and refined editorial spacing. Contemporary minimalist design, realistic portrait photography, premium motivational branding, professional typography, masterpiece, best quality, 8k.",
+    "aspect": "4:5"
+  },
+  {
+    "id": "ig_ref_progress_perfection",
+    "source_id": "ig_ref_progress_perfection",
+    "familyId": "ig_ref_progress_perfection",
+    "styleVariants": true,
+    "category": "motivational",
+    "label": "PROGRESS OVER PERFECTION",
+    "subtag": "1 pessoa · Growth",
+    "requiresDualPhoto": false,
+    "productTemplate": false,
+    "placeholders": [
+      "MAIN_TITLE"
+    ],
+    "optional": [],
+    "replacements": {
+      "MAIN_TITLE": "PROGRESS OVER PERFECTION"
+    },
+    "prompt": "Use the uploaded reference image as the identity source. Replace ONLY the original model with the uploaded person while preserving the exact composition, pose, facial angle, framing, typography placement, and poster structure.\n\nCreate a modern motivational poster featuring a real person in the same pose and orientation as the reference image. Dark background with green accent details and oversized typography \"{{MAIN_TITLE}}\". Include subtle icons, progress indicators, and motivational elements. Premium editorial portrait photography, realistic skin details, growth mindset branding, social media optimized design, masterpiece, best quality, 8k.",
+    "aspect": "4:5"
+  },
+  {
+    "id": "ig_ref_fashion_putra",
+    "source_id": "ig_ref_fashion_putra",
+    "familyId": "ig_ref_fashion_putra",
+    "styleVariants": true,
+    "category": "fashion",
+    "label": "PUTRA STORE",
+    "subtag": "1 pessoa · Beige sale",
+    "requiresDualPhoto": false,
+    "productTemplate": false,
+    "placeholders": [
+      "BRAND_NAME",
+      "MAIN_TITLE",
+      "DISCOUNT"
+    ],
+    "optional": [],
+    "replacements": {
+      "BRAND_NAME": "PUTRA STORE",
+      "MAIN_TITLE": "Fashion Sale",
+      "DISCOUNT": "50% OFF"
+    },
+    "prompt": "Use the uploaded reference image as the identity source. Replace ONLY the original model with the uploaded person while preserving the exact composition, pose, facial angle, framing, typography placement, and poster structure.\n\nCreate a premium Instagram fashion sale poster featuring a real person positioned exactly like the reference image. Maintain the same confident standing pose and elegant body orientation. Warm beige background with luxury minimalist aesthetics. Large typography \"{{BRAND_NAME}}\" positioned prominently at the top with secondary text \"{{MAIN_TITLE}}\". Include a bold discount badge displaying \"{{DISCOUNT}}\" and a clean call-to-action button. Editorial fashion photography, premium clothing advertisement design, realistic skin textures, luxury brand identity, sophisticated typography hierarchy, minimalist social media marketing style, masterpiece, best quality, 8k.",
+    "aspect": "4:5"
+  },
+  {
+    "id": "ig_ref_fashion_sale_gold",
+    "source_id": "ig_ref_fashion_sale_gold",
+    "familyId": "ig_ref_fashion_sale_gold",
+    "styleVariants": true,
+    "category": "fashion",
+    "label": "FASHION SALE",
+    "subtag": "1 pessoa · Gold luxury",
+    "requiresDualPhoto": false,
+    "productTemplate": false,
+    "placeholders": [
+      "MAIN_TITLE",
+      "DISCOUNT"
+    ],
+    "optional": [],
+    "replacements": {
+      "MAIN_TITLE": "FASHION SALE",
+      "DISCOUNT": "30% OFF"
+    },
+    "prompt": "Use the uploaded reference image as the identity source. Replace ONLY the original model with the uploaded person while preserving the exact composition, pose, facial angle, framing, typography placement, and poster structure.\n\nCreate an elegant luxury fashion Instagram sale poster featuring a real person maintaining the exact posture shown in the reference image. Black background enhanced with gold luxury accents. Large elegant typography \"{{MAIN_TITLE}}\" dominating the upper portion. Include promotional information, discount labels \"{{DISCOUNT}}\", and sophisticated decorative details. High-end editorial fashion photography, premium branding aesthetic, realistic textures, luxury social media marketing design, masterpiece, best quality, 8k.",
+    "aspect": "4:5"
+  },
+  {
+    "id": "ig_ref_modern_collection",
+    "source_id": "ig_ref_modern_collection",
+    "familyId": "ig_ref_modern_collection",
+    "styleVariants": true,
+    "category": "fashion",
+    "label": "MODERN COLLECTION",
+    "subtag": "1 pessoa · White editorial",
+    "requiresDualPhoto": false,
+    "productTemplate": false,
+    "placeholders": [
+      "MAIN_TITLE",
+      "CTA"
+    ],
+    "optional": [],
+    "replacements": {
+      "MAIN_TITLE": "MODERN COLLECTION",
+      "CTA": "SHOP NOW"
+    },
+    "prompt": "Use the uploaded reference image as the identity source. Replace ONLY the original model with the uploaded person while preserving the exact composition, pose, facial angle, framing, typography placement, and poster structure.\n\nCreate a contemporary fashion promotional poster featuring a real person positioned exactly like the reference image. Clean white background with magazine-inspired editorial layout. Large typography \"{{MAIN_TITLE}}\" integrated harmoniously into the composition. Include collection details and stylish call-to-action \"{{CTA}}\". Minimalist fashion photography, premium editorial branding, realistic portrait details, Instagram-ready marketing design, masterpiece, best quality, 8k.",
+    "aspect": "4:5"
+  },
+  {
+    "id": "ig_ref_seasonal_sale",
+    "source_id": "ig_ref_seasonal_sale",
+    "familyId": "ig_ref_seasonal_sale",
+    "styleVariants": true,
+    "category": "fashion",
+    "label": "SEASONAL SALE",
+    "subtag": "1 pessoa · Red promo",
+    "requiresDualPhoto": false,
+    "productTemplate": false,
+    "placeholders": [
+      "MAIN_TITLE",
+      "DISCOUNT"
+    ],
+    "optional": [],
+    "replacements": {
+      "MAIN_TITLE": "SEASONAL SALE",
+      "DISCOUNT": "UP TO 40% OFF"
+    },
+    "prompt": "Use the uploaded reference image as the identity source. Replace ONLY the original model with the uploaded person while preserving the exact composition, pose, facial angle, framing, typography placement, and poster structure.\n\nCreate a bold fashion sale poster featuring a real person maintaining the exact pose from the reference image. Vibrant red promotional background with dynamic typography \"{{MAIN_TITLE}}\". Include discount banners \"{{DISCOUNT}}\", promotional badges, and shopping-inspired graphic elements. Commercial fashion advertising photography, premium retail branding, realistic textures, engaging social media marketing design, masterpiece, best quality, 8k.",
+    "aspect": "4:5"
+  },
+  {
+    "id": "ig_ref_art_exhibition",
+    "source_id": "ig_ref_art_exhibition",
+    "familyId": "ig_ref_art_exhibition",
+    "styleVariants": true,
+    "category": "editorial",
+    "label": "ART EXHIBITION",
+    "subtag": "1 pessoa · Gallery",
+    "requiresDualPhoto": false,
+    "productTemplate": false,
+    "placeholders": [
+      "MAIN_TITLE",
+      "EVENT_DATE"
+    ],
+    "optional": [],
+    "replacements": {
+      "MAIN_TITLE": "ART EXHIBITION",
+      "EVENT_DATE": "JUNE 2026"
+    },
+    "prompt": "Use the uploaded reference image as the identity source. Replace ONLY the original model with the uploaded person while preserving the exact composition, pose, facial angle, framing, typography placement, and poster structure.\n\nCreate a sophisticated art exhibition Instagram poster featuring a real person positioned exactly as shown in the reference image. Elegant gallery-inspired background with contemporary artistic elements. Large typography \"{{MAIN_TITLE}}\" prominently displayed. Include exhibition details \"{{EVENT_DATE}}\", date placeholders, and artistic accent graphics. Editorial portrait photography, luxury cultural branding, premium typography design, sophisticated exhibition marketing aesthetic, masterpiece, best quality, 8k.",
+    "aspect": "4:5"
+  },
+  {
+    "id": "ig_ref_modern_art_gallery",
+    "source_id": "ig_ref_modern_art_gallery",
+    "familyId": "ig_ref_modern_art_gallery",
+    "styleVariants": true,
+    "category": "editorial",
+    "label": "MODERN ART GALLERY",
+    "subtag": "1 pessoa · Neutral minimal",
+    "requiresDualPhoto": false,
+    "productTemplate": false,
+    "placeholders": [
+      "MAIN_TITLE",
+      "EVENT_INFO"
+    ],
+    "optional": [],
+    "replacements": {
+      "MAIN_TITLE": "MODERN ART GALLERY",
+      "EVENT_INFO": "OPENING NIGHT"
+    },
+    "prompt": "Use the uploaded reference image as the identity source. Replace ONLY the original model with the uploaded person while preserving the exact composition, pose, facial angle, framing, typography placement, and poster structure.\n\nCreate a minimalist art gallery promotional poster featuring a real person positioned exactly like the reference image. Neutral modern background with clean typography \"{{MAIN_TITLE}}\". Include subtle geometric art-inspired elements and exhibition information \"{{EVENT_INFO}}\". Contemporary editorial photography, sophisticated art branding, realistic portrait rendering, minimalist social media design, masterpiece, best quality, 8k.",
+    "aspect": "4:5"
+  },
+  {
+    "id": "ig_ref_creative_exhibition",
+    "source_id": "ig_ref_creative_exhibition",
+    "familyId": "ig_ref_creative_exhibition",
+    "styleVariants": true,
+    "category": "editorial",
+    "label": "CREATIVE EXHIBITION",
+    "subtag": "1 pessoa · Experimental",
+    "requiresDualPhoto": false,
+    "productTemplate": false,
+    "placeholders": [
+      "MAIN_TITLE",
+      "EVENT_DATE"
+    ],
+    "optional": [],
+    "replacements": {
+      "MAIN_TITLE": "CREATIVE EXHIBITION",
+      "EVENT_DATE": "2026"
+    },
+    "prompt": "Use the uploaded reference image as the identity source. Replace ONLY the original model with the uploaded person while preserving the exact composition, pose, facial angle, framing, typography placement, and poster structure.\n\nCreate a contemporary exhibition poster featuring a real person maintaining the exact pose from the reference image. Experimental artistic background with bold typography \"{{MAIN_TITLE}}\". Include abstract shapes, modern design elements, and exhibition details \"{{EVENT_DATE}}\". Premium editorial photography, artistic branding aesthetic, realistic textures, modern exhibition promotion design, masterpiece, best quality, 8k.",
+    "aspect": "4:5"
+  },
+  {
+    "id": "ig_ref_beast_mode",
+    "source_id": "ig_ref_beast_mode",
+    "familyId": "ig_ref_beast_mode",
+    "styleVariants": true,
+    "category": "fitness",
+    "label": "BEAST MODE",
+    "subtag": "1 pessoa · Red power",
+    "requiresDualPhoto": false,
+    "productTemplate": false,
+    "placeholders": [
+      "MAIN_TITLE",
+      "QUOTE"
+    ],
+    "optional": [],
+    "replacements": {
+      "MAIN_TITLE": "BEAST MODE",
+      "QUOTE": "Train like a warrior."
+    },
+    "prompt": "Use the uploaded reference image as the identity source. Replace ONLY the original model with the uploaded person while preserving the exact composition, pose, facial angle, framing, typography placement, and poster structure.\n\nCreate an intense fitness promotional Instagram poster featuring a real person positioned exactly like the reference image. Maintain the same strong athletic pose and determined facial expression. Dark black background with aggressive red accent lighting. Large bold typography \"{{MAIN_TITLE}}\" dominating the composition. Include motivational fitness quote \"{{QUOTE}}\", training icons, and dynamic brushstroke elements. Professional fitness photography, high contrast lighting, realistic muscle definition, premium gym branding, social media fitness marketing aesthetic, masterpiece, best quality, 8k.",
+    "aspect": "4:5"
+  },
+  {
+    "id": "ig_ref_no_excuses",
+    "source_id": "ig_ref_no_excuses",
+    "familyId": "ig_ref_no_excuses",
+    "styleVariants": true,
+    "category": "fitness",
+    "label": "NO EXCUSES",
+    "subtag": "1 pessoa · Industrial gym",
+    "requiresDualPhoto": false,
+    "productTemplate": false,
+    "placeholders": [
+      "MAIN_TITLE"
+    ],
+    "optional": [],
+    "replacements": {
+      "MAIN_TITLE": "NO EXCUSES"
+    },
+    "prompt": "Use the uploaded reference image as the identity source. Replace ONLY the original model with the uploaded person while preserving the exact composition, pose, facial angle, framing, typography placement, and poster structure.\n\nCreate a powerful gym motivational poster featuring a real person maintaining the exact posture from the reference image. Dark industrial gym background with oversized typography \"{{MAIN_TITLE}}\". Include subtle fitness statistics, inspirational text blocks, and energetic graphic accents. Editorial fitness photography, realistic skin textures, premium motivational branding, athletic social media campaign design, masterpiece, best quality, 8k.",
+    "aspect": "4:5"
+  },
+  {
+    "id": "ig_ref_train_hard",
+    "source_id": "ig_ref_train_hard",
+    "familyId": "ig_ref_train_hard",
+    "styleVariants": true,
+    "category": "fitness",
+    "label": "TRAIN HARD",
+    "subtag": "1 pessoa · Blue athletic",
+    "requiresDualPhoto": false,
+    "productTemplate": false,
+    "placeholders": [
+      "MAIN_TITLE"
+    ],
+    "optional": [],
+    "replacements": {
+      "MAIN_TITLE": "TRAIN HARD"
+    },
+    "prompt": "Use the uploaded reference image as the identity source. Replace ONLY the original model with the uploaded person while preserving the exact composition, pose, facial angle, framing, typography placement, and poster structure.\n\nCreate a premium fitness Instagram poster featuring a real person positioned exactly like the reference image. Dark blue and black background with bold typography \"{{MAIN_TITLE}}\". Include modern geometric elements, workout details, and subtle gym-inspired graphics. Professional sports photography, premium athletic branding, realistic body details, contemporary fitness marketing design, masterpiece, best quality, 8k.",
+    "aspect": "4:5"
+  },
+  {
+    "id": "ig_ref_push_limits",
+    "source_id": "ig_ref_push_limits",
+    "familyId": "ig_ref_push_limits",
+    "styleVariants": true,
+    "category": "fitness",
+    "label": "PUSH YOUR LIMITS",
+    "subtag": "1 pessoa · Challenge",
+    "requiresDualPhoto": false,
+    "productTemplate": false,
+    "placeholders": [
+      "MAIN_TITLE"
+    ],
+    "optional": [],
+    "replacements": {
+      "MAIN_TITLE": "PUSH YOUR LIMITS"
+    },
+    "prompt": "Use the uploaded reference image as the identity source. Replace ONLY the original model with the uploaded person while preserving the exact composition, pose, facial angle, framing, typography placement, and poster structure.\n\nCreate an energetic fitness challenge poster featuring a real person positioned exactly like the reference image. Maintain the same athletic stance as the reference image. Industrial gym environment with oversized typography \"{{MAIN_TITLE}}\". Include subtle workout icons, training metrics, and motivational quote sections. High-end fitness editorial photography, realistic textures, premium gym branding, Instagram promotional aesthetic, masterpiece, best quality, 8k.",
+    "aspect": "4:5"
+  },
+  {
+    "id": "ig_ref_fitness_challenge",
+    "source_id": "ig_ref_fitness_challenge",
+    "familyId": "ig_ref_fitness_challenge",
+    "styleVariants": true,
+    "category": "fitness",
+    "label": "FITNESS CHALLENGE",
+    "subtag": "1 pessoa · Neon energy",
+    "requiresDualPhoto": false,
+    "productTemplate": false,
+    "placeholders": [
+      "MAIN_TITLE",
+      "CHALLENGE_INFO"
+    ],
+    "optional": [],
+    "replacements": {
+      "MAIN_TITLE": "FITNESS CHALLENGE",
+      "CHALLENGE_INFO": "30 DAY PROGRAM"
+    },
+    "prompt": "Use the uploaded reference image as the identity source. Replace ONLY the original model with the uploaded person while preserving the exact composition, pose, facial angle, framing, typography placement, and poster structure.\n\nCreate a bold fitness motivational poster featuring a real person maintaining the exact athletic pose from the reference image. Dark monochrome background with yellow-green energy accents. Large typography \"{{MAIN_TITLE}}\" prominently displayed. Include challenge information \"{{CHALLENGE_INFO}}\", progress indicators, and motivational graphics. Premium sports photography, realistic body rendering, modern fitness branding, engaging social media campaign design, masterpiece, best quality, 8k.",
+    "aspect": "4:5"
+  },
+  {
+    "id": "ig_ref_never_stop_training",
+    "source_id": "ig_ref_never_stop_training",
+    "familyId": "ig_ref_never_stop_training",
+    "styleVariants": true,
+    "category": "fitness",
+    "label": "NEVER STOP TRAINING",
+    "subtag": "1 pessoa · Warning style",
+    "requiresDualPhoto": false,
+    "productTemplate": false,
+    "placeholders": [
+      "MAIN_TITLE"
+    ],
+    "optional": [],
+    "replacements": {
+      "MAIN_TITLE": "NEVER STOP TRAINING"
+    },
+    "prompt": "Use the uploaded reference image as the identity source. Replace ONLY the original model with the uploaded person while preserving the exact composition, pose, facial angle, framing, typography placement, and poster structure.\n\nCreate a bold fitness motivational poster featuring a real person maintaining the exact athletic pose from the reference image. Dark background with yellow accent highlights. Large typography \"{{MAIN_TITLE}}\" integrated into the composition. Include warning-style graphics, gym-inspired design elements, and motivational messaging. Luxury fitness editorial photography, realistic skin and muscle details, premium athletic branding, modern social media fitness design, masterpiece, best quality, 8k.",
+    "aspect": "4:5"
+  }
+]

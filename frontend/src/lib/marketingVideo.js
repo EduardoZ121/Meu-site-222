@@ -1,6 +1,7 @@
 /** Client helpers — mirrors api/lib/marketingVideo pricing. */
 
-export const MARKETING_VIDEO_DURATIONS = [4, 6, 10, 15];
+export const MARKETING_VIDEO_DURATION = 15;
+export const MARKETING_VIDEO_DURATIONS = [15];
 
 export const MARKETING_VIDEO_STAGE_KEYS = [
   "mktvid_stage_analyze",
@@ -23,11 +24,9 @@ export function stageIndexForElapsed(seconds) {
   return 6;
 }
 
-export function computeMarketingVideoCostFromPricing(pricingMap, duration) {
-  const dur = Math.round(Number(duration));
-  if (pricingMap && pricingMap[dur] != null) return pricingMap[dur];
-  const fallback = { 4: 72, 6: 95, 10: 145, 15: 195 };
-  return fallback[dur] ?? 95;
+export function computeMarketingVideoCostFromPricing(pricingMap) {
+  if (pricingMap && pricingMap[15] != null) return pricingMap[15];
+  return 240;
 }
 
 export function statusLabelKey(status) {

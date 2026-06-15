@@ -6,7 +6,6 @@ import { useAuth } from "../lib/auth";
 import HeroFloatingPreviews from "../components/landing/HeroFloatingPreviews";
 import HeroScrollCue from "../components/landing/HeroScrollCue";
 import HeroVideoBackground from "./HeroVideoBackground";
-import { LANDING_STARTER_CREDITS } from "../lib/landingI18n";
 
 const EASE = [0.16, 1, 0.3, 1];
 
@@ -16,7 +15,7 @@ export default function Hero() {
   const primaryHref = user ? "/app/tools" : "/register";
   const primaryLabel = user
     ? t("nav_open_app")
-    : t("hero_cta_primary", { n: LANDING_STARTER_CREDITS });
+    : t("hero_cta_primary");
 
   return (
     <section

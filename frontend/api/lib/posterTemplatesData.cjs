@@ -4,6 +4,7 @@ const EXTENDED_POSTER_TEMPLATES = require("./posterExtendedTemplatesData.json");
 const RICH_POSTER_TEMPLATES = require("./posterRichTemplatesData.json");
 const FASHION_POSTER_TEMPLATES = require("./posterFashionTemplatesData.json");
 const SOCIAL_MARKETING_TEMPLATES = require("./posterSocialMarketingTemplatesData.json");
+const PDF_RELEASE_POSTER_TEMPLATES = require("./posterPdfReleaseTemplatesData.json");
 
 const HIDDEN_POSTER_TEMPLATE_IDS = new Set([
   "music_night_vibes",
@@ -50,6 +51,7 @@ function listPosterTemplates() {
     ...RICH_POSTER_TEMPLATES,
     ...FASHION_POSTER_TEMPLATES,
     ...SOCIAL_MARKETING_TEMPLATES,
+    ...PDF_RELEASE_POSTER_TEMPLATES,
   ].filter((t) => !HIDDEN_POSTER_TEMPLATE_IDS.has(String(t?.id || "")));
 }
 
@@ -60,6 +62,7 @@ module.exports = {
   RICH_POSTER_TEMPLATES,
   FASHION_POSTER_TEMPLATES,
   SOCIAL_MARKETING_TEMPLATES,
+  PDF_RELEASE_POSTER_TEMPLATES,
   listPosterTemplates,
 };
 

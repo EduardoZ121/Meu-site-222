@@ -18,10 +18,16 @@ module.exports = async function handler(req, res) {
   const blob = isBlobConfigured();
   const mongo = storageEnabled();
   const maxDurationSec = Number(process.env.VERCEL_PRO_MAX_DURATION_SEC || 800) || 800;
+  let buildId = process.env.APP_BUILD_ID || process.env.REACT_APP_BUILD_ID || "upload-generate-v11";
+  try {
+    buildId = require("./_buildId.cjs");
+  } catch {
+    /* prebuild not run — fallback above */
+  }
   return res.status(200).json({
     ok: true,
     api: "remakepix",
-    build: process.env.APP_BUILD_ID || process.env.REACT_APP_BUILD_ID || "upload-generate-v11",
+    build: buildId,
     ts: Date.now(),
     platform: {
       vercel_env: process.env.VERCEL_ENV || null,

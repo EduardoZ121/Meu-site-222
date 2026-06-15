@@ -9,6 +9,7 @@ import { useI18n } from "../../lib/i18n";
 import { useStudioI18n } from "../../lib/useStudioI18n";
 import { toast } from "sonner";
 import PhotoUpload from "../../components/PhotoUpload";
+import { appendStudioPhotos, primaryStudioPhoto } from "../../lib/studioFormData";
 import AspectPicker from "../../components/AspectPicker";
 import ResultPanel from "../../components/ResultPanel";
 import StudioResultAnchor from "../../components/StudioResultAnchor";
@@ -45,7 +46,8 @@ export default function Generate() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
 
-  const [photo, setPhoto] = useState(null);
+  const [photos, setPhotos] = useState([]);
+  const photo = primaryStudioPhoto(photos);
   const [prompt, setPrompt] = useState(searchParams.get("prompt") || "");
   const [improve, setImprove] = useState(false);
   const [hdQuality, setHdQuality] = useState(false);
@@ -137,7 +139,7 @@ export default function Generate() {
           return;
         }
         const fd = new FormData();
-        fd.append("photo", photo);
+        appendStudioPhotos(fd, photos);
         fd.append("style_id", pickedStyle);
         fd.append("subject", subject);
         fd.append("aspect_ratio", apiAspectRatio(aspect, {
@@ -154,7 +156,7 @@ export default function Generate() {
           return;
         }
         const fd = new FormData();
-        fd.append("photo", photo);
+        appendStudioPhotos(fd, photos);
         fd.append("prompt", prompt.trim());
         fd.append("aspect_ratio", apiAspectRatio(aspect, {
           model: "standard",
@@ -211,14 +213,14 @@ export default function Generate() {
 
       <div className="grid grid-cols-1 lg:grid-cols-[1fr_340px] gap-3 lg:gap-8">
         <div className="rp-studio-card-stack">
-          <StudioAccordionSection title={t("studio_acc_photo")} defaultOpen={false} testId="studio-acc-photo" helpKey="help_sec_upload">
+          <StudioAccordionSection title={t("studio_acc_photo")} defaultOpen testId="studio-acc-photo" helpKey="help_sec_upload">
             <div className="flex items-baseline justify-end mb-3">
-              {photo && (
-                <button type="button" onClick={() => setPhoto(null)} className="text-[10px] font-mono uppercase tracking-[0.12em] text-[#8A8A8E] hover:text-[#F4F1EA] transition-colors">{t("remove")}</button>
+              {photos.length > 0 && (
+                <button type="button" onClick={() => setPhotos([])} className="text-[10px] font-mono uppercase tracking-[0.12em] text-[#8A8A8E] hover:text-[#F4F1EA] transition-colors">{t("remove")}</button>
               )}
             </div>
             <div className="max-w-[420px]">
-              <PhotoUpload value={photo} onChange={(f) => setPhoto(f || null)} testId="gen-photo" />
+              <PhotoUpload multiple maxFiles={5} value={photos} onChange={setPhotos} testId="gen-photo" />
             </div>
           </StudioAccordionSection>
 

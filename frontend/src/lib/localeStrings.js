@@ -347,6 +347,11 @@ const settingsEn = {
   set_pw_google: "You signed in with Google. Manage your password in your Google account.",
   set_aspect_hint: "Default aspect ratio when you open Generate.",
   set_aspect_saved: "Default format saved",
+  email_notify_title: "Email notifications",
+  email_notify_desc: "When enabled, we email you a link each time a generation finishes (images, posters, and videos). Off by default — turn on only if you want it.",
+  email_notify_label: "Email me when a generation is ready",
+  email_notify_saved: "Email preference saved",
+  email_notify_fail: "Could not save email preference",
 };
 
 const supportEn = {
@@ -400,6 +405,11 @@ const settingsPt = {
   set_pw_google: "Entraste com Google. Gere a palavra-passe na tua conta Google.",
   set_aspect_hint: "Formato por defeito ao abrires Gerar.",
   set_aspect_saved: "Formato guardado",
+  email_notify_title: "Notificações por email",
+  email_notify_desc: "Quando activas, enviamos um email com link sempre que uma geração termina (imagens, pósteres e vídeos). Desligado por defeito — activa só se quiseres.",
+  email_notify_label: "Enviar email quando uma geração estiver pronta",
+  email_notify_saved: "Preferência de email guardada",
+  email_notify_fail: "Não foi possível guardar a preferência",
 };
 
 const supportPt = {

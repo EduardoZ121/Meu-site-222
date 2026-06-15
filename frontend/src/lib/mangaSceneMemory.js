@@ -9,6 +9,7 @@
  */
 
 import { getCharacterIdentityTag } from "./mangaCharacterRef";
+import { hiddenPromptsForNode } from "./mangaFlowPromptLibrary";
 
 /* -------------------------------------------------------------------------- */
 /* HIDDEN PROMPTS PER NODE                                                    */
@@ -61,6 +62,19 @@ export function buildHiddenNodePrompt(node) {
     default:
       return "";
   }
+}
+
+function optionHiddenSuffix(node) {
+  const opts = hiddenPromptsForNode(node);
+  if (!opts.length) return "";
+  return ` Option locks: ${opts.join(" ")}`;
+}
+
+export function buildHiddenNodePromptWithOptions(node) {
+  const base = buildHiddenNodePrompt(node);
+  const suffix = optionHiddenSuffix(node);
+  if (!base && !suffix) return "";
+  return `${base}${suffix}`.trim();
 }
 
 /* -------------------------------------------------------------------------- */
@@ -237,7 +251,7 @@ export function renderSceneStateBlock(state) {
 export function renderHiddenNodePromptsBlock(nodes = []) {
   const blocks = [];
   for (const n of nodes) {
-    const p = buildHiddenNodePrompt(n);
+    const p = buildHiddenNodePromptWithOptions(n);
     if (p) blocks.push(`- ${p}`);
   }
   if (!blocks.length) return "";

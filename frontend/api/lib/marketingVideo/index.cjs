@@ -7,4 +7,6 @@ module.exports = {
   ...require("./marketingVideoSeedance.cjs"),
   ...require("./marketingVideoPipeline.cjs"),
   ...require("./marketingVideoHistory.cjs"),
+  ...require("./marketingVideoFormats.cjs"),
+  ...require("./marketingVideoVisualStyles.cjs"),
 };

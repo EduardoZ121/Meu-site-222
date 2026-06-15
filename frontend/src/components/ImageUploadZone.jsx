@@ -24,6 +24,7 @@ import {
 } from "../lib/persistImage";
 import { useI18n } from "../lib/i18n";
 import { materializeUploadFile } from "../lib/durableUploadFile";
+import MultiImageUpload from "./studio/MultiImageUpload";
 
 const LAYOUT = {
   portrait: "aspect-[4/5] min-h-[200px]",
@@ -37,7 +38,7 @@ const LAYOUT = {
 /**
  * Caixa de upload do estúdio (visual com brilho) — imagem ou vídeo.
  */
-export default function ImageUploadZone({
+function SingleImageUploadZone({
   value,
   onChange,
   accept,
@@ -509,6 +510,57 @@ export default function ImageUploadZone({
         )}
       </label>
     </div>
+  );
+}
+
+export default function ImageUploadZone({
+  multiple = false,
+  maxFiles = 5,
+  mediaType = "image",
+  value,
+  onChange,
+  accept,
+  testId,
+  layout,
+  className,
+  disabled,
+  emptyLabel,
+  emptyHint,
+  onStatusChange,
+  ...rest
+}) {
+  if (multiple && mediaType !== "video") {
+    return (
+      <MultiImageUpload
+        value={Array.isArray(value) ? value : value ? [value] : []}
+        onChange={onChange}
+        maxFiles={maxFiles}
+        accept={accept ?? IMAGE_ACCEPT}
+        testId={testId}
+        layout={layout}
+        className={className}
+        disabled={disabled}
+        emptyLabel={emptyLabel}
+        emptyHint={emptyHint}
+        onStatusChange={onStatusChange}
+      />
+    );
+  }
+  return (
+    <SingleImageUploadZone
+      value={value}
+      onChange={onChange}
+      accept={accept}
+      testId={testId}
+      layout={layout}
+      className={className}
+      disabled={disabled}
+      emptyLabel={emptyLabel}
+      emptyHint={emptyHint}
+      onStatusChange={onStatusChange}
+      mediaType={mediaType}
+      {...rest}
+    />
   );
 }
 

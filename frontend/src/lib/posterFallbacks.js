@@ -5,6 +5,7 @@ import { buildExtendedPosterTemplates } from "./posterExtendedFamilies.js";
 import { buildFashionPosterTemplates } from "./posterFashionFamilies.js";
 import { buildRichPosterTemplates } from "./posterRichFamilies.js";
 import { buildSocialMarketingTemplates } from "./posterSocialMarketingFamilies.js";
+import { buildPdfReleaseTemplates } from "./posterPdfReleaseFamilies.js";
 
 export const FALLBACK_POSTER_TEMPLATES = [
   {
@@ -901,6 +902,7 @@ export const FALLBACK_POSTER_TEMPLATES = [
   ...buildRichPosterTemplates(),
   ...buildFashionPosterTemplates(),
   ...buildSocialMarketingTemplates(),
+  ...buildPdfReleaseTemplates(),
 ];
 
 export const FALLBACK_POSTER_MODELS = [

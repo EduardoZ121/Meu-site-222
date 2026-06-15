@@ -7,6 +7,7 @@ import { buildPagePromptFromFlow, shouldUseGraphPrompt } from "./buildFlowPagePr
 import { shouldUseComicSheetMode } from "../../lib/mangaFlowOrchestrator";
 import { resolveEdgeSemantics } from "../../lib/mangaFlowSemantics";
 import { buildSceneGraphSummary } from "../../lib/mangaFlowGraph";
+import { hiddenPrompt, renderAllHiddenOptionsBlock } from "../../lib/mangaFlowPromptLibrary";
 
 export function buildPromptFromFlow(nodes, edges) {
   if (!nodes.length) return "// No cards on canvas. Add characters, scenarios and objects to generate a prompt.";
@@ -87,9 +88,15 @@ export function buildPromptFromFlow(nodes, edges) {
       const angle = d.cameraAngle ? d.cameraAngle.replace(/_/g, " ") : "medium shot";
 
       lines.push(`### ${name}`);
+      const poseHidden = hiddenPrompt("pose", d.pose);
+      const emotionHidden = hiddenPrompt("emotion", d.emotion);
+      const camHidden = d.cameraAngle ? hiddenPrompt("person_camera", d.cameraAngle) : "";
       lines.push(`- Body pose: ${pose} (the character MUST be in this exact pose, not just standing)`);
+      if (poseHidden) lines.push(`  ↳ Hidden: ${poseHidden}`);
       lines.push(`- Facial expression: ${emotion}`);
+      if (emotionHidden) lines.push(`  ↳ Hidden: ${emotionHidden}`);
       lines.push(`- Camera framing: ${angle} — NOT a flat front-facing portrait; body turned with the scene.`);
+      if (camHidden) lines.push(`  ↳ Hidden: ${camHidden}`);
       if (d.clothing) lines.push(`- Outfit: ${d.clothing}`);
       if (d.actionDesc) lines.push(`- Action: ${d.actionDesc}`);
       if (d.layer && d.layer !== "midground") lines.push(`- Layer depth: ${d.layer}`);
@@ -293,12 +300,18 @@ function appendFinalStyleSections(lines, settings, nodes) {
   lines.push("");
   lines.push("## STYLE");
   if (STYLE_PROMPTS[style]) lines.push(STYLE_PROMPTS[style] + ".");
+  const styleHidden = hiddenPrompt("gen_style", style);
+  if (styleHidden) lines.push(styleHidden);
   if (SUB_STYLE_PROMPTS[subStyle]) lines.push("Rendering: " + SUB_STYLE_PROMPTS[subStyle] + ".");
   if (detailLevel === "extreme") lines.push("Extremely detailed, every line and texture visible, production-quality artwork.");
   else if (detailLevel === "high") lines.push("Highly detailed artwork, clean professional finish.");
   if (LIGHTING_PROMPTS[lighting]) lines.push("Lighting: " + LIGHTING_PROMPTS[lighting] + ".");
   if (mood) lines.push("Mood: " + mood + " atmosphere.");
-  if (aspect) lines.push("Aspect ratio: " + aspect + ".");
+  if (aspect) {
+    const aspectHidden = hiddenPrompt("aspect", aspect);
+    lines.push("Aspect ratio: " + aspect + ".");
+    if (aspectHidden) lines.push(aspectHidden);
+  }
 
   if (extraInstructions?.trim()) {
     lines.push("");
@@ -392,5 +405,7 @@ export function buildFinalPrompt(nodes, edges, settings = {}) {
   }
 
   appendFinalStyleSections(lines, settings, nodes);
+  const hiddenOpts = renderAllHiddenOptionsBlock(nodes);
+  if (hiddenOpts) lines.push(hiddenOpts);
   return lines.join("\n");
 }

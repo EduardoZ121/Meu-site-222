@@ -186,14 +186,35 @@ async function adminIpGroups(minAccounts = 2) {
 
 async function adminAdjustCredits(userId, amount, reason) {
   if (!storageEnabled()) throw mongoRequired();
+  const db = await getDb();
+  const before = await db.collection("users").findOne({ id: userId }, { projection: { _id: 0, email: 1, lang: 1 } });
   const balance = await addCredits(userId, amount, "admin", reason || "admin adjustment");
   if (balance == null) {
     const err = new Error("Utilizador não encontrado.");
     err.status = 404;
     throw err;
   }
-  return { new_balance: balance };
+  const numericAmount = Number(amount) || 0;
+  let emailSent = false;
+  if (numericAmount > 0 && before?.email) {
+    const { sendCreditsGrantedEmail } = require("./creditsNotifyEmail.cjs");
+    try {
+      const mailed = await sendCreditsGrantedEmail({
+        to: before.email,
+        lang: before.lang || "pt",
+        amount: numericAmount,
+        balance,
+        reason: reason || "Créditos oferecidos pela equipa Remake Pixel",
+      });
+      emailSent = Boolean(mailed?.ok);
+    } catch (err) {
+      console.error("[admin] credits grant email failed", userId, err?.message);
+    }
+  }
+  return { new_balance: balance, email_sent: emailSent };
 }
+
+const { buildFinanceDashboard } = require("./adminFinanceDashboard.cjs");
 
 async function getFinanceSettings(db) {
   const doc = await db.collection("platform_settings").findOne({ _id: "finance" });
@@ -204,7 +225,7 @@ async function adminFinance() {
   if (!storageEnabled()) throw mongoRequired();
   const db = await getDb();
   const settings = await getFinanceSettings(db);
-  const balance = Number(settings.replicate_balance_usd);
+  const balance = Number(settings.replicate_balance_tracked_usd ?? settings.replicate_balance_usd);
   const finance = kvEnabled()
     ? await computeFinance(db, {
       replicate_balance_usd: Number.isFinite(balance) ? balance : undefined,
@@ -217,7 +238,18 @@ async function adminFinance() {
     .sort({ created_at: -1 })
     .limit(25)
     .toArray();
-  return { ...finance, recent_purchases: recent, settings: { replicate_balance_usd: settings.replicate_balance_usd ?? null } };
+  const { getReplicateSyncStatus } = require("./replicateAutoReserve.cjs");
+  const replicate_sync = await getReplicateSyncStatus(db);
+  return {
+    ...finance,
+    recent_purchases: recent,
+    settings: {
+      replicate_balance_usd: settings.replicate_balance_usd ?? null,
+      replicate_balance_tracked_usd: settings.replicate_balance_tracked_usd ?? null,
+    },
+    replicate_sync,
+    dashboard: buildFinanceDashboard(),
+  };
 }
 
 async function adminPatchFinance(body) {
@@ -231,7 +263,13 @@ async function adminPatchFinance(body) {
   }
   await db.collection("platform_settings").updateOne(
     { _id: "finance" },
-    { $set: { replicate_balance_usd: bal, updated_at: new Date().toISOString() } },
+    {
+      $set: {
+        replicate_balance_usd: bal,
+        replicate_balance_tracked_usd: bal,
+        updated_at: new Date().toISOString(),
+      },
+    },
     { upsert: true },
   );
   return adminFinance();
@@ -292,10 +330,52 @@ async function handleAdminRoute(path, req, res, { verifySessionToken, json, read
     if (req.method === "GET" && path === "admin/finance") {
       return json(res, 200, await adminFinance());
     }
+    if (req.method === "GET" && path === "admin/marketing/campaigns") {
+      const { listCampaignsForAdmin } = require("./adminMarketingCampaigns.cjs");
+      return json(res, 200, await listCampaignsForAdmin());
+    }
 
-    const body = ["POST", "PATCH", "PUT"].includes(req.method)
+    const body = ["POST", "PATCH", "PUT", "DELETE"].includes(req.method)
       ? await readJsonRequestBody(req)
       : {};
+
+    const mktCampaignMatch = path.match(/^admin\/marketing\/campaigns\/([^/]+)$/);
+    if (req.method === "PATCH" && mktCampaignMatch) {
+      const { updateCampaign } = require("./adminMarketingCampaigns.cjs");
+      const out = await updateCampaign(mktCampaignMatch[1], body);
+      return json(res, 200, out);
+    }
+    if (req.method === "DELETE" && mktCampaignMatch) {
+      const { deleteCampaign } = require("./adminMarketingCampaigns.cjs");
+      return json(res, 200, await deleteCampaign(mktCampaignMatch[1]));
+    }
+
+    if (req.method === "POST" && path === "admin/marketing/campaigns") {
+      const { createCampaign } = require("./adminMarketingCampaigns.cjs");
+      return json(res, 200, await createCampaign(body));
+    }
+    if (req.method === "POST" && path === "admin/marketing/preview") {
+      const { previewCampaignDraft } = require("./adminMarketingCampaigns.cjs");
+      return json(res, 200, previewCampaignDraft(body));
+    }
+    if (req.method === "POST" && path === "admin/marketing/send") {
+      const { sendMarketingCampaign } = require("./adminMarketingCampaigns.cjs");
+      const campaignId = String(body.campaign_id || "").trim();
+      const email = String(body.email || "").trim();
+      if (!campaignId) return json(res, 400, { detail: "Campanha em falta." });
+      const out = await sendMarketingCampaign(campaignId, { email });
+      return json(res, 200, out);
+    }
+    if (req.method === "POST" && path === "admin/marketing/send-batch") {
+      const { sendMarketingBatch } = require("./adminMarketingCampaigns.cjs");
+      const campaignId = String(body.campaign_id || "").trim();
+      if (!campaignId) return json(res, 400, { detail: "Campanha em falta." });
+      const out = await sendMarketingBatch(campaignId, {
+        cursor: body.cursor,
+        batchSize: body.batch_size,
+      });
+      return json(res, 200, out);
+    }
 
     if (req.method === "POST" && path === "admin/credits/adjust") {
       const out = await adminAdjustCredits(body.user_id, Number(body.amount), body.reason);
@@ -312,7 +392,7 @@ async function handleAdminRoute(path, req, res, { verifySessionToken, json, read
       }
       const db = await getDb();
       await upsertAccountPreset(db, email, {
-        credits: Number.isFinite(credits) ? credits : 800,
+        credits: Number.isFinite(credits) ? credits : 0,
         lang,
         note: body.reason || "admin account setup",
       });
@@ -320,7 +400,7 @@ async function handleAdminRoute(path, req, res, { verifySessionToken, json, read
         ok: true,
         pending: true,
         email,
-        credits: Number.isFinite(credits) ? credits : 800,
+        credits: Number.isFinite(credits) ? credits : 0,
         lang,
         message: "Conta ainda não existe — créditos e idioma aplicam-se no primeiro login Google com este email.",
       });

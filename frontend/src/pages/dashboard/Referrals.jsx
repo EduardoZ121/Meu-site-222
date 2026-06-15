@@ -14,7 +14,7 @@ export default function Referrals() {
   const { t } = useI18n();
   useTitle(t("sidebar_referrals"));
   const { user } = useAuth();
-  const [stats, setStats] = useState({ referred_count: 0, credits_earned: 0, reward_per_referral: 30 });
+  const [stats, setStats] = useState({ referred_count: 0, credits_earned: 0, reward_per_referral: 0 });
   const [copiedCode, setCopiedCode] = useState(false);
   const [copiedLink, setCopiedLink] = useState(false);
 
@@ -54,8 +54,14 @@ export default function Referrals() {
           {t("ref_title")}
         </h1>
         <p className="text-[#8A8A8E] text-[15px] max-w-[620px] leading-relaxed">
-          {t("ref_intro")}{" "}
-          <span className="text-[#C4B5FD] font-medium">{stats.reward_per_referral} {t("credits")}</span>. {t("ref_intro_suffix")}
+          {stats.reward_per_referral > 0 ? (
+            <>
+              {t("ref_intro")}{" "}
+              <span className="text-[#C4B5FD] font-medium">{stats.reward_per_referral} {t("credits")}</span>. {t("ref_intro_suffix")}
+            </>
+          ) : (
+            t("ref_intro_paused")
+          )}
         </p>
       </header>
 

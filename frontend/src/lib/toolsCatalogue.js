@@ -53,6 +53,12 @@ const TOOLS = [
     name: "Assistente (5 perguntas)", cost: 0,
     desc: "Não sabes o que pedir? 5 perguntas e o prompt sai pronto." },
 
+  { id: "marketing_video", tier: "video", category: "video", to: "/app/marketing-video",
+    name: "Vídeos Marketing IA", cost: 240, isNew: true,
+    desc: "1–6 imagens → vídeo vertical de anúncio automático." },
+  { id: "motion_flyer", tier: "video", category: "video", to: "/app/motion-flyer",
+    name: "Motion Flyer IA", cost: 200, isNew: true,
+    desc: "Flyer estático → vídeo motion 10s estilo After Effects." },
   // Video hub entry (legado — tab vídeo usa VIDEO_CATEGORIES)
   { id: "video", tier: "video", category: "video", to: "/app/video",
     name: "Texto / Foto → Vídeo", cost: 40,

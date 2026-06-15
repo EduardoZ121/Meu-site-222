@@ -24,6 +24,7 @@ import {
   hasNodeRef,
   buildCastIdentitySection,
 } from "./mangaFlowGraph";
+import { hiddenPromptsForNode } from "./mangaFlowPromptLibrary";
 
 /** Hidden semantic metadata per node type (UI + generation). */
 export const NODE_SEMANTIC_PROFILES = {
@@ -229,6 +230,7 @@ function enrichCharacterNode(person, panelId, nodes, edges, refSlotByNodeId) {
   const profile = getNodeSemanticProfile(person);
   const name = d.name || "Character";
   const slot = refSlotByNodeId.get(person.id);
+  const optionHidden = hiddenPromptsForNode(person);
   return {
     nodeId: person.id,
     name,
@@ -236,6 +238,7 @@ function enrichCharacterNode(person, panelId, nodes, edges, refSlotByNodeId) {
     refSlot: slot || null,
     pose: (d.pose || "standing").replace(/_/g, " "),
     emotion: (d.emotion || "normal").replace(/_/g, " "),
+    hiddenOptions: optionHidden,
     outfit: d.clothing || "",
     action: d.actionDesc || "",
     panelLink: getEdgePrompt(person.id, panelId, edges, nodes),
@@ -401,6 +404,9 @@ function renderPanelContextBlock(ctx) {
     lines.push("Characters (THIS panel only):");
     ctx.active_characters.forEach((c) => {
       lines.push(`  - ${c.name}${c.refSlot ? ` [ref image ${c.refSlot}]` : ""}: ${c.pose}, ${c.emotion}.`);
+      if (c.hiddenOptions?.length) {
+        lines.push(`    Hidden UI locks: ${c.hiddenOptions.join(" ")}`);
+      }
       if (c.outfit) lines.push(`    Outfit: ${c.outfit}`);
       if (c.panelLink) lines.push(`    Link: ${c.panelLink}`);
       if (c.identityLock) lines.push(`    ${c.identityLock}`);

@@ -189,6 +189,54 @@ export const VIDEO_CATEGORIES = [
 
   {
 
+    id: "marketing-video-ai",
+
+    section: "create",
+
+    to: "/app/marketing-video",
+
+    flow: "marketing-video",
+
+    nameKey: "vid_cat_marketing_video_ai",
+
+    descKey: "mktvid_subtitle",
+
+    costKey: "marketingVideoByDuration",
+
+    costDuration: 15,
+
+    icon: "megaphone",
+
+    badgeKey: "vid_badge_marketing",
+
+  },
+
+  {
+
+    id: "motion-flyer-ai",
+
+    section: "create",
+
+    to: "/app/motion-flyer",
+
+    flow: "motion-flyer",
+
+    nameKey: "vid_cat_motion_flyer",
+
+    descKey: "mfly_subtitle",
+
+    costKey: "motionFlyerByDuration",
+
+    costDuration: 10,
+
+    icon: "megaphone",
+
+    badgeKey: "vid_badge_marketing",
+
+  },
+
+  {
+
     id: "fun",
 
     section: "create",
@@ -225,9 +273,9 @@ export const VIDEO_CATEGORIES = [
 
     flow: "edit",
 
-    nameKey: "vid_tab_editor",
+    nameKey: "vid_v2v_title",
 
-    descKey: "vid_cat_edit_short",
+    descKey: "vid_v2v_subtitle",
 
     costKey: "videoEdit",
 
@@ -307,11 +355,35 @@ export const VIDEO_CATEGORIES = [
 
   },
 
+  {
+
+    id: "vfx",
+
+    section: "edit",
+
+    to: "/app/video/vfx",
+
+    tool: VIDEO_TOOL_IDS.wan_edit,
+
+    flow: "edit",
+
+    preset: "vfx",
+
+    nameKey: "vid_cat_vfx",
+
+    descKey: "vid_desc_vfx",
+
+    costKey: "videoEdit",
+
+    icon: "sparkles",
+
+  },
+
 ];
 
 
 
-/** Ocultas no hub por enquanto — rotas directas redireccionam para /app/video */
+/** Ocultas no hub — rotas legacy redireccionam para /app/video/edit */
 export const VIDEO_HIDDEN_IDS = new Set([
   "text-marketing",
   "image-marketing",
@@ -322,6 +394,7 @@ export const VIDEO_HIDDEN_IDS = new Set([
   "change-bg",
   "change-outfit",
   "restyle",
+  "vfx",
 ]);
 
 export const VIDEO_LEGACY_REDIRECTS = {
@@ -368,7 +441,7 @@ export function categoriesForSection(sectionId, user = null) {
 }
 
 export function getVideoCategoriesForUser(user) {
-  if (!canAccessVideoFeatures(user)) return [];
+  if (!user) return [];
   return VIDEO_CATEGORIES.filter((c) => isVideoCategoryVisible(c.id));
 }
 

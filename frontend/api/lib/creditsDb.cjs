@@ -7,16 +7,42 @@ function nowIso() {
 
 const { isAdminEmail, UNLIMITED_CREDITS } = require("./usersDb.cjs");
 
-async function spendCredits(userId, amount, description) {
+async function recordSpendTransaction(userId, cost, description, extra = {}) {
+  const db = await getDb();
+  await db.collection("credit_transactions").insertOne({
+    id: `tx_${Date.now().toString(36)}_${crypto.randomBytes(3).toString("hex")}`,
+    user_id: userId,
+    amount: -cost,
+    type: "spend",
+    description,
+    ...extra,
+    created_at: nowIso(),
+  });
+  try {
+    const { trackReplicateSpend } = require("./replicateAutoReserve.cjs");
+    await trackReplicateSpend(cost);
+  } catch {
+    /* non-blocking */
+  }
+}
+
+async function spendCredits(userId, amount, description, opts = {}) {
   if (!storageEnabled() || !userId) return null;
   const cost = Math.abs(Number(amount) || 0);
   if (cost <= 0) return null;
+  const forceBill = Boolean(opts.forceBill);
   const db = await getDb();
   const existing = await db.collection("users").findOne(
     { id: userId },
     { projection: { credits: 1, is_unlimited: 1, email: 1 } },
   );
-  if (isAdminEmail(existing?.email)) return existing?.credits ?? UNLIMITED_CREDITS;
+  if (isAdminEmail(existing?.email) && !forceBill) {
+    return existing?.credits ?? UNLIMITED_CREDITS;
+  }
+  if (isAdminEmail(existing?.email) && forceBill) {
+    await recordSpendTransaction(userId, cost, description, { admin_force_bill: true });
+    return existing?.credits ?? UNLIMITED_CREDITS;
+  }
   const res = await db.collection("users").findOneAndUpdate(
     { id: userId, credits: { $gte: cost }, is_unlimited: { $ne: true } },
     { $inc: { credits: -cost } },
@@ -33,14 +59,7 @@ async function spendCredits(userId, amount, description) {
     err.detail = "Insufficient credits";
     throw err;
   }
-  await db.collection("credit_transactions").insertOne({
-    id: `tx_${Date.now().toString(36)}_${crypto.randomBytes(3).toString("hex")}`,
-    user_id: userId,
-    amount: -cost,
-    type: "spend",
-    description,
-    created_at: nowIso(),
-  });
+  await recordSpendTransaction(userId, cost, description);
   return res.credits;
 }
 

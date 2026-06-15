@@ -1,5 +1,5 @@
 const { getDb, storageEnabled, ensureIndexes } = require("./mongo.cjs");
-const { sanitizeCreation, trustedProxyTarget, loadCreationMedia, normalizeResultUrls } = require("./creationMedia.cjs");
+const { sanitizeCreation, trustedProxyTarget, loadCreationMedia, normalizeResultUrls, repairCreationMedia } = require("./creationMedia.cjs");
 const { refreshUserPendingJobs, repairMissingCreationsForUser } = require("./pendingPredictions.cjs");
 
 function dedupeCreations(docs) {
@@ -69,7 +69,7 @@ async function handleCreationsRoute(path, req, res, { verifySessionToken, json }
         return true;
       }
       if (req.method === "GET" && path === "me/referrals/stats") {
-        json(res, 200, { code: "", referred_count: 0, credits_earned: 0, reward_per_referral: 30 });
+        json(res, 200, { code: "", referred_count: 0, credits_earned: 0, reward_per_referral: 0 });
         return true;
       }
     }
@@ -115,7 +115,29 @@ async function handleCreationsRoute(path, req, res, { verifySessionToken, json }
       .sort({ created_at: -1 })
       .limit(limit)
       .toArray();
-    json(res, 200, { creations: dedupeCreations(docs).map(sanitizeCreation) });
+    const deduped = dedupeCreations(docs);
+    for (const doc of deduped.slice(0, 12)) {
+      const urls = normalizeResultUrls(doc.result_urls);
+      if (urls.length && !urls[0].includes("blob.vercel-storage.com")) {
+        try {
+          // eslint-disable-next-line no-await-in-loop
+          await repairCreationMedia(db, doc);
+        } catch {
+          /* best effort */
+        }
+      }
+    }
+    const refreshed = await db
+      .collection("creations")
+      .find(
+        { id: { $in: deduped.map((d) => d.id) }, user_id: sess.user.id },
+        { projection: { _id: 0 } },
+      )
+      .toArray();
+    const byId = Object.fromEntries(refreshed.map((d) => [d.id, d]));
+    json(res, 200, {
+      creations: deduped.map((d) => sanitizeCreation(byId[d.id] || d)),
+    });
     return true;
   }
 
@@ -136,6 +158,22 @@ async function handleCreationsRoute(path, req, res, { verifySessionToken, json }
         created_at: p.created_at,
       })),
     });
+    return true;
+  }
+
+  if (req.method === "POST" && path === "generations/repair") {
+    const sess = sessionFromReq(req, verifySessionToken);
+    if (sess.error) {
+      json(res, sess.error.status, { detail: sess.error.detail });
+      return true;
+    }
+    try {
+      await refreshUserPendingJobs(sess.user.id, 16);
+      const repaired = await repairMissingCreationsForUser(sess.user.id, 48);
+      json(res, 200, { ok: true, repaired });
+    } catch (e) {
+      json(res, 500, { detail: e?.message || "Não foi possível recuperar criações." });
+    }
     return true;
   }
 
@@ -243,7 +281,7 @@ async function handleCreationsRoute(path, req, res, { verifySessionToken, json }
       code: user.referral_code || "",
       referred_count,
       credits_earned,
-      reward_per_referral: 30,
+      reward_per_referral: 0,
     });
     return true;
   }

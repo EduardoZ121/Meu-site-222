@@ -43,10 +43,10 @@ export const SEO_LOGIN = {
 };
 
 export const SEO_REGISTER = {
-  title: "Sign up free — Remake Pixel",
-  documentTitle: "Sign up free",
+  title: "Create account — Remake Pixel",
+  documentTitle: "Create account",
   description:
-    "Create a free Remake Pixel account and get starter credits. AI image generation, posters, video, and editing tools in one studio.",
+    "Create your Remake Pixel account. AI image generation, posters, video, and editing tools in one studio — buy credits when you are ready.",
   path: "/register",
 };
 
@@ -61,8 +61,8 @@ export const SEO_FAQ = [
     a: "Each tool shows its cost before you generate. Text-to-image starts from 18 credits; video, Pro retouch, HD options, and prompt enhancement add credits depending on what you use.",
   },
   {
-    q: "Do I get free credits?",
-    a: "Yes. Every new account starts with 100 free credits — enough to try the studio before buying more.",
+    q: "How do I buy credits?",
+    a: "Open Billing in the app and choose a credit pack. Credits are added instantly after payment and do not expire.",
   },
   {
     q: "Which AI models do you use?",
@@ -132,7 +132,7 @@ export function softwareApplicationJsonLd() {
       "@type": "Offer",
       price: "0",
       priceCurrency: "USD",
-      description: "Free starter credits on signup; pay-as-you-go credit packs",
+      description: "Pay-as-you-go credit packs — no subscription required",
     },
     description: SEO_HOME.description,
     url: SITE_ORIGIN,

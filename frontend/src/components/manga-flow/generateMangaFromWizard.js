@@ -3,6 +3,7 @@
 import { uid } from "./mangaFlowData";
 import { NODE_DEFAULTS, NODE_COLORS } from "./nodeDefaults";
 import { buildEdgeSemanticData } from "../../lib/mangaFlowSemantics";
+import { wizardHiddenLines } from "../../lib/mangaWizardPromptLibrary";
 
 function node(type, x, y, data = {}) {
   return { id: uid(type.slice(0, 4)), type, position: { x, y }, data: { ...NODE_DEFAULTS[type], _color: NODE_COLORS[type], ...data } };
@@ -465,6 +466,9 @@ export function generateMangaFromWizard(answers) {
         `- Visual: ${detailLevel?.replace(/_/g, " ") || "detailed"} detail, ${lighting || "dramatic"} lighting, ${colorPalette?.replace(/_/g, " ") || "monochrome"} palette, ${quality || "ultra"} quality.`,
         `- Dialogue style: ${dialogueStyle || "natural"}; bubbles: ${bubbleStyle || "normal"} at ${bubblePosition || "auto"}; SFX: ${sfxStyle || "japanese"}.`,
         `- World: ${location || "unspecified"}, ${era?.replace(/_/g, " ") || "modern"} era, ${weather || "clear"} weather.${worldDetails ? ` Notes: ${worldDetails}.` : ""}`,
+        ...wizardHiddenLines({
+          genre, tone, artStyle, mainStyle, pacing, panelStyle, lighting, colorPalette,
+        }).map((l) => `- ${l}`),
         characters?.filter((c) => c.name).length
           ? `- Locked cast (use ONLY these characters, never invent NPCs): ${characters.filter((c) => c.name).map((c) => `${c.name} [${c.role}]`).join(", ")}.`
           : "",

@@ -45,6 +45,7 @@ async function ensureIndexes() {
   await db.collection("ip_events").createIndex([["ip", 1], ["created_at", -1]]);
   await db.collection("pending_predictions").createIndex("id", { unique: true });
   await db.collection("pending_predictions").createIndex([["user_id", 1], ["created_at", -1]]);
+  await db.collection("replicate_sync_events").createIndex("stripe_session_id", { unique: true, sparse: true });
 }
 
 module.exports = {

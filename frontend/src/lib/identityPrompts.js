@@ -24,3 +24,15 @@ export const LEGACY_POSTER_REFERENCE_PERSON =
 
 export const LEGACY_POSTER_REFERENCE_FOOD =
   "Use the provided reference image as the dish.\n\nReplace the main food item with the dish from the reference image, preserving exact texture, colors, and details. Do not alter the dish identity.";
+
+/** Duas pessoas reais — pôsteres IG com 2 fotos (principal + 2.ª pessoa). */
+export const POSTER_DUAL_PERSON_BLOCK =
+  "DUAL PERSON PHOTO COMPOSE — PHOTOREALISTIC (mandatory):\n"
+  + "Two reference photos of TWO DIFFERENT REAL PEOPLE.\n"
+  + "- Image 1 (MAIN upload): Person A — preserve 100% of their face, hair, skin tone, ethnicity, body type, age and outfit from image 1.\n"
+  + "- Image 2 (REFERENCE upload): Person B — preserve 100% of their face, hair, skin tone, ethnicity, body type, age and outfit from image 2.\n"
+  + "- Output ONE photograph with Person A AND Person B together in the same scene, both visible clearly.\n"
+  + "- Both are FULL-SIZE ADULTS at equal scale — standing or posing together (side by side unless user says otherwise).\n"
+  + "- Person B must NOT appear as a doll, toy, figurine, miniature, baby, prop, or blurred object in Person A's hands.\n"
+  + "- Do NOT merge faces, do NOT clone one person twice, do NOT swap identities between the two photos.\n"
+  + "- Natural unified lighting and realistic camera — magazine/editorial photo quality.";

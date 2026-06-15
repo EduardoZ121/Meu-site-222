@@ -100,8 +100,13 @@ const TOOL_META = {
 
 const PRESET_PROMPT_PREFIX = {
   background: "Change the background only — keep the person, pose, motion and lighting on the subject identical. New background: ",
-  outfit: "Change the outfit/clothing only — preserve face, body, pose, motion and background. New look: ",
+  outfit:
+    "Change the outfit/clothing only — same person, same body, same pose, same motion, same background. New look: ",
   restyle: "Restyle the entire video with this aesthetic while preserving motion and composition: ",
+  relight:
+    "Relight the video — change lighting and color grade only, keep composition, pose, subject identity and motion identical: ",
+  vfx:
+    "Apply this VFX transformation to the source footage — preserve identity, body proportions, pose and motion timing unless the effect explicitly changes the environment: ",
   marketing: "Professional marketing video, polished camera motion, brand-ready look: ",
   fun: "Fun, playful, viral social clip with energetic motion: ",
 };

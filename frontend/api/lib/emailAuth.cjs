@@ -135,7 +135,7 @@ async function registerEmailUser(payload, req) {
   };
 
   await db.collection("users").insertOne(doc);
-  if (!isAdmin) {
+  if (!isAdmin && startCredits > 0) {
     await db.collection("credit_transactions").insertOne({
       id: `tx_${Date.now().toString(36)}`,
       user_id: userId,

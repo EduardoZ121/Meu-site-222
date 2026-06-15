@@ -1,18 +1,20 @@
 /**
- * Marketing video credits by duration — adjust in pricing.json or env overrides.
+ * Marketing video credits — 15s only (Seedance 2.0 @ 720p + vision + margin).
  *
- * Env override (JSON): MARKETING_VIDEO_PRICING='{"4":72,"6":95,"10":145,"15":195}'
+ * API cost estimate: Replicate Seedance 2.0 ~$0.18–0.22/sec @ 720p with refs
+ * → ~$2.70–3.30 per 15s + OpenAI vision ~$0.01 → price at 240 credits (intl starter ~$7.90, ~72% margin).
+ *
+ * Env override: MARKETING_VIDEO_PRICING='{"15":240}'
  */
 const { getCreditCostsForRegion } = require("../../pricingRegions.cjs");
 
+const MARKETING_VIDEO_DURATION = 15;
+
 const FALLBACK_BY_DURATION = {
-  4: 72,
-  6: 95,
-  10: 145,
-  15: 195,
+  15: 240,
 };
 
-const ALLOWED_DURATIONS = [4, 6, 10, 15];
+const ALLOWED_DURATIONS = [15];
 
 function parseEnvPricing() {
   const raw = String(process.env.MARKETING_VIDEO_PRICING || "").trim();
@@ -31,28 +33,21 @@ function getMarketingVideoPricingMap(regionId = "intl") {
   const fromConfig = costs.marketingVideoByDuration;
   const fromEnv = parseEnvPricing();
   const base = { ...FALLBACK_BY_DURATION, ...(fromConfig || {}), ...(fromEnv || {}) };
-  const out = {};
-  for (const d of ALLOWED_DURATIONS) {
-    out[d] = Math.max(0, Math.round(Number(base[d] ?? FALLBACK_BY_DURATION[d] ?? 0)));
-  }
-  return out;
+  return {
+    15: Math.max(0, Math.round(Number(base[15] ?? FALLBACK_BY_DURATION[15] ?? 240))),
+  };
 }
 
 function computeMarketingVideoCost(regionId, duration) {
-  const dur = Math.round(Number(duration));
-  if (!ALLOWED_DURATIONS.includes(dur)) {
-    const err = new Error(`Duração inválida. Escolhe: ${ALLOWED_DURATIONS.join(", ")}s.`);
-    err.status = 400;
-    throw err;
-  }
+  validateMarketingVideoDuration(duration);
   const map = getMarketingVideoPricingMap(regionId);
-  return map[dur] ?? FALLBACK_BY_DURATION[dur];
+  return map[15];
 }
 
 function validateMarketingVideoDuration(duration) {
   const dur = Math.round(Number(duration));
-  if (!ALLOWED_DURATIONS.includes(dur)) {
-    const err = new Error(`Duração inválida. Escolhe: ${ALLOWED_DURATIONS.join(", ")}s.`);
+  if (dur !== MARKETING_VIDEO_DURATION) {
+    const err = new Error(`Duração inválida. Vídeos de marketing são apenas ${MARKETING_VIDEO_DURATION}s.`);
     err.status = 400;
     throw err;
   }
@@ -60,6 +55,7 @@ function validateMarketingVideoDuration(duration) {
 }
 
 module.exports = {
+  MARKETING_VIDEO_DURATION,
   ALLOWED_DURATIONS,
   FALLBACK_BY_DURATION,
   getMarketingVideoPricingMap,

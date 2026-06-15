@@ -40,6 +40,7 @@ import {
   isPosterFashionTemplate,
   isPosterProductTemplate,
   isPosterMenuTemplate,
+  isPosterDualPhotoTemplate,
   splitPosterPlaceholders,
 } from "../../lib/posterPrompt";
 import { PosterSection, CustomTextLayersEditor } from "../../components/poster/PosterEditorParts";
@@ -63,6 +64,8 @@ import {
 } from "../../lib/posterFlyerVariants";
 import { scrollStudioToTop } from "../../lib/scrollToStudioResult";
 import { useStudioSessionBack } from "../../lib/useStudioSessionBack";
+import { appendStudioPhotos, primaryStudioPhoto } from "../../lib/studioFormData";
+import PosterMotionFlyerButton from "../../components/poster/PosterMotionFlyerButton";
 
 /* ------------------------------------------------------------------ */
 /*  Constants                                                          */
@@ -188,7 +191,8 @@ export default function Posters() {
 
   // Editor state
   const [values, setValues] = useState({});
-  const [photo, setPhoto] = useState(null);
+  const [photos, setPhotos] = useState([]);
+  const photo = primaryStudioPhoto(photos);
   const [logo, setLogo] = useState(null);
   const [outputLang, setOutputLang] = useState("pt");
   const [modelKey, setModelKey] = useState("grok");
@@ -254,7 +258,7 @@ export default function Posters() {
   const enterEditor = (tpl) => {
     setPicked(tpl);
     setValues(posterInitialValues(tpl));
-    setPhoto(null);
+    setPhotos([]);
     setLogo(null);
     setOutputLang(lang === "pt" || lang === "en" || lang === "es" || lang === "fr" ? lang : "pt");
     setResult(null);
@@ -263,6 +267,8 @@ export default function Posters() {
     setPaletteColors([]);
     setNumOutputs(1);
     if (isPosterFashionTemplate(tpl)) {
+      setModelKey("flux2");
+    } else if (isPosterDualPhotoTemplate(tpl)) {
       setModelKey("flux2");
     }
     if (!photo) {
@@ -343,6 +349,11 @@ export default function Posters() {
       toast.error(t("post_fashion_photo_required"), { duration: 8000 });
       return;
     }
+    const photoCount = (Array.isArray(photos) ? photos : []).filter(Boolean).length;
+    if (isPosterDualPhotoTemplate(picked) && photoCount < 2) {
+      toast.error(t("post_dual_photo_required"), { duration: 8000 });
+      return;
+    }
     if ((user?.credits ?? 0) < totalCost && !user?.is_unlimited && user?.role !== "admin") {
       toast.error(t("common_need_credits", { need: totalCost, have: user?.credits ?? 0 }), { duration: 8000 });
       return;
@@ -354,6 +365,7 @@ export default function Posters() {
       customBlocks,
       hasPhoto: Boolean(photo),
       hasLogo: Boolean(logo),
+      photoCount,
       outputLang: outputLang || lang || "pt",
     });
 
@@ -361,6 +373,9 @@ export default function Posters() {
     fd.append("template_id", picked.variantParentId || picked.id);
     fd.append("variant_key", picked.variantKey || "");
     fd.append("template_category", picked.category || "");
+    if (isPosterDualPhotoTemplate(picked)) {
+      fd.append("requires_dual_photo", "1");
+    }
     fd.append("prompt_final", promptFinal);
     fd.append("placeholders", JSON.stringify(values));
     fd.append("custom_blocks", JSON.stringify(customBlocks));
@@ -378,7 +393,7 @@ export default function Posters() {
     fd.append("palette_colors", JSON.stringify(paletteColors));
     fd.append("lang", lang || "en");
     fd.append("output_lang", outputLang || lang || "pt");
-    if (photo) fd.append("photo", photo);
+    if (photo) appendStudioPhotos(fd, photos);
     if (logo) fd.append("logo", logo);
 
     setBusy(true);
@@ -450,7 +465,7 @@ export default function Posters() {
         picked={picked}
         onBack={backFromEditor}
         values={values} setValues={setValues}
-        photo={photo} setPhoto={setPhoto}
+        photos={photos} setPhotos={setPhotos}
         logo={logo} setLogo={setLogo}
         outputLang={outputLang} setOutputLang={setOutputLang}
         modelKey={modelKey} setModelKey={setModelKey}
@@ -557,6 +572,11 @@ function VariantPicker({ base, variants, onBack, onPick, catLabel, t }) {
         <p className="text-[#8A8A8E] text-[13px] sm:text-[15px] max-w-[640px] leading-relaxed break-words">
           {t("post_variant_picker_desc")}
         </p>
+        {isPosterDualPhotoTemplate(base) && (
+          <p className="mt-3 text-[#FBBF24] text-[12px] sm:text-[13px] max-w-[640px] leading-relaxed rounded-lg border border-amber-500/25 bg-amber-500/10 px-3 py-2">
+            {t("post_dual_photo_banner")}
+          </p>
+        )}
       </header>
 
       <div className={POSTER_GRID_CLASS} data-testid="poster-variants-grid">
@@ -635,6 +655,11 @@ function TemplateCard({ tpl, index, onClick, catLabel, t }) {
             {tpl.subtag}
           </div>
         )}
+        {isPosterDualPhotoTemplate(tpl) && (
+          <div className="absolute left-2 top-2 sm:left-3 sm:top-3 z-[2] rounded-full border border-amber-400/40 bg-amber-500/25 px-1.5 py-0.5 sm:px-2 sm:py-1 font-['JetBrains_Mono'] text-[7px] sm:text-[8px] uppercase tracking-[0.12em] text-amber-100 backdrop-blur-sm">
+            {t("post_dual_photo_badge")}
+          </div>
+        )}
         <div className="absolute bottom-2 right-2 sm:bottom-3 sm:right-3 z-[2] font-['JetBrains_Mono'] text-[8px] sm:text-[9px] uppercase tracking-[0.14em] text-white/70">
           {hasVariants
             ? t("post_flyer_styles_count", { n: variantCount })
@@ -700,7 +725,7 @@ class PosterEditorErrorBoundary extends Component {
 
 function Editor(props) {
   const {
-    picked, onBack, values, setValues, photo, setPhoto, logo, setLogo,
+    picked, onBack, values, setValues, photos, setPhotos, logo, setLogo,
     outputLang, setOutputLang,
     modelKey, setModelKey, models, openaiReady = true,
     aspect, setAspect, numOutputs, setNumOutputs,
@@ -711,6 +736,10 @@ function Editor(props) {
     missing, onGenerate, genPhase, genProgress, user, lang,
     t, labelFor, catLabel,
   } = props;
+
+  const photo = primaryStudioPhoto(photos);
+  const photoCount = (Array.isArray(photos) ? photos : []).filter(Boolean).length;
+  const dualPhotoStyle = isPosterDualPhotoTemplate(picked);
 
   const modelsForPicker = useMemo(() => {
     if (models?.length) return models;
@@ -725,12 +754,13 @@ function Editor(props) {
         customBlocks,
         hasPhoto: Boolean(photo),
         hasLogo: Boolean(logo),
+        photoCount,
         outputLang: outputLang || lang || "pt",
       });
     } catch {
       return "";
     }
-  }, [picked, values, mood, paletteColors, customBlocks, photo, logo, outputLang, lang]);
+  }, [picked, values, mood, paletteColors, customBlocks, photo, logo, photoCount, outputLang, lang]);
 
   const { menu: menuFields, details: detailFields } = useMemo(
     () => splitPosterPlaceholders(picked),
@@ -754,17 +784,20 @@ function Editor(props) {
   }, [photo, t]);
 
   const fashionNeedsPhoto = isPosterFashionTemplate(picked) && !photo;
+  const dualNeedsPhotos = dualPhotoStyle && photoCount < 2;
 
   const { ready: genReady, hint: genHint } = useStudioGenerateGate({
     busy,
     user,
     cost: totalCost,
-    missingCount: missing.length + (fashionNeedsPhoto ? 1 : 0),
+    missingCount: missing.length + (fashionNeedsPhoto ? 1 : 0) + (dualNeedsPhotos ? 1 : 0),
     hintOverride: fashionNeedsPhoto
       ? t("post_fashion_photo_required")
-      : missing.length > 0
-        ? `${t("post_fill")}: ${missing.map((k) => labelFor(k, picked?.placeholders?.indexOf(k))).join(", ")}`
-        : null,
+      : dualNeedsPhotos
+        ? t("post_dual_photo_required")
+        : missing.length > 0
+          ? `${t("post_fill")}: ${missing.map((k) => labelFor(k, picked?.placeholders?.indexOf(k))).join(", ")}`
+          : null,
   });
 
   const genBusyLabel = genPhase === "upload"
@@ -813,6 +846,12 @@ function Editor(props) {
         </div>
       </div>
 
+      {dualPhotoStyle && (
+        <div className="mb-5 rounded-xl border border-amber-500/25 bg-amber-500/10 px-4 py-3 text-[13px] text-amber-100 leading-relaxed">
+          {t("post_dual_photo_banner")}
+        </div>
+      )}
+
       <div className="grid grid-cols-1 xl:grid-cols-[1fr_440px] gap-10">
         {/* ====== LEFT: form ====== */}
         <motion.div className="space-y-5">
@@ -841,8 +880,10 @@ function Editor(props) {
           >
             <div className="max-w-[560px]">
               <ImageUploadZone
-                value={photo}
-                onChange={setPhoto}
+                multiple
+                maxFiles={5}
+                value={photos}
+                onChange={setPhotos}
                 layout="wide"
                 testId="poster-photo"
                 compressOptions={{ maxSize: 2048 }}
@@ -853,7 +894,9 @@ function Editor(props) {
                       ? t("post_product_upload_label")
                       : isPosterFashionTemplate(picked)
                         ? t("post_fashion_person_upload_label")
-                        : t("upload_drop")
+                        : dualPhotoStyle
+                          ? t("post_dual_photo_upload_label")
+                          : t("upload_drop")
                 }
                 emptyHint={
                   isPosterFoodTemplate(picked)
@@ -862,7 +905,9 @@ function Editor(props) {
                       ? t("post_product_upload_hint")
                       : isPosterFashionTemplate(picked)
                         ? t("post_fashion_person_upload_hint")
-                        : t("tool_accept_formats")
+                        : dualPhotoStyle
+                          ? t("post_dual_photo_upload_hint")
+                          : t("tool_accept_formats")
                 }
               />
             </div>
@@ -1254,7 +1299,14 @@ function PosterResult({ busy, result, setResult, aspect }) {
           ))}
         </div>
       )}
-      <div className="p-3 flex gap-2 border-t border-[#2E2E30] bg-[#0B0B0C]/60">
+      <div className="p-3 flex flex-col gap-2 border-t border-[#2E2E30] bg-[#0B0B0C]/60">
+        <PosterMotionFlyerButton
+          imageUrl={main}
+          creationId={result?.id}
+          aspectRatio={previewAspect}
+          testId="poster-motion-flyer-cta"
+        />
+        <div className="flex gap-2">
         <button
           onClick={() => download(main)}
           className="flex-1 bg-[#7C3AED] hover:bg-[#9333EA] text-white py-3 rounded-lg text-[12.5px] font-medium flex items-center justify-center gap-2 transition-colors"
@@ -1271,6 +1323,7 @@ function PosterResult({ busy, result, setResult, aspect }) {
         >
           {t("common_open")}
         </a>
+        </div>
       </div>
     </div>
   );

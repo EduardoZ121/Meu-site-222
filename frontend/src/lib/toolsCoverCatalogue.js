@@ -27,16 +27,20 @@ const VIDEO_COVERS = {
   "image-fast": "/images/tools/video/image-fast.jpg",
   elements: "/images/tools/video/elements.jpg",
   marketing: "/images/tools/video/marketing.jpg",
+  "marketing-video-ai": "/images/tools/video/marketing-video-ai.mp4",
+  "motion-flyer-ai": "/images/tools/video/motion-flyer-ai.mp4",
+  motion_flyer: "/images/tools/video/motion_flyer.mp4",
   fun: "/images/tools/video/fun.jpg",
   edit: "/images/tools/video/edit.mp4",
   "change-bg": "/images/tools/video/change-bg.jpg",
   "change-outfit": "/images/tools/video/change-outfit.jpg",
   restyle: "/images/tools/video/restyle.jpg",
+  vfx: "/images/tools/video/restyle.jpg",
   extend: "/images/tools/video/edit.jpg",
 };
 
 /** Capas em vídeo (autoplay nas grelhas). */
-export const VIDEO_COVER_IDS = new Set(["text-fast", "image", "edit"]);
+export const VIDEO_COVER_IDS = new Set(["text-fast", "image", "edit", "marketing-video-ai", "motion-flyer-ai", "motion_flyer"]);
 export const IMAGE_VIDEO_COVER_IDS = new Set(["studio", "clothes", "pro", "bg_remove"]);
 
 /** Posição do crop — útil quando a cena principal não está ao centro */
@@ -49,17 +53,21 @@ const OBJECT_POSITION = {
   upscale: "center center",
   restore: "center center",
   colorize: "center center",
-  inpaint: "center 40%",
+  inpaint: "center center",
   posters: "center center",
   manga_studio: "center 20%",
   wizard: "center center",
   image: "center 35%",
   "text-marketing": "center 40%",
-  edit: "center 45%",
+  "marketing-video-ai": "center center",
+  "motion-flyer-ai": "center center",
+  motion_flyer: "center center",
+  marketing: "center center",
+  edit: "center center",
 };
 
 /** Bump quando substituir capas — evita cache antigo no browser */
-const COVER_VERSION = "6";
+const COVER_VERSION = "12";
 
 function withVersion(path) {
   return `${path}?v=${COVER_VERSION}`;

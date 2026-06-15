@@ -201,13 +201,23 @@ async function suggestPrompts(theme, lang) {
 
 const VIDEO_EDIT_PRESET_HINTS = {
   outfit:
-    "Preset: OUTFIT CHANGE ONLY. Keep face, body, pose, motion, and background identical. "
-    + "Replace clothing with specific garments (type, color, fabric, fit, accessories).",
+    "Preset: OUTFIT CHANGE ONLY — in-place wardrobe swap on the source clip. "
+    + "Describe ONLY the new garments (type, color, fabric, fit, accessories). "
+    + "MUST explicitly state that face, body type, body proportions, pose, limb positions, "
+    + "camera angle, background, and motion stay IDENTICAL to the input video. "
+    + "Never suggest re-posing, slimming, or changing how the person moves.",
   background:
     "Preset: BACKGROUND CHANGE ONLY. Keep the person, pose, motion, and subject lighting identical. "
     + "Replace only the environment/scenery behind them.",
   restyle:
     "Preset: FULL RESTYLE. Preserve identity, pose, and motion while applying the new look globally.",
+  relight:
+    "Preset: RELIGHT ONLY. Describe lighting direction, color temperature, mood and grade. "
+    + "Never change pose, action, wardrobe, or background layout.",
+  vfx:
+    "Preset: CINEMATIC VFX. Describe the visual effect (transformation, particles, relight, fantasy SFX). "
+    + "Preserve person identity, body proportions, pose and motion unless the effect is purely environmental. "
+    + "Be vivid and specific about materials, colors, particles and lighting.",
 };
 
 function userAskedForQuality(text) {

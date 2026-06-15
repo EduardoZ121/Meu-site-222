@@ -1,4 +1,6 @@
 import { useMemo, useState, useEffect } from "react";
+import { useLocation } from "react-router-dom";
+import { toast } from "sonner";
 import { AnimatePresence, motion } from "framer-motion";
 import ToolsHubCard from "../../components/tools/ToolsHubCard";
 import useTitle from "../../lib/useTitle";
@@ -8,7 +10,7 @@ import { useAuth } from "../../lib/auth";
 import { canAccessVideoFeatures } from "../../lib/isAdmin";
 import { useLocalizedTools } from "../../lib/useLocalizedTools";
 import { usePinnedTools } from "../../hooks/usePinnedTools";
-import { toolCatalogueCost } from "../../lib/pricingRegions";
+import { toolCatalogueCost, videoCatalogueCost } from "../../lib/pricingRegions";
 import { getVideoCategoriesForUser } from "../../lib/videoCatalogue";
 import { cn } from "../../lib/utils";
 import StudioHelpTip from "../../components/studio/StudioHelpTip";
@@ -61,6 +63,7 @@ function FilterPills({ items, value, onChange, testIdPrefix }) {
 export default function Tools() {
   const { t } = useI18n();
   const { user } = useAuth();
+  const loc = useLocation();
   const tools = useLocalizedTools();
   const { region, costs } = usePricing();
   const { isPinned, togglePin, pinnedIds } = usePinnedTools();
@@ -77,6 +80,13 @@ export default function Tools() {
   useEffect(() => {
     if (!videoAccess && tier === "video") setTier("image");
   }, [videoAccess, tier]);
+
+  useEffect(() => {
+    if (!loc.state?.videoAccessDenied) return;
+    const email = loc.state?.email ? ` (${loc.state.email})` : "";
+    toast.message(t("vid_access_admin_only", { email }), { duration: 10000 });
+    window.history.replaceState({}, "", loc.pathname);
+  }, [loc.state, loc.pathname, t]);
 
   const imageTools = useMemo(
     () => tools.filter((tool) => tool.tier === "image"),
@@ -264,7 +274,7 @@ export default function Tools() {
                       name={t(category.nameKey)}
                       to={category.to}
                       tier="video"
-                      cost={costs[category.costKey] ?? costs.video ?? 50}
+                      cost={videoCatalogueCost(costs, category)}
                       index={index}
                       pinned={isPinned(category.id)}
                       onTogglePin={togglePin}

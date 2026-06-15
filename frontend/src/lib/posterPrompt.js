@@ -3,6 +3,7 @@
 import {
   LEGACY_POSTER_REFERENCE_FOOD,
   LEGACY_POSTER_REFERENCE_PERSON,
+  POSTER_DUAL_PERSON_BLOCK,
   POSTER_REFERENCE_FOOD,
   POSTER_REFERENCE_PERSON,
 } from "./identityPrompts";
@@ -356,6 +357,10 @@ export function buildPosterTextManifest(values = {}, template = null) {
   ].join("\n");
 }
 
+export function isPosterDualPhotoTemplate(template) {
+  return Boolean(template?.requiresDualPhoto);
+}
+
 export function buildPosterPrompt(template, values = {}, options = {}) {
   const isFashion = isPosterFashionTemplate(template);
   const isFood = isPosterFoodTemplate(template);
@@ -412,6 +417,7 @@ export function buildPosterPrompt(template, values = {}, options = {}) {
 
   const hasPhoto = Boolean(options.hasPhoto);
   const hasGarment = Boolean(options.hasLogo);
+  const dualPhoto = isPosterDualPhotoTemplate(template) && (options.photoCount ?? 0) >= 2;
 
   if (isFashion) {
     const extras = [];
@@ -445,6 +451,9 @@ export function buildPosterPrompt(template, values = {}, options = {}) {
   extras.push(POSTER_FULL_BLEED_GUARD);
 
   let out = `${POSTER_DIRECTOR}${raw}`;
+  if (dualPhoto) {
+    out = `${POSTER_DUAL_PERSON_BLOCK}\n\n${out}`;
+  }
   if (extras.length) out = `${out}\n\n${extras.join("\n\n")}`;
 
   const manifest = buildPosterTextManifest(values, template);

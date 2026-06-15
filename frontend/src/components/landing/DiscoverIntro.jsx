@@ -2,7 +2,6 @@ import { useRef } from "react";
 import { motion, useInView } from "framer-motion";
 import { Link } from "react-router-dom";
 import { useI18n } from "../../lib/i18n";
-import { LANDING_STARTER_CREDITS } from "../../lib/landingI18n";
 
 const EASE = [0.16, 1, 0.3, 1];
 
@@ -50,7 +49,7 @@ export default function DiscoverIntro() {
           className="flex flex-col sm:flex-row flex-wrap gap-3"
         >
           <Link to="/register" className="btn-primary" data-testid="discover-cta-start">
-            {t("hero_cta_primary", { n: LANDING_STARTER_CREDITS })}
+            {t("hero_cta_primary")}
           </Link>
           <a href="#showcase" className="btn-secondary" data-testid="discover-cta-scroll">
             {t("discover_cta_scroll")}

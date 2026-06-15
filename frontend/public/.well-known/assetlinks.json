@@ -1,0 +1,12 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "com.remakepix.app",
+      "sha256_cert_fingerprints": [
+        "56:7B:BC:6F:A0:E0:AB:C8:A5:9A:40:17:68:D0:49:13:34:70:CE:AE:42:46:E5:40:88:EC:CC:57:95:77:F2:6F"
+      ]
+    }
+  }
+]

@@ -11,7 +11,7 @@ export function isAdminUser(user) {
   return ADMIN_EMAILS.has(String(user.email || "").trim().toLowerCase());
 }
 
-/** Vídeo IA — só admin até estabilizar o fluxo de upload. */
+/** Vídeo IA — utilizadores autenticados (rotas /app já exigem login). */
 export function canAccessVideoFeatures(user) {
-  return isAdminUser(user);
+  return Boolean(user?.id || user?.email);
 }

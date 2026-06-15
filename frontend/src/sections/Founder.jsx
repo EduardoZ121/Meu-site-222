@@ -7,7 +7,7 @@ const stats = [
   { label: "96", sub: "Estilos" },
   { label: "13", sub: "Ferramentas" },
   { label: "4", sub: "Idiomas" },
-  { label: "30", sub: "Créditos grátis" },
+  { label: "30", sub: "Créditos por €" },
 ];
 
 export default function Founder() {

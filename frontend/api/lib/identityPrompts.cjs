@@ -189,6 +189,42 @@ function buildMangaComicSheetBlock(panelCount = 4) {
   return lines.join("\n");
 }
 
+/** Estúdio — combinar 2+ fotos (principal + referências) numa só imagem. */
+function buildStudioMultiCombineBlock(imageCount) {
+  const n = Math.min(Math.max(Number(imageCount) || 2, 2), 5);
+  const lines = [
+    `MULTI-REFERENCE PHOTO COMBINE (${n} source images) — MANDATORY:`,
+    "- Each input image is a separate real subject (person, product, or scene element).",
+    "- Output exactly ONE photorealistic photograph with every distinct subject together in the same scene.",
+    "- All people must appear FULL-SIZE at the same scale — never as dolls, toys, figurines, miniatures, or props in someone's hands.",
+    "- Do NOT duplicate, mirror or clone the same person twice.",
+    "- Do NOT face-swap, melt, blur or blend identities between references.",
+    "- Unified lighting, grounded shadows, natural perspective — no sticker/cutout look.",
+    "- Single cohesive photo — NOT a collage, split screen, diptych, or side-by-side comparison of uploads.",
+  ];
+  for (let i = 1; i <= n; i += 1) {
+    lines.push(
+      `- Image ${i}: preserve exact identity, face, hair, skin tone, body proportions and outfit from that upload only.`,
+    );
+  }
+  return lines.join("\n");
+}
+
+/** Duas pessoas reais — fotografia (não manga). */
+function buildStudioDualPersonBlock() {
+  return [
+    "DUAL PERSON PHOTO COMPOSE — PHOTOREALISTIC (mandatory):",
+    "Two reference photos of TWO DIFFERENT REAL PEOPLE.",
+    "- Image 1 (MAIN upload): Person A — preserve 100% of their face, hair, skin tone, ethnicity, body type, age and outfit from image 1.",
+    "- Image 2 (REFERENCE upload): Person B — preserve 100% of their face, hair, skin tone, ethnicity, body type, age and outfit from image 2.",
+    "- Output ONE photograph with Person A AND Person B together in the same scene, both visible clearly.",
+    "- Both are FULL-SIZE ADULTS at equal scale — standing or posing together (side by side unless user says otherwise).",
+    "- Person B must NOT appear as a doll, toy, figurine, miniature, baby, prop, or blurred object in Person A's hands.",
+    "- Do NOT merge faces, do NOT clone one person twice, do NOT swap identities between the two photos.",
+    "- Natural unified lighting and realistic camera — magazine/editorial photo quality.",
+  ].join("\n");
+}
+
 function buildMangaDualCharacterBlock(nameA, nameB, descA = "", descB = "", roleA = "primary", roleB = "support") {
   const a = String(nameA || "Character A").trim() || "Character A";
   const b = String(nameB || "Character B").trim() || "Character B";
@@ -245,6 +281,8 @@ module.exports = {
   appendProRetouchIdentity,
   PRO_RETOUCH_AGE_GUARD,
   upgradePadraoPrompt,
+  buildStudioMultiCombineBlock,
+  buildStudioDualPersonBlock,
   buildMangaDualCharacterBlock,
   buildMangaComicSheetBlock,
 };

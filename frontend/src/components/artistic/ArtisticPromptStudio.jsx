@@ -12,6 +12,7 @@ import { toast } from "sonner";
 import { useI18n } from "../../lib/i18n";
 import StudioGenerateBar from "../StudioGenerateBar";
 import { hasStudioCredits, useStudioGenerateGate } from "../../lib/useStudioGenerateGate";
+import { primaryStudioPhoto } from "../../lib/studioFormData";
 import ImageUploadZone from "../ImageUploadZone";
 import AspectPicker from "../AspectPicker";
 import PromptAssistBar from "../promptAssist/PromptAssistBar";
@@ -52,25 +53,26 @@ export default function ArtisticPromptStudio({
   improving,
 }) {
   const { t } = useI18n();
+  const mainPhoto = primaryStudioPhoto(photo);
 
   const needsPhoto = inputMode === "image" || isLabStyle;
   const generateReady = useMemo(() => {
     if (cost > 0 && !hasStudioCredits(user, cost)) return false;
-    if (needsPhoto && !photo) return false;
+    if (needsPhoto && !mainPhoto) return false;
     if (!styleId && prompt.trim().length < 3) return false;
     return true;
-  }, [cost, user, needsPhoto, photo, styleId, prompt]);
+  }, [cost, user, needsPhoto, mainPhoto, styleId, prompt]);
 
   const generateHint = useMemo(() => {
     if (cost > 0 && !hasStudioCredits(user, cost)) {
       return t("studio_gen_hint_credits", { need: cost, have: user?.credits ?? 0 });
     }
-    if (needsPhoto && !photo) {
+    if (needsPhoto && !mainPhoto) {
       return isLabStyle ? t("art_lab_need_photo") : t("studio_gen_hint_photo");
     }
     if (!styleId && prompt.trim().length < 3) return t("art_empty");
     return null;
-  }, [cost, user, needsPhoto, photo, isLabStyle, styleId, prompt, t]);
+  }, [cost, user, needsPhoto, mainPhoto, isLabStyle, styleId, prompt, t]);
 
   const { ready, hint } = useStudioGenerateGate({
     busy,
@@ -144,12 +146,14 @@ export default function ArtisticPromptStudio({
       {inputMode === "image" && (
         <div className="mb-5">
           <ImageUploadZone
-            value={photo}
+            multiple
+            maxFiles={5}
+            value={Array.isArray(photo) ? photo : photo ? [photo] : []}
             onChange={setPhoto}
             layout="wide"
             testId="artistic-studio-photo"
             emptyLabel={t("art_upload_label")}
-            emptyHint={t("art_upload_hint")}
+            emptyHint={t("upload_multi_hint", { n: 5 })}
           />
         </div>
       )}
@@ -262,7 +266,7 @@ export default function ArtisticPromptStudio({
       <AspectPicker
         value={aspect}
         onChange={setAspect}
-        hasPhoto={inputMode === "image" && !!photo}
+        hasPhoto={inputMode === "image" && Boolean(mainPhoto)}
         options={["1:1", "3:4", "4:5", "9:16", "16:9"]}
         testIdPrefix="art-studio-aspect"
       />

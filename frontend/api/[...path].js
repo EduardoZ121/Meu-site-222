@@ -61,9 +61,12 @@ const PADRAO_STYLE_EXTENSIONS = require("./lib/padraoStyleExtensions.cjs");
 const PADRAO_STYLES_LIST = [...PADRAO_STYLES_BASE, ...PADRAO_STYLE_EXTENSIONS];
 const { finalizeImagePrompt } = require("./lib/imageQualityPrompts.cjs");
 const {
+  PHOTO_EDIT_IDENTITY_BLOCK,
   appendPhotoEditIdentity,
   appendProRetouchIdentity,
   upgradePadraoPrompt,
+  buildStudioMultiCombineBlock,
+  buildStudioDualPersonBlock,
   buildMangaDualCharacterBlock,
   buildMangaComicSheetBlock,
 } = require("./lib/identityPrompts.cjs");
@@ -202,7 +205,8 @@ function buildFluxFallbackInputFromPending(pending) {
 }
 
 async function buildFluxEasyFallbackInput(grokInput, basePrompt) {
-  if (!grokInput?.image) return null;
+  const mainImage = grokInput?.image || grokInput?.images?.[0];
+  if (!mainImage) return null;
   const aspectRatio = nearestFluxAspect(grokInput.aspect_ratio);
   let fluxPrompt = finalizeImagePrompt(appendPhotoEditIdentity(basePrompt), {
     modelKey: "pro",
@@ -213,7 +217,7 @@ async function buildFluxEasyFallbackInput(grokInput, basePrompt) {
   return {
     prompt: fluxPrompt,
     aspect_ratio: aspectRatio,
-    images: [grokInput.image],
+    images: [mainImage],
     disable_safety_checker: true,
   };
 }
@@ -451,20 +455,9 @@ async function requireAdminSession(req) {
   return { user, dbUser };
 }
 
-function buildVideoEditPrompt(userPrompt) {
-  const base = String(userPrompt || "").trim();
-  if (base.length < 3) {
-    const err = new Error("Descreve a edição que queres (mín. 3 caracteres).");
-    err.status = 400;
-    throw err;
-  }
-  const guard = (
-    "Preserve the exact same person: identical face, facial features, eyes, skin tone, hair, "
-    + "body shape, body proportions, pose, and natural motion in every frame. "
-    + "Apply only the requested visual change. Photorealistic, temporally consistent, "
-    + "no identity drift, no morphing artifacts, no extra limbs or duplicated body parts."
-  );
-  return `${base}. ${guard}`;
+function buildVideoEditPrompt(userPrompt, options = {}) {
+  const { buildVideoEditPromptText } = require("./lib/videoEditPrompts.cjs");
+  return buildVideoEditPromptText(userPrompt, options);
 }
 
 async function resolveVideoRef(files, fields, fileKey = "video", urlKey = "video_url") {
@@ -527,8 +520,9 @@ async function resolveVideoEditMediaUrl(files, fields) {
 
 async function videoEditInput(fields, files) {
   const video = await resolveVideoEditMediaUrl(files, fields);
+  const preset = text(fields, "video_preset", "").trim();
   const userPrompt = text(fields, "prompt", "").trim();
-  const prompt = buildVideoEditPrompt(userPrompt);
+  const prompt = buildVideoEditPrompt(userPrompt, { preset });
   const resolution = text(fields, "resolution", "original");
   const aspectRatio = text(fields, "aspect_ratio", "auto");
   const audioSetting = text(fields, "audio_setting", "origin");
@@ -571,8 +565,9 @@ async function grokVideoEditInput(fields, files) {
 async function klingVideoEditInput(fields, files) {
   const { buildKlingEditInput } = require("./lib/videoModels.cjs");
   const video = await resolveVideoEditMediaUrl(files, fields);
+  const preset = text(fields, "video_preset", "").trim();
   const userPrompt = text(fields, "prompt", "").trim();
-  const prompt = buildVideoEditPrompt(userPrompt);
+  const prompt = buildVideoEditPrompt(userPrompt, { preset });
   const resolution = text(fields, "resolution", "original");
   const audioSetting = text(fields, "audio_setting", "origin");
   const ref = await resolveImageRef(files, fields, "reference_image", "reference_image_url");
@@ -621,12 +616,24 @@ async function resolveImageRef(files, fields, fileKey, urlKey) {
   return fileToDataUri(fileOf(files, fileKey));
 }
 
-/** 1–6 images: image_0 (main) … image_5 (references). Also accepts image_0_url … */
-async function resolveMarketingVideoImages(files, fields, max = 6) {
+/** 1–5 images: image_0 (main) … image_4 (references). Also accepts image_0_url … */
+async function resolveMarketingVideoImages(files, fields, max = 5) {
   const urls = [];
   for (let i = 0; i < max; i += 1) {
-    const ref = await resolveImageRef(files, fields, `image_${i}`, `image_${i}_url`);
-    if (ref) urls.push(ref);
+    const fromUrl = trustedMediaUrl(text(fields, `image_${i}_url`, ""));
+    if (fromUrl) {
+      urls.push(fromUrl);
+      continue;
+    }
+    const file = fileOf(files, `image_${i}`);
+    if (!file) continue;
+    const blobUrl = await uploadFormImageToBlob(file);
+    if (blobUrl) {
+      urls.push(blobUrl);
+      continue;
+    }
+    const dataUri = await fileToDataUri(file);
+    if (dataUri) urls.push(dataUri);
   }
   return urls;
 }
@@ -676,7 +683,6 @@ async function routeUploadImageBlob(req, res) {
 async function routeUploadVideoBlob(req, res) {
   if (isBlobDisabled()) return blobDisabledResponse(res);
   try {
-    await requireAdminSession(req);
     if (!isBlobConfigured()) {
       return json(res, 503, { detail: "Armazenamento Blob não configurado." });
     }
@@ -755,6 +761,50 @@ async function uploadFormVideoToBlob(file) {
   return blob.url;
 }
 
+/** Imagem multipart → URL pública Blob (Seedance / Replicate preferem HTTPS). */
+async function uploadFormImageToBlob(file) {
+  if (!file?.filepath || !isBlobConfigured()) return null;
+  const maxBytes = 12 * 1024 * 1024;
+  let st = await fs.stat(file.filepath).catch(() => null);
+  if (!st?.size || st.size > maxBytes) return null;
+
+  let filepath = file.filepath;
+  let mime = file.mimetype || "image/jpeg";
+
+  if (st.size > 2 * 1024 * 1024) {
+    try {
+      const sharp = require("sharp");
+      const pathMod = require("path");
+      const os = require("os");
+      const outPath = pathMod.join(
+        os.tmpdir(),
+        `rp-mvimg-${Date.now()}-${Math.random().toString(36).slice(2, 8)}.jpg`,
+      );
+      await sharp(file.filepath, { failOn: "none" })
+        .rotate()
+        .resize({ width: 1536, height: 1536, fit: "inside", withoutEnlargement: true })
+        .jpeg({ quality: 85, mozjpeg: true })
+        .toFile(outPath);
+      const outSt = await fs.stat(outPath).catch(() => null);
+      if (outSt?.size) {
+        filepath = outPath;
+        mime = "image/jpeg";
+        st = outSt;
+      }
+    } catch {
+      /* keep original */
+    }
+  }
+
+  let fn = String(file.originalFilename || "photo.jpg").replace(/[^\w.\-]+/g, "_");
+  if (!/\.[a-z0-9]{2,5}$/i.test(fn)) fn += ".jpg";
+  const pathname = `rp/mv/${Date.now()}-${crypto.randomBytes(6).toString("hex")}-${fn.slice(0, 80)}`;
+  const buf = await fs.readFile(filepath);
+  const { put } = require("@vercel/blob");
+  const blob = await put(pathname, buf, blobPutOptions({ contentType: mime }));
+  return blob.url;
+}
+
 const VIDEO_BLOB_CONTENT_TYPES = [
   "video/mp4",
   "video/webm",
@@ -805,7 +855,6 @@ async function routeVideoUpload(req, res) {
           err.status = 401;
           throw err;
         }
-        await requireAdminSession(req);
         if (String(pathname || "").includes("..")) {
           const err = new Error("Nome de ficheiro inválido.");
           err.status = 400;
@@ -846,9 +895,6 @@ async function routeBlobPrepare(req, res) {
     }
     const body = await readJsonRequestBody(req);
     const isVideo = String(body.kind || body.media_kind || "").toLowerCase() === "video";
-    if (isVideo) {
-      await requireAdminSession(req);
-    }
     let fn = String(body.filename || (isVideo ? "upload.mp4" : "upload.jpg")).replace(/[^\w.\-]+/g, "_");
     if (!/\.[a-z0-9]{2,5}$/i.test(fn)) fn += isVideo ? ".mp4" : ".jpg";
     fn = fn.slice(0, 100);
@@ -1020,7 +1066,7 @@ async function getPrediction(id) {
 }
 
 function serverPollDeadlineMs(pending) {
-  if (pending?.type === "video" || pending?.type === "marketing_video") return 780_000;
+  if (pending?.type === "video" || pending?.type === "marketing_video" || pending?.type === "motion_flyer") return 1_800_000;
   if (isOpenAIPosterJob(pending)) return 780_000;
   if (pending?.type === "poster") return 600_000;
   return 105_000;
@@ -1079,6 +1125,14 @@ function userLang(req, fields) {
   return text(fields, "lang", req?.headers?.["x-lang"] || "en").slice(0, 2).toLowerCase() || "en";
 }
 
+/** Seedance / marketing pipelines — sempre registam custo real (mesmo admin). */
+const FORCE_BILL_GENERATION_TYPES = new Set(["motion_flyer", "marketing_video"]);
+
+function mustForceBillGeneration(type, cost) {
+  if (FORCE_BILL_GENERATION_TYPES.has(String(type || ""))) return true;
+  return Number(cost) >= 120;
+}
+
 /**
  * Gasta créditos no servidor, submete ao Replicate e regista pending (contas Google + Mongo/KV).
  * Contas locais ou sem storage: fluxo legado (créditos só no cliente após sucesso).
@@ -1092,7 +1146,7 @@ async function submitBillableGeneration(req, fields, {
   aspectRatio,
   modelUsed,
   spendDescription,
-  notifyEmail,
+  notifyEmail: notifyEmailOpt,
   fallbackImageUrl,
   fallbackPrompt,
   fluxFallbackInput,
@@ -1100,6 +1154,15 @@ async function submitBillableGeneration(req, fields, {
 }) {
   const { user, isLocal } = resolveSessionUser(req);
   const lang = userLang(req, fields);
+
+  let notifyEmail = notifyEmailOpt;
+  if (notifyEmail === undefined && storageEnabled() && user?.id && !isLocal) {
+    const preUser = await getUserById(user.id);
+    const { resolveGenerationNotifyEmail } = require("./lib/generationNotify.cjs");
+    notifyEmail = resolveGenerationNotifyEmail(fields, preUser, { type });
+  } else if (notifyEmail === undefined) {
+    notifyEmail = null;
+  }
 
   const pendingFallbackFields = fallbackImageUrl
     ? {
@@ -1116,7 +1179,8 @@ async function submitBillableGeneration(req, fields, {
       err.status = 403;
       throw err;
     }
-    if (isAdminEmail(dbUser?.email)) {
+    const forceBill = mustForceBillGeneration(type, cost);
+    if (isAdminEmail(dbUser?.email) && !forceBill) {
       let prediction;
       let resolvedModelUsed = modelUsed || modelId;
       let fluxAttempted = false;
@@ -1157,13 +1221,13 @@ async function submitBillableGeneration(req, fields, {
       };
     }
     const balance = dbUser?.credits ?? user.credits ?? 0;
-    if (balance < cost) {
+    if (!isAdminEmail(dbUser?.email) && balance < cost) {
       const err = new Error("Créditos insuficientes.");
       err.status = 402;
       throw err;
     }
 
-    const newBalance = await spendCredits(user.id, cost, spendDescription || "Geração");
+    const newBalance = await spendCredits(user.id, cost, spendDescription || "Geração", { forceBill });
     let prediction;
     let resolvedModelUsed = modelUsed || modelId;
     let fluxAttempted = false;
@@ -1176,13 +1240,17 @@ async function submitBillableGeneration(req, fields, {
           resolvedModelUsed = MODELS.pro;
           fluxAttempted = true;
         } catch (e2) {
-          await addCredits(user.id, cost, "refund", `Refund: submit failed (${String(e2.message || e2).slice(0, 80)})`);
+          if (!forceBill || !isAdminEmail(dbUser?.email)) {
+            await addCredits(user.id, cost, "refund", `Refund: submit failed (${String(e2.message || e2).slice(0, 80)})`);
+          }
           const err = new Error(formatGenerationError(e2.message || "submit failed", lang));
           err.status = e2.status && e2.status >= 400 && e2.status < 600 ? e2.status : 502;
           throw err;
         }
       } else {
-        await addCredits(user.id, cost, "refund", `Refund: submit failed (${String(e.message || e).slice(0, 80)})`);
+        if (!forceBill || !isAdminEmail(dbUser?.email)) {
+          await addCredits(user.id, cost, "refund", `Refund: submit failed (${String(e.message || e).slice(0, 80)})`);
+        }
         const err = new Error(formatGenerationError(e.message || "submit failed", lang));
         err.status = e.status && e.status >= 400 && e.status < 600 ? e.status : 502;
         throw err;
@@ -1244,6 +1312,13 @@ async function submitInstantPosterGeneration(req, fields, {
     throw err;
   }
 
+  let notifyEmail = null;
+  if (storageEnabled() && user?.id && !isLocal) {
+    const preUser = await getUserById(user.id);
+    const { resolveGenerationNotifyEmail } = require("./lib/generationNotify.cjs");
+    notifyEmail = resolveGenerationNotifyEmail(fields, preUser, { type });
+  }
+
   if (storageEnabled() && user?.id && !isLocal) {
     const dbUser = await getUserById(user.id);
     if (dbUser?.banned) {
@@ -1274,6 +1349,7 @@ async function submitInstantPosterGeneration(req, fields, {
       credits_spent: isAdminEmail(dbUser?.email) ? 0 : cost,
       balance_after_spend: newBalance,
       lang,
+      notify_email: notifyEmail || null,
     });
 
     try {
@@ -1386,13 +1462,17 @@ function buildRestorePrompt(fields) {
 }
 
 function buildClothesPrompt(fields, hasGarment) {
+  const POSE_LOCK =
+    "Keep IDENTICAL pose, body proportions, camera angle, framing, background and lighting from the person photo. "
+    + "Only clothing/outfit pixels may change — no body reshaping, no re-posing, no stance change.";
   const userPrompt = text(fields, "prompt", "").trim();
   const changeType = text(fields, "change_type", "full");
   if (hasGarment) {
     let p = (
       "Two reference images: (1) the person, (2) the clothing/outfit to wear. "
       + "Generate exactly ONE photorealistic photo of that same person now wearing the outfit from image 2. "
-      + "Preserve face, identity, hair, body proportions and pose from image 1. "
+      + `${PHOTO_EDIT_IDENTITY_BLOCK} `
+      + `${POSE_LOCK} `
       + "Copy style, color, fabric, cut, patterns and details from the garment reference. "
       + "Do NOT output a collage, split screen, diptych, or side-by-side comparison. "
       + "Do NOT show both source images in the result — only the dressed person."
@@ -1401,17 +1481,19 @@ function buildClothesPrompt(fields, hasGarment) {
     return p;
   }
   if (!userPrompt) {
-    return "Change outfit while preserving face, body pose and identity. Photorealistic, natural lighting.";
+    return (
+      `Change outfit only. ${PHOTO_EDIT_IDENTITY_BLOCK} ${POSE_LOCK} Photorealistic, natural lighting.`
+    );
   }
   const prefix = {
-    full: "Change the outfit. Replace all clothing with: ",
-    piece: "Add/replace this specific clothing piece: ",
-    color: "Keep the same outfit but change the color/style to: ",
-    tryon: "Show the person wearing: ",
+    full: "Change the outfit only. Replace all clothing with: ",
+    piece: "Add/replace this specific clothing piece only — keep everything else: ",
+    color: "Keep the same outfit cut and pose but change the color/style to: ",
+    tryon: "Show the same person in the same pose wearing: ",
   };
   return (
     `${prefix[changeType] || prefix.full}${userPrompt}. `
-    + "Preserve identity, face, body proportions and pose. Photorealistic, natural lighting."
+    + `${PHOTO_EDIT_IDENTITY_BLOCK} ${POSE_LOCK} Photorealistic, natural lighting.`
   );
 }
 
@@ -1438,6 +1520,76 @@ function creationFromPrediction(prediction) {
     is_favorite: false,
     is_public: false,
     created_at: new Date().toISOString(),
+  };
+}
+
+async function resolveStudioPhotoRefs(files, fields, maxRefs = 4) {
+  const primary = (await resolveImageRef(files, fields, "photo", "photo_url"))
+    || (await resolveImageRef(files, fields, "image", "image_url"));
+  const refs = [];
+  for (let i = 1; i <= maxRefs; i += 1) {
+    const ref = await resolveImageRef(files, fields, `image_${i}`, `image_${i}_url`);
+    if (ref) refs.push(ref);
+  }
+  return { primary, refs };
+}
+
+function buildStudioMultiImageBundle(fields, urls, userPrompt) {
+  const all = (urls || []).filter(Boolean).slice(0, 5);
+  if (all.length < 2) {
+    const err = new Error("Combinação multi-imagem exige pelo menos 2 fotos.");
+    err.status = 400;
+    throw err;
+  }
+
+  let instruction = String(userPrompt || "").trim();
+  if (!instruction) {
+    instruction = "Place all reference subjects together in one natural photorealistic photograph.";
+  } else if (all.length === 2 && instruction.length < 40) {
+    instruction = (
+      `${instruction}. `
+      + "Both people together in one photo, full-size, same scale, side by side, "
+      + "both faces sharp and clearly visible, photorealistic."
+    );
+  }
+
+  let promptFinal = all.length === 2
+    ? `${buildStudioDualPersonBlock()}\n\n${buildStudioMultiCombineBlock(2)}`
+    : buildStudioMultiCombineBlock(all.length);
+  promptFinal = `${promptFinal}\n\nScene / user request: ${instruction}`;
+  promptFinal = appendPhotoEditIdentity(promptFinal);
+  promptFinal = finalizeImagePrompt(promptFinal, {
+    modelKey: "pro",
+    hasPersonPhoto: true,
+    photoEdit: true,
+  });
+
+  const aspectRaw = text(fields, "aspect_ratio", "1:1").trim().toLowerCase();
+  let aspectRatio = "match_input_image";
+  if (aspectRaw && !["match", "match_input_image", "original"].includes(aspectRaw)) {
+    const normalized = normalizeRatio(aspectRaw, "pro");
+    if (FLUX_SUPPORTED.has(normalized)) aspectRatio = normalized;
+  }
+
+  const input = {
+    prompt: promptFinal,
+    images: all,
+    aspect_ratio: aspectRatio,
+    disable_safety_checker: true,
+    go_fast: false,
+    output_format: "jpg",
+    output_quality: 95,
+    megapixels: 1,
+  };
+  const aspectHint = aspectRatio === "match_input_image" ? "3:4" : aspectRatio;
+  input.prompt = appendAspectOutputInstruction(input.prompt, aspectHint);
+
+  return {
+    input,
+    prompt: promptFinal,
+    aspectRatio: aspectHint,
+    modelId: MODELS.pro,
+    modelUsed: "FLUX Klein · multi-ref",
   };
 }
 
@@ -1702,6 +1854,25 @@ async function routePost(path, fields, files, req) {
       prompt = await improvePrompt(prompt, lang, { tool: "edit" });
       editCost += surcharges.enhancePrompt ?? 5;
     }
+    const { primary, refs } = await resolveStudioPhotoRefs(files, fields);
+    if (refs.length > 0) {
+      if (!primary) {
+        const err = new Error("Envia uma foto principal e pelo menos uma referência.");
+        err.status = 400;
+        throw err;
+      }
+      const bundle = buildStudioMultiImageBundle(fields, [primary, ...refs], prompt);
+      return submitBillableGeneration(req, fields, {
+        cost: editCost,
+        type: "image",
+        modelId: bundle.modelId,
+        input: bundle.input,
+        prompt: bundle.prompt,
+        aspectRatio: bundle.aspectRatio,
+        modelUsed: bundle.modelUsed,
+        spendDescription: "Estúdio: editar foto (multi-ref)",
+      });
+    }
     const input = await imageInput(fields, files, "standard", prompt);
     return submitBillableGeneration(req, fields, {
       cost: editCost,
@@ -1864,6 +2035,47 @@ async function routePost(path, fields, files, req) {
     const logoInstr = buildPosterLogoInstruction(Boolean(logoRef), Boolean(photoRef));
     if (logoInstr) prompt = `${prompt}\n\n${logoInstr}`;
     prompt = `${prompt}\n\n${POSTER_FULL_BLEED_GUARD}`;
+
+    const requiresDualPhoto = truthyField(fields, "requires_dual_photo");
+    const secondPersonRef = await resolveImageRef(files, fields, "image_1", "image_1_url");
+    if (requiresDualPhoto) {
+      if (!photoRef || !secondPersonRef) {
+        const err = new Error("Este estilo exige 2 fotos — uma de cada pessoa (1.ª principal, 2.ª referência).");
+        err.status = 400;
+        throw err;
+      }
+      prompt = `${buildStudioDualPersonBlock()}\n\n${prompt}`;
+      prompt = appendPhotoEditIdentity(prompt);
+      const dualAspectRaw = normalizeRatio(text(fields, "aspect_ratio", "4:5"), "pro");
+      const dualRatio = FLUX_SUPPORTED.has(dualAspectRaw) ? dualAspectRaw : "3:4";
+      const dualInput = {
+        prompt: finalizeImagePrompt(prompt, {
+          modelKey: "pro",
+          poster: true,
+          hasPersonPhoto: true,
+          photoEdit: true,
+        }),
+        images: [photoRef, secondPersonRef],
+        aspect_ratio: dualRatio,
+        disable_safety_checker: true,
+        go_fast: false,
+        output_format: "jpg",
+        output_quality: 95,
+      };
+      dualInput.prompt = appendAspectOutputInstruction(dualInput.prompt, dualRatio);
+      const dualPerImage = selected === "gpt_image" ? CREDIT.posterPremium : CREDIT.posterPro;
+      const dualCost = dualPerImage * count;
+      return submitBillableGeneration(req, fields, {
+        cost: dualCost,
+        type: "poster",
+        modelId: MODELS.pro,
+        input: dualInput,
+        prompt,
+        aspectRatio: dualRatio,
+        modelUsed: "FLUX Klein · pôster 2 pessoas",
+        spendDescription: "Pôster · 2 pessoas",
+      });
+    }
 
     const resolved = resolvePosterModel(selected);
     const cost = perImage * count;
@@ -2115,7 +2327,6 @@ async function routePost(path, fields, files, req) {
   }
 
   if (path === "generate/video") {
-    await requireAdminSession(req);
     const {
       MODELS: VIDEO_MODELS,
       resolveToolId,
@@ -2198,7 +2409,6 @@ async function routePost(path, fields, files, req) {
   }
 
   if (path === "generate/video-edit") {
-    await requireAdminSession(req);
     const {
       applyPresetPrefix,
       MODELS: VIDEO_MODELS,
@@ -2206,19 +2416,16 @@ async function routePost(path, fields, files, req) {
     const lang = text(fields, "lang", "en").slice(0, 2);
     const preset = text(fields, "video_preset", "").trim();
     let rawPrompt = text(fields, "prompt", "").trim();
+    if (truthyField(fields, "improve_prompt") && rawPrompt.length >= 3) {
+      rawPrompt = await improvePrompt(rawPrompt, lang, {
+        tool: "video_edit",
+        video_preset: preset,
+      });
+    }
     if (preset && rawPrompt.length >= 3) {
       rawPrompt = applyPresetPrefix(preset, rawPrompt);
-      fields.prompt = rawPrompt;
     }
-    if (truthyField(fields, "improve_prompt")) {
-      const raw = text(fields, "prompt", "").trim();
-      if (raw.length >= 3) {
-        fields.prompt = await improvePrompt(raw, lang, {
-          tool: "video_edit",
-          video_preset: preset,
-        });
-      }
-    }
+    fields.prompt = rawPrompt;
     const { input, prompt } = await videoEditInput(fields, files);
     const surcharges = getSurcharges(region);
     const { validateVideoEditOptions, computeVideoEditCostForEngine } = require("./lib/videoEditPricing.cjs");
@@ -2230,17 +2437,6 @@ async function routePost(path, fields, files, req) {
     if (truthyField(fields, "improve_prompt")) {
       cost += surcharges.enhancePrompt ?? 5;
     }
-    const { isValidEmail } = require("./lib/videoNotifyEmail.cjs");
-    let notifyEmail = null;
-    const session = resolveSessionUser(req);
-    const explicit = String(text(fields, "notify_email", "")).trim().toLowerCase();
-    if (isValidEmail(explicit)) {
-      notifyEmail = explicit;
-    } else if (session.user?.id && storageEnabled() && !session.isLocal) {
-      const dbUser = await getUserById(session.user.id);
-      const fromDb = String(dbUser?.email || "").trim().toLowerCase();
-      if (isValidEmail(fromDb)) notifyEmail = fromDb;
-    }
     const modelId = VIDEO_MODELS.wan_edit;
     return submitBillableGeneration(req, fields, {
       cost,
@@ -2251,12 +2447,10 @@ async function routePost(path, fields, files, req) {
       aspectRatio: input.aspect_ratio,
       modelUsed: modelId,
       spendDescription: "Editor vídeo",
-      notifyEmail,
     });
   }
 
   if (path === "generate/video-extend") {
-    await requireAdminSession(req);
     const { MODELS: VIDEO_MODELS, buildVideoExtendPrompt } = require("./lib/videoModels.cjs");
     const lang = text(fields, "lang", "en").slice(0, 2);
     let rawPrompt = text(fields, "prompt", "").trim();
@@ -2280,21 +2474,6 @@ async function routePost(path, fields, files, req) {
     if (truthyField(fields, "improve_prompt")) {
       cost += surcharges.enhancePrompt ?? 5;
     }
-    const { isValidEmail } = require("./lib/videoNotifyEmail.cjs");
-    const wantsNotify = truthyField(fields, "notify_by_email")
-      || Boolean(String(text(fields, "notify_email", "")).trim());
-    let notifyEmail = null;
-    if (wantsNotify) {
-      const session = resolveSessionUser(req);
-      const explicit = String(text(fields, "notify_email", "")).trim().toLowerCase();
-      if (isValidEmail(explicit)) {
-        notifyEmail = explicit;
-      } else if (session.user?.id && storageEnabled() && !session.isLocal) {
-        const dbUser = await getUserById(session.user.id);
-        const fromDb = String(dbUser?.email || "").trim().toLowerCase();
-        if (isValidEmail(fromDb)) notifyEmail = fromDb;
-      }
-    }
     return submitBillableGeneration(req, fields, {
       cost,
       type: "video",
@@ -2304,52 +2483,86 @@ async function routePost(path, fields, files, req) {
       aspectRatio: "auto",
       modelUsed: VIDEO_MODELS.wan_extend,
       spendDescription: "Estender vídeo",
-      notifyEmail,
+    });
+  }
+
+  if (path === "generate/motion-flyer") {
+    const {
+      runMotionFlyerPipeline,
+      validateMotionFlyerDuration,
+      computeMotionFlyerCost,
+    } = require("./lib/motionFlyer/index.cjs");
+    const { resolveMotionFlyerAspectRatio: detectAspect } = require("./lib/motionFlyer/motionFlyerAspect.cjs");
+    const lang = text(fields, "lang", "pt").slice(0, 2);
+    const duration = validateMotionFlyerDuration(text(fields, "duration", "10"));
+    const imageUrls = await resolveMarketingVideoImages(files, fields, 1);
+    if (!imageUrls.length) throw new Error("Envia o flyer (imagem).");
+
+    const aspectMeta = await detectAspect({
+      fields,
+      files,
+      imageUrls,
+      fileOf,
+      textFn: text,
+    });
+
+    const pipeline = await runMotionFlyerPipeline({
+      imageUrls,
+      duration,
+      lang,
+      aspectRatio: aspectMeta.aspectRatio,
+      imageWidth: aspectMeta.width,
+      imageHeight: aspectMeta.height,
+    });
+
+    const cost = computeMotionFlyerCost(region, duration);
+
+    return submitBillableGeneration(req, fields, {
+      cost,
+      type: "motion_flyer",
+      modelId: pipeline.modelId,
+      input: pipeline.input,
+      prompt: pipeline.prompt,
+      aspectRatio: pipeline.aspectRatio || "9:16",
+      modelUsed: pipeline.modelId,
+      spendDescription: `Motion Flyer IA · ${duration}s · ${pipeline.aspectRatio || "9:16"}`,
+      pendingMeta: {
+        motion_flyer_duration: duration,
+        motion_flyer_category: pipeline.analysis?.category || "",
+        motion_flyer_aspect_ratio: pipeline.aspectRatio || aspectMeta.aspectRatio || "",
+        motion_flyer_image_width: pipeline.imageWidth || aspectMeta.width || null,
+        motion_flyer_image_height: pipeline.imageHeight || aspectMeta.height || null,
+        motion_flyer_provider: pipeline.providerId,
+        motion_flyer_prompt_id: pipeline.promptId || "",
+      },
     });
   }
 
   if (path === "generate/marketing-video") {
-    await requireAdminSession(req);
     const {
       runMarketingVideoPipeline,
       validateMarketingVideoDuration,
       computeMarketingVideoCost,
-      listMarketingCategories,
     } = require("./lib/marketingVideo/index.cjs");
-    const { isValidEmail } = require("./lib/videoNotifyEmail.cjs");
     const lang = text(fields, "lang", "pt").slice(0, 2);
-    const manualCategory = text(fields, "category", "").trim();
-    const duration = validateMarketingVideoDuration(text(fields, "duration", "6"));
-    const imageUrls = await resolveMarketingVideoImages(files, fields, 6);
+    const mode = text(fields, "mode", "quick").trim();
+    const manualCategory = mode === "quick" ? "" : text(fields, "category", "").trim();
+    const visualStyle = mode === "quick" ? "random" : text(fields, "visual_style", "").trim();
+    const formatId = text(fields, "format", "").trim();
+    const duration = validateMarketingVideoDuration(text(fields, "duration", "15"));
+    const imageUrls = await resolveMarketingVideoImages(files, fields, 5);
     if (!imageUrls.length) throw new Error("Envia pelo menos uma imagem principal.");
 
     const pipeline = await runMarketingVideoPipeline({
       imageUrls,
       duration,
       manualCategory,
+      visualStyle,
       lang,
+      formatId,
     });
 
-    if (!pipeline.ok && pipeline.needs_category) {
-      const err = new Error("Seleciona uma categoria para continuar.");
-      err.status = 422;
-      err.code = "NEEDS_CATEGORY";
-      err.payload = {
-        needs_category: true,
-        analysis: pipeline.analysis,
-        categories: listMarketingCategories(lang),
-      };
-      throw err;
-    }
-
     const cost = computeMarketingVideoCost(region, duration);
-    const session = resolveSessionUser(req);
-    let notifyEmail = null;
-    if (session.user?.id && storageEnabled() && !session.isLocal) {
-      const dbUser = await getUserById(session.user.id);
-      const fromDb = String(dbUser?.email || session.user.email || "").trim().toLowerCase();
-      if (isValidEmail(fromDb)) notifyEmail = fromDb;
-    }
 
     return submitBillableGeneration(req, fields, {
       cost,
@@ -2360,12 +2573,14 @@ async function routePost(path, fields, files, req) {
       aspectRatio: pipeline.aspectRatio || "9:16",
       modelUsed: pipeline.modelId,
       spendDescription: `Vídeo marketing IA · ${duration}s`,
-      notifyEmail,
       pendingMeta: {
         marketing_video_duration: duration,
         marketing_video_category: pipeline.analysis?.category || manualCategory,
+        marketing_video_visual_style: pipeline.visualStyleId || visualStyle || "",
+        marketing_video_format: formatId || "",
         marketing_video_provider: pipeline.providerId,
         marketing_video_image_count: imageUrls.length,
+        marketing_video_mode: mode,
       },
     });
   }
@@ -2635,7 +2850,7 @@ async function handlePath(path, req, res) {
   if (req.method === "OPTIONS") return res.status(204).end();
 
   try {
-    if (path.startsWith("admin/") && ["GET", "POST", "PATCH"].includes(req.method)) {
+    if (path.startsWith("admin/") && ["GET", "POST", "PATCH", "DELETE"].includes(req.method)) {
       return handleAdminRoute(path, req, res, { verifySessionToken, json, readJsonRequestBody });
     }
 
@@ -2729,7 +2944,6 @@ async function handlePath(path, req, res) {
     }
 
     if (req.method === "GET" && (path === "marketing-video/config" || path === "marketing-video/history")) {
-      await requireAdminSession(req);
       const country = countryFromRequest(req);
       const client = String(req.headers["x-pricing-region"] || "").trim();
       const region = resolvePricingRegion({ countryCode: country, clientRegion: client });
@@ -2739,14 +2953,41 @@ async function handlePath(path, req, res) {
         return json(res, 200, {
           provider: mv.getMarketingVideoProvider(),
           durations: mv.ALLOWED_DURATIONS,
+          duration: mv.MARKETING_VIDEO_DURATION,
           pricing: mv.getMarketingVideoPricingMap(region),
-          max_images: 6,
+          max_images: 5,
           aspect_ratio: "9:16",
+          default_format: mv.DEFAULT_FORMAT_ID,
+          formats: mv.listMarketingVideoFormats(lang),
           categories: mv.listMarketingCategories(lang),
+          visual_styles: mv.listVisualStyles(lang),
+          prompt_variants: mv.allPromptEntries().length,
         });
       }
       const { user } = resolveSessionUser(req);
       const jobs = await mv.listMarketingVideoHistory(user?.id, { limit: 30 });
+      return json(res, 200, { jobs });
+    }
+
+    if (req.method === "GET" && (path === "motion-flyer/config" || path === "motion-flyer/history")) {
+      const country = countryFromRequest(req);
+      const client = String(req.headers["x-pricing-region"] || "").trim();
+      const region = resolvePricingRegion({ countryCode: country, clientRegion: client });
+      const lang = String(req.headers["x-lang"] || req.headers["accept-language"] || "pt").slice(0, 2);
+      const mf = require("./lib/motionFlyer/index.cjs");
+      if (path === "motion-flyer/config") {
+        return json(res, 200, {
+          provider: mf.getMotionFlyerProvider(),
+          durations: mf.ALLOWED_DURATIONS,
+          duration: mf.MOTION_FLYER_DURATION,
+          pricing: mf.getMotionFlyerPricingMap(region),
+          aspect_from_image: true,
+          categories: mf.listMotionFlyerCategories(lang),
+          prompt_variants: mf.allPromptEntries().length,
+        });
+      }
+      const { user } = resolveSessionUser(req);
+      const jobs = await mf.listMotionFlyerHistory(user?.id, { limit: 30 });
       return json(res, 200, { jobs });
     }
 
@@ -2933,6 +3174,32 @@ async function handlePath(path, req, res) {
       const dbUser = await getUserById(sessionUser.id);
       const user = dbUser || sessionUser;
       return json(res, 200, user);
+    }
+
+    if (req.method === "PATCH" && path === "me/notifications") {
+      const auth = req.headers.authorization || "";
+      const m = auth.match(/^Bearer\s+(.+)$/i);
+      if (!m) return json(res, 401, { detail: "Não autenticado." });
+      const token = m[1].trim();
+      if (token.startsWith("local:")) {
+        return json(res, 503, { detail: "Preferências requerem conta no servidor." });
+      }
+      const sessionUser = verifySessionToken(token);
+      if (!sessionUser) return json(res, 401, { detail: "Sessão inválida ou expirada." });
+      const body = await readJsonRequestBody(req);
+      const patch = {};
+      if (body?.email_notify_generations != null) {
+        patch.email_notify_generations = Boolean(body.email_notify_generations);
+      }
+      if (!Object.keys(patch).length) {
+        return json(res, 400, { detail: "Nada para actualizar." });
+      }
+      const { getDb } = require("./lib/mongo.cjs");
+      const db = await getDb();
+      await db.collection("users").updateOne({ id: sessionUser.id }, { $set: patch });
+      await touchUser(sessionUser.id, req, { action: "notifications" });
+      const dbUser = await getUserById(sessionUser.id);
+      return json(res, 200, dbUser || sessionUser);
     }
 
     if (req.method === "POST" && path === "auth/google-callback") {

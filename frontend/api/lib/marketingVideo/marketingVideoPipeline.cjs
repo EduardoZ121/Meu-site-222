@@ -5,14 +5,18 @@ const { analyzeMarketingImages } = require("./marketingVideoAnalyzer.cjs");
 const { buildFinalPrompt } = require("./marketingVideoPrompts.cjs");
 const { buildSeedanceInput } = require("./marketingVideoSeedance.cjs");
 const { getMarketingVideoProvider } = require("./marketingVideoModels.cjs");
-const { isValidCategoryId } = require("./marketingVideoCategories.cjs");
+const { resolvePipelineCategory } = require("./marketingVideoCategories.cjs");
+const { resolveMarketingVideoAspectRatio } = require("./marketingVideoFormats.cjs");
+const { MARKETING_VIDEO_DURATION } = require("./marketingVideoPricing.cjs");
 
 async function runMarketingVideoPipeline({
   imageUrls,
   duration,
   manualCategory = "",
+  visualStyle = "",
   lang = "pt",
   providerId,
+  formatId = "",
 }) {
   const urls = (imageUrls || []).filter(Boolean);
   if (!urls.length) {
@@ -21,6 +25,7 @@ async function runMarketingVideoPipeline({
     throw err;
   }
 
+  const dur = Math.round(Number(duration) || MARKETING_VIDEO_DURATION);
   const mainImageUrl = urls[0];
   const referenceUrls = urls.slice(1);
 
@@ -31,35 +36,28 @@ async function runMarketingVideoPipeline({
     lang,
   });
 
-  if (analysis.needs_manual && !isValidCategoryId(manualCategory)) {
-    return {
-      ok: false,
-      needs_category: true,
-      analysis,
-    };
-  }
-
-  const categoryId = analysis.category || manualCategory;
-  if (!isValidCategoryId(categoryId)) {
-    const err = new Error("Seleciona uma categoria para continuar.");
-    err.status = 422;
-    err.code = "NEEDS_CATEGORY";
-    throw err;
-  }
-
-  const { promptId, storyboard, prompt } = buildFinalPrompt({
-    categoryId,
-    duration,
-    productLabel: analysis.product_label,
-    imageCount: urls.length,
-  });
+  const categoryId = resolvePipelineCategory(manualCategory, analysis.category);
 
   const provider = getMarketingVideoProvider(providerId);
+
+  const { promptId, storyboard, prompt, generateAudio, visualStyleId } = buildFinalPrompt({
+    categoryId,
+    duration: dur,
+    productLabel: analysis.product_label,
+    imageCount: urls.length,
+    creativeAngle: analysis.creative_angle,
+    visualStyle: visualStyle,
+  });
+
+  const aspectRatio = resolveMarketingVideoAspectRatio(formatId, provider.defaultAspect);
+
   const { modelId, input } = buildSeedanceInput({
     prompt,
     imageUrls: urls,
-    duration,
+    duration: dur,
     providerId: provider.id,
+    aspectRatio,
+    generateAudio,
   });
 
   return {
@@ -67,11 +65,12 @@ async function runMarketingVideoPipeline({
     analysis: { ...analysis, category: categoryId },
     storyboard,
     promptId,
+    visualStyleId,
     prompt,
     modelId,
     input,
     providerId: provider.id,
-    aspectRatio: provider.defaultAspect,
+    aspectRatio,
   };
 }
 

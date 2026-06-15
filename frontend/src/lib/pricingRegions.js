@@ -111,8 +111,28 @@ export function toolCatalogueCost(toolId, regionId) {
     manga_studio: c.mangaPanel,
     video: c.video,
     wizard: 0,
+    motion_flyer: c.motionFlyerByDuration?.[10] ?? 200,
+    marketing_video: c.marketingVideoByDuration?.[15] ?? 240,
   };
   return map[toolId] ?? c.image;
+}
+
+/** Custo mostrado nos cartões do hub Vídeo (suporta duração em pricing.json). */
+export function videoCatalogueCost(costs, category) {
+  if (!category) return costs?.video ?? 50;
+  if (category.id === "motion-flyer-ai" || category.flow === "motion-flyer") {
+    return costs?.motionFlyerByDuration?.[10] ?? 200;
+  }
+  if (category.id === "marketing-video-ai" || category.flow === "marketing-video") {
+    return costs?.marketingVideoByDuration?.[15] ?? 240;
+  }
+  if (category.costKey === "motionFlyerByDuration") {
+    return costs?.motionFlyerByDuration?.[category.costDuration || 10] ?? 200;
+  }
+  if (category.costKey === "marketingVideoByDuration") {
+    return costs?.marketingVideoByDuration?.[category.costDuration || 15] ?? 240;
+  }
+  return costs?.[category.costKey] ?? costs?.video ?? 50;
 }
 
 export { pricingData };

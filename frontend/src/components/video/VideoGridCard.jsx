@@ -17,6 +17,7 @@ import {
   Zap,
 } from "lucide-react";
 import { usePricing } from "../../lib/PricingContext";
+import { videoCatalogueCost } from "../../lib/pricingRegions";
 
 const cardEase = [0.16, 1, 0.3, 1];
 
@@ -54,7 +55,7 @@ const ICON_STYLES = {
 
 export default function VideoGridCard({ category, index, t }) {
   const { costs } = usePricing();
-  const cost = costs[category.costKey] ?? costs.video ?? 50;
+  const cost = videoCatalogueCost(costs, category);
   const Icon = ICONS[category.icon] || Type;
   const iconStyle = ICON_STYLES[category.icon] || ICON_STYLES.type;
 

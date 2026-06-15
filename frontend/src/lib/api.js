@@ -446,12 +446,14 @@ async function pollTrackedPredictionOnce(predictionId, meta = {}) {
       window.dispatchEvent(new CustomEvent("rp:prediction-finished", {
         detail: { status: "succeeded", prediction_id: predictionId, source: "background" },
       }));
+      removeTrackedPrediction(predictionId);
+    } else if (!hasUrls) {
+      window.dispatchEvent(new CustomEvent("rp:prediction-finished", {
+        detail: { status: "succeeded", prediction_id: predictionId, source: "background", repair: true },
+      }));
     }
     if (data.new_balance != null && typeof window !== "undefined") {
       window.dispatchEvent(new CustomEvent("rp:credits-sync", { detail: { credits: data.new_balance } }));
-    }
-    if (hasUrls) {
-      removeTrackedPrediction(predictionId);
     }
     return;
   }
@@ -681,10 +683,11 @@ async function maybeAwaitMultipartCreation(data, skipPollHeader, config = {}) {
   }
 
   const pollTimeoutMs = config.pollTimeoutMs ?? Math.max(240_000, Number(config.timeout) || 0);
+  const isLongVideo = (data.type || config.type) === "video";
   const polled = await pollPrediction(pid, {
     credits_spent: data.credits_spent,
     type: data.type,
-    timeoutMs: pollTimeoutMs,
+    timeoutMs: isLongVideo ? Math.max(pollTimeoutMs, 1_800_000) : pollTimeoutMs,
     onTick: config.onPollTick,
     intervalMs: config.pollIntervalMs,
   });

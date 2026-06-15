@@ -49,10 +49,18 @@ function formatReportHtml(stats, periodLabel) {
   if (stats.finance) {
     rows.push(
       ["Compradores únicos", stats.finance.unique_buyers],
+      ["Créditos já gastos", stats.finance.credits_spent ?? 0],
+      ["Replicate já usado (est. USD)", `$${Number(stats.finance.replicate_spent_estimated_usd || 0).toFixed(2)}`],
+      ["Créditos em circulação (finanças)", stats.finance.credits_in_circulation ?? "—"],
       ["Reserva Replicate necessária (USD)", `$${Number(stats.finance.replicate_reserve_needed_usd || 0).toFixed(2)}`],
       ["Carregar no Replicate (USD)", `$${Number(stats.finance.top_up_recommended_usd || 0).toFixed(2)}`],
+      ["Saldo Replicate registado (USD)", stats.finance.replicate_balance_usd != null ? `$${Number(stats.finance.replicate_balance_usd).toFixed(2)}` : "— (cola no Admin)"],
       ["Margem estimada total (USD)", `$${Number(stats.finance.estimated_margin_usd_total || 0).toFixed(2)}`],
     );
+  }
+  let balanceAlert = "";
+  if (stats.finance?.balance_ok === false) {
+    balanceAlert = `<div style="margin:20px 0;padding:14px 16px;background:#fef2f2;border:1px solid #fecaca;border-radius:8px;color:#b91c1c"><strong>⚠ Saldo Replicate baixo</strong><br/>Registaste $${Number(stats.finance.replicate_balance_usd || 0).toFixed(2)} mas precisas de ~$${Number(stats.finance.replicate_reserve_needed_usd || 0).toFixed(2)} para créditos em circulação. Carrega ~$${Number(stats.finance.top_up_recommended_usd || 0).toFixed(2)} em replicate.com/account/billing.</div>`;
   }
   const tr = rows.map(([k, v]) => `<tr><td style="padding:8px 12px;border-bottom:1px solid #eee;color:#666">${esc(k)}</td><td style="padding:8px 12px;border-bottom:1px solid #eee;font-weight:600">${esc(v)}</td></tr>`).join("");
   let risky = "";
@@ -65,6 +73,7 @@ function formatReportHtml(stats, periodLabel) {
     `<h1 style="margin:0 0 4px;font-size:22px">Remake Pixel — ${esc(periodLabel)}</h1>`,
     "<p style=\"margin:0 0 20px;color:#888;font-size:13px\">Relatório semanal automático (sábado)</p>",
     `<table style="width:100%;border-collapse:collapse">${tr}</table>`,
+    balanceAlert,
     risky,
     "<p style=\"margin-top:24px;font-size:12px;color:#aaa\">remakepix.com · painel Admin</p>",
     "</div></body></html>",
@@ -88,8 +97,13 @@ function formatReportText(stats, periodLabel) {
       ? [
         "",
         `Compradores únicos: ${stats.finance.unique_buyers}`,
+        `Créditos já gastos: ${stats.finance.credits_spent ?? 0}`,
+        `Replicate já usado (est.): $${Number(stats.finance.replicate_spent_estimated_usd || 0).toFixed(2)}`,
         `Reserva Replicate: $${Number(stats.finance.replicate_reserve_needed_usd || 0).toFixed(2)}`,
         `Carregar no Replicate: $${Number(stats.finance.top_up_recommended_usd || 0).toFixed(2)}`,
+        stats.finance.replicate_balance_usd != null
+          ? `Saldo Replicate: $${Number(stats.finance.replicate_balance_usd).toFixed(2)}${stats.finance.balance_ok === false ? " — BAIXO!" : ""}`
+          : "Saldo Replicate: não registado (cola no Admin)",
         `Margem estimada: $${Number(stats.finance.estimated_margin_usd_total || 0).toFixed(2)}`,
       ].join("\n")
       : "",

@@ -13,7 +13,12 @@ export default function StudioCompactShell({
   return (
     <div
       className={cn("rp-studio-compact-page mx-auto w-full", className)}
-      style={{ maxWidth }}
+      style={{
+        // Mobile: largura total; desktop: limite do ecrã
+        maxWidth: maxWidth
+          ? `min(100%, ${typeof maxWidth === "number" ? `${maxWidth}px` : maxWidth})`
+          : undefined,
+      }}
       data-testid={testId}
     >
       {children}

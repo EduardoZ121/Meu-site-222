@@ -10,7 +10,7 @@ const TOOLS = [
   { id: "inpaint", path: "/app/tools/inpaint", name: "Inpaint / Apagar Objetos", credits: 28, desc: "Máscara + prompt para remover/trocar." },
   { id: "posters", path: "/app/posters", name: "Pôsteres Profissionais", credits: 24, desc: "Templates de poster; aceita foto." },
   { id: "manga_studio", path: "/app/manga-studio", name: "MANGA STUDIO", credits: 15, desc: "Mangá/comic: personagens, poses, cenários, painéis (15/40/150 créditos)." },
-  { id: "wizard", path: "/app/wizard", name: "Assistente (5 perguntas)", credits: 0, desc: "Monta um prompt em 5 passos (grátis)." },
+  { id: "wizard", path: "/app/wizard", name: "Assistente (5 perguntas)", credits: 0, desc: "Monta um prompt em 5 passos (sem créditos)." },
   { id: "video", path: "/app/video", name: "Texto / Foto → Vídeo", credits: 70, desc: "Clipe ~6s." },
 ];
 
@@ -21,7 +21,7 @@ const PAGES = [
   { path: "/app/billing", name: "Faturação", desc: "Comprar créditos e ver transações." },
   { path: "/app/profile", name: "Perfil", desc: "Nome, avatar, email." },
   { path: "/app/settings", name: "Definições", desc: "Idioma, palavra-passe, formato por defeito." },
-  { path: "/app/referrals", name: "Referências", desc: "Código de convite — bónus de créditos." },
+  { path: "/app/referrals", name: "Referências", desc: "Código de convite para partilhar o estúdio." },
 ];
 
 function buildSiteKnowledge() {

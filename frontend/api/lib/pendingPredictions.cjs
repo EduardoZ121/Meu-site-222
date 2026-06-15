@@ -2,8 +2,14 @@ const crypto = require("crypto");
 const { getDb, storageEnabled, ensureIndexes } = require("./mongo.cjs");
 const { addCredits, recordCreation } = require("./usersDb.cjs");
 const { formatGenerationError } = require("./generationErrors.cjs");
-const { extractUrls, mirrorUrlsToBlob } = require("./creationMedia.cjs");
-const { sendVideoReadyEmail, sendVideoFailedEmail } = require("./videoNotifyEmail.cjs");
+const { extractUrls, mirrorUrlsToBlob, normalizeResultUrls } = require("./creationMedia.cjs");
+const { sendVideoReadyEmail, sendVideoFailedEmail, sendCreationReadyEmail, isValidEmail } = require("./videoNotifyEmail.cjs");
+
+const VIDEO_NOTIFY_TYPES = new Set(["video", "marketing_video", "motion_flyer"]);
+
+function isVideoNotifyType(type) {
+  return VIDEO_NOTIFY_TYPES.has(type);
+}
 
 function nowIso() {
   return new Date().toISOString();
@@ -84,6 +90,11 @@ async function createPending(doc) {
     marketing_video_category: doc.marketing_video_category || null,
     marketing_video_provider: doc.marketing_video_provider || null,
     marketing_video_image_count: doc.marketing_video_image_count ?? null,
+    motion_flyer_duration: doc.motion_flyer_duration ?? null,
+    motion_flyer_category: doc.motion_flyer_category || null,
+    motion_flyer_provider: doc.motion_flyer_provider || null,
+    motion_flyer_format: doc.motion_flyer_format || null,
+    motion_flyer_prompt_id: doc.motion_flyer_prompt_id || null,
   };
   await db.collection("pending_predictions").insertOne(row);
   return row;
@@ -111,7 +122,7 @@ function elapsedSeconds(pending) {
 }
 
 async function deliverVideoNotifyEmail(pending, creation, urls) {
-  if (!["video", "marketing_video"].includes(pending?.type) || !pending?.notify_email) {
+  if (!pending?.notify_email) {
     return { skipped: true, reason: "no_notify" };
   }
   if (pending.notify_email_sent_at) {
@@ -126,7 +137,7 @@ async function deliverVideoNotifyEmail(pending, creation, urls) {
       notify_email_sent_at: null,
     },
     {
-      $set: { notify_email_sent_at: nowIso(), notify_email_error: null },
+      $inc: { notify_email_attempts: 1 },
     },
     { returnDocument: "before" },
   );
@@ -134,23 +145,30 @@ async function deliverVideoNotifyEmail(pending, creation, urls) {
     return { skipped: true, reason: "already_sent" };
   }
 
-  const videoUrl = Array.isArray(urls) && urls.length ? urls[0] : null;
+  const mediaUrl = Array.isArray(urls) && urls.length ? urls[0] : null;
+  const isVideo = isVideoNotifyType(pending.type)
+    || /\.(mp4|webm|mov)(\?|$)/i.test(String(mediaUrl || ""));
   const galleryUrl = creation?.id
     ? `https://www.remakepix.com/app/gallery?focus=${encodeURIComponent(creation.id)}`
     : "https://www.remakepix.com/app/gallery";
-  const result = await sendVideoReadyEmail({
+  const result = await sendCreationReadyEmail({
     to: pending.notify_email,
     lang: pending.lang || "pt",
-    videoUrl,
+    mediaUrl,
     galleryUrl,
     creationId: creation?.id,
+    isVideo,
   });
 
-  if (!result.ok) {
+  if (result.ok) {
+    await updatePending(pending.id, {
+      notify_email_sent_at: nowIso(),
+      notify_email_error: null,
+    });
+  } else {
     const attempts = Number(claim.notify_email_attempts || 0) + 1;
     await updatePending(pending.id, {
       notify_email_sent_at: attempts >= 3 ? nowIso() : null,
-      notify_email_attempts: attempts,
       notify_email_error: String(result.error || result.reason || "send_failed").slice(0, 200),
     });
   }
@@ -159,7 +177,7 @@ async function deliverVideoNotifyEmail(pending, creation, urls) {
 }
 
 async function deliverVideoFailureNotifyEmail(pending, friendlyError, rawError) {
-  if (!["video", "marketing_video"].includes(pending?.type) || !pending?.notify_email) {
+  if (!isVideoNotifyType(pending?.type) || !pending?.notify_email) {
     return { skipped: true, reason: "no_notify" };
   }
   if (pending.notify_email_sent_at) {
@@ -208,7 +226,7 @@ function isOpenAIPosterJob(pending) {
 
 /** Vercel Pro: até 800s por função; vídeo Replicate pode levar 30 min. */
 function maxPollSeconds(pending) {
-  if (pending?.type === "video" || pending?.type === "marketing_video") return 1800;
+  if (isVideoNotifyType(pending?.type)) return 1800;
   if (isOpenAIPosterJob(pending)) return 780;
   return 600;
 }
@@ -217,6 +235,7 @@ function creationFromPending(pending, urls) {
   const typeMap = {
     video: "video",
     marketing_video: "video",
+    motion_flyer: "video",
     artistic: "artistic",
     manga: "manga",
     poster: "poster",
@@ -376,7 +395,7 @@ async function pollPending(pending, getReplicatePrediction) {
     const user = await db.collection("users").findOne({ id: pending.user_id }, { projection: { credits: 1 } });
     return {
       status: "succeeded",
-      creation,
+      creation: urls.length ? creation : null,
       new_balance: user?.credits,
       prediction_id: pending.id,
       server_billing: true,
@@ -384,7 +403,7 @@ async function pollPending(pending, getReplicatePrediction) {
   }
 
   if (pending.status === "refunded") {
-    if (["video", "marketing_video"].includes(pending.type) && pending.notify_email && !pending.notify_email_sent_at) {
+    if (isVideoNotifyType(pending.type) && pending.notify_email && !pending.notify_email_sent_at) {
       await deliverVideoFailureNotifyEmail(
         pending,
         formatGenerationError(pending.error || "Generation failed", lang),
@@ -491,17 +510,79 @@ async function repairMissingCreationsForUser(userId, limit = 24) {
 
   let repaired = 0;
   for (const pending of rows) {
+    const urls = Array.isArray(pending.result_urls) ? pending.result_urls : [];
+    if (!urls.length) continue;
     // eslint-disable-next-line no-await-in-loop
     const exists = await db.collection("creations").findOne(
       { id: pending.id, user_id: userId },
-      { projection: { id: 1 } },
+      { projection: { id: 1, result_urls: 1 } },
     );
-    if (exists) continue;
-    const urls = Array.isArray(pending.result_urls) ? pending.result_urls : [];
-    if (!urls.length) continue;
+    if (exists) {
+      const existingUrls = normalizeResultUrls(exists.result_urls);
+      if (existingUrls.length) {
+        if (!exists.created_at && pending.completed_at) {
+          // eslint-disable-next-line no-await-in-loop
+          await db.collection("creations").updateOne(
+            { id: pending.id, user_id: userId },
+            { $set: { created_at: pending.completed_at || pending.created_at || nowIso() } },
+          );
+        }
+        continue;
+      }
+    }
     const creation = creationFromPending(pending, urls);
     // eslint-disable-next-line no-await-in-loop
     await recordCreation(userId, creation);
+    repaired += 1;
+  }
+  return repaired;
+}
+
+/** Cron: repara criações em falta para todos os utilizadores (pending completed sem doc). */
+async function repairGlobalMissingCreations(limit = 40) {
+  if (!storageEnabled()) return 0;
+  await ensureIndexes();
+  const db = await getDb();
+  const rows = await db
+    .collection("pending_predictions")
+    .find(
+      {
+        status: "completed",
+        result_urls: { $exists: true, $not: { $size: 0 } },
+      },
+      { projection: { _id: 0 } },
+    )
+    .sort({ completed_at: -1 })
+    .limit(Math.min(80, Math.max(1, limit)))
+    .toArray();
+
+  let repaired = 0;
+  for (const pending of rows) {
+    const urls = Array.isArray(pending.result_urls) ? pending.result_urls : [];
+    if (!urls.length || !pending.user_id) continue;
+    // eslint-disable-next-line no-await-in-loop
+    const exists = await db.collection("creations").findOne(
+      { id: pending.id, user_id: pending.user_id },
+      { projection: { id: 1, result_urls: 1 } },
+    );
+    if (exists) {
+      const existingUrls = normalizeResultUrls(exists.result_urls);
+      if (existingUrls.length) {
+        if (!exists.created_at && pending.completed_at) {
+          // eslint-disable-next-line no-await-in-loop
+          await db.collection("creations").updateOne(
+            { id: pending.id, user_id: userId },
+            { $set: { created_at: pending.completed_at || pending.created_at || nowIso() } },
+          );
+        }
+        continue;
+      }
+    }
+    const creation = creationFromPending(pending, urls);
+    // eslint-disable-next-line no-await-in-loop
+    await recordCreation(pending.user_id, creation);
+    // eslint-disable-next-line no-await-in-loop
+    await deliverVideoNotifyEmail(pending, creation, urls);
     repaired += 1;
   }
   return repaired;
@@ -540,6 +621,46 @@ async function listActivePendingForUser(userId, limit = 12) {
   return docs;
 }
 
+/** Reenvia email a motion_flyer / marketing_video concluídos sem notify_email registado. */
+async function repairMissedVideoNotifyEmails(limit = 8) {
+  if (!storageEnabled()) return { checked: 0, sent: 0 };
+  const db = await getDb();
+  const docs = await db
+    .collection("pending_predictions")
+    .find(
+      {
+        type: { $in: ["motion_flyer", "marketing_video"] },
+        status: "completed",
+        notify_email_sent_at: null,
+        notify_email_attempts: { $lt: 3 },
+        result_urls: { $exists: true, $ne: [] },
+      },
+      { projection: { _id: 0 } },
+    )
+    .sort({ completed_at: 1 })
+    .limit(Math.min(20, Math.max(1, limit)))
+    .toArray();
+
+  let sent = 0;
+  for (const pending of docs) {
+    let email = pending.notify_email;
+    if (!isValidEmail(email)) {
+      const u = await db.collection("users").findOne({ id: pending.user_id }, { projection: { email: 1 } });
+      email = String(u?.email || "").trim().toLowerCase();
+      if (isValidEmail(email)) {
+        await updatePending(pending.id, { notify_email: email });
+        pending.notify_email = email;
+      }
+    }
+    if (!isValidEmail(pending.notify_email)) continue;
+    const creation = creationFromPending(pending, pending.result_urls || []);
+    // eslint-disable-next-line no-await-in-loop
+    const result = await deliverVideoNotifyEmail(pending, creation, pending.result_urls);
+    if (result.ok) sent += 1;
+  }
+  return { checked: docs.length, sent };
+}
+
 /**
  * Cron / background: finalize in-flight jobs without relying on the user's browser.
  */
@@ -569,7 +690,6 @@ async function processActivePendingBatch(getReplicatePrediction, { limit = 8 } =
     .find(
       {
         status: "completed",
-        type: "video",
         notify_email: { $type: "string", $ne: "" },
         notify_email_sent_at: null,
         notify_email_attempts: { $lt: 3 },
@@ -578,16 +698,27 @@ async function processActivePendingBatch(getReplicatePrediction, { limit = 8 } =
       { projection: { _id: 0 } },
     )
     .sort({ completed_at: 1 })
-    .limit(3)
+    .limit(5)
     .toArray();
 
   for (const pending of retryDocs) {
     const creation = creationFromPending(pending, pending.result_urls || []);
     // eslint-disable-next-line no-await-in-loop
+    await recordCreation(pending.user_id, creation);
+    // eslint-disable-next-line no-await-in-loop
     await deliverVideoNotifyEmail(pending, creation, pending.result_urls);
   }
 
-  return { processed: docs.length, finalized, email_retries: retryDocs.length };
+  const repaired = await repairGlobalMissingCreations(30);
+  const missedEmails = await repairMissedVideoNotifyEmails(8);
+
+  return {
+    processed: docs.length,
+    finalized,
+    email_retries: retryDocs.length,
+    creations_repaired: repaired,
+    missed_video_emails: missedEmails,
+  };
 }
 
 async function completePendingWithUrls(pending, urls) {
@@ -615,6 +746,7 @@ async function completePendingWithUrls(pending, urls) {
   }
   const creation = creationFromPending(claimed, mirrored);
   await recordCreation(pending.user_id, creation);
+  await deliverVideoNotifyEmail({ ...claimed, result_urls: mirrored }, creation, mirrored);
   return { creation, urls: mirrored };
 }
 
@@ -629,6 +761,7 @@ module.exports = {
   listActivePendingForUser,
   refreshUserPendingJobs,
   repairMissingCreationsForUser,
+  repairGlobalMissingCreations,
   processActivePendingBatch,
   maxPollSeconds,
   isOpenAIPosterJob,

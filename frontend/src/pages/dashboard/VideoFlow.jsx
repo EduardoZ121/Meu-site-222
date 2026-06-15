@@ -7,6 +7,7 @@ import {
   VIDEO_LEGACY_REDIRECTS,
   findVideoCategory,
 } from "../../lib/videoCatalogue";
+import { LEGACY_EDIT_MODE_MAP } from "../../lib/videoEditCatalog";
 import { getVideoToolMeta } from "../../lib/videoModels";
 import VideoGenerate from "./VideoGenerate";
 import VideoEditorAdmin from "./VideoEditorAdmin";
@@ -17,8 +18,14 @@ export default function VideoFlow() {
   const { mode } = useParams();
   const { t } = useI18n();
   const valid = VIDEO_FLOW_MODES.has(mode);
-  const meta = valid ? findVideoCategory(mode) : null;
-  useTitle(t(meta ? meta.nameKey : "sidebar_video"));
+  const legacyEditMode = LEGACY_EDIT_MODE_MAP[mode];
+  const meta = valid && !legacyEditMode ? findVideoCategory(mode) : null;
+  const isEditFlow = Boolean(legacyEditMode) || meta?.flow === "edit";
+  useTitle(t(isEditFlow ? "vid_v2v_title" : meta ? meta.nameKey : "sidebar_video"));
+
+  if (legacyEditMode) {
+    return <Navigate to={`/app/video/edit?mode=${legacyEditMode}`} replace />;
+  }
 
   if (!valid) {
     return <Navigate to="/app/video" replace />;
@@ -36,7 +43,11 @@ export default function VideoFlow() {
   const isEdit = meta.flow === "edit";
 
   return (
-    <StudioCompactShell testId={`video-flow-${mode}`} maxWidth="1200px" className="pb-4 md:pb-8">
+    <StudioCompactShell
+      testId={`video-flow-${mode}`}
+      maxWidth={isEdit ? "1400px" : "1200px"}
+      className="pb-4 md:pb-8"
+    >
       <Link
         to="/app/video"
         className="rp-studio-back mb-3 md:mb-5"
@@ -48,11 +59,13 @@ export default function VideoFlow() {
 
       <StudioInlineHeader
         eyebrow={t("vid_cap")}
-        title={t(meta.nameKey)}
+        title={isEdit ? t("vid_v2v_title") : t(meta.nameKey)}
         description={
-          toolMeta?.modelLabel
-            ? `${t(meta.descKey)} · ${t("vid_model_label")}: ${toolMeta.modelLabel}`
-            : t(meta.descKey)
+          isEdit
+            ? t("vid_v2v_subtitle")
+            : toolMeta?.modelLabel
+              ? `${t(meta.descKey)} · ${t("vid_model_label")}: ${toolMeta.modelLabel}`
+              : t(meta.descKey)
         }
         testId="video-flow-header"
       />

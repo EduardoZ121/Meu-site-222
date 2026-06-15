@@ -35,7 +35,7 @@ function fewShotPt(origin, name) {
     { role: "user", content: "não sei escrever prompts" },
     {
       role: "assistant",
-      content: `Sem stress — é normal.\n\nExperimenta o [Assistente em 5 perguntas](${origin}/app/wizard) (é grátis): respondes ao estilo, luz e assunto, e ele monta o prompt por ti.\n\nDepois cola no [Estúdio](${origin}/app/generate) ou diz-me o tema (ex: retrato moody, comida, moda) e eu escrevo um prompt em inglês pronto a copiar.`,
+      content: `Sem stress — é normal.\n\nExperimenta o [Assistente em 5 perguntas](${origin}/app/wizard) (sem créditos): respondes ao estilo, luz e assunto, e ele monta o prompt por ti.\n\nDepois cola no [Estúdio](${origin}/app/generate) ou diz-me o tema (ex: retrato moody, comida, moda) e eu escrevo um prompt em inglês pronto a copiar.`,
     },
   ];
 }
@@ -52,7 +52,7 @@ function fewShotEn(origin, name) {
     { role: "user", content: "how do credits work?" },
     {
       role: "assistant",
-      content: `Simple version: each tool costs credits when you hit Generate. New accounts start with free credits; you can buy more anytime in [Billing](${origin}/app/billing).\n\nThey don't expire. If you tell me what you want to make, I'll tell you the exact cost before you spend anything.`,
+      content: `Simple version: each tool costs credits when you hit Generate. Buy packs anytime in [Billing](${origin}/app/billing) — credits do not expire.\n\nIf you tell me what you want to make, I'll tell you the exact cost before you spend anything.`,
     },
   ];
 }

@@ -1,11 +1,15 @@
 {
-  "name": "Remake Pixel",
-  "short_name": "Remake Pixel",
-  "description": "Estúdio AI de imagem e vídeo.",
-  "start_url": "/login?pwa=1",
+  "name": "RemakePix",
+  "short_name": "RemakePix",
+  "description": "Estúdio AI de imagem e vídeo — RemakePix.",
+  "id": "/",
+  "start_url": "/login?source=android_app",
+  "scope": "/",
   "display": "standalone",
+  "orientation": "portrait",
   "background_color": "#0B0B0C",
   "theme_color": "#0B0B0C",
+  "lang": "pt",
   "icons": [
     {
       "src": "/icon-192.png",
@@ -18,6 +22,12 @@
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any"
+    },
+    {
+      "src": "/icon-512-maskable.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
     }
   ]
 }

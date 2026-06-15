@@ -130,24 +130,75 @@ async function sendVideoFailedEmail({ to, lang, errorMessage, editorUrl, billing
   return result;
 }
 
-async function sendVideoReadyEmail({ to, lang, videoUrl, galleryUrl, creationId }) {
+function creationReadyCopy(lang, isVideo) {
+  const l = String(lang || "pt").slice(0, 2).toLowerCase();
+  if (l === "en") {
+    return isVideo
+      ? {
+        subject: "Your video is ready — Remake Pixel",
+        headline: "Your generation is ready",
+        body: "Open the link below to watch or download your clip.",
+        open: "Open creation",
+        gallery: "Open in gallery",
+      }
+      : {
+        subject: "Your creation is ready — Remake Pixel",
+        headline: "Your generation is ready",
+        body: "Open the gallery to view or download your image.",
+        open: "Open creation",
+        gallery: "Open in gallery",
+      };
+  }
+  return isVideo
+    ? {
+      subject: "O teu vídeo está pronto — Remake Pixel",
+      headline: "A tua geração está pronta",
+      body: "Abre o link abaixo para ver ou descarregar o clip.",
+      open: "Abrir criação",
+      gallery: "Abrir na galeria",
+    }
+    : {
+      subject: "A tua criação está pronta — Remake Pixel",
+      headline: "A tua geração está pronta",
+      body: "Abre a galeria para ver ou descarregar a imagem.",
+      open: "Abrir criação",
+      gallery: "Abrir na galeria",
+    };
+}
+
+function buildCreationReadyHtml({ headline, body, open, gallery, mediaUrl, galleryUrl }) {
+  return [
+    "<!DOCTYPE html><html><body style=\"font-family:system-ui,sans-serif;background:#f4f1ea;padding:24px\">",
+    "<div style=\"max-width:520px;margin:0 auto;background:#fff;border-radius:14px;padding:28px;border:1px solid #e8e8f0\">",
+    `<h1 style="margin:0 0 8px;font-size:22px;color:#1a1a1a">${esc(headline)}</h1>`,
+    `<p style="margin:0 0 20px;color:#666;font-size:14px;line-height:1.5">${esc(body)}</p>`,
+    mediaUrl
+      ? `<p style="margin:0 0 12px"><a href="${esc(mediaUrl)}" style="display:inline-block;background:#7C3AED;color:#fff;text-decoration:none;padding:12px 20px;border-radius:10px;font-weight:600">${esc(open)}</a></p>`
+      : "",
+    `<p style="margin:0"><a href="${esc(galleryUrl)}" style="color:#7C3AED;font-size:14px">${esc(gallery)}</a></p>`,
+    "<p style=\"margin:24px 0 0;font-size:11px;color:#aaa\">remakepix.com</p>",
+    "</div></body></html>",
+  ].join("");
+}
+
+async function sendCreationReadyEmail({ to, lang, mediaUrl, galleryUrl, creationId, isVideo }) {
   const email = String(to || "").trim().toLowerCase();
   if (!isValidEmail(email)) {
     return { ok: false, skipped: true, reason: "invalid_email" };
   }
-  const copy = videoReadyCopy(lang);
+  const copy = creationReadyCopy(lang, isVideo);
   const gallery = galleryUrl
     || `https://www.remakepix.com/app/gallery${creationId ? `?focus=${encodeURIComponent(creationId)}` : ""}`;
-  const html = buildVideoReadyHtml({
+  const html = buildCreationReadyHtml({
     ...copy,
-    videoUrl: videoUrl || null,
+    mediaUrl: mediaUrl || null,
     galleryUrl: gallery,
   });
   const text = [
     copy.headline,
     "",
     copy.body,
-    videoUrl ? `${copy.watch}: ${videoUrl}` : "",
+    mediaUrl ? `${copy.open}: ${mediaUrl}` : "",
     `${copy.gallery}: ${gallery}`,
   ].filter(Boolean).join("\n");
 
@@ -159,18 +210,30 @@ async function sendVideoReadyEmail({ to, lang, videoUrl, galleryUrl, creationId 
   });
 
   if (!result.ok) {
-    console.error("[video-notify-email] send failed", {
+    console.error("[creation-notify-email] send failed", {
       to: email,
       reason: result.reason || result.error || "unknown",
     });
   } else {
-    console.info("[video-notify-email] sent", { to: email, id: result.id });
+    console.info("[creation-notify-email] sent", { to: email, id: result.id });
   }
   return result;
+}
+
+async function sendVideoReadyEmail({ to, lang, videoUrl, galleryUrl, creationId }) {
+  return sendCreationReadyEmail({
+    to,
+    lang,
+    mediaUrl: videoUrl,
+    galleryUrl,
+    creationId,
+    isVideo: true,
+  });
 }
 
 module.exports = {
   isValidEmail,
   sendVideoReadyEmail,
   sendVideoFailedEmail,
+  sendCreationReadyEmail,
 };

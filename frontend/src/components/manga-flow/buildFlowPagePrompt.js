@@ -20,6 +20,11 @@ import {
 import { buildSemanticGraphSection } from "../../lib/mangaFlowSemantics";
 import { orchestrateMangaGeneration } from "../../lib/mangaFlowOrchestrator";
 import { getCharacterIdentityTag } from "../../lib/mangaCharacterRef";
+import {
+  hiddenPrompt,
+  hiddenPromptsForNode,
+  renderAllHiddenOptionsBlock,
+} from "../../lib/mangaFlowPromptLibrary";
 
 const ANTI_PORTRAIT = [
   "NOT a centered passport photo or ID portrait.",
@@ -64,6 +69,7 @@ function formatPersonInPanel(person, panelId, nodes, edges, refSlotByNodeId) {
     `  • ${name} [${tag}]${slot ? ` [identity = reference image ${slot}]` : " [no reference photo]"}:`,
     `    Pose: ${(d.pose || "standing").replace(/_/g, " ")} | Expression: ${(d.emotion || "normal").replace(/_/g, " ")}`,
   ];
+  hiddenPromptsForNode(person).forEach((h) => lines.push(`    Hidden: ${h}`));
   const panelLink = getEdgePrompt(person.id, panelId, edges, nodes);
   if (panelLink) lines.push(`    Panel link (semantic): ${panelLink}`);
   else if (d.actionDesc) lines.push(`    Action: ${d.actionDesc}`);
@@ -96,9 +102,11 @@ function buildPanelSection(panel, index, total, nodes, edges, refSlotByNodeId) {
   const scenario = scenarioForPanel(panel.id, nodes, edges);
   if (scenario) {
     const sd = scenario.data || {};
+    const moodHidden = sd.mood ? hiddenPrompt("scenario_mood", sd.mood) : "";
     lines.push(
       `Setting (this panel only): ${[sd.name, sd.description, sd.timeOfDay, sd.weather, sd.mood].filter(Boolean).join(" · ")}`,
     );
+    if (moodHidden) lines.push(`  Hidden mood: ${moodHidden}`);
   }
 
   lines.push(formatCameraBlock(cameraForPanel(panel.id, nodes, edges)));
@@ -155,6 +163,9 @@ export function buildPagePromptFromFlow(nodes, edges, context = {}, refSlots = [
   }
 
   lines.push(orchestration.hiddenPrompt, "");
+
+  const hiddenOpts = renderAllHiddenOptionsBlock(nodes);
+  if (hiddenOpts) lines.push(hiddenOpts);
 
   const semanticBlock = buildSemanticGraphSection(nodes, orchestration.semanticEdges);
   if (semanticBlock) lines.push(semanticBlock);

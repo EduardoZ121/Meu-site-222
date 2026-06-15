@@ -1,6 +1,6 @@
 /** Copy da página /discover (landing marketing) — PT + EN completos. */
 
-export const LANDING_STARTER_CREDITS = 100;
+export const LANDING_STARTER_CREDITS = 0;
 
 export const LANDING_FAQ_IDS = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
 
@@ -21,10 +21,10 @@ export const LANDING_I18N = {
     pricing_eyebrow: "Créditos, não subscrições.",
     pricing_title: "Paga apenas pelo que crias.",
     pricing_subtitle:
-      "Taxa base 30 créditos/€. Cada conta começa com {n} créditos grátis. Pacotes maiores incluem bónus progressivo — até 42 cr/€ no Pro.",
+      "Taxa base 30 créditos/€. Compra apenas quando precisares — pacotes maiores incluem bónus progressivo até 42 cr/€ no Pro.",
     cost_table_title: "Custos por ferramenta (exemplos)",
     pricing_buy: "Comprar créditos",
-    pricing_start_free: "Começar grátis",
+    pricing_start_free: "Criar conta",
     pricing_promo_badge: "Promo",
     pricing_credits_unit: "{n} créditos",
     landing_pkg_starter_tagline: "Promoção de lançamento",
@@ -90,7 +90,7 @@ export const LANDING_I18N = {
     cta_eyebrow: "Remake Pixel",
     cta_title_1: "Não esperes pela imagem perfeita.",
     cta_title_2: "Cria-a.",
-    cta_primary: "Começar grátis — {n} créditos",
+    cta_primary: "Começar agora",
     cta_secondary: "Ver pacotes",
     faq_subtitle: "Respostas claras antes de começares.",
     landing_faq_0_q: "O que é o Remake Pixel?",
@@ -99,9 +99,9 @@ export const LANDING_I18N = {
     landing_faq_1_q: "Como funcionam os créditos?",
     landing_faq_1_a:
       "Cada ferramenta mostra o custo antes de gerar. Imagem por texto desde {image} créditos; vídeo, retoque Pro e opções HD/melhorar prompt acrescentam créditos conforme o uso.",
-    landing_faq_2_q: "Recebo créditos grátis?",
+    landing_faq_2_q: "Como compro créditos?",
     landing_faq_2_a:
-      "Sim. Cada nova conta começa com {n} créditos grátis, suficientes para testar o estúdio antes de comprar.",
+      "Abre Facturação na app e escolhe um pacote. Os créditos entram logo após o pagamento e não expiram.",
     landing_faq_3_q: "Que modelos de IA usam?",
     landing_faq_3_a:
       "Usamos um stack curado de motores internos: rápido, pro, premium e utilitários especializados para edição, vídeo e tarefas técnicas.",
@@ -123,17 +123,17 @@ export const LANDING_I18N = {
     landing_faq_9_a: "A interface está disponível em português, inglês, espanhol e francês.",
     landing_faq_10_q: "Como contacto o suporte?",
     landing_faq_10_a: "Abre a Sofia no menu da app ou escreve para suporte@remakepix.com — a equipa responde o mais rápido possível.",
-    hero_cta_primary: "Começar grátis — {n} créditos",
+    hero_cta_primary: "Começar agora",
   },
   en: {
     ...shared,
     pricing_eyebrow: "Credits, not subscriptions.",
     pricing_title: "Pay for what you create.",
     pricing_subtitle:
-      "Base rate 30 credits/€. Every account starts with {n} free credits. Larger packs include progressive bonuses — up to 42 cr/€ on Pro.",
+      "Base rate 30 credits/€. Buy only when you need to create — larger packs include progressive bonuses up to 42 cr/€ on Pro.",
     cost_table_title: "Example tool costs",
     pricing_buy: "Buy credits",
-    pricing_start_free: "Start free",
+    pricing_start_free: "Create account",
     pricing_promo_badge: "Promo",
     pricing_credits_unit: "{n} credits",
     landing_pkg_starter_tagline: "Launch promotion",
@@ -199,7 +199,7 @@ export const LANDING_I18N = {
     cta_eyebrow: "Remake Pixel",
     cta_title_1: "Don't wait for the perfect image.",
     cta_title_2: "Create it.",
-    cta_primary: "Start free — {n} credits",
+    cta_primary: "Get started",
     cta_secondary: "See packages",
     faq_subtitle: "Clear answers before you start.",
     landing_faq_0_q: "What is Remake Pixel?",
@@ -208,9 +208,9 @@ export const LANDING_I18N = {
     landing_faq_1_q: "How do credits work?",
     landing_faq_1_a:
       "Each tool shows the cost before you generate. Text-to-image starts at {image} credits; video, Pro retouch, and HD/enhance options add more depending on usage.",
-    landing_faq_2_q: "Do I get free credits?",
+    landing_faq_2_q: "How do I buy credits?",
     landing_faq_2_a:
-      "Yes. Every new account starts with {n} free credits — enough to try the studio before buying more.",
+      "Open Billing in the app and choose a credit pack. Credits are added right after payment and do not expire.",
     landing_faq_3_q: "Which AI models do you use?",
     landing_faq_3_a:
       "A curated stack of internal engines: fast, pro, premium, and specialized utilities for editing, video, and technical tasks.",
@@ -231,6 +231,6 @@ export const LANDING_I18N = {
     landing_faq_9_a: "The interface is available in Portuguese, English, Spanish, and French.",
     landing_faq_10_q: "How do I contact support?",
     landing_faq_10_a: "Open Sofia in the app menu or email support@remakepix.com — the team replies as soon as possible.",
-    hero_cta_primary: "Start free — {n} credits",
+    hero_cta_primary: "Get started",
   },
 };

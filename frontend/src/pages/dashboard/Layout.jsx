@@ -2,7 +2,6 @@ import { Outlet, NavLink, useNavigate, useLocation } from "react-router-dom";
 import { isWorkspacePath } from "../../lib/dashboardRouteMode";
 import { useAuth } from "../../lib/auth";
 import { useI18n } from "../../lib/i18n";
-import { isAdminUser } from "../../lib/isAdmin";
 import {
   Sparkles, Images, Heart, CreditCard, User, Users, ShieldCheck, LogOut,
   Film, FileText, BookOpen, Menu, Settings, LayoutGrid, Camera, Wand2, Lock, Palette, Megaphone,
@@ -113,12 +112,9 @@ export default function DashboardLayout() {
         { to: "/app/pro", icon: Camera, label: t("sidebar.pro") },
         { to: "/app/artistic", icon: Palette, label: t("sidebar_artistic") },
         { to: "/app/posters", icon: FileText, label: t("sidebar.posters") },
-        ...(isAdminUser(user)
-          ? [
-            { to: "/app/video", icon: Film, label: t("sidebar.video") },
-            { to: "/app/marketing-video", icon: Megaphone, label: t("sidebar_marketing_video"), badge: t("mktvid_admin_badge") },
-          ]
-          : []),
+        { to: "/app/video", icon: Film, label: t("sidebar.video") },
+        { to: "/app/marketing-video", icon: Megaphone, label: t("sidebar_marketing_video") },
+        { to: "/app/motion-flyer", icon: Megaphone, label: t("sidebar_motion_flyer") },
         {
           to: "/app/manga-studio",
           icon: BookOpen,

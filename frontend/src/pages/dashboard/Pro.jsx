@@ -23,6 +23,7 @@ import StudioInlineHeader from "../../components/studio/StudioInlineHeader";
 import CollapsibleSection from "../../components/CollapsibleSection";
 import StudioPhotoUploadNotice, { isPhotoUploadBusy } from "../../components/studio/StudioPhotoUploadNotice";
 import { useStudioGenerateGate } from "../../lib/useStudioGenerateGate";
+import { appendStudioPhotos, primaryStudioPhoto } from "../../lib/studioFormData";
 import { useStudioI18n } from "../../lib/useStudioI18n";
 
 function ProStep({ title, hint, children, defaultOpen = false, helpKey }) {
@@ -52,7 +53,8 @@ export default function Pro() {
   const [presets, setPresets] = useState([]);
   const [category, setCategory] = useState("realism");
   const [preset, setPreset] = useState("ultra_real");
-  const [photo, setPhoto] = useState(null);
+  const [photos, setPhotos] = useState([]);
+  const photo = primaryStudioPhoto(photos);
   const [aspect, setAspect] = usePhotoAspectDefault(photo, "4:5", "4:5");
   const [intensity, setIntensity] = useState(55);
   const [customPrompt, setCustomPrompt] = useState("");
@@ -100,7 +102,7 @@ export default function Pro() {
     setBusy(true); setResult(null);
     try {
       const fd = new FormData();
-      fd.append("photo", photo);
+      appendStudioPhotos(fd, photos);
       fd.append("preset_id", preset);
       fd.append("aspect_ratio", apiAspectRatio(aspect, {
         model: "pro",
@@ -146,8 +148,10 @@ export default function Pro() {
             <ProStep title={t("pro_step_photo")} hint={t("pro_upload_hint")} defaultOpen helpKey="help_sec_upload">
               <div className="max-w-[560px]">
                 <ImageUploadZone
-                  value={photo}
-                  onChange={setPhoto}
+                  multiple
+                  maxFiles={5}
+                  value={photos}
+                  onChange={setPhotos}
                   onStatusChange={setPhotoUploadStatus}
                   layout="wide"
                   testId="pro-photo"

@@ -3,8 +3,9 @@ import { api } from "../../lib/api";
 import { useI18n } from "../../lib/i18n";
 import { toast } from "sonner";
 import useTitle from "../../lib/useTitle";
+import AdminMarketingPanel from "../../components/admin/AdminMarketingPanel";
 
-const TABS = ["overview", "finance", "users", "ip", "purchases", "tx"];
+const TABS = ["overview", "finance", "marketing", "users", "ip", "purchases", "tx"];
 
 export default function Admin() {
   const { t } = useI18n();
@@ -61,8 +62,15 @@ export default function Admin() {
 
   const adjustCredits = async (uid, amount, reason) => {
     try {
-      await api.post("/admin/credits/adjust", { user_id: uid, amount, reason });
-      toast.success(t("adm_credits_adjusted"));
+      const { data } = await api.post("/admin/credits/adjust", { user_id: uid, amount, reason });
+      const granted = Number(amount) > 0;
+      if (granted && data?.email_sent) {
+        toast.success(t("adm_credits_adjusted_email"));
+      } else if (granted && !data?.email_sent) {
+        toast.message(t("adm_credits_adjusted_no_email"));
+      } else {
+        toast.success(t("adm_credits_adjusted"));
+      }
       reload();
     } catch { toast.error(t("failed")); }
   };
@@ -134,6 +142,10 @@ export default function Admin() {
 
       {tab === "finance" && (
         <FinancePanel finance={finance} t={t} onSaved={() => { reload(); toast.success(t("adm_fin_saved")); }} />
+      )}
+
+      {tab === "marketing" && (
+        <AdminMarketingPanel t={t} />
       )}
 
       {tab === "users" && (
@@ -341,10 +353,125 @@ function FinancePanel({ finance, t, onSaved }) {
         <Stat label={t("adm_fin_purchases")} value={finance.purchases_total} />
         <Stat label={t("adm_fin_credits_sold")} value={finance.credits_sold} />
         <Stat label={t("adm_circulation")} value={finance.credits_in_circulation} />
+        <Stat label={t("adm_fin_spent")} value={finance.credits_spent ?? 0} />
+        <Stat label={t("adm_fin_spent_usd")} value={`$${finance.replicate_spent_estimated_usd ?? 0}`} />
         <Stat label={t("adm_fin_reserve_needed")} value={`$${finance.replicate_reserve_needed_usd}`} />
         <Stat label={t("adm_fin_reserve_allocated")} value={`$${finance.replicate_reserve_allocated_usd}`} />
         <Stat label={t("adm_fin_margin")} value={`$${finance.estimated_margin_usd_total}`} />
         <Stat label={t("adm_revenue")} value={`€${finance.revenue_eur}`} />
+      </div>
+
+      <div className="border border-rp-border p-5 mb-10 max-w-3xl bg-rp-surface/40">
+        <p className="eyebrow mb-3">{t("adm_fin_how_title")}</p>
+        <ul className="text-rp-mute text-sm space-y-2 list-disc pl-5">
+          <li>{t("adm_fin_how_1")}</li>
+          <li>{t("adm_fin_how_2")}</li>
+          <li>{t("adm_fin_how_3")}</li>
+          <li>{t("adm_fin_how_4")}</li>
+        </ul>
+        {finance.dashboard?.meta?.note_pt && (
+          <p className="text-rp-mute2 text-xs mt-4 border-l-2 border-rp-purple/40 pl-3">{finance.dashboard.meta.note_pt}</p>
+        )}
+      </div>
+
+      {finance.dashboard?.starter_scenario && (
+        <div className="border border-rp-purple/30 p-5 mb-10 bg-rp-surface/30">
+          <h3 className="font-heading text-lg text-rp-text mb-4">{t("adm_fin_starter_title")}</h3>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+            <div>
+              <p className="text-rp-mute2 text-[10px] uppercase tracking-wider font-mono mb-1">{t("adm_fin_starter_margin")}</p>
+              <p className="font-mono text-emerald-400/90 text-lg">${finance.dashboard.starter_scenario.estimated_margin_if_all_spent_usd}</p>
+            </div>
+            <div>
+              <p className="text-rp-mute2 text-[10px] uppercase tracking-wider font-mono mb-1">{t("adm_fin_starter_replicate")}</p>
+              <p className="font-mono text-amber-200/90 text-lg">${finance.dashboard.starter_scenario.if_all_spent_replicate_usd}</p>
+            </div>
+            <div>
+              <p className="text-rp-mute2 text-[10px] uppercase tracking-wider font-mono mb-1">{t("adm_fin_starter_images")}</p>
+              <p className="font-mono text-rp-text text-lg">{finance.dashboard.starter_scenario.example_images_15cr}</p>
+            </div>
+            <div>
+              <p className="text-rp-mute2 text-[10px] uppercase tracking-wider font-mono mb-1">{t("adm_fin_starter_v2v")}</p>
+              <p className="font-mono text-rp-text text-lg">{finance.dashboard.starter_scenario.example_videos_edit}</p>
+            </div>
+            <div>
+              <p className="text-rp-mute2 text-[10px] uppercase tracking-wider font-mono mb-1">{t("adm_fin_starter_mkt")}</p>
+              <p className="font-mono text-rp-text text-lg">{finance.dashboard.starter_scenario.example_marketing_15s}</p>
+            </div>
+            <div>
+              <p className="text-rp-mute2 text-[10px] uppercase tracking-wider font-mono mb-1">Stripe (est.)</p>
+              <p className="font-mono text-rp-mute text-lg">€{finance.dashboard.starter_scenario.stripe_fee_eur}</p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {finance.dashboard?.packages?.length > 0 && (
+        <>
+          <h3 className="font-heading text-lg text-rp-text mb-4">{t("adm_fin_packages_title")}</h3>
+          <div className="border border-rp-border overflow-x-auto mb-10">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-rp-border text-rp-mute2 text-[10px] uppercase tracking-[0.18em] font-mono">
+                  <th className="text-left p-3">{t("adm_pkg")}</th>
+                  <th className="text-right p-3">{t("credits")}</th>
+                  <th className="text-right p-3">{t("adm_amount")}</th>
+                  <th className="text-right p-3">€/cr</th>
+                  <th className="text-right p-3">{t("adm_fin_starter_replicate")}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {finance.dashboard.packages.map((p) => (
+                  <tr key={p.id} className="border-b border-rp-border text-rp-text">
+                    <td className="p-3 font-mono text-xs">{p.name}</td>
+                    <td className="p-3 text-right font-mono">{p.credits}</td>
+                    <td className="p-3 text-right font-mono">€{p.amount_eur}</td>
+                    <td className="p-3 text-right font-mono text-rp-mute">{p.eur_per_credit}</td>
+                    <td className="p-3 text-right font-mono text-amber-200/90">${p.worst_case_replicate_usd}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </>
+      )}
+
+      {finance.dashboard?.catalog?.length > 0 && (
+        <>
+          <h3 className="font-heading text-lg text-rp-text mb-4">{t("adm_fin_prices_title")}</h3>
+          <div className="border border-rp-border overflow-x-auto mb-10">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-rp-border text-rp-mute2 text-[10px] uppercase tracking-[0.18em] font-mono">
+                  <th className="text-left p-3">{t("adm_fin_prices_col")}</th>
+                  <th className="text-right p-3">{t("adm_fin_prices_cr")}</th>
+                  <th className="text-right p-3">{t("adm_fin_prices_eur")}</th>
+                  <th className="text-right p-3">{t("adm_fin_prices_rep")}</th>
+                  <th className="text-right p-3">{t("adm_fin_prices_per150")}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {finance.dashboard.catalog.map((row) => (
+                  <tr key={row.id} className="border-b border-rp-border text-rp-text">
+                    <td className="p-3 text-xs">{row.label}</td>
+                    <td className="p-3 text-right font-mono">{row.credits}</td>
+                    <td className="p-3 text-right font-mono text-rp-mute">€{row.eur_starter}</td>
+                    <td className="p-3 text-right font-mono text-amber-200/90">${row.replicate_reserve_usd}</td>
+                    <td className="p-3 text-right font-mono">{row.generations_per_150}×</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </>
+      )}
+
+      <div className="border border-rp-border p-5 mb-10 max-w-2xl">
+        <p className="eyebrow mb-3">{t("adm_fin_email_title")}</p>
+        <ul className="text-rp-mute text-sm space-y-2 list-disc pl-5">
+          <li>{t("adm_fin_email_weekly")}</li>
+          <li>{t("adm_fin_email_balance")}</li>
+        </ul>
       </div>
 
       <div className="border border-rp-border p-5 mb-10 max-w-xl">
@@ -374,9 +501,48 @@ function FinancePanel({ finance, t, onSaved }) {
         )}
       </div>
 
-      <p className="text-rp-mute2 text-xs mb-8 border-l-2 border-rp-border pl-4 max-w-2xl">
+      <p className="text-rp-mute2 text-xs mb-6 border-l-2 border-rp-border pl-4 max-w-2xl">
         {finance.auto_reload_note}
       </p>
+
+      {finance.replicate_sync && (
+        <div className="border border-emerald-500/30 bg-emerald-500/5 p-5 mb-8 max-w-3xl" data-testid="replicate-sync-status">
+          <p className="eyebrow mb-2">{t("adm_fin_sync_title")}</p>
+          <p className="text-rp-mute text-sm mb-3">{t("adm_fin_sync_desc")}</p>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm mb-3">
+            <div>
+              <p className="text-rp-mute2 text-[10px] uppercase font-mono mb-1">{t("adm_fin_sync_status")}</p>
+              <p className={`font-mono ${finance.replicate_sync.status === "top_up_needed" ? "text-red-400" : "text-emerald-400"}`}>
+                {finance.replicate_sync.status === "top_up_needed" ? t("adm_fin_sync_needed") : t("adm_fin_sync_ok")}
+              </p>
+            </div>
+            <div>
+              <p className="text-rp-mute2 text-[10px] uppercase font-mono mb-1">{t("adm_fin_sync_count")}</p>
+              <p className="font-mono text-rp-text">{finance.replicate_sync.sync_count ?? 0}</p>
+            </div>
+            <div>
+              <p className="text-rp-mute2 text-[10px] uppercase font-mono mb-1">{t("adm_fin_sync_last")}</p>
+              <p className="font-mono text-rp-text text-xs">{finance.replicate_sync.last_sync_at ? new Date(finance.replicate_sync.last_sync_at).toLocaleString() : "—"}</p>
+            </div>
+            <div>
+              <p className="text-rp-mute2 text-[10px] uppercase font-mono mb-1">{t("adm_fin_sync_reload")}</p>
+              <p className="font-mono text-rp-text text-xs">
+                {finance.replicate_sync.recommended_auto_reload
+                  ? `$${finance.replicate_sync.recommended_auto_reload.threshold_usd} → $${finance.replicate_sync.recommended_auto_reload.reload_balance_usd}`
+                  : "—"}
+              </p>
+            </div>
+          </div>
+          <a
+            href="https://replicate.com/account/billing"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-sm text-emerald-300 hover:text-white underline underline-offset-2"
+          >
+            {t("adm_fin_sync_billing_link")} →
+          </a>
+        </div>
+      )}
 
       <h3 className="font-heading text-lg text-rp-text mb-4">{t("adm_fin_recent")}</h3>
       <div className="border border-rp-border overflow-x-auto">
@@ -427,10 +593,11 @@ function Stat({ label, value, highlight }) {
 
 function AdjustCreditsForm({ userId, t, onCancel, onConfirm }) {
   const [amount, setAmount] = useState(50);
-  const [reason, setReason] = useState("admin grant");
+  const [reason, setReason] = useState("Créditos oferecidos");
   return (
     <div className="border border-rp-purple mt-3 p-5 bg-rp-surface" data-testid="adjust-form">
-      <p className="eyebrow mb-3">{t("adm_adjust_title")} {userId.slice(0, 8)}…</p>
+      <p className="eyebrow mb-1">{t("adm_adjust_title")} {userId.slice(0, 8)}…</p>
+      <p className="text-xs text-rp-mute mb-3">{t("adm_adjust_email_hint")}</p>
       <div className="flex gap-3 flex-wrap">
         <input type="number" value={amount} onChange={(e) => setAmount(parseInt(e.target.value || "0", 10))} className="field-input w-32 !py-2" data-testid="adjust-amount" />
         <input value={reason} onChange={(e) => setReason(e.target.value)} className="field-input flex-1 !py-2 min-w-[200px]" data-testid="adjust-reason" />

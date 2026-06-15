@@ -1,7 +1,7 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "framework": "create-react-app",
-  "buildCommand": "REACT_APP_BUILD_ID=rp-video-edit-i18n-v50 REACT_APP_DISABLE_VERCEL_BLOB=0 yarn build",
+  "buildCommand": "REACT_APP_DISABLE_VERCEL_BLOB=0 yarn build",
   "outputDirectory": "build",
   "installCommand": "yarn install --ignore-engines || yarn install",
   "functions": {

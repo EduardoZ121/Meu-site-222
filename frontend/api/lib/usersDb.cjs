@@ -12,7 +12,7 @@ const ADMIN_EMAILS = new Set(
     .filter(Boolean),
 );
 
-const STARTER_CREDITS = 100;
+const STARTER_CREDITS = 0;
 const UNLIMITED_CREDITS = 999999999;
 const ABUSE_CREDITS_THRESHOLD = 500_000;
 
@@ -35,8 +35,8 @@ function resolveAccountAccess(doc) {
     return { role: "admin", is_unlimited: true, credits: UNLIMITED_CREDITS };
   }
   let credits = Number(doc?.credits);
-  if (!Number.isFinite(credits) || credits < 0) credits = STARTER_CREDITS;
-  if (doc?.is_unlimited || abuseCredits(credits)) credits = STARTER_CREDITS;
+  if (!Number.isFinite(credits) || credits < 0) credits = 0;
+  if (doc?.is_unlimited || abuseCredits(credits)) credits = 0;
   return { role: "user", is_unlimited: false, credits };
 }
 
@@ -79,6 +79,7 @@ function publicUser(doc) {
     nsfw_allowed: Boolean(doc.nsfw_allowed || isAdmin),
     studio_premium_until: doc.studio_premium_until || null,
     studio_premium: isStudioPremiumActive(doc) || isAdmin,
+    email_notify_generations: Boolean(doc.email_notify_generations),
   };
 }
 
@@ -144,14 +145,16 @@ async function upsertGoogleUser(googleProfile, req, opts = {}) {
     };
     await db.collection("users").insertOne(doc);
     const bonus = isAdmin ? 0 : startCredits;
-    await db.collection("credit_transactions").insertOne({
-      id: `tx_${Date.now().toString(36)}`,
-      user_id: userId,
-      amount: bonus,
-      type: preset ? "admin" : "free",
-      description: preset ? "Conta pré-configurada (admin)" : "Signup bonus (Google)",
-      created_at: nowIso(),
-    });
+    if (bonus > 0) {
+      await db.collection("credit_transactions").insertOne({
+        id: `tx_${Date.now().toString(36)}`,
+        user_id: userId,
+        amount: bonus,
+        type: preset ? "admin" : "free",
+        description: preset ? "Conta pré-configurada (admin)" : "Signup bonus (Google)",
+        created_at: nowIso(),
+      });
+    }
     if (preset) await consumeAccountPreset(db, email);
     await logIpEvent(db, userId, meta, "signup");
     return publicUser(doc);
@@ -361,21 +364,53 @@ async function fulfillStripeCheckoutSession({
     `Stripe purchase (${packageId || "package"})`,
     { stripe_session_id: sessionId },
   );
+  try {
+    const { scheduleCreditPurchaseSync } = require("./replicateAutoReserve.cjs");
+    scheduleCreditPurchaseSync({
+      sessionId,
+      userId,
+      credits,
+      amount,
+      currency,
+      packageId,
+      pricingRegion,
+    });
+  } catch {
+    /* non-blocking */
+  }
   return { new_balance: balance, already_claimed: false, credits };
 }
 
 async function recordCreation(userId, creation) {
   if (!storageEnabled() || !userId || !creation?.id) return;
   const db = await getDb();
+  const urls = Array.isArray(creation.result_urls)
+    ? creation.result_urls.filter((u) => typeof u === "string" && u.trim())
+    : [];
+  const setFields = {};
+  if (urls.length) setFields.result_urls = urls;
+  if (creation.prompt) setFields.prompt = creation.prompt;
+  if (creation.model_used) setFields.model_used = creation.model_used;
+  if (creation.aspect_ratio) setFields.aspect_ratio = creation.aspect_ratio;
+  if (creation.type) setFields.type = creation.type;
+  if (creation.credits_spent != null) setFields.credits_spent = creation.credits_spent;
+  if (creation.created_at) setFields.created_at = creation.created_at;
+
+  const update = {
+    $setOnInsert: {
+      id: creation.id,
+      user_id: userId,
+      is_favorite: creation.is_favorite ?? false,
+      is_public: creation.is_public ?? false,
+      created_at: creation.created_at || nowIso(),
+      server_billing: creation.server_billing ?? true,
+    },
+  };
+  if (Object.keys(setFields).length) update.$set = setFields;
+
   await db.collection("creations").updateOne(
     { id: creation.id, user_id: userId },
-    {
-      $setOnInsert: {
-        ...creation,
-        user_id: userId,
-        created_at: creation.created_at || nowIso(),
-      },
-    },
+    update,
     { upsert: true },
   );
 }

@@ -20,6 +20,7 @@ import ArtisticStudioTabs from "../../components/artistic/ArtisticStudioTabs";
 import ArtisticCategoryRail from "../../components/artistic/ArtisticCategoryRail";
 import ArtisticStudioModule from "../../components/artistic/ArtisticStudioModule";
 import ArtisticPromptStudio from "../../components/artistic/ArtisticPromptStudio";
+import { appendStudioPhotos, primaryStudioPhoto } from "../../lib/studioFormData";
 import ArtisticResultStudio from "../../components/artistic/ArtisticResultStudio";
 import { pushArtisticPromptHistory } from "../../lib/artisticPromptHistory";
 import { localizeArtisticCatalog } from "../../lib/artisticStudioLocales";
@@ -69,7 +70,8 @@ export default function Artistic() {
   const [improve, setImprove] = useState(false);
   const [wizardOpen, setWizardOpen] = useState(false);
   const [suggestOpen, setSuggestOpen] = useState(false);
-  const [photo, setPhoto] = useState(null);
+  const [photos, setPhotos] = useState([]);
+  const photo = primaryStudioPhoto(photos);
   const [aspect, setAspect] = useState("3:4");
   const [busy, setBusy] = useState(false);
   const [improving, setImproving] = useState(false);
@@ -233,7 +235,7 @@ export default function Artistic() {
       let submitData;
       if (inputMode === "image" && photo) {
         const fd = new FormData();
-        fd.append("photo", photo);
+        appendStudioPhotos(fd, photos);
         fd.append("prompt_final", finalPrompt);
         fd.append("aspect_ratio", apiAspectRatio(aspect, {
           model: "artistic",
@@ -400,8 +402,8 @@ export default function Artistic() {
             inputMode={inputMode}
             setInputMode={setInputMode}
             isLabStyle={isLabStyle}
-            photo={photo}
-            setPhoto={setPhoto}
+            photo={photos}
+            setPhoto={setPhotos}
             prompt={prompt}
             setPrompt={setPrompt}
             aspect={aspect}

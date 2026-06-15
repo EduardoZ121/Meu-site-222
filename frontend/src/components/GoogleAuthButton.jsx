@@ -45,8 +45,6 @@ export default function GoogleAuthButton({ onCredential, label = "Continuar com 
       .then((google) => {
         if (cancelled || !buttonRef.current) return;
 
-        const loginUri = `${window.location.origin}/api/auth/google-callback`;
-
         if (!gsiInitialized) {
           google.accounts.id.initialize({
             client_id: GOOGLE_CLIENT_ID,
@@ -54,8 +52,8 @@ export default function GoogleAuthButton({ onCredential, label = "Continuar com 
               if (response?.credential) onCredentialRef.current?.(response.credential);
               else toast.error("Não foi possível validar a conta Google.");
             },
-            ux_mode: "redirect",
-            login_uri: loginUri,
+            ux_mode: "popup",
+            auto_select: false,
             error_callback: (err) => {
               const type = String(err?.type || err || "");
               if (/popup_closed|user_cancelled/i.test(type)) return;

@@ -19,6 +19,7 @@ import { emptySlide, slideText, normalizeSlides } from "../../lib/carouselSlides
 import { getCarouselExample, getCarouselSlideRoles } from "../../lib/carouselLocales";
 import { revokePanoramaBlobUrls, splitPanoramaToSlides } from "../../lib/carouselPanorama";
 import { validateImageUpload } from "../../lib/videoMedia";
+import { appendStudioPhotos, primaryStudioPhoto } from "../../lib/studioFormData";
 import { useI18n } from "../../lib/i18n";
 import { useStudioI18n } from "../../lib/useStudioI18n";
 import AspectPicker from "../../components/AspectPicker";
@@ -97,7 +98,8 @@ export default function CarouselPage() {
     setSlides([...ex.slides]);
   }, [lang]);
   const [styleSuffix, setStyleSuffix] = useState(STYLE_PRESETS[0]);
-  const [photo, setPhoto] = useState(null);
+  const [photos, setPhotos] = useState([]);
+  const photo = primaryStudioPhoto(photos);
   const [aspect, setAspect] = usePhotoAspectDefault(photo, "4:5", "match");
 
   const [keepCharacter, setKeepCharacter] = useState(true);
@@ -203,7 +205,7 @@ export default function CarouselPage() {
     fd.append("keep_lighting", keepLighting ? "true" : "false");
     fd.append("keep_palette", keepPalette ? "true" : "false");
     fd.append("model_key", effectiveModel);
-    if (photo) fd.append("photo", photo);
+    if (photo) appendStudioPhotos(fd, photos);
 
     const { data } = await uploadPost("/generate/carousel-panoramic", fd, {
       timeout: 300000,
@@ -310,7 +312,7 @@ export default function CarouselPage() {
         } else if (i > 0 && smoothTransitions && lastUrl) {
           fd.append("previous_slide_url", lastUrl);
         } else if (photo) {
-          fd.append("photo", photo);
+          appendStudioPhotos(fd, photos);
         }
 
         // eslint-disable-next-line no-await-in-loop
@@ -435,8 +437,10 @@ export default function CarouselPage() {
               {t("car_sec_ref_hint")}
             </p>
             <ImageUploadZone
-              value={photo}
-              onChange={setPhoto}
+              multiple
+              maxFiles={5}
+              value={photos}
+              onChange={setPhotos}
               layout="carousel"
               testId="carousel-photo"
               emptyLabel={t("car_upload_label")}

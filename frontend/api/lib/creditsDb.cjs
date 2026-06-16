@@ -6,6 +6,10 @@ function nowIso() {
 }
 
 const { isAdminEmail, UNLIMITED_CREDITS } = require("./usersDb.cjs");
+const {
+  subscriptionCredits,
+  spendableStandardCredits,
+} = require("./creatorSubscription.cjs");
 
 async function recordSpendTransaction(userId, cost, description, extra = {}) {
   const db = await getDb();
@@ -35,7 +39,17 @@ async function spendCredits(userId, amount, description, opts = {}) {
   const db = await getDb();
   const existing = await db.collection("users").findOne(
     { id: userId },
-    { projection: { credits: 1, is_unlimited: 1, email: 1 } },
+    {
+      projection: {
+        _id: 0,
+        credits: 1,
+        subscription_credits: 1,
+        subscription_status: 1,
+        subscription_period_end: 1,
+        is_unlimited: 1,
+        email: 1,
+      },
+    },
   );
   if (isAdminEmail(existing?.email) && !forceBill) {
     return existing?.credits ?? UNLIMITED_CREDITS;
@@ -44,24 +58,53 @@ async function spendCredits(userId, amount, description, opts = {}) {
     await recordSpendTransaction(userId, cost, description, { admin_force_bill: true });
     return existing?.credits ?? UNLIMITED_CREDITS;
   }
-  const res = await db.collection("users").findOneAndUpdate(
-    { id: userId, credits: { $gte: cost }, is_unlimited: { $ne: true } },
-    { $inc: { credits: -cost } },
-    { returnDocument: "after", projection: { _id: 0, credits: 1, is_unlimited: 1 } },
-  );
-  if (!res) {
-    const u = await db.collection("users").findOne(
-      { id: userId },
-      { projection: { credits: 1, is_unlimited: 1, email: 1 } },
-    );
-    if (isAdminEmail(u?.email)) return u?.credits ?? UNLIMITED_CREDITS;
+
+  const total = spendableStandardCredits(existing);
+  if (total < cost) {
     const err = new Error("Créditos insuficientes.");
     err.status = 402;
     err.detail = "Insufficient credits";
     throw err;
   }
-  await recordSpendTransaction(userId, cost, description, { wallet: "standard" });
-  return res.credits;
+
+  const subPool = subscriptionCredits(existing);
+  const fromSub = Math.min(subPool, cost);
+  const fromPurchased = cost - fromSub;
+
+  if (fromSub > 0) {
+    await db.collection("users").updateOne(
+      { id: userId },
+      { $inc: { subscription_credits: -fromSub } },
+    );
+    await recordSpendTransaction(userId, fromSub, description, { wallet: "subscription" });
+  }
+  if (fromPurchased > 0) {
+    const res = await db.collection("users").findOneAndUpdate(
+      { id: userId, credits: { $gte: fromPurchased }, is_unlimited: { $ne: true } },
+      { $inc: { credits: -fromPurchased } },
+      { returnDocument: "after", projection: { _id: 0, credits: 1, subscription_credits: 1 } },
+    );
+    if (!res) {
+      const err = new Error("Créditos insuficientes.");
+      err.status = 402;
+      throw err;
+    }
+    await recordSpendTransaction(userId, fromPurchased, description, { wallet: "standard" });
+  }
+
+  const fresh = await db.collection("users").findOne(
+    { id: userId },
+    {
+      projection: {
+        _id: 0,
+        credits: 1,
+        subscription_credits: 1,
+        subscription_status: 1,
+        subscription_period_end: 1,
+      },
+    },
+  );
+  return spendableStandardCredits(fresh);
 }
 
 async function spendPremiumCredits(userId, amount, description, opts = {}) {
@@ -101,4 +144,4 @@ async function spendPremiumCredits(userId, amount, description, opts = {}) {
   return res.premium_credits ?? 0;
 }
 
-module.exports = { spendCredits, spendPremiumCredits };
+module.exports = { spendCredits, spendPremiumCredits, spendableStandardCredits };

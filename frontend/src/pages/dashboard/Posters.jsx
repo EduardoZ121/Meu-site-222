@@ -1,7 +1,7 @@
 import { Component, useCallback, useEffect, useMemo, useState } from "react";
 import {
   Loader2, Sparkles, ArrowLeft, Check, Layers, Crown, Zap, Aperture,
-  Image as ImageIcon,
+  Image as ImageIcon, Lock,
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
@@ -275,7 +275,9 @@ export default function Posters() {
     ? (proModel?.cost ?? selectedModel.cost)
     : selectedModel.cost;
   const totalCost = billablePerImage * numOutputs;
-  const userBalance = usesPremiumWallet ? (user?.premium_credits ?? 0) : (user?.credits ?? 0);
+  const userBalance = usesPremiumWallet
+    ? (user?.premium_credits ?? 0)
+    : (user?.total_standard_credits ?? user?.credits ?? 0);
 
   const missing = useMemo(
     () => (picked ? posterMissingFields(picked, values) : []),
@@ -315,6 +317,16 @@ export default function Posters() {
   };
 
   const openTemplate = (tpl) => {
+    if (tpl.locked) {
+      toast.message(t("post_subscriber_locked"), {
+        action: {
+          label: t("bill_sub_cta"),
+          onClick: () => navigate("/app/billing"),
+        },
+        duration: 8000,
+      });
+      return;
+    }
     if (posterTemplateHasVariants(tpl)) {
       setVariantBase(tpl);
       return;
@@ -691,6 +703,14 @@ function TemplateCard({ tpl, index, onClick, catLabel, t }) {
           coverSrc={posterCoverSrc(tpl.id) || ""}
           className="pro-poster-card__cover"
         />
+        {tpl.locked && (
+          <div className="absolute inset-0 z-[4] flex flex-col items-center justify-center bg-black/55 backdrop-blur-[2px]">
+            <Lock className="w-5 h-5 text-[#F9A8D4] mb-2" />
+            <span className="text-[#F9A8D4] text-[9px] sm:text-[10px] font-mono uppercase tracking-[0.14em] px-2 text-center">
+              {t("post_subscriber_badge")}
+            </span>
+          </div>
+        )}
         {tpl.subtag && (
           <div className="absolute left-2 top-9 sm:left-3 sm:top-12 max-w-[85%] rounded-full border border-white/20 bg-black/30 px-1.5 py-0.5 sm:px-2 sm:py-1 font-['JetBrains_Mono'] text-[7px] sm:text-[8px] uppercase tracking-[0.12em] text-white/75 backdrop-blur-sm truncate z-[2]">
             {tpl.subtag}

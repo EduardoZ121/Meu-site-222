@@ -5,7 +5,7 @@ import { ADMIN_EMAILS } from "./isAdmin";
 const AuthCtx = createContext(null);
 const LOCAL_USERS_KEY = "rp_local_users";
 const LOCAL_TX_KEY = "rp_local_transactions";
-const STARTER_CREDITS = 100;
+const STARTER_CREDITS = 15;
 
 function readLocalUsers() {
   try { return JSON.parse(localStorage.getItem(LOCAL_USERS_KEY) || "{}"); } catch { return {}; }
@@ -60,6 +60,9 @@ function publicLocalUser(user) {
     lang: "en",
     credits: unlimited ? 999999999 : (user.credits ?? STARTER_CREDITS),
     premium_credits: unlimited ? 999999999 : (user.premium_credits ?? 0),
+    subscription_credits: unlimited ? 0 : (user.subscription_credits ?? 0),
+    total_standard_credits: unlimited ? 999999999 : (user.total_standard_credits ?? user.credits ?? STARTER_CREDITS),
+    subscription: user.subscription || { active: false, status: "none" },
     is_unlimited: unlimited,
     referral_code: user.referral_code || "",
     email_verified: !!user.email_verified,

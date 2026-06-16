@@ -5,6 +5,7 @@ const crypto = require("crypto");
 const { getDb, storageEnabled } = require("./mongo.cjs");
 const { sendResendEmail } = require("./emailReport.cjs");
 const { buildPromoEmailHtml, absUrl } = require("./emailBranding.cjs");
+const { isSubscriptionActive } = require("./creatorSubscription.cjs");
 const { isValidEmail } = require("./videoNotifyEmail.cjs");
 
 const COLLECTION = "marketing_campaigns";
@@ -307,21 +308,52 @@ async function getCampaignFromDb(id) {
 }
 
 async function countMarketingRecipients() {
-  if (!storageEnabled()) return 0;
+  const breakdown = await countMarketingAudience();
+  return breakdown.total;
+}
+
+async function countMarketingAudience() {
+  if (!storageEnabled()) return { total: 0, subscribers: 0, non_subscribers: 0 };
   const db = await getDb();
   const rows = await db.collection("users").find(
     {
       email: { $exists: true, $nin: [null, ""] },
       banned: { $ne: true },
     },
-    { projection: { email: 1 } },
+    { projection: { email: 1, subscription_status: 1, subscription_period_end: 1 } },
   ).toArray();
-  const seen = new Set();
+  const seen = new Map();
   for (const u of rows) {
     const e = String(u.email || "").trim().toLowerCase();
-    if (isValidEmail(e)) seen.add(e);
+    if (!isValidEmail(e) || seen.has(e)) continue;
+    seen.set(e, u);
   }
-  return seen.size;
+  let subscribers = 0;
+  for (const doc of seen.values()) {
+    if (isSubscriptionActive(doc)) subscribers += 1;
+  }
+  const total = seen.size;
+  return { total, subscribers, non_subscribers: Math.max(0, total - subscribers) };
+}
+
+async function lookupUserSubscriptionByEmail(email) {
+  if (!storageEnabled()) return null;
+  const e = String(email || "").trim().toLowerCase();
+  if (!isValidEmail(e)) return null;
+  const db = await getDb();
+  const doc = await db.collection("users").findOne(
+    { email: e },
+    { projection: { email: 1, subscription_status: 1, subscription_period_end: 1, subscription_plan: 1, subscription_credits: 1 } },
+  );
+  if (!doc) return { email: e, found: false, subscription_active: false };
+  return {
+    email: e,
+    found: true,
+    subscription_active: isSubscriptionActive(doc),
+    subscription_status: doc.subscription_status || "none",
+    subscription_plan: doc.subscription_plan || null,
+    subscription_credits: Number(doc.subscription_credits) || 0,
+  };
 }
 
 async function listMarketingRecipients(limit = 5000) {
@@ -361,9 +393,11 @@ async function listCampaignsForAdmin() {
     .find({})
     .sort({ sort_order: 1, created_at: 1 })
     .toArray();
-  const audience = await countMarketingRecipients();
+  const audience = await countMarketingAudience();
   return {
-    audience_count: audience,
+    audience_count: audience.total,
+    audience_subscribers: audience.subscribers,
+    audience_non_subscribers: audience.non_subscribers,
     campaigns: docs.map((doc) => {
       const c = campaignToClient(doc);
       return {
@@ -491,6 +525,7 @@ async function sendMarketingCampaign(campaignId, { email = "" } = {}) {
 
   const html = buildCampaignHtml(campaign);
   const text = buildCampaignText(campaign);
+  const recipient = await lookupUserSubscriptionByEmail(one);
   const result = await sendResendEmail({ to: one, subject: campaign.subject, html, text });
   return {
     ok: Boolean(result.ok),
@@ -499,6 +534,7 @@ async function sendMarketingCampaign(campaignId, { email = "" } = {}) {
     sent: result.ok ? 1 : 0,
     failed: result.ok ? 0 : 1,
     total: 1,
+    recipient,
     errors: result.ok ? [] : [{ to: one, error: result.error || result.reason || "failed" }],
   };
 }

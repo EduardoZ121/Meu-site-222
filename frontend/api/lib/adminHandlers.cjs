@@ -1,6 +1,7 @@
 const { getDb, storageEnabled, kvEnabled } = require("./mongo.cjs");
 const { computeAdminStats, computeIpGroups, computeFinance } = require("./statsCompute.cjs");
 const { ADMIN_EMAILS, addCredits, publicUser, setUserAccountByEmail } = require("./usersDb.cjs");
+const { isSubscriptionActive } = require("./creatorSubscription.cjs");
 const { upsertAccountPreset } = require("./accountPresets.cjs");
 const { runDeployEventCredits } = require("./deployEventCredits.cjs");
 const { aggregateFinance } = require("./financeModel.cjs");
@@ -73,6 +74,11 @@ async function adminStats() {
     { $count: "n" },
   ]).toArray();
 
+  const subDocs = await db.collection("users").find(
+    { subscription_status: { $in: ["active", "trialing"] } },
+    { projection: { subscription_status: 1, subscription_period_end: 1, email: 1 } },
+  ).toArray();
+
   return {
     users,
     creations,
@@ -83,10 +89,11 @@ async function adminStats() {
     signups_today,
     signups_week,
     risky_ips: multiIp[0]?.n || 0,
+    subscribers_active: subDocs.filter(isSubscriptionActive).length,
   };
 }
 
-async function adminUsers(limit = 50, search = null) {
+async function adminUsers(limit = 50, search = null, subscriptionFilter = null) {
   if (!storageEnabled()) throw mongoRequired();
   const db = await getDb();
   const q = {};
@@ -96,12 +103,24 @@ async function adminUsers(limit = 50, search = null) {
       { name: { $regex: search, $options: "i" } },
     ];
   }
+  const fetchLimit = subscriptionFilter && subscriptionFilter !== "all"
+    ? Math.min(Math.max(limit, 50), 500)
+    : Math.min(limit, 200);
   const docs = await db.collection("users")
     .find(q, { projection: { _id: 0, password_hash: 0 } })
     .sort({ created_at: -1 })
-    .limit(Math.min(limit, 200))
+    .limit(fetchLimit)
     .toArray();
-  return { users: docs };
+  let users = docs.map((d) => publicUser(d)).filter(Boolean);
+  if (subscriptionFilter === "active") {
+    users = users.filter((u) => u.subscription?.active);
+  } else if (subscriptionFilter === "inactive") {
+    users = users.filter((u) => !u.subscription?.active);
+  }
+  if (subscriptionFilter && subscriptionFilter !== "all") {
+    users = users.slice(0, Math.min(limit, 200));
+  }
+  return { users };
 }
 
 async function adminTransactions(limit = 100) {
@@ -312,7 +331,8 @@ async function handleAdminRoute(path, req, res, { verifySessionToken, json, read
       const url = new URL(req.url, `https://${req.headers.host || "localhost"}`);
       const limit = Number(url.searchParams.get("limit") || 50);
       const search = url.searchParams.get("search") || null;
-      return json(res, 200, await adminUsers(limit, search));
+      const subscription = url.searchParams.get("subscription") || "all";
+      return json(res, 200, await adminUsers(limit, search, subscription));
     }
     if (req.method === "GET" && path === "admin/transactions") {
       const url = new URL(req.url, `https://${req.headers.host || "localhost"}`);

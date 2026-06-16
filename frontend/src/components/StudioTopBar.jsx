@@ -73,7 +73,7 @@ export default function StudioTopBar({ titleKey }) {
             {onPosters ? stdLabel : (t("label_credits_short") || "cr")}
           </span>
           <span className="text-[#A855F7] text-sm font-mono font-semibold tabular-nums">
-            {user?.is_unlimited ? "∞" : user?.credits ?? 0}
+            {user?.is_unlimited ? "∞" : user?.total_standard_credits ?? user?.credits ?? 0}
           </span>
         </Link>
         {showHqBadge && (

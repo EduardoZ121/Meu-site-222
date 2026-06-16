@@ -17,6 +17,7 @@ export default function Admin() {
   const [purchases, setPurchases] = useState([]);
   const [ipGroups, setIpGroups] = useState([]);
   const [search, setSearch] = useState("");
+  const [subFilter, setSubFilter] = useState("all");
   const [adjustOpen, setAdjustOpen] = useState(null);
   const [dbError, setDbError] = useState(false);
   const [finance, setFinance] = useState(null);
@@ -36,7 +37,7 @@ export default function Admin() {
         markDbMissing(e);
         setStats(null);
       });
-    api.get(`/admin/users?limit=80${search ? `&search=${encodeURIComponent(search)}` : ""}`)
+    api.get(`/admin/users?limit=80${search ? `&search=${encodeURIComponent(search)}` : ""}${subFilter !== "all" ? `&subscription=${encodeURIComponent(subFilter)}` : ""}`)
       .then((r) => setUsers(r.data.users || []))
       .catch(() => {});
     api.get("/admin/transactions?limit=40")
@@ -136,6 +137,7 @@ export default function Admin() {
           <Stat label={t("adm_revenue")} value={`€${Number(stats.revenue_eur || 0).toFixed(2)}`} />
           <Stat label={t("adm_revenue_usd")} value={`$${Number(stats.revenue_usd || 0).toFixed(2)}`} />
           <Stat label={t("adm_circulation")} value={stats.credits_in_circulation} />
+          <Stat label={t("adm_subscribers")} value={stats.subscribers_active ?? 0} highlight={(stats.subscribers_active ?? 0) > 0} />
           <Stat label={t("adm_risky_ips")} value={stats.risky_ips} highlight={stats.risky_ips > 0} />
         </div>
       )}
@@ -152,7 +154,17 @@ export default function Admin() {
         <section className="mb-14">
           <div className="flex items-center justify-between mb-6 gap-4 flex-wrap">
             <h2 className="font-heading text-2xl text-rp-text">{t("adm_users")}</h2>
-            <div className="flex gap-2">
+            <div className="flex gap-2 flex-wrap">
+              <select
+                value={subFilter}
+                onChange={(e) => setSubFilter(e.target.value)}
+                className="field-input !py-2 !px-3 text-sm"
+                data-testid="admin-sub-filter"
+              >
+                <option value="all">{t("adm_sub_filter_all")}</option>
+                <option value="active">{t("adm_sub_filter_active")}</option>
+                <option value="inactive">{t("adm_sub_filter_inactive")}</option>
+              </select>
               <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder={t("adm_search_placeholder")} className="field-input !py-2 !px-3" data-testid="admin-search" />
               <button type="button" onClick={reload} className="btn-secondary !py-2 !px-4" data-testid="admin-search-btn">{t("search")}</button>
             </div>
@@ -248,6 +260,35 @@ export default function Admin() {
   );
 }
 
+function SubscriptionBadge({ user, t }) {
+  const active = Boolean(user?.subscription?.active);
+  const status = user?.subscription?.status || "none";
+  const periodEnd = user?.subscription?.period_end;
+  const subCredits = user?.subscription_credits ?? 0;
+  if (active) {
+    return (
+      <div>
+        <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-[#EC4899]/20 border border-[#EC4899]/40 text-[#F9A8D4] text-[10px] font-mono uppercase tracking-[0.12em]">
+          {t("adm_sub_active")}
+        </span>
+        {subCredits > 0 && (
+          <p className="text-rp-mute2 text-[10px] font-mono mt-1">{subCredits} {t("adm_sub_credits_cycle")}</p>
+        )}
+        {periodEnd && (
+          <p className="text-rp-mute2 text-[10px] font-mono mt-0.5">
+            {t("adm_sub_until")} {new Date(periodEnd).toLocaleDateString()}
+          </p>
+        )}
+      </div>
+    );
+  }
+  return (
+    <span className="text-rp-mute2 text-[10px] font-mono uppercase tracking-[0.12em]">
+      {status === "canceled" || status === "cancelled" ? t("adm_sub_canceled") : t("adm_sub_none")}
+    </span>
+  );
+}
+
 function UsersTable({ users, t, adjustOpen, setAdjustOpen, patchUser, adjustCredits }) {
   return (
     <>
@@ -257,6 +298,7 @@ function UsersTable({ users, t, adjustOpen, setAdjustOpen, patchUser, adjustCred
             <tr className="border-b border-rp-border text-rp-mute2 text-[10px] uppercase tracking-[0.18em] font-mono">
               <th className="text-left p-3">Email</th>
               <th className="text-left p-3">IP</th>
+              <th className="text-left p-3">{t("adm_subscription")}</th>
               <th className="text-left p-3">{t("adm_role")}</th>
               <th className="text-right p-3">{t("credits")}</th>
               <th className="text-center p-3">{t("adm_banned")}</th>
@@ -273,9 +315,17 @@ function UsersTable({ users, t, adjustOpen, setAdjustOpen, patchUser, adjustCred
                 </td>
                 <td className="p-3 font-mono text-[10px] text-rp-mute">{u.signup_ip || u.last_ip || "—"}</td>
                 <td className="p-3">
+                  <SubscriptionBadge user={u} t={t} />
+                </td>
+                <td className="p-3">
                   <span className={`text-[10px] font-mono uppercase tracking-[0.16em] ${u.role === "admin" ? "text-rp-lavender" : "text-rp-mute"}`}>{u.role}</span>
                 </td>
-                <td className="p-3 text-right font-mono">{u.credits}</td>
+                <td className="p-3 text-right font-mono">
+                  {u.total_standard_credits ?? u.credits}
+                  {(u.subscription_credits ?? 0) > 0 && (
+                    <p className="text-[10px] text-rp-mute2">{u.credits} + {u.subscription_credits}</p>
+                  )}
+                </td>
                 <td className="p-3 text-center">
                   <button type="button" onClick={() => patchUser(u.id, { banned: !u.banned })} className={`text-[10px] font-mono uppercase tracking-[0.16em] ${u.banned ? "text-red-400" : "text-rp-mute"}`} data-testid={`ban-${u.id}`}>
                     {u.banned ? t("adm_yes") : t("adm_no")}

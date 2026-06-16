@@ -1,5 +1,5 @@
 /**
- * POST /api/webhooks/stripe — Stripe webhook (checkout.session.completed, charge.refunded).
+ * POST /api/webhooks/stripe — Stripe webhook (checkout, subscriptions, refunds).
  * Configure in Stripe Dashboard: https://www.remakepix.com/api/webhooks/stripe
  * Env: STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET
  */
@@ -12,6 +12,11 @@ const {
   addPremiumCredits,
   storageEnabled,
 } = require("../lib/usersDb.cjs");
+const {
+  activateSubscriptionFromCheckout,
+  applySubscriptionFromStripe,
+  renewSubscriptionCreditsFromInvoice,
+} = require("../lib/creatorSubscription.cjs");
 
 function readRawBody(req) {
   return new Promise((resolve, reject) => {
@@ -44,8 +49,8 @@ module.exports = async function handler(req, res) {
   }
 
   let event;
+  const stripe = new Stripe(key);
   try {
-    const stripe = new Stripe(key);
     const raw = Buffer.isBuffer(req.body)
       ? req.body
       : await readRawBody(req);
@@ -57,45 +62,58 @@ module.exports = async function handler(req, res) {
   try {
     if (event.type === "checkout.session.completed") {
       const session = event.data.object;
-      if (session.payment_status === "paid") {
+      if (session.mode === "subscription" && session.subscription) {
+        await activateSubscriptionFromCheckout(session);
+      } else if (session.payment_status === "paid") {
         const meta = session.metadata || {};
         const userId = meta.user_id;
         const wallet = meta.wallet || "standard";
-        const credits = Number(meta.credits || 0);
-        const premiumCredits = Number(meta.premium_credits || 0);
-        const packageId = meta.package || "unknown";
-        const pricingRegion = meta.pricing_region || "intl";
-        const isPremium = wallet === "premium";
-        const units = isPremium ? premiumCredits : credits;
-        if (userId && units > 0) {
-          const cfg = getRegionConfig(pricingRegion);
-          const pkg = !isPremium && packageId && packageId !== "custom" ? cfg.packages[packageId] : null;
-          const hqPkg = isPremium && packageId ? (cfg.premium_packages || {})[packageId] : null;
-          const amount = pkg
-            ? pkg.amount_cents / 100
-            : hqPkg
-              ? hqPkg.amount_cents / 100
-              : typeof session.amount_total === "number"
-                ? session.amount_total / 100
-                : 0;
-          await fulfillStripeCheckoutSession({
-            userId,
-            sessionId: session.id,
-            packageId,
-            credits,
-            premiumCredits,
-            wallet,
-            amount,
-            currency: cfg.currency || "eur",
-            pricingRegion,
-          });
+        if (wallet === "subscription") {
+          /* handled via subscription activate */
+        } else {
+          const credits = Number(meta.credits || 0);
+          const premiumCredits = Number(meta.premium_credits || 0);
+          const packageId = meta.package || "unknown";
+          const pricingRegion = meta.pricing_region || "intl";
+          const isPremium = wallet === "premium";
+          const units = isPremium ? premiumCredits : credits;
+          if (userId && units > 0) {
+            const cfg = getRegionConfig(pricingRegion);
+            const pkg = !isPremium && packageId && packageId !== "custom" ? cfg.packages[packageId] : null;
+            const hqPkg = isPremium && packageId ? (cfg.premium_packages || {})[packageId] : null;
+            const amount = pkg
+              ? pkg.amount_cents / 100
+              : hqPkg
+                ? hqPkg.amount_cents / 100
+                : typeof session.amount_total === "number"
+                  ? session.amount_total / 100
+                  : 0;
+            await fulfillStripeCheckoutSession({
+              userId,
+              sessionId: session.id,
+              packageId,
+              credits,
+              premiumCredits,
+              wallet,
+              amount,
+              currency: cfg.currency || "eur",
+              pricingRegion,
+            });
+          }
         }
       }
+    } else if (event.type === "invoice.paid") {
+      const invoice = event.data.object;
+      if (invoice.subscription) {
+        await renewSubscriptionCreditsFromInvoice(invoice);
+      }
+    } else if (event.type === "customer.subscription.updated" || event.type === "customer.subscription.deleted") {
+      const subscription = event.data.object;
+      await applySubscriptionFromStripe(subscription);
     } else if (event.type === "charge.refunded") {
       const charge = event.data.object;
       const pi = charge.payment_intent;
       if (pi) {
-        const stripe = new Stripe(key);
         const sessions = await stripe.checkout.sessions.list({ payment_intent: pi, limit: 1 });
         const session = sessions.data?.[0];
         if (session?.id) {

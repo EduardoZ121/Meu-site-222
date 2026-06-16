@@ -45,6 +45,19 @@ function getPremiumPackagesForRegion(regionId) {
   }));
 }
 
+function getSubscriptionPlansForRegion(regionId) {
+  const cfg = getRegionConfig(regionId);
+  const subs = cfg.subscription || {};
+  return Object.entries(subs).map(([id, plan]) => ({
+    id,
+    ...plan,
+    currency: cfg.currency,
+    region: cfg.id,
+    amount_display: plan.amount_cents / 100,
+    amount_eur: cfg.currency === "eur" ? plan.amount_cents / 100 : undefined,
+  }));
+}
+
 function getPricingMeta() {
   const root = pricingData?.meta || {};
   return {
@@ -83,6 +96,7 @@ module.exports = {
   getRegionConfig,
   getPackagesForRegion,
   getPremiumPackagesForRegion,
+  getSubscriptionPlansForRegion,
   getPricingMeta,
   getCreditCostsForRegion,
   resolvePricingRegion,

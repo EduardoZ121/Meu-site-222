@@ -6,6 +6,7 @@ const {
   countryFromRequest,
   getPackagesForRegion,
   getPremiumPackagesForRegion,
+  getSubscriptionPlansForRegion,
   getCreditCostsForRegion,
   getRegionConfig,
   resolvePricingRegion,
@@ -31,7 +32,13 @@ const {
   recordCreation,
   storageEnabled,
 } = require("./lib/usersDb.cjs");
-const { spendCredits, spendPremiumCredits } = require("./lib/creditsDb.cjs");
+const { spendCredits, spendPremiumCredits, spendableStandardCredits } = require("./lib/creditsDb.cjs");
+const {
+  getSubscriptionPlan,
+  isSubscriptionActive,
+  activateSubscriptionFromCheckout,
+  PLAN_ID: CREATOR_PLAN_ID,
+} = require("./lib/creatorSubscription.cjs");
 const { posterHqPremiumCost, getPosterHqPremiumCostPerOutput } = require("./lib/premiumCredits.cjs");
 const {
   createPending,
@@ -97,7 +104,7 @@ function blobDisabledResponse(res) {
     blob_disabled: true,
   });
 }
-const { listPosterTemplates } = require("./lib/posterTemplatesData.cjs");
+const { listPosterTemplates, getPosterTemplateById } = require("./lib/posterTemplatesData.cjs");
 const { improvePrompt } = require("./lib/promptAssist.cjs");
 const { signSession, verifySessionToken } = require("./lib/sessionToken.cjs");
 const { loginWithGoogleCredential, handleGoogleRedirectCallback } = require("./lib/googleAuth.cjs");
@@ -1228,7 +1235,7 @@ async function submitBillableGeneration(req, fields, {
         server_billing: true,
       };
     }
-    const balance = dbUser?.credits ?? user.credits ?? 0;
+    const balance = spendableStandardCredits(dbUser) ?? dbUser?.total_standard_credits ?? dbUser?.credits ?? user.credits ?? 0;
     if (!isAdminEmail(dbUser?.email) && balance < cost) {
       const err = new Error("Créditos insuficientes.");
       err.status = 402;
@@ -2063,6 +2070,18 @@ async function routePost(path, fields, files, req) {
     const templateId = text(fields, "template_id", "");
     const variantKey = text(fields, "variant_key", "classic");
     const templateCategory = text(fields, "template_category", "").trim().toLowerCase();
+    const { user: posterUser } = resolveSessionUser(req);
+    let posterSubscriber = false;
+    if (posterUser?.id && storageEnabled()) {
+      const pu = await getUserById(posterUser.id);
+      posterSubscriber = Boolean(pu?.subscription?.active);
+    }
+    const tplAccess = getPosterTemplateById(templateId, { subscriberActive: posterSubscriber });
+    if (tplAccess?.subscriber_only && tplAccess?.locked) {
+      const err = new Error("Este template é exclusivo do plano Creator Mensal (€14/mês).");
+      err.status = 403;
+      throw err;
+    }
     const posterFood = templateCategory === "food" || String(templateId).startsWith("food_");
     const photoRef = await resolveImageRef(files, fields, "photo", "photo_url");
     const logoRef = await resolveImageRef(files, fields, "logo", "logo_url");
@@ -2900,10 +2919,62 @@ async function routePost(path, fields, files, req) {
       throw err;
     }
     const wallet = text(fields, "wallet", "standard");
-    const packageId = text(fields, "package", wallet === "premium" ? "hq_250" : "starter");
+    const packageId = text(fields, "package", wallet === "premium" ? "hq_250" : wallet === "subscription" ? CREATOR_PLAN_ID : "starter");
     const customCreditsRaw = Number(text(fields, "custom_credits", 0));
     const region = regionFromRequest(req, fields);
     const cfg = getRegionConfig(region);
+
+    if (wallet === "subscription" || packageId === CREATOR_PLAN_ID) {
+      const subPlan = getSubscriptionPlan(region);
+      if (!subPlan) {
+        const err = new Error("Plano mensal indisponível nesta região.");
+        err.status = 400;
+        throw err;
+      }
+      let origin = String(fields.origin || process.env.SITE_URL || "https://www.remakepix.com").replace(/\/$/, "");
+      try {
+        const u = new URL(origin);
+        if (u.hostname.endsWith(".vercel.app") || u.hostname === "remakepix.com") {
+          origin = "https://www.remakepix.com";
+        }
+      } catch {
+        origin = "https://www.remakepix.com";
+      }
+      const stripe = stripeClient();
+      const session = await stripe.checkout.sessions.create({
+        mode: "subscription",
+        payment_method_types: ["card"],
+        customer_email: checkoutUser.email || undefined,
+        line_items: [{
+          price_data: {
+            currency: cfg.currency,
+            unit_amount: subPlan.amount_cents,
+            recurring: { interval: "month" },
+            product_data: {
+              name: `Remake Pixel — ${subPlan.name}`,
+              description: subPlan.tagline || `${subPlan.credits_per_month} créditos/mês`,
+            },
+          },
+          quantity: 1,
+        }],
+        metadata: {
+          user_id: checkoutUser.id,
+          package: CREATOR_PLAN_ID,
+          wallet: "subscription",
+          pricing_region: region,
+        },
+        subscription_data: {
+          metadata: {
+            user_id: checkoutUser.id,
+            package: CREATOR_PLAN_ID,
+            pricing_region: region,
+          },
+        },
+        success_url: `${origin}/app/billing?checkout=success&session_id={CHECKOUT_SESSION_ID}&wallet=subscription`,
+        cancel_url: `${origin}/app/billing?checkout=cancel`,
+      });
+      return { checkout_url: session.url, pricing_region: region, wallet: "subscription" };
+    }
 
     if (wallet === "premium") {
       const hqPkg = (cfg.premium_packages || {})[packageId];
@@ -3007,6 +3078,48 @@ async function routePost(path, fields, files, req) {
     return { checkout_url: session.url, pricing_region: region };
   }
 
+  if (path === "stripe/portal") {
+    const { user: portalUser, isLocal: portalLocal } = resolveSessionUser(req);
+    if (!portalUser || portalLocal) {
+      const err = new Error("Inicia sessão para gerir a subscrição.");
+      err.status = 401;
+      throw err;
+    }
+    const dbUser = await getUserById(portalUser.id);
+    if (!dbUser?.subscription?.can_manage) {
+      const err = new Error("Sem subscrição activa para gerir.");
+      err.status = 400;
+      throw err;
+    }
+    const { getDb } = require("./lib/mongo.cjs");
+    const db = await getDb();
+    const raw = await db.collection("users").findOne(
+      { id: portalUser.id },
+      { projection: { stripe_customer_id: 1 } },
+    );
+    const customerId = raw?.stripe_customer_id;
+    if (!customerId) {
+      const err = new Error("Cliente Stripe em falta.");
+      err.status = 400;
+      throw err;
+    }
+    let origin = String(fields.origin || process.env.SITE_URL || "https://www.remakepix.com").replace(/\/$/, "");
+    try {
+      const u = new URL(origin);
+      if (u.hostname.endsWith(".vercel.app") || u.hostname === "remakepix.com") {
+        origin = "https://www.remakepix.com";
+      }
+    } catch {
+      origin = "https://www.remakepix.com";
+    }
+    const stripe = stripeClient();
+    const portal = await stripe.billingPortal.sessions.create({
+      customer: customerId,
+      return_url: `${origin}/app/billing`,
+    });
+    return { portal_url: portal.url };
+  }
+
   const err = new Error("Endpoint não encontrado.");
   err.status = 404;
   throw err;
@@ -3032,7 +3145,13 @@ async function handlePath(path, req, res) {
     }
 
     if (req.method === "GET" && path === "public/poster-templates") {
-      return json(res, 200, { templates: listPosterTemplates() });
+      const { user } = resolveSessionUser(req);
+      let subscriberActive = false;
+      if (user?.id && storageEnabled()) {
+        const dbUser = await getUserById(user.id);
+        subscriberActive = Boolean(dbUser?.subscription?.active);
+      }
+      return json(res, 200, { templates: listPosterTemplates({ subscriberActive }) });
     }
 
     if (req.method === "GET" && path === "public/poster-models") {
@@ -3112,6 +3231,7 @@ async function handlePath(path, req, res) {
         checkout_note: cfg.checkoutNote,
         packages: getPackagesForRegion(region),
         premium_packages: getPremiumPackagesForRegion(region),
+        subscription_plans: getSubscriptionPlansForRegion(region),
         poster_hq_cost: getPosterHqPremiumCostPerOutput(),
       });
     }
@@ -3246,12 +3366,42 @@ async function handlePath(path, req, res) {
       if (!sessionId) return json(res, 400, { detail: "session_id em falta." });
       const stripe = stripeClient();
       const session = await stripe.checkout.sessions.retrieve(sessionId);
-      const paid = session.payment_status === "paid";
-      const packageId = session.metadata?.package;
       const wallet = session.metadata?.wallet || "standard";
-      const credits = Number(session.metadata?.credits || 0);
-      const premiumCredits = Number(session.metadata?.premium_credits || 0);
+      const packageId = session.metadata?.package;
       const pricingRegion = session.metadata?.pricing_region || "intl";
+
+      if (session.mode === "subscription" || wallet === "subscription") {
+        const auth = req.headers.authorization || "";
+        const tm = auth.match(/^Bearer\s+(.+)$/i);
+        const tokenUser = tm ? verifySessionToken(tm[1].trim()) : null;
+        if (tokenUser?.id) {
+          try {
+            await activateSubscriptionFromCheckout(session);
+            const u = await getUserById(tokenUser.id);
+            return json(res, 200, {
+              id: session.id,
+              paid: true,
+              wallet: "subscription",
+              package: packageId || CREATOR_PLAN_ID,
+              subscription: u?.subscription || null,
+              subscription_credits: u?.subscription_credits ?? 0,
+              total_standard_credits: u?.total_standard_credits ?? u?.credits ?? 0,
+              pricing_region: pricingRegion,
+            });
+          } catch (claimErr) {
+            return json(res, claimErr.status || 500, { detail: claimErr.message || "Erro ao activar subscrição." });
+          }
+        }
+        return json(res, 200, {
+          id: session.id,
+          paid: session.payment_status === "paid",
+          wallet: "subscription",
+          package: packageId,
+          pricing_region: pricingRegion,
+        });
+      }
+
+      const paid = session.payment_status === "paid";
       const isPremium = wallet === "premium";
       const units = isPremium ? premiumCredits : credits;
       if (paid && units > 0) {

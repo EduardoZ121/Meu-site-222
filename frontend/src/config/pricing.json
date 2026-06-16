@@ -52,6 +52,18 @@
           "badge": "bonus40"
         }
       },
+      "subscription": {
+        "creator_monthly": {
+          "name": "Creator Mensal",
+          "amount_cents": 1400,
+          "credits_per_month": 400,
+          "accumulating": false,
+          "tagline": "400 créditos/mês + templates exclusivos + suporte personalizado",
+          "badge": "subscription",
+          "personalized_requests_per_month": 2,
+          "personalized_sla": "24–48 horas"
+        }
+      },
       "costs": {
         "image": 15,
         "edit": 15,
@@ -185,6 +197,18 @@
           "bonus_percent": 40,
           "tagline": "Volume máximo + 40% bónus",
           "badge": "bonus40"
+        }
+      },
+      "subscription": {
+        "creator_monthly": {
+          "name": "Creator Mensal",
+          "amount_cents": 1499,
+          "credits_per_month": 400,
+          "accumulating": false,
+          "tagline": "400 credits/month + exclusive templates + personal support",
+          "badge": "subscription",
+          "personalized_requests_per_month": 2,
+          "personalized_sla": "24–48 hours"
         }
       },
       "costs": {

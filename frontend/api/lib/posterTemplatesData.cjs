@@ -43,7 +43,8 @@ const HIDDEN_POSTER_TEMPLATE_IDS = new Set([
   "fashion_portfolio_sheet",
 ]);
 
-function listPosterTemplates() {
+function listPosterTemplates(opts = {}) {
+  const subscriberActive = Boolean(opts.subscriberActive);
   return [
     ...POSTER_TEMPLATES,
     ...PREMIUM_POSTER_TEMPLATES,
@@ -52,7 +53,23 @@ function listPosterTemplates() {
     ...FASHION_POSTER_TEMPLATES,
     ...SOCIAL_MARKETING_TEMPLATES,
     ...PDF_RELEASE_POSTER_TEMPLATES,
-  ].filter((t) => !HIDDEN_POSTER_TEMPLATE_IDS.has(String(t?.id || "")));
+  ]
+    .filter((t) => !HIDDEN_POSTER_TEMPLATE_IDS.has(String(t?.id || "")))
+    .map((t) => {
+      if (!t?.subscriber_only || subscriberActive) return t;
+      return {
+        ...t,
+        locked: true,
+        subscriber_only: true,
+        lock_reason: "subscription",
+      };
+    });
+}
+
+function getPosterTemplateById(templateId, opts = {}) {
+  const id = String(templateId || "").trim();
+  const familyId = id.replace(/__[^/]+$/, "");
+  return listPosterTemplates(opts).find((t) => t.id === id || t.id === familyId) || null;
 }
 
 module.exports = {
@@ -64,5 +81,6 @@ module.exports = {
   SOCIAL_MARKETING_TEMPLATES,
   PDF_RELEASE_POSTER_TEMPLATES,
   listPosterTemplates,
+  getPosterTemplateById,
 };
 

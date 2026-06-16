@@ -2,6 +2,7 @@
   {
     "id": "business_executive",
     "source_id": "business_executive",
+    "subscriber_only": true,
     "familyId": "business_executive",
     "styleVariants": true,
     "category": "business",

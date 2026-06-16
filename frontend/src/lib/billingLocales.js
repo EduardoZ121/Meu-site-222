@@ -77,7 +77,7 @@ const en = {
   bill_faq1_a:
     "Each tool shows the cost before you generate. Text-to-image starts at 18 credits; HD, prompt enhance, and premium effects add surcharges. Video and Pro tools cost more to reflect API usage.",
   bill_faq2_q: "Do credits expire?",
-  bill_faq2_a: "No. Purchased credits stay in your account until you use them.",
+  bill_faq2_a: "One-time pack credits never expire. On Creator Monthly, 400 credits renew each cycle and do not roll over.",
   bill_faq3_q: "Purchases & refunds",
   bill_faq3_a:
     "Paid credit packages are not refundable in cash after purchase (except where the law requires). Credits spent on a successful generation are not returned. If a generation fails due to a technical error, timeout, or model block, credits for that attempt are refunded automatically.",
@@ -166,7 +166,7 @@ const pt = {
   bill_faq1_a:
     "Cada ferramenta mostra o custo antes de gerar. Imagem por texto desde 18 créditos; HD, melhorar prompt e efeitos premium acrescentam custo. Vídeo e Pro reflectem o uso real das APIs.",
   bill_faq2_q: "Os créditos expiram?",
-  bill_faq2_a: "Não. Os créditos comprados ficam contigo até os usares.",
+  bill_faq2_a: "Os créditos dos packs avulsos nunca expiram. No Creator Mensal, 400 créditos renovam a cada ciclo e não acumulam.",
   bill_faq3_q: "Compras e reembolsos",
   bill_faq3_a:
     "Os pacotes de créditos pagos não são reembolsáveis em dinheiro após a compra (salvo obrigação legal). Créditos já gastos numa geração concluída também não são devolvidos. Se uma geração falhar por erro técnico, timeout ou bloqueio do modelo, os créditos dessa tentativa são devolvidos automaticamente à tua conta.",

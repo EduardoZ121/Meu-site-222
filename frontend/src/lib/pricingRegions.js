@@ -30,6 +30,18 @@ export function getPackagesForRegion(regionId) {
   }));
 }
 
+export function getSubscriptionPlansForRegion(regionId) {
+  const cfg = getRegionConfig(regionId);
+  const plans = cfg.subscription || {};
+  return Object.entries(plans).map(([id, plan]) => ({
+    id,
+    ...plan,
+    currency: cfg.currency,
+    region: cfg.id,
+    amount_display: plan.amount_cents / 100,
+  }));
+}
+
 export function getPremiumPackagesForRegion(regionId) {
   const cfg = getRegionConfig(regionId);
   const pkgs = cfg.premium_packages || {};

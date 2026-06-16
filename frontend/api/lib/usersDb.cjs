@@ -4,6 +4,7 @@ const { requestMeta } = require("./requestMeta.cjs");
 const { purchaseEconomics } = require("./financeModel.cjs");
 const { consumeAccountPreset, findAccountPreset } = require("./accountPresets.cjs");
 const { isStudioPremiumActive } = require("./studioPremium.cjs");
+const { publicSubscriptionFields } = require("./creatorSubscription.cjs");
 
 const ADMIN_EMAILS = new Set(
   String(process.env.ADMIN_EMAILS || "eduardozola1998@gmail.com,eduardozola121998@gmail.com,eduardozola11998@gmail.com")
@@ -12,7 +13,7 @@ const ADMIN_EMAILS = new Set(
     .filter(Boolean),
 );
 
-const STARTER_CREDITS = 0;
+const STARTER_CREDITS = 15;
 const UNLIMITED_CREDITS = 999999999;
 const ABUSE_CREDITS_THRESHOLD = 500_000;
 
@@ -88,6 +89,7 @@ function publicUser(doc) {
     studio_premium_until: doc.studio_premium_until || null,
     studio_premium: isStudioPremiumActive(doc) || isAdmin,
     email_notify_generations: Boolean(doc.email_notify_generations),
+    ...publicSubscriptionFields(doc),
   };
 }
 

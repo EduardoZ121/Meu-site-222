@@ -133,6 +133,9 @@ export default function AdminMarketingPanel({ t }) {
   const [loading, setLoading] = useState(true);
   const [campaigns, setCampaigns] = useState([]);
   const [audienceCount, setAudienceCount] = useState(0);
+  const [audienceSubscribers, setAudienceSubscribers] = useState(0);
+  const [audienceNonSubscribers, setAudienceNonSubscribers] = useState(0);
+  const [testEmailLookup, setTestEmailLookup] = useState(null);
   const [selectedId, setSelectedId] = useState("");
   const [draft, setDraft] = useState(null);
   const [savedSnapshot, setSavedSnapshot] = useState("");
@@ -160,6 +163,8 @@ export default function AdminMarketingPanel({ t }) {
       const list = data?.campaigns || [];
       setCampaigns(list);
       setAudienceCount(data?.audience_count || 0);
+      setAudienceSubscribers(data?.audience_subscribers || 0);
+      setAudienceNonSubscribers(data?.audience_non_subscribers || 0);
       setSelectedId((prev) => {
         if (prev && list.some((c) => c.id === prev)) return prev;
         return list[0]?.id || "";
@@ -175,6 +180,34 @@ export default function AdminMarketingPanel({ t }) {
   useEffect(() => {
     load();
   }, [load]);
+
+  useEffect(() => {
+    const email = testEmail.trim().toLowerCase();
+    if (!email || !email.includes("@")) {
+      setTestEmailLookup(null);
+      return undefined;
+    }
+    const timer = setTimeout(() => {
+      api.get(`/admin/users?search=${encodeURIComponent(email)}&limit=5`)
+        .then((r) => {
+          const match = (r.data.users || []).find(
+            (u) => String(u.email || "").trim().toLowerCase() === email,
+          ) || (r.data.users || [])[0];
+          if (!match) {
+            setTestEmailLookup({ found: false, email });
+            return;
+          }
+          setTestEmailLookup({
+            found: true,
+            email: match.email,
+            subscription_active: Boolean(match.subscription?.active),
+            subscription_credits: match.subscription_credits ?? 0,
+          });
+        })
+        .catch(() => setTestEmailLookup(null));
+    }, 400);
+    return () => clearTimeout(timer);
+  }, [testEmail]);
 
   const selectCampaign = useCallback((c) => {
     if (!c) return;
@@ -337,7 +370,14 @@ export default function AdminMarketingPanel({ t }) {
         email,
       });
       if (data?.sent) {
-        toast.success(t("adm_mkt_sent_one", { email }));
+        const sub = data?.recipient?.subscription_active;
+        if (data?.recipient?.found === false) {
+          toast.message(t("adm_mkt_recipient_unknown", { email }));
+        } else if (sub) {
+          toast.success(t("adm_mkt_sent_one_subscriber", { email }));
+        } else {
+          toast.success(t("adm_mkt_sent_one_nonsub", { email }));
+        }
       } else {
         toast.error(t("adm_mkt_send_fail"));
       }
@@ -425,6 +465,12 @@ export default function AdminMarketingPanel({ t }) {
               {t("adm_mkt_audience")}: <strong className="font-mono">{audienceCount}</strong>
             </span>
           </div>
+          <span className="text-xs text-[#F9A8D4] font-mono">
+            {t("adm_mkt_audience_subscribers")}: {audienceSubscribers}
+          </span>
+          <span className="text-xs text-rp-mute2 font-mono">
+            {t("adm_mkt_audience_nonsub")}: {audienceNonSubscribers}
+          </span>
           {broadcastProgress && (
             <span className="text-xs text-amber-300 font-mono">
               {t("adm_mkt_broadcast_progress", {
@@ -443,6 +489,17 @@ export default function AdminMarketingPanel({ t }) {
             className="field-input flex-1 min-w-[200px] !py-2"
             data-testid="admin-mkt-email"
           />
+          {testEmailLookup && (
+            <p className="w-full text-xs font-mono">
+              {!testEmailLookup.found ? (
+                <span className="text-amber-300">{t("adm_mkt_recipient_unknown", { email: testEmailLookup.email })}</span>
+              ) : testEmailLookup.subscription_active ? (
+                <span className="text-[#F9A8D4]">{t("adm_mkt_lookup_subscriber", { email: testEmailLookup.email })}</span>
+              ) : (
+                <span className="text-rp-mute2">{t("adm_mkt_lookup_nonsub", { email: testEmailLookup.email })}</span>
+              )}
+            </p>
+          )}
           <button
             type="button"
             disabled={sending || broadcasting || !draft?.id}

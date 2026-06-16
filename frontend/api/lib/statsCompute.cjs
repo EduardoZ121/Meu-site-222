@@ -1,5 +1,7 @@
 /** Cálculos admin/finanças em memória (Upstash KV ou datasets pequenos). */
 
+const { isSubscriptionActive } = require("./creatorSubscription.cjs");
+
 async function loadAll(db, names) {
   const out = {};
   for (const n of names) {
@@ -39,6 +41,7 @@ async function computeAdminStats(db) {
     signups_today: users.filter((u) => u.created_at >= dayStart.toISOString()).length,
     signups_week: users.filter((u) => u.created_at >= weekStart).length,
     risky_ips,
+    subscribers_active: users.filter(isSubscriptionActive).length,
   };
 }
 

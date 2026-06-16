@@ -98,6 +98,7 @@ export default function MangaFlowEditor() {
   const pages = useMemo(() => project?.pages || [], [project?.pages]);
   const activePage = pages.find((p) => p.id === activePageId) || pages[0] || null;
   const activePageIndex = pages.findIndex((p) => p.id === activePageId);
+  const showMiniMap = nodes.length <= 45;
 
   const generationPageContext = useMemo(() => {
     const meta = project?.storyMeta;
@@ -181,11 +182,23 @@ export default function MangaFlowEditor() {
   /* ---- Auto-save ---- */
   useEffect(() => {
     const timer = setTimeout(() => {
-      const updated = savePageState();
-      if (updated) { setProject(updated); saveFlowProject(updated); }
+      setProject((current) => {
+        if (!current || !activePageId) return current;
+        const currentPage = (current.pages || []).find((pg) => pg.id === activePageId);
+        if (currentPage?.nodes === nodes && currentPage?.edges === edges) return current;
+        const updated = {
+          ...current,
+          pages: (current.pages || []).map((pg) =>
+            pg.id === activePageId ? { ...pg, nodes, edges } : pg,
+          ),
+          activePageId,
+        };
+        saveFlowProject(updated);
+        return updated;
+      });
     }, 1500);
     return () => clearTimeout(timer);
-  }, [nodes, edges, savePageState]);
+  }, [nodes, edges, activePageId]);
 
   /* ---- Close dropdown on outside click ---- */
   useEffect(() => {
@@ -667,7 +680,7 @@ export default function MangaFlowEditor() {
           >
             <Background color="#1a1a2e" gap={20} size={1} />
             <Controls className="manga-flow-controls" showInteractive={false} />
-            <MiniMap nodeColor={(n) => NODE_COLORS[n.type]?.border || "#666"} maskColor="rgba(10,10,15,0.85)" className="manga-flow-minimap" />
+            {showMiniMap && <MiniMap nodeColor={(n) => NODE_COLORS[n.type]?.border || "#666"} maskColor="rgba(10,10,15,0.85)" className="manga-flow-minimap" />}
             <Panel position="bottom-center" className="manga-flow-hint-panel">
               <p className="text-[11px] text-[#5A5A5E] font-mono">{activePage?.name} • {nodes.length} cards • {edges.length} links</p>
             </Panel>

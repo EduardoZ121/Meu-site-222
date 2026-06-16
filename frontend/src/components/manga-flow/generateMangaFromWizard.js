@@ -188,10 +188,26 @@ function parseStoryBeats(storyPrompt, synopsis, keyMoments) {
     .filter((s) => s.length > 8);
 }
 
+function distributePanels(totalPanels, pages, fallbackPanelsPerPage) {
+  const total = Math.min(Math.max(2, Number(totalPanels) || pages * fallbackPanelsPerPage), 120);
+  const base = Math.floor(total / pages);
+  const rem = total % pages;
+  return Array.from({ length: pages }, (_, i) => Math.min(8, Math.max(1, base + (i < rem ? 1 : 0))));
+}
+
+function normalizePanelsByPage(panelsByPage, pages, fallbackPanelsPerPage, totalPanels) {
+  if (Array.isArray(panelsByPage) && panelsByPage.length) {
+    const normalized = panelsByPage.slice(0, pages).map((n) => Math.min(8, Math.max(1, Number(n) || fallbackPanelsPerPage)));
+    while (normalized.length < pages) normalized.push(fallbackPanelsPerPage);
+    return normalized;
+  }
+  return distributePanels(totalPanels, pages, fallbackPanelsPerPage);
+}
+
 function getPanelBeat({
-  beats, genre, pageIndex, totalPages, panelIndex, panelsPerPage, arcText, pacing,
+  beats, genre, pageIndex, totalPages, panelIndex, panelsPerPage, arcText, pacing, globalPanelIndex,
 }) {
-  const globalIdx = pageIndex * panelsPerPage + panelIndex;
+  const globalIdx = Number.isFinite(globalPanelIndex) ? globalPanelIndex : pageIndex * panelsPerPage + panelIndex;
   if (beats.length > globalIdx) return beats[globalIdx];
   if (beats.length > pageIndex) {
     const role = PANEL_BEAT_ROLES[panelIndex % PANEL_BEAT_ROLES.length];
@@ -244,20 +260,22 @@ export function generateMangaFromWizard(answers) {
     artStyle = "manga_bw", detailLevel = "detailed", lighting = "dramatic",
     colorPalette = "monochrome", storyPrompt = "",
     narration = "third_person", quality = "ultra", extraInstructions = "",
+    totalPanels = null, panelsByPage = null, styleModifiers = [],
   } = answers;
 
   const numPages = Math.min(Math.max(1, Number(pageCount)), 20);
   const ppp = Math.min(Math.max(2, Number(panelsPerPage)), 8);
+  const pagePanelCounts = normalizePanelsByPage(panelsByPage, numPages, ppp, totalPanels);
   const charsWithNames = characters.filter((c) => c.name?.trim());
   const genreEffects = EFFECTS_BY_GENRE[genre] || EFFECTS_BY_GENRE.action;
   const toneEmotions = EMOTIONS_BY_TONE[tone] || EMOTIONS_BY_TONE.epic;
-  const panelPositions = PANEL_LAYOUTS[ppp] || PANEL_LAYOUTS[4];
   const panelSizes = PANEL_SIZES_MAP[panelStyle] || PANEL_SIZES_MAP.classic_grid;
   const storyBeats = parseStoryBeats(storyPrompt, synopsis, keyMoments);
-  const dialogueLines = splitDialogueLines(sampleDialogue, genre, numPages * ppp);
+  const dialogueLines = splitDialogueLines(sampleDialogue, genre, pagePanelCounts.reduce((sum, n) => sum + n, 0));
   const storySynopsis = [synopsis, storyPrompt].filter(Boolean).join(" ").trim();
 
   const pages = [];
+  let globalPanelIndex = 0;
 
   for (let p = 0; p < numPages; p++) {
     const pageId = uid("pg");
@@ -268,7 +286,9 @@ export function generateMangaFromWizard(answers) {
     const edges_arr = [];
 
     const panelNodes = [];
-    for (let i = 0; i < Math.min(ppp, panelPositions.length); i++) {
+    const panelsThisPage = pagePanelCounts[p] || ppp;
+    const panelPositions = PANEL_LAYOUTS[panelsThisPage] || PANEL_LAYOUTS[ppp] || PANEL_LAYOUTS[4];
+    for (let i = 0; i < Math.min(panelsThisPage, panelPositions.length); i++) {
       const pos = panelPositions[i];
       const size = panelSizes[i % panelSizes.length] || "medium";
       const momentDesc = getPanelBeat({
@@ -277,10 +297,12 @@ export function generateMangaFromWizard(answers) {
         pageIndex: p,
         totalPages: numPages,
         panelIndex: i,
-        panelsPerPage: ppp,
+        panelsPerPage: panelsThisPage,
+        globalPanelIndex,
         arcText,
         pacing,
       });
+      globalPanelIndex += 1;
       const pn = node("panel", pos.x, pos.y, {
         panelSize: size,
         format: i === 0 && p === 0 ? "wide" : "rectangle",
@@ -437,6 +459,7 @@ export function generateMangaFromWizard(answers) {
       id: pageId,
       name: `Page ${p + 1} — ${arcText}`,
       pageBeat: pageStoryBit,
+      panelCount: panelsThisPage,
       nodes,
       edges: edges_arr,
     });
@@ -454,6 +477,8 @@ export function generateMangaFromWizard(answers) {
       mainStyle,
       artStyle,
       transitions,
+      totalPanels: pagePanelCounts.reduce((sum, n) => sum + n, 0),
+      panelsByPage: pagePanelCounts,
       characters: charsWithNames,
     },
     // Hidden wizard context — gets prepended to every panel/page generation as
@@ -464,10 +489,12 @@ export function generateMangaFromWizard(answers) {
         `- Format: ${format}; main style: ${mainStyle}; art style: ${artStyle.replace(/_/g, " ")}.`,
         `- Genre: ${genre.replace(/_/g, " ")}; tone: ${tone}; pacing: ${pacing}; narration: ${narration?.replace(/_/g, " ") || "third person"}.`,
         `- Visual: ${detailLevel?.replace(/_/g, " ") || "detailed"} detail, ${lighting || "dramatic"} lighting, ${colorPalette?.replace(/_/g, " ") || "monochrome"} palette, ${quality || "ultra"} quality.`,
+        `- Page plan: ${numPages} pages, ${pagePanelCounts.reduce((sum, n) => sum + n, 0)} total panels, distribution ${pagePanelCounts.map((n, i) => `P${i + 1}:${n}`).join(", ")}. Every panel must be unique and progress the story.`,
+        styleModifiers?.length ? `- Style modifiers: ${styleModifiers.map((s) => String(s).replace(/_/g, " ")).join(", ")}.` : "",
         `- Dialogue style: ${dialogueStyle || "natural"}; bubbles: ${bubbleStyle || "normal"} at ${bubblePosition || "auto"}; SFX: ${sfxStyle || "japanese"}.`,
         `- World: ${location || "unspecified"}, ${era?.replace(/_/g, " ") || "modern"} era, ${weather || "clear"} weather.${worldDetails ? ` Notes: ${worldDetails}.` : ""}`,
         ...wizardHiddenLines({
-          genre, tone, artStyle, mainStyle, pacing, panelStyle, lighting, colorPalette,
+          format, genre, tone, artStyle, mainStyle, pacing, panelStyle, lighting, colorPalette, styleModifiers,
         }).map((l) => `- ${l}`),
         characters?.filter((c) => c.name).length
           ? `- Locked cast (use ONLY these characters, never invent NPCs): ${characters.filter((c) => c.name).map((c) => `${c.name} [${c.role}]`).join(", ")}.`
@@ -481,6 +508,9 @@ export function generateMangaFromWizard(answers) {
       raw: {
         format, mainStyle, genre, tone, pacing, narration,
         artStyle, detailLevel, lighting, colorPalette, quality,
+        totalPanels: pagePanelCounts.reduce((sum, n) => sum + n, 0),
+        panelsByPage: pagePanelCounts,
+        styleModifiers,
         dialogueStyle, bubbleStyle, bubblePosition, sfxStyle,
         location, era, weather, worldDetails,
         storyPrompt, synopsis, keyMoments, extraInstructions,

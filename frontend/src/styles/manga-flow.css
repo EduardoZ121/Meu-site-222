@@ -1381,6 +1381,7 @@ body.manga-mfg-modal-open .manga-flow-inspector {
 
 .aiw-field { margin-bottom: 18px; }
 .aiw-label { display: block; font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: #6B7280; margin-bottom: 8px; font-family: 'Inter Tight', sans-serif; }
+.aiw-context-note { margin: 10px 0 16px; padding: 10px 12px; border-radius: 10px; border: 1px solid rgba(20,184,166,0.22); background: rgba(20,184,166,0.08); color: #99F6E4; font-size: 12px; line-height: 1.5; font-family: 'Inter Tight', sans-serif; }
 .aiw-chips { display: flex; flex-wrap: wrap; gap: 6px; }
 .aiw-chip {
   padding: 8px 16px; border-radius: 10px; border: 1.5px solid rgba(255,255,255,0.08);

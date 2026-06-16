@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { X, ChevronRight, ChevronLeft, Sparkles, Loader2, Plus, Trash2, Check, Wand2, MessageCircle, BookOpen } from "lucide-react";
 import { generateMangaFromWizard } from "./generateMangaFromWizard";
 import { toast } from "sonner";
@@ -17,9 +17,23 @@ const STEPS = [
 const FORMATS = [
   { id: "manga", label: "Manga" }, { id: "comic", label: "Comic" },
   { id: "webtoon", label: "Webtoon" }, { id: "graphic_novel", label: "Graphic Novel" },
+  { id: "disney", label: "Disney" }, { id: "pixar", label: "Pixar" },
+  { id: "dreamworks", label: "DreamWorks" }, { id: "anime_cinematic", label: "Anime Cinemático" },
+  { id: "cartoon_network", label: "Cartoon Network" }, { id: "nickelodeon", label: "Nickelodeon" },
+  { id: "studio_ghibli", label: "Studio Ghibli" }, { id: "arcane", label: "Arcane Style" },
+  { id: "invincible", label: "Invincible Style" }, { id: "last_of_us_comic", label: "The Last of Us Comic" },
+  { id: "sin_city", label: "Sin City" }, { id: "superhero_western", label: "Superhero Western" },
+  { id: "manhwa", label: "Manhwa Coreano" }, { id: "light_novel", label: "Light Novel Illustration" },
+  { id: "realistic_cinematic", label: "Realistic Cinematic" }, { id: "dark_fantasy", label: "Dark Fantasy" },
+  { id: "childrens_book", label: "Children's Book" }, { id: "infamous_comic", label: "Infamous PS3 Comic" },
 ];
 const PAGE_COUNTS = ["1", "2", "4", "6", "8", "12", "20"];
-const MAIN_STYLES = ["shonen", "shojo", "seinen", "josei", "kodomomuke", "disney", "ghibli", "dark", "realistic", "retro", "cyberpunk", "steampunk"];
+const TOTAL_PANEL_COUNTS = ["4", "8", "12", "16", "24", "32", "40", "60", "80"];
+const STYLE_MODIFIERS = [
+  "action_focused", "emotional_focused", "horror_enhanced", "realistic_anatomy",
+  "highly_detailed", "cinematic_framing", "exaggerated_expressions", "mature_themes",
+];
+const MAIN_STYLES = ["shonen", "shojo", "seinen", "josei", "kodomomuke", "dark", "realistic", "retro", "cyberpunk", "steampunk"];
 const GENRES = ["action", "romance", "horror", "adventure", "slice_of_life", "fantasy", "comedy", "drama", "mystery", "sci_fi", "thriller", "sports"];
 const TONES = ["epic", "cute", "dark", "humor", "dramatic", "romantic", "tense", "cheerful", "melancholic", "mysterious", "violent", "wholesome"];
 const PACING = ["slow", "normal", "fast", "cinematic"];
@@ -57,12 +71,120 @@ function Chips({ options, value, onChange, multi }) {
   );
 }
 
+function labelize(value) {
+  return String(value || "").replace(/_/g, " ");
+}
+
+function clamp(n, min, max) {
+  return Math.min(max, Math.max(min, Number(n) || min));
+}
+
+function distributePanelPlan(totalPanels, pages, targetPanelsPerPage, storySize) {
+  const total = Math.max(pages, Number(totalPanels) || pages * targetPanelsPerPage);
+  const base = Math.floor(total / pages);
+  const rem = total % pages;
+  return Array.from({ length: pages }, (_, i) => {
+    const storyEmphasis = storySize > 500 && (i === Math.floor(pages / 2) || i === pages - 1) ? 1 : 0;
+    return clamp(base + (i < rem ? 1 : 0) + storyEmphasis, 1, 8);
+  });
+}
+
+function planPagesAndPanels(answers) {
+  const storySize = `${answers.synopsis || ""} ${answers.storyPrompt || ""}`.trim().length;
+  const genreBoost = ["action", "adventure", "fantasy", "sci_fi", "thriller", "sports"].includes(answers.genre) ? 1 : 0;
+  const selectedPages = clamp(answers.pageCount, 1, 20);
+  const selectedTotalPanels = clamp(answers.totalPanels, 2, 120);
+  if (answers.layoutMode === "ai_decide") {
+    const panelsPerPage = clamp(
+      Math.round(selectedTotalPanels / selectedPages) || (answers.pacing === "slow" ? 4 : answers.pacing === "fast" ? 6 : 5 + genreBoost),
+      2,
+      8,
+    );
+    const panelsByPage = distributePanelPlan(selectedTotalPanels, selectedPages, panelsPerPage, storySize);
+    return {
+      pageCount: String(selectedPages),
+      totalPanels: String(panelsByPage.reduce((sum, n) => sum + n, 0)),
+      panelsPerPage: String(panelsPerPage),
+      panelsByPage,
+      warning: "",
+    };
+  }
+  const pages = selectedPages;
+  let totalPanels = selectedTotalPanels;
+  let warning = "";
+  if (totalPanels <= pages) {
+    totalPanels = pages + 1;
+    warning = "Cada página precisa pelo menos um painel. Aumentei o total automaticamente.";
+  }
+  const base = Math.floor(totalPanels / pages);
+  const rem = totalPanels % pages;
+  const panelsByPage = Array.from({ length: pages }, (_, i) => clamp(base + (i < rem ? 1 : 0), 1, 8));
+  return {
+    pageCount: String(pages),
+    totalPanels: String(totalPanels),
+    panelsPerPage: String(clamp(Math.round(totalPanels / pages), 2, 8)),
+    panelsByPage,
+    warning,
+  };
+}
+
+function buildCharacterSeeds(answers) {
+  const baseNames = {
+    action: ["Kael", "Mira", "Drax"],
+    romance: ["Lia", "Noah", "Sora"],
+    horror: ["Iris", "Theo", "Vesper"],
+    adventure: ["Ryo", "Nami", "Atlas"],
+    fantasy: ["Aren", "Lyra", "Nyx"],
+    mystery: ["Ren", "Clara", "Vale"],
+  };
+  const names = baseNames[answers.genre] || ["Aki", "Luna", "Kai"];
+  const roles = ["protagonist", "antagonist", "supporting"];
+  return names.map((name, i) => ({
+    name,
+    age: i === 0 ? "17" : i === 1 ? "18" : "unknown",
+    role: roles[i],
+    personality: i === 0 ? `determined, emotionally driven, shaped by the ${labelize(answers.tone)} tone` : i === 1 ? "secretive, powerful, morally complex" : "loyal, observant, brings contrast to the protagonist",
+    appearance: i === 0 ? "distinct silhouette, expressive eyes, recognizable outfit for visual continuity" : i === 1 ? "striking visual design, sharp contrast, memorable facial features" : "clear secondary design, simple but unique costume",
+    powers: answers.genre === "fantasy" ? "latent magical ability tied to the world rules" : answers.genre === "action" ? "high agility and combat instinct" : "",
+    weapon: answers.genre === "action" || answers.genre === "fantasy" ? "signature weapon/item" : "",
+    catchphrase: i === 0 ? "I won't run away." : "",
+  }));
+}
+
+function buildWorldDetails(answers) {
+  return [
+    `World rules: ${labelize(answers.era)} setting shaped by ${labelize(answers.genre)} stakes.`,
+    `Locations: start in ${answers.location || "a visually memorable main location"}, then escalate to places that reveal conflict and character history.`,
+    `Atmosphere: ${labelize(answers.weather)} weather affects lighting, mood, composition and panel rhythm.`,
+    `Factions/systems: include one opposing force and one hidden rule that creates narrative pressure.`,
+    answers.synopsis ? `Continuity anchor: every location must support this story idea — ${answers.synopsis}` : "",
+  ].filter(Boolean).join("\n");
+}
+
+function buildStoryText(answers, plan) {
+  const cast = answers.characters.filter((c) => c.name).map((c) => `${c.name} (${labelize(c.role)}): ${c.personality || "defined by the story"}`).join("; ");
+  const styleMods = (answers.styleModifiers || []).map(labelize).join(", ") || "default format behavior";
+  return [
+    `Title: ${labelize(answers.genre)} ${labelize(answers.format)} — ${labelize(answers.tone)} tone`,
+    `Premise: ${answers.synopsis || "A protagonist is pulled into a conflict that tests identity, loyalty and courage."}`,
+    `Format/style: ${labelize(answers.format)} with ${styleMods}. Visual style: ${labelize(answers.artStyle)}.`,
+    `Narration: ${labelize(answers.narration)}. Pacing: ${labelize(answers.pacing)} across ${plan.pageCount} pages and ${plan.totalPanels} panels.`,
+    `Cast: ${cast || "AI should infer protagonist, antagonist and supporting cast from the premise."}`,
+    `World: ${answers.worldDetails || buildWorldDetails(answers)}`,
+    `Act 1: establish the world, protagonist desire and first disturbance.`,
+    `Act 2: pressure escalates through choices, conflict, revelations and emotional cost.`,
+    `Climax: the protagonist faces the central opposing force in a visually memorable sequence.`,
+    `Resolution: conclude with consequence, emotional closure and a hook if appropriate.`,
+    `Panel planning rule: every panel must have a unique beat, camera purpose, emotion and transition. Avoid repeated poses, repeated framing and generic filler.`,
+  ].join("\n\n");
+}
+
 export default function AIWizardModal({ onGenerate, onClose }) {
   const [step, setStep] = useState(0);
   const [generating, setGenerating] = useState(false);
   const [statusMsg, setStatusMsg] = useState("");
   const [a, setA] = useState({
-    format: "manga", pageCount: "4", mainStyle: "shonen",
+    format: "manga", pageCount: "4", totalPanels: "16", layoutMode: "ai_decide", mainStyle: "shonen",
     genre: "action", synopsis: "", tone: "epic", pacing: "normal", narration: "third_person",
     storyPrompt: "", enhanceStory: true,
     characters: [{ name: "", age: "", personality: "", appearance: "", role: "protagonist", powers: "", weapon: "", catchphrase: "" }],
@@ -72,17 +194,30 @@ export default function AIWizardModal({ onGenerate, onClose }) {
     dialogueStyle: "natural", bubbleStyle: "normal", bubblePosition: "auto",
     narrationBox: "none", sfxStyle: "japanese", sampleDialogue: "",
     artStyle: "manga_bw", detailLevel: "detailed", lighting: "dramatic",
-    colorPalette: "monochrome", quality: "ultra",
+    colorPalette: "monochrome", quality: "ultra", styleModifiers: [],
     extraInstructions: "",
   });
 
   const set = (k, v) => setA({ ...a, [k]: v });
   const current = STEPS[step];
   const isLast = step === STEPS.length - 1;
+  const layoutPlan = useMemo(() => planPagesAndPanels(a), [a]);
 
   const addChar = () => { if (a.characters.length < 8) set("characters", [...a.characters, { name: "", age: "", personality: "", appearance: "", role: "supporting", powers: "", weapon: "", catchphrase: "" }]); };
   const removeChar = (i) => { if (a.characters.length > 1) set("characters", a.characters.filter((_, idx) => idx !== i)); };
   const updateChar = (i, f, v) => { set("characters", a.characters.map((c, idx) => idx === i ? { ...c, [f]: v } : c)); };
+  const generateCharactersWithAI = () => {
+    set("characters", buildCharacterSeeds(a));
+    toast.success("Personagens preenchidos — podes editar nomes e detalhes.");
+  };
+  const generateWorldWithAI = () => {
+    setA({
+      ...a,
+      worldDetails: buildWorldDetails(a),
+      location: a.location || (a.genre === "fantasy" ? "capital flutuante e ruínas antigas" : "cidade principal com locais narrativos fortes"),
+    });
+    toast.success("Mundo preenchido com regras e locais.");
+  };
 
   /**
    * Generate a full story prompt using AI based on every wizard answer.
@@ -92,20 +227,11 @@ export default function AIWizardModal({ onGenerate, onClose }) {
   const generateStoryWithAI = async () => {
     setAiStoryLoading(true);
     try {
-      const characterList = a.characters
-        .filter((c) => c.name)
-        .map((c) =>
-          `${c.name} (${c.role}, ${c.age || "?"} y/o): ${c.personality || "?"}; appearance: ${c.appearance || "?"}; powers: ${c.powers || "none"}; weapon: ${c.weapon || "none"}; catchphrase: ${c.catchphrase || "none"}`,
-        )
-        .join("\n");
-      const fallback = `Write a complete ${a.genre.replace(/_/g, " ")} ${a.format} story in ${a.tone} tone with ${a.pacing} pacing (${a.pageCount} pages, ${a.panelsPerPage} panels each = ${Number(a.pageCount) * Number(a.panelsPerPage)} beats).
-Style: ${a.mainStyle}/${a.artStyle.replace(/_/g, " ")}, narration: ${a.narration.replace(/_/g, " ")}.
-Setting: ${a.location || "unspecified"}, era ${a.era.replace(/_/g, " ")}, weather ${a.weather}.
-${a.worldDetails ? `World details: ${a.worldDetails}\n` : ""}Characters:\n${characterList}\n
-${a.synopsis ? `Brief synopsis to expand: ${a.synopsis}\n` : ""}${a.keyMoments ? `Key moments to hit: ${a.keyMoments}\n` : ""}${a.sampleDialogue ? `Sample dialogue style: ${a.sampleDialogue}\n` : ""}
-Output a vivid scene-by-scene story with action, emotion and dialogue. Keep characters consistent. Make every page advance the plot.`;
-
-      set("storyPrompt", fallback);
+      const seededChars = a.characters.some((c) => c.name?.trim()) ? a.characters : buildCharacterSeeds(a);
+      const nextAnswers = { ...a, characters: seededChars };
+      const nextWorld = a.worldDetails?.trim() ? a.worldDetails : buildWorldDetails(nextAnswers);
+      const story = buildStoryText({ ...nextAnswers, worldDetails: nextWorld }, layoutPlan);
+      setA({ ...nextAnswers, worldDetails: nextWorld, storyPrompt: story });
       toast.success("História gerada — podes editar antes de gerar.");
     } catch (err) {
       toast.error("Falha ao gerar história: " + (err.message || "erro"));
@@ -121,14 +247,23 @@ Output a vivid scene-by-scene story with action, emotion and dialogue. Keep char
       // Enhance story with GPT if enabled
       let enhancedSynopsis = a.synopsis || a.storyPrompt || "";
       if (a.enhanceStory && (a.synopsis || a.storyPrompt)) {
-        enhancedSynopsis = `${a.genre} ${a.tone} story: ${a.synopsis || a.storyPrompt}. Characters: ${a.characters.map((c) => c.name).filter(Boolean).join(", ")}. Setting: ${a.location} ${a.era}.`;
+        enhancedSynopsis = [
+          `${a.genre} ${a.tone} story.`,
+          a.synopsis ? `Synopsis: ${a.synopsis}` : "",
+          a.storyPrompt ? `Full story: ${a.storyPrompt}` : "",
+          `Characters: ${a.characters.map((c) => c.name).filter(Boolean).join(", ") || "infer from story"}.`,
+          `Setting: ${a.location || "unspecified"} ${a.era}.`,
+        ].filter(Boolean).join(" ");
       }
 
       setStatusMsg("Generating pages and cards...");
       const result = generateMangaFromWizard({
         ...a,
+        pageCount: layoutPlan.pageCount,
+        totalPanels: layoutPlan.totalPanels,
+        panelsByPage: layoutPlan.panelsByPage,
         synopsis: enhancedSynopsis,
-        panelsPerPage: Number(a.panelsPerPage) || 4,
+        panelsPerPage: Number(layoutPlan.panelsPerPage) || 4,
       });
 
       // Inject dialogue/bubble settings into speech nodes
@@ -144,7 +279,7 @@ Output a vivid scene-by-scene story with action, emotion and dialogue. Keep char
 
       await new Promise(r => setTimeout(r, 600));
       onGenerate(result);
-      toast.success(`${result.pages.length} pages with ${a.panelsPerPage} panels each!`);
+      toast.success(`${result.pages.length} páginas com ${layoutPlan.totalPanels} painéis planeados.`);
     } catch (err) {
       toast.error("Failed: " + (err.message || "Error"));
     } finally { setGenerating(false); setStatusMsg(""); }
@@ -176,7 +311,10 @@ Output a vivid scene-by-scene story with action, emotion and dialogue. Keep char
             <h3 className="aiw-step__title">What are you creating?</h3>
             <div className="aiw-field"><label className="aiw-label">Format</label><Chips options={FORMATS} value={a.format} onChange={v => set("format", v)} /></div>
             <div className="aiw-field"><label className="aiw-label">Pages</label><Chips options={PAGE_COUNTS} value={a.pageCount} onChange={v => set("pageCount", v)} /></div>
+            <div className="aiw-field"><label className="aiw-label">Total panels</label><Chips options={TOTAL_PANEL_COUNTS} value={a.totalPanels} onChange={v => set("totalPanels", v)} /></div>
+            <div className="aiw-field"><label className="aiw-label">Distribution</label><Chips options={[{ id: "ai_decide", label: "AI Decide" }, { id: "manual", label: "Manual balance" }]} value={a.layoutMode} onChange={v => set("layoutMode", v)} /></div>
             <div className="aiw-field"><label className="aiw-label">Main style</label><Chips options={MAIN_STYLES} value={a.mainStyle} onChange={v => set("mainStyle", v)} /></div>
+            <p className="aiw-context-note">Plano atual: {layoutPlan.pageCount} páginas · {layoutPlan.totalPanels} painéis · ~{layoutPlan.panelsPerPage} painéis/página. A IA ajusta a distribuição para a história ficar coerente.</p>
           </div>)}
 
           {/* STEP 2: STORY */}
@@ -212,7 +350,12 @@ Output a vivid scene-by-scene story with action, emotion and dialogue. Keep char
 
           {/* STEP 3: CHARACTERS */}
           {step === 2 && (<div className="aiw-step">
-            <h3 className="aiw-step__title">Characters</h3>
+            <div className="flex items-center justify-between gap-2 flex-wrap">
+              <h3 className="aiw-step__title">Characters</h3>
+              <button type="button" onClick={generateCharactersWithAI} className="manga-flow-btn manga-flow-btn-primary" style={{ padding: "6px 12px", fontSize: 12 }}>
+                <Sparkles className="w-3.5 h-3.5" /> Gerar personagens com IA
+              </button>
+            </div>
             <div className="aiw-chars">
               {a.characters.map((c, i) => (
                 <div key={i} className="aiw-char-card">
@@ -243,7 +386,12 @@ Output a vivid scene-by-scene story with action, emotion and dialogue. Keep char
 
           {/* STEP 4: WORLD */}
           {step === 3 && (<div className="aiw-step">
-            <h3 className="aiw-step__title">World & Setting</h3>
+            <div className="flex items-center justify-between gap-2 flex-wrap">
+              <h3 className="aiw-step__title">World & Setting</h3>
+              <button type="button" onClick={generateWorldWithAI} className="manga-flow-btn manga-flow-btn-primary" style={{ padding: "6px 12px", fontSize: 12 }}>
+                <Sparkles className="w-3.5 h-3.5" /> Gerar mundo com IA
+              </button>
+            </div>
             <div className="aiw-field"><label className="aiw-label">Main location</label><input value={a.location} onChange={e => set("location", e.target.value)} placeholder="Tokyo school, enchanted forest..." className="aiw-input" /></div>
             <div className="aiw-field"><label className="aiw-label">Era / Setting</label><Chips options={ERAS} value={a.era} onChange={v => set("era", v)} /></div>
             <div className="aiw-field"><label className="aiw-label">Weather / Time</label><Chips options={WEATHER_OPTS} value={a.weather} onChange={v => set("weather", v)} /></div>
@@ -254,7 +402,8 @@ Output a vivid scene-by-scene story with action, emotion and dialogue. Keep char
           {/* STEP 5: PANELS */}
           {step === 4 && (<div className="aiw-step">
             <h3 className="aiw-step__title">Panels & Layout</h3>
-            <div className="aiw-field"><label className="aiw-label">Panels per page</label><Chips options={PANEL_COUNTS} value={a.panelsPerPage} onChange={v => set("panelsPerPage", v)} /></div>
+            <p className="aiw-context-note">Distribuição planeada: {layoutPlan.panelsByPage.map((n, i) => `P${i + 1}: ${n}`).join(" · ")}. Cada painel terá um beat diferente para evitar repetição.</p>
+            <div className="aiw-field"><label className="aiw-label">Panels per page fallback</label><Chips options={PANEL_COUNTS} value={a.panelsPerPage} onChange={v => set("panelsPerPage", v)} /></div>
             <div className="aiw-field"><label className="aiw-label">Panel layout style</label><Chips options={PANEL_STYLES} value={a.panelStyle} onChange={v => set("panelStyle", v)} /></div>
             <div className="aiw-field"><label className="aiw-label">Scene transitions</label><Chips options={TRANSITION_STYLES} value={a.transitions} onChange={v => set("transitions", v)} multi /></div>
             <div className="aiw-field"><label className="aiw-label">Default camera</label><Chips options={CAMERA_DEFAULTS} value={a.cameraDefault} onChange={v => set("cameraDefault", v)} /></div>
@@ -279,6 +428,7 @@ Output a vivid scene-by-scene story with action, emotion and dialogue. Keep char
           {step === 6 && (<div className="aiw-step">
             <h3 className="aiw-step__title">Visual Style</h3>
             <div className="aiw-field"><label className="aiw-label">Art style</label><Chips options={ART_STYLES} value={a.artStyle} onChange={v => set("artStyle", v)} /></div>
+            <div className="aiw-field"><label className="aiw-label">Style modifiers</label><Chips options={STYLE_MODIFIERS} value={a.styleModifiers} onChange={v => set("styleModifiers", v)} multi /></div>
             <div className="aiw-field"><label className="aiw-label">Detail level</label><Chips options={DETAIL_LEVELS} value={a.detailLevel} onChange={v => set("detailLevel", v)} /></div>
             <div className="aiw-field"><label className="aiw-label">Lighting</label><Chips options={LIGHTING_OPTS} value={a.lighting} onChange={v => set("lighting", v)} /></div>
             <div className="aiw-field"><label className="aiw-label">Color palette</label><Chips options={COLOR_PALETTES} value={a.colorPalette} onChange={v => set("colorPalette", v)} /></div>
@@ -299,11 +449,13 @@ Output a vivid scene-by-scene story with action, emotion and dialogue. Keep char
                 <div className="aiw-summary__row"><span>Style:</span><strong>{a.mainStyle} / {a.artStyle.replace(/_/g," ")}</strong></div>
                 <div className="aiw-summary__row"><span>Genre:</span><strong>{a.genre.replace(/_/g," ")} · {a.tone}</strong></div>
                 <div className="aiw-summary__row"><span>Pacing:</span><strong>{a.pacing}</strong></div>
-                <div className="aiw-summary__row"><span>Panels:</span><strong>{a.panelsPerPage}/page · {a.panelStyle.replace(/_/g," ")}</strong></div>
+                <div className="aiw-summary__row"><span>Panels:</span><strong>{layoutPlan.totalPanels} total · ~{layoutPlan.panelsPerPage}/page · {a.panelStyle.replace(/_/g," ")}</strong></div>
                 <div className="aiw-summary__row"><span>Characters:</span><strong>{a.characters.filter(c=>c.name).map(c=>`${c.name} (${c.role})`).join(", ")||"None"}</strong></div>
                 <div className="aiw-summary__row"><span>World:</span><strong>{a.location||"?"} · {a.era.replace(/_/g," ")} · {a.weather}</strong></div>
                 <div className="aiw-summary__row"><span>Dialogue:</span><strong>{a.dialogueStyle} · {a.bubbleStyle} bubbles · SFX: {a.sfxStyle}</strong></div>
                 <div className="aiw-summary__row"><span>Visual:</span><strong>{a.detailLevel.replace(/_/g," ")} · {a.lighting} · {a.colorPalette} · {a.quality}</strong></div>
+                <div className="aiw-summary__row"><span>AI plan:</span><strong>{layoutPlan.panelsByPage.map((n, i) => `P${i + 1}:${n}`).join(" · ")}</strong></div>
+                {layoutPlan.warning && <p className="aiw-context-note">{layoutPlan.warning}</p>}
                 {a.synopsis && <div className="aiw-summary__synopsis"><span>Synopsis:</span><p>{a.synopsis}</p></div>}
 
                 <div className="aiw-field" style={{ marginTop: 16, padding: 12, border: "1px solid rgba(168,85,247,0.3)", borderRadius: 10, background: "rgba(168,85,247,0.05)" }}>
@@ -336,7 +488,7 @@ Output a vivid scene-by-scene story with action, emotion and dialogue. Keep char
                 </div>
 
                 <p className="text-[11px] text-[#14B8A6] mt-3">
-                  Cria {a.pageCount} páginas de storyboard com {a.panelsPerPage} painéis cada ({Number(a.pageCount) * Number(a.panelsPerPage)} momentos no total).
+                  Cria {layoutPlan.pageCount} páginas de storyboard com {layoutPlan.totalPanels} momentos no total.
                   Usa <strong>Generate Page</strong> em cada página para renderizar a arte do comic (uma imagem por página com painéis distintos).
                 </p>
               </div>

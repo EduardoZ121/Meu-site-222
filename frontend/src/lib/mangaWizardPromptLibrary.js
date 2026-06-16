@@ -58,12 +58,50 @@ const MAIN_STYLE = {
   steampunk: "Steampunk brass gears and Victorian tech.",
 };
 
+const FORMAT = {
+  manga: "Japanese manga page language: clear panel hierarchy, ink rhythm, expressive faces.",
+  comic: "Western comic page language: bold silhouettes, readable action, strong gutters.",
+  webtoon: "Vertical webtoon readability: clean staging, emotional closeups, mobile-friendly rhythm.",
+  graphic_novel: "Graphic novel storytelling: mature pacing, cinematic composition, literary tone.",
+  disney: "Disney-inspired appeal: rounded shapes, expressive acting, polished family-friendly staging.",
+  pixar: "Pixar-inspired cinematic animation look: clear emotional acting, dimensional lighting, story clarity.",
+  dreamworks: "DreamWorks-inspired energy: expressive faces, comedic timing, dynamic staging.",
+  anime_cinematic: "Cinematic anime production: dramatic lighting, strong key poses, atmospheric backgrounds.",
+  cartoon_network: "Stylized Cartoon Network-inspired shapes: bold design, readable silhouettes, playful timing.",
+  nickelodeon: "Nickelodeon-inspired cartoon elasticity: lively expressions, colorful readable staging.",
+  studio_ghibli: "Ghibli-inspired warmth: naturalistic backgrounds, gentle wonder, emotional stillness.",
+  arcane: "Painterly Arcane-inspired cinematic drama: textured lighting, mature color, strong face acting.",
+  invincible: "Adult superhero comic animation feel: bold action, sharp silhouettes, intense drama.",
+  last_of_us_comic: "Grounded survival comic tone: worn environments, tense realism, emotional restraint.",
+  sin_city: "Noir high-contrast black-white language: hard shadows, graphic silhouettes, selective color only if needed.",
+  superhero_western: "Classic superhero comic structure: heroic anatomy, dynamic foreshortening, readable power action.",
+  manhwa: "Korean manhwa/webtoon polish: elegant characters, clean digital finish, vertical drama rhythm.",
+  light_novel: "Light novel illustration feel: polished character-focused scenes with cinematic cover quality.",
+  realistic_cinematic: "Semi-realistic cinematic graphic storytelling: believable anatomy, filmic lighting.",
+  dark_fantasy: "Dark fantasy illustration: grim atmosphere, ornate details, dramatic contrast.",
+  childrens_book: "Children's book illustration: warm clarity, friendly shapes, gentle composition.",
+  infamous_comic: "InFamous-style graphic novel energy: gritty urban ink, high contrast, kinetic power effects.",
+};
+
+const MODIFIER = {
+  action_focused: "Prioritize action readability: clear motion arcs, impact beats, no confusing clutter.",
+  emotional_focused: "Prioritize emotional continuity: faces, micro-expressions, body language, reaction panels.",
+  horror_enhanced: "Increase dread: negative space, unsettling angles, shadows, delayed reveals.",
+  realistic_anatomy: "Keep anatomy and proportions believable even in stylized art.",
+  highly_detailed: "Increase environmental and costume detail without reducing panel readability.",
+  cinematic_framing: "Use filmic camera language: establishing shots, closeups, motivated angles.",
+  exaggerated_expressions: "Use stronger cartoon/manga facial acting for comedy or emotion.",
+  mature_themes: "Use mature graphic novel tone: subtlety, heavier atmosphere, restrained melodrama.",
+};
+
 export function wizardHiddenLines(answers = {}) {
   const lines = [];
+  const f = answers.format && FORMAT[answers.format];
   const g = answers.genre && GENRE[answers.genre];
   const t = answers.tone && TONE[answers.tone];
   const a = answers.artStyle && ART[answers.artStyle];
   const m = answers.mainStyle && MAIN_STYLE[answers.mainStyle];
+  if (f) lines.push(`Format directive: ${f}`);
   if (g) lines.push(`Genre directive: ${g}`);
   if (t) lines.push(`Tone directive: ${t}`);
   if (a) lines.push(`Art directive: ${a}`);
@@ -72,5 +110,10 @@ export function wizardHiddenLines(answers = {}) {
   if (answers.panelStyle) lines.push(`Layout: ${String(answers.panelStyle).replace(/_/g, " ")} panel grid on each page.`);
   if (answers.lighting) lines.push(`Lighting style: ${String(answers.lighting).replace(/_/g, " ")}.`);
   if (answers.colorPalette) lines.push(`Color palette: ${String(answers.colorPalette).replace(/_/g, " ")}.`);
+  if (Array.isArray(answers.styleModifiers)) {
+    answers.styleModifiers.forEach((mod) => {
+      if (MODIFIER[mod]) lines.push(`Style modifier: ${MODIFIER[mod]}`);
+    });
+  }
   return lines;
 }

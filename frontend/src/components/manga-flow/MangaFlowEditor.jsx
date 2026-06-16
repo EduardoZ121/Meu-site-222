@@ -115,6 +115,9 @@ export default function MangaFlowEditor() {
       wizardContext: project?.wizardContext || null,
       totalPages: pages.length || 1,
       activePageNumber: activePageIndex >= 0 ? activePageIndex + 1 : 1,
+      continuityIn: activePage?.continuityIn,
+      continuityOut: activePage?.continuityOut,
+      storyRole: activePage?.storyRole,
     };
   }, [project?.storyMeta, project?.wizardContext, pages, activePage, activePageIndex]);
 

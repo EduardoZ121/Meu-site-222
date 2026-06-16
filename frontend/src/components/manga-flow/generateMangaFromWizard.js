@@ -188,6 +188,66 @@ function parseStoryBeats(storyPrompt, synopsis, keyMoments) {
     .filter((s) => s.length > 8);
 }
 
+function compactText(value, max = 180) {
+  const text = String(value || "").replace(/\s+/g, " ").trim();
+  if (text.length <= max) return text;
+  return `${text.slice(0, max - 1).trim()}…`;
+}
+
+function getStorySeed({ storyPrompt, synopsis, genre, tone, location, worldDetails }) {
+  return compactText(
+    storyPrompt || synopsis || [
+      `A ${genre.replace(/_/g, " ")} story with ${tone} tone`,
+      location ? `set in ${location}` : "",
+      worldDetails ? `where ${worldDetails}` : "",
+    ].filter(Boolean).join(" "),
+    260,
+  );
+}
+
+function buildContinuityPlan({ storyBeats, numPages, genre, tone, pacing, storySeed, keyMoments }) {
+  const arcTemplates = [
+    { role: "Opening hook", purpose: "establish protagonist, world, visual promise, and the first disturbance" },
+    { role: "Inciting turn", purpose: "force a choice, reveal the conflict, and make the goal unavoidable" },
+    { role: "Escalation", purpose: "raise danger, deepen relationships, and reveal a cost or clue" },
+    { role: "Midpoint reveal", purpose: "change what the hero believes and redirect the plan" },
+    { role: "Climax", purpose: "pay off the core conflict with the strongest action or emotion" },
+    { role: "Resolution", purpose: "show consequence, emotional closure, and a clean final image" },
+  ];
+  const explicit = storyBeats.length ? storyBeats : [];
+  const beatsForPage = (pageIndex) => {
+    if (!explicit.length) return "";
+    const start = Math.floor((pageIndex * explicit.length) / numPages);
+    const end = Math.max(start + 1, Math.floor(((pageIndex + 1) * explicit.length) / numPages));
+    return explicit.slice(start, Math.min(explicit.length, end)).join(" ");
+  };
+  const key = compactText(keyMoments, 220);
+  return Array.from({ length: numPages }, (_, pageIndex) => {
+    const ratio = numPages <= 1 ? 1 : pageIndex / (numPages - 1);
+    const templateIndex = Math.min(
+      arcTemplates.length - 1,
+      Math.round(ratio * (arcTemplates.length - 1)),
+    );
+    const template = arcTemplates[templateIndex];
+    const beat = beatsForPage(pageIndex) || storySeed;
+    const previous = pageIndex > 0
+      ? (beatsForPage(pageIndex - 1) || arcTemplates[Math.max(0, templateIndex - 1)].purpose)
+      : "This is the beginning. Introduce the world clearly before escalating.";
+    const next = pageIndex < numPages - 1
+      ? (beatsForPage(pageIndex + 1) || arcTemplates[Math.min(arcTemplates.length - 1, templateIndex + 1)].purpose)
+      : "This page must resolve the immediate sequence and leave a deliberate final image.";
+    return {
+      pageNumber: pageIndex + 1,
+      role: template.role,
+      purpose: template.purpose,
+      beat: compactText(beat || template.purpose, 220),
+      continuityIn: compactText(previous, 180),
+      continuityOut: compactText(next, 180),
+      pageGoal: compactText(`${template.role}: ${template.purpose}. Keep ${genre.replace(/_/g, " ")} ${tone} tone with ${pacing} pacing.${key ? ` Must respect key moments: ${key}` : ""}`, 260),
+    };
+  });
+}
+
 function distributePanels(totalPanels, pages, fallbackPanelsPerPage) {
   const total = Math.min(Math.max(2, Number(totalPanels) || pages * fallbackPanelsPerPage), 120);
   const base = Math.floor(total / pages);
@@ -205,18 +265,34 @@ function normalizePanelsByPage(panelsByPage, pages, fallbackPanelsPerPage, total
 }
 
 function getPanelBeat({
-  beats, genre, pageIndex, totalPages, panelIndex, panelsPerPage, arcText, pacing, globalPanelIndex,
+  beats,
+  genre,
+  pageIndex,
+  totalPages,
+  panelIndex,
+  panelsPerPage,
+  arcText,
+  pacing,
+  globalPanelIndex,
+  pageBeat,
+  continuityIn,
+  continuityOut,
 }) {
   const globalIdx = Number.isFinite(globalPanelIndex) ? globalPanelIndex : pageIndex * panelsPerPage + panelIndex;
-  if (beats.length > globalIdx) return beats[globalIdx];
-  if (beats.length > pageIndex) {
-    const role = PANEL_BEAT_ROLES[panelIndex % PANEL_BEAT_ROLES.length];
-    return `${beats[pageIndex]} — ${role}`;
-  }
-
   const weights = PACING_PANEL_WEIGHT[pacing] || PACING_PANEL_WEIGHT.normal;
   const roleIdx = weights[panelIndex % weights.length] ?? panelIndex;
   const role = PANEL_BEAT_ROLES[roleIdx % PANEL_BEAT_ROLES.length];
+
+  if (pageBeat) {
+    if (panelIndex === 0) return pageBeat;
+    const localRole = PANEL_BEAT_ROLES[panelIndex % PANEL_BEAT_ROLES.length];
+    return `${pageBeat} — ${localRole}. Continue from: ${continuityIn || "previous page/beat"}; set up: ${continuityOut || "next beat"}.`;
+  }
+  if (beats.length > globalIdx) return beats[globalIdx];
+  if (beats.length > pageIndex) {
+    return `${beats[pageIndex]} — ${role}`;
+  }
+
   return `${arcText}: ${role}`;
 }
 
@@ -273,6 +349,16 @@ export function generateMangaFromWizard(answers) {
   const storyBeats = parseStoryBeats(storyPrompt, synopsis, keyMoments);
   const dialogueLines = splitDialogueLines(sampleDialogue, genre, pagePanelCounts.reduce((sum, n) => sum + n, 0));
   const storySynopsis = [synopsis, storyPrompt].filter(Boolean).join(" ").trim();
+  const storySeed = getStorySeed({ storyPrompt, synopsis, genre, tone, location, worldDetails });
+  const continuityPlan = buildContinuityPlan({
+    storyBeats,
+    numPages,
+    genre,
+    tone,
+    pacing,
+    storySeed,
+    keyMoments,
+  });
 
   const pages = [];
   let globalPanelIndex = 0;
@@ -280,6 +366,7 @@ export function generateMangaFromWizard(answers) {
   for (let p = 0; p < numPages; p++) {
     const pageId = uid("pg");
     const arcText = getArcText(genre, p, numPages);
+    const pagePlan = continuityPlan[p];
     const ctx = getContext(p, numPages, pacing);
     const timeOfDay = getTimeOfDay(p, numPages);
     const nodes = [];
@@ -288,6 +375,7 @@ export function generateMangaFromWizard(answers) {
     const panelNodes = [];
     const panelsThisPage = pagePanelCounts[p] || ppp;
     const panelPositions = PANEL_LAYOUTS[panelsThisPage] || PANEL_LAYOUTS[ppp] || PANEL_LAYOUTS[4];
+    const pageStoryBit = pagePlan?.beat || storyBeats[p] || arcText;
     for (let i = 0; i < Math.min(panelsThisPage, panelPositions.length); i++) {
       const pos = panelPositions[i];
       const size = panelSizes[i % panelSizes.length] || "medium";
@@ -299,7 +387,10 @@ export function generateMangaFromWizard(answers) {
         panelIndex: i,
         panelsPerPage: panelsThisPage,
         globalPanelIndex,
-        arcText,
+        arcText: pagePlan?.pageGoal || arcText,
+        pageBeat: pageStoryBit,
+        continuityIn: pagePlan?.continuityIn,
+        continuityOut: pagePlan?.continuityOut,
         pacing,
       });
       globalPanelIndex += 1;
@@ -315,9 +406,8 @@ export function generateMangaFromWizard(answers) {
     }
 
     const sceneX = 550;
-    const pageStoryBit = storyBeats[p] || arcText;
     const scn = node("scenario", sceneX, 40, {
-      name: pageStoryBit.slice(0, 60),
+      name: `${pagePlan?.role || `Page ${p + 1}`} — ${pageStoryBit}`.slice(0, 60),
       timeOfDay,
       weather: p === numPages - 1 ? "clear" : weather,
       mood: tone,
@@ -325,16 +415,19 @@ export function generateMangaFromWizard(answers) {
       description: [
         location || "Scene",
         era,
-        pageStoryBit,
-        worldDetails ? worldDetails.slice(0, 120) : "",
-        storySynopsis ? storySynopsis.slice(0, 150) : "",
+        `Page goal: ${pagePlan?.pageGoal || arcText}`,
+        `Continuity in: ${pagePlan?.continuityIn || "start"}`,
+        `Continuity out: ${pagePlan?.continuityOut || "continue"}`,
+        `Story beat: ${pageStoryBit}`,
+        worldDetails ? compactText(worldDetails, 140) : "",
+        storySynopsis ? compactText(storySynopsis, 180) : "",
       ].filter(Boolean).join(" — "),
     });
     nodes.push(scn);
 
     const maxCharsPerPage = Math.min(charsWithNames.length || 1, ctx === "fight" ? 3 : 2);
     const pageChars = charsWithNames.length > 0
-      ? pickN(charsWithNames, maxCharsPerPage)
+      ? charsWithNames.slice(0, maxCharsPerPage)
       : [{ name: "Protagonist", appearance: "", personality: "", role: "protagonist" }];
 
     const charNodes = [];
@@ -346,7 +439,7 @@ export function generateMangaFromWizard(answers) {
         emotion: pick(toneEmotions),
         cameraAngle: "medium",
         clothing: ch.appearance || "",
-        actionDesc: `${pageStoryBit}. ${ch.personality || ""} ${ch.powers ? `(${ch.powers})` : ""}`.trim(),
+        actionDesc: `${pagePlan?.role || "Story beat"}: ${pageStoryBit}. Goal: ${pagePlan?.purpose || arcText}. ${ch.personality || ""} ${ch.powers ? `(${ch.powers})` : ""}`.trim(),
         speech: ch.catchphrase && p === 0 && ci === 0 ? ch.catchphrase : "",
         speechType: bubbleStyle !== "normal" ? bubbleStyle : "speech",
       });
@@ -375,7 +468,7 @@ export function generateMangaFromWizard(answers) {
         edge(
           charNode.id,
           pn.id,
-          `${ch.name} ${actionVerbs[ctx] || "appears in"} panel: ${panelBeat}`,
+          `${ch.name} ${actionVerbs[ctx] || "appears in"} panel: ${panelBeat}. This must connect from "${pagePlan?.continuityIn || "previous beat"}" toward "${pagePlan?.continuityOut || "next beat"}".`,
           null,
           charNode,
           pn,
@@ -459,6 +552,9 @@ export function generateMangaFromWizard(answers) {
       id: pageId,
       name: `Page ${p + 1} — ${arcText}`,
       pageBeat: pageStoryBit,
+      storyRole: pagePlan?.role,
+      continuityIn: pagePlan?.continuityIn,
+      continuityOut: pagePlan?.continuityOut,
       panelCount: panelsThisPage,
       nodes,
       edges: edges_arr,
@@ -479,6 +575,7 @@ export function generateMangaFromWizard(answers) {
       transitions,
       totalPanels: pagePanelCounts.reduce((sum, n) => sum + n, 0),
       panelsByPage: pagePanelCounts,
+      continuityPlan,
       characters: charsWithNames,
     },
     // Hidden wizard context — gets prepended to every panel/page generation as
@@ -490,6 +587,8 @@ export function generateMangaFromWizard(answers) {
         `- Genre: ${genre.replace(/_/g, " ")}; tone: ${tone}; pacing: ${pacing}; narration: ${narration?.replace(/_/g, " ") || "third person"}.`,
         `- Visual: ${detailLevel?.replace(/_/g, " ") || "detailed"} detail, ${lighting || "dramatic"} lighting, ${colorPalette?.replace(/_/g, " ") || "monochrome"} palette, ${quality || "ultra"} quality.`,
         `- Page plan: ${numPages} pages, ${pagePanelCounts.reduce((sum, n) => sum + n, 0)} total panels, distribution ${pagePanelCounts.map((n, i) => `P${i + 1}:${n}`).join(", ")}. Every panel must be unique and progress the story.`,
+        `- Narrative continuity contract: each page must continue from the previous page, set up the next page, and never reset the story. No generic filler panels, no random scenes, no disconnected cuts.`,
+        `- Story arc by page: ${continuityPlan.map((p) => `P${p.pageNumber} ${p.role}: ${p.beat}`).join(" | ")}`,
         styleModifiers?.length ? `- Style modifiers: ${styleModifiers.map((s) => String(s).replace(/_/g, " ")).join(", ")}.` : "",
         `- Dialogue style: ${dialogueStyle || "natural"}; bubbles: ${bubbleStyle || "normal"} at ${bubblePosition || "auto"}; SFX: ${sfxStyle || "japanese"}.`,
         `- World: ${location || "unspecified"}, ${era?.replace(/_/g, " ") || "modern"} era, ${weather || "clear"} weather.${worldDetails ? ` Notes: ${worldDetails}.` : ""}`,
@@ -510,6 +609,7 @@ export function generateMangaFromWizard(answers) {
         artStyle, detailLevel, lighting, colorPalette, quality,
         totalPanels: pagePanelCounts.reduce((sum, n) => sum + n, 0),
         panelsByPage: pagePanelCounts,
+        continuityPlan,
         styleModifiers,
         dialogueStyle, bubbleStyle, bubblePosition, sfxStyle,
         location, era, weather, worldDetails,

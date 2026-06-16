@@ -155,6 +155,30 @@ export function buildPagePromptFromFlow(nodes, edges, context = {}, refSlots = [
     lines.push("");
   }
 
+  if (context?.activePageNumber || context?.pageBeat || context?.priorPagesSummary) {
+    lines.push("## CURRENT PAGE CONTINUITY");
+    if (context.activePageNumber && context.totalPages) {
+      lines.push(`Rendering page ${context.activePageNumber} of ${context.totalPages}.`);
+    }
+    if (context.priorPagesSummary) {
+      lines.push(`Previous pages summary: ${context.priorPagesSummary}`);
+    }
+    if (context.pageBeat) {
+      lines.push(`This page beat: ${context.pageBeat}`);
+    }
+    if (context.storyRole) {
+      lines.push(`Narrative role: ${context.storyRole}.`);
+    }
+    if (context.continuityIn) {
+      lines.push(`Continuity in: ${context.continuityIn}`);
+    }
+    if (context.continuityOut) {
+      lines.push(`Continuity out / next setup: ${context.continuityOut}`);
+    }
+    lines.push("Do not restart the story. Continue the same scene/plot thread and set up the next beat if the chapter is not finished.");
+    lines.push("");
+  }
+
   // Scene-graph binding rules go FIRST so the AI cannot miss them.
   const sceneGraphBlock = buildSceneGraphSummary(nodes, orchestration.semanticEdges);
   if (sceneGraphBlock) {

@@ -10,6 +10,7 @@ import {
 import { validateGraphForGeneration } from "../../lib/mangaFlowGraph";
 import { enrichEdgesSemantics } from "../../lib/mangaFlowSemantics";
 import { shouldUseComicSheetMode } from "../../lib/mangaFlowOrchestrator";
+import { getCreditCostsForRegion, getStoredPricingRegion } from "../../lib/pricingRegions";
 import { toast } from "sonner";
 
 const MODELS = [
@@ -37,6 +38,12 @@ const STYLES = [
   { id: "ghibli", label: "Studio Ghibli" },
   { id: "webtoon", label: "Webtoon" },
 ];
+
+function mangaModelCost(modelId, { dualRef = false } = {}) {
+  const costs = getCreditCostsForRegion(getStoredPricingRegion() || "intl");
+  if (dualRef) return costs.edit ?? costs.mangaPanel ?? 15;
+  return modelId === "grok" ? (costs.image ?? 15) : (costs.pro ?? 30);
+}
 
 function Chips({ label, options, value, onChange }) {
   return (
@@ -101,6 +108,11 @@ export default function GenerationModal({ nodes, edges, onClose, onResult, pageC
       : buildFinalPrompt(nodes, semanticEdges, promptSettings);
   const modelDef = MODELS.find(m => m.id === model) || MODELS[0];
   const usesDualRef = dualCharRefs || genPlan.endpoint === "/generate/manga-interaction";
+  const imageCount = 1;
+  const perImageCost = mangaModelCost(model, { dualRef: usesDualRef });
+  const currentPageCost = perImageCost * imageCount;
+  const totalPages = Math.max(1, Number(pageContext?.totalPages) || 1);
+  const allPagesEstimate = perImageCost * totalPages;
   const generateEndpoint = genPlan.error
     ? null
     : usesDualRef
@@ -148,8 +160,9 @@ export default function GenerationModal({ nodes, edges, onClose, onResult, pageC
         fd.append("generation_mode", "comic_sheet");
         fd.append("panel_count", String(panelCount));
       }
+      fd.append("image_count", String(imageCount));
       if (!usesDualRef) {
-        fd.append("model_key", modelDef.apiModel || "standard");
+        fd.append("model_key", model);
       } else {
         toast.info(
           `Modo 2 personagens: ${genPlan.refSlots.map((s) => s.label).join(" + ")} (Qwen, identidade bloqueada)`,
@@ -238,7 +251,8 @@ export default function GenerationModal({ nodes, edges, onClose, onResult, pageC
   }, [
     finalPrompt,
     aspect,
-    modelDef,
+    model,
+    imageCount,
     genPlan,
     usesDualRef,
     dualCharRefs,
@@ -340,6 +354,12 @@ export default function GenerationModal({ nodes, edges, onClose, onResult, pageC
               <h3 className="mfg-section__title">Model & Quality</h3>
               <Chips label="AI Model" options={MODELS} value={model} onChange={setModel} />
               <Chips label="Quality" options={QUALITY} value={quality} onChange={setQuality} />
+              <div className="mfg-cost-note" data-testid="manga-generation-cost">
+                <strong>{currentPageCost} créditos</strong> por esta página/imagem
+                <span>
+                  {perImageCost} créditos × {imageCount} imagem. Se renderizares todas as {totalPages} páginas deste projeto: {allPagesEstimate} créditos.
+                </span>
+              </div>
               <Chips label="Aspect Ratio" options={ASPECTS} value={aspect} onChange={setAspect} />
             </div>
             <div className="mfg-section">

@@ -113,6 +113,8 @@ export default function MangaFlowEditor() {
       storySynopsis: [meta?.synopsis, meta?.storyPrompt].filter(Boolean).join(" ").trim(),
       priorPagesSummary: prior || undefined,
       wizardContext: project?.wizardContext || null,
+      totalPages: pages.length || 1,
+      activePageNumber: activePageIndex >= 0 ? activePageIndex + 1 : 1,
     };
   }, [project?.storyMeta, project?.wizardContext, pages, activePage, activePageIndex]);
 

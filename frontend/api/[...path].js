@@ -1308,6 +1308,26 @@ function withMeta(input, cost, type = "image") {
   return { input, credits_spent: cost, type };
 }
 
+function normalizeMangaModelKey(selected) {
+  const key = String(selected || "").trim().toLowerCase();
+  if (key === "gpt_image" || key === "flux2" || key === "flux" || key === "pro") return "pro";
+  return "standard";
+}
+
+function mangaImagesCount(fields, fallback = 1) {
+  const raw = text(fields, "image_count", "") || text(fields, "page_count", "") || text(fields, "num_outputs", "");
+  const n = Math.round(Number(raw) || fallback || 1);
+  return Math.max(1, Math.min(n, 50));
+}
+
+function mangaPerImageCost(CREDIT, modelKey) {
+  return Math.max(1, Number(modelKey === "pro" ? CREDIT.pro : CREDIT.image) || 15);
+}
+
+function qwenMangaPerImageCost(CREDIT) {
+  return Math.max(1, Number(CREDIT.edit ?? CREDIT.mangaPanel) || 15);
+}
+
 /** Pôster via OpenAI (síncrono) — debita créditos HQ (premium wallet). */
 async function submitInstantPosterGeneration(req, fields, {
   cost,
@@ -2294,7 +2314,8 @@ async function routePost(path, fields, files, req) {
     const roleB = text(fields, "ref_b_role", "support");
     const dualBlock = buildMangaDualCharacterBlock(nameA, nameB, descA, descB, roleA, roleB);
     promptFinal = `${dualBlock}\n\n${promptFinal}`;
-    const cost = Math.max(1, Number(CREDIT.mangaPanel) || 15);
+    const imageCount = mangaImagesCount(fields, 1);
+    const cost = qwenMangaPerImageCost(CREDIT) * imageCount;
     const aspect = normalizeRatio(text(fields, "aspect_ratio", "4:5"), "qwen");
     const input = {
       prompt: finalizeImagePrompt(promptFinal, { modelKey: "qwen", hasPersonPhoto: true }),
@@ -2313,7 +2334,7 @@ async function routePost(path, fields, files, req) {
       prompt: promptFinal,
       aspectRatio: input.aspect_ratio,
       modelUsed: "Qwen Image Edit 2511",
-      spendDescription: "MANGA STUDIO · interação (2 refs)",
+      spendDescription: `MANGA STUDIO · interação (2 refs) · ${imageCount} imagem${imageCount !== 1 ? "s" : ""}`,
     });
   }
 
@@ -2338,7 +2359,8 @@ async function routePost(path, fields, files, req) {
       const roleB = text(fields, "ref_b_role", "support");
       const dualBlock = buildMangaDualCharacterBlock(nameA, nameB, descA, descB, roleA, roleB);
       promptFinal = `${dualBlock}\n\n${promptFinal}`;
-      const cost = Math.max(1, Number(CREDIT.mangaPanel) || 15);
+      const imageCount = mangaImagesCount(fields, isComicSheet ? 1 : 1);
+      const cost = qwenMangaPerImageCost(CREDIT) * imageCount;
       // Comic sheets force portrait 3:4 (standard manga page) so the AI lays out vertical panels.
       const requestedAspect = text(fields, "aspect_ratio", isComicSheet ? "3:4" : "4:5");
       const aspect = normalizeRatio(isComicSheet ? "3:4" : requestedAspect, "qwen");
@@ -2365,20 +2387,15 @@ async function routePost(path, fields, files, req) {
         prompt: promptFinal,
         aspectRatio: input.aspect_ratio,
         modelUsed: "Qwen Image Edit 2511",
-        spendDescription: spendLabels[mode] || "MANGA STUDIO · 2 refs",
+        spendDescription: `${spendLabels[mode] || "MANGA STUDIO · 2 refs"} · ${imageCount} imagem${imageCount !== 1 ? "s" : ""}`,
       });
     }
     const mode = path.replace("generate/manga-", "");
-    const costMap = {
-      panel: CREDIT.mangaPanel ?? 15,
-      page: CREDIT.mangaPage ?? 40,
-      chapter: CREDIT.mangaChapter ?? 150,
-    };
-    const cost = Math.max(1, Number(costMap[mode]) || 15);
     const selected = text(fields, "model_key", "grok");
     const hasPhoto = Boolean(files.photo || text(fields, "photo_url", "").trim());
-    let modelKey = "standard";
-    if (selected === "gpt_image" || selected === "flux2") modelKey = "pro";
+    const modelKey = normalizeMangaModelKey(selected);
+    const imageCount = mangaImagesCount(fields, mode === "chapter" ? 4 : 1);
+    const cost = mangaPerImageCost(CREDIT, modelKey) * imageCount;
 
     const aspectDefault = mode === "chapter" ? "9:16" : mode === "page" ? "3:4" : text(fields, "aspect_ratio", "4:5");
     const input = await imageInput(fields, files, modelKey, promptFinal);
@@ -2401,7 +2418,7 @@ async function routePost(path, fields, files, req) {
       prompt: promptFinal,
       aspectRatio: input.aspect_ratio,
       modelUsed: modelId,
-      spendDescription: spendLabels[mode] || "MANGA STUDIO",
+      spendDescription: `${spendLabels[mode] || "MANGA STUDIO"} · ${imageCount} imagem${imageCount !== 1 ? "s" : ""}`,
     });
   }
 

@@ -1382,6 +1382,9 @@ body.manga-mfg-modal-open .manga-flow-inspector {
 .aiw-field { margin-bottom: 18px; }
 .aiw-label { display: block; font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: #6B7280; margin-bottom: 8px; font-family: 'Inter Tight', sans-serif; }
 .aiw-context-note { margin: 10px 0 16px; padding: 10px 12px; border-radius: 10px; border: 1px solid rgba(20,184,166,0.22); background: rgba(20,184,166,0.08); color: #99F6E4; font-size: 12px; line-height: 1.5; font-family: 'Inter Tight', sans-serif; }
+.mfg-cost-note { display: flex; flex-direction: column; gap: 3px; margin: -4px 0 14px; padding: 10px 12px; border-radius: 10px; border: 1px solid rgba(250,204,21,0.24); background: rgba(250,204,21,0.08); color: #FDE68A; font-size: 12px; line-height: 1.45; font-family: 'Inter Tight', sans-serif; }
+.mfg-cost-note strong { color: #FACC15; font-size: 13px; }
+.mfg-cost-note span { color: #D6D3D1; }
 .aiw-chips { display: flex; flex-wrap: wrap; gap: 6px; }
 .aiw-chip {
   padding: 8px 16px; border-radius: 10px; border: 1.5px solid rgba(255,255,255,0.08);

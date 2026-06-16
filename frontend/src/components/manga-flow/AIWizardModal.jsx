@@ -460,7 +460,7 @@ export default function AIWizardModal({ onGenerate, onClose }) {
 
                 <div className="aiw-field" style={{ marginTop: 16, padding: 12, border: "1px solid rgba(168,85,247,0.3)", borderRadius: 10, background: "rgba(168,85,247,0.05)" }}>
                   <div className="flex items-center justify-between gap-2 flex-wrap">
-                    <label className="aiw-label" style={{ margin: 0 }}>📖 História final (opcional — em vez de escrever manualmente, deixa a IA criar tudo)</label>
+                    <label className="aiw-label" style={{ margin: 0 }}>História final (opcional)</label>
                     <button
                       type="button"
                       onClick={generateStoryWithAI}
@@ -475,7 +475,7 @@ export default function AIWizardModal({ onGenerate, onClose }) {
                   <textarea
                     value={a.storyPrompt}
                     onChange={e => set("storyPrompt", e.target.value)}
-                    placeholder="Clica em 'Gerar história completa' para a IA escrever uma história tailored às tuas escolhas, ou escreve aqui livremente. Esta história alimenta toda a geração."
+                    placeholder="Clica em 'Gerar história completa' ou escreve aqui. Esta história alimenta toda a geração."
                     className="aiw-textarea"
                     rows={8}
                     style={{ marginTop: 8 }}

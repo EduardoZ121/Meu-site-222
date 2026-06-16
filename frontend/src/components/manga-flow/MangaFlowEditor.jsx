@@ -583,7 +583,7 @@ export default function MangaFlowEditor() {
           </div>
         </div>
         {!zenMode && (
-        <div className="flex items-center gap-1 flex-wrap">
+        <div className="manga-flow-toolbar">
           <button onClick={() => setShowAddMenu(true)} className="manga-flow-btn manga-flow-btn-primary" data-testid="manga-flow-add-btn"><Plus className="w-4 h-4" /> Add</button>
           <button onClick={() => setShowGeneration(true)} className="mfg-trigger-btn" data-testid="manga-flow-generate-page">
             <Wand2 className="w-4 h-4" />

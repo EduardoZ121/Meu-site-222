@@ -99,27 +99,30 @@ export default function MangaFlowEditor() {
   const activePage = pages.find((p) => p.id === activePageId) || pages[0] || null;
   const activePageIndex = pages.findIndex((p) => p.id === activePageId);
   const showMiniMap = nodes.length <= 45;
+  const pagesForGeneration = useMemo(() => (
+    pages.map((pg) => (pg.id === activePageId ? { ...pg, nodes, edges } : pg))
+  ), [pages, activePageId, nodes, edges]);
 
-  const generationPageContext = useMemo(() => {
+  const generationPageContexts = useMemo(() => pagesForGeneration.map((pg, index) => {
     const meta = project?.storyMeta;
-    const prior = pages
-      .slice(0, Math.max(0, activePageIndex))
-      .filter((_, i) => i < activePageIndex)
-      .map((pg, i) => `Page ${i + 1} (${pg.name}): ${pg.pageBeat || pg.name}`)
+    const prior = pagesForGeneration
+      .slice(0, Math.max(0, index))
+      .map((priorPage, i) => `Page ${i + 1} (${priorPage.name}): ${priorPage.pageBeat || priorPage.name}`)
       .join("; ");
     return {
-      pageName: activePage?.name,
-      pageBeat: activePage?.pageBeat,
+      pageName: pg?.name,
+      pageBeat: pg?.pageBeat,
       storySynopsis: [meta?.synopsis, meta?.storyPrompt].filter(Boolean).join(" ").trim(),
       priorPagesSummary: prior || undefined,
       wizardContext: project?.wizardContext || null,
-      totalPages: pages.length || 1,
-      activePageNumber: activePageIndex >= 0 ? activePageIndex + 1 : 1,
-      continuityIn: activePage?.continuityIn,
-      continuityOut: activePage?.continuityOut,
-      storyRole: activePage?.storyRole,
+      totalPages: pagesForGeneration.length || 1,
+      activePageNumber: index + 1,
+      continuityIn: pg?.continuityIn,
+      continuityOut: pg?.continuityOut,
+      storyRole: pg?.storyRole,
     };
-  }, [project?.storyMeta, project?.wizardContext, pages, activePage, activePageIndex]);
+  }), [project?.storyMeta, project?.wizardContext, pagesForGeneration]);
+  const generationPageContext = generationPageContexts[Math.max(0, activePageIndex)] || generationPageContexts[0] || {};
 
   /* ---- History ---- */
   const pushHistory = useCallback(() => {
@@ -505,6 +508,23 @@ export default function MangaFlowEditor() {
     setShowAIWizard(false);
   }, [project, setNodes, setEdges, pushHistory]);
 
+  const handlePageGenerationResults = useCallback((results) => {
+    if (!results?.length) return;
+    setProject((current) => {
+      if (!current?.pages?.length) return current;
+      const byPageId = new Map(results.map((item) => [item.pageId, item]));
+      const next = {
+        ...current,
+        pages: current.pages.map((pg) => {
+          const item = byPageId.get(pg.id);
+          return item ? { ...pg, generatedImageUrl: item.url, generatedAt: Date.now() } : pg;
+        }),
+      };
+      saveFlowProject(next);
+      return next;
+    });
+  }, []);
+
 
   /* ---- Fullscreen ---- */
   const toggleFullscreen = useCallback(() => {
@@ -781,7 +801,11 @@ export default function MangaFlowEditor() {
         <GenerationModal
           nodes={nodes}
           edges={edges}
+          pages={pagesForGeneration}
+          pageContexts={generationPageContexts}
+          activePageIndex={Math.max(0, activePageIndex)}
           pageContext={generationPageContext}
+          onPageResults={handlePageGenerationResults}
           onClose={() => setShowGeneration(false)}
         />
       )}

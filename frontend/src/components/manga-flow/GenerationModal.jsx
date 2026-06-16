@@ -45,6 +45,51 @@ function mangaModelCost(modelId, { dualRef = false } = {}) {
   return modelId === "grok" ? (costs.image ?? 15) : (costs.pro ?? 30);
 }
 
+function buildGenerationJob(page, pageContext, settings) {
+  const pageNodes = page?.nodes || [];
+  const pageEdges = page?.edges || [];
+  const semanticEdges = enrichEdgesSemantics(pageEdges, pageNodes);
+  const genPlan = planMangaGeneration(pageNodes, semanticEdges);
+  const panelCount = countPanelNodes(pageNodes);
+  const isComicSheet = shouldUseComicSheetMode(pageNodes);
+  const isMultiPanelPage = panelCount >= 2;
+  const dualCharRefs = genPlan.refSlots.filter((s) => s.role === "character").length >= 2;
+  const usesDualRef = dualCharRefs || genPlan.endpoint === "/generate/manga-interaction";
+  const promptSettings = {
+    ...settings,
+    refSlots: genPlan.refSlots,
+    pageContext: pageContext || {},
+  };
+  const finalPrompt =
+    isMultiPanelPage || dualCharRefs || isComicSheet
+      ? buildFinalPagePrompt(pageNodes, semanticEdges, promptSettings)
+      : buildFinalPrompt(pageNodes, semanticEdges, promptSettings);
+  const generateEndpoint = genPlan.error
+    ? null
+    : usesDualRef
+      ? "/generate/manga-interaction"
+      : isComicSheet || isMultiPanelPage
+        ? "/generate/manga-page"
+        : genPlan.endpoint || "/generate/manga-panel";
+
+  return {
+    page,
+    pageNodes,
+    pageEdges,
+    pageContext,
+    semanticEdges,
+    genPlan,
+    panelCount,
+    isComicSheet,
+    isMultiPanelPage,
+    dualCharRefs,
+    usesDualRef,
+    finalPrompt,
+    generateEndpoint,
+    cost: mangaModelCost(settings.model, { dualRef: usesDualRef }),
+  };
+}
+
 function Chips({ label, options, value, onChange }) {
   return (
     <div className="mfg-field">
@@ -64,7 +109,17 @@ function Chips({ label, options, value, onChange }) {
   );
 }
 
-export default function GenerationModal({ nodes, edges, onClose, onResult, pageContext = null }) {
+export default function GenerationModal({
+  nodes,
+  edges,
+  pages = [],
+  pageContexts = [],
+  activePageIndex = 0,
+  onClose,
+  onResult,
+  onPageResults,
+  pageContext = null,
+}) {
   const [model, setModel] = useState("grok");
   const [quality, setQuality] = useState("high");
   const [aspect, setAspect] = useState("3:4");
@@ -72,19 +127,42 @@ export default function GenerationModal({ nodes, edges, onClose, onResult, pageC
   const [extraInstructions, setExtraInstructions] = useState("");
   const [generating, setGenerating] = useState(false);
   const [resultUrl, setResultUrl] = useState(null);
+  const [pageResults, setPageResults] = useState([]);
   const [error, setError] = useState(null);
   const [progress, setProgress] = useState(0);
+  const [generationScope, setGenerationScope] = useState("current");
   const [showPrompt, setShowPrompt] = useState(false);
 
-  const semanticEdges = useMemo(() => enrichEdgesSemantics(edges, nodes), [edges, nodes]);
-  const genPlan = useMemo(
-    () => planMangaGeneration(nodes, semanticEdges),
-    [nodes, semanticEdges],
+  const pagesForGeneration = useMemo(() => {
+    if (pages?.length) return pages;
+    return [{ id: "current", name: pageContext?.pageName || "Current page", nodes, edges }];
+  }, [pages, nodes, edges, pageContext?.pageName]);
+  const safeActivePageIndex = Math.min(Math.max(0, Number(activePageIndex) || 0), pagesForGeneration.length - 1);
+  const activePage = pagesForGeneration[safeActivePageIndex] || pagesForGeneration[0];
+  const activePageContext = useMemo(
+    () => pageContexts[safeActivePageIndex] || pageContext || {},
+    [pageContexts, safeActivePageIndex, pageContext],
   );
-  const panelCount = countPanelNodes(nodes);
-  const isComicSheet = shouldUseComicSheetMode(nodes);
-  const isMultiPanelPage = panelCount >= 2;
-  const dualCharRefs = genPlan.refSlots.filter((s) => s.role === "character").length >= 2;
+  const commonSettings = useMemo(() => ({
+    model,
+    quality,
+    aspect,
+    style,
+    extraInstructions,
+  }), [model, quality, aspect, style, extraInstructions]);
+  const activeJob = useMemo(
+    () => buildGenerationJob(activePage, activePageContext, commonSettings),
+    [activePage, activePageContext, commonSettings],
+  );
+  const allJobs = useMemo(
+    () => pagesForGeneration.map((page, index) => buildGenerationJob(page, pageContexts[index] || {}, commonSettings)),
+    [pagesForGeneration, pageContexts, commonSettings],
+  );
+  const genPlan = activeJob.genPlan;
+  const panelCount = activeJob.panelCount;
+  const isComicSheet = activeJob.isComicSheet;
+  const isMultiPanelPage = activeJob.isMultiPanelPage;
+  const dualCharRefs = activeJob.dualCharRefs;
 
   // Force portrait 3:4 aspect when generating a comic sheet (standard manga page format).
   // Keeps the UI in sync with the server which already locks comic-sheet aspect.
@@ -93,33 +171,13 @@ export default function GenerationModal({ nodes, edges, onClose, onResult, pageC
       setAspect("3:4");
     }
   }, [isComicSheet, aspect]);
-  const promptSettings = {
-    model,
-    quality,
-    aspect,
-    style,
-    extraInstructions,
-    refSlots: genPlan.refSlots,
-    pageContext: pageContext || {},
-  };
-  const finalPrompt =
-    isMultiPanelPage || dualCharRefs || isComicSheet
-      ? buildFinalPagePrompt(nodes, semanticEdges, promptSettings)
-      : buildFinalPrompt(nodes, semanticEdges, promptSettings);
+  const finalPrompt = activeJob.finalPrompt;
   const modelDef = MODELS.find(m => m.id === model) || MODELS[0];
-  const usesDualRef = dualCharRefs || genPlan.endpoint === "/generate/manga-interaction";
-  const imageCount = 1;
-  const perImageCost = mangaModelCost(model, { dualRef: usesDualRef });
-  const currentPageCost = perImageCost * imageCount;
-  const totalPages = Math.max(1, Number(pageContext?.totalPages) || 1);
-  const allPagesEstimate = perImageCost * totalPages;
-  const generateEndpoint = genPlan.error
-    ? null
-    : usesDualRef
-      ? "/generate/manga-interaction"
-      : isComicSheet || isMultiPanelPage
-        ? "/generate/manga-page"
-        : genPlan.endpoint || "/generate/manga-panel";
+  const usesDualRef = activeJob.usesDualRef;
+  const currentPageCost = activeJob.cost;
+  const totalPages = Math.max(1, pagesForGeneration.length);
+  const allPagesEstimate = allJobs.reduce((sum, job) => sum + job.cost, 0);
+  const canGenerateAllPages = totalPages > 1;
 
   useEffect(() => {
     const prevOverflow = document.body.style.overflow;
@@ -144,102 +202,102 @@ export default function GenerationModal({ nodes, edges, onClose, onResult, pageC
     setGenerating(true);
     setError(null);
     setResultUrl(null);
+    setPageResults([]);
     setProgress(5);
 
     try {
-      if (genPlan.error) {
-        setError(genPlan.error);
-        toast.error(genPlan.error);
-        return;
+      const jobs = generationScope === "all" ? allJobs : [activeJob];
+      if (generationScope === "all") {
+        toast.info(`A gerar ${jobs.length} páginas: 1 imagem por página, com os blocos dentro de cada imagem.`, { duration: 7000 });
       }
 
-      const fd = new FormData();
-      fd.append("prompt_final", finalPrompt);
-      fd.append("aspect_ratio", aspect);
-      if (isComicSheet) {
-        fd.append("generation_mode", "comic_sheet");
-        fd.append("panel_count", String(panelCount));
-      }
-      fd.append("image_count", String(imageCount));
-      if (!usesDualRef) {
-        fd.append("model_key", model);
-      } else {
-        toast.info(
-          `Modo 2 personagens: ${genPlan.refSlots.map((s) => s.label).join(" + ")} (Qwen, identidade bloqueada)`,
-          { duration: 5000 },
-        );
-      }
+      const completed = [];
+      for (let index = 0; index < jobs.length; index += 1) {
+        const job = jobs[index];
+        const pageLabel = job.page?.name || `Page ${index + 1}`;
+        if (job.genPlan.error) throw new Error(`${pageLabel}: ${job.genPlan.error}`);
 
-      const missingRefs = await appendMangaRefsToFormData(fd, genPlan.refSlots);
-      if (dualCharRefs && missingRefs.length) {
-        const msg = `Falta a foto de referência: ${missingRefs.join(", ")}. Volta a carregar em cada card Personagem.`;
-        setError(msg);
-        toast.error(msg);
-        return;
-      }
-      if (missingRefs.length) {
-        const msg = `Não foi possível ler a foto de: ${missingRefs.join(", ")}. Volta a carregar a imagem de referência.`;
-        setError(msg);
-        toast.error(msg);
-        return;
-      }
+        const baseProgress = Math.round((index / jobs.length) * 100);
+        setProgress(Math.max(5, baseProgress));
 
-      if (genPlan.warning) toast.info(genPlan.warning);
-
-      if (isComicSheet) {
-        toast.info(
-          `Comic Sheet: ${panelCount} painéis sequenciais numa única página (orquestração semântica)`,
-          { duration: 6000 },
-        );
-      }
-
-      const graphWarnings = validateGraphForGeneration(nodes, semanticEdges);
-      graphWarnings.forEach((w) => toast.warning(w, { duration: 8000 }));
-
-      setProgress(15);
-
-      const endpoint = generateEndpoint || "/generate/manga-panel";
-      const { data: submitData } = await uploadPost(endpoint, fd, {
-        timeout: 120000,
-        headers: { "X-Skip-Auto-Poll": "1" },
-      });
-
-      setProgress(30);
-
-      if (!submitData?.prediction_id) {
-        const directUrl = submitData?.creation?.result_urls?.[0];
-        if (directUrl) {
-          setResultUrl(directUrl);
-          setProgress(100);
-          toast.success(`Generated! ${submitData?.credits_spent || 0} credits`);
-          if (onResult) onResult(directUrl);
-          return;
+        const fd = new FormData();
+        fd.append("prompt_final", job.finalPrompt);
+        fd.append("aspect_ratio", aspect);
+        if (job.isComicSheet) {
+          fd.append("generation_mode", "comic_sheet");
+          fd.append("panel_count", String(job.panelCount));
         }
-        throw new Error(submitData?.detail || "No prediction ID returned");
+        fd.append("image_count", "1");
+        if (!job.usesDualRef) {
+          fd.append("model_key", model);
+        } else {
+          toast.info(
+            `${pageLabel}: modo 2 personagens (${job.genPlan.refSlots.map((s) => s.label).join(" + ")})`,
+            { duration: 5000 },
+          );
+        }
+
+        const missingRefs = await appendMangaRefsToFormData(fd, job.genPlan.refSlots);
+        if (job.dualCharRefs && missingRefs.length) {
+          throw new Error(`${pageLabel}: falta a foto de referência: ${missingRefs.join(", ")}.`);
+        }
+        if (missingRefs.length) {
+          throw new Error(`${pageLabel}: não foi possível ler a foto de ${missingRefs.join(", ")}.`);
+        }
+
+        if (job.genPlan.warning) toast.info(`${pageLabel}: ${job.genPlan.warning}`);
+        if (job.isComicSheet) {
+          toast.info(`${pageLabel}: ${job.panelCount} blocos/painéis numa única imagem.`, { duration: 4000 });
+        }
+        validateGraphForGeneration(job.pageNodes, job.semanticEdges).forEach((w) => toast.warning(`${pageLabel}: ${w}`, { duration: 8000 }));
+
+        const endpoint = job.generateEndpoint || "/generate/manga-panel";
+        const { data: submitData } = await uploadPost(endpoint, fd, {
+          timeout: 120000,
+          headers: { "X-Skip-Auto-Poll": "1" },
+        });
+
+        let url = submitData?.creation?.result_urls?.[0];
+        if (!url) {
+          if (!submitData?.prediction_id) {
+            throw new Error(submitData?.detail || `${pageLabel}: no prediction ID returned`);
+          }
+          trackPendingPrediction(submitData.prediction_id, {
+            credits_spent: submitData.credits_spent || job.cost,
+            type: "manga",
+          });
+          const polled = await pollPrediction(submitData.prediction_id, {
+            credits_spent: submitData.credits_spent || job.cost,
+            type: "manga",
+            timeoutMs: 300000,
+            onTick: (sec) => {
+              const withinJob = Math.min(0.9, sec / 120);
+              setProgress(Math.min(98, Math.round(((index + withinJob) / jobs.length) * 100)));
+            },
+          });
+          url = polled?.creation?.result_urls?.[0];
+        }
+        if (!url) throw new Error(`${pageLabel}: generation finished but no image returned`);
+
+        const item = {
+          pageId: job.page?.id || `page-${index}`,
+          pageName: pageLabel,
+          pageNumber: job.pageContext?.activePageNumber || index + 1,
+          url,
+        };
+        completed.push(item);
+        setPageResults([...completed]);
+        setResultUrl(url);
+        if (onResult && jobs.length === 1) onResult(url);
       }
 
-      trackPendingPrediction(submitData.prediction_id, {
-        credits_spent: submitData.credits_spent || 15,
-        type: "manga",
-      });
-
-      setProgress(40);
-
-      const polled = await pollPrediction(submitData.prediction_id, {
-        credits_spent: submitData.credits_spent || 15,
-        type: "manga",
-        timeoutMs: 300000,
-        onTick: (sec) => setProgress(Math.min(90, 40 + Math.round((sec / 120) * 50))),
-      });
-
-      const url = polled?.creation?.result_urls?.[0];
-      if (!url) throw new Error("Generation finished but no image returned");
-
-      setResultUrl(url);
       setProgress(100);
-      toast.success(`Generated! ${polled?.creation?.credits_spent || submitData.credits_spent || 0} credits`);
-      if (onResult) onResult(url);
-      return;
+      toast.success(
+        generationScope === "all"
+          ? `Geradas ${completed.length} páginas/imagens.`
+          : "Página gerada!",
+      );
+      if (onPageResults) onPageResults(completed);
 
     } catch (err) {
       const msg = err?.response?.data?.detail || err?.message || "Generation failed";
@@ -249,19 +307,13 @@ export default function GenerationModal({ nodes, edges, onClose, onResult, pageC
       setGenerating(false);
     }
   }, [
-    finalPrompt,
     aspect,
     model,
-    imageCount,
-    genPlan,
-    usesDualRef,
-    dualCharRefs,
-    generateEndpoint,
+    generationScope,
+    activeJob,
+    allJobs,
     onResult,
-    nodes,
-    semanticEdges,
-    isComicSheet,
-    panelCount,
+    onPageResults,
   ]);
 
   const modal = (
@@ -279,10 +331,12 @@ export default function GenerationModal({ nodes, edges, onClose, onResult, pageC
             <div className="mfg-header__icon shrink-0"><Sparkles className="w-5 h-5" /></div>
             <div className="min-w-0">
               <h2 id="mfg-modal-title" className="mfg-header__title truncate">
-                {isComicSheet ? "Generate Comic Sheet" : isMultiPanelPage ? "Generate Manga Page" : "Generate Manga Panel"}
+                {generationScope === "all"
+                  ? `Generate ${totalPages} Manga Pages`
+                  : isComicSheet ? "Generate Comic Sheet" : isMultiPanelPage ? "Generate Manga Page" : "Generate Manga Panel"}
               </h2>
               <p className="mfg-header__sub line-clamp-2">
-                {nodes.length} cards · {edges.length} connections
+                {generationScope === "all" ? `${totalPages} páginas/imagens` : `${nodes.length} cards · ${edges.length} connections`}
                 {isComicSheet && <> · {panelCount} panels · semantic orchestration</>}
                 {genPlan.refSlots.length > 0 && (
                   <> · {genPlan.refSlots.length} ref{genPlan.refSlots.length > 1 ? "s" : ""}{usesDualRef ? " (2-image mode)" : ""}</>
@@ -336,9 +390,50 @@ export default function GenerationModal({ nodes, edges, onClose, onResult, pageC
                 <pre className="mfg-prompt-text">{finalPrompt}</pre>
               </div>
             )}
+
+            {pageResults.length > 0 && (
+              <div className="mfg-page-results" data-testid="manga-page-results">
+                <p className="mfg-page-results__title">Páginas geradas</p>
+                {pageResults.map((item) => (
+                  <a
+                    key={item.pageId}
+                    href={item.url}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="mfg-page-result"
+                  >
+                    <img src={item.url} alt={item.pageName} crossOrigin="anonymous" />
+                    <span>Página {item.pageNumber}: {item.pageName}</span>
+                  </a>
+                ))}
+              </div>
+            )}
           </div>
 
           <div className="mfg-settings mfg-body__settings">
+            {canGenerateAllPages && (
+              <div className="mfg-section">
+                <h3 className="mfg-section__title">Generation Scope</h3>
+                <div className="mfg-scope-toggle" data-testid="manga-generation-scope">
+                  <button
+                    type="button"
+                    className={`mfg-scope-btn ${generationScope === "current" ? "mfg-scope-btn--active" : ""}`}
+                    onClick={() => setGenerationScope("current")}
+                  >
+                    Página atual
+                    <span>1 imagem · {currentPageCost} créditos</span>
+                  </button>
+                  <button
+                    type="button"
+                    className={`mfg-scope-btn ${generationScope === "all" ? "mfg-scope-btn--active" : ""}`}
+                    onClick={() => setGenerationScope("all")}
+                  >
+                    Todas as páginas
+                    <span>{totalPages} imagens · {allPagesEstimate} créditos</span>
+                  </button>
+                </div>
+              </div>
+            )}
             {isComicSheet && (
               <div className="mfg-orchestration-banner" data-testid="comic-sheet-banner">
                 <BookOpen className="w-4 h-4 shrink-0" />
@@ -355,9 +450,11 @@ export default function GenerationModal({ nodes, edges, onClose, onResult, pageC
               <Chips label="AI Model" options={MODELS} value={model} onChange={setModel} />
               <Chips label="Quality" options={QUALITY} value={quality} onChange={setQuality} />
               <div className="mfg-cost-note" data-testid="manga-generation-cost">
-                <strong>{currentPageCost} créditos</strong> por esta página/imagem
+                <strong>{generationScope === "all" ? allPagesEstimate : currentPageCost} créditos</strong>
+                {generationScope === "all" ? ` para ${totalPages} páginas/imagens` : " por esta página/imagem"}
                 <span>
-                  {perImageCost} créditos × {imageCount} imagem. Se renderizares todas as {totalPages} páginas deste projeto: {allPagesEstimate} créditos.
+                  Página = 1 imagem final. Blocos/painéis ficam dentro da página.
+                  {canGenerateAllPages && generationScope !== "all" ? ` Todas as ${totalPages} páginas: ${allPagesEstimate} créditos.` : ""}
                 </span>
               </div>
               <Chips label="Aspect Ratio" options={ASPECTS} value={aspect} onChange={setAspect} />
@@ -393,7 +490,9 @@ export default function GenerationModal({ nodes, edges, onClose, onResult, pageC
             data-testid={isComicSheet ? "generate-comic-sheet-btn" : "generate-manga-btn"}
           >
             {generating ? (
-              <><Loader2 className="w-5 h-5 animate-spin" /> Generating...</>
+              <><Loader2 className="w-5 h-5 animate-spin" /> {generationScope === "all" ? `Generating pages...` : "Generating..."}</>
+            ) : generationScope === "all" ? (
+              <><BookOpen className="w-5 h-5" /> Generate {totalPages} Pages ({totalPages} images)</>
             ) : isComicSheet ? (
               <><BookOpen className="w-5 h-5" /> Generate Comic Sheet</>
             ) : (
@@ -402,8 +501,8 @@ export default function GenerationModal({ nodes, edges, onClose, onResult, pageC
           </button>
 
           {resultUrl && (
-            <a href={resultUrl} download="manga-comic-sheet.png" target="_blank" rel="noreferrer" className="mfg-download-btn">
-              <Download className="w-4 h-4" /> Download Comic Sheet
+            <a href={resultUrl} download="manga-page.png" target="_blank" rel="noreferrer" className="mfg-download-btn">
+              <Download className="w-4 h-4" /> Download latest page
             </a>
           )}
         </div>

@@ -1127,7 +1127,7 @@ function Editor(props) {
             hint={t("post_sec_engine_hint")}
             helpKey="help_sec_post_engine"
           >
-            <div className="mb-3 flex flex-col sm:flex-row sm:items-center gap-2 rounded-xl border border-[#2E2E30] bg-[#0E0E12]/80 px-3 py-2.5 text-[11px] leading-relaxed">
+            <div className="mb-3 flex flex-col sm:flex-row sm:items-center gap-2 rounded-xl border border-[#FACC15]/25 bg-[#1a1505]/55 px-3 py-2.5 text-[11px] leading-relaxed">
               <span className="inline-flex items-center gap-1.5 text-[#C4B5FD] font-medium shrink-0">
                 <span className="w-2 h-2 rounded-full bg-[#A855F7]" aria-hidden />
                 {t("post_wallet_standard")}
@@ -1139,6 +1139,9 @@ function Editor(props) {
               </span>
               <span className="text-[#8A8A8E] sm:ml-auto">{t("post_sec_engine_wallets")}</span>
             </div>
+            <p className="mb-3 rounded-xl border border-[#FACC15]/30 bg-[#FACC15]/10 px-3 py-2 text-[#FACC15] text-[12px] leading-relaxed">
+              {t("post_hq_clear_hint")}
+            </p>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3" data-testid="poster-models">
               {modelsForPicker.map((m) => {
                 const Icon = MODEL_ICONS[m.key] || Zap;

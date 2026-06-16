@@ -38,8 +38,9 @@ const en = {
 
   bill_hq_eyebrow: "Poster HQ credits",
   bill_hq_title: "High-quality posters",
-  bill_hq_subtitle: "Separate wallet for poster High Quality engine only — like premium currency in games. Standard credits do not work here.",
-  bill_hq_balance_label: "HQ balance",
+  bill_hq_subtitle: "Separate wallet for the poster High quality engine only. If you choose High quality in Posters, this is the balance it uses.",
+  bill_hq_balance_label: "HQ credits",
+  bill_hq_balance_hint: "For poster High quality",
   bill_hq_credits_count: "{n} HQ credits",
   bill_hq_credits_unlimited: "∞ HQ credits",
   bill_hq_per_gen: "50 créditos HQ = 1 poster alta qualidade",
@@ -127,8 +128,9 @@ const pt = {
 
   bill_hq_eyebrow: "Créditos HQ posters",
   bill_hq_title: "Posters alta qualidade",
-  bill_hq_subtitle: "Carteira separada só para o motor Alta qualidade em Posters — como créditos premium num jogo. Os créditos normais não funcionam aqui.",
-  bill_hq_balance_label: "Saldo HQ",
+  bill_hq_subtitle: "Carteira separada só para o motor Alta qualidade dos Posters. Se escolheres Alta qualidade, é este saldo que será usado.",
+  bill_hq_balance_label: "Créditos HQ",
+  bill_hq_balance_hint: "Para Alta qualidade dos Posters",
   bill_hq_credits_count: "{n} créditos HQ",
   bill_hq_credits_unlimited: "∞ créditos HQ",
   bill_hq_per_gen: "50 créditos HQ = 1 poster alta qualidade",

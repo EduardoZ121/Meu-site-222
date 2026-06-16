@@ -79,14 +79,15 @@ export default function StudioTopBar({ titleKey }) {
         {showHqBadge && (
           <Link
             to="/app/billing"
-            className="flex items-center gap-1 px-1.5 sm:px-2.5 py-1.5 rounded-full border border-[#FACC15]/30 bg-[#FACC15]/5 hover:border-[#FACC15]/50 transition-colors min-w-0"
+            className="flex items-center gap-1 px-1.5 sm:px-2.5 py-1.5 rounded-full border border-[#FACC15]/40 bg-[#FACC15]/10 hover:border-[#FACC15]/60 transition-colors min-w-0 shadow-[0_0_24px_-14px_rgba(250,204,21,0.7)]"
             data-testid="studio-hq-credits-badge"
             title={hqLabel}
           >
             <Crown className="w-3 h-3 text-[#FACC15] shrink-0" strokeWidth={1.75} />
-            <span className="text-[9px] sm:text-[10px] font-mono uppercase tracking-wider text-[#FACC15]/80 max-w-[48px] sm:max-w-none truncate">
-              {onPosters ? hqLabel : (t("label_hq_credits_short") || "HQ")}
+            <span className="text-[9px] sm:text-[10px] font-mono uppercase tracking-wider text-[#FACC15]/85 max-w-[76px] sm:max-w-none truncate">
+              {onPosters ? t("header_hq_credits") : (t("label_hq_credits_short") || "HQ")}
             </span>
+            {onPosters && <span className="text-[#FACC15]/40 text-xs">:</span>}
             <span className="text-[#FACC15] text-sm font-mono font-semibold tabular-nums">
               {user?.is_unlimited ? "∞" : user?.premium_credits ?? 0}
             </span>

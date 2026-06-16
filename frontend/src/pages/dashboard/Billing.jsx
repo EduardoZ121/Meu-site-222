@@ -297,7 +297,7 @@ export default function Billing() {
             )}
           </div>
         </div>
-        <div className="inline-flex items-center gap-3 px-5 py-3 rounded-xl border border-[#FACC15]/35 bg-gradient-to-r from-[#FACC15]/10 to-[#F59E0B]/5 backdrop-blur-md" data-testid="hq-balance">
+        <div className="inline-flex items-center gap-3 px-5 py-3 rounded-xl border border-[#FACC15]/50 bg-gradient-to-r from-[#FACC15]/15 to-[#F59E0B]/10 backdrop-blur-md shadow-[0_0_42px_-18px_rgba(250,204,21,0.65)]" data-testid="hq-balance">
           <Crown className="w-5 h-5 text-[#FACC15]" strokeWidth={1.5} />
           <div>
             <p className="text-[10px] font-mono uppercase tracking-[0.18em] text-[#FACC15]">{t("bill_hq_balance_label")}</p>
@@ -306,6 +306,7 @@ export default function Billing() {
                 ? t("bill_hq_credits_unlimited")
                 : t("bill_hq_credits_count", { n: user?.premium_credits ?? 0 })}
             </p>
+            <p className="text-[#FACC15]/75 text-[11px] font-mono mt-1">{t("bill_hq_balance_hint")}</p>
           </div>
         </div>
       </div>
@@ -536,11 +537,16 @@ export default function Billing() {
       </section>
 
       {/* === HQ Poster credits === */}
-      <section className="mb-20">
+      <section className="mb-20 rounded-3xl border border-[#FACC15]/35 bg-gradient-to-br from-[#1a1505]/80 via-rp-surface/70 to-rp-bg p-5 md:p-7 shadow-[0_0_70px_-36px_rgba(250,204,21,0.7)]">
         <p className="text-[10px] font-mono uppercase tracking-[0.22em] text-[#FACC15] mb-3">{t("bill_hq_eyebrow")}</p>
-        <h2 className="text-rp-text text-[28px] font-semibold tracking-tight mb-3">{t("bill_hq_title")}</h2>
-        <p className="text-rp-mute text-[14px] max-w-[640px] mb-2">{t("bill_hq_subtitle")}</p>
-        <p className="text-[#FACC15]/80 text-[12px] font-mono uppercase tracking-[0.12em] mb-8">{t("bill_hq_per_gen")}</p>
+        <div className="flex flex-wrap items-center gap-3 mb-3">
+          <h2 className="text-rp-text text-[28px] font-semibold tracking-tight">{t("bill_hq_title")}</h2>
+          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full border border-[#FACC15]/35 bg-[#FACC15]/10 text-[#FACC15] text-[10px] font-mono uppercase tracking-[0.14em]">
+            <Crown className="w-3 h-3" strokeWidth={1.75} /> {t("post_engine_premium")}
+          </span>
+        </div>
+        <p className="text-rp-mute text-[14px] max-w-[720px] mb-2">{t("bill_hq_subtitle")}</p>
+        <p className="text-[#FACC15]/90 text-[12px] font-mono uppercase tracking-[0.12em] mb-8">{t("bill_hq_per_gen")}</p>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
           {hqPkgs.map((p) => {
             const isPopular = p.badge === "popular";

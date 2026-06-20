@@ -1,6 +1,20 @@
 import { useEffect, useMemo, useState } from "react";
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
+import { useAuth } from "../lib/auth";
+import {
+  addMarketplaceHistory,
+  createMarketplaceListing,
+  getMarketplaceChats,
+  getMarketplaceFavorites,
+  getMarketplaceHistory,
+  getMarketplaceListings,
+  getMarketplaceProfile,
+  getMarketplaceZoneStats,
+  sendMarketplaceChat,
+  setMarketplaceFavorite,
+  updateMarketplaceProfile,
+} from "../lib/marketplaceApi";
 
 const STORAGE_KEYS = {
   profile: "kuteka.market.profile",
@@ -152,6 +166,7 @@ function parseStorage(key, fallback) {
 }
 
 export default function MarketplaceAngola() {
+  const { user } = useAuth();
   const [profile, setProfile] = useState(() =>
     parseStorage(STORAGE_KEYS.profile, {
       name: "",
@@ -170,6 +185,9 @@ export default function MarketplaceAngola() {
   const [selected, setSelected] = useState(null);
   const [chatByListing, setChatByListing] = useState({});
   const [chatInput, setChatInput] = useState("");
+  const [zoneStats, setZoneStats] = useState([]);
+  const [apiReady, setApiReady] = useState(false);
+  const [savingProfile, setSavingProfile] = useState(false);
   const [listingForm, setListingForm] = useState(emptyListing);
   const [filters, setFilters] = useState({
     category: "Todos",
@@ -201,6 +219,45 @@ export default function MarketplaceAngola() {
   useEffect(() => {
     localStorage.setItem(STORAGE_KEYS.history, JSON.stringify(history));
   }, [history]);
+
+  useEffect(() => {
+    let mounted = true;
+    async function loadRemote() {
+      try {
+        const [remoteProfile, remoteListings, remoteFavorites, remoteHistory, remoteZones] = await Promise.all([
+          getMarketplaceProfile(),
+          getMarketplaceListings(),
+          getMarketplaceFavorites(),
+          getMarketplaceHistory(),
+          getMarketplaceZoneStats(),
+        ]);
+        if (!mounted) return;
+        if (remoteProfile) {
+          setProfile((prev) => ({
+            ...prev,
+            name: remoteProfile.name || prev.name,
+            email: remoteProfile.email || prev.email,
+            phone: remoteProfile.phone || prev.phone,
+            type: remoteProfile.account_type || prev.type,
+            verifiedProfile: Boolean(remoteProfile.verified_profile),
+            verifiedPhone: Boolean(remoteProfile.verified_phone),
+            verifiedDocument: Boolean(remoteProfile.verified_document),
+          }));
+        }
+        if (Array.isArray(remoteListings) && remoteListings.length) setListings(normalizeRemoteListings(remoteListings));
+        if (Array.isArray(remoteFavorites)) setFavorites(remoteFavorites);
+        if (Array.isArray(remoteHistory) && remoteHistory.length) setHistory(remoteHistory.map((h) => h.id));
+        if (Array.isArray(remoteZones)) setZoneStats(remoteZones);
+        setApiReady(true);
+      } catch {
+        setApiReady(false);
+      }
+    }
+    if (user) loadRemote();
+    return () => {
+      mounted = false;
+    };
+  }, [user]);
 
   const filtered = useMemo(() => {
     return listings.filter((l) => {
@@ -256,7 +313,27 @@ export default function MarketplaceAngola() {
     });
   }
 
-  function submitListing(e) {
+  async function saveProfile() {
+    if (!user) return;
+    setSavingProfile(true);
+    try {
+      await updateMarketplaceProfile({
+        name: profile.name,
+        phone: profile.phone,
+        account_type: profile.type,
+        verified_profile: profile.verifiedProfile,
+        verified_phone: profile.verifiedPhone,
+        verified_document: profile.verifiedDocument,
+      });
+      setApiReady(true);
+    } catch {
+      setApiReady(false);
+    } finally {
+      setSavingProfile(false);
+    }
+  }
+
+  async function submitListing(e) {
     e.preventDefault();
     if (!profile.name || !profile.phone) return;
     const base = {
@@ -302,19 +379,60 @@ export default function MarketplaceAngola() {
           };
 
     setListings((prev) => [payload, ...prev]);
+    try {
+      await createMarketplaceListing(remotePayload(payload));
+      const [remoteListings, remoteZones] = await Promise.all([
+        getMarketplaceListings(filters),
+        getMarketplaceZoneStats(),
+      ]);
+      if (remoteListings?.length) setListings(normalizeRemoteListings(remoteListings));
+      if (remoteZones?.length) setZoneStats(remoteZones);
+      setApiReady(true);
+    } catch {
+      setApiReady(false);
+    }
     setListingForm(emptyListing);
   }
 
-  function openListing(listing) {
+  async function openListing(listing) {
     setSelected(listing);
     setHistory((prev) => {
       const next = [listing.id, ...prev.filter((id) => id !== listing.id)].slice(0, 20);
       return next;
     });
+    try {
+      await addMarketplaceHistory(listing.id);
+      const [historyItemsRemote, messagesRemote] = await Promise.all([
+        getMarketplaceHistory(),
+        getMarketplaceChats(listing.id),
+      ]);
+      if (historyItemsRemote?.length) setHistory(historyItemsRemote.map((h) => h.id));
+      if (Array.isArray(messagesRemote)) {
+        setChatByListing((prev) => ({
+          ...prev,
+          [listing.id]: messagesRemote.map((m) => ({
+            who: m.sender_name || "Utilizador",
+            text: m.text,
+            at: new Date(m.created_at).toLocaleTimeString("pt-PT", { hour: "2-digit", minute: "2-digit" }),
+          })),
+        }));
+      }
+      setApiReady(true);
+    } catch {
+      setApiReady(false);
+    }
   }
 
-  function toggleFavorite(id) {
-    setFavorites((prev) => (prev.includes(id) ? prev.filter((v) => v !== id) : [...prev, id]));
+  async function toggleFavorite(id) {
+    const shouldFavorite = !favorites.includes(id);
+    setFavorites((prev) => (shouldFavorite ? [...prev, id] : prev.filter((v) => v !== id)));
+    try {
+      const remote = await setMarketplaceFavorite(id, shouldFavorite);
+      setFavorites(remote);
+      setApiReady(true);
+    } catch {
+      setApiReady(false);
+    }
   }
 
   function toggleCompare(id) {
@@ -325,16 +443,23 @@ export default function MarketplaceAngola() {
     });
   }
 
-  function sendChat() {
+  async function sendChat() {
     if (!selected || !chatInput.trim()) return;
+    const messageText = chatInput.trim();
     setChatByListing((prev) => ({
       ...prev,
       [selected.id]: [
         ...(prev[selected.id] || []),
-        { who: "Comprador", text: chatInput.trim(), at: new Date().toLocaleTimeString("pt-PT", { hour: "2-digit", minute: "2-digit" }) },
+        { who: profile.name || "Comprador", text: messageText, at: new Date().toLocaleTimeString("pt-PT", { hour: "2-digit", minute: "2-digit" }) },
       ],
     }));
     setChatInput("");
+    try {
+      await sendMarketplaceChat(selected.id, messageText, profile.name || "Comprador");
+      setApiReady(true);
+    } catch {
+      setApiReady(false);
+    }
   }
 
   const compareItems = compare.map((id) => listings.find((l) => l.id === id)).filter(Boolean);
@@ -351,6 +476,9 @@ export default function MarketplaceAngola() {
           <p className="body-text max-w-3xl">
             Implementação com tipos de utilizador, verificação, anúncios de imóveis e veículos, filtros por localização, chat interno, WhatsApp,
             favoritos, comparação, histórico e painel de monetização.
+          </p>
+          <p className={`text-xs mt-3 ${apiReady ? "text-emerald-400" : "text-yellow-400"}`}>
+            {apiReady ? "Backend marketplace ativo" : "Modo fallback local (backend indisponível)"}
           </p>
         </section>
 
@@ -369,6 +497,11 @@ export default function MarketplaceAngola() {
               <Toggle label="Perfil verificado" checked={profile.verifiedProfile} onToggle={() => setProfile((p) => ({ ...p, verifiedProfile: !p.verifiedProfile }))} />
               <Toggle label="Telefone verificado" checked={profile.verifiedPhone} onToggle={() => setProfile((p) => ({ ...p, verifiedPhone: !p.verifiedPhone }))} />
               <Toggle label="Documento validado (opcional)" checked={profile.verifiedDocument} onToggle={() => setProfile((p) => ({ ...p, verifiedDocument: !p.verifiedDocument }))} />
+            </div>
+            <div className="mt-4">
+              <button className="btn-primary" onClick={saveProfile} type="button" disabled={savingProfile}>
+                {savingProfile ? "A guardar..." : "Guardar perfil no backend"}
+              </button>
             </div>
           </div>
 
@@ -529,7 +662,7 @@ export default function MarketplaceAngola() {
           <div className="bg-rp-surface border border-rp-border p-5 rounded-2xl">
             <h3 className="font-heading text-2xl mb-3">Relatório de preços médios por zona</h3>
             <div className="space-y-2">
-              {avgByZone.map((r) => (
+              {(zoneStats.length ? zoneStats : avgByZone).map((r) => (
                 <div key={r.zone} className="flex justify-between text-sm border-b border-rp-border pb-2">
                   <span>{r.zone}</span>
                   <span>{formatKz(r.avg)} ({r.count} anúncios)</span>
@@ -606,4 +739,65 @@ function TrustBadge({ listing }) {
 
 function formatKz(value) {
   return new Intl.NumberFormat("pt-AO", { style: "currency", currency: "AOA", maximumFractionDigits: 0 }).format(Number(value || 0));
+}
+
+function remotePayload(listing) {
+  return {
+    category: listing.category,
+    operation: listing.operation,
+    title: listing.title,
+    price: listing.price,
+    province: listing.province,
+    municipality: listing.municipality,
+    neighborhood: listing.neighborhood,
+    description: listing.description,
+    property_type: listing.propertyType,
+    bedrooms: listing.bedrooms,
+    bathrooms: listing.bathrooms,
+    area: listing.area,
+    brand: listing.brand,
+    model: listing.model,
+    year: listing.year,
+    mileage: listing.mileage,
+    fuel: listing.fuel,
+    gearbox: listing.gearbox,
+    condition: listing.condition,
+    lat: listing.lat,
+    lng: listing.lng,
+  };
+}
+
+function normalizeRemoteListings(rows = []) {
+  return rows.map((l) => ({
+    id: l.id,
+    category: l.category,
+    operation: l.operation,
+    propertyType: l.property_type,
+    title: l.title,
+    price: l.price,
+    province: l.province,
+    municipality: l.municipality,
+    neighborhood: l.neighborhood,
+    bedrooms: l.bedrooms,
+    bathrooms: l.bathrooms,
+    area: l.area,
+    ownerName: l.owner_name,
+    ownerType: l.owner_type,
+    phone: l.owner_phone,
+    verifiedProfile: l.verified_profile,
+    verifiedPhone: l.verified_phone,
+    verifiedDocument: l.verified_document,
+    trustSeal: l.trust_seal,
+    description: l.description,
+    lat: l.lat,
+    lng: l.lng,
+    createdAt: l.created_at,
+    brand: l.brand,
+    model: l.model,
+    year: l.year,
+    mileage: l.mileage,
+    fuel: l.fuel,
+    gearbox: l.gearbox,
+    condition: l.condition,
+  }));
 }

@@ -15,6 +15,7 @@ import Register from "./pages/Register";
 import ForgotPassword from "./pages/ForgotPassword";
 import ResetPassword from "./pages/ResetPassword";
 import Explore from "./pages/Explore";
+import MarketplaceAngola from "./pages/MarketplaceAngola";
 import DashboardLayout from "./pages/dashboard/Layout";
 import HubMainLayout from "./layouts/HubMainLayout";
 import StudioWorkspaceLayout from "./layouts/StudioWorkspaceLayout";
@@ -118,6 +119,7 @@ function App() {
               <Route path="/forgot-password" element={<ForgotPassword />} />
               <Route path="/reset-password" element={<ResetPassword />} />
               <Route path="/explore" element={<Explore />} />
+              <Route path="/marketplace-angola" element={<MarketplaceAngola />} />
               <Route path="/legal/:section" element={<Legal />} />
               <Route path="/legal" element={<Navigate to="/legal/terms" replace />} />
               <Route path="/studio" element={<Navigate to="/app/studio" replace />} />

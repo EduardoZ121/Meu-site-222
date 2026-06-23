@@ -1,2 +1,2 @@
 "use strict";
-module.exports = "upload-generate-v11";
+module.exports = "guest-access-v1";

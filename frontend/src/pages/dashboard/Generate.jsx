@@ -366,6 +366,7 @@ export default function Generate() {
         label={ctaLabel}
         busyLabel={progress > 0 ? t("studio_generating", { n: progress }) : t("studio_sending")}
         hint={gateHint}
+        cost={cost}
         testId="generate-button"
         costMeta={<StudioGenerateCostMeta cost={cost} user={user} />}
       />

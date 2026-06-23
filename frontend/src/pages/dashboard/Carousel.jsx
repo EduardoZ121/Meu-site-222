@@ -665,6 +665,7 @@ export default function CarouselPage() {
         label={`${isPanoramic ? t("car_gen_panoramic") : t("car_gen_slides")} · ${totalCost} ${t("credits")}`}
         busyLabel={slideProgress.label || t("car_generating")}
         hint={carHint}
+        cost={totalCost}
         testId="carousel-generate"
         costMeta={(
           <StudioGenerateCostMeta

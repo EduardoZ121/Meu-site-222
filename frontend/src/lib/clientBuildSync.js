@@ -8,6 +8,33 @@ import { CLIENT_BUILD_ID } from "./buildInfo";
 const LS_AUTO_RELOAD = "rp_build_auto_reload";
 const LS_TOAST_SHOWN = "rp_build_toast_shown";
 
+/** Bump when auth routing changes so browsers drop stale /app RequireAuth bundles. */
+export const ROUTING_EPOCH = "guest-access-v1";
+
+export async function ensureRoutingEpoch() {
+  if (typeof window === "undefined") return;
+  const key = "rp_routing_epoch";
+  if (localStorage.getItem(key) === ROUTING_EPOCH) return;
+  localStorage.setItem(key, ROUTING_EPOCH);
+  try {
+    if ("serviceWorker" in navigator) {
+      const regs = await navigator.serviceWorker.getRegistrations();
+      await Promise.all(regs.map((reg) => reg.unregister()));
+    }
+    if (typeof caches !== "undefined") {
+      const keys = await caches.keys();
+      await Promise.all(keys.map((k) => caches.delete(k)));
+    }
+  } catch {
+    /* ignore */
+  }
+  const u = new URL(window.location.href);
+  if (!u.searchParams.has("rp_route_bust")) {
+    u.searchParams.set("rp_route_bust", ROUTING_EPOCH);
+    window.location.replace(u.toString());
+  }
+}
+
 function storageKey(prefix, serverBuild) {
   return `${prefix}:${serverBuild}`;
 }

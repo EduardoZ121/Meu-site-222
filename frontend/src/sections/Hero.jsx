@@ -12,7 +12,7 @@ const EASE = [0.16, 1, 0.3, 1];
 export default function Hero() {
   const { t } = useI18n();
   const { user } = useAuth();
-  const primaryHref = user ? "/app/tools" : "/register";
+  const primaryHref = "/app/tools";
   const primaryLabel = user
     ? t("nav_open_app")
     : t("hero_cta_primary");

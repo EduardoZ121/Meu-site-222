@@ -285,6 +285,7 @@ export default function ToolFrame({
         busyLabel={t("tool_generating")}
         hint={hint}
         blockedNotify={photoUploading ? "message" : "error"}
+        cost={billedCost}
         testId={`${testId}-create-btn`}
         costMeta={<StudioGenerateCostMeta cost={billedCost} user={user} />}
       />

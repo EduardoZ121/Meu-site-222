@@ -262,6 +262,7 @@ export default function Colorize() {
         label={t("colorize_btn", { n: cost })}
         busyLabel={t("colorize_processing")}
         hint={hint}
+        cost={cost}
         testId="colorize-create-btn"
         costMeta={<StudioGenerateCostMeta cost={cost} user={user} />}
       />

@@ -1,6 +1,10 @@
 import { Loader2, Sparkles } from "lucide-react";
 import { motion } from "framer-motion";
+import { useLocation, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
+import { useAuth } from "../lib/auth";
+import { useI18n } from "../lib/i18n";
+import { redirectForGenerateAccess, resolveGenerateAccess } from "../lib/studioGenerateAccess";
 
 /**
  * Botão Gerar unificado — todas as sessões do estúdio.
@@ -23,7 +27,16 @@ export default function StudioGenerateBar({
   icon: Icon = Sparkles,
   /** Quando o botão está bloqueado (ex.: upload), usar toast.message em vez de error. */
   blockedNotify = "error",
+  /** Créditos desta geração — usado para login/comprar créditos ao clicar Gerar. */
+  cost = 0,
+  gateOnGenerate = true,
+  canAffordCheck = null,
 }) {
+  const { user } = useAuth();
+  const navigate = useNavigate();
+  const location = useLocation();
+  const { t } = useI18n();
+
   const handleClick = async () => {
     if (busy) return;
     if (!ready) {
@@ -32,6 +45,13 @@ export default function StudioGenerateBar({
         notify(hint, { duration: 7000 });
       }
       return;
+    }
+    if (gateOnGenerate) {
+      const access = resolveGenerateAccess(user, cost, { canAfford: canAffordCheck });
+      if (access !== "proceed") {
+        redirectForGenerateAccess(navigate, location, access, { t, toast });
+        return;
+      }
     }
     try {
       await Promise.resolve(onClick?.());

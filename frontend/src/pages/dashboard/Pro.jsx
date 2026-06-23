@@ -295,6 +295,7 @@ export default function Pro() {
         busyLabel={t("pro_loading")}
         hint={hint}
         blockedNotify={photoUploading ? "message" : "error"}
+        cost={cost}
         testId="pro-create"
         costMeta={<StudioGenerateCostMeta cost={cost} user={user} />}
       />

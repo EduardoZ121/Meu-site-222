@@ -35,8 +35,6 @@ export default function HubMainLayout() {
     };
   }, [onScroll]);
 
-  if (!user) return null;
-
   return (
     <div className="flex-1 min-w-0 flex flex-col min-h-0 h-full" data-testid="hub-main-layout">
       <motion.header
@@ -68,22 +66,43 @@ export default function HubMainLayout() {
         </div>
 
         <div className="flex items-center gap-3 md:gap-4">
-          <Link
-            to="/app/billing"
-            className="group flex items-center gap-2 px-3.5 py-2 rounded-full border border-[#9333EA]/25 bg-white/[0.06] backdrop-blur-md hover:border-[#A855F7]/50 hover:shadow-[0_0_28px_-8px_rgba(168,85,247,0.5)] transition-all duration-300"
-            data-testid="credits-badge"
-          >
-            <span className="text-[10px] font-mono uppercase tracking-wider text-white/50 group-hover:text-white/70">
-              {t("header.credits")}
-            </span>
-            <span
-              className="text-rp-gold text-base font-semibold leading-none tabular-nums"
-              data-testid="credits-value"
-            >
-              {user.is_unlimited ? "∞" : user.credits}
-            </span>
-          </Link>
-          <DashboardProfileMenu />
+          {user ? (
+            <>
+              <Link
+                to="/app/billing"
+                className="group flex items-center gap-2 px-3.5 py-2 rounded-full border border-[#9333EA]/25 bg-white/[0.06] backdrop-blur-md hover:border-[#A855F7]/50 hover:shadow-[0_0_28px_-8px_rgba(168,85,247,0.5)] transition-all duration-300"
+                data-testid="credits-badge"
+              >
+                <span className="text-[10px] font-mono uppercase tracking-wider text-white/50 group-hover:text-white/70">
+                  {t("header.credits")}
+                </span>
+                <span
+                  className="text-rp-gold text-base font-semibold leading-none tabular-nums"
+                  data-testid="credits-value"
+                >
+                  {user.is_unlimited ? "∞" : user.credits}
+                </span>
+              </Link>
+              <DashboardProfileMenu />
+            </>
+          ) : (
+            <>
+              <Link
+                to="/login"
+                className="text-sm font-medium text-white/80 hover:text-white px-3 py-2 rounded-lg hover:bg-white/[0.06] transition-colors"
+                data-testid="hub-login"
+              >
+                {t("nav_login")}
+              </Link>
+              <Link
+                to="/register"
+                className="text-sm font-semibold text-white px-3.5 py-2 rounded-full border border-[#9333EA]/40 bg-[#9333EA]/15 hover:bg-[#9333EA]/25 transition-colors"
+                data-testid="hub-register"
+              >
+                {t("nav_signup")}
+              </Link>
+            </>
+          )}
         </div>
       </motion.header>
 

@@ -1,4 +1,4 @@
-import { Outlet, NavLink, useNavigate, useLocation } from "react-router-dom";
+import { Outlet, NavLink, useNavigate, useLocation, Link } from "react-router-dom";
 import { isWorkspacePath } from "../../lib/dashboardRouteMode";
 import { useAuth } from "../../lib/auth";
 import { isAdminUser } from "../../lib/isAdmin";
@@ -172,8 +172,6 @@ export default function DashboardLayout() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  if (!user) return null;
-
   let linkIndex = 0;
 
   const SidebarContent = ({ onClick }) => (
@@ -212,7 +210,7 @@ export default function DashboardLayout() {
             })}
           </motion.div>
         ))}
-        {user.role === "admin" && (
+        {user?.role === "admin" && (
           <motion.div className="mb-8" layout>
             <SidebarSectionLabel testId="sidebar-section-admin">
               {t("sidebar_admin_section")}
@@ -228,16 +226,35 @@ export default function DashboardLayout() {
           </motion.div>
         )}
       </nav>
-      <motion.button
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ delay: flatLinks.length * 0.05 + 0.1 }}
-        onClick={() => { logout(); navigate("/"); }}
-        className="mt-6 flex items-center gap-3 border-t border-white/[0.06] pt-6 text-sm font-medium text-zinc-400 transition-all duration-300 hover:text-white"
-        data-testid="sidebar-logout"
-      >
-        <LogOut className="h-5 w-5 shrink-0 text-zinc-500" strokeWidth={1.75} /> {t("btn_logout")}
-      </motion.button>
+      {user ? (
+        <motion.button
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: flatLinks.length * 0.05 + 0.1 }}
+          onClick={() => { logout(); navigate("/"); }}
+          className="mt-6 flex items-center gap-3 border-t border-white/[0.06] pt-6 text-sm font-medium text-zinc-400 transition-all duration-300 hover:text-white"
+          data-testid="sidebar-logout"
+        >
+          <LogOut className="h-5 w-5 shrink-0 text-zinc-500" strokeWidth={1.75} /> {t("btn_logout")}
+        </motion.button>
+      ) : (
+        <div className="mt-6 flex flex-col gap-2 border-t border-white/[0.06] pt-6">
+          <Link
+            to="/login"
+            className="inline-flex items-center justify-center rounded-xl border border-[#9333EA]/40 bg-[#9333EA]/15 px-4 py-2.5 text-sm font-semibold text-white hover:bg-[#9333EA]/25 transition-colors"
+            data-testid="sidebar-login"
+          >
+            {t("nav_login")}
+          </Link>
+          <Link
+            to="/register"
+            className="inline-flex items-center justify-center rounded-xl border border-white/10 px-4 py-2.5 text-sm font-medium text-zinc-300 hover:text-white hover:border-white/20 transition-colors"
+            data-testid="sidebar-register"
+          >
+            {t("nav_signup")}
+          </Link>
+        </div>
+      )}
     </div>
   );
 

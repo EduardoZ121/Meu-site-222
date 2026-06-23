@@ -384,6 +384,8 @@ export default function MotionFlyer() {
 
         hint={hint}
 
+        cost={cost}
+
         testId="mfly-generate-btn"
 
         costMeta={<StudioGenerateCostMeta cost={cost} user={user} />}

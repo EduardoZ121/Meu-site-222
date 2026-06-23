@@ -1,6 +1,6 @@
 import "./App.css";
 import { useEffect } from "react";
-import { BrowserRouter, Routes, Route, Navigate, useLocation, useNavigate } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate, useLocation, useNavigate, Outlet } from "react-router-dom";
 import { Toaster } from "sonner";
 import { toast } from "sonner";
 import { AuthProvider, useAuth } from "./lib/auth";
@@ -61,7 +61,7 @@ function PwaStartupRedirect() {
       return;
     }
     if (!user && path === "/") {
-      navigate("/login", { replace: true });
+      navigate("/app/tools", { replace: true });
     }
   }, [user, loading, location.pathname, navigate]);
 
@@ -86,7 +86,7 @@ function BackgroundGenerationRedirect() {
   return null;
 }
 
-function RequireAuth({ children, adminOnly = false }) {
+function RequireAuthOutlet({ adminOnly = false }) {
   const { user, loading } = useAuth();
   const loc = useLocation();
   if (loading) return <div className="min-h-screen bg-rp-bg" />;
@@ -95,7 +95,7 @@ function RequireAuth({ children, adminOnly = false }) {
     return <Navigate to="/login" state={{ from: returnTo }} replace />;
   }
   if (adminOnly && !isAdminUser(user)) return <Navigate to="/app/tools" replace />;
-  return children;
+  return <Outlet />;
 }
 
 function App() {
@@ -122,19 +122,23 @@ function App() {
               <Route path="/legal" element={<Navigate to="/legal/terms" replace />} />
               <Route path="/studio" element={<Navigate to="/app/studio" replace />} />
 
-              <Route path="/app" element={<RequireAuth><DashboardLayout /></RequireAuth>}>
+              <Route path="/app" element={<DashboardLayout />}>
                 <Route index element={<Navigate to="/app/tools" replace />} />
 
                 <Route element={<HubMainLayout />}>
                   <Route path="tools" element={<Tools />} />
                   <Route path="suggest" element={<Suggest />} />
-                  <Route path="settings" element={<SettingsPage />} />
-                  <Route path="gallery" element={<Gallery />} />
-                  <Route path="favorites" element={<Gallery favoritesOnly />} />
-                  <Route path="billing" element={<Billing />} />
-                  <Route path="profile" element={<Profile />} />
-                  <Route path="referrals" element={<Referrals />} />
-                  <Route path="admin" element={<RequireAuth adminOnly><Admin /></RequireAuth>} />
+                  <Route element={<RequireAuthOutlet />}>
+                    <Route path="settings" element={<SettingsPage />} />
+                    <Route path="gallery" element={<Gallery />} />
+                    <Route path="favorites" element={<Gallery favoritesOnly />} />
+                    <Route path="billing" element={<Billing />} />
+                    <Route path="profile" element={<Profile />} />
+                    <Route path="referrals" element={<Referrals />} />
+                  </Route>
+                  <Route element={<RequireAuthOutlet adminOnly />}>
+                    <Route path="admin" element={<Admin />} />
+                  </Route>
                 </Route>
 
                 <Route element={<StudioWorkspaceLayout />}>

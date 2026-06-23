@@ -681,6 +681,8 @@ export default function VideoGenerate({ category }) {
 
         hint={hint}
 
+        cost={cost}
+
         blockedNotify="message"
 
         testId={`video-${modeId}-generate`}

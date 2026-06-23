@@ -15,7 +15,7 @@ export default function StudioTopBar({ titleKey }) {
   const { user } = useAuth();
   const { t } = useI18n();
   const navigate = useNavigate();
-  const { pathname } = useLocation();
+  const { pathname, search } = useLocation();
   const { sessionBackHandler } = useStudioNav();
   const labelKey = titleKey || getWorkspaceHeaderKey(pathname);
   const title = t(labelKey) || t("nav_tools");
@@ -63,37 +63,50 @@ export default function StudioTopBar({ titleKey }) {
       </div>
 
       <div className="justify-self-end flex items-center gap-1 sm:gap-1.5 shrink-0">
-        <Link
-          to="/app/billing"
-          className="flex items-center gap-1 px-1.5 sm:px-2.5 py-1.5 rounded-full border border-[#9333EA]/25 bg-white/[0.06] hover:border-[#A855F7]/50 transition-colors min-w-0"
-          data-testid="studio-credits-badge"
-          title={stdLabel}
-        >
-          <span className="text-[9px] sm:text-[10px] font-mono uppercase tracking-wider text-[#C4B5FD]/80 max-w-[52px] sm:max-w-none truncate">
-            {onPosters ? stdLabel : (t("label_credits_short") || "cr")}
-          </span>
-          <span className="text-[#A855F7] text-sm font-mono font-semibold tabular-nums">
-            {user?.is_unlimited ? "∞" : user?.total_standard_credits ?? user?.credits ?? 0}
-          </span>
-        </Link>
-        {showHqBadge && (
+        {user ? (
+          <>
+            <Link
+              to="/app/billing"
+              className="flex items-center gap-1 px-1.5 sm:px-2.5 py-1.5 rounded-full border border-[#9333EA]/25 bg-white/[0.06] hover:border-[#A855F7]/50 transition-colors min-w-0"
+              data-testid="studio-credits-badge"
+              title={stdLabel}
+            >
+              <span className="text-[9px] sm:text-[10px] font-mono uppercase tracking-wider text-[#C4B5FD]/80 max-w-[52px] sm:max-w-none truncate">
+                {onPosters ? stdLabel : (t("label_credits_short") || "cr")}
+              </span>
+              <span className="text-[#A855F7] text-sm font-mono font-semibold tabular-nums">
+                {user?.is_unlimited ? "∞" : user?.total_standard_credits ?? user?.credits ?? 0}
+              </span>
+            </Link>
+            {showHqBadge && (
+              <Link
+                to="/app/billing"
+                className="flex items-center gap-1 px-1.5 sm:px-2.5 py-1.5 rounded-full border border-[#FACC15]/40 bg-[#FACC15]/10 hover:border-[#FACC15]/60 transition-colors min-w-0 shadow-[0_0_24px_-14px_rgba(250,204,21,0.7)]"
+                data-testid="studio-hq-credits-badge"
+                title={hqLabel}
+              >
+                <Crown className="w-3 h-3 text-[#FACC15] shrink-0" strokeWidth={1.75} />
+                <span className="text-[9px] sm:text-[10px] font-mono uppercase tracking-wider text-[#FACC15]/85 max-w-[76px] sm:max-w-none truncate">
+                  {onPosters ? t("header_hq_credits") : (t("label_hq_credits_short") || "HQ")}
+                </span>
+                {onPosters && <span className="text-[#FACC15]/40 text-xs">:</span>}
+                <span className="text-[#FACC15] text-sm font-mono font-semibold tabular-nums">
+                  {user?.is_unlimited ? "∞" : user?.premium_credits ?? 0}
+                </span>
+              </Link>
+            )}
+            <DashboardProfileMenu />
+          </>
+        ) : (
           <Link
-            to="/app/billing"
-            className="flex items-center gap-1 px-1.5 sm:px-2.5 py-1.5 rounded-full border border-[#FACC15]/40 bg-[#FACC15]/10 hover:border-[#FACC15]/60 transition-colors min-w-0 shadow-[0_0_24px_-14px_rgba(250,204,21,0.7)]"
-            data-testid="studio-hq-credits-badge"
-            title={hqLabel}
+            to="/login"
+            state={{ from: `${pathname}${search || ""}` }}
+            className="text-xs sm:text-sm font-semibold text-white px-2.5 sm:px-3 py-1.5 rounded-full border border-[#9333EA]/40 bg-[#9333EA]/15 hover:bg-[#9333EA]/25 transition-colors"
+            data-testid="studio-login"
           >
-            <Crown className="w-3 h-3 text-[#FACC15] shrink-0" strokeWidth={1.75} />
-            <span className="text-[9px] sm:text-[10px] font-mono uppercase tracking-wider text-[#FACC15]/85 max-w-[76px] sm:max-w-none truncate">
-              {onPosters ? t("header_hq_credits") : (t("label_hq_credits_short") || "HQ")}
-            </span>
-            {onPosters && <span className="text-[#FACC15]/40 text-xs">:</span>}
-            <span className="text-[#FACC15] text-sm font-mono font-semibold tabular-nums">
-              {user?.is_unlimited ? "∞" : user?.premium_credits ?? 0}
-            </span>
+            {t("nav_login")}
           </Link>
         )}
-        <DashboardProfileMenu />
       </div>
     </header>
   );

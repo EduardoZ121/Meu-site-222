@@ -195,6 +195,7 @@ export default function Upscale() {
         label={t("upscale_btn", { n: cost })}
         busyLabel={t("common_processing")}
         hint={hint}
+        cost={cost}
         testId="upscale-create-btn"
         costMeta={<StudioGenerateCostMeta cost={cost} user={user} />}
       />

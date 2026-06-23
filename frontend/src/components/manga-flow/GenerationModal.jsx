@@ -1,5 +1,6 @@
 import { useState, useCallback, useMemo, useEffect } from "react";
 import { createPortal } from "react-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { X, Wand2, Download, Copy, Loader2, Sparkles, Image as ImageIcon, AlertCircle, BookOpen } from "lucide-react";
 import { buildFinalPrompt, buildFinalPagePrompt, countPanelNodes } from "./buildFlowPrompt";
 import { uploadPost, pollPrediction, trackPendingPrediction } from "../../lib/api";
@@ -11,6 +12,9 @@ import { validateGraphForGeneration } from "../../lib/mangaFlowGraph";
 import { enrichEdgesSemantics } from "../../lib/mangaFlowSemantics";
 import { shouldUseComicSheetMode } from "../../lib/mangaFlowOrchestrator";
 import { getCreditCostsForRegion, getStoredPricingRegion } from "../../lib/pricingRegions";
+import { redirectForGenerateAccess, resolveGenerateAccess } from "../../lib/studioGenerateAccess";
+import { useAuth } from "../../lib/auth";
+import { useI18n } from "../../lib/i18n";
 import { toast } from "sonner";
 
 const MODELS = [
@@ -132,6 +136,10 @@ export default function GenerationModal({
   const [progress, setProgress] = useState(0);
   const [generationScope, setGenerationScope] = useState("current");
   const [showPrompt, setShowPrompt] = useState(false);
+  const { user } = useAuth();
+  const navigate = useNavigate();
+  const location = useLocation();
+  const { t } = useI18n();
 
   const pagesForGeneration = useMemo(() => {
     if (pages?.length) return pages;
@@ -206,6 +214,13 @@ export default function GenerationModal({
     setProgress(5);
 
     try {
+      const genCost = generationScope === "all" ? allPagesEstimate : currentPageCost;
+      const access = resolveGenerateAccess(user, genCost);
+      if (access !== "proceed") {
+        redirectForGenerateAccess(navigate, location, access, { t, toast });
+        return;
+      }
+
       const jobs = generationScope === "all" ? allJobs : [activeJob];
       if (generationScope === "all") {
         toast.info(`A gerar ${jobs.length} páginas: 1 imagem por página, com os blocos dentro de cada imagem.`, { duration: 7000 });
@@ -312,8 +327,14 @@ export default function GenerationModal({
     generationScope,
     activeJob,
     allJobs,
+    allPagesEstimate,
+    currentPageCost,
     onResult,
     onPageResults,
+    user,
+    navigate,
+    location,
+    t,
   ]);
 
   const modal = (

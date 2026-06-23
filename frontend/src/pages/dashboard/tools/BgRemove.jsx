@@ -378,6 +378,7 @@ export default function BgRemove() {
         label={t("bg_btn", { n: cost })}
         busyLabel={t("bg_processing")}
         hint={hint}
+        cost={cost}
         testId="bg-remove-create-btn"
         costMeta={<StudioGenerateCostMeta cost={cost} user={user} />}
       />

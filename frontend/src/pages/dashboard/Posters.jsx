@@ -1294,6 +1294,12 @@ function Editor(props) {
         label={usesPremiumWallet ? t("post_gen_btn_hq", { n: totalCost }) : t("post_gen_btn", { n: totalCost })}
         busyLabel={genBusyLabel}
         hint={genHint || (missing.length > 0 ? `${t("post_fill")}: ${missing.map((k) => labelFor(k, picked?.placeholders?.indexOf(k))).join(", ")}` : null)}
+        cost={totalCost}
+        canAffordCheck={(u) => {
+          if (!u || u.is_unlimited || u.role === "admin") return true;
+          const bal = usesPremiumWallet ? (u.premium_credits ?? 0) : (u.total_standard_credits ?? u.credits ?? 0);
+          return bal >= totalCost;
+        }}
         testId="poster-generate"
         costMeta={(
           <StudioGenerateCostMeta

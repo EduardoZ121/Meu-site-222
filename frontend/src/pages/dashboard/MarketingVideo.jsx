@@ -221,6 +221,7 @@ export default function MarketingVideo() {
         label={t("mktvid_generate")}
         busyLabel={t("mktvid_generating_bg")}
         hint={hint}
+        cost={cost}
         testId="mktvid-generate-btn"
         costMeta={<StudioGenerateCostMeta cost={cost} user={user} />}
       />

@@ -234,6 +234,7 @@ export default function Restore() {
         label={t("restore_btn", { n: cost })}
         busyLabel={t("restore_processing")}
         hint={hint}
+        cost={cost}
         testId="restore-create-btn"
         costMeta={<StudioGenerateCostMeta cost={cost} user={user} />}
       />

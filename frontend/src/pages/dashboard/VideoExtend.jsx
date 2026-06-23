@@ -339,6 +339,7 @@ export default function VideoExtend({ category }) {
         label={t("vid_extend_btn", { n: cost })}
         busyLabel={uploadPhase === "processing" ? t("vid_edit_processing") : t("vid_rendering")}
         hint={hint}
+        cost={cost}
         blockedNotify="message"
         testId="video-extend-submit"
         costMeta={<StudioGenerateCostMeta cost={cost} user={user} />}

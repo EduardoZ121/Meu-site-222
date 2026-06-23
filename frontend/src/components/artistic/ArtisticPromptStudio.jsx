@@ -280,6 +280,7 @@ export default function ArtisticPromptStudio({
         label={t("art_generate_credits", { n: cost })}
         busyLabel={t("art_generating")}
         hint={hint}
+        cost={cost}
         alignHint="start"
         blockedNotify="message"
         testId="artistic-studio-generate"

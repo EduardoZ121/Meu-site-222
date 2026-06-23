@@ -11,6 +11,23 @@
       "includeFiles": "{api/lib/**,node_modules/sharp/**,node_modules/@img/**}"
     }
   },
+  "headers": [
+    {
+      "source": "/index.html",
+      "headers": [
+        { "key": "Cache-Control", "value": "no-cache, no-store, must-revalidate" }
+      ]
+    },
+    {
+      "source": "/(.*)",
+      "headers": [
+        { "key": "Cache-Control", "value": "public, max-age=0, must-revalidate" }
+      ],
+      "has": [
+        { "type": "header", "key": "accept", "value": "text/html" }
+      ]
+    }
+  ],
   "crons": [
     {
       "path": "/api/cron/weekly-report",

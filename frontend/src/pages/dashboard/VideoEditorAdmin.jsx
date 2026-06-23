@@ -453,7 +453,7 @@ export default function VideoEditorAdmin({ category }) {
       </div>
 
       <StudioGenerateBar
-        ready={ready && Boolean(user?.email)}
+        ready={ready}
         busy={busy}
         onClick={run}
         label={t("vid_edit_btn", { n: cost })}
@@ -462,8 +462,9 @@ export default function VideoEditorAdmin({ category }) {
             ? t("vid_edit_uploading")
             : t("vid_edit_processing")
         }
-        hint={!user?.email ? t("vid_edit_notify_no_email") : hint}
+        hint={!user?.email && user ? t("vid_edit_notify_no_email") : hint}
         blockedNotify="message"
+        cost={cost}
         testId="video-edit-submit"
         icon={Clapperboard}
         costMeta={<StudioGenerateCostMeta cost={cost} user={user} />}

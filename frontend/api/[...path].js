@@ -3782,7 +3782,7 @@ async function handlePath(path, req, res) {
       const prediction = await routePost(path, fields, files, req);
       if (prediction.checkout_url) return json(res, 200, prediction);
       if (prediction.prediction_id) return json(res, 200, predictionResponse(prediction));
-      return json(res, 200, predictionResponse(prediction));
+      return json(res, 200, prediction);
     }
 
     return json(res, 404, { detail: "Endpoint não encontrado." });

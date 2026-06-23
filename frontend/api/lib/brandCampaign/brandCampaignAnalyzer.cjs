@@ -5,6 +5,13 @@ const { getOpenAIKey, openaiConfigured } = require("../openaiEnv.cjs");
 
 const CONCEPT_COUNT = 10;
 
+function safeOpenAIImageUrl(raw) {
+  const u = String(raw || "").trim();
+  if (!/^https:\/\/.{12,}/i.test(u)) return null;
+  if (/\.(svg|ico)(\?|$)/i.test(u)) return null;
+  return u.slice(0, 2048);
+}
+
 function buildAnalysisPrompt({ websiteSnapshot, lang, imageCount }) {
   const pt = lang !== "en";
   const siteBlock = websiteSnapshot
@@ -16,7 +23,8 @@ function buildAnalysisPrompt({ websiteSnapshot, lang, imageCount }) {
       `Theme color: ${websiteSnapshot.theme_color || ""}`,
       `OG image: ${websiteSnapshot.og_image || ""}`,
       `Page text (excerpt): ${(websiteSnapshot.text_snippet || "").slice(0, 4500)}`,
-    ].join("\n")
+      websiteSnapshot.fetch_limited ? "Note: full HTML fetch was limited — infer brand from URL/domain and any known public info." : "",
+    ].filter(Boolean).join("\n")
     : "WEBSITE: not provided.";
 
   return (
@@ -66,14 +74,18 @@ async function analyzeBrandCampaign({ websiteSnapshot = null, imageUrls = [], la
   ];
 
   for (const url of imageUrls.slice(0, 5)) {
-    if (url) content.push({ type: "image_url", image_url: { url, detail: "high" } });
+    const safe = safeOpenAIImageUrl(url) || (String(url || "").startsWith("data:image/") ? url : null);
+    if (safe) content.push({ type: "image_url", image_url: { url: safe, detail: "high" } });
   }
 
   if (websiteSnapshot?.og_image && !imageUrls.includes(websiteSnapshot.og_image)) {
-    content.push({
-      type: "image_url",
-      image_url: { url: websiteSnapshot.og_image, detail: "low" },
-    });
+    const og = safeOpenAIImageUrl(websiteSnapshot.og_image);
+    if (og && !websiteSnapshot.fetch_limited) {
+      content.push({
+        type: "image_url",
+        image_url: { url: og, detail: "low" },
+      });
+    }
   }
 
   const res = await fetch("https://api.openai.com/v1/chat/completions", {

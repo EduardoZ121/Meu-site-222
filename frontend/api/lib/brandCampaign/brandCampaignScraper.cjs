@@ -2,7 +2,13 @@
  * Fetch public website snapshot for brand analysis (no JS execution).
  */
 const MAX_HTML_BYTES = 512 * 1024;
-const FETCH_TIMEOUT_MS = 12000;
+const FETCH_TIMEOUT_MS = 15000;
+
+const USER_AGENTS = [
+  "Mozilla/5.0 (compatible; RemakePixBrandBot/1.0; +https://www.remakepix.com)",
+  "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
+  "Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)",
+];
 
 function decodeEntities(s) {
   return String(s || "")
@@ -42,6 +48,7 @@ function stripHtml(html) {
 function normalizeUrl(raw) {
   let u = String(raw || "").trim();
   if (!u) return "";
+  u = u.replace(/^[\s\u200B]+|[\s\u200B]+$/g, "");
   if (!/^https?:\/\//i.test(u)) u = `https://${u}`;
   try {
     const parsed = new URL(u);
@@ -52,59 +59,146 @@ function normalizeUrl(raw) {
   }
 }
 
-async function fetchWebsiteSnapshot(websiteUrl) {
-  const url = normalizeUrl(websiteUrl);
-  if (!url) {
-    const err = new Error("URL do site inválida.");
-    err.status = 400;
-    throw err;
+function resolveAbsoluteUrl(baseUrl, maybeRelative) {
+  const raw = String(maybeRelative || "").trim();
+  if (!raw) return "";
+  try {
+    if (raw.startsWith("//")) return `https:${raw}`;
+    if (/^https?:\/\//i.test(raw)) return raw;
+    return new URL(raw, baseUrl).toString();
+  } catch {
+    return "";
+  }
+}
+
+function buildFallbackSnapshot(url, reason) {
+  let host = "";
+  let pathHint = "";
+  try {
+    const parsed = new URL(url);
+    host = parsed.hostname.replace(/^www\./i, "");
+    pathHint = parsed.pathname.replace(/\/$/, "").split("/").filter(Boolean).slice(-2).join(" / ");
+  } catch {
+    host = url;
   }
 
+  const label = host || url;
+  return {
+    url,
+    title: label,
+    description: reason || `Website ${label}`,
+    og_image: "",
+    theme_color: "",
+    text_snippet: [
+      `Brand website URL: ${url}`,
+      host ? `Domain: ${host}` : "",
+      pathHint ? `Path context: ${pathHint}` : "",
+      reason ? `Note: ${reason}` : "",
+      "Use the URL, domain name and any public brand knowledge to infer product, audience and visual identity.",
+    ].filter(Boolean).join("\n"),
+    fetch_limited: true,
+  };
+}
+
+async function fetchHtmlOnce(url, userAgent) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
-  let res;
   try {
-    res = await fetch(url, {
+    const res = await fetch(url, {
       signal: controller.signal,
       redirect: "follow",
       headers: {
-        "User-Agent": "RemakePixBrandBot/1.0 (+https://www.remakepix.com)",
-        Accept: "text/html,application/xhtml+xml",
+        "User-Agent": userAgent,
+        Accept: "text/html,application/xhtml+xml;q=0.9,*/*;q=0.8",
+        "Accept-Language": "pt-PT,pt;q=0.9,en;q=0.8",
       },
     });
+    return res;
   } finally {
     clearTimeout(timer);
   }
+}
 
-  if (!res.ok) {
-    const err = new Error(`Não foi possível abrir o site (HTTP ${res.status}).`);
+async function fetchWebsiteSnapshot(websiteUrl) {
+  const url = normalizeUrl(websiteUrl);
+  if (!url) {
+    const err = new Error("URL do site inválida — usa https://exemplo.com");
     err.status = 400;
     throw err;
   }
 
-  const buf = Buffer.from(await res.arrayBuffer());
-  const html = buf.slice(0, MAX_HTML_BYTES).toString("utf8");
+  let lastStatus = 0;
+  let lastError = null;
 
-  const title = decodeEntities((html.match(/<title[^>]*>([^<]{1,200})<\/title>/i) || [])[1] || "");
-  const description = metaContent(html, "description")
-    || metaContent(html, "og:description", "property")
-    || metaContent(html, "twitter:description");
-  const ogTitle = metaContent(html, "og:title", "property") || metaContent(html, "twitter:title");
-  const ogImage = metaContent(html, "og:image", "property");
-  const themeColor = metaContent(html, "theme-color");
-  const textSnippet = stripHtml(html).slice(0, 6000);
+  for (const ua of USER_AGENTS) {
+    try {
+      // eslint-disable-next-line no-await-in-loop
+      const res = await fetchHtmlOnce(url, ua);
+      lastStatus = res.status;
 
-  return {
+      if (!res.ok) {
+        if ([403, 429, 503].includes(res.status)) continue;
+        if (res.status >= 400) {
+          return buildFallbackSnapshot(url, `HTTP ${res.status} — leitura parcial do domínio.`);
+        }
+      }
+
+      // eslint-disable-next-line no-await-in-loop
+      const buf = Buffer.from(await res.arrayBuffer());
+      const html = buf.slice(0, MAX_HTML_BYTES).toString("utf8");
+      const finalUrl = res.url || url;
+
+      const title = decodeEntities((html.match(/<title[^>]*>([^<]{1,200})<\/title>/i) || [])[1] || "");
+      const description = metaContent(html, "description")
+        || metaContent(html, "og:description", "property")
+        || metaContent(html, "twitter:description");
+      const ogTitle = metaContent(html, "og:title", "property") || metaContent(html, "twitter:title");
+      const ogImage = resolveAbsoluteUrl(finalUrl, metaContent(html, "og:image", "property")
+        || metaContent(html, "twitter:image")
+        || metaContent(html, "twitter:image:src"));
+      const themeColor = metaContent(html, "theme-color");
+      const textSnippet = stripHtml(html).slice(0, 6000);
+
+      if (!textSnippet && !title && !description) {
+        return buildFallbackSnapshot(finalUrl, "Página sem texto legível — a IA usa o domínio e metadados.");
+      }
+
+      return {
+        url: finalUrl,
+        title: ogTitle || title,
+        description,
+        og_image: ogImage,
+        theme_color: themeColor,
+        text_snippet: textSnippet,
+        fetch_limited: false,
+      };
+    } catch (err) {
+      lastError = err;
+      if (err?.name === "AbortError") {
+        lastError = new Error("timeout");
+      }
+    }
+  }
+
+  if (lastStatus === 403 || lastStatus === 429) {
+    return buildFallbackSnapshot(
+      url,
+      `O site bloqueou leitura automática (HTTP ${lastStatus}). A IA analisa pelo domínio e metadados — adiciona fotos do produto para melhor resultado.`,
+    );
+  }
+
+  if (lastError?.name === "AbortError" || String(lastError?.message || "").includes("timeout")) {
+    return buildFallbackSnapshot(url, "Timeout ao abrir o site — a IA analisa pelo URL e domínio.");
+  }
+
+  return buildFallbackSnapshot(
     url,
-    title: ogTitle || title,
-    description,
-    og_image: ogImage,
-    theme_color: themeColor,
-    text_snippet: textSnippet,
-  };
+    "Não foi possível ler o HTML completo — a IA analisa pelo URL, domínio e metadados públicos.",
+  );
 }
 
 module.exports = {
   fetchWebsiteSnapshot,
   normalizeUrl,
+  resolveAbsoluteUrl,
 };

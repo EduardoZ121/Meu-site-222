@@ -74,13 +74,17 @@ export default function BrandCampaign() {
 
   const analyzeBrand = async () => {
     const fd = new FormData();
-    if (websiteUrl.trim()) fd.append("website_url", websiteUrl.trim());
+    const url = websiteUrl.trim();
+    if (url) fd.append("website_url", url);
     appendImagesToForm(fd);
     fd.append("lang", lang || "pt");
     const { data } = await uploadPost("/brand-campaign/analyze", fd, {
-      timeout: 120000,
+      timeout: 180000,
       headers: { "X-Skip-Auto-Poll": "1" },
     });
+    if (!data?.brief?.concepts?.length) {
+      throw new Error(t("bc_err_analysis"));
+    }
     setBrief(data.brief);
     if (data?.per_image_cost) setPerImageCost(data.per_image_cost);
     return data.brief;

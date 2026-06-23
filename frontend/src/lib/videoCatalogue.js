@@ -441,7 +441,7 @@ export function categoriesForSection(sectionId, user = null) {
 }
 
 export function getVideoCategoriesForUser(user) {
-  if (!user) return [];
+  void user;
   return VIDEO_CATEGORIES.filter((c) => isVideoCategoryVisible(c.id));
 }
 

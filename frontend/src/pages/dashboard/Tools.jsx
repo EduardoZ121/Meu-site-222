@@ -70,7 +70,27 @@ export default function Tools() {
   const [imageCategory, setImageCategory] = useState("all");
   const [videoCategory, setVideoCategory] = useState("all");
 
-  const videoCategories = useMemo(() => getVideoCategoriesForUser(user), [user]);
+  const videoFlowCategories = useMemo(() => getVideoCategoriesForUser(user), [user]);
+
+  const videoHubTools = useMemo(
+    () => tools.filter((tool) => tool.tier === "video"),
+    [tools],
+  );
+
+  const videoCategories = useMemo(() => {
+    const flowTos = new Set(videoFlowCategories.map((c) => c.to));
+    const hubs = videoHubTools
+      .filter((tool) => !flowTos.has(tool.to))
+      .map((tool) => ({
+        id: tool.id,
+        section: "create",
+        to: tool.to,
+        nameKey: `tool_${tool.id}_name`,
+        descKey: `tool_${tool.id}_desc`,
+        catalogueTool: tool,
+      }));
+    return [...hubs, ...videoFlowCategories];
+  }, [videoFlowCategories, videoHubTools]);
 
   const imageTools = useMemo(
     () => tools.filter((tool) => tool.tier === "image"),
@@ -254,10 +274,15 @@ export default function Tools() {
                     <ToolsHubCard
                       key={category.id}
                       id={category.id}
-                      name={t(category.nameKey)}
+                      name={category.catalogueTool?.name || t(category.nameKey)}
                       to={category.to}
                       tier="video"
-                      cost={videoCatalogueCost(costs, category)}
+                      cost={
+                        category.catalogueTool
+                          ? toolCatalogueCost(category.id, region)
+                          : videoCatalogueCost(costs, category)
+                      }
+                      isNew={category.catalogueTool?.isNew}
                       index={index}
                       pinned={isPinned(category.id)}
                       onTogglePin={togglePin}

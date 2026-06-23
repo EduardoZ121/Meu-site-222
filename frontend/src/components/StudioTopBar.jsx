@@ -1,6 +1,6 @@
 import { useCallback } from "react";
-import { Link, useNavigate, useLocation } from "react-router-dom";
-import { ArrowLeft, Crown } from "lucide-react";
+import { Link, useNavigate, useLocation, useOutletContext } from "react-router-dom";
+import { ArrowLeft, Crown, Menu } from "lucide-react";
 import { useAuth } from "../lib/auth";
 import { useI18n } from "../lib/i18n";
 import { getAppRelativePath, getWorkspaceHeaderKey } from "../lib/dashboardRouteMode";
@@ -16,6 +16,7 @@ export default function StudioTopBar({ titleKey }) {
   const { t } = useI18n();
   const navigate = useNavigate();
   const { pathname, search } = useLocation();
+  const { openMobileNav } = useOutletContext() || {};
   const { sessionBackHandler } = useStudioNav();
   const labelKey = titleKey || getWorkspaceHeaderKey(pathname);
   const title = t(labelKey) || t("nav_tools");
@@ -43,15 +44,28 @@ export default function StudioTopBar({ titleKey }) {
       className="rp-studio-top-bar shrink-0 z-50 grid grid-cols-[auto_1fr_auto] items-center gap-2 sm:gap-3 px-3 sm:px-4 md:px-6 h-14 border-b border-white/[0.08] bg-[#0a0a0f]/98 backdrop-blur-xl w-full max-w-[100vw]"
       data-testid="studio-top-bar"
     >
-      <button
-        type="button"
-        onClick={handleBack}
-        className="justify-self-start shrink-0 inline-flex items-center justify-center w-10 h-10 rounded-xl text-white/80 hover:text-white hover:bg-white/[0.06] border border-transparent hover:border-white/[0.08] transition-colors"
-        aria-label={t("header.studio_nav_back")}
-        data-testid="studio-back"
-      >
-        <ArrowLeft className="w-5 h-5" strokeWidth={1.75} />
-      </button>
+      <div className="justify-self-start flex items-center gap-1 shrink-0">
+        {typeof openMobileNav === "function" && (
+          <button
+            type="button"
+            onClick={openMobileNav}
+            className="md:hidden inline-flex items-center justify-center w-10 h-10 rounded-xl text-white/80 hover:text-white hover:bg-white/[0.06] border border-transparent hover:border-white/[0.08] transition-colors"
+            aria-label={t("nav_tools")}
+            data-testid="studio-menu"
+          >
+            <Menu className="w-5 h-5" strokeWidth={1.75} />
+          </button>
+        )}
+        <button
+          type="button"
+          onClick={handleBack}
+          className="inline-flex items-center justify-center w-10 h-10 rounded-xl text-white/80 hover:text-white hover:bg-white/[0.06] border border-transparent hover:border-white/[0.08] transition-colors"
+          aria-label={t("header.studio_nav_back")}
+          data-testid="studio-back"
+        >
+          <ArrowLeft className="w-5 h-5" strokeWidth={1.75} />
+        </button>
+      </div>
 
       <div className="min-w-0 flex flex-col items-center justify-center text-center px-1">
         <p className="hidden md:block text-[10px] font-mono uppercase tracking-[0.18em] text-[#9333EA]/80 truncate max-w-full">

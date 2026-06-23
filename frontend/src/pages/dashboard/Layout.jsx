@@ -267,15 +267,13 @@ export default function DashboardLayout() {
         data-testid="dashboard-layout"
       >
         <aside
-          className={`w-[260px] shrink-0 h-full flex-col border-r border-white/[0.06] bg-zinc-950/95 backdrop-blur-xl ${
-            workspaceMode ? "hidden" : "hidden md:flex"
-          }`}
+          className="w-[260px] shrink-0 h-full flex-col border-r border-white/[0.06] bg-zinc-950/95 backdrop-blur-xl hidden md:flex"
         >
           <SidebarContent />
         </aside>
 
         <AnimatePresence>
-          {mobileOpen && !workspaceMode && (
+          {mobileOpen && (
             <>
               <motion.div
                 key="overlay"

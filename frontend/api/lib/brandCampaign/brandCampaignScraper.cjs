@@ -1,6 +1,7 @@
 /**
  * Fetch public website snapshot for brand analysis (no JS execution).
  */
+const { enrichWebsiteSnapshot } = require("./brandCampaignSiteIntel.cjs");
 const MAX_HTML_BYTES = 512 * 1024;
 const FETCH_TIMEOUT_MS = 15000;
 
@@ -139,7 +140,8 @@ async function fetchWebsiteSnapshot(websiteUrl) {
       if (!res.ok) {
         if ([403, 429, 503].includes(res.status)) continue;
         if (res.status >= 400) {
-          return buildFallbackSnapshot(url, `HTTP ${res.status} — leitura parcial do domínio.`);
+          const fallback = buildFallbackSnapshot(url, `HTTP ${res.status} — leitura parcial do domínio.`);
+          return enrichWebsiteSnapshot(fallback, "");
         }
       }
 
@@ -160,10 +162,11 @@ async function fetchWebsiteSnapshot(websiteUrl) {
       const textSnippet = stripHtml(html).slice(0, 6000);
 
       if (!textSnippet && !title && !description) {
-        return buildFallbackSnapshot(finalUrl, "Página sem texto legível — a IA usa o domínio e metadados.");
+        const fallback = buildFallbackSnapshot(finalUrl, "Página sem texto legível — a IA usa o domínio e metadados.");
+        return enrichWebsiteSnapshot(fallback, html);
       }
 
-      return {
+      const basic = {
         url: finalUrl,
         title: ogTitle || title,
         description,
@@ -172,6 +175,7 @@ async function fetchWebsiteSnapshot(websiteUrl) {
         text_snippet: textSnippet,
         fetch_limited: false,
       };
+      return enrichWebsiteSnapshot(basic, html);
     } catch (err) {
       lastError = err;
       if (err?.name === "AbortError") {
@@ -181,19 +185,28 @@ async function fetchWebsiteSnapshot(websiteUrl) {
   }
 
   if (lastStatus === 403 || lastStatus === 429) {
-    return buildFallbackSnapshot(
-      url,
-      `O site bloqueou leitura automática (HTTP ${lastStatus}). A IA analisa pelo domínio e metadados — adiciona fotos do produto para melhor resultado.`,
+    return enrichWebsiteSnapshot(
+      buildFallbackSnapshot(
+        url,
+        `O site bloqueou leitura HTML (HTTP ${lastStatus}) — a leitura Jina/markdown continua.`,
+      ),
+      "",
     );
   }
 
   if (lastError?.name === "AbortError" || String(lastError?.message || "").includes("timeout")) {
-    return buildFallbackSnapshot(url, "Timeout ao abrir o site — a IA analisa pelo URL e domínio.");
+    return enrichWebsiteSnapshot(
+      buildFallbackSnapshot(url, "Timeout ao abrir o site — a leitura Jina/markdown continua."),
+      "",
+    );
   }
 
-  return buildFallbackSnapshot(
-    url,
-    "Não foi possível ler o HTML completo — a IA analisa pelo URL, domínio e metadados públicos.",
+  return enrichWebsiteSnapshot(
+    buildFallbackSnapshot(
+      url,
+      "HTML parcial — a leitura Jina/markdown e metadados públicos continuam.",
+    ),
+    "",
   );
 }
 

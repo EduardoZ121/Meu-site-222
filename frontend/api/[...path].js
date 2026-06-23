@@ -2642,13 +2642,9 @@ async function routePost(path, fields, files, req) {
   }
 
   if (path === "brand-campaign/analyze") {
-    const { user, isLocal } = resolveSessionUser(req);
-    if (!user?.id && !isLocal) {
-      const err = new Error("Entra na conta para analisar a marca.");
-      err.status = 401;
-      throw err;
-    }
+    await requireAdminSession(req);
     const bc = require("./lib/brandCampaign/index.cjs");
+    const { mirrorUrlsToBlob } = require("./lib/creationMedia.cjs");
     const lang = userLang(req, fields).slice(0, 2);
     const websiteUrl = text(fields, "website_url", "").trim();
     const imageUrls = await resolveMarketingVideoImages(files, fields, 5);
@@ -2670,15 +2666,25 @@ async function routePost(path, fields, files, req) {
       lang,
     });
 
+    const refCandidates = [
+      ...imageUrls,
+      ...(websiteSnapshot?.product_images || []),
+      websiteSnapshot?.og_image,
+    ].filter(Boolean);
+    const mirrored = await mirrorUrlsToBlob([...new Set(refCandidates)].slice(0, 4));
+    brief.reference_image_urls = mirrored.filter((u) => String(u).startsWith("http"));
+
     return {
       brief,
       concepts_count: brief.concepts?.length || bc.CONCEPT_COUNT,
       per_image_cost: bc.getBrandCampaignPerImageCost(CREDIT),
       model_used: "google/nano-banana + gpt-4o analysis",
+      site_read_method: websiteSnapshot?.read_method || "",
     };
   }
 
   if (path === "generate/brand-campaign") {
+    await requireAdminSession(req);
     const bc = require("./lib/brandCampaign/index.cjs");
     const { buildNanoBananaPosterInput, resolvePosterModel } = require("./lib/posterEngine.cjs");
     const lang = userLang(req, fields).slice(0, 2);
@@ -2705,9 +2711,13 @@ async function routePost(path, fields, files, req) {
     }
 
     const aspectRatio = normalizeRatio(text(fields, "aspect_ratio", "4:5"), "standard");
-    const imageUrls = await resolveMarketingVideoImages(files, fields, 5);
+    const uploadedUrls = await resolveMarketingVideoImages(files, fields, 5);
+    const briefRefs = Array.isArray(brief?.reference_image_urls) ? brief.reference_image_urls : [];
+    const imageUrls = uploadedUrls.length
+      ? uploadedUrls
+      : briefRefs.filter((u) => String(u).startsWith("http")).slice(0, 4);
     const photoRef = imageUrls[0] || null;
-    const extraRefs = imageUrls.slice(1, 3);
+    const extraRefs = imageUrls.slice(1, 4);
 
     let prompt = bc.buildBrandCampaignImagePrompt({
       brief,
@@ -2731,15 +2741,17 @@ async function routePost(path, fields, files, req) {
       garmentRef: extraRefs[0] || null,
     });
 
-    if (extraRefs.length > 1 && Array.isArray(nbInput.image_input)) {
+    if (imageUrls.length > 1 && Array.isArray(nbInput.image_input)) {
       nbInput.image_input = imageUrls.slice(0, 4);
     } else if (imageUrls.length > 1) {
       nbInput.image_input = imageUrls.slice(0, 4);
+    } else if (photoRef && !nbInput.image_input) {
+      nbInput.image_input = [photoRef];
     }
 
     return submitBillableGeneration(req, fields, {
       cost: perImage,
-      type: "brand_campaign",
+      type: "poster",
       modelId: resolved.modelId,
       input: nbInput,
       prompt,

@@ -1,8 +1,10 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { Navigate } from "react-router-dom";
 import { Globe, Link2, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 import { api, formatApiError, pollPrediction, uploadPost } from "../../lib/api";
 import { useAuth } from "../../lib/auth";
+import { isAdminUser } from "../../lib/isAdmin";
 import { useI18n } from "../../lib/i18n";
 import { usePricing } from "../../lib/PricingContext";
 import useTitle from "../../lib/useTitle";
@@ -22,7 +24,7 @@ const COUNT_OPTIONS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
 
 export default function BrandCampaign() {
   const { t, lang } = useI18n();
-  const { user, refresh } = useAuth();
+  const { user, refresh, loading } = useAuth();
   const { region, costs } = usePricing();
   useTitle(t("bc_title"));
 
@@ -85,7 +87,10 @@ export default function BrandCampaign() {
     if (!data?.brief?.concepts?.length) {
       throw new Error(t("bc_err_analysis"));
     }
-    setBrief(data.brief);
+    setBrief({
+      ...data.brief,
+      site_read_method: data.site_read_method || data.brief?.site_read_method || "",
+    });
     if (data?.per_image_cost) setPerImageCost(data.per_image_cost);
     return data.brief;
   };
@@ -167,11 +172,23 @@ export default function BrandCampaign() {
     }
   };
 
+  if (loading) {
+    return <StudioCompactShell testId="brand-campaign-page" maxWidth="960px" />;
+  }
+  if (!isAdminUser(user)) {
+    return <Navigate to="/app/tools" replace />;
+  }
+
   return (
     <StudioCompactShell testId="brand-campaign-page" maxWidth="960px">
       <header className="mb-5 md:mb-6">
         <p className="text-[11px] uppercase tracking-[0.18em] text-violet-400/90 mb-2">{t("bc_eyebrow")}</p>
-        <h1 className="text-xl md:text-2xl font-semibold text-[#EDEBE8] font-['Inter_Tight'] mb-2">{t("bc_title")}</h1>
+        <div className="flex flex-wrap items-center gap-2 mb-2">
+          <h1 className="text-xl md:text-2xl font-semibold text-[#EDEBE8] font-['Inter_Tight']">{t("bc_title")}</h1>
+          <span className="px-2 py-0.5 rounded text-[10px] font-mono uppercase tracking-wider bg-amber-500/15 text-amber-300 border border-amber-500/30">
+            {t("bc_admin_badge")}
+          </span>
+        </div>
         <p className="text-[14px] text-[#8A8A8E] leading-relaxed max-w-2xl">{t("bc_subtitle")}</p>
       </header>
 
@@ -267,6 +284,12 @@ export default function BrandCampaign() {
           <p className="text-[11px] font-mono uppercase tracking-wider text-emerald-400/90 mb-2">{t("bc_brief_ready")}</p>
           <h2 className="text-lg font-semibold text-white mb-1">{brief.brand_name || t("bc_brand_unknown")}</h2>
           <p className="text-[13px] text-[#9CA3AF] mb-3">{brief.product_summary}</p>
+          {brief.site_read_method && (
+            <p className="text-[11px] text-emerald-400/80 mb-2">{t("bc_read_method", { method: brief.site_read_method })}</p>
+          )}
+          {brief.reference_image_urls?.length > 0 && (
+            <p className="text-[11px] text-[#8A8A8E] mb-3">{t("bc_refs_found", { n: brief.reference_image_urls.length })}</p>
+          )}
           {brief.color_palette?.length > 0 && (
             <div className="flex flex-wrap gap-2 mb-3">
               {brief.color_palette.map((c) => (

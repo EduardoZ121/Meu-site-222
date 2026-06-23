@@ -103,27 +103,29 @@ export default function DashboardLayout() {
   const { pathname } = useLocation();
   const workspaceMode = isWorkspacePath(pathname);
 
-  const nav = useMemo(() => [
+  const nav = useMemo(() => {
+    const createLinks = [
+      { to: "/app/tools", icon: LayoutGrid, label: t("nav_tools") },
+      { to: "/app/generate", icon: Sparkles, label: t("sidebar.generate") },
+      { to: "/app/pro", icon: Camera, label: t("sidebar.pro") },
+      { to: "/app/artistic", icon: Palette, label: t("sidebar_artistic") },
+      { to: "/app/posters", icon: FileText, label: t("sidebar.posters") },
+      { to: "/app/video", icon: Film, label: t("sidebar.video") },
+      { to: "/app/marketing-video", icon: Megaphone, label: t("sidebar_marketing_video") },
+      ...(isAdminUser(user) ? [{ to: "/app/brand-campaign", icon: Layers, label: t("sidebar_brand_campaign") }] : []),
+      { to: "/app/motion-flyer", icon: Sparkles, label: t("sidebar_motion_flyer") },
+      {
+        to: "/app/manga-studio",
+        icon: BookOpen,
+        label: t("sidebar.manga_studio"),
+      },
+      { to: "/app/wizard", icon: Wand2, label: t("sidebar.wizard") },
+    ];
+    return [
     {
       id: "create",
       title: t("sidebar.create"),
-      links: [
-        { to: "/app/tools", icon: LayoutGrid, label: t("nav_tools") },
-        { to: "/app/generate", icon: Sparkles, label: t("sidebar.generate") },
-        { to: "/app/pro", icon: Camera, label: t("sidebar.pro") },
-        { to: "/app/artistic", icon: Palette, label: t("sidebar_artistic") },
-        { to: "/app/posters", icon: FileText, label: t("sidebar.posters") },
-        { to: "/app/video", icon: Film, label: t("sidebar.video") },
-        { to: "/app/marketing-video", icon: Megaphone, label: t("sidebar_marketing_video") },
-        { to: "/app/brand-campaign", icon: Layers, label: t("sidebar_brand_campaign") },
-        { to: "/app/motion-flyer", icon: Sparkles, label: t("sidebar_motion_flyer") },
-        {
-          to: "/app/manga-studio",
-          icon: BookOpen,
-          label: t("sidebar.manga_studio"),
-        },
-        { to: "/app/wizard", icon: Wand2, label: t("sidebar.wizard") },
-      ],
+      links: createLinks,
     },
     {
       id: "library",
@@ -143,7 +145,8 @@ export default function DashboardLayout() {
         { to: "/app/settings", icon: Settings, label: t("sidebar.settings") },
       ],
     },
-  ], [t, user]);
+    ];
+  }, [t, user]);
 
   const flatLinks = useMemo(() => {
     const items = [];

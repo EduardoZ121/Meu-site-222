@@ -9,7 +9,7 @@ const LS_AUTO_RELOAD = "rp_build_auto_reload";
 const LS_TOAST_SHOWN = "rp_build_toast_shown";
 
 /** Bump when auth routing changes so browsers drop stale /app RequireAuth bundles. */
-export const ROUTING_EPOCH = "brand-campaign-v2";
+export const ROUTING_EPOCH = "brand-campaign-admin-v3";
 
 export async function ensureRoutingEpoch() {
   if (typeof window === "undefined") return;

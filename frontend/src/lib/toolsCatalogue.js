@@ -47,7 +47,7 @@ const TOOLS = [
     name: "Pôsteres Profissionais", cost: 10,
     desc: "20 templates: flyers, editorial, epic, sci-fi, hero, music phone. Aceita foto." },
   { id: "brand_campaign", tier: "image", category: "creative", to: "/app/brand-campaign",
-    name: "Campanha On-Brand", cost: 40, isNew: true,
+    name: "Campanha On-Brand", cost: 40, isNew: true, adminOnly: true,
     desc: "Link do site e/ou fotos do produto → IA analisa a marca e gera 1–10 anúncios simultâneos." },
   { id: "manga_studio", tier: "image", category: "creative", to: "/app/manga-studio",
     name: "MANGA STUDIO", cost: 10, isBeta: true,

@@ -26,6 +26,7 @@ import Video from "./pages/dashboard/Video";
 import VideoFlow from "./pages/dashboard/VideoFlow";
 import MarketingVideo from "./pages/dashboard/MarketingVideo";
 import MotionFlyer from "./pages/dashboard/MotionFlyer";
+import BrandCampaign from "./pages/dashboard/BrandCampaign";
 import Posters from "./pages/dashboard/Posters";
 import MangaStudioGate from "./pages/dashboard/MangaStudioGate";
 import Wizard from "./pages/dashboard/Wizard";
@@ -156,6 +157,7 @@ function App() {
                   <Route path="video/:mode" element={<VideoFlow />} />
                   <Route path="marketing-video" element={<MarketingVideo />} />
                   <Route path="motion-flyer" element={<MotionFlyer />} />
+                  <Route path="brand-campaign" element={<BrandCampaign />} />
                   <Route path="posters" element={<Posters />} />
                   <Route path="manga-studio" element={<MangaStudioGate />} />
                   <Route path="carousel" element={<Navigate to="/app/manga-studio" replace />} />

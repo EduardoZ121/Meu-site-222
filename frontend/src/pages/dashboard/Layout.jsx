@@ -5,7 +5,7 @@ import { isAdminUser } from "../../lib/isAdmin";
 import { useI18n } from "../../lib/i18n";
 import {
   Sparkles, Images, Heart, CreditCard, User, Users, ShieldCheck, LogOut,
-  Film, FileText, BookOpen, Menu, Settings, LayoutGrid, Camera, Wand2, Lock, Palette, Megaphone,
+  Film, FileText, BookOpen, Menu, Settings, LayoutGrid, Camera, Wand2, Lock, Palette, Megaphone, Layers,
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
@@ -115,6 +115,7 @@ export default function DashboardLayout() {
         { to: "/app/posters", icon: FileText, label: t("sidebar.posters") },
         { to: "/app/video", icon: Film, label: t("sidebar.video") },
         { to: "/app/marketing-video", icon: Megaphone, label: t("sidebar_marketing_video") },
+        { to: "/app/brand-campaign", icon: Layers, label: t("sidebar_brand_campaign") },
         { to: "/app/motion-flyer", icon: Sparkles, label: t("sidebar_motion_flyer") },
         {
           to: "/app/manga-studio",

@@ -62,6 +62,8 @@
       "tool_inpaint_desc": "Pinta a zona, descreve o que pôr. Remove pessoas, texto, objetos.",
       "tool_posters_name": "Pôsteres Profissionais",
       "tool_posters_desc": "20 templates: flyers, editorial, epic, sci-fi, hero, music phone. Aceita foto.",
+      "tool_brand_campaign_name": "Campanha On-Brand",
+      "tool_brand_campaign_desc": "Link do site e/ou fotos → IA analisa a marca e gera 1–10 anúncios on-brand.",
       "tool_manga_studio_name": "MANGA STUDIO",
       "tool_manga_studio_desc": "Mangá/comic: personagens, poses, cenários e painéis.",
       "tool_wizard_name": "Assistente (5 perguntas)",

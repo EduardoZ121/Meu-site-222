@@ -144,6 +144,7 @@ export function toolCatalogueCost(toolId, regionId) {
     wizard: 0,
     motion_flyer: c.motionFlyerByDuration?.[10] ?? 200,
     marketing_video: c.marketingVideoByDuration?.[15] ?? 240,
+    brand_campaign: c.brandCampaignPerImage ?? c.posterPro ?? 40,
   };
   return map[toolId] ?? c.image;
 }

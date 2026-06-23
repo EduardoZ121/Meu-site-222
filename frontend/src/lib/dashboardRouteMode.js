@@ -13,6 +13,7 @@ export const WORKSPACE_ROUTE_IDS = new Set([
   "video",
   "marketing-video",
   "motion-flyer",
+  "brand-campaign",
   "posters",
   "manga-studio",
   "carousel",
@@ -34,6 +35,7 @@ export const WORKSPACE_HEADER_KEYS = {
   video: "sidebar.video",
   "marketing-video": "sidebar_marketing_video",
   "motion-flyer": "sidebar_motion_flyer",
+  "brand-campaign": "sidebar_brand_campaign",
   posters: "sidebar.posters",
   "manga-studio": "sidebar.manga_studio",
   carousel: "sidebar.manga_studio",
@@ -66,5 +68,6 @@ export function getWorkspaceHeaderKey(pathname) {
   if (rel.startsWith("video/")) return WORKSPACE_HEADER_KEYS.video;
   if (rel === "marketing-video") return WORKSPACE_HEADER_KEYS["marketing-video"];
   if (rel === "motion-flyer") return WORKSPACE_HEADER_KEYS["motion-flyer"];
+  if (rel === "brand-campaign") return WORKSPACE_HEADER_KEYS["brand-campaign"];
   return WORKSPACE_HEADER_KEYS[rel] || "sidebar.generate";
 }

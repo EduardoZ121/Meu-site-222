@@ -103,7 +103,8 @@
         "mangaChapter": 105,
         "posterFast": 28,
         "posterPro": 40,
-        "posterPremium": 55
+        "posterPremium": 55,
+        "brandCampaignPerImage": 40
       },
       "premium_packages": {
         "hq_250": {
@@ -250,7 +251,8 @@
         "mangaChapter": 105,
         "posterFast": 28,
         "posterPro": 40,
-        "posterPremium": 55
+        "posterPremium": 55,
+        "brandCampaignPerImage": 40
       },
       "premium_packages": {
         "hq_250": {

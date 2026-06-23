@@ -2641,6 +2641,119 @@ async function routePost(path, fields, files, req) {
     });
   }
 
+  if (path === "brand-campaign/analyze") {
+    const { user, isLocal } = resolveSessionUser(req);
+    if (!user?.id && !isLocal) {
+      const err = new Error("Entra na conta para analisar a marca.");
+      err.status = 401;
+      throw err;
+    }
+    const bc = require("./lib/brandCampaign/index.cjs");
+    const lang = userLang(req, fields).slice(0, 2);
+    const websiteUrl = text(fields, "website_url", "").trim();
+    const imageUrls = await resolveMarketingVideoImages(files, fields, 5);
+
+    if (!websiteUrl && !imageUrls.length) {
+      const err = new Error("Cola o link do site ou envia pelo menos uma foto do produto.");
+      err.status = 400;
+      throw err;
+    }
+
+    let websiteSnapshot = null;
+    if (websiteUrl) {
+      websiteSnapshot = await bc.fetchWebsiteSnapshot(websiteUrl);
+    }
+
+    const brief = await bc.analyzeBrandCampaign({
+      websiteSnapshot,
+      imageUrls,
+      lang,
+    });
+
+    return {
+      brief,
+      concepts_count: brief.concepts?.length || bc.CONCEPT_COUNT,
+      per_image_cost: bc.getBrandCampaignPerImageCost(CREDIT),
+      model_used: "google/nano-banana + gpt-4o analysis",
+    };
+  }
+
+  if (path === "generate/brand-campaign") {
+    const bc = require("./lib/brandCampaign/index.cjs");
+    const { buildNanoBananaPosterInput, resolvePosterModel } = require("./lib/posterEngine.cjs");
+    const lang = userLang(req, fields).slice(0, 2);
+
+    let brief;
+    const briefRaw = text(fields, "brief", "");
+    try {
+      brief = typeof briefRaw === "string" ? JSON.parse(briefRaw) : briefRaw;
+    } catch {
+      const err = new Error("Brief de marca inválido — analisa de novo.");
+      err.status = 400;
+      throw err;
+    }
+
+    const conceptIndex = Math.max(0, Math.min(
+      bc.CONCEPT_COUNT - 1,
+      Number(text(fields, "concept_index", 0)) || 0,
+    ));
+    const concept = brief?.concepts?.[conceptIndex];
+    if (!concept?.prompt) {
+      const err = new Error("Concepto de anúncio em falta.");
+      err.status = 400;
+      throw err;
+    }
+
+    const aspectRatio = normalizeRatio(text(fields, "aspect_ratio", "4:5"), "standard");
+    const imageUrls = await resolveMarketingVideoImages(files, fields, 5);
+    const photoRef = imageUrls[0] || null;
+    const extraRefs = imageUrls.slice(1, 3);
+
+    let prompt = bc.buildBrandCampaignImagePrompt({
+      brief,
+      concept,
+      aspectRatio,
+    });
+    prompt = finalizeImagePrompt(prompt, {
+      modelKey: "pro",
+      poster: true,
+      hasPersonPhoto: Boolean(photoRef),
+      photoEdit: Boolean(photoRef),
+    });
+    prompt = appendAspectOutputInstruction(prompt, aspectRatio);
+
+    const perImage = bc.getBrandCampaignPerImageCost(CREDIT);
+    const resolved = resolvePosterModel("nano_banana");
+    const nbInput = buildNanoBananaPosterInput({
+      prompt,
+      aspectRatio,
+      photoRef,
+      garmentRef: extraRefs[0] || null,
+    });
+
+    if (extraRefs.length > 1 && Array.isArray(nbInput.image_input)) {
+      nbInput.image_input = imageUrls.slice(0, 4);
+    } else if (imageUrls.length > 1) {
+      nbInput.image_input = imageUrls.slice(0, 4);
+    }
+
+    return submitBillableGeneration(req, fields, {
+      cost: perImage,
+      type: "brand_campaign",
+      modelId: resolved.modelId,
+      input: nbInput,
+      prompt,
+      aspectRatio: nbInput.aspect_ratio,
+      modelUsed: "Campanha on-brand · Nano Banana",
+      spendDescription: `Campanha on-brand · ${concept.title || `Ad ${conceptIndex + 1}`}`,
+      pendingMeta: {
+        brand_campaign_index: conceptIndex,
+        brand_campaign_title: concept.title || "",
+        brand_name: brief.brand_name || "",
+      },
+    });
+  }
+
   if (path === "generate/motion-flyer") {
     const {
       runMotionFlyerPipeline,
@@ -3250,6 +3363,26 @@ async function handlePath(path, req, res) {
         premium_packages: getPremiumPackagesForRegion(region),
         subscription_plans: getSubscriptionPlansForRegion(region),
         poster_hq_cost: getPosterHqPremiumCostPerOutput(),
+      });
+    }
+
+    if (req.method === "GET" && path === "brand-campaign/config") {
+      const country = countryFromRequest(req);
+      const client = String(req.headers["x-pricing-region"] || "").trim();
+      const region = resolvePricingRegion({ countryCode: country, clientRegion: client });
+      const CREDIT = getCreditCostsForRegion(region);
+      const bc = require("./lib/brandCampaign/index.cjs");
+      const { openaiConfigured } = require("./lib/openaiEnv.cjs");
+      return json(res, 200, {
+        per_image_cost: bc.getBrandCampaignPerImageCost(CREDIT),
+        max_outputs: bc.MAX_OUTPUTS,
+        min_outputs: bc.MIN_OUTPUTS,
+        concept_pool: bc.CONCEPT_COUNT,
+        model: "google/nano-banana",
+        analysis_model: "gpt-4o",
+        openai_ready: openaiConfigured(),
+        aspect_ratios: ["1:1", "4:5", "9:16", "16:9", "3:4"],
+        max_photos: 5,
       });
     }
 

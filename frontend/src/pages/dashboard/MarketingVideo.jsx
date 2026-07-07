@@ -5,6 +5,7 @@ import { api, formatApiError, trackPendingPrediction, uploadPost } from "../../l
 import { useAuth } from "../../lib/auth";
 import { useI18n } from "../../lib/i18n";
 import { usePricing } from "../../lib/PricingContext";
+import { isAdminUser } from "../../lib/isAdmin";
 import useTitle from "../../lib/useTitle";
 import StudioCompactShell from "../../components/studio/StudioCompactShell";
 import StudioGenerateBar from "../../components/StudioGenerateBar";
@@ -19,10 +20,11 @@ import {
   statusLabelKey,
 } from "../../lib/marketingVideo";
 
-function ModeToggle({ mode, onChange, disabled, t }) {
+function ModeToggle({ mode, onChange, disabled, t, showCgi = false }) {
+  const cols = showCgi ? "grid-cols-3" : "grid-cols-2";
   return (
     <div
-      className="grid grid-cols-2 gap-1.5 p-1 rounded-xl bg-[#0B0B0C]/80 border border-white/[0.08]"
+      className={`grid ${cols} gap-1.5 p-1 rounded-xl bg-[#0B0B0C]/80 border border-white/[0.08]`}
       data-testid="mktvid-mode-toggle"
     >
       <button
@@ -53,6 +55,22 @@ function ModeToggle({ mode, onChange, disabled, t }) {
         <SlidersHorizontal className="w-3.5 h-3.5" />
         {t("mktvid_mode_custom")}
       </button>
+      {showCgi ? (
+        <button
+          type="button"
+          disabled={disabled}
+          onClick={() => onChange("cgi_preview")}
+          className={`flex items-center justify-center gap-1.5 rounded-lg px-2 py-2 text-[11px] font-medium transition-all ${
+            mode === "cgi_preview"
+              ? "bg-violet-600 text-white"
+              : "text-[#8A8A8E] hover:text-[#E9E4DC]"
+          }`}
+          data-testid="mktvid-mode-cgi"
+        >
+          <Sparkles className="w-3.5 h-3.5" />
+          {t("mktvid_mode_cgi")}
+        </button>
+      ) : null}
     </div>
   );
 }
@@ -70,6 +88,9 @@ export default function MarketingVideo() {
   const [pricing, setPricing] = useState({ 15: 240 });
   const [categories, setCategories] = useState([]);
   const [visualStyles, setVisualStyles] = useState([]);
+  const [cgiTemplates, setCgiTemplates] = useState([]);
+  const [cgiTemplateId, setCgiTemplateId] = useState("character_reveal");
+  const [cgiStoryboardAdmin, setCgiStoryboardAdmin] = useState(false);
   const [category, setCategory] = useState("");
   const [visualStyle, setVisualStyle] = useState("");
   const [history, setHistory] = useState([]);
@@ -78,6 +99,11 @@ export default function MarketingVideo() {
   const [stageIdx, setStageIdx] = useState(0);
 
   const cost = useMemo(() => computeMarketingVideoCostFromPricing(pricing), [pricing]);
+  const showCgi = isAdminUser(user);
+
+  useEffect(() => {
+    if (!showCgi && mode === "cgi_preview") setMode("quick");
+  }, [showCgi, mode]);
 
   const { ready, hint } = useStudioGenerateGate({
     user,
@@ -94,6 +120,11 @@ export default function MarketingVideo() {
       if (data?.pricing) setPricing(data.pricing);
       if (data?.categories) setCategories(data.categories);
       if (data?.visual_styles) setVisualStyles(data.visual_styles);
+      if (data?.cgi_templates?.length) {
+        setCgiTemplates(data.cgi_templates);
+        setCgiTemplateId((prev) => (data.cgi_templates.some((tpl) => tpl.id === prev) ? prev : data.cgi_templates[0].id));
+      }
+      setCgiStoryboardAdmin(Boolean(data?.cgi_storyboard_admin));
       if (data?.formats?.length) setFormats(data.formats);
       if (data?.default_format) setFormatId((prev) => prev || data.default_format);
     } catch {
@@ -141,8 +172,11 @@ export default function MarketingVideo() {
       fd.append("format", formatId);
       fd.append("lang", lang || "pt");
       fd.append("mode", mode);
+      if (mode === "cgi_preview" && cgiTemplateId) fd.append("template_id", cgiTemplateId);
       if (mode === "custom") {
         if (category) fd.append("category", category);
+        if (visualStyle) fd.append("visual_style", visualStyle);
+      } else if (mode === "cgi_preview") {
         if (visualStyle) fd.append("visual_style", visualStyle);
       }
       fd.append("notify_by_email", "1");
@@ -177,9 +211,13 @@ export default function MarketingVideo() {
   return (
     <StudioCompactShell testId="marketing-video-page" className="pb-4 md:pb-8">
       <div className="mb-3 md:mb-4 space-y-2">
-        <ModeToggle mode={mode} onChange={setMode} disabled={busy} t={t} />
+        <ModeToggle mode={mode} onChange={setMode} disabled={busy} t={t} showCgi={showCgi} />
         <p className="hidden sm:block text-[11px] text-[#6b6b70]">
-          {mode === "quick" ? t("mktvid_mode_quick_desc") : t("mktvid_mode_custom_desc")}
+          {mode === "quick"
+            ? t("mktvid_mode_quick_desc")
+            : mode === "cgi_preview"
+              ? t("mktvid_mode_cgi_desc")
+              : t("mktvid_mode_custom_desc")}
         </p>
       </div>
 
@@ -194,6 +232,10 @@ export default function MarketingVideo() {
           visualStyles={visualStyles}
           visualStyle={visualStyle}
           onVisualStyleChange={setVisualStyle}
+          cgiTemplates={cgiTemplates}
+          cgiTemplateId={cgiTemplateId}
+          onCgiTemplateChange={setCgiTemplateId}
+          showCgiStoryboard={cgiStoryboardAdmin && isAdminUser(user)}
           formats={formats}
           formatId={formatId}
           onFormatChange={setFormatId}

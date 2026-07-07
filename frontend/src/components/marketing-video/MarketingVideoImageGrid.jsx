@@ -10,7 +10,16 @@ export default function MarketingVideoImageGrid({ files, onChange, disabled = fa
   return (
     <MultiImageUpload
       value={files || []}
-      onChange={(next) => onChange(next.slice(0, MAX))}
+      onChange={(next) => {
+        if (typeof next === "function") {
+          onChange((prev) => {
+            const base = Array.isArray(prev) ? prev : [];
+            return next(base).slice(0, MAX);
+          });
+          return;
+        }
+        onChange(Array.isArray(next) ? next.slice(0, MAX) : next);
+      }}
       maxFiles={MAX}
       disabled={disabled}
       testId="mktvid-upload"

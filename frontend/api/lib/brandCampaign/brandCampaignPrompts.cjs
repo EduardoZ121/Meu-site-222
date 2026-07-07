@@ -2,7 +2,14 @@
  * Final image prompts for on-brand ad generation.
  */
 
-function buildBrandCampaignImagePrompt({ brief, concept, aspectRatio }) {
+function buildBrandCampaignImagePrompt({
+  brief,
+  concept,
+  aspectRatio,
+  stylePreset = null,
+  batchSlot = null,
+  batchTotal = null,
+}) {
   const brandBlock = [
     "ON-BRAND AD CREATIVE (paid social / Meta / Instagram):",
     `Brand: ${brief.brand_name || "Brand"}`,
@@ -36,6 +43,23 @@ function buildBrandCampaignImagePrompt({ brief, concept, aspectRatio }) {
     + "Integrate naturally into the ad — NOT a collage of uploads."
   );
 
+  const styleBlock = stylePreset?.prompt
+    ? [
+      `CREATIVE STYLE PRESET "${stylePreset.label || stylePreset.id}":`,
+      stylePreset.prompt,
+      "Apply this visual direction while keeping the real product/brand from reference images.",
+    ].join("\n")
+    : "";
+
+  const batchBlock = batchSlot != null && batchTotal > 1
+    ? (
+      `BATCH UNIQUENESS — ad ${Number(batchSlot) + 1} of ${batchTotal} in this campaign set: `
+      + "This image MUST look clearly different from the other ads in the same batch "
+      + "(different layout, background, angle, mood, and visual hook). "
+      + "Never duplicate the same scene as another ad in this set."
+    )
+    : "";
+
   const quality = (
     "Single finished advertisement image. Professional lighting, strong hierarchy, print-ready. "
     + "Render the headline text clearly if specified. "
@@ -43,7 +67,7 @@ function buildBrandCampaignImagePrompt({ brief, concept, aspectRatio }) {
     + `Aspect ratio ${aspectRatio || "4:5"}.`
   );
 
-  return [brandBlock, conceptBlock, refLock, quality].join("\n\n");
+  return [brandBlock, batchBlock, styleBlock, conceptBlock, refLock, quality].filter(Boolean).join("\n\n");
 }
 
 module.exports = {

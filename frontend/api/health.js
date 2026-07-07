@@ -1,6 +1,30 @@
 /** GET /api/health — confirma serverless + estado das integrações (sem expor segredos). */
-const { storageEnabled } = require("./lib/mongo.cjs");
+const {
+  storageEnabled,
+  mongoEnabled,
+  blobColEnabled,
+  resolveStorageBackendLabel,
+} = require("./lib/mongo.cjs");
 const { isBlobConfigured, isBlobDisabled, getBlobReadWriteToken, getBlobStoreId } = require("./lib/blobEnv.cjs");
+const { pingBlobColDb } = require("./lib/blobColDb.cjs");
+const { isS3Configured, resolveBucketName } = require("./lib/s3Upload.cjs");
+
+async function pingKvStorage() {
+  if (!process.env.KV_REST_API_URL || !process.env.KV_REST_API_TOKEN) {
+    return { ok: false, reason: "kv_not_configured" };
+  }
+  try {
+    const { Redis } = require("@upstash/redis");
+    const redis = new Redis({
+      url: process.env.KV_REST_API_URL,
+      token: process.env.KV_REST_API_TOKEN,
+    });
+    await redis.ping();
+    return { ok: true, reason: "ok" };
+  } catch (err) {
+    return { ok: false, reason: String(err?.message || err).slice(0, 180) };
+  }
+}
 
 module.exports = async function handler(req, res) {
   res.setHeader("Access-Control-Allow-Origin", "*");
@@ -16,7 +40,18 @@ module.exports = async function handler(req, res) {
   const resend = Boolean(String(process.env.RESEND_API_KEY || "").trim());
   const blobDisabled = isBlobDisabled();
   const blob = isBlobConfigured();
+  const s3 = isS3Configured();
   const mongo = storageEnabled();
+  const storageBackend = resolveStorageBackendLabel();
+  const kvProbe = storageBackend === "kv" ? await pingKvStorage() : null;
+  const blobProbe = storageBackend === "blob" ? await pingBlobColDb() : null;
+  const storageReady = storageBackend === "mongo"
+    ? mongoEnabled()
+    : storageBackend === "blob"
+      ? Boolean(blobProbe?.ok)
+      : storageBackend === "kv"
+        ? Boolean(kvProbe?.ok)
+        : false;
   const maxDurationSec = Number(process.env.VERCEL_PRO_MAX_DURATION_SEC || 800) || 800;
   let buildId = process.env.APP_BUILD_ID || process.env.REACT_APP_BUILD_ID || "upload-generate-v11";
   try {
@@ -43,20 +78,26 @@ module.exports = async function handler(req, res) {
       openai_env: openaiKey.source,
       openai_status: openaiStatus.reason || (openai ? "ok" : "missing"),
       mongo,
+      storage_backend: storageBackend,
+      storage_ready: storageReady,
+      kv_status: kvProbe?.reason || null,
+      blob_storage_status: blobProbe?.reason || null,
       stripe,
       resend,
+      s3,
+      s3_bucket: Boolean(resolveBucketName()),
       blob,
       blob_disabled: blobDisabled,
       blob_store: Boolean(getBlobStoreId()),
       blob_rw_token: Boolean(getBlobReadWriteToken()),
     },
     ready: {
-      generate: replicate && mongo,
+      generate: replicate && storageReady,
       prompt_assist: openai,
-      billing: stripe && mongo,
+      billing: stripe && storageReady,
       email_notify: resend,
-      gallery_persist: mongo,
-      large_upload: blob,
+      gallery_persist: storageReady,
+      large_upload: s3 || blob,
       long_running_jobs: maxDurationSec >= 300,
     },
   });

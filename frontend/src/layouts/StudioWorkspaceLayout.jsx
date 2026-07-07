@@ -1,13 +1,15 @@
 import { Outlet, useLocation } from "react-router-dom";
-import { AnimatePresence, motion } from "framer-motion";
 import StudioTopBar from "../components/StudioTopBar";
 import { getWorkspaceHeaderKey } from "../lib/dashboardRouteMode";
 import { StudioNavProvider } from "../lib/StudioNavContext";
+import { useStudioScrollToTopOnNavigate } from "../lib/useStudioScrollToTopOnNavigate";
 
 /**
  * Layout de sessão/estúdio — header próprio, viewport cheio, sem header global nem menu lateral mobile.
+ * Sem AnimatePresence no main — evita ecrã preto quando a animação de opacity fica presa em 0.
  */
 export default function StudioWorkspaceLayout() {
+  useStudioScrollToTopOnNavigate();
   const { pathname } = useLocation();
   const titleKey = getWorkspaceHeaderKey(pathname);
 
@@ -18,20 +20,14 @@ export default function StudioWorkspaceLayout() {
         data-testid="studio-workspace-layout"
       >
         <StudioTopBar titleKey={titleKey} />
-        <AnimatePresence mode="wait">
-          <motion.main
-            key={pathname}
-            initial={{ opacity: 0, y: 4 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.18, ease: [0.16, 1, 0.3, 1] }}
-            className="rp-workspace-main rp-workspace-main--compact flex-1 min-h-0 w-full max-w-full overflow-y-auto overflow-x-hidden overscroll-y-contain touch-pan-y"
-            data-studio-scroll-root=""
-            data-testid="studio-workspace-main"
-          >
-            <Outlet />
-          </motion.main>
-        </AnimatePresence>
+        <main
+          key={pathname}
+          className="rp-workspace-main rp-workspace-main--compact flex-1 min-h-0 w-full max-w-full overflow-y-auto overflow-x-hidden overscroll-y-contain touch-pan-y"
+          data-studio-scroll-root=""
+          data-testid="studio-workspace-main"
+        >
+          <Outlet />
+        </main>
       </div>
     </StudioNavProvider>
   );

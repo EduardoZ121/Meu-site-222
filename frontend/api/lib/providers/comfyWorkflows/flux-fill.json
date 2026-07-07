@@ -1,0 +1,47 @@
+{
+  "_comment": "Flux Fill (inpaint) — Pipeline B (editar / trocar roupa). Placeholder: requer flux1-fill-dev no Network Volume e nós de inpaint. Não corre até o volume estar montado.",
+  "1": {
+    "inputs": { "image": "", "upload": "image" },
+    "class_type": "LoadImage"
+  },
+  "2": {
+    "inputs": { "image": "input_mask.png", "upload": "image" },
+    "class_type": "LoadImage"
+  },
+  "4": {
+    "inputs": { "unet_name": "flux1-fill-dev.safetensors", "weight_dtype": "fp8_e4m3fn" },
+    "class_type": "UNETLoader"
+  },
+  "11": {
+    "inputs": { "clip_name1": "t5xxl_fp16.safetensors", "clip_name2": "clip_l.safetensors", "type": "flux" },
+    "class_type": "DualCLIPLoader"
+  },
+  "12": {
+    "inputs": { "vae_name": "ae.safetensors" },
+    "class_type": "VAELoader"
+  },
+  "6": {
+    "inputs": { "text": "", "clip": ["11", 0] },
+    "class_type": "CLIPTextEncode"
+  },
+  "15": {
+    "inputs": { "pixels": ["1", 0], "vae": ["12", 0], "mask": ["2", 0] },
+    "class_type": "InpaintModelConditioning"
+  },
+  "17": {
+    "inputs": { "model": ["4", 0], "scheduler": "normal", "steps": 28, "denoise": 1.0 },
+    "class_type": "BasicScheduler"
+  },
+  "25": {
+    "inputs": { "noise_seed": 0 },
+    "class_type": "RandomNoise"
+  },
+  "8": {
+    "inputs": { "samples": ["17", 0], "vae": ["12", 0], "tile_size": 512, "overlap": 64, "temporal_size": 64, "temporal_overlap": 8 },
+    "class_type": "VAEDecodeTiled"
+  },
+  "9": {
+    "inputs": { "filename_prefix": "RemakePix", "images": ["8", 0] },
+    "class_type": "SaveImage"
+  }
+}

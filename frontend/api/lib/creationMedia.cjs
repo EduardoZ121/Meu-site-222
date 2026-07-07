@@ -1,4 +1,6 @@
 const crypto = require("crypto");
+const { isBlobConfigured } = require("./blobEnv.cjs");
+const { isS3Configured, isTrustedS3MediaUrl, uploadBufferToS3 } = require("./s3Upload.cjs");
 
 /** Extrai URLs de saída do Replicate (vários formatos). */
 function extractUrls(output) {
@@ -7,7 +9,12 @@ function extractUrls(output) {
     if (val == null) return;
     if (typeof val === "string") {
       const s = val.trim();
-      if (s.startsWith("http://") || s.startsWith("https://")) flat.push(s);
+      if (
+        s.startsWith("http://")
+        || s.startsWith("https://")
+        || s.startsWith("data:image/")
+        || s.startsWith("data:video/")
+      ) flat.push(s);
       return;
     }
     if (Array.isArray(val)) {
@@ -70,6 +77,7 @@ function isBlobUrl(url) {
 function trustedProxyTarget(url) {
   const u = String(url || "").trim();
   if (!u.startsWith("https://")) return null;
+  if (isTrustedS3MediaUrl(u)) return u;
   if (isBlobUrl(u)) return u;
   if (/replicate\.delivery/i.test(u)) return u;
   if (/^https:\/\/replicate\.com\//i.test(u)) return u;
@@ -77,17 +85,48 @@ function trustedProxyTarget(url) {
   return null;
 }
 
-const { isBlobConfigured } = require("./blobEnv.cjs");
+function isPermanentMediaUrl(url) {
+  return isTrustedS3MediaUrl(url) || isBlobUrl(url);
+}
 
-/** Copia resultados para Vercel Blob (URLs permanentes na galeria). */
-async function mirrorUrlsToBlob(urls) {
-  if (!isBlobConfigured() || !Array.isArray(urls) || !urls.length) {
+async function uploadPermanentMedia(buf, contentType, { userId = "system" } = {}) {
+  if (isS3Configured()) {
+    try {
+      const s3 = await uploadBufferToS3({
+        buffer: buf,
+        contentType,
+        userId,
+        prefix: "creations",
+      });
+      if (s3?.url) return s3.url;
+    } catch (err) {
+      console.warn("[creationMedia] S3 mirror failed, falling back to Blob", err?.message);
+    }
+  }
+
+  if (!isBlobConfigured()) return null;
+  const { put } = require("@vercel/blob");
+  const ct = String(contentType || "image/jpeg").split(";")[0].trim() || "image/jpeg";
+  const ext = ct.includes("png")
+    ? "png"
+    : ct.includes("webp")
+      ? "webp"
+      : ct.includes("video")
+        ? "mp4"
+        : "jpg";
+  const name = `rp/creations/${Date.now()}-${crypto.randomBytes(5).toString("hex")}.${ext}`;
+  const blob = await put(name, buf, { access: "public", contentType: ct });
+  return blob.url;
+}
+
+/** Copia resultados para storage permanente (S3 primeiro; Vercel Blob como fallback). */
+async function mirrorUrlsToBlob(urls, opts = {}) {
+  if ((!isS3Configured() && !isBlobConfigured()) || !Array.isArray(urls) || !urls.length) {
     return urls || [];
   }
-  const { put } = require("@vercel/blob");
   const out = [];
   for (const url of urls) {
-    if (isBlobUrl(url)) {
+    if (isPermanentMediaUrl(url)) {
       out.push(url);
       continue;
     }
@@ -100,10 +139,8 @@ async function mirrorUrlsToBlob(urls) {
         const buf = Buffer.from(b64, "base64");
         if (buf.length < 128) continue;
         const ct = header.match(/^data:([^;]+)/)?.[1] || "image/png";
-        const ext = ct.includes("png") ? "png" : ct.includes("webp") ? "webp" : "jpg";
-        const name = `rp/creations/${Date.now()}-${crypto.randomBytes(5).toString("hex")}.${ext}`;
-        const blob = await put(name, buf, { access: "public", contentType: ct });
-        out.push(blob.url);
+        const permanentUrl = await uploadPermanentMedia(buf, ct, opts);
+        out.push(permanentUrl || url);
       } catch {
         out.push(url);
       }
@@ -126,16 +163,8 @@ async function mirrorUrlsToBlob(urls) {
         out.push(url);
         continue;
       }
-      const ext = ct.includes("png")
-        ? "png"
-        : ct.includes("webp")
-          ? "webp"
-          : ct.includes("video")
-            ? "mp4"
-            : "jpg";
-      const name = `rp/creations/${Date.now()}-${crypto.randomBytes(5).toString("hex")}.${ext}`;
-      const blob = await put(name, buf, { access: "public", contentType: ct });
-      out.push(blob.url);
+      const permanentUrl = await uploadPermanentMedia(buf, ct, opts);
+      out.push(permanentUrl || url);
     } catch {
       out.push(url);
     }
@@ -155,11 +184,11 @@ async function repairCreationMedia(db, doc) {
   const urls = normalizeResultUrls(doc.result_urls);
   if (!urls.length || !doc?.id) return urls;
   const primary = urls[0];
-  if (isBlobUrl(primary)) return urls;
-  if (!isBlobConfigured()) return urls;
+  if (isPermanentMediaUrl(primary)) return urls;
+  if (!isS3Configured() && !isBlobConfigured()) return urls;
 
-  const mirrored = await mirrorUrlsToBlob(urls);
-  if (mirrored[0] && isBlobUrl(mirrored[0])) {
+  const mirrored = await mirrorUrlsToBlob(urls, { userId: doc.user_id || "system" });
+  if (mirrored[0] && isPermanentMediaUrl(mirrored[0])) {
     try {
       await db.collection("creations").updateOne(
         { id: doc.id },
@@ -182,14 +211,14 @@ async function loadCreationMedia(db, doc) {
   if (!urls.length) return null;
 
   let url = urls[0];
-  if (!isBlobUrl(url)) {
+  if (!isPermanentMediaUrl(url)) {
     urls = await repairCreationMedia(db, doc);
     url = urls[0];
   }
 
   if (!url) return null;
 
-  if (isBlobUrl(url)) {
+  if (isPermanentMediaUrl(url)) {
     const res = await fetchRemoteMedia(url);
     if (!res.ok) return null;
     const ct = (res.headers.get("content-type") || "image/jpeg").split(";")[0].trim();
@@ -214,9 +243,9 @@ async function loadCreationMedia(db, doc) {
   const buf = Buffer.from(await res.arrayBuffer());
   if (buf.length < 64) return null;
 
-  if (isBlobConfigured() && !isBlobUrl(url)) {
-    const mirrored = await mirrorUrlsToBlob([url]);
-    if (mirrored[0] && isBlobUrl(mirrored[0])) {
+  if ((isS3Configured() || isBlobConfigured()) && !isPermanentMediaUrl(url)) {
+    const mirrored = await mirrorUrlsToBlob([url], { userId: doc.user_id || "system" });
+    if (mirrored[0] && isPermanentMediaUrl(mirrored[0])) {
       try {
         await db.collection("creations").updateOne(
           { id: doc.id },
@@ -244,6 +273,7 @@ module.exports = {
   sanitizeCreation,
   trustedProxyTarget,
   isBlobUrl,
+  isPermanentMediaUrl,
   loadCreationMedia,
   repairCreationMedia,
 };

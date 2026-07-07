@@ -33,6 +33,26 @@ function updateStoredUser(user) {
   localStorage.setItem("rp_user", JSON.stringify(user));
 }
 
+function normalizeServerUser(data) {
+  if (!data) return data;
+  const email = String(data.email || "").trim().toLowerCase();
+  const unlimited = isUnlimitedEmail(email) || data.role === "admin" || data.is_unlimited;
+  if (unlimited) {
+    return {
+      ...data,
+      role: "admin",
+      is_unlimited: true,
+      credits: 999999999,
+      premium_credits: 999999999,
+      total_standard_credits: 999999999,
+    };
+  }
+  return {
+    ...data,
+    total_standard_credits: data.total_standard_credits ?? data.credits ?? 0,
+  };
+}
+
 function decodeJwtPayload(token) {
   const payload = token.split(".")[1];
   const normalized = payload.replace(/-/g, "+").replace(/_/g, "/");
@@ -94,7 +114,7 @@ function resolveLocalUserFromToken(token) {
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(() => {
-    try { return JSON.parse(localStorage.getItem("rp_user") || "null"); } catch { return null; }
+    try { return normalizeServerUser(JSON.parse(localStorage.getItem("rp_user") || "null")); } catch { return null; }
   });
   const [loading, setLoading] = useState(true);
 
@@ -112,8 +132,9 @@ export function AuthProvider({ children }) {
     setLoading(true);
     api.get("/auth/me")
       .then((r) => {
-        setUser(r.data);
-        updateStoredUser(r.data);
+        const u = normalizeServerUser(r.data);
+        setUser(u);
+        updateStoredUser(u);
         void syncServerPendingPredictions();
         window.location.replace("/app/tools");
       })
@@ -139,8 +160,9 @@ export function AuthProvider({ children }) {
     }
     api.get("/auth/me")
       .then((r) => {
-        setUser(r.data);
-        updateStoredUser(r.data);
+        const u = normalizeServerUser(r.data);
+        setUser(u);
+        updateStoredUser(u);
         void syncServerPendingPredictions();
       })
       .catch((err) => {
@@ -207,9 +229,10 @@ export function AuthProvider({ children }) {
     try {
       const { data } = await api.post("/auth/login", { email: normalizedEmail, password });
       localStorage.setItem("rp_token", data.token);
-      updateStoredUser(data.user);
-      setUser(data.user);
-      return data.user;
+      const u = normalizeServerUser(data.user);
+      updateStoredUser(u);
+      setUser(u);
+      return u;
     } catch (err) {
       if (!isBackendUnavailable(err)) throw err;
       const local = readLocalUsers()[normalizedEmail];
@@ -379,9 +402,10 @@ export function AuthProvider({ children }) {
     }
     try {
       const { data } = await api.get("/auth/me");
-      setUser(data);
-      updateStoredUser(data);
-      return data;
+      const u = normalizeServerUser(data);
+      setUser(u);
+      updateStoredUser(u);
+      return u;
     } catch (e) {
       if (e?.response?.status === 401) {
         localStorage.removeItem("rp_token");

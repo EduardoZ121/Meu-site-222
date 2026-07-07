@@ -317,6 +317,7 @@ export const POSTER_CAT_KEYS = {
   barber: "post_cat_barber",
   carousel: "post_cat_carousel",
   music: "post_cat_music",
+  tia_any: "post_cat_tia_any",
   food: "post_cat_food",
   fitness: "post_cat_fitness",
   motivational: "post_cat_motivational",

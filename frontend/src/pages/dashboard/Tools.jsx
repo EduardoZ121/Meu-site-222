@@ -1,5 +1,7 @@
 import { useMemo, useState } from "react";
+import { Link } from "react-router-dom";
 import { AnimatePresence, motion } from "framer-motion";
+import { Crown, LockKeyhole, ShieldCheck, Sparkles } from "lucide-react";
 import ToolsHubCard from "../../components/tools/ToolsHubCard";
 import useTitle from "../../lib/useTitle";
 import { usePricing } from "../../lib/PricingContext";
@@ -11,6 +13,7 @@ import { toolCatalogueCost, videoCatalogueCost } from "../../lib/pricingRegions"
 import { getVideoCategoriesForUser } from "../../lib/videoCatalogue";
 import { cn } from "../../lib/utils";
 import StudioHelpTip from "../../components/studio/StudioHelpTip";
+import { SUPPORT_EMAIL, SUPPORT_MAILTO } from "../../lib/supportEmail";
 
 const pageEase = [0.16, 1, 0.3, 1];
 
@@ -294,6 +297,66 @@ export default function Tools() {
           )}
         </motion.div>
       </AnimatePresence>
+
+      <footer className="mt-10 md:mt-14 rounded-3xl border border-white/[0.08] bg-[#0f0f15]/80 px-5 py-6 md:px-7 md:py-7 shadow-[0_24px_80px_-48px_rgba(0,0,0,0.9)]">
+        <div className="grid gap-6 md:grid-cols-[1.25fr_1fr_1fr]">
+          <div>
+            <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-[#9333EA]/30 bg-[#9333EA]/10 px-3 py-1.5 text-[10px] font-mono uppercase tracking-[0.16em] text-[#C4B5FD]">
+              <Sparkles className="h-3.5 w-3.5" strokeWidth={1.75} />
+              RemakePix Studio
+            </div>
+            <p className="max-w-md text-[13px] leading-relaxed text-[#8A8A8E]">
+              Crie imagens, vídeos, posters, campanhas e restaurações com créditos flexíveis, histórico na galeria e ferramentas organizadas para trabalho profissional.
+            </p>
+          </div>
+
+          <div>
+            <p className="mb-3 text-[11px] font-mono uppercase tracking-[0.16em] text-[#EDEBE8]">
+              Confiança
+            </p>
+            <div className="space-y-2 text-[13px] text-[#8A8A8E]">
+              <p className="flex items-center gap-2">
+                <ShieldCheck className="h-4 w-4 text-emerald-300" strokeWidth={1.75} />
+                Galeria e notificações ligadas à sua conta.
+              </p>
+              <p className="flex items-center gap-2">
+                <LockKeyhole className="h-4 w-4 text-sky-300" strokeWidth={1.75} />
+                Uploads tratados com acesso protegido.
+              </p>
+              <p className="flex items-center gap-2">
+                <Crown className="h-4 w-4 text-amber-300" strokeWidth={1.75} />
+                Motores rápidos e HQ para maior qualidade.
+              </p>
+            </div>
+          </div>
+
+          <div>
+            <p className="mb-3 text-[11px] font-mono uppercase tracking-[0.16em] text-[#EDEBE8]">
+              Informações
+            </p>
+            <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-[13px]">
+              <Link to="/app/gallery" className="text-[#8A8A8E] hover:text-white transition-colors">
+                {t("sidebar.gallery")}
+              </Link>
+              <Link to="/app/billing" className="text-[#8A8A8E] hover:text-white transition-colors">
+                {t("sidebar.billing")}
+              </Link>
+              <Link to="/legal/terms" className="text-[#8A8A8E] hover:text-white transition-colors">
+                {t("footer_terms")}
+              </Link>
+              <Link to="/legal/privacy" className="text-[#8A8A8E] hover:text-white transition-colors">
+                {t("footer_privacy")}
+              </Link>
+              <a href={SUPPORT_MAILTO} className="col-span-2 text-[#C4B5FD] hover:text-white transition-colors">
+                {SUPPORT_EMAIL}
+              </a>
+            </div>
+            <p className="mt-4 text-[11px] text-[#5A5A5E]">
+              © {new Date().getFullYear()} RemakePix. Ferramentas criativas para uso responsável.
+            </p>
+          </div>
+        </div>
+      </footer>
     </div>
   );
 }

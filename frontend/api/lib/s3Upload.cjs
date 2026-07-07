@@ -102,6 +102,50 @@ function sanitizeImageFilename(name, fallback = "photo.jpg") {
   return fn;
 }
 
+function mediaExtFromContentType(contentType) {
+  const ct = String(contentType || "").toLowerCase();
+  if (ct.includes("png")) return "png";
+  if (ct.includes("webp")) return "webp";
+  if (ct.includes("gif")) return "gif";
+  if (ct.includes("mp4")) return "mp4";
+  if (ct.includes("webm")) return "webm";
+  if (ct.includes("quicktime") || ct.includes("mov")) return "mov";
+  return ct.startsWith("video/") ? "mp4" : "jpg";
+}
+
+async function uploadBufferToS3({ buffer, contentType, userId = "system", prefix = "creations" }) {
+  const cfg = getS3Config();
+  if (!cfg) {
+    const err = new Error("S3 não configurado.");
+    err.status = 503;
+    throw err;
+  }
+  const buf = Buffer.isBuffer(buffer) ? buffer : Buffer.from(buffer || []);
+  if (buf.length < 1) {
+    const err = new Error("Ficheiro vazio.");
+    err.status = 400;
+    throw err;
+  }
+  const ct = String(contentType || "image/jpeg").split(";")[0].trim() || "image/jpeg";
+  const ext = mediaExtFromContentType(ct);
+  const uid = String(userId || "system").replace(/[^\w-]/g, "").slice(0, 48) || "system";
+  const safePrefix = String(prefix || "creations").replace(/[^\w/-]+/g, "_").replace(/^\/+|\/+$/g, "") || "creations";
+  const key = `rp/${safePrefix}/${uid}/${Date.now()}-${crypto.randomBytes(6).toString("hex")}.${ext}`;
+  const client = createS3Client(cfg);
+  await client.send(new PutObjectCommand({
+    Bucket: cfg.bucket,
+    Key: key,
+    Body: buf,
+    ContentType: ct,
+  }));
+  return {
+    key,
+    url: publicUrlForKey(key),
+    contentType: ct,
+    size: buf.length,
+  };
+}
+
 async function createVideoPresignedUpload({ filename, contentType, contentLength, userId }) {
   const cfg = getS3Config();
   if (!cfg) {
@@ -201,6 +245,7 @@ module.exports = {
   isS3Configured,
   isTrustedS3MediaUrl,
   publicUrlForKey,
+  uploadBufferToS3,
   createVideoPresignedUpload,
   createImagePresignedUpload,
 };

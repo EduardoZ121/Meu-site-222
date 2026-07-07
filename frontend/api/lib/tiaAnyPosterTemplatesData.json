@@ -1,0 +1,45 @@
+[
+  {
+    "id": "tia_any_fast_food",
+    "source_id": "tia_any_fast_food",
+    "familyId": "tia_any_fast_food",
+    "styleVariants": true,
+    "category": "tia_any",
+    "label": "TIA ANY FAST FOOD",
+    "subtag": "Restaurante exclusivo · 40 estilos",
+    "tiaAnyTemplate": true,
+    "placeholders": [
+      "MAIN_TITLE",
+      "SUBTITLE",
+      "CTA_TEXT",
+      "PHONE",
+      "INSTAGRAM",
+      "PRICE",
+      "FEATURE_1",
+      "FEATURE_2",
+      "FEATURE_3"
+    ],
+    "optional": [
+      "SUBTITLE",
+      "PHONE",
+      "INSTAGRAM",
+      "PRICE",
+      "FEATURE_1",
+      "FEATURE_2",
+      "FEATURE_3"
+    ],
+    "replacements": {
+      "MAIN_TITLE": "SABOR QUE VICIA!",
+      "SUBTITLE": "Ingredientes frescos, textura irresistível e aquele toque Tia Any.",
+      "CTA_TEXT": "PEÇA JÁ O SEU!",
+      "PHONE": "Telefone",
+      "INSTAGRAM": "@tiaanyfastfood",
+      "PRICE": "Preço",
+      "FEATURE_1": "Carne Premium",
+      "FEATURE_2": "Ingredientes Frescos",
+      "FEATURE_3": "Preparado na Hora"
+    },
+    "prompt": "REFERENCE IMAGES (Tia Any Fast Food): Image \"logo\" is the official Tia Any Fast Food logo. Use only this logo and preserve its orange/white/black identity. Image \"uniform\" is the official black polo uniform. Whenever an employee appears, they must wear this black polo with the embroidered Tia Any logo on the left chest. User upload 1 may be a person or food. If it is a person, preserve exact identity. User upload 2, when present, is the featured food reference. Preserve ingredients, colors, textures, sauces, cooking style, shape, plating, garnishes and all visible details. Never add QR codes, barcodes, watermarks, AI signatures, random logos or unrelated branding. Official Tia Any branding only.\n\nPremium luxury restaurant commercial poster, hero food explosion. The featured food occupies about 70% of the composition on the lower-right in impressive close-up perspective. Left side clean for typography. Realistic floating ingredients around the food: tomato slices, purple onion rings, lettuce, sesame seeds, sauce splashes, cheese drips, herbs, spices, orange particles, steam and crumbs frozen in motion with realistic physics. Premium matte black textured background, large artistic orange paint stroke crossing upper-right, warm cinematic lighting, soft vignette. Include official Tia Any logo, small branded flag inserted naturally into the food, contact section, Instagram placeholder, phone placeholder and price placeholder. Main headline \"{{MAIN_TITLE}}\"; subtitle \"{{SUBTITLE}}\"; feature list \"{{FEATURE_1}}\", \"{{FEATURE_2}}\", \"{{FEATURE_3}}\"; CTA \"{{CTA_TEXT}}\"; phone \"{{PHONE}}\"; Instagram \"{{INSTAGRAM}}\"; price \"{{PRICE}}\". Ultra photorealistic commercial food photography, luxury restaurant advertising, perfect typography layout, 8K, advertising agency quality.",
+    "aspect": "4:5"
+  }
+]

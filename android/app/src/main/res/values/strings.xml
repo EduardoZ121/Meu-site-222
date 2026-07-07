@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="appName">RemakePix</string>
+    <string name="launchUrl">https://www.remakepix.com/login?source=android_app</string>
+    <string name="hostName">www.remakepix.com</string>
+    <string name="providerAuthority">com.remakepix.app.fileprovider</string>
+    <string name="assetStatements">
+        [{
+            \"relation\": [\"delegate_permission/common.handle_all_urls\"],
+            \"target\": {
+                \"namespace\": \"web\",
+                \"site\": \"https://www.remakepix.com\"
+            }
+        }]
+    </string>
+</resources>

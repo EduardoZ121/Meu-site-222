@@ -10,6 +10,8 @@ import { registerExtendedStyleVariants } from "./posterExtendedFamilies.js";
 import { registerRichStyleVariants } from "./posterRichFamilies.js";
 import { registerSocialMarketingStyleVariants } from "./posterSocialMarketingFamilies.js";
 import { registerPdfReleaseStyleVariants } from "./posterPdfReleaseFamilies.js";
+import { registerTiaAnyStyleVariants } from "./posterTiaAnyFamilies.js";
+import { registerUserPromptStyleVariants } from "./posterUserPromptFamilies.js";
 
 /** @typedef {{ variantKey: string, labelKey?: string, label?: string, useBase?: boolean, gradient?: string, prompt?: string }} PosterFlyerVariant */
 
@@ -141,6 +143,14 @@ registerSocialMarketingStyleVariants((familyId, variants) => {
 });
 
 registerPdfReleaseStyleVariants((familyId, variants) => {
+  STYLE_VARIANTS_BY_TEMPLATE_ID[familyId] = variants;
+});
+
+registerTiaAnyStyleVariants((familyId, variants) => {
+  STYLE_VARIANTS_BY_TEMPLATE_ID[familyId] = variants;
+});
+
+registerUserPromptStyleVariants((familyId, variants) => {
   STYLE_VARIANTS_BY_TEMPLATE_ID[familyId] = variants;
 });
 

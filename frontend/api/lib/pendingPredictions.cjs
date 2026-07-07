@@ -88,6 +88,134 @@ async function attemptFluxFallback(pending) {
   }
 }
 
+function isSeedanceSensitiveError(err) {
+  return /e005|flagged as sensitive|input or output was flagged|sensitive content/i.test(
+    String(err || "").toLowerCase(),
+  );
+}
+
+async function attemptMarketingVideoSafeRetry(pending) {
+  if (pending?.marketing_video_safe_retry_attempted) return null;
+  if (pending?.type !== "marketing_video") return null;
+  const urls = Array.isArray(pending.marketing_video_image_urls)
+    ? pending.marketing_video_image_urls.filter(Boolean)
+    : [];
+  if (!urls.length) return null;
+
+  try {
+    const { buildSeedanceInput } = require("./marketingVideo/marketingVideoSeedance.cjs");
+    const { getMarketingVideoProvider } = require("./marketingVideo/marketingVideoModels.cjs");
+    const replicateProvider = require("./providers/replicateProvider.cjs");
+
+    const duration = Math.min(10, pending.marketing_video_duration || 10);
+    const aspectRatio = pending.aspect_ratio || "9:16";
+    const provider = getMarketingVideoProvider(pending.marketing_video_provider);
+
+    const minimalPrompt =
+      "Create a short family-safe premium marketing video from the input photo. "
+      + "Preserve the subject identity, colors, and key details. "
+      + "Smooth cinematic camera, professional lighting, PG-rated commercial tone, elegant pacing. "
+      + "End on a clean hero frame for social media.";
+
+    const { modelId, input } = buildSeedanceInput({
+      prompt: minimalPrompt,
+      imageUrls: [urls[0]],
+      duration,
+      providerId: provider.id,
+      aspectRatio,
+      generateAudio: false,
+      inputMode: "image",
+    });
+
+    const prediction = await replicateProvider.createPrediction(modelId, input);
+    if (!prediction?.id) return null;
+
+    await updatePending(pending.id, {
+      replicate_prediction_id: prediction.id,
+      provider_job_id: prediction.id,
+      marketing_video_safe_retry_attempted: true,
+      marketing_video_mode: "safe_retry",
+      prompt: minimalPrompt,
+      model_used: modelId,
+      status: "starting",
+      error: null,
+      polled_count: 0,
+    });
+
+    return {
+      status: "processing",
+      prediction_id: pending.id,
+      marketing_video_safe_retry: true,
+      server_billing: true,
+    };
+  } catch {
+    return null;
+  }
+}
+
+async function attemptMarketingVideoWanFallback(pending) {
+  if (pending?.marketing_video_wan_fallback_attempted) return null;
+  if (pending?.type !== "marketing_video") return null;
+  if (!pending?.marketing_video_safe_retry_attempted) return null;
+  const urls = Array.isArray(pending.marketing_video_image_urls)
+    ? pending.marketing_video_image_urls.filter(Boolean)
+    : [];
+  if (!urls[0]) return null;
+
+  try {
+    const { MODELS, buildWanFastInput } = require("./videoModels.cjs");
+    const replicateProvider = require("./providers/replicateProvider.cjs");
+    const ratio = String(pending.aspect_ratio || "9:16");
+    const aspect = ratio === "16:9" || ratio === "1:1" ? "16:9" : "9:16";
+    const prompt =
+      "Smooth cinematic marketing video, professional camera motion, premium commercial look, "
+      + "family-safe advertisement, preserve subject identity from the photo.";
+
+    const input = buildWanFastInput({
+      prompt,
+      aspect,
+      photo: urls[0],
+      isI2v: true,
+    });
+
+    const modelId = MODELS.wan_i2v_fast;
+    const prediction = await replicateProvider.createPrediction(modelId, input);
+    if (!prediction?.id) return null;
+
+    await updatePending(pending.id, {
+      replicate_prediction_id: prediction.id,
+      provider_job_id: prediction.id,
+      marketing_video_wan_fallback_attempted: true,
+      marketing_video_mode: "wan_fallback",
+      prompt,
+      model_used: modelId,
+      status: "starting",
+      error: null,
+      polled_count: 0,
+    });
+
+    return {
+      status: "processing",
+      prediction_id: pending.id,
+      marketing_video_wan_fallback: true,
+      server_billing: true,
+    };
+  } catch {
+    return null;
+  }
+}
+
+async function attemptMarketingVideoFallbackChain(pending) {
+  if (pending?.type !== "marketing_video") return null;
+  if (!pending?.marketing_video_safe_retry_attempted) {
+    return attemptMarketingVideoSafeRetry(pending);
+  }
+  if (!pending?.marketing_video_wan_fallback_attempted) {
+    return attemptMarketingVideoWanFallback(pending);
+  }
+  return null;
+}
+
 async function createPending(doc) {
   if (!storageEnabled()) return null;
   await ensureIndexes();
@@ -96,6 +224,8 @@ async function createPending(doc) {
     id: doc.id || newPendingId(),
     user_id: doc.user_id,
     replicate_prediction_id: doc.replicate_prediction_id,
+    provider: doc.provider || "replicate",
+    provider_job_id: doc.provider_job_id || doc.replicate_prediction_id || null,
     type: doc.type || "image",
     prompt: doc.prompt || "",
     model_used: doc.model_used || "Motor IA",
@@ -105,7 +235,7 @@ async function createPending(doc) {
     result_urls: [],
     error: null,
     balance_after_spend: doc.balance_after_spend ?? null,
-    lang: doc.lang || "en",
+    lang: doc.lang || "pt",
     notify_email: doc.notify_email || null,
     notify_email_sent_at: null,
     notify_email_attempts: 0,
@@ -119,13 +249,31 @@ async function createPending(doc) {
     primary_model: doc.primary_model || doc.model_used || null,
     marketing_video_duration: doc.marketing_video_duration ?? null,
     marketing_video_category: doc.marketing_video_category || null,
+    marketing_video_visual_style: doc.marketing_video_visual_style || null,
+    marketing_video_format: doc.marketing_video_format || null,
     marketing_video_provider: doc.marketing_video_provider || null,
     marketing_video_image_count: doc.marketing_video_image_count ?? null,
+    marketing_video_mode: doc.marketing_video_mode || null,
+    marketing_video_template_id: doc.marketing_video_template_id || null,
+    marketing_video_prompt_id: doc.marketing_video_prompt_id || null,
+    marketing_video_admin_storyboard: doc.marketing_video_admin_storyboard || null,
+    marketing_video_image_urls: Array.isArray(doc.marketing_video_image_urls)
+      ? doc.marketing_video_image_urls.filter(Boolean).slice(0, 5)
+      : null,
+    marketing_video_safe_retry_attempted: Boolean(doc.marketing_video_safe_retry_attempted),
+    marketing_video_wan_fallback_attempted: Boolean(doc.marketing_video_wan_fallback_attempted),
     motion_flyer_duration: doc.motion_flyer_duration ?? null,
     motion_flyer_category: doc.motion_flyer_category || null,
     motion_flyer_provider: doc.motion_flyer_provider || null,
     motion_flyer_format: doc.motion_flyer_format || null,
     motion_flyer_prompt_id: doc.motion_flyer_prompt_id || null,
+    brand_campaign_index: doc.brand_campaign_index ?? null,
+    brand_campaign_title: doc.brand_campaign_title || null,
+    brand_name: doc.brand_name || null,
+    brand_campaign_batch_total: doc.brand_campaign_batch_total ?? null,
+    brand_campaign_batch_id: doc.brand_campaign_batch_id || null,
+    ad_style_id: doc.ad_style_id || null,
+    ad_style_label: doc.ad_style_label || null,
   };
   await db.collection("pending_predictions").insertOne(row);
   return row;
@@ -153,21 +301,30 @@ function elapsedSeconds(pending) {
 }
 
 async function deliverVideoNotifyEmail(pending, creation, urls) {
-  if (!pending?.notify_email) {
+  const db = await getDb();
+  const email = await resolvePendingNotifyEmail(db, pending);
+  if (!email) {
     return { skipped: true, reason: "no_notify" };
   }
   if (pending.notify_email_sent_at) {
     return { skipped: true, reason: "already_sent" };
   }
 
-  const db = await getDb();
+  const lockNow = nowIso();
+  const staleMs = 3 * 60 * 1000;
+  const staleBefore = new Date(Date.now() - staleMs).toISOString();
   const claim = await db.collection("pending_predictions").findOneAndUpdate(
     {
       id: pending.id,
       notify_email: { $type: "string", $ne: "" },
       notify_email_sent_at: null,
+      $or: [
+        { notify_email_sending_at: null },
+        { notify_email_sending_at: { $lt: staleBefore } },
+      ],
     },
     {
+      $set: { notify_email_sending_at: lockNow },
       $inc: { notify_email_attempts: 1 },
     },
     { returnDocument: "before" },
@@ -183,6 +340,19 @@ async function deliverVideoNotifyEmail(pending, creation, urls) {
     ? `https://www.remakepix.com/app/gallery?focus=${encodeURIComponent(creation.id)}`
     : "https://www.remakepix.com/app/gallery";
 
+  const batchIndex = pending.brand_campaign_index;
+  const batchTotal = pending.brand_campaign_batch_total;
+  const emailMeta = {
+    adTitle: pending.brand_campaign_title || pending.ad_style_label || "",
+    brandName: pending.brand_name || "",
+    batchIndex: batchIndex != null ? Number(batchIndex) : null,
+    batchTotal: batchTotal != null ? Number(batchTotal) : null,
+    batchId: pending.brand_campaign_batch_id || "",
+    styleLabel: pending.ad_style_label || "",
+    creationType: pending.type || "poster",
+    creationId: creation?.id || pending.id,
+  };
+
   let lastResult = { ok: false, reason: "send_failed" };
   for (let attempt = 0; attempt < 3; attempt += 1) {
     if (attempt > 0) {
@@ -191,21 +361,24 @@ async function deliverVideoNotifyEmail(pending, creation, urls) {
     }
     // eslint-disable-next-line no-await-in-loop
     lastResult = await sendCreationReadyEmail({
-      to: pending.notify_email,
+      to: email,
       lang: pending.lang || "pt",
       mediaUrl,
       galleryUrl,
       creationId: creation?.id,
       isVideo,
+      meta: emailMeta,
     });
     if (lastResult.ok) {
       await updatePending(pending.id, {
         notify_email_sent_at: nowIso(),
+        notify_email_sending_at: null,
         notify_email_error: null,
       });
       return lastResult;
     }
     if (lastResult.skipped) {
+      await updatePending(pending.id, { notify_email_sending_at: null });
       return lastResult;
     }
   }
@@ -213,6 +386,7 @@ async function deliverVideoNotifyEmail(pending, creation, urls) {
   const attempts = Number(claim.notify_email_attempts || 0) + 1;
   await updatePending(pending.id, {
     notify_email_sent_at: attempts >= 3 ? nowIso() : null,
+    notify_email_sending_at: null,
     notify_email_error: String(lastResult.error || lastResult.reason || "send_failed").slice(0, 200),
   });
 
@@ -220,14 +394,18 @@ async function deliverVideoNotifyEmail(pending, creation, urls) {
 }
 
 async function deliverVideoFailureNotifyEmail(pending, friendlyError, rawError) {
-  if (!isVideoNotifyType(pending?.type) || !pending?.notify_email) {
+  if (!isVideoNotifyType(pending?.type)) {
+    return { skipped: true, reason: "no_notify" };
+  }
+  const db = await getDb();
+  const email = await resolvePendingNotifyEmail(db, pending);
+  if (!email) {
     return { skipped: true, reason: "no_notify" };
   }
   if (pending.notify_email_sent_at) {
     return { skipped: true, reason: "already_sent" };
   }
 
-  const db = await getDb();
   const claim = await db.collection("pending_predictions").findOneAndUpdate(
     {
       id: pending.id,
@@ -245,7 +423,7 @@ async function deliverVideoFailureNotifyEmail(pending, friendlyError, rawError) 
 
   const message = String(friendlyError || formatGenerationError(rawError, pending.lang || "pt")).trim();
   const result = await sendVideoFailedEmail({
-    to: pending.notify_email,
+    to: email,
     lang: pending.lang || "pt",
     errorMessage: message,
   });
@@ -271,6 +449,7 @@ function isOpenAIPosterJob(pending) {
 function maxPollSeconds(pending) {
   if (isVideoNotifyType(pending?.type)) return 1800;
   if (isOpenAIPosterJob(pending)) return 780;
+  if (pending?.provider === "runpod") return 900;
   return 600;
 }
 
@@ -310,12 +489,12 @@ function creationFromPending(pending, urls) {
 async function finalizePending(pending, replicateInfo) {
   const userId = pending.user_id;
   const cost = pending.credits_spent;
-  const lang = pending.lang || "en";
+  const lang = pending.lang || "pt";
   const now = nowIso();
 
   if (replicateInfo.status === "succeeded") {
     let urls = extractUrls(replicateInfo.output);
-    urls = await mirrorUrlsToBlob(urls);
+    urls = await mirrorUrlsToBlob(urls, { userId });
     if (!urls.length) {
       const fluxRetry = await attemptFluxFallback(pending);
       if (fluxRetry) return fluxRetry;
@@ -398,6 +577,12 @@ async function finalizePending(pending, replicateInfo) {
   const fluxRetry = await attemptFluxFallback(pending);
   if (fluxRetry) return fluxRetry;
 
+  const rawErr = replicateInfo.error || "Generation failed";
+  if (pending.type === "marketing_video") {
+    const mvRetry = await attemptMarketingVideoFallbackChain(pending);
+    if (mvRetry) return mvRetry;
+  }
+
   const db = await getDb();
   const claimed = await db.collection("pending_predictions").findOneAndUpdate(
     { id: pending.id, status: { $nin: ["completed", "refunded"] } },
@@ -415,7 +600,6 @@ async function finalizePending(pending, replicateInfo) {
     return pollPending(pending, async () => replicateInfo);
   }
 
-  const rawErr = replicateInfo.error || "Generation failed";
   const friendly = formatGenerationError(rawErr, lang);
   const newBalance = await refundPendingCost(claimed, `Refund: ${String(rawErr).slice(0, 120)}`);
   await deliverVideoFailureNotifyEmail(claimed, friendly, rawErr);
@@ -429,7 +613,7 @@ async function finalizePending(pending, replicateInfo) {
 }
 
 async function pollPending(pending, getReplicatePrediction) {
-  const lang = pending.lang || "en";
+  const lang = pending.lang || "pt";
 
   if (pending.status === "completed") {
     const urls = pending.result_urls || [];
@@ -493,14 +677,22 @@ async function pollPending(pending, getReplicatePrediction) {
   }
 
   let info;
+  const providerLabel = pending.provider === "runpod" ? "RunPod" : "Replicate";
   try {
-    info = await getReplicatePrediction(pending.replicate_prediction_id);
+    if (pending.provider === "runpod") {
+      const { getJobStatusForPending } = require("./providers/index.cjs");
+      info = await getJobStatusForPending(pending);
+    } else {
+      const raw = await getReplicatePrediction(pending.replicate_prediction_id);
+      const { normalizeJobInfo } = require("./providers/replicateProvider.cjs");
+      info = raw?.status ? raw : normalizeJobInfo(raw);
+    }
   } catch (e) {
     const elapsed = elapsedSeconds(pending);
     if (elapsed > maxPollSeconds(pending)) {
       return finalizePending(pending, {
         status: "failed",
-        error: `Timeout after ${elapsed}s polling Replicate`,
+        error: `Timeout after ${elapsed}s polling ${providerLabel}`,
       });
     }
     return {
@@ -810,6 +1002,7 @@ async function processActivePendingBatch(getReplicatePrediction, { limit = 8 } =
     .toArray();
 
   for (const pending of retryDocs) {
+    if (pending.notify_email_sent_at) continue;
     const creation = creationFromPending(pending, pending.result_urls || []);
     // eslint-disable-next-line no-await-in-loop
     await recordCreation(pending.user_id, creation);
@@ -830,7 +1023,7 @@ async function processActivePendingBatch(getReplicatePrediction, { limit = 8 } =
 }
 
 async function completePendingWithUrls(pending, urls) {
-  const mirrored = await mirrorUrlsToBlob(urls);
+  const mirrored = await mirrorUrlsToBlob(urls, { userId: pending.user_id });
   const now = nowIso();
   const db = await getDb();
   const claimed = await db.collection("pending_predictions").findOneAndUpdate(

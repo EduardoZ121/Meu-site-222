@@ -13,6 +13,9 @@ function clampOutputCount(n) {
   return Math.max(MIN_OUTPUTS, Math.min(MAX_OUTPUTS, Math.round(Number(n) || 1)));
 }
 
+const { listBrandCampaignCategories } = require("./brandCampaignCategories.cjs");
+const { pickBrandCampaignPreset, presetCount, listPresetsForCategory } = require("./brandCampaignPresetLibrary.cjs");
+
 module.exports = {
   fetchWebsiteSnapshot,
   normalizeUrl,
@@ -20,6 +23,10 @@ module.exports = {
   buildBrandCampaignImagePrompt,
   getBrandCampaignPerImageCost,
   clampOutputCount,
+  listBrandCampaignCategories,
+  listPresetsForCategory,
+  pickBrandCampaignPreset,
+  presetCount,
   CONCEPT_COUNT,
   MAX_OUTPUTS,
   MIN_OUTPUTS,

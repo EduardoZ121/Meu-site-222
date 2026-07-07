@@ -144,6 +144,7 @@ const en = {
   studio_styles_optional: "optional",
 
   post_cat_music: "Music / DJ",
+  post_cat_tia_any: "Tia Any Fast Food",
   post_cat_food: "Food / Restaurant",
   post_cat_fitness: "Fitness / Gym",
   post_cat_motivational: "Motivational",
@@ -417,6 +418,7 @@ const pt = {
   studio_styles_optional: "opcional",
 
   post_cat_music: "Música / DJ",
+  post_cat_tia_any: "Tia Any Fast Food",
   post_cat_food: "Comida / Restaurante",
   post_cat_fitness: "Fitness / Ginásio",
   post_cat_motivational: "Motivacional",

@@ -130,50 +130,89 @@ async function sendVideoFailedEmail({ to, lang, errorMessage, editorUrl, billing
   return result;
 }
 
-function creationReadyCopy(lang, isVideo) {
+function creationReadyCopy(lang, isVideo, meta = {}) {
   const l = String(lang || "pt").slice(0, 2).toLowerCase();
-  if (l === "en") {
+  const en = l === "en";
+  const adTitle = String(meta.adTitle || "").trim();
+  const brandName = String(meta.brandName || "").trim();
+  const styleLabel = String(meta.styleLabel || "").trim();
+  const batchIndex = meta.batchIndex != null ? Number(meta.batchIndex) : null;
+  const batchTotal = meta.batchTotal != null ? Number(meta.batchTotal) : null;
+  const creationId = String(meta.creationId || "").trim();
+  const batchLine = batchIndex != null && batchTotal > 1
+    ? (en ? `Ad ${batchIndex + 1} of ${batchTotal}` : `Anúncio ${batchIndex + 1} de ${batchTotal}`)
+    : "";
+  const nameLine = adTitle || styleLabel || brandName;
+  const typeLabel = en ? "On-brand ad" : "Anúncio on-brand";
+
+  const subjectParts = [batchLine, nameLine, typeLabel].filter(Boolean);
+  if (creationId) subjectParts.push(`#${creationId.slice(-6)}`);
+  const subjectSuffix = en ? "Remake Pixel" : "Remake Pixel";
+  const subject = subjectParts.length
+    ? `${subjectParts.join(" · ")} — ${subjectSuffix}`
+    : (en ? "Your creation is ready — Remake Pixel" : "A tua criação está pronta — Remake Pixel");
+
+  if (en) {
     return isVideo
       ? {
-        subject: "Your video is ready — Remake Pixel",
-        headline: "Your generation is ready",
-        body: "Open the link below to watch or download your clip.",
+        subject,
+        headline: nameLine ? `${typeLabel}: ${nameLine}` : "Your generation is ready",
+        body: batchLine
+          ? `${batchLine} is ready. Open the link to view or download.`
+          : "Open the link below to watch or download your clip.",
         open: "Open creation",
         gallery: "Open in gallery",
+        metaLine: [brandName, styleLabel].filter(Boolean).join(" · "),
       }
       : {
-        subject: "Your creation is ready — Remake Pixel",
-        headline: "Your generation is ready",
-        body: "Open the gallery to view or download your image.",
-        open: "Open creation",
+        subject,
+        headline: nameLine ? `${typeLabel}: ${nameLine}` : "Your ad image is ready",
+        body: batchLine
+          ? `${batchLine}${nameLine ? ` (${nameLine})` : ""} is ready. Tap to view or download your image.`
+          : "Your on-brand ad image is ready. Open the gallery or direct link below.",
+        open: "View ad image",
         gallery: "Open in gallery",
+        metaLine: [brandName, styleLabel].filter(Boolean).join(" · "),
       };
   }
+
   return isVideo
     ? {
-      subject: "O teu vídeo está pronto — Remake Pixel",
-      headline: "A tua geração está pronta",
-      body: "Abre o link abaixo para ver ou descarregar o clip.",
+      subject,
+      headline: nameLine ? `${typeLabel}: ${nameLine}` : "A tua geração está pronta",
+      body: batchLine
+        ? `${batchLine} está pronto. Abre o link para ver ou descarregar.`
+        : "Abre o link abaixo para ver ou descarregar o clip.",
       open: "Abrir criação",
       gallery: "Abrir na galeria",
+      metaLine: [brandName, styleLabel].filter(Boolean).join(" · "),
     }
     : {
-      subject: "A tua criação está pronta — Remake Pixel",
-      headline: "A tua geração está pronta",
-      body: "Abre a galeria para ver ou descarregar a imagem.",
-      open: "Abrir criação",
+      subject,
+      headline: nameLine ? `${typeLabel}: ${nameLine}` : "O teu anúncio está pronto",
+      body: batchLine
+        ? `${batchLine}${nameLine ? ` (${nameLine})` : ""} está pronto. Abre para ver ou descarregar a imagem.`
+        : "O teu anúncio on-brand está pronto. Abre a galeria ou o link directo abaixo.",
+      open: "Ver anúncio",
       gallery: "Abrir na galeria",
+      metaLine: [brandName, styleLabel].filter(Boolean).join(" · "),
     };
 }
 
-function buildCreationReadyHtml({ headline, body, open, gallery, mediaUrl, galleryUrl }) {
+function buildCreationReadyHtml({ headline, body, open, gallery, mediaUrl, galleryUrl, metaLine }) {
   return [
     "<!DOCTYPE html><html><body style=\"font-family:system-ui,sans-serif;background:#f4f1ea;padding:24px\">",
     "<div style=\"max-width:520px;margin:0 auto;background:#fff;border-radius:14px;padding:28px;border:1px solid #e8e8f0\">",
     `<h1 style="margin:0 0 8px;font-size:22px;color:#1a1a1a">${esc(headline)}</h1>`,
+    metaLine
+      ? `<p style="margin:0 0 10px;color:#7C3AED;font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:0.06em">${esc(metaLine)}</p>`
+      : "",
     `<p style="margin:0 0 20px;color:#666;font-size:14px;line-height:1.5">${esc(body)}</p>`,
     mediaUrl
       ? `<p style="margin:0 0 12px"><a href="${esc(mediaUrl)}" style="display:inline-block;background:#7C3AED;color:#fff;text-decoration:none;padding:12px 20px;border-radius:10px;font-weight:600">${esc(open)}</a></p>`
+      : "",
+    mediaUrl
+      ? `<p style="margin:0 0 16px"><img src="${esc(mediaUrl)}" alt="" style="max-width:100%;border-radius:12px;border:1px solid #eee" /></p>`
       : "",
     `<p style="margin:0"><a href="${esc(galleryUrl)}" style="color:#7C3AED;font-size:14px">${esc(gallery)}</a></p>`,
     "<p style=\"margin:24px 0 0;font-size:11px;color:#aaa\">remakepix.com</p>",
@@ -181,12 +220,12 @@ function buildCreationReadyHtml({ headline, body, open, gallery, mediaUrl, galle
   ].join("");
 }
 
-async function sendCreationReadyEmail({ to, lang, mediaUrl, galleryUrl, creationId, isVideo }) {
+async function sendCreationReadyEmail({ to, lang, mediaUrl, galleryUrl, creationId, isVideo, meta = {} }) {
   const email = String(to || "").trim().toLowerCase();
   if (!isValidEmail(email)) {
     return { ok: false, skipped: true, reason: "invalid_email" };
   }
-  const copy = creationReadyCopy(lang, isVideo);
+  const copy = creationReadyCopy(lang, isVideo, meta);
   const gallery = galleryUrl
     || `https://www.remakepix.com/app/gallery${creationId ? `?focus=${encodeURIComponent(creationId)}` : ""}`;
   const html = buildCreationReadyHtml({
@@ -196,6 +235,7 @@ async function sendCreationReadyEmail({ to, lang, mediaUrl, galleryUrl, creation
   });
   const text = [
     copy.headline,
+    copy.metaLine || "",
     "",
     copy.body,
     mediaUrl ? `${copy.open}: ${mediaUrl}` : "",

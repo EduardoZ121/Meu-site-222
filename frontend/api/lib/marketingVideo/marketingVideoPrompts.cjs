@@ -3,6 +3,7 @@
  * Selection: random weighted pick from category pool (or all pools for "random").
  */
 const { PROMPTS_BY_CATEGORY, allPromptEntries } = require("./marketingVideoPromptLibrary.cjs");
+const { buildCgiPreviewPrompt } = require("./marketingVideoCgiTemplates.cjs");
 
 const PRODUCT_DEFAULT = "the product in [Image1]";
 
@@ -135,6 +136,35 @@ function buildFinalPrompt({
   };
 }
 
+function buildCgiFinalPrompt({
+  templateId,
+  productLabel,
+  imageCount,
+  creativeAngle = "",
+  visualStyle = "",
+}) {
+  const { resolveVisualStyle } = require("./marketingVideoVisualStyles.cjs");
+  const style = resolveVisualStyle(visualStyle);
+  const out = buildCgiPreviewPrompt({
+    templateId,
+    imageCount,
+    productLabel,
+    creativeAngle,
+    visualStylePrompt: style.prompt,
+  });
+
+  return {
+    promptId: `cgi_${out.templateId}`,
+    storyboard: out.storyboard,
+    prompt: out.prompt,
+    generateAudio: false,
+    visualStyleId: style.id,
+    cgiTemplateId: out.templateId,
+    cgiCategoryHint: out.categoryHint,
+    adminStoryboard: out.adminStoryboard,
+  };
+}
+
 function countPromptsByCategory(categoryId) {
   return listPromptSlots(categoryId).filter((p) => p?.prompt).length;
 }
@@ -144,6 +174,7 @@ module.exports = {
   listPromptSlots,
   selectHiddenPrompt,
   buildFinalPrompt,
+  buildCgiFinalPrompt,
   countPromptsByCategory,
   allPromptEntries,
 };

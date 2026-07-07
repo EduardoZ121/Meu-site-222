@@ -5,6 +5,8 @@ const RICH_POSTER_TEMPLATES = require("./posterRichTemplatesData.json");
 const FASHION_POSTER_TEMPLATES = require("./posterFashionTemplatesData.json");
 const SOCIAL_MARKETING_TEMPLATES = require("./posterSocialMarketingTemplatesData.json");
 const PDF_RELEASE_POSTER_TEMPLATES = require("./posterPdfReleaseTemplatesData.json");
+const TIA_ANY_POSTER_TEMPLATES = require("./tiaAnyPosterTemplatesData.json");
+const USER_PROMPT_POSTER_TEMPLATES = require("./posterUserPromptTemplatesData.json");
 
 const HIDDEN_POSTER_TEMPLATE_IDS = new Set([
   "music_night_vibes",
@@ -45,6 +47,7 @@ const HIDDEN_POSTER_TEMPLATE_IDS = new Set([
 
 function listPosterTemplates(opts = {}) {
   const subscriberActive = Boolean(opts.subscriberActive);
+  const tiaAnyAllowed = Boolean(opts.tiaAnyAllowed);
   return [
     ...POSTER_TEMPLATES,
     ...PREMIUM_POSTER_TEMPLATES,
@@ -53,8 +56,11 @@ function listPosterTemplates(opts = {}) {
     ...FASHION_POSTER_TEMPLATES,
     ...SOCIAL_MARKETING_TEMPLATES,
     ...PDF_RELEASE_POSTER_TEMPLATES,
+    ...TIA_ANY_POSTER_TEMPLATES,
+    ...USER_PROMPT_POSTER_TEMPLATES,
   ]
     .filter((t) => !HIDDEN_POSTER_TEMPLATE_IDS.has(String(t?.id || "")))
+    .filter((t) => !String(t?.id || "").startsWith("tia_any_") || tiaAnyAllowed)
     .map((t) => {
       if (!t?.subscriber_only || subscriberActive) return t;
       return {
@@ -80,6 +86,8 @@ module.exports = {
   FASHION_POSTER_TEMPLATES,
   SOCIAL_MARKETING_TEMPLATES,
   PDF_RELEASE_POSTER_TEMPLATES,
+  TIA_ANY_POSTER_TEMPLATES,
+  USER_PROMPT_POSTER_TEMPLATES,
   listPosterTemplates,
   getPosterTemplateById,
 };

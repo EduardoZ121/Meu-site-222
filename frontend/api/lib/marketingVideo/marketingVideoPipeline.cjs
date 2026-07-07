@@ -2,7 +2,7 @@
  * End-to-end marketing video pipeline (no user-visible prompts).
  */
 const { analyzeMarketingImages } = require("./marketingVideoAnalyzer.cjs");
-const { buildFinalPrompt } = require("./marketingVideoPrompts.cjs");
+const { buildFinalPrompt, buildCgiFinalPrompt } = require("./marketingVideoPrompts.cjs");
 const { buildSeedanceInput } = require("./marketingVideoSeedance.cjs");
 const { getMarketingVideoProvider } = require("./marketingVideoModels.cjs");
 const { resolvePipelineCategory } = require("./marketingVideoCategories.cjs");
@@ -17,6 +17,8 @@ async function runMarketingVideoPipeline({
   lang = "pt",
   providerId,
   formatId = "",
+  mode = "quick",
+  templateId = "",
 }) {
   const urls = (imageUrls || []).filter(Boolean);
   if (!urls.length) {
@@ -36,37 +38,51 @@ async function runMarketingVideoPipeline({
     lang,
   });
 
-  const categoryId = resolvePipelineCategory(manualCategory, analysis.category);
+  const isCgiPreview = String(mode || "").trim() === "cgi_preview";
 
   const provider = getMarketingVideoProvider(providerId);
 
-  const { promptId, storyboard, prompt, generateAudio, visualStyleId } = buildFinalPrompt({
-    categoryId,
-    duration: dur,
-    productLabel: analysis.product_label,
-    imageCount: urls.length,
-    creativeAngle: analysis.creative_angle,
-    visualStyle: visualStyle,
-  });
+  const promptPlan = isCgiPreview
+    ? buildCgiFinalPrompt({
+      templateId,
+      productLabel: analysis.product_label,
+      imageCount: urls.length,
+      creativeAngle: analysis.creative_angle,
+      visualStyle: visualStyle || "epic_blockbuster",
+    })
+    : buildFinalPrompt({
+      categoryId: resolvePipelineCategory(manualCategory, analysis.category),
+      duration: dur,
+      productLabel: analysis.product_label,
+      imageCount: urls.length,
+      creativeAngle: analysis.creative_angle,
+      visualStyle: visualStyle,
+    });
+
+  const categoryId = isCgiPreview
+    ? (promptPlan.cgiCategoryHint || "general")
+    : resolvePipelineCategory(manualCategory, analysis.category);
 
   const aspectRatio = resolveMarketingVideoAspectRatio(formatId, provider.defaultAspect);
 
   const { modelId, input } = buildSeedanceInput({
-    prompt,
+    prompt: promptPlan.prompt,
     imageUrls: urls,
     duration: dur,
     providerId: provider.id,
     aspectRatio,
-    generateAudio,
+    generateAudio: promptPlan.generateAudio,
   });
 
   return {
     ok: true,
     analysis: { ...analysis, category: categoryId },
-    storyboard,
-    promptId,
-    visualStyleId,
-    prompt,
+    storyboard: promptPlan.storyboard,
+    promptId: promptPlan.promptId,
+    visualStyleId: promptPlan.visualStyleId,
+    cgiTemplateId: promptPlan.cgiTemplateId || null,
+    adminStoryboard: promptPlan.adminStoryboard || null,
+    prompt: promptPlan.prompt,
     modelId,
     input,
     providerId: provider.id,

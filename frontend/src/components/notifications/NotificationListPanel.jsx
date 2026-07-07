@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Bell, CheckCheck, ImageIcon, Coins, Trash2 } from "lucide-react";
+import { Bell, CheckCheck, ImageIcon, Coins, Trash2, AlertTriangle, RotateCcw } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useNavigate } from "react-router-dom";
 import { useNotifications } from "../../lib/NotificationContext";
@@ -8,9 +8,18 @@ import { activeBackgroundJobsCount, MAX_CONCURRENT_BG_JOBS } from "../../lib/bgG
 
 function NotifIcon({ type }) {
   if (type === "generation") {
-    return <ImageIcon className="w-4 h-4 text-[#A855F7] shrink-0" strokeWidth={1.75} />;
+    return <ImageIcon className="w-4 h-4 text-[#22C55E] shrink-0" strokeWidth={1.75} />;
   }
-  return <Coins className="w-4 h-4 text-[#A855F7] shrink-0" strokeWidth={1.75} />;
+  if (type === "generation_failed") {
+    return <AlertTriangle className="w-4 h-4 text-[#FB7185] shrink-0" strokeWidth={1.75} />;
+  }
+  if (type === "credits_refund") {
+    return <RotateCcw className="w-4 h-4 text-[#38BDF8] shrink-0" strokeWidth={1.75} />;
+  }
+  if (type === "credits_low") {
+    return <AlertTriangle className="w-4 h-4 text-[#FACC15] shrink-0" strokeWidth={1.75} />;
+  }
+  return <Coins className="w-4 h-4 text-[#F59E0B] shrink-0" strokeWidth={1.75} />;
 }
 
 /** Lista de notificações (usada dentro do menu de perfil). */

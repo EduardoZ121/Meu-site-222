@@ -1,11 +1,14 @@
 import { useEffect, useState } from "react";
-import { api } from "../../lib/api";
+import { api, formatApiError } from "../../lib/api";
 import { useI18n } from "../../lib/i18n";
 import { toast } from "sonner";
 import useTitle from "../../lib/useTitle";
 import AdminMarketingPanel from "../../components/admin/AdminMarketingPanel";
+import AdminAiTextPlayground from "../../components/admin/AdminAiTextPlayground";
+import AdminAiLab from "../../components/admin/AdminAiLab";
+import AdminEnginePanel from "../../components/admin/AdminEnginePanel";
 
-const TABS = ["overview", "finance", "marketing", "users", "ip", "purchases", "tx"];
+const TABS = ["overview", "finance", "engine", "lab", "marketing", "ai_playground", "users", "ip", "purchases", "tx"];
 
 export default function Admin() {
   const { t } = useI18n();
@@ -73,7 +76,7 @@ export default function Admin() {
         toast.success(t("adm_credits_adjusted"));
       }
       reload();
-    } catch { toast.error(t("failed")); }
+    } catch (e) { toast.error(formatApiError(e, t("failed"))); }
   };
 
   const patchUser = async (uid, patch) => {
@@ -81,7 +84,7 @@ export default function Admin() {
       await api.patch(`/admin/users/${uid}`, patch);
       toast.success(t("adm_updated"));
       reload();
-    } catch { toast.error(t("failed")); }
+    } catch (e) { toast.error(formatApiError(e, t("failed"))); }
   };
 
   return (
@@ -146,8 +149,20 @@ export default function Admin() {
         <FinancePanel finance={finance} t={t} onSaved={() => { reload(); toast.success(t("adm_fin_saved")); }} />
       )}
 
+      {tab === "lab" && (
+        <AdminAiLab />
+      )}
+
+      {tab === "engine" && (
+        <AdminEnginePanel />
+      )}
+
       {tab === "marketing" && (
         <AdminMarketingPanel t={t} />
+      )}
+
+      {tab === "ai_playground" && (
+        <AdminAiTextPlayground />
       )}
 
       {tab === "users" && (

@@ -50,7 +50,7 @@ const TOOLS = [
     name: "Campanha On-Brand", cost: 40, isNew: true, adminOnly: true,
     desc: "Link do site e/ou fotos do produto → IA analisa a marca e gera 1–10 anúncios simultâneos." },
   { id: "manga_studio", tier: "image", category: "creative", to: "/app/manga-studio",
-    name: "MANGA STUDIO", cost: 10, isBeta: true,
+    name: "MANGA STUDIO", cost: 10, isBeta: true, adminOnly: true,
     desc: "Professional manga/comic studio: characters, poses, scenes, and panels." },
   { id: "wizard", tier: "image", category: "creative", to: "/app/wizard",
     name: "Assistente (5 perguntas)", cost: 0,

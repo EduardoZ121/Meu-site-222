@@ -1,4 +1,4 @@
-import { Component, useCallback, useEffect, useMemo, useState } from "react";
+import { Component, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Loader2, Sparkles, ArrowLeft, Check, Layers, Crown, Zap, Aperture,
   Image as ImageIcon, Lock,
@@ -41,6 +41,7 @@ import {
   isPosterProductTemplate,
   isPosterMenuTemplate,
   isPosterDualPhotoTemplate,
+  isTiaAnyPosterTemplate,
   splitPosterPlaceholders,
 } from "../../lib/posterPrompt";
 import { PosterSection, CustomTextLayersEditor } from "../../components/poster/PosterEditorParts";
@@ -66,6 +67,7 @@ import { scrollStudioToTop } from "../../lib/scrollToStudioResult";
 import { useStudioSessionBack } from "../../lib/useStudioSessionBack";
 import { appendStudioPhotos, primaryStudioPhoto } from "../../lib/studioFormData";
 import PosterMotionFlyerButton from "../../components/poster/PosterMotionFlyerButton";
+import { canAccessTiaAnyPosters } from "../../lib/isAdmin";
 
 /* ------------------------------------------------------------------ */
 /*  Constants                                                          */
@@ -85,6 +87,7 @@ const CAT_GRADIENTS = {
   dj:        "linear-gradient(135deg,#020617 0%,#0E7490 52%,#22D3EE 100%)",
   concert:   "linear-gradient(135deg,#0B0B0C 0%,#7F1D1D 55%,#EF4444 100%)",
   music:     "linear-gradient(135deg,#0B0B0C 0%,#7C3AED 48%,#EC4899 100%)",
+  tia_any:   "linear-gradient(135deg,#050505 0%,#F58220 52%,#FDE68A 100%)",
   food:      "linear-gradient(135deg,#1F1308 0%,#B45309 55%,#FACC15 100%)",
   fitness:   "linear-gradient(135deg,#020617 0%,#16A34A 52%,#BEF264 100%)",
   motivational: "linear-gradient(135deg,#111827 0%,#F59E0B 52%,#F4F1EA 100%)",
@@ -119,6 +122,9 @@ const MODEL_ICONS = {
   gpt_image: Crown,
 };
 
+const TIA_ANY_LOGO_SRC = "/images/brands/tia-any/logo.png";
+const TIA_ANY_UNIFORM_SRC = "/images/brands/tia-any/uniform.png";
+
 const POSTER_MODEL_LABEL_KEYS = {
   grok: "post_engine_grok",
   flux2: "post_engine_flux2",
@@ -149,6 +155,13 @@ function posterModelTag(model, t) {
   return model?.tag || "";
 }
 
+async function assetUrlToFile(url, filename) {
+  const response = await fetch(url, { cache: "force-cache" });
+  if (!response.ok) throw new Error(`Falha ao carregar referência ${filename}`);
+  const blob = await response.blob();
+  return new File([blob], filename, { type: blob.type || "image/png" });
+}
+
 /* ------------------------------------------------------------------ */
 /*  Component                                                          */
 /* ------------------------------------------------------------------ */
@@ -161,6 +174,7 @@ export default function Posters() {
   const navigate = useNavigate();
   const { refresh, user } = useAuth();
   const { region } = usePricing();
+  const tiaAnyAllowed = canAccessTiaAnyPosters(user);
 
   const [templates, setTemplates] = useState([]);
   const [models, setModels] = useState([]);
@@ -172,19 +186,26 @@ export default function Posters() {
     [templates],
   );
 
+  const allowedTemplates = useMemo(
+    () => catalogTemplates.filter((tpl) => !isTiaAnyPosterTemplate(tpl) || tiaAnyAllowed),
+    [catalogTemplates, tiaAnyAllowed],
+  );
+
   const activeCategories = useMemo(
-    () => visiblePosterCategories(catalogTemplates),
-    [catalogTemplates],
+    () => visiblePosterCategories(allowedTemplates),
+    [allowedTemplates],
   );
 
   useEffect(() => {
     if (!activeCategories.length) return;
     if (!activeCategories.includes(category)) {
-      setCategory(defaultPosterCategory(catalogTemplates));
+      setCategory(defaultPosterCategory(allowedTemplates));
     }
-  }, [activeCategories, catalogTemplates, category]);
+  }, [activeCategories, allowedTemplates, category]);
   const [picked, setPicked] = useState(null);
   const [variantBase, setVariantBase] = useState(null);
+  const posterHistoryKeyRef = useRef("");
+  const skipNextHistoryPushRef = useRef(false);
 
   const labelFor = (k, fieldIndex, template = picked) =>
     posterFieldLabel(k, lang, { template, fieldIndex });
@@ -254,15 +275,15 @@ export default function Posters() {
   }, [region]);
 
   const filtered = useMemo(
-    () => catalogTemplates.filter((t) => t.category === category),
-    [catalogTemplates, category],
+    () => allowedTemplates.filter((t) => t.category === category),
+    [allowedTemplates, category],
   );
 
   const counts = useMemo(() => {
     const m = {};
-    for (const t of catalogTemplates) m[t.category] = (m[t.category] || 0) + 1;
+    for (const t of allowedTemplates) m[t.category] = (m[t.category] || 0) + 1;
     return m;
-  }, [catalogTemplates]);
+  }, [allowedTemplates]);
 
   const selectedModel = models.find((m) => m.key === modelKey) || { cost: 10 };
   const usesPremiumWallet = modelKey === "gpt_image" || selectedModel.wallet === "premium";
@@ -295,7 +316,9 @@ export default function Posters() {
     setMood("");
     setPaletteColors([]);
     setNumOutputs(1);
-    if (isPosterFashionTemplate(tpl)) {
+    if (isTiaAnyPosterTemplate(tpl)) {
+      setModelKey("flux2");
+    } else if (isPosterFashionTemplate(tpl)) {
       setModelKey("flux2");
     } else if (isPosterDualPhotoTemplate(tpl) && !String(tpl.id || "").startsWith("ig_ref_")) {
       setModelKey("flux2");
@@ -369,7 +392,7 @@ export default function Posters() {
     }
   }, [picked, modelKey]);
 
-  const handleSessionBack = useCallback(() => {
+  const applyInternalBack = useCallback(() => {
     if (picked) {
       backFromEditor();
       scrollStudioToTop();
@@ -380,10 +403,56 @@ export default function Posters() {
       scrollStudioToTop();
       return;
     }
+  }, [picked, variantBase, backFromEditor]);
+
+  const handleSessionBack = useCallback(() => {
+    if (picked || variantBase) {
+      if (window.history.state?.rpPosterInternal) {
+        window.history.back();
+        return;
+      }
+      applyInternalBack();
+      return;
+    }
     navigate("/app/tools");
-  }, [picked, variantBase, backFromEditor, navigate]);
+  }, [picked, variantBase, applyInternalBack, navigate]);
 
   useStudioSessionBack(handleSessionBack);
+
+  const posterInternalKey = picked?.id
+    ? `editor:${picked.id}`
+    : variantBase?.id
+      ? `variants:${variantBase.id}`
+      : "";
+
+  useEffect(() => {
+    if (!posterInternalKey) {
+      posterHistoryKeyRef.current = "";
+      return;
+    }
+    if (skipNextHistoryPushRef.current) {
+      skipNextHistoryPushRef.current = false;
+      posterHistoryKeyRef.current = posterInternalKey;
+      return;
+    }
+    if (posterHistoryKeyRef.current === posterInternalKey) return;
+    window.history.pushState(
+      { ...(window.history.state || {}), rpPosterInternal: posterInternalKey },
+      "",
+      window.location.href,
+    );
+    posterHistoryKeyRef.current = posterInternalKey;
+  }, [posterInternalKey]);
+
+  useEffect(() => {
+    const onPopState = () => {
+      if (!picked && !variantBase) return;
+      skipNextHistoryPushRef.current = true;
+      applyInternalBack();
+    };
+    window.addEventListener("popstate", onPopState);
+    return () => window.removeEventListener("popstate", onPopState);
+  }, [picked, variantBase, applyInternalBack]);
 
   const generate = async () => {
     if (busy) return;
@@ -412,12 +481,18 @@ export default function Posters() {
       return;
     }
 
+    const tiaAnyTemplate = isTiaAnyPosterTemplate(picked);
+    if (tiaAnyTemplate && !tiaAnyAllowed) {
+      toast.error("Este botão é exclusivo da Tia Any Fast Food.", { duration: 8000 });
+      return;
+    }
+
     const promptFinal = buildPosterPrompt(picked, values, {
       mood,
       paletteColors,
       customBlocks,
       hasPhoto: Boolean(photo),
-      hasLogo: Boolean(logo),
+      hasLogo: Boolean(logo) || tiaAnyTemplate,
       photoCount,
       outputLang: outputLang || lang || "pt",
     });
@@ -456,6 +531,14 @@ export default function Posters() {
     const isGptPoster = modelKey === "gpt_image";
     let submitData;
     try {
+      if (tiaAnyTemplate) {
+        const [brandLogo, brandUniform] = await Promise.all([
+          assetUrlToFile(TIA_ANY_LOGO_SRC, "tia-any-logo.png"),
+          assetUrlToFile(TIA_ANY_UNIFORM_SRC, "tia-any-uniform.png"),
+        ]);
+        fd.append("logo", brandLogo);
+        fd.append("uniform", brandUniform);
+      }
       ({ data: submitData } = await uploadPost("/generate/poster", fd, {
         timeout: isGptPoster ? 300_000 : 120_000,
         headers: { "X-Skip-Auto-Poll": "1" },
@@ -503,7 +586,7 @@ export default function Posters() {
       <VariantPicker
         base={variantBase}
         variants={getFlyerVariants(variantBase.id, variantBase)}
-        onBack={() => setVariantBase(null)}
+        onBack={handleSessionBack}
         onPick={pickVariant}
         catLabel={catLabel}
         t={t}
@@ -513,10 +596,10 @@ export default function Posters() {
 
   if (picked) {
     return (
-      <PosterEditorErrorBoundary onBack={backFromEditor} t={t}>
+      <PosterEditorErrorBoundary onBack={handleSessionBack} t={t}>
       <Editor
         picked={picked}
-        onBack={backFromEditor}
+        onBack={handleSessionBack}
         values={values} setValues={setValues}
         photos={photos} setPhotos={setPhotos}
         logo={logo} setLogo={setLogo}
@@ -801,6 +884,7 @@ function Editor(props) {
   const photo = primaryStudioPhoto(photos);
   const photoCount = (Array.isArray(photos) ? photos : []).filter(Boolean).length;
   const dualPhotoStyle = isPosterDualPhotoTemplate(picked);
+  const tiaAnyStyle = isTiaAnyPosterTemplate(picked);
 
   const modelsForPicker = useMemo(() => {
     if (models?.length) return models;
@@ -812,12 +896,13 @@ function Editor(props) {
 
   const promptPreview = useMemo(() => {
     try {
+      const tiaAnyTemplate = isTiaAnyPosterTemplate(picked);
       return buildPosterPrompt(picked, values, {
         mood,
         paletteColors,
         customBlocks,
         hasPhoto: Boolean(photo),
-        hasLogo: Boolean(logo),
+        hasLogo: Boolean(logo) || tiaAnyTemplate,
         photoCount,
         outputLang: outputLang || lang || "pt",
       });
@@ -885,12 +970,23 @@ function Editor(props) {
       {/* Header */}
       <div className="mb-6 md:mb-10 flex flex-col sm:flex-row items-start gap-3 sm:gap-5">
         <div
-          className="shrink-0 w-14 h-[4.5rem] sm:w-16 sm:h-20 rounded-lg shadow-lg shadow-black/40 relative overflow-hidden"
-          style={{ background: CAT_GRADIENTS[picked.category] }}
+          className="shrink-0 w-16 h-20 sm:w-20 sm:h-24 rounded-xl border border-white/[0.08] bg-[#0a0a0c] shadow-lg shadow-black/40 relative overflow-hidden"
+          style={
+            posterCoverSrc(picked.id) || posterCoverSrc(picked.variantParentId)
+              ? undefined
+              : { background: CAT_GRADIENTS[picked.category] }
+          }
         >
-          <div className="absolute inset-0 flex items-center justify-center text-white text-[8px] sm:text-[10px] font-mono uppercase tracking-[0.14em] sm:tracking-[0.18em] px-1.5 sm:px-2 text-center leading-tight">
-            {catLabel(picked.category)}
-          </div>
+          <StyleCover
+            id={picked.id}
+            title={picked.variantLabel || picked.label || picked.id}
+            prompt={picked.prompt}
+            category={picked.category}
+            compact
+            imageOnly
+            coverSrc={posterCoverSrc(picked.id) || posterCoverSrc(picked.variantParentId) || ""}
+            className="absolute inset-0 h-full w-full"
+          />
         </div>
         <div className="flex-1 min-w-0 flex items-start gap-3">
           <div className="min-w-0 flex-1">
@@ -916,12 +1012,20 @@ function Editor(props) {
         </div>
       )}
 
+      {tiaAnyStyle && (
+        <div className="mb-5 rounded-xl border border-orange-500/25 bg-orange-500/10 px-4 py-3 text-[13px] text-orange-100 leading-relaxed">
+          Tia Any Fast Food: a logo oficial e a polo preta são aplicadas automaticamente. Upload 1 opcional = pessoa/funcionário (preserva identidade). Upload 2 opcional = comida/prato (preserva aparência exata).
+        </div>
+      )}
+
       <div className="grid grid-cols-1 xl:grid-cols-[1fr_440px] gap-10">
         {/* ====== LEFT: form ====== */}
         <motion.div className="space-y-5">
           <PosterSection
             title={
-              isPosterFoodTemplate(picked)
+              tiaAnyStyle
+                ? "Referências opcionais"
+                : isPosterFoodTemplate(picked)
                 ? t("post_sec_food_ref")
                 : isPosterProductTemplate(picked)
                   ? t("post_sec_product_ref")
@@ -932,7 +1036,9 @@ function Editor(props) {
             optional={!isPosterFashionTemplate(picked)}
             defaultOpen
             hint={
-              isPosterFoodTemplate(picked)
+              tiaAnyStyle
+                ? "Carrega uma pessoa, uma comida, ou ambas: 1.ª imagem pessoa/funcionário, 2.ª imagem comida/prato. Logo e uniforme já vão ocultos."
+                : isPosterFoodTemplate(picked)
                 ? t("post_sec_food_ref_hint")
                 : isPosterProductTemplate(picked)
                   ? t("post_sec_product_ref_hint")
@@ -952,7 +1058,9 @@ function Editor(props) {
                 testId="poster-photo"
                 compressOptions={{ maxSize: 2048 }}
                 emptyLabel={
-                  isPosterFoodTemplate(picked)
+                  tiaAnyStyle
+                    ? "Upload pessoa e/ou comida"
+                    : isPosterFoodTemplate(picked)
                     ? t("post_food_upload_label")
                     : isPosterProductTemplate(picked)
                       ? t("post_product_upload_label")
@@ -963,7 +1071,9 @@ function Editor(props) {
                           : t("upload_drop")
                 }
                 emptyHint={
-                  isPosterFoodTemplate(picked)
+                  tiaAnyStyle
+                    ? "Opcional · 1.ª pessoa, 2.ª comida · JPG, PNG ou WebP"
+                    : isPosterFoodTemplate(picked)
                     ? t("post_food_upload_hint")
                     : isPosterProductTemplate(picked)
                       ? t("post_product_upload_hint")

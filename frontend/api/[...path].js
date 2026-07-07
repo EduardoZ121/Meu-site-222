@@ -25,6 +25,8 @@ const {
   touchUser,
   getUserById,
   repairUserAccountIfNeeded,
+  ensureUserFromSession,
+  publicUser,
   isAdminEmail,
   addCredits,
   addPremiumCredits,
@@ -62,7 +64,7 @@ const {
 const { preparePosterReference, preparePosterReferenceForOpenAI } = require("./lib/posterImagePrep.cjs");
 const { isIgRefPosterTemplate } = require("./lib/posterLayoutCover.cjs");
 const { buildIgRefPosterGeneration, getIgRefTemplate } = require("./lib/posterIgRefGenerate.cjs");
-const { generateOpenAIPosterImageDetailed } = require("./lib/openaiPoster.cjs");
+const { generateOpenAIPosterImageDetailed, generateOpenAIImageEditDetailed } = require("./lib/openaiPoster.cjs");
 const { generateFashionClothesImage } = require("./lib/clothesFashionOpenAI.cjs");
 const { formatGenerationError } = require("./lib/generationErrors.cjs");
 const { appendAspectOutputInstruction, MATCH_ASPECT } = require("./lib/aspectOutputPrompt.cjs");
@@ -87,6 +89,7 @@ const { getProPreset, listProPresets } = require("./lib/proPresetsData.cjs");
 const {
   isS3Configured,
   isTrustedS3MediaUrl,
+  uploadBufferToS3,
   createVideoPresignedUpload,
   createImagePresignedUpload,
   getS3Config,
@@ -117,6 +120,13 @@ const {
   getPricingMeta,
   getSurcharges,
 } = require("./lib/creditPricing.cjs");
+
+const TIA_ANY_EXTRA_EMAILS = new Set(["gemimazola28@gmail.com", "carlazola@hotmail.com"]);
+
+function canAccessTiaAnyPostersByEmail(email) {
+  const normalized = String(email || "").trim().toLowerCase();
+  return Boolean(normalized && (isAdminEmail(normalized) || TIA_ANY_EXTRA_EMAILS.has(normalized)));
+}
 
 function getPadraoStyle(styleId) {
   return PADRAO_STYLES_LIST.find((s) => s.id === String(styleId || "").trim()) || null;
@@ -774,9 +784,9 @@ async function uploadFormVideoToBlob(file) {
   return blob.url;
 }
 
-/** Imagem multipart → URL pública Blob (Seedance / Replicate preferem HTTPS). */
+/** Imagem multipart → URL pública (Seedance / Replicate precisam de HTTPS em reference_images). */
 async function uploadFormImageToBlob(file) {
-  if (!file?.filepath || !isBlobConfigured()) return null;
+  if (!file?.filepath || (!isS3Configured() && !isBlobConfigured())) return null;
   const maxBytes = 12 * 1024 * 1024;
   let st = await fs.stat(file.filepath).catch(() => null);
   if (!st?.size || st.size > maxBytes) return null;
@@ -811,8 +821,20 @@ async function uploadFormImageToBlob(file) {
 
   let fn = String(file.originalFilename || "photo.jpg").replace(/[^\w.\-]+/g, "_");
   if (!/\.[a-z0-9]{2,5}$/i.test(fn)) fn += ".jpg";
-  const pathname = `rp/mv/${Date.now()}-${crypto.randomBytes(6).toString("hex")}-${fn.slice(0, 80)}`;
   const buf = await fs.readFile(filepath);
+
+  if (isS3Configured()) {
+    const uploaded = await uploadBufferToS3({
+      buffer: buf,
+      contentType: mime,
+      userId: "marketing-video",
+      prefix: "marketing-video",
+    });
+    if (uploaded?.url) return uploaded.url;
+  }
+
+  if (!isBlobConfigured() || isBlobDisabled()) return null;
+  const pathname = `rp/mv/${Date.now()}-${crypto.randomBytes(6).toString("hex")}-${fn.slice(0, 80)}`;
   const { put } = require("@vercel/blob");
   const blob = await put(pathname, buf, blobPutOptions({ contentType: mime }));
   return blob.url;
@@ -1029,59 +1051,79 @@ async function fileToDataUri(file) {
 }
 
 const { extractUrls } = require("./lib/creationMedia.cjs");
+const replicateProvider = require("./lib/providers/replicateProvider.cjs");
+const {
+  resolveProviderForGeneration,
+  submitProviderJob,
+} = require("./lib/providers/index.cjs");
 
 async function replicateFetch(url, options = {}) {
-  const token = process.env.REPLICATE_API_TOKEN;
-  if (!token) {
-    const err = new Error("REPLICATE_API_TOKEN not configured");
-    err.status = 500;
-    throw err;
-  }
-  const response = await fetch(url, {
-    ...options,
-    headers: {
-      Authorization: `Bearer ${token}`,
-      "Content-Type": "application/json",
-      ...(options.headers || {}),
-    },
-  });
-  const data = await response.json().catch(() => ({}));
-  if (!response.ok) {
-    const err = new Error(data.detail || data.error || `Replicate error ${response.status}`);
-    err.status = response.status;
-    err.data = data;
-    throw err;
-  }
-  return data;
+  return replicateProvider.replicateFetch(url, options);
 }
 
 async function createPrediction(modelId, input) {
-  const [owner, name] = modelId.split("/");
-  try {
-    return await replicateFetch(`https://api.replicate.com/v1/models/${owner}/${name}/predictions`, {
-      method: "POST",
-      body: JSON.stringify({ input }),
-    });
-  } catch (err) {
-    if (![404, 422].includes(err.status)) throw err;
-    const model = await replicateFetch(`https://api.replicate.com/v1/models/${owner}/${name}`);
-    const version = model?.latest_version?.id;
-    if (!version) throw err;
-    return await replicateFetch("https://api.replicate.com/v1/predictions", {
-      method: "POST",
-      body: JSON.stringify({ version, input }),
-    });
-  }
+  return replicateProvider.createPrediction(modelId, input);
 }
 
 async function getPrediction(id) {
-  return await replicateFetch(`https://api.replicate.com/v1/predictions/${id}`);
+  return replicateProvider.getPrediction(id);
+}
+
+/** Submit image job to Replicate or RunPod (admin dev mode). */
+async function createProviderJob({
+  userEmail,
+  type,
+  modelId,
+  input,
+  aspectRatio,
+  fluxFallbackInput,
+  modelUsed,
+}) {
+  const providerId = await resolveProviderForGeneration({ userEmail, type });
+  if (providerId === "runpod") {
+    const job = await submitProviderJob("runpod", { modelId, input, aspectRatio, type });
+    return {
+      jobId: job.id,
+      provider: "runpod",
+      modelUsed: modelUsed || modelId,
+      fluxAttempted: false,
+    };
+  }
+  let prediction;
+  let resolvedModelUsed = modelUsed || modelId;
+  let fluxAttempted = false;
+  try {
+    prediction = await createPrediction(modelId, input);
+  } catch (e) {
+    if (fluxFallbackInput && modelId === MODELS.standard) {
+      prediction = await createPrediction(MODELS.pro, fluxFallbackInput);
+      resolvedModelUsed = MODELS.pro;
+      fluxAttempted = true;
+    } else {
+      throw e;
+    }
+  }
+  return {
+    jobId: prediction.id,
+    provider: "replicate",
+    modelUsed: resolvedModelUsed,
+    fluxAttempted,
+  };
+}
+
+function pendingProviderFields(job) {
+  return {
+    replicate_prediction_id: job.jobId,
+    provider: job.provider,
+    provider_job_id: job.jobId,
+  };
 }
 
 function serverPollDeadlineMs(pending) {
   if (pending?.type === "video" || pending?.type === "marketing_video" || pending?.type === "motion_flyer") return 1_800_000;
   if (isOpenAIPosterJob(pending)) return 780_000;
   if (pending?.type === "poster") return 600_000;
+  if (pending?.provider === "runpod") return 900_000;
   return 105_000;
 }
 
@@ -1137,7 +1179,7 @@ function resolveSessionUser(req) {
 }
 
 function userLang(req, fields) {
-  return text(fields, "lang", req?.headers?.["x-lang"] || "en").slice(0, 2).toLowerCase() || "en";
+  return text(fields, "lang", req?.headers?.["x-lang"] || "pt").slice(0, 2).toLowerCase() || "pt";
 }
 
 /** Seedance / marketing pipelines — sempre registam custo real (mesmo admin). */
@@ -1188,97 +1230,99 @@ async function submitBillableGeneration(req, fields, {
     : {};
 
   if (storageEnabled() && user?.id && !isLocal) {
-    const dbUser = await getUserById(user.id);
+    let dbUser = await getUserById(user.id);
+    if (!dbUser) {
+      dbUser = await ensureUserFromSession({
+        id: user.id,
+        email: user.email,
+        name: user.name,
+        role: user.role,
+      });
+    }
     if (dbUser?.banned) {
       const err = new Error("Conta suspensa.");
       err.status = 403;
       throw err;
     }
     const forceBill = mustForceBillGeneration(type, cost);
-    if (isAdminEmail(dbUser?.email) && !forceBill) {
-      let prediction;
-      let resolvedModelUsed = modelUsed || modelId;
-      let fluxAttempted = false;
+    const userEmail = dbUser?.email || user?.email;
+    if (isAdminEmail(userEmail) && !forceBill) {
+      let job;
       try {
-        prediction = await createPrediction(modelId, input);
+        job = await createProviderJob({
+          userEmail,
+          type,
+          modelId,
+          input,
+          aspectRatio,
+          fluxFallbackInput,
+          modelUsed,
+        });
       } catch (e) {
-        if (fluxFallbackInput && modelId === MODELS.standard) {
-          prediction = await createPrediction(MODELS.pro, fluxFallbackInput);
-          resolvedModelUsed = MODELS.pro;
-          fluxAttempted = true;
-        } else {
-          throw e;
-        }
+        const err = new Error(formatGenerationError(e.message || "submit failed", lang));
+        err.status = e.status && e.status >= 400 && e.status < 600 ? e.status : 502;
+        throw err;
       }
       const pending = await createPending({
         id: newPendingId(),
         user_id: user.id,
-        replicate_prediction_id: prediction.id,
+        ...pendingProviderFields(job),
         type,
         prompt: prompt || input?.prompt || "",
-        model_used: resolvedModelUsed,
+        model_used: job.modelUsed,
         aspect_ratio: aspectRatio || input?.aspect_ratio || "1:1",
         credits_spent: 0,
-        balance_after_spend: dbUser.credits ?? 999999999,
+        balance_after_spend: dbUser?.credits ?? 999999999,
         lang,
         notify_email: notifyEmail || null,
         ...pendingFallbackFields,
         ...(pendingMeta && typeof pendingMeta === "object" ? pendingMeta : {}),
-        flux_fallback_attempted: fluxAttempted,
+        flux_fallback_attempted: job.fluxAttempted,
       });
       scheduleServerPendingPoll(pending);
       return {
         prediction_id: pending.id,
         credits_spent: 0,
         type,
-        new_balance: dbUser.credits ?? 999999999,
+        new_balance: dbUser?.credits ?? 999999999,
         server_billing: true,
       };
     }
     const balance = spendableStandardCredits(dbUser) ?? dbUser?.total_standard_credits ?? dbUser?.credits ?? user.credits ?? 0;
-    if (!isAdminEmail(dbUser?.email) && balance < cost) {
+    if (!isAdminEmail(dbUser?.email || user?.email) && balance < cost) {
       const err = new Error("Créditos insuficientes.");
       err.status = 402;
       throw err;
     }
 
     const newBalance = await spendCredits(user.id, cost, spendDescription || "Geração", { forceBill });
-    let prediction;
-    let resolvedModelUsed = modelUsed || modelId;
-    let fluxAttempted = false;
+    let job;
     try {
-      prediction = await createPrediction(modelId, input);
+      job = await createProviderJob({
+        userEmail,
+        type,
+        modelId,
+        input,
+        aspectRatio,
+        fluxFallbackInput,
+        modelUsed,
+      });
     } catch (e) {
-      if (fluxFallbackInput && modelId === MODELS.standard) {
-        try {
-          prediction = await createPrediction(MODELS.pro, fluxFallbackInput);
-          resolvedModelUsed = MODELS.pro;
-          fluxAttempted = true;
-        } catch (e2) {
-          if (!forceBill || !isAdminEmail(dbUser?.email)) {
-            await addCredits(user.id, cost, "refund", `Refund: submit failed (${String(e2.message || e2).slice(0, 80)})`);
-          }
-          const err = new Error(formatGenerationError(e2.message || "submit failed", lang));
-          err.status = e2.status && e2.status >= 400 && e2.status < 600 ? e2.status : 502;
-          throw err;
-        }
-      } else {
-        if (!forceBill || !isAdminEmail(dbUser?.email)) {
-          await addCredits(user.id, cost, "refund", `Refund: submit failed (${String(e.message || e).slice(0, 80)})`);
-        }
-        const err = new Error(formatGenerationError(e.message || "submit failed", lang));
-        err.status = e.status && e.status >= 400 && e.status < 600 ? e.status : 502;
-        throw err;
+      if (!forceBill || !isAdminEmail(userEmail)) {
+        await addCredits(user.id, cost, "refund", `Refund: submit failed (${String(e.message || e).slice(0, 80)})`);
       }
+      const err = new Error(formatGenerationError(e.message || "submit failed", lang));
+      err.status = e.status && e.status >= 400 && e.status < 600 ? e.status : 502;
+      throw err;
     }
 
     const pending = await createPending({
       id: newPendingId(),
       user_id: user.id,
-      replicate_prediction_id: prediction.id,
+      ...pendingProviderFields(job),
       type,
       prompt: prompt || input?.prompt || "",
-      model_used: resolvedModelUsed,
+      model_used: job.modelUsed,
       aspect_ratio: aspectRatio || input?.aspect_ratio || "1:1",
       credits_spent: cost,
       balance_after_spend: newBalance,
@@ -1286,7 +1330,7 @@ async function submitBillableGeneration(req, fields, {
       notify_email: notifyEmail || null,
       ...pendingFallbackFields,
       ...(pendingMeta && typeof pendingMeta === "object" ? pendingMeta : {}),
-      flux_fallback_attempted: fluxAttempted,
+      flux_fallback_attempted: job.fluxAttempted,
     });
     scheduleServerPendingPoll(pending);
 
@@ -2092,11 +2136,23 @@ async function routePost(path, fields, files, req) {
     const templateCategory = text(fields, "template_category", "").trim().toLowerCase();
     const { user: posterUser } = resolveSessionUser(req);
     let posterSubscriber = false;
+    let posterDbUser = null;
     if (posterUser?.id && storageEnabled()) {
-      const pu = await getUserById(posterUser.id);
-      posterSubscriber = Boolean(pu?.subscription?.active);
+      posterDbUser = await getUserById(posterUser.id);
+      posterSubscriber = Boolean(posterDbUser?.subscription?.active);
     }
-    const tplAccess = getPosterTemplateById(templateId, { subscriberActive: posterSubscriber });
+    const posterEmail = String(posterDbUser?.email || posterUser?.email || "").trim().toLowerCase();
+    const tiaAnyAllowed = canAccessTiaAnyPostersByEmail(posterEmail);
+    const tiaAnyTemplate = templateCategory === "tia_any" || String(templateId).startsWith("tia_any_");
+    const tplAccess = getPosterTemplateById(templateId, {
+      subscriberActive: posterSubscriber,
+      tiaAnyAllowed,
+    });
+    if (tiaAnyTemplate && !tiaAnyAllowed) {
+      const err = new Error("Este template é exclusivo da Tia Any Fast Food.");
+      err.status = 403;
+      throw err;
+    }
     if (tplAccess?.subscriber_only && tplAccess?.locked) {
       const err = new Error("Este template é exclusivo do plano Creator Mensal (€14/mês).");
       err.status = 403;
@@ -2114,6 +2170,109 @@ async function routePost(path, fields, files, req) {
 
     const requiresDualPhoto = truthyField(fields, "requires_dual_photo");
     const secondPersonRef = await resolveImageRef(files, fields, "image_1", "image_1_url");
+
+    if (tiaAnyTemplate) {
+      const uniformRef = await resolveImageRef(files, fields, "uniform", "uniform_url");
+      if (!logoRef || !uniformRef) {
+        const err = new Error("Referências oficiais da Tia Any em falta. Recarrega a página e tenta novamente.");
+        err.status = 400;
+        throw err;
+      }
+      const refs = [logoRef, uniformRef, photoRef, secondPersonRef].filter(Boolean).slice(0, 4);
+      prompt = `${prompt}
+
+TIA ANY REFERENCE ROLE MAP (mandatory):
+- Image 1 = official logo. Use this logo only, preserve colors and shape.
+- Image 2 = official employee uniform. Any employee must wear this black polo with the logo embroidered on left chest.
+- Image 3, if present = user reference 1. Preserve exact person identity if it is a person; preserve exact food if it is food.
+- Image 4, if present = user reference 2 / food. Preserve exact food appearance.
+If user food reference is absent, generate a fitting premium fast-food item. If user person reference is absent, generate a natural employee/customer only when the selected style needs one.`;
+
+      if (selected === "gpt_image") {
+        const size = aspectToOpenAISize(aspectRatio);
+        const outputAspect = openAISizeToAspectRatio(size);
+        const openaiPrompt = appendAspectOutputInstruction(
+          finalizeImagePrompt(prompt, {
+            modelKey: "gpt_image",
+            poster: true,
+            posterFood: true,
+            hasPersonPhoto: false,
+            photoEdit: false,
+          }),
+          outputAspect,
+        );
+        const urls = [];
+        let modelUsed = "openai/gpt-image-1";
+        for (let i = 0; i < count; i += 1) {
+          // eslint-disable-next-line no-await-in-loop
+          const result = await generateOpenAIImageEditDetailed({
+            prompt: openaiPrompt,
+            size,
+            imageRefs: refs,
+            inputFidelity: "high",
+            preferMultipart: true,
+          });
+          urls.push(result.url);
+          modelUsed = result.modelUsed || modelUsed;
+        }
+        return submitInstantPosterGeneration(req, fields, {
+          cost: posterHqPremiumCost(count),
+          prompt,
+          aspectRatio: outputAspect,
+          modelUsed: `${modelUsed} · Tia Any`,
+          urls,
+        });
+      }
+
+      const tiaResolved = resolvePosterModel(selected === "flux2" ? "nano_banana" : selected);
+      const tiaPrompt = finalizeImagePrompt(prompt, {
+        modelKey: selected === "grok" ? "standard" : "pro",
+        poster: true,
+        posterFood: true,
+        hasPersonPhoto: false,
+        photoEdit: false,
+      });
+      const tiaCost = (selected === "grok" ? CREDIT.posterFast : CREDIT.posterPro) * count;
+      if (tiaResolved.engine === "nano_banana") {
+        const nbInput = buildNanoBananaPosterInput({
+          prompt: tiaPrompt,
+          aspectRatio,
+          photoRef: refs[0],
+          garmentRef: refs[1],
+        });
+        nbInput.image_input = refs;
+        nbInput.num_outputs = count;
+        return submitBillableGeneration(req, fields, {
+          cost: tiaCost,
+          type: "poster",
+          modelId: tiaResolved.modelId,
+          input: nbInput,
+          prompt,
+          aspectRatio: nbInput.aspect_ratio,
+          modelUsed: "google/nano-banana · Tia Any multi-ref",
+          spendDescription: "Pôster · Tia Any Fast Food",
+        });
+      }
+
+      const tiaInput = await imageInput(fields, files, "standard", tiaPrompt, {
+        posterFood: true,
+        poster: true,
+        hasPersonPhoto: false,
+      });
+      tiaInput.image = refs[0];
+      tiaInput.aspect_ratio = aspectRatio;
+      tiaInput.num_outputs = count;
+      return submitBillableGeneration(req, fields, {
+        cost: tiaCost,
+        type: "poster",
+        modelId: tiaResolved.modelId || MODELS.standard,
+        input: tiaInput,
+        prompt,
+        aspectRatio: tiaInput.aspect_ratio,
+        modelUsed: "Grok · Tia Any",
+        spendDescription: "Pôster · Tia Any Fast Food",
+      });
+    }
 
     const igRefTpl = isIgRefPosterTemplate(templateId) ? getIgRefTemplate(templateId) : null;
     const igRefDual = Boolean(igRefTpl && (requiresDualPhoto || igRefTpl.requiresDualPhoto));
@@ -2295,6 +2454,12 @@ async function routePost(path, fields, files, req) {
   }
 
   if (path === "generate/manga-interaction") {
+    const { user: mangaUser } = resolveSessionUser(req);
+    if (!isAdminEmail(mangaUser?.email)) {
+      const err = new Error("Manga Studio disponível apenas para administradores.");
+      err.status = 403;
+      throw err;
+    }
     let promptFinal = text(fields, "prompt_final", "").trim();
     if (!promptFinal) throw new Error("Prompt em falta.");
     const photoA = await resolveImageRef(files, fields, "photo", "photo_url");
@@ -2339,6 +2504,12 @@ async function routePost(path, fields, files, req) {
   }
 
   if (path === "generate/manga-panel" || path === "generate/manga-page" || path === "generate/manga-chapter") {
+    const { user: mangaUser } = resolveSessionUser(req);
+    if (!isAdminEmail(mangaUser?.email)) {
+      const err = new Error("Manga Studio disponível apenas para administradores.");
+      err.status = 403;
+      throw err;
+    }
     let promptFinal = text(fields, "prompt_final", "").trim();
     if (!promptFinal) throw new Error("Prompt em falta.");
     const generationMode = text(fields, "generation_mode", "").trim();
@@ -2680,88 +2851,77 @@ async function routePost(path, fields, files, req) {
       per_image_cost: bc.getBrandCampaignPerImageCost(CREDIT),
       model_used: "google/nano-banana + gpt-4o analysis",
       site_read_method: websiteSnapshot?.read_method || "",
+      uploaded_photos_count: imageUrls.length,
+      vision_images_count: brief.vision_images_count || 0,
     };
   }
 
   if (path === "generate/brand-campaign") {
     await requireAdminSession(req);
-    const bc = require("./lib/brandCampaign/index.cjs");
-    const { buildNanoBananaPosterInput, resolvePosterModel } = require("./lib/posterEngine.cjs");
-    const lang = userLang(req, fields).slice(0, 2);
-
-    let brief;
-    const briefRaw = text(fields, "brief", "");
-    try {
-      brief = typeof briefRaw === "string" ? JSON.parse(briefRaw) : briefRaw;
-    } catch {
+    const bcBatch = require("./lib/brandCampaign/brandCampaignBatch.cjs");
+    const brief = bcBatch.parseBriefField(text(fields, "brief", ""));
+    if (!brief?.concepts?.length) {
       const err = new Error("Brief de marca inválido — analisa de novo.");
       err.status = 400;
       throw err;
     }
 
+    const bc = require("./lib/brandCampaign/index.cjs");
+    const { resolveConceptForBatchSlot } = require("./lib/brandCampaign/brandCampaignConceptSlots.cjs");
     const conceptIndex = Math.max(0, Math.min(
       bc.CONCEPT_COUNT - 1,
       Number(text(fields, "concept_index", 0)) || 0,
     ));
-    const concept = brief?.concepts?.[conceptIndex];
-    if (!concept?.prompt) {
-      const err = new Error("Concepto de anúncio em falta.");
-      err.status = 400;
-      throw err;
-    }
-
+    const concept = resolveConceptForBatchSlot(brief, conceptIndex, 1);
     const aspectRatio = normalizeRatio(text(fields, "aspect_ratio", "4:5"), "standard");
     const uploadedUrls = await resolveMarketingVideoImages(files, fields, 5);
-    const briefRefs = Array.isArray(brief?.reference_image_urls) ? brief.reference_image_urls : [];
     const imageUrls = uploadedUrls.length
-      ? uploadedUrls
-      : briefRefs.filter((u) => String(u).startsWith("http")).slice(0, 4);
-    const photoRef = imageUrls[0] || null;
-    const extraRefs = imageUrls.slice(1, 4);
+      ? uploadedUrls.slice(0, 4)
+      : (brief.reference_image_urls || []).filter((u) => String(u).startsWith("http")).slice(0, 4);
 
-    let prompt = bc.buildBrandCampaignImagePrompt({
+    const { resolveCategoryId } = require("./lib/brandCampaign/brandCampaignCategories.cjs");
+    const styleCategory = resolveCategoryId(text(fields, "style_category", "general"));
+    const stylePresetId = String(text(fields, "style_preset", "auto") || "auto").trim() || "auto";
+    const bcLang = userLang(req, fields).slice(0, 2);
+    const stylePreset = bc.pickBrandCampaignPreset({
+      categoryId: styleCategory,
+      presetId: stylePresetId,
+      conceptIndex,
+      lang: bcLang,
+    });
+
+    const submission = bcBatch.buildBrandCampaignSubmission({
       brief,
       concept,
+      batchSlotIndex: conceptIndex,
       aspectRatio,
-    });
-    prompt = finalizeImagePrompt(prompt, {
-      modelKey: "pro",
-      poster: true,
-      hasPersonPhoto: Boolean(photoRef),
-      photoEdit: Boolean(photoRef),
-    });
-    prompt = appendAspectOutputInstruction(prompt, aspectRatio);
-
-    const perImage = bc.getBrandCampaignPerImageCost(CREDIT);
-    const resolved = resolvePosterModel("nano_banana");
-    const nbInput = buildNanoBananaPosterInput({
-      prompt,
-      aspectRatio,
-      photoRef,
-      garmentRef: extraRefs[0] || null,
+      imageUrls,
+      CREDIT,
+      finalizeImagePrompt,
+      appendAspectOutputInstruction,
+      stylePreset,
+      batchTotal: 1,
     });
 
-    if (imageUrls.length > 1 && Array.isArray(nbInput.image_input)) {
-      nbInput.image_input = imageUrls.slice(0, 4);
-    } else if (imageUrls.length > 1) {
-      nbInput.image_input = imageUrls.slice(0, 4);
-    } else if (photoRef && !nbInput.image_input) {
-      nbInput.image_input = [photoRef];
-    }
+    return submitBillableGeneration(req, fields, submission);
+  }
 
-    return submitBillableGeneration(req, fields, {
-      cost: perImage,
-      type: "poster",
-      modelId: resolved.modelId,
-      input: nbInput,
-      prompt,
-      aspectRatio: nbInput.aspect_ratio,
-      modelUsed: "Campanha on-brand · Nano Banana",
-      spendDescription: `Campanha on-brand · ${concept.title || `Ad ${conceptIndex + 1}`}`,
-      pendingMeta: {
-        brand_campaign_index: conceptIndex,
-        brand_campaign_title: concept.title || "",
-        brand_name: brief.brand_name || "",
+  if (path === "generate/brand-campaign-batch") {
+    await requireAdminSession(req);
+    const bcBatch = require("./lib/brandCampaign/brandCampaignBatch.cjs");
+    return bcBatch.runBrandCampaignBatch({
+      req,
+      fields,
+      files,
+      CREDIT,
+      deps: {
+        text,
+        resolveMarketingVideoImages,
+        submitBillableGeneration,
+        getPrediction,
+        normalizeRatio,
+        finalizeImagePrompt,
+        appendAspectOutputInstruction,
       },
     });
   }
@@ -2826,8 +2986,18 @@ async function routePost(path, fields, files, req) {
     } = require("./lib/marketingVideo/index.cjs");
     const lang = text(fields, "lang", "pt").slice(0, 2);
     const mode = text(fields, "mode", "quick").trim();
-    const manualCategory = mode === "quick" ? "" : text(fields, "category", "").trim();
+    const isCgiPreview = mode === "cgi_preview";
+    if (isCgiPreview) {
+      const { user: mvUser } = resolveSessionUser(req);
+      if (!isAdminEmail(mvUser?.email)) {
+        const err = new Error("Modo Prévia CGI disponível apenas para administradores.");
+        err.status = 403;
+        throw err;
+      }
+    }
+    const manualCategory = mode === "quick" || isCgiPreview ? "" : text(fields, "category", "").trim();
     const visualStyle = mode === "quick" ? "random" : text(fields, "visual_style", "").trim();
+    const templateId = isCgiPreview ? text(fields, "template_id", "").trim() : "";
     const formatId = text(fields, "format", "").trim();
     const duration = validateMarketingVideoDuration(text(fields, "duration", "15"));
     const imageUrls = await resolveMarketingVideoImages(files, fields, 5);
@@ -2840,6 +3010,8 @@ async function routePost(path, fields, files, req) {
       visualStyle,
       lang,
       formatId,
+      mode,
+      templateId,
     });
 
     const cost = computeMarketingVideoCost(region, duration);
@@ -2861,6 +3033,10 @@ async function routePost(path, fields, files, req) {
         marketing_video_provider: pipeline.providerId,
         marketing_video_image_count: imageUrls.length,
         marketing_video_mode: mode,
+        marketing_video_template_id: pipeline.cgiTemplateId || templateId || "",
+        marketing_video_prompt_id: pipeline.promptId || "",
+        marketing_video_admin_storyboard: pipeline.adminStoryboard || null,
+        marketing_video_image_urls: imageUrls,
       },
     });
   }
@@ -3289,11 +3465,15 @@ async function handlePath(path, req, res) {
     if (req.method === "GET" && path === "public/poster-templates") {
       const { user } = resolveSessionUser(req);
       let subscriberActive = false;
+      let tiaAnyAllowed = false;
       if (user?.id && storageEnabled()) {
         const dbUser = await getUserById(user.id);
         subscriberActive = Boolean(dbUser?.subscription?.active);
+        tiaAnyAllowed = canAccessTiaAnyPostersByEmail(dbUser?.email || user.email);
+      } else if (user?.email) {
+        tiaAnyAllowed = canAccessTiaAnyPostersByEmail(user.email);
       }
-      return json(res, 200, { templates: listPosterTemplates({ subscriberActive }) });
+      return json(res, 200, { templates: listPosterTemplates({ subscriberActive, tiaAnyAllowed }) });
     }
 
     if (req.method === "GET" && path === "public/poster-models") {
@@ -3385,6 +3565,7 @@ async function handlePath(path, req, res) {
       const CREDIT = getCreditCostsForRegion(region);
       const bc = require("./lib/brandCampaign/index.cjs");
       const { openaiConfigured } = require("./lib/openaiEnv.cjs");
+      const bcLang = String(req.headers["x-lang"] || req.headers["accept-language"] || "pt").slice(0, 2);
       return json(res, 200, {
         per_image_cost: bc.getBrandCampaignPerImageCost(CREDIT),
         max_outputs: bc.MAX_OUTPUTS,
@@ -3395,6 +3576,8 @@ async function handlePath(path, req, res) {
         openai_ready: openaiConfigured(),
         aspect_ratios: ["1:1", "4:5", "9:16", "16:9", "3:4"],
         max_photos: 5,
+        style_categories: bc.listBrandCampaignCategories(bcLang),
+        style_preset_count: bc.presetCount(),
       });
     }
 
@@ -3405,6 +3588,8 @@ async function handlePath(path, req, res) {
       const lang = String(req.headers["x-lang"] || req.headers["accept-language"] || "pt").slice(0, 2);
       const mv = require("./lib/marketingVideo/index.cjs");
       if (path === "marketing-video/config") {
+        const { user: sessionUser } = resolveSessionUser(req);
+        const adminOk = isAdminEmail(sessionUser?.email);
         return json(res, 200, {
           provider: mv.getMarketingVideoProvider(),
           durations: mv.ALLOWED_DURATIONS,
@@ -3416,6 +3601,9 @@ async function handlePath(path, req, res) {
           formats: mv.listMarketingVideoFormats(lang),
           categories: mv.listMarketingCategories(lang),
           visual_styles: mv.listVisualStyles(lang),
+          cgi_templates: adminOk ? mv.listCgiTemplates(lang, { includeBeats: true }) : [],
+          cgi_storyboard_admin: adminOk,
+          cgi_preview_enabled: adminOk,
           prompt_variants: mv.allPromptEntries().length,
         });
       }
@@ -3494,7 +3682,7 @@ async function handlePath(path, req, res) {
       const id = path.split("/")[1];
       const { user } = resolveSessionUser(req);
       const url = new URL(req.url, `https://${req.headers.host}`);
-      const lang = (url.searchParams.get("lang") || req.headers["x-lang"] || "en").slice(0, 2);
+      const lang = (url.searchParams.get("lang") || req.headers["x-lang"] || "pt").slice(0, 2);
 
       if (id.startsWith("rp_") && storageEnabled()) {
         const pending = await getPending(id);
@@ -3670,9 +3858,19 @@ async function handlePath(path, req, res) {
       if (!sessionUser) return json(res, 401, { detail: "Sessão inválida ou expirada." });
       await touchUser(sessionUser.id, req, { action: "me" });
       await repairUserAccountIfNeeded(sessionUser.id);
-      const dbUser = await getUserById(sessionUser.id);
-      const user = dbUser || sessionUser;
-      return json(res, 200, user);
+      let dbUser = await getUserById(sessionUser.id);
+      if (!dbUser) {
+        dbUser = await ensureUserFromSession(sessionUser);
+      }
+      if (!dbUser && sessionUser.email) {
+        dbUser = publicUser({
+          id: sessionUser.id,
+          email: sessionUser.email,
+          name: sessionUser.name || sessionUser.email.split("@")[0],
+          role: sessionUser.role || "user",
+        });
+      }
+      return json(res, 200, dbUser || sessionUser);
     }
 
     if (req.method === "PATCH" && path === "me/notifications") {

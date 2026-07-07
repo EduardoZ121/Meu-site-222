@@ -7,7 +7,10 @@ const { isStudioPremiumActive } = require("./studioPremium.cjs");
 const { publicSubscriptionFields } = require("./creatorSubscription.cjs");
 
 const ADMIN_EMAILS = new Set(
-  String(process.env.ADMIN_EMAILS || "eduardozola1998@gmail.com,eduardozola121998@gmail.com,eduardozola11998@gmail.com")
+  String(
+    process.env.ADMIN_EMAILS?.trim()
+    || "eduardozola1998@gmail.com,eduardozola121998@gmail.com,eduardozola11998@gmail.com",
+  )
     .split(",")
     .map((e) => e.trim().toLowerCase())
     .filter(Boolean),
@@ -204,7 +207,8 @@ async function repairUserAccountIfNeeded(userId) {
   if (!storageEnabled() || !userId) return null;
   const db = await getDb();
   const doc = await db.collection("users").findOne({ id: userId }, { projection: { _id: 0, password_hash: 0 } });
-  if (!doc || !accountNeedsRepair(doc)) return publicUser(doc);
+  if (!doc) return null;
+  if (!accountNeedsRepair(doc)) return publicUser(doc);
   const access = resolveAccountAccess(doc);
   await db.collection("users").updateOne(
     { id: userId },
@@ -212,6 +216,51 @@ async function repairUserAccountIfNeeded(userId) {
   );
   const updated = await db.collection("users").findOne({ id: userId }, { projection: { _id: 0, password_hash: 0 } });
   return publicUser(updated);
+}
+
+/** Repõe utilizador em Blob/KV quando a sessão existe mas o registo foi perdido na migração. */
+async function ensureUserFromSession(sessionUser) {
+  if (!storageEnabled() || !sessionUser?.id) return null;
+  const existing = await getUserById(sessionUser.id);
+  if (existing) return existing;
+
+  const email = String(sessionUser.email || "").trim().toLowerCase();
+  if (!email) return null;
+
+  const db = await getDb();
+  const byEmail = await db.collection("users").findOne({ email });
+  if (byEmail?.id) {
+    if (byEmail.id !== sessionUser.id) {
+      await db.collection("users").updateOne(
+        { email },
+        { $set: { id: sessionUser.id } },
+      );
+    }
+    return getUserById(sessionUser.id);
+  }
+
+  const access = resolveAccountAccess({ email });
+  const doc = {
+    id: sessionUser.id,
+    email,
+    name: sessionUser.name || email.split("@")[0],
+    avatar_url: sessionUser.avatar_url || null,
+    role: access.role,
+    is_unlimited: access.is_unlimited,
+    credits: access.credits,
+    premium_credits: access.premium_credits ?? 0,
+    referral_code: genReferralCode(),
+    referred_by: null,
+    banned: false,
+    shadowbanned: false,
+    email_verified: true,
+    created_at: nowIso(),
+    pricing_region: sessionUser.pricing_region || "intl",
+    lang: sessionUser.lang || "pt",
+    provider: sessionUser.provider || "session",
+  };
+  await db.collection("users").insertOne(doc);
+  return publicUser(doc);
 }
 
 async function getUserById(userId) {
@@ -259,37 +308,52 @@ async function setUserAccountByEmail(email, { credits, lang }) {
   return { user: publicUser(updated), before };
 }
 
+function unwrapFindOneAndUpdate(res) {
+  if (!res) return null;
+  if (res.value && typeof res.value === "object") return res.value;
+  return res;
+}
+
 async function addCredits(userId, amount, type, description, metadata = {}) {
   if (!storageEnabled()) return null;
+  const numeric = Number(amount);
+  if (!Number.isFinite(numeric) || numeric === 0) {
+    const err = new Error("Montante inválido.");
+    err.status = 400;
+    throw err;
+  }
   const db = await getDb();
-  const res = await db.collection("users").findOneAndUpdate(
+  const raw = await db.collection("users").findOneAndUpdate(
     { id: userId },
-    { $inc: { credits: amount } },
-    { returnDocument: "after", projection: { _id: 0 } },
+    { $inc: { credits: numeric } },
+    { returnDocument: "after", projection: { _id: 0, credits: 1 } },
   );
+  const res = unwrapFindOneAndUpdate(raw);
   if (!res) return null;
   await db.collection("credit_transactions").insertOne({
     id: `tx_${Date.now().toString(36)}_${crypto.randomBytes(3).toString("hex")}`,
     user_id: userId,
-    amount,
+    amount: numeric,
     type,
     description,
     metadata,
     wallet: "standard",
     created_at: nowIso(),
   });
-  return res.credits;
+  const credits = Number(res.credits);
+  return Number.isFinite(credits) ? credits : null;
 }
 
 async function addPremiumCredits(userId, amount, type, description, metadata = {}) {
   if (!storageEnabled()) return null;
   const db = await getDb();
-  const res = await db.collection("users").findOneAndUpdate(
+  const raw = await db.collection("users").findOneAndUpdate(
     { id: userId },
     { $inc: { premium_credits: amount } },
     { returnDocument: "after", projection: { _id: 0, premium_credits: 1 } },
   );
-  if (!res) return null;
+  const res = unwrapFindOneAndUpdate(raw);
+  if (!raw) return null;
   await db.collection("credit_transactions").insertOne({
     id: `tx_${Date.now().toString(36)}_${crypto.randomBytes(3).toString("hex")}`,
     user_id: userId,
@@ -505,6 +569,7 @@ module.exports = {
   upsertGoogleUser,
   touchUser,
   repairUserAccountIfNeeded,
+  ensureUserFromSession,
   getUserById,
   getUserByEmail,
   setUserAccountByEmail,

@@ -9,7 +9,17 @@ export default function MotionFlyerUpload({ file, onChange, disabled = false }) 
   return (
     <MultiImageUpload
       value={files}
-      onChange={(next) => onChange(next[0] || null)}
+      onChange={(next) => {
+        if (typeof next === "function") {
+          onChange((prev) => {
+            const base = prev ? [prev] : [];
+            const resolved = next(base);
+            return Array.isArray(resolved) ? (resolved[0] || null) : resolved;
+          });
+          return;
+        }
+        onChange(Array.isArray(next) ? (next[0] || null) : next);
+      }}
       maxFiles={1}
       disabled={disabled}
       testId="mfly-upload"

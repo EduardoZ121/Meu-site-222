@@ -208,6 +208,13 @@ export function isPosterFoodTemplate(template) {
   return id.startsWith("food_");
 }
 
+export function isTiaAnyPosterTemplate(template) {
+  const cat = String(template?.category || "").toLowerCase();
+  if (cat === "tia_any") return true;
+  const id = String(template?.id || "").toLowerCase();
+  return id.startsWith("tia_any_");
+}
+
 export function isPosterProductTemplate(template) {
   if (template?.productTemplate) return true;
   const cat = String(template?.category || "").toLowerCase();
@@ -246,6 +253,7 @@ function formatPosterOutputLanguage(langCode) {
 /** Com foto: templates comida/produto não usam guarda de identidade humana. */
 export function posterNeedsIdentityGuard(template, hasPhoto) {
   if (!hasPhoto) return false;
+  if (isTiaAnyPosterTemplate(template)) return false;
   if (isPosterFoodTemplate(template) || isPosterProductTemplate(template)) return false;
   return true;
 }

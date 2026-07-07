@@ -1,11 +1,13 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Link, Outlet, useOutletContext } from "react-router-dom";
+import { useStudioScrollToTopOnNavigate } from "../lib/useStudioScrollToTopOnNavigate";
 import { motion } from "framer-motion";
 import { Menu } from "lucide-react";
 import { useAuth } from "../lib/auth";
 import { useI18n } from "../lib/i18n";
 import Logo from "../components/Logo";
 import DashboardProfileMenu from "../components/DashboardProfileMenu";
+import NotificationBell from "../components/notifications/NotificationBell";
 
 const navSpring = { type: "spring", stiffness: 380, damping: 32 };
 
@@ -13,6 +15,7 @@ const navSpring = { type: "spring", stiffness: 380, damping: 32 };
  * Layout das páginas hub (ferramentas, galeria, conta…) — header global + conteúdo com padding.
  */
 export default function HubMainLayout() {
+  useStudioScrollToTopOnNavigate();
   const { openMobileNav } = useOutletContext() || {};
   const { user } = useAuth();
   const { t } = useI18n();
@@ -83,6 +86,7 @@ export default function HubMainLayout() {
                   {user.is_unlimited ? "∞" : user.credits}
                 </span>
               </Link>
+              <NotificationBell />
               <DashboardProfileMenu />
             </>
           ) : (

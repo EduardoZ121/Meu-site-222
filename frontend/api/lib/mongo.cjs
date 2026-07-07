@@ -1,5 +1,6 @@
 const { MongoClient } = require("mongodb");
 const { kvEnabled, createKvDb } = require("./kvDb.cjs");
+const { blobColEnabled, createBlobColDb } = require("./blobColDb.cjs");
 
 let client = null;
 let dbPromise = null;
@@ -8,8 +9,24 @@ function mongoEnabled() {
   return Boolean(process.env.MONGO_URL && String(process.env.MONGO_URL).trim());
 }
 
+function kvDisabled() {
+  return String(process.env.RP_DISABLE_KV || "").trim() === "1";
+}
+
+function storageBackendPref() {
+  return String(process.env.RP_STORAGE_BACKEND || "").trim().toLowerCase();
+}
+
+function blobStoragePreferred() {
+  if (!blobColEnabled()) return false;
+  const pref = storageBackendPref();
+  if (pref === "blob") return true;
+  if (pref === "kv") return false;
+  return kvDisabled();
+}
+
 function storageEnabled() {
-  return mongoEnabled() || kvEnabled();
+  return mongoEnabled() || blobStoragePreferred() || (kvEnabled() && !kvDisabled());
 }
 
 function dbName() {
@@ -27,8 +44,20 @@ async function getMongoDb() {
 
 async function getDb() {
   if (mongoEnabled()) return getMongoDb();
-  if (kvEnabled()) return createKvDb();
+  const pref = storageBackendPref();
+  // Explicit kv only when requested — default prefers blob (KV whole-col sync exhausts Upstash quotas).
+  if (pref === "kv" && kvEnabled() && !kvDisabled()) return createKvDb();
+  if (blobColEnabled()) return createBlobColDb();
+  if (kvEnabled() && !kvDisabled()) return createKvDb();
   return null;
+}
+
+function resolveStorageBackendLabel() {
+  if (mongoEnabled()) return "mongo";
+  if (blobStoragePreferred()) return "blob";
+  if (kvEnabled() && !kvDisabled()) return "kv";
+  if (blobColEnabled()) return "blob";
+  return "none";
 }
 
 async function ensureIndexes() {
@@ -52,6 +81,9 @@ module.exports = {
   mongoEnabled,
   storageEnabled,
   kvEnabled,
+  blobColEnabled,
+  blobStoragePreferred,
+  resolveStorageBackendLabel,
   getDb,
   ensureIndexes,
 };

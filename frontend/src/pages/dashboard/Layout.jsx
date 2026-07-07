@@ -114,11 +114,11 @@ export default function DashboardLayout() {
       { to: "/app/marketing-video", icon: Megaphone, label: t("sidebar_marketing_video") },
       ...(isAdminUser(user) ? [{ to: "/app/brand-campaign", icon: Layers, label: t("sidebar_brand_campaign") }] : []),
       { to: "/app/motion-flyer", icon: Sparkles, label: t("sidebar_motion_flyer") },
-      {
+      ...(isAdminUser(user) ? [{
         to: "/app/manga-studio",
         icon: BookOpen,
         label: t("sidebar.manga_studio"),
-      },
+      }] : []),
       { to: "/app/wizard", icon: Wand2, label: t("sidebar.wizard") },
     ];
     return [

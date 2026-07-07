@@ -6,6 +6,7 @@ import { useI18n } from "../lib/i18n";
 import { getAppRelativePath, getWorkspaceHeaderKey } from "../lib/dashboardRouteMode";
 import { useStudioNav } from "../lib/StudioNavContext";
 import DashboardProfileMenu from "./DashboardProfileMenu";
+import NotificationBell from "./notifications/NotificationBell";
 
 /**
  * Cabeçalho do workspace — substitui totalmente o header global (sem menu hamburguer).
@@ -41,7 +42,7 @@ export default function StudioTopBar({ titleKey }) {
 
   return (
     <header
-      className="rp-studio-top-bar shrink-0 z-50 grid grid-cols-[auto_1fr_auto] items-center gap-2 sm:gap-3 px-3 sm:px-4 md:px-6 h-14 border-b border-white/[0.08] bg-[#0a0a0f]/98 backdrop-blur-xl w-full max-w-[100vw]"
+      className="rp-studio-top-bar shrink-0 z-50 grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-1 sm:gap-3 px-2 sm:px-4 md:px-6 h-12 sm:h-14 border-b border-white/[0.08] bg-[#0a0a0f]/98 backdrop-blur-xl w-full max-w-[100vw]"
       data-testid="studio-top-bar"
     >
       <div className="justify-self-start flex items-center gap-1 shrink-0">
@@ -49,25 +50,25 @@ export default function StudioTopBar({ titleKey }) {
           <button
             type="button"
             onClick={openMobileNav}
-            className="md:hidden inline-flex items-center justify-center w-10 h-10 rounded-xl text-white/80 hover:text-white hover:bg-white/[0.06] border border-transparent hover:border-white/[0.08] transition-colors"
+            className="md:hidden inline-flex items-center justify-center w-9 h-9 sm:w-10 sm:h-10 rounded-xl text-white/80 hover:text-white hover:bg-white/[0.06] border border-transparent hover:border-white/[0.08] transition-colors"
             aria-label={t("nav_tools")}
             data-testid="studio-menu"
           >
-            <Menu className="w-5 h-5" strokeWidth={1.75} />
+            <Menu className="w-4.5 h-4.5 sm:w-5 sm:h-5" strokeWidth={1.75} />
           </button>
         )}
         <button
           type="button"
           onClick={handleBack}
-          className="inline-flex items-center justify-center w-10 h-10 rounded-xl text-white/80 hover:text-white hover:bg-white/[0.06] border border-transparent hover:border-white/[0.08] transition-colors"
+          className="inline-flex items-center justify-center w-9 h-9 sm:w-10 sm:h-10 rounded-xl text-white/80 hover:text-white hover:bg-white/[0.06] border border-transparent hover:border-white/[0.08] transition-colors"
           aria-label={t("header.studio_nav_back")}
           data-testid="studio-back"
         >
-          <ArrowLeft className="w-5 h-5" strokeWidth={1.75} />
+          <ArrowLeft className="w-4.5 h-4.5 sm:w-5 sm:h-5" strokeWidth={1.75} />
         </button>
       </div>
 
-      <div className="min-w-0 flex flex-col items-center justify-center text-center px-1">
+      <div className="hidden md:flex min-w-0 flex-col items-center justify-center text-center px-1">
         <p className="hidden md:block text-[10px] font-mono uppercase tracking-[0.18em] text-[#9333EA]/80 truncate max-w-full">
           {t("header.studio_nav_workspace")}
         </p>
@@ -76,7 +77,7 @@ export default function StudioTopBar({ titleKey }) {
         </h1>
       </div>
 
-      <div className="justify-self-end flex items-center gap-1 sm:gap-1.5 shrink-0">
+      <div className="justify-self-end flex items-center gap-0.5 sm:gap-1.5 shrink-0 min-w-0">
         {user ? (
           <>
             <Link
@@ -85,10 +86,11 @@ export default function StudioTopBar({ titleKey }) {
               data-testid="studio-credits-badge"
               title={stdLabel}
             >
-              <span className="text-[9px] sm:text-[10px] font-mono uppercase tracking-wider text-[#C4B5FD]/80 max-w-[52px] sm:max-w-none truncate">
-                {onPosters ? stdLabel : (t("label_credits_short") || "cr")}
+              <span className="text-[8px] sm:text-[10px] font-mono uppercase tracking-wider text-[#C4B5FD]/80 max-w-[24px] sm:max-w-none truncate">
+                <span className="sm:hidden">CR</span>
+                <span className="hidden sm:inline">{onPosters ? stdLabel : (t("label_credits_short") || "cr")}</span>
               </span>
-              <span className="text-[#A855F7] text-sm font-mono font-semibold tabular-nums">
+              <span className="text-[#A855F7] text-xs sm:text-sm font-mono font-semibold tabular-nums">
                 {user?.is_unlimited ? "∞" : user?.total_standard_credits ?? user?.credits ?? 0}
               </span>
             </Link>
@@ -99,17 +101,19 @@ export default function StudioTopBar({ titleKey }) {
                 data-testid="studio-hq-credits-badge"
                 title={hqLabel}
               >
-                <Crown className="w-3 h-3 text-[#FACC15] shrink-0" strokeWidth={1.75} />
-                <span className="text-[9px] sm:text-[10px] font-mono uppercase tracking-wider text-[#FACC15]/85 max-w-[76px] sm:max-w-none truncate">
-                  {onPosters ? t("header_hq_credits") : (t("label_hq_credits_short") || "HQ")}
+                <Crown className="w-2.5 h-2.5 sm:w-3 sm:h-3 text-[#FACC15] shrink-0" strokeWidth={1.75} />
+                <span className="text-[8px] sm:text-[10px] font-mono uppercase tracking-wider text-[#FACC15]/85 max-w-[22px] sm:max-w-none truncate">
+                  <span className="sm:hidden">HQ</span>
+                  <span className="hidden sm:inline">{onPosters ? t("header_hq_credits") : (t("label_hq_credits_short") || "HQ")}</span>
                 </span>
-                {onPosters && <span className="text-[#FACC15]/40 text-xs">:</span>}
-                <span className="text-[#FACC15] text-sm font-mono font-semibold tabular-nums">
+                {onPosters && <span className="hidden sm:inline text-[#FACC15]/40 text-xs">:</span>}
+                <span className="text-[#FACC15] text-xs sm:text-sm font-mono font-semibold tabular-nums">
                   {user?.is_unlimited ? "∞" : user?.premium_credits ?? 0}
                 </span>
               </Link>
             )}
-            <DashboardProfileMenu />
+            <NotificationBell compact />
+            <DashboardProfileMenu compact />
           </>
         ) : (
           <Link

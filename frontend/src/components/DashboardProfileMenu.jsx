@@ -86,7 +86,7 @@ function LanguageSection({ lang, onPick }) {
   );
 }
 
-export default function DashboardProfileMenu() {
+export default function DashboardProfileMenu({ compact = false }) {
   const { user, logout } = useAuth();
   const { t, lang } = useI18n();
   const { unreadCount } = useNotifications();
@@ -130,7 +130,9 @@ export default function DashboardProfileMenu() {
         <DropdownMenuTrigger asChild>
           <button
             type="button"
-            className="relative w-10 h-10 rounded-full bg-gradient-to-br from-[#1a1a24] to-[#0B0B0C] border border-[#9333EA]/35 hover:border-[#A855F7]/70 flex items-center justify-center text-white text-sm font-semibold transition-all duration-300 hover:scale-105 hover:shadow-[0_0_24px_-6px_rgba(168,85,247,0.55)]"
+            className={`relative rounded-full bg-gradient-to-br from-[#1a1a24] to-[#0B0B0C] border border-[#9333EA]/35 hover:border-[#A855F7]/70 flex items-center justify-center text-white font-semibold transition-all duration-300 hover:scale-105 hover:shadow-[0_0_24px_-6px_rgba(168,85,247,0.55)] ${
+              compact ? "w-9 h-9 text-xs" : "w-10 h-10 text-sm"
+            }`}
             data-testid="header-avatar"
             aria-label={t("profile_menu_open")}
           >

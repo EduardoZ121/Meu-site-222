@@ -33,10 +33,18 @@ function buildAnalysisPrompt({ websiteSnapshot, lang, imageCount }) {
         ? `\nFULL SITE CONTENT FOR ANALYSIS:\n${websiteSnapshot.marketing_copy.slice(0, 8000)}`
         : `Page text (excerpt): ${(websiteSnapshot.text_snippet || "").slice(0, 4500)}`,
     ].filter(Boolean).join("\n")
-    : "WEBSITE: not provided.";
+    : "WEBSITE: not provided — rely on uploaded product/reference photos (vision). Describe packaging, logo, colors, product type from the images.\n";
+
+  const photoOnly = !websiteSnapshot && imageCount > 0;
+  const photoBlock = photoOnly
+    ? (pt
+      ? "MODO SÓ FOTOS: analisa cada imagem enviada — produto, embalagem, cores, logo, estilo visual, público-alvo inferido."
+      : "PHOTOS-ONLY MODE: analyze each uploaded image — product, packaging, colors, logo, visual style, inferred audience.")
+    : "";
 
   return (
     `${pt ? "Analisa esta marca/produto com base no CONTEÚDO REAL do site (textos, produtos, CTAs, preços, imagens)." : "Analyze this brand/product using REAL site content (copy, products, CTAs, prices, images)."}\n`
+    + `${photoBlock ? `${photoBlock}\n` : ""}`
     + `${siteBlock}\n`
     + `UPLOADED IMAGES: ${imageCount} product/reference photo(s).\n\n`
     + "Identify EVERYTHING: brand name, industry, exact products, colors from the site, typography mood, "
@@ -100,7 +108,8 @@ async function analyzeBrandCampaign({ websiteSnapshot = null, imageUrls = [], la
     if (og) visionUrls.add(og);
   }
 
-  for (const url of [...visionUrls].slice(0, 6)) {
+  const visionList = [...visionUrls].slice(0, 6);
+  for (const url of visionList) {
     content.push({ type: "image_url", image_url: { url, detail: "high" } });
   }
 
@@ -144,15 +153,25 @@ async function analyzeBrandCampaign({ websiteSnapshot = null, imageUrls = [], la
   }
 
   const concepts = Array.isArray(parsed.concepts) ? parsed.concepts : [];
+  const { VARIATION_ANGLES } = require("./brandCampaignConceptSlots.cjs");
   while (concepts.length < CONCEPT_COUNT) {
+    const n = concepts.length;
+    const angle = VARIATION_ANGLES[n % VARIATION_ANGLES.length];
+    const headlines = parsed.site_headlines_used || websiteSnapshot?.headings?.map((h) => h.text) || [];
     concepts.push({
-      title: `Ad variation ${concepts.length + 1}`,
-      format: "feed",
-      headline_hint: (websiteSnapshot?.headings?.[0]?.text || "").slice(0, 80),
-      prompt: `Professional on-brand social media ad for ${parsed.brand_name || websiteSnapshot?.title || "the brand"}. `
-        + `${parsed.visual_style || "modern premium"}. Product hero, clean layout, `
-        + `colors ${(parsed.color_palette || websiteSnapshot?.colors_found || []).join(", ") || "brand colors"}. `
-        + `Include offer copy from site: ${(websiteSnapshot?.ctas || []).slice(0, 2).join(", ")}.`,
+      title: `Ad angle ${n + 1}`,
+      format: ["feed", "story", "hero", "lifestyle", "product-focus"][n % 5],
+      headline_hint: String(headlines[n % Math.max(headlines.length, 1)] || "").slice(0, 80)
+        || (websiteSnapshot?.headings?.[0]?.text || "").slice(0, 80),
+      prompt: [
+        `Professional on-brand social media ad for ${parsed.brand_name || websiteSnapshot?.title || "the brand"}.`,
+        `Creative angle: ${angle}.`,
+        `${parsed.visual_style || "modern premium"} visual style.`,
+        `Brand colors: ${(parsed.color_palette || websiteSnapshot?.colors_found || []).join(", ") || "brand palette"}.`,
+        headlines.length ? `Adapt headline from site: "${String(headlines[n % headlines.length] || "").slice(0, 60)}"` : "",
+        `Site CTAs/offers: ${(websiteSnapshot?.ctas || []).slice(0, 2).join(", ") || "brand offer"}.`,
+        "Distinct composition from other concepts in this set.",
+      ].filter(Boolean).join(" "),
     });
   }
 
@@ -182,6 +201,8 @@ async function analyzeBrandCampaign({ websiteSnapshot = null, imageUrls = [], la
     })),
     website_url: websiteSnapshot?.url || "",
     reference_image_urls: [],
+    uploaded_photos_count: imageUrls.length,
+    vision_images_count: visionList.length,
   };
 }
 

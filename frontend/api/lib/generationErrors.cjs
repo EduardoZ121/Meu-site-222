@@ -3,7 +3,7 @@
  * @param {string} raw
  * @param {string} [lang] pt | en | es | fr
  */
-function formatGenerationError(raw, lang = "en") {
+function formatGenerationError(raw, lang = "pt") {
   const msg = String(raw || "").trim();
   const lower = msg.toLowerCase();
 
@@ -19,8 +19,12 @@ function formatGenerationError(raw, lang = "en") {
   const isInvalidInput =
     /e006|input was invalid|invalid input|modelerror.*invalid|different inputs/i.test(lower);
 
+  const isSeedanceSensitive =
+    /e005|flagged as sensitive|input or output was flagged/i.test(lower);
+
   const isContentPolicy =
-    /content policy|nsfw|safety|moderat|blocked|not allowed|prohibited|violat/i.test(lower);
+    /content policy|nsfw|safety filter|moderat|blocked|not allowed|prohibited|violat/i.test(lower)
+    && !isSeedanceSensitive;
 
   const copy = {
     pt: {
@@ -30,10 +34,12 @@ function formatGenerationError(raw, lang = "en") {
         "O modelo não devolveu nenhum ficheiro. Os créditos foram devolvidos — tenta outro prompt ou duração.",
       capacity:
         "O servidor de IA está ocupado. Espera um minuto e tenta de novo — os créditos foram devolvidos.",
+      seedanceSensitive:
+        "O Seedance bloqueou como «conteúdo sensível» (falso positivo frequente). Tentámos automaticamente prompt neutro e depois Wan I2V. Se falhou tudo, usa modo Rápido com foto de produto. Créditos devolvidos.",
       invalidInput:
-        "O Wan recusou este pedido (entrada inválida — E006). Pode ser conteúdo sensual, duração maior que o clip original, ou parâmetros que o modelo não aceita. Créditos devolvidos — tenta prompt mais neutro ou a mesma duração do vídeo de origem.",
+        "O modelo recusou este pedido (entrada inválida). Pode ser duração, formato ou parâmetros incompatíveis — não significa necessariamente que a tua foto seja inadequada. Créditos devolvidos — tenta modo Rápido ou outro template.",
       contentPolicy:
-        "O modelo bloqueou este pedido por política de conteúdo. Créditos devolvidos — reformula o prompt de forma mais neutra.",
+        "O modelo bloqueou este pedido por política de conteúdo. Créditos devolvidos — tenta modo Rápido ou outra foto mais neutra.",
       generic:
         "A geração falhou. Os teus créditos foram devolvidos automaticamente.",
     },
@@ -44,10 +50,12 @@ function formatGenerationError(raw, lang = "en") {
         "The model returned no output file. Credits refunded — try a different prompt or duration.",
       capacity:
         "The AI service is busy. Wait a minute and try again — credits refunded.",
+      seedanceSensitive:
+        "Seedance flagged this as sensitive content — often a false positive with normal photos or cinematic scenes. Credits refunded. Try Quick mode, the Product Power template, or a more neutral photo (casual clothes, plain background).",
       invalidInput:
-        "Wan rejected this request (invalid input — E006). It may be sensitive content, duration longer than the source clip, or unsupported settings. Credits refunded — try a neutral prompt or match the source clip length.",
+        "The model rejected this request (invalid input). It may be duration, format, or unsupported settings — not necessarily your photo. Credits refunded — try Quick mode or another template.",
       contentPolicy:
-        "The model blocked this request due to content policy. Credits refunded — rephrase the prompt more neutrally.",
+        "The model blocked this request due to content policy. Credits refunded — try Quick mode or a more neutral photo.",
       generic:
         "Generation failed. Your credits were refunded automatically.",
     },
@@ -58,8 +66,10 @@ function formatGenerationError(raw, lang = "en") {
         "El modelo no devolvió ningún archivo. Créditos devueltos.",
       capacity:
         "El servicio de IA está ocupado. Espera un minuto — créditos devueltos.",
+      seedanceSensitive:
+        "Seedance marcó esto como contenido sensible — a menudo es un falso positivo. Créditos devueltos — prueba modo Rápido u otra foto neutra.",
       invalidInput:
-        "Wan rechazó la solicitud (entrada inválida — E006). Puede ser contenido sensible, duración incompatible o ajustes no soportados. Créditos devueltos.",
+        "El modelo rechazó la solicitud (entrada inválida). Créditos devueltos — prueba otro modo o plantilla.",
       contentPolicy:
         "El modelo bloqueó la solicitud por política de contenido. Créditos devueltos.",
       generic:
@@ -72,8 +82,10 @@ function formatGenerationError(raw, lang = "en") {
         "Le modèle n'a renvoyé aucun fichier. Crédits remboursés.",
       capacity:
         "Le service IA est saturé. Attendez une minute — crédits remboursés.",
+      seedanceSensitive:
+        "Seedance a signalé un contenu sensible — souvent un faux positif. Crédits remboursés — essayez le mode Rapide ou une photo neutre.",
       invalidInput:
-        "Wan a refusé la demande (entrée invalide — E006). Contenu sensible, durée ou paramètres incompatibles possibles. Crédits remboursés.",
+        "Le modèle a refusé la demande (entrée invalide). Crédits remboursés.",
       contentPolicy:
         "Le modèle a bloqué la demande (politique de contenu). Crédits remboursés.",
       generic:
@@ -85,6 +97,7 @@ function formatGenerationError(raw, lang = "en") {
   if (isTimeout) return L.timeout;
   if (isEmpty) return L.empty;
   if (isCapacity) return L.capacity;
+  if (isSeedanceSensitive) return L.seedanceSensitive;
   if (isContentPolicy) return L.contentPolicy;
   if (isInvalidInput) return L.invalidInput;
   if (!msg || /^generation failed\.?$/i.test(msg) || /^failed\.?$/i.test(msg)) return L.generic;

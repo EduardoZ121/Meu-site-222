@@ -9,4 +9,5 @@ module.exports = {
   ...require("./marketingVideoHistory.cjs"),
   ...require("./marketingVideoFormats.cjs"),
   ...require("./marketingVideoVisualStyles.cjs"),
+  ...require("./marketingVideoCgiTemplates.cjs"),
 };

@@ -371,6 +371,8 @@ function notifyCreationSucceeded(creation) {
   notifyGenerationComplete(creation);
 }
 
+export { notifyCreationSucceeded };
+
 function notifyPredictionFailure(error, detail = {}) {
   if (typeof window === "undefined") return;
   window.dispatchEvent(new CustomEvent("rp:prediction-failed", {
@@ -575,6 +577,10 @@ export async function pollPrediction(predictionId, opts = {}) {
       res = await api.get(`/predictions/${predictionId}`);
     } catch (e) {
       const status = e?.response?.status;
+      if (status === 404) {
+        await new Promise((r) => setTimeout(r, intervalMs));
+        continue;
+      }
       if (status && status >= 400 && status < 500 && status !== 429) {
         throw e;
       }

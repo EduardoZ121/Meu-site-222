@@ -1,10 +1,11 @@
 import { useMemo } from "react";
 import { useI18n } from "./i18n";
+import { isAdminUser } from "./isAdmin";
 
 export function hasStudioCredits(user, cost = 0) {
   if (!user) return false;
   if (!cost) return true;
-  if (user?.is_unlimited) return true;
+  if (user?.is_unlimited || isAdminUser(user)) return true;
   const balance = user?.total_standard_credits ?? user?.credits ?? 0;
   return balance >= cost;
 }

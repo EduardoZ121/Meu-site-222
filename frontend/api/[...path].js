@@ -824,13 +824,19 @@ async function uploadFormImageToBlob(file) {
   const buf = await fs.readFile(filepath);
 
   if (isS3Configured()) {
-    const uploaded = await uploadBufferToS3({
-      buffer: buf,
-      contentType: mime,
-      userId: "marketing-video",
-      prefix: "marketing-video",
-    });
-    if (uploaded?.url) return uploaded.url;
+    try {
+      const uploaded = await uploadBufferToS3({
+        buffer: buf,
+        contentType: mime,
+        userId: "marketing-video",
+        prefix: "marketing-video",
+      });
+      if (uploaded?.url) return uploaded.url;
+    } catch (err) {
+      // S3/OIDC pode falhar (token/credenciais); não deve rebentar a geração —
+      // seguimos para o Vercel Blob, que tem token próprio e é fiável.
+      console.error("[marketing-video] upload S3 falhou, a usar Blob:", err?.message || err);
+    }
   }
 
   if (!isBlobConfigured() || isBlobDisabled()) return null;

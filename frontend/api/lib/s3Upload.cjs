@@ -59,7 +59,20 @@ function createS3Client(cfg) {
       },
     });
   }
-  // Integração Vercel ↔ AWS (OIDC / role) — cadeia de credenciais por defeito
+  // Integração Vercel ↔ AWS (OIDC): trocar o token OIDC da Vercel por credenciais
+  // STS via AssumeRoleWithWebIdentity. Sem isto, a cadeia por defeito do AWS SDK
+  // não encontra credenciais na Vercel e o upload rebenta com erro de "token".
+  if (cfg.roleArn) {
+    try {
+      const { awsCredentialsProvider } = require("@vercel/functions/oidc");
+      return new S3Client({
+        region: cfg.region,
+        credentials: awsCredentialsProvider({ roleArn: cfg.roleArn }),
+      });
+    } catch {
+      /* fallback para a cadeia por defeito abaixo */
+    }
+  }
   return new S3Client({ region: cfg.region });
 }
 

@@ -1,2 +1,2 @@
 "use strict";
-module.exports = "rp-admin-manga-cgi-v1";
+module.exports = "rp-mv-s3-oidc-fix-v1";

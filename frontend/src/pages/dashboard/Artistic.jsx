@@ -335,7 +335,7 @@ export default function Artistic() {
       <div className="space-y-2.5">
         <div className="rounded-2xl border border-white/[0.08] bg-[#141418]/80 p-3 md:p-4">
           <p className="text-[#9CA3AF] text-[12px] leading-relaxed mb-3">
-            {t("art_flow_step_generate_hint")}
+            {t("art_photo_desc")}
           </p>
           <CompactImagePicker value={photos} onChange={setPhotos} maxFiles={5} testId="art-photo" />
         </div>

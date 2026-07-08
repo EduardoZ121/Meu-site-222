@@ -7,12 +7,14 @@ import {
 } from "../ui/dropdown-menu";
 import { useI18n } from "../../lib/i18n";
 import { useNotifications } from "../../lib/NotificationContext";
+import { useBackClose } from "../../lib/useBackClose";
 import NotificationListPanel from "./NotificationListPanel";
 
 export default function NotificationBell({ compact = false }) {
   const { t } = useI18n();
   const { unreadCount } = useNotifications();
   const [open, setOpen] = useState(false);
+  useBackClose(open, () => setOpen(false));
 
   return (
     <DropdownMenu open={open} onOpenChange={setOpen}>

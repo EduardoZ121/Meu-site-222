@@ -12,6 +12,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import Logo from "../../components/Logo";
 import { NotificationProvider } from "../../lib/NotificationContext";
 import useAppNoIndex from "../../lib/useAppNoIndex";
+import { useBackClose } from "../../lib/useBackClose";
 
 const navSpring = { type: "spring", stiffness: 380, damping: 32 };
 
@@ -100,6 +101,7 @@ export default function DashboardLayout() {
   const { t } = useI18n();
   const navigate = useNavigate();
   const [mobileOpen, setMobileOpen] = useState(false);
+  useBackClose(mobileOpen, () => setMobileOpen(false));
   const { pathname } = useLocation();
   const workspaceMode = isWorkspacePath(pathname);
 

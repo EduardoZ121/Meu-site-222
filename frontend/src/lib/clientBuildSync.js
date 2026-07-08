@@ -9,7 +9,7 @@ const LS_AUTO_RELOAD = "rp_build_auto_reload";
 const LS_TOAST_SHOWN = "rp_build_toast_shown";
 
 /** Bump when auth routing changes so browsers drop stale /app RequireAuth bundles. */
-export const ROUTING_EPOCH = "rp-mv-s3-oidc-fix-v1";
+export const ROUTING_EPOCH = "rp-gerar-compact-v1";
 
 export async function ensureRoutingEpoch() {
   if (typeof window === "undefined") return;

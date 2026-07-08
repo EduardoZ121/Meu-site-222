@@ -1,6 +1,6 @@
 /** Categorias de vídeo — hub /app/video (estilo OpenArt: criar + editar). */
 
-import { canAccessVideoFeatures } from "./isAdmin";
+import { canAccessVideoFeatures, isAdminUser } from "./isAdmin";
 import { VIDEO_TOOL_IDS } from "./videoModels";
 
 
@@ -273,6 +273,8 @@ export const VIDEO_CATEGORIES = [
 
     flow: "edit",
 
+    adminOnly: true,
+
     nameKey: "vid_v2v_title",
 
     descKey: "vid_v2v_subtitle",
@@ -436,13 +438,14 @@ export function findVideoCategory(mode) {
 
 
 export function categoriesForSection(sectionId, user = null) {
-  const pool = user ? getVideoCategoriesForUser(user) : VIDEO_CATEGORIES;
-  return pool.filter((c) => c.section === sectionId);
+  return getVideoCategoriesForUser(user).filter((c) => c.section === sectionId);
 }
 
 export function getVideoCategoriesForUser(user) {
-  void user;
-  return VIDEO_CATEGORIES.filter((c) => isVideoCategoryVisible(c.id));
+  const admin = isAdminUser(user);
+  return VIDEO_CATEGORIES.filter(
+    (c) => isVideoCategoryVisible(c.id) && (!c.adminOnly || admin),
+  );
 }
 
 export { canAccessVideoFeatures };

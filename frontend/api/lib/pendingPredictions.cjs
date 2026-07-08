@@ -4,6 +4,7 @@ const { addCredits, addPremiumCredits, recordCreation } = require("./usersDb.cjs
 const { formatGenerationError } = require("./generationErrors.cjs");
 const { extractUrls, mirrorUrlsToBlob, normalizeResultUrls } = require("./creationMedia.cjs");
 const { sendVideoReadyEmail, sendVideoFailedEmail, sendCreationReadyEmail, isValidEmail } = require("./videoNotifyEmail.cjs");
+const { acquireBlobLock } = require("./blobLock.cjs");
 
 const VIDEO_NOTIFY_TYPES = new Set(["video", "marketing_video", "motion_flyer"]);
 
@@ -310,6 +311,14 @@ async function deliverVideoNotifyEmail(pending, creation, urls) {
     return { skipped: true, reason: "already_sent" };
   }
 
+  // Lock atómico distribuído: garante que só UM worker envia, mesmo com webhook + cron +
+  // polling concorrentes. O findOneAndUpdate abaixo NÃO é atómico sobre o Blob e deixava
+  // vários processos enviarem o mesmo email (comprovado em runtime).
+  const sendLock = await acquireBlobLock(`email-notify-${pending.id}`);
+  if (!sendLock.acquired) {
+    return { skipped: true, reason: "locked" };
+  }
+  try {
   const lockNow = nowIso();
   const staleMs = 3 * 60 * 1000;
   const staleBefore = new Date(Date.now() - staleMs).toISOString();
@@ -368,6 +377,7 @@ async function deliverVideoNotifyEmail(pending, creation, urls) {
       creationId: creation?.id,
       isVideo,
       meta: emailMeta,
+      idempotencyKey: `notify-ready-${pending.id}`,
     });
     if (lastResult.ok) {
       await updatePending(pending.id, {
@@ -391,6 +401,9 @@ async function deliverVideoNotifyEmail(pending, creation, urls) {
   });
 
   return lastResult;
+  } finally {
+    await sendLock.release();
+  }
 }
 
 async function deliverVideoFailureNotifyEmail(pending, friendlyError, rawError) {
@@ -406,6 +419,12 @@ async function deliverVideoFailureNotifyEmail(pending, friendlyError, rawError) 
     return { skipped: true, reason: "already_sent" };
   }
 
+  // Mesmo lock atómico por pending.id -> no máximo 1 email por geração (sucesso OU falha).
+  const sendLock = await acquireBlobLock(`email-notify-${pending.id}`);
+  if (!sendLock.acquired) {
+    return { skipped: true, reason: "locked" };
+  }
+  try {
   const claim = await db.collection("pending_predictions").findOneAndUpdate(
     {
       id: pending.id,
@@ -426,6 +445,7 @@ async function deliverVideoFailureNotifyEmail(pending, friendlyError, rawError) 
     to: email,
     lang: pending.lang || "pt",
     errorMessage: message,
+    idempotencyKey: `notify-fail-${pending.id}`,
   });
 
   if (!result.ok) {
@@ -438,6 +458,9 @@ async function deliverVideoFailureNotifyEmail(pending, friendlyError, rawError) 
   }
 
   return result;
+  } finally {
+    await sendLock.release();
+  }
 }
 
 function isOpenAIPosterJob(pending) {

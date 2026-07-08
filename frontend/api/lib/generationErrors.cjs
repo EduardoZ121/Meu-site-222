@@ -8,7 +8,7 @@ function formatGenerationError(raw, lang = "pt") {
   const lower = msg.toLowerCase();
 
   const isTimeout =
-    /timeout|timed out|deadline|took too long|exceeded/i.test(lower);
+    /timeout|timed out|deadline|took too long|time (limit )?exceeded/i.test(lower);
 
   const isEmpty =
     /empty output|no output|no image|no urls|null output/i.test(lower);
@@ -18,6 +18,10 @@ function formatGenerationError(raw, lang = "pt") {
 
   const isInvalidInput =
     /e006|input was invalid|invalid input|modelerror.*invalid|different inputs/i.test(lower);
+
+  // Faturação/créditos do provedor esgotados (nunca expor ao utilizador).
+  const isBilling =
+    /insufficient credit|insufficient funds|out of credit|ran out of credit|run out of credit|no credit|spend(ing)? limit|payment required|payment method|past due|billing|quota exceeded|\b402\b|monthly limit|account.*(suspend|disabled|deactivat)|add (a )?payment/i.test(lower);
 
   const isSeedanceSensitive =
     /e005|flagged as sensitive|input or output was flagged/i.test(lower);
@@ -40,6 +44,8 @@ function formatGenerationError(raw, lang = "pt") {
         "O modelo recusou este pedido (entrada inválida). Pode ser duração, formato ou parâmetros incompatíveis — não significa necessariamente que a tua foto seja inadequada. Créditos devolvidos — tenta modo Rápido ou outro template.",
       contentPolicy:
         "O modelo bloqueou este pedido por política de conteúdo. Créditos devolvidos — tenta modo Rápido ou outra foto mais neutra.",
+      maintenance:
+        "O serviço de geração está temporariamente indisponível para manutenção. Os teus créditos foram devolvidos. Tenta novamente mais tarde ou contacta o suporte.",
       generic:
         "A geração falhou. Os teus créditos foram devolvidos automaticamente.",
     },
@@ -56,6 +62,8 @@ function formatGenerationError(raw, lang = "pt") {
         "The model rejected this request (invalid input). It may be duration, format, or unsupported settings — not necessarily your photo. Credits refunded — try Quick mode or another template.",
       contentPolicy:
         "The model blocked this request due to content policy. Credits refunded — try Quick mode or a more neutral photo.",
+      maintenance:
+        "The generation service is temporarily unavailable for maintenance. Your credits were refunded. Please try again later or contact support.",
       generic:
         "Generation failed. Your credits were refunded automatically.",
     },
@@ -72,6 +80,8 @@ function formatGenerationError(raw, lang = "pt") {
         "El modelo rechazó la solicitud (entrada inválida). Créditos devueltos — prueba otro modo o plantilla.",
       contentPolicy:
         "El modelo bloqueó la solicitud por política de contenido. Créditos devueltos.",
+      maintenance:
+        "El servicio de generación no está disponible temporalmente por mantenimiento. Tus créditos fueron devueltos. Inténtalo más tarde o contacta con soporte.",
       generic:
         "La generación falló. Tus créditos se devolvieron automáticamente.",
     },
@@ -88,21 +98,25 @@ function formatGenerationError(raw, lang = "pt") {
         "Le modèle a refusé la demande (entrée invalide). Crédits remboursés.",
       contentPolicy:
         "Le modèle a bloqué la demande (politique de contenu). Crédits remboursés.",
+      maintenance:
+        "Le service de génération est temporairement indisponible pour maintenance. Vos crédits ont été remboursés. Réessayez plus tard ou contactez le support.",
       generic:
         "Échec de la génération. Vos crédits ont été remboursés automatiquement.",
     },
   };
 
   const L = copy[lang] || copy.pt;
+  // Faturação/créditos do provedor: mensagem de manutenção (nunca expor detalhes internos).
+  if (isBilling) return L.maintenance;
   if (isTimeout) return L.timeout;
   if (isEmpty) return L.empty;
   if (isCapacity) return L.capacity;
   if (isSeedanceSensitive) return L.seedanceSensitive;
   if (isContentPolicy) return L.contentPolicy;
   if (isInvalidInput) return L.invalidInput;
-  if (!msg || /^generation failed\.?$/i.test(msg) || /^failed\.?$/i.test(msg)) return L.generic;
-  if (msg.length > 220) return L.generic;
-  return `${msg} (${lang === "en" ? "credits refunded" : "créditos devolvidos"})`;
+  // Qualquer outro erro (não reconhecido) -> mensagem genérica limpa.
+  // Nunca devolver o texto cru do provedor ao utilizador.
+  return L.generic;
 }
 
 module.exports = { formatGenerationError };

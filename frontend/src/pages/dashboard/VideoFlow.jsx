@@ -1,6 +1,8 @@
 import { Link, Navigate, useParams } from "react-router-dom";
 import { ArrowLeft } from "lucide-react";
 import { useI18n } from "../../lib/i18n";
+import { useAuth } from "../../lib/auth";
+import { isAdminUser } from "../../lib/isAdmin";
 import useTitle from "../../lib/useTitle";
 import {
   VIDEO_FLOW_MODES,
@@ -17,11 +19,19 @@ import StudioInlineHeader from "../../components/studio/StudioInlineHeader";
 export default function VideoFlow() {
   const { mode } = useParams();
   const { t } = useI18n();
+  const { user, loading } = useAuth();
   const valid = VIDEO_FLOW_MODES.has(mode);
   const legacyEditMode = LEGACY_EDIT_MODE_MAP[mode];
   const meta = valid && !legacyEditMode ? findVideoCategory(mode) : null;
   const isEditFlow = Boolean(legacyEditMode) || meta?.flow === "edit";
   useTitle(t(isEditFlow ? "vid_v2v_title" : meta ? meta.nameKey : "sidebar_video"));
+
+  if (isEditFlow) {
+    if (loading) return <div className="min-h-[40vh] bg-rp-bg" />;
+    if (!isAdminUser(user)) {
+      return <Navigate to="/app/video" replace />;
+    }
+  }
 
   if (legacyEditMode) {
     return <Navigate to={`/app/video/edit?mode=${legacyEditMode}`} replace />;

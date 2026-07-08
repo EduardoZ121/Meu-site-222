@@ -1,0 +1,119 @@
+[
+  {
+    "id": "grok",
+    "name": "Grok Imagine",
+    "replicateId": "xai/grok-imagine-image",
+    "inputKey": "standard",
+    "credits": 15,
+    "tagKey": "model_tag_default",
+    "logo": "/images/model-logos/grok.svg"
+  },
+  {
+    "id": "nano_banana",
+    "name": "Nano Banana",
+    "replicateId": "google/nano-banana",
+    "inputKey": "nano",
+    "credits": 18,
+    "tagKey": null,
+    "logo": "/images/model-logos/google.svg"
+  },
+  {
+    "id": "seedream45",
+    "name": "Seedream 4.5",
+    "replicateId": "bytedance/seedream-4.5",
+    "inputKey": "seedream",
+    "credits": 25,
+    "tagKey": null,
+    "logo": "/images/model-logos/bytedance.svg"
+  },
+  {
+    "id": "flux2_pro",
+    "name": "Flux 2 Pro",
+    "replicateId": "black-forest-labs/flux-2-pro",
+    "inputKey": "flux",
+    "credits": 35,
+    "tagKey": null,
+    "logo": "/images/model-logos/flux.svg"
+  },
+  {
+    "id": "flux2_max",
+    "name": "Flux 2 Max",
+    "replicateId": "black-forest-labs/flux-2-max",
+    "inputKey": "flux",
+    "credits": 45,
+    "tagKey": null,
+    "logo": "/images/model-logos/flux.svg"
+  },
+  {
+    "id": "flux2_klein",
+    "name": "Flux 2 Klein",
+    "replicateId": "black-forest-labs/flux-2-klein-9b",
+    "inputKey": "pro",
+    "credits": 30,
+    "tagKey": null,
+    "logo": "/images/model-logos/flux.svg"
+  },
+  {
+    "id": "imagen4_fast",
+    "name": "Imagen 4 Fast",
+    "replicateId": "google/imagen-4-fast",
+    "inputKey": "imagen",
+    "credits": 12,
+    "tagKey": "model_tag_fast",
+    "logo": "/images/model-logos/google.svg"
+  },
+  {
+    "id": "imagen4",
+    "name": "Imagen 4",
+    "replicateId": "google/imagen-4",
+    "inputKey": "imagen",
+    "credits": 28,
+    "tagKey": null,
+    "logo": "/images/model-logos/google.svg"
+  },
+  {
+    "id": "ideogram_turbo",
+    "name": "Ideogram v3 Turbo",
+    "replicateId": "ideogram-ai/ideogram-v3-turbo",
+    "inputKey": "ideogram",
+    "credits": 18,
+    "tagKey": "model_tag_fast",
+    "logo": "/images/model-logos/ideogram.svg"
+  },
+  {
+    "id": "ideogram_quality",
+    "name": "Ideogram v3 Quality",
+    "replicateId": "ideogram-ai/ideogram-v3-quality",
+    "inputKey": "ideogram",
+    "credits": 35,
+    "tagKey": null,
+    "logo": "/images/model-logos/ideogram.svg"
+  },
+  {
+    "id": "recraft_v4",
+    "name": "Recraft v4",
+    "replicateId": "recraft-ai/recraft-v4",
+    "inputKey": "recraft",
+    "credits": 25,
+    "tagKey": null,
+    "logo": "/images/model-logos/recraft.svg"
+  },
+  {
+    "id": "flux_schnell",
+    "name": "Flux Schnell",
+    "replicateId": "black-forest-labs/flux-schnell",
+    "inputKey": "flux",
+    "credits": 10,
+    "tagKey": "model_tag_fast",
+    "logo": "/images/model-logos/flux.svg"
+  },
+  {
+    "id": "flux_dev",
+    "name": "Flux Dev",
+    "replicateId": "black-forest-labs/flux-dev",
+    "inputKey": "flux",
+    "credits": 22,
+    "tagKey": null,
+    "logo": "/images/model-logos/flux.svg"
+  }
+]

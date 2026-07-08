@@ -22,6 +22,7 @@ import {
 import { useAuth } from "../lib/auth";
 import { useI18n } from "../lib/i18n";
 import { useNotifications } from "../lib/NotificationContext";
+import { useBackClose } from "../lib/useBackClose";
 import { LANG_LABELS, LANG_ORDER } from "../lib/localeStrings";
 import { setLanguageAndReload } from "../lib/remakepixLanguage";
 import SupportChat from "./SupportChat";
@@ -93,6 +94,8 @@ export default function DashboardProfileMenu({ compact = false }) {
   const navigate = useNavigate();
   const [chatOpen, setChatOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+  useBackClose(menuOpen, () => setMenuOpen(false));
+  useBackClose(chatOpen, () => setChatOpen(false));
 
   if (!user) return null;
 

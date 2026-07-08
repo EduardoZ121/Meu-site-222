@@ -1,17 +1,23 @@
 const WEEKLY_TO = String(process.env.WEEKLY_REPORT_EMAIL || "eduardozola121998@gmail.com").trim();
 const FROM = String(process.env.REPORT_FROM_EMAIL || "Remake Pixel <noreply@remakepix.com>").trim();
 
-async function sendResendEmail({ to, subject, html, text }) {
+async function sendResendEmail({ to, subject, html, text, idempotencyKey }) {
   const key = process.env.RESEND_API_KEY;
   if (!key) {
     return { ok: false, skipped: true, reason: "RESEND_API_KEY not set" };
   }
+  const headers = {
+    Authorization: `Bearer ${key}`,
+    "Content-Type": "application/json",
+  };
+  // Idempotência do lado do Resend: mesma chave => 1 único envio (24h),
+  // mesmo com vários pollers/cron concorrentes (o storage Blob não é atómico).
+  if (idempotencyKey) {
+    headers["Idempotency-Key"] = String(idempotencyKey).slice(0, 256);
+  }
   const r = await fetch("https://api.resend.com/emails", {
     method: "POST",
-    headers: {
-      Authorization: `Bearer ${key}`,
-      "Content-Type": "application/json",
-    },
+    headers,
     body: JSON.stringify({
       from: FROM,
       to: Array.isArray(to) ? to : [to],
@@ -22,6 +28,11 @@ async function sendResendEmail({ to, subject, html, text }) {
   });
   const data = await r.json().catch(() => ({}));
   if (!r.ok) {
+    // 409 = pedido concorrente com a mesma Idempotency-Key ainda a processar.
+    // Não é uma falha real: o email já está a ser (ou foi) enviado uma vez.
+    if (r.status === 409) {
+      return { ok: false, skipped: true, reason: "idempotent_duplicate" };
+    }
     return { ok: false, error: data.message || data.error || `Resend ${r.status}` };
   }
   return { ok: true, id: data.id };

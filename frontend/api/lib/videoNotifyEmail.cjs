@@ -85,7 +85,7 @@ function buildVideoFailedHtml({ headline, intro, reasonLabel, errorMessage, retr
   ].join("");
 }
 
-async function sendVideoFailedEmail({ to, lang, errorMessage, editorUrl, billingUrl }) {
+async function sendVideoFailedEmail({ to, lang, errorMessage, editorUrl, billingUrl, idempotencyKey }) {
   const email = String(to || "").trim().toLowerCase();
   if (!isValidEmail(email)) {
     return { ok: false, skipped: true, reason: "invalid_email" };
@@ -117,6 +117,7 @@ async function sendVideoFailedEmail({ to, lang, errorMessage, editorUrl, billing
     subject: copy.subject,
     html,
     text,
+    idempotencyKey,
   });
 
   if (!result.ok) {
@@ -220,7 +221,7 @@ function buildCreationReadyHtml({ headline, body, open, gallery, mediaUrl, galle
   ].join("");
 }
 
-async function sendCreationReadyEmail({ to, lang, mediaUrl, galleryUrl, creationId, isVideo, meta = {} }) {
+async function sendCreationReadyEmail({ to, lang, mediaUrl, galleryUrl, creationId, isVideo, meta = {}, idempotencyKey }) {
   const email = String(to || "").trim().toLowerCase();
   if (!isValidEmail(email)) {
     return { ok: false, skipped: true, reason: "invalid_email" };
@@ -247,6 +248,7 @@ async function sendCreationReadyEmail({ to, lang, mediaUrl, galleryUrl, creation
     subject: copy.subject,
     html,
     text,
+    idempotencyKey: idempotencyKey || (creationId ? `notify-ready-${creationId}` : undefined),
   });
 
   if (!result.ok) {

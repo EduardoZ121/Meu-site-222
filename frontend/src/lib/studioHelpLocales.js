@@ -106,6 +106,8 @@ const en = {
   help_ctrl_aspect_219: "Ultra-wide cinematic — hero banners and film-style frames.",
   help_ctrl_wizard: "Opens the guided prompt wizard — useful if you don’t know where to start.",
   help_ctrl_suggest: "AI prompt ideas based on your goal. Tap to open the suggest page.",
+  help_sec_model:
+    "Pick the AI engine for text-to-image. Grok is the default (15 credits). Flux, Seedream and Imagen excel at photorealism; Ideogram at text in images; Recraft at design. Each model has its own credit cost.",
 
   help_sec_video_edit_prompt:
     "This tool edits your clip — it keeps the original movement (walk, dance, gestures). Works well: change outfit, background, lighting, colours, add or remove objects. Often fails: new pose, different action (e.g. walking → dancing). For a new action, use Image → Video with a frame from your clip.",
@@ -223,6 +225,8 @@ const pt = {
   help_ctrl_aspect_219: "Ultra-largo cinematográfico — banners hero.",
   help_ctrl_wizard: "Assistente de prompt passo a passo — se não souberes por onde começar.",
   help_ctrl_suggest: "Ideias de prompt pela IA. Toca para abrir a página Sugerir.",
+  help_sec_model:
+    "Escolhe o motor de IA para texto→imagem. Grok é o padrão (15 créditos). Flux, Seedream e Imagen são ótimos em fotorrealismo; Ideogram em texto na imagem; Recraft em design. Cada modelo tem o seu preço em créditos.",
 
   help_sec_video_edit_prompt:
     "Esta ferramenta edita o teu clip — mantém o movimento original (andar, dançar, gestos). Funciona bem: trocar roupa, fundo, luz, cores, adicionar ou remover objectos. Costuma falhar: nova pose ou acção diferente (ex.: caminhar → dançar). Para acção nova, usa Imagem → Vídeo com um frame do clip.",

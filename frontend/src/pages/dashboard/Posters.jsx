@@ -633,9 +633,13 @@ export default function Posters() {
   /* ============================================================ */
   return (
     <div className="max-w-[1400px] mx-auto pb-6" data-testid="posters-page">
-      <header className="mb-4 md:mb-8 hidden md:block">
-        <p className="text-[11px] uppercase tracking-[0.18em] text-[#8A8A8E] mb-2">{t("sidebar_posters")}</p>
-        <p className="text-[15px] text-[#8A8A8E] max-w-lg leading-snug">
+      <header className="rp-poster-hero mb-5 md:mb-8">
+        <div className="rp-poster-hero__row">
+          <span className="rp-poster-hero__eyebrow">{t("sidebar_posters")}</span>
+          <span className="rp-poster-hero__badge">{(templates.length || 44)}+</span>
+        </div>
+        <h1 className="rp-poster-hero__title">{t("sidebar_posters")}</h1>
+        <p className="rp-poster-hero__desc">
           {t("post_grid_desc", { n: templates.length || 44 })}
         </p>
       </header>
@@ -646,11 +650,11 @@ export default function Posters() {
           <button
             key={c}
             onClick={() => setCategory(c)}
-            className={`rp-tools-hub-pill shrink-0 ${category === c ? "rp-tools-hub-pill--active" : ""}`}
+            className={`rp-poster-cat shrink-0 ${category === c ? "rp-poster-cat--active" : ""}`}
             data-testid={`postercat-${c}`}
           >
             <span className="truncate">{catLabel(c)}</span>
-            <span className={`text-[10px] font-mono shrink-0 ml-1 ${category === c ? "text-black/45" : "text-[#5A5A5E]"}`}>
+            <span className="rp-poster-cat__count shrink-0">
               {counts[c] ?? "—"}
             </span>
           </button>
@@ -773,10 +777,10 @@ function TemplateCard({ tpl, index, onClick, catLabel, t }) {
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.35, delay: Math.min(index * 0.04, 0.4), ease: [0.16, 1, 0.3, 1] }}
-      className="group relative flex h-full flex-col text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500/50 rounded-2xl"
+      className="rp-poster-card group relative flex h-full flex-col text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500/50 rounded-2xl"
       data-testid={`tpl-${tpl.id}`}
     >
-      <div className="relative aspect-square overflow-hidden rounded-2xl border border-white/[0.08] bg-[#0a0a0c]" style={{ background: gradient }}>
+      <div className="rp-poster-card__frame relative aspect-square overflow-hidden rounded-2xl border border-white/[0.08] bg-[#0a0a0c]" style={{ background: gradient }}>
         <StyleCover
           id={tpl.id}
           title={tpl.label || tpl.id}
@@ -817,11 +821,11 @@ function TemplateCard({ tpl, index, onClick, catLabel, t }) {
         </div>
       </div>
 
-      <div className="mt-1.5 px-0.5 flex items-start justify-between gap-1">
-        <p className="text-[#EDEBE8] text-[12px] sm:text-[13px] font-medium font-['Inter_Tight'] line-clamp-2 leading-snug flex-1">
+      <div className="mt-2 px-0.5 flex items-start justify-between gap-1">
+        <p className="rp-poster-card__label line-clamp-2 flex-1">
           {tpl.label || tpl.id}
         </p>
-        <Layers className="hidden sm:block w-3.5 h-3.5 text-[#5A5A5E] shrink-0 mt-0.5" />
+        <Layers className="hidden sm:block w-3.5 h-3.5 text-[#7C3AED]/70 shrink-0 mt-0.5" />
       </div>
     </motion.button>
   );

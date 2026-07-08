@@ -200,6 +200,16 @@ const MODELS = {
   inpaint: "black-forest-labs/flux-fill-pro",
 };
 
+// Modelos de imagem — catálogo partilhado (frontend/src/config/imageModels.json)
+const {
+  resolveImageModelChoice: resolveCatalogModel,
+  imageModelCredits,
+} = require("./lib/imageModelCatalog.cjs");
+
+function resolveImageModelChoice(fields) {
+  return resolveCatalogModel(fields, text);
+}
+
 function nearestFluxAspect(ratio) {
   const r = String(ratio || "1:1").trim();
   if (FLUX_SUPPORTED.has(r)) return r;
@@ -282,6 +292,13 @@ function normalizeRatio(ratio = "1:1", modelKey = "standard") {
     if (!ratio || ["match", "match_input_image", "original"].includes(ratio)) return "match_input_image";
     if (GROK_SUPPORTED.has(ratio) || ratio === "match_input_image") return ratio;
     return { "4:5": "3:4", "5:4": "4:3", "21:9": "16:9", "9:21": "9:16" }[ratio] || "3:4";
+  }
+  if (["flux", "seedream", "imagen", "ideogram", "recraft", "nano"].includes(modelKey)) {
+    if (!ratio || ["match", "match_input_image", "original"].includes(ratio)) {
+      return "match_input_image";
+    }
+    if (FLUX_SUPPORTED.has(ratio)) return ratio;
+    return { "4:5": "3:4", "5:4": "4:3", "2:1": "21:9", "1:2": "9:21" }[ratio] || "1:1";
   }
   if (!ratio || ["match", "match_input_image", "original"].includes(ratio)) {
     return "match_input_image";
@@ -1706,7 +1723,80 @@ function buildStudioMultiImageBundle(fields, urls, userPrompt) {
   };
 }
 
+async function buildCatalogModelInput(fields, files, modelKey, prompt, opts = {}) {
+  let primary = opts.preparedImage
+    || (await resolveImageRef(files, fields, "photo", "photo_url"))
+    || (await resolveImageRef(files, fields, "image", "image_url"));
+  let aspectRatio = normalizeRatio(text(fields, "aspect_ratio", "1:1"), modelKey);
+  if (primary && MATCH_ASPECT.has(aspectRatio)) {
+    aspectRatio = await detectNearestGrokAspect(primary);
+  }
+  const finalPrompt = finalizeImagePrompt(prompt, {
+    modelKey: "pro",
+    hasPersonPhoto: Boolean(primary),
+    photoEdit: Boolean(opts.photoEdit && primary),
+  });
+  const withAspect = (p, ar) => (ar && !MATCH_ASPECT.has(ar) ? appendAspectOutputInstruction(p, ar) : p);
+
+  if (modelKey === "flux") {
+    const input = {
+      prompt: withAspect(finalPrompt, aspectRatio),
+      aspect_ratio: aspectRatio,
+      output_format: "webp",
+      output_quality: 90,
+      disable_safety_checker: true,
+    };
+    if (primary) input.image = primary;
+    return input;
+  }
+  if (modelKey === "nano") {
+    const input = {
+      prompt: withAspect(finalPrompt, aspectRatio),
+      aspect_ratio: aspectRatio,
+    };
+    if (primary) input.image_input = [primary];
+    return input;
+  }
+  if (modelKey === "seedream") {
+    const input = {
+      prompt: withAspect(finalPrompt, aspectRatio),
+      aspect_ratio: aspectRatio,
+      size: "2K",
+    };
+    if (primary) input.image = primary;
+    return input;
+  }
+  if (modelKey === "imagen") {
+    return {
+      prompt: withAspect(finalPrompt, aspectRatio),
+      aspect_ratio: aspectRatio,
+      safety_filter_level: "block_only_high",
+    };
+  }
+  if (modelKey === "ideogram") {
+    const input = {
+      prompt: withAspect(finalPrompt, aspectRatio),
+      aspect_ratio: aspectRatio,
+      style_type: "Auto",
+    };
+    if (primary) input.image = primary;
+    return input;
+  }
+  if (modelKey === "recraft") {
+    return {
+      prompt: withAspect(finalPrompt, aspectRatio),
+      style: "realistic_image",
+      size: "1024x1024",
+    };
+  }
+  return null;
+}
+
 async function imageInput(fields, files, modelKey, prompt, opts = {}) {
+  if (["flux", "nano", "seedream", "imagen", "ideogram", "recraft"].includes(modelKey)) {
+    const built = await buildCatalogModelInput(fields, files, modelKey, prompt, opts);
+    if (built) return built;
+  }
   let primary = opts.preparedImage
     || (await resolveImageRef(files, fields, "photo", "photo_url"))
     || (await resolveImageRef(files, fields, "image", "image_url"));
@@ -1940,21 +2030,23 @@ async function routePost(path, fields, files, req) {
       prompt += "\n\nUltra high detail, sharp focus, professional photography quality, 8K clarity, refined textures.";
     }
     const surcharges = getSurcharges(region);
-    let imgCost = applyGenerationSurcharges(CREDIT.image, surcharges, {
+    const choice = resolveImageModelChoice(fields);
+    const baseCost = imageModelCredits(choice.id, CREDIT);
+    const imgCost = applyGenerationSurcharges(baseCost, surcharges, {
       improvePrompt: wantsImprove,
       hdQuality: wantsHd,
       hdMode: "image",
     });
-    const input = await imageInput(fields, files, "standard", prompt);
+    const input = await imageInput(fields, files, choice.inputKey, prompt);
     return submitBillableGeneration(req, fields, {
       cost: imgCost,
       type: "image",
-      modelId: MODELS.standard,
+      modelId: choice.replicateId,
       input,
       prompt,
       aspectRatio: input.aspect_ratio,
-      modelUsed: MODELS.standard,
-      spendDescription: "Estúdio: imagem",
+      modelUsed: choice.replicateId,
+      spendDescription: `Estúdio: imagem (${choice.name || choice.id})`,
     });
   }
 
@@ -2741,6 +2833,12 @@ If user food reference is absent, generate a fitting premium fast-food item. If 
   }
 
   if (path === "generate/video-edit") {
+    const { user: veUser } = resolveSessionUser(req);
+    if (!isAdminEmail(veUser?.email)) {
+      const err = new Error("Editor de vídeo (vídeo-para-vídeo) disponível apenas para administradores.");
+      err.status = 403;
+      throw err;
+    }
     const {
       applyPresetPrefix,
       MODELS: VIDEO_MODELS,
@@ -4022,6 +4120,20 @@ async function handlePath(path, req, res) {
           ? "Vídeo muito grande. Máximo 50MB. Usa MP4 (H.264) ou MOV (ideal 2–10 s) ou recarrega para ativar o upload em nuvem."
           : "A imagem é demasiado grande para o servidor. Recarrega a página (Ctrl+F5) e tenta outra vez — o site comprime automaticamente antes de enviar.",
       });
+    }
+    // Nunca expor erros crus do provedor (Replicate/billing/model) ao utilizador.
+    // Só sanitiza rotas de geração e apenas quando o erro parece de provedor/infra;
+    // mensagens de validação amigáveis (ex.: "Escreve um prompt.") passam intactas.
+    const reqPath = String(pathFromRequest(req) || "");
+    if (reqPath.startsWith("generate/")) {
+      const looksProvider = Boolean(err?.data)
+        || /replicate|insufficient|spend|billing|payment|\b402\b|\b50\d\b|modelerror|prediction|cuda|gpu|out of credit|quota|token|rate limit/i.test(msg);
+      if (looksProvider) {
+        const lang = String(req?.headers?.["x-lang"] || req?.headers?.["accept-language"] || "pt").slice(0, 2).toLowerCase();
+        return json(res, err.status && err.status >= 400 && err.status < 500 ? err.status : 502, {
+          detail: formatGenerationError(msg, lang),
+        });
+      }
     }
     return json(res, err.status || 500, {
       detail: err.message || "Erro no servidor de geração.",

@@ -1,2 +1,2 @@
 "use strict";
-module.exports = "rp-pro-compact-v1";
+module.exports = "rp-upscale-compact-v1";

@@ -96,10 +96,11 @@ export default function Generate() {
 
   const { mode, cost, ctaLabel, styleNeedsPhoto } = useMemo(() => {
     if (photo && pickedStyle) {
-      return { mode: "easy", cost: costs.easy, ctaLabel: t("studio_cta_easy", { n: costs.easy }), styleNeedsPhoto: false };
+      const easyCost = applyGenerationSurcharges(costs.easy, surcharges, { hdQuality, hdMode: "image" });
+      return { mode: "easy", cost: easyCost, ctaLabel: t("studio_cta_easy", { n: easyCost }), styleNeedsPhoto: false };
     }
     if (photo && !pickedStyle) {
-      const editCost = applyGenerationSurcharges(costs.edit, surcharges, { improvePrompt: improve });
+      const editCost = applyGenerationSurcharges(costs.edit, surcharges, { improvePrompt: improve, hdQuality, hdMode: "image" });
       return { mode: "edit", cost: editCost, ctaLabel: t("studio_cta_edit", { n: editCost }), styleNeedsPhoto: false };
     }
     const textCost = applyGenerationSurcharges(imageModelBaseCredits(model, costs), surcharges, {
@@ -146,6 +147,9 @@ export default function Generate() {
 
     clearUploadToast();
     setBusy(true); setResult(null); setProgress(0);
+    // #region agent log
+    fetch("http://127.0.0.1:7522/ingest/85cd46ef-59a7-4954-8db4-f9a1dbe4f482", { method: "POST", headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "df885c" }, body: JSON.stringify({ sessionId: "df885c", location: "Generate.jsx:generate", message: "generate submit", data: { mode, hdQuality, improve, cost, hasPhoto: Boolean(photo) }, timestamp: Date.now(), hypothesisId: "H-hd-generate" }) }).catch(() => {});
+    // #endregion
     let submitData;
     try {
       if (mode === "easy") {
@@ -164,6 +168,7 @@ export default function Generate() {
         }));
         fd.append("lang", lang || "en");
         if (prompt.trim()) fd.append("extra_prompt", prompt.trim());
+        if (hdQuality) fd.append("hd_quality", "1");
         ({ data: submitData } = await uploadPost("/generate/easy", fd, { timeout: 120000, headers: { "X-Skip-Auto-Poll": "1" } }));
       } else if (mode === "edit") {
         if (!photo) {
@@ -180,6 +185,7 @@ export default function Generate() {
         }));
         fd.append("lang", lang || "en");
         if (improve) fd.append("improve_prompt", "1");
+        if (hdQuality) fd.append("hd_quality", "1");
         ({ data: submitData } = await uploadPost("/generate/edit", fd, { timeout: 120000, headers: { "X-Skip-Auto-Poll": "1" } }));
       } else {
         ({ data: submitData } = await api.post("/generate/image", {

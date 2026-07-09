@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Ratio, Sliders, Sparkles, Check, MessageSquare } from "lucide-react";
+import { Ratio, Sliders, Sparkles, Check, MessageSquare, Gauge } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { api, uploadPost } from "../../lib/api";
 import { normalizeCreation, primaryResultUrl } from "../../lib/creationUrls";
@@ -25,6 +25,8 @@ import StudioInlineHeader from "../../components/studio/StudioInlineHeader";
 import { useStudioGenerateGate } from "../../lib/useStudioGenerateGate";
 import { appendStudioPhotos, primaryStudioPhoto } from "../../lib/studioFormData";
 import { useStudioI18n } from "../../lib/useStudioI18n";
+import StudioHelpTip from "../../components/studio/StudioHelpTip";
+import { applyGenerationSurcharges, getSurcharges } from "../../lib/creditPricing";
 import { useStudioSessionBack } from "../../lib/useStudioSessionBack";
 
 export default function Pro() {
@@ -33,7 +35,7 @@ export default function Pro() {
   useTitle(t("pro_page_title"));
   const navigate = useNavigate();
   const { refresh, user } = useAuth();
-  const { costs } = usePricing();
+  const { costs, region } = usePricing();
 
   const CAT_LABELS = {
     realism: t("pro_cat_realism"),
@@ -53,13 +55,18 @@ export default function Pro() {
   const photo = primaryStudioPhoto(photos);
   const [aspect, setAspect] = usePhotoAspectDefault(photos, "4:5", "4:5");
   const [intensity, setIntensity] = useState(55);
+  const [hdQuality, setHdQuality] = useState(false);
   const [customPrompt, setCustomPrompt] = useState("");
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState(null);
   const [openKey, setOpenKey] = useState(null);
   const openModal = (key) => setOpenKey(key);
   const closeModal = () => setOpenKey(null);
-  const cost = costs.pro;
+  const surcharges = useMemo(() => getSurcharges(region), [region]);
+  const cost = useMemo(
+    () => applyGenerationSurcharges(costs.pro, surcharges, { hdQuality, hdMode: "image" }),
+    [costs.pro, surcharges, hdQuality],
+  );
 
   useStudioSessionBack(() => navigate("/app/tools"));
 
@@ -95,6 +102,9 @@ export default function Pro() {
     clearUploadToast();
     setBusy(true);
     setResult(null);
+    // #region agent log
+    fetch("http://127.0.0.1:7522/ingest/85cd46ef-59a7-4954-8db4-f9a1dbe4f482", { method: "POST", headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "df885c" }, body: JSON.stringify({ sessionId: "df885c", location: "Pro.jsx:generate", message: "pro submit", data: { intensity, hdQuality, preset, extraLen: customPrompt.trim().length, cost }, timestamp: Date.now(), hypothesisId: "H-pro-controls" }) }).catch(() => {});
+    // #endregion
     try {
       const fd = new FormData();
       appendStudioPhotos(fd, photos);
@@ -105,6 +115,7 @@ export default function Pro() {
       }));
       fd.append("extra_prompt", customPrompt.trim());
       fd.append("intensity", String(intensity));
+      if (hdQuality) fd.append("hd_quality", "1");
       const { data } = await uploadPost("/generate/pro", fd, { timeout: 180000 });
       const creation = normalizeCreation(data?.creation);
       if (!primaryResultUrl(creation)) throw new Error(t("pro_no_result"));
@@ -124,6 +135,7 @@ export default function Pro() {
     aspect,
     customPrompt,
     intensity,
+    hdQuality,
     cost,
     refresh,
     t,
@@ -135,6 +147,7 @@ export default function Pro() {
     : String(aspect || "4:5").toUpperCase();
   const presetLabel = pickedPreset?.nome || t("pro_pick_preset");
   const intensityValue = `${intensityLabel} · ${intensity}%`;
+  const qualityLabel = hdQuality ? "HD" : (t("quality_standard") || "Padrão");
   const extraLabel = customPrompt.trim()
     ? customPrompt.trim().slice(0, 42) + (customPrompt.trim().length > 42 ? "…" : "")
     : (t("studio_styles_optional") || "Opcional");
@@ -143,6 +156,7 @@ export default function Pro() {
     format: t("pro_step_format"),
     preset: t("pro_presets"),
     intensity: t("pro_intensity"),
+    quality: t("studio_hd_quality"),
     extra: t("pro_step_extra"),
   }[openKey] || "";
 
@@ -198,14 +212,22 @@ export default function Pro() {
             helpKey="help_sec_intensity"
           />
           <SettingCard
-            icon={MessageSquare}
-            label={t("pro_step_extra")}
-            value={extraLabel}
-            onOpen={() => openModal("extra")}
-            testId="pro-card-extra"
-            helpKey="help_sec_custom_prompt"
+            icon={Gauge}
+            label={t("studio_hd_quality")}
+            value={qualityLabel}
+            onOpen={() => openModal("quality")}
+            testId="pro-card-quality"
+            helpKey="help_ctrl_hd_quality"
           />
         </div>
+        <SettingCard
+          icon={MessageSquare}
+          label={t("pro_step_extra")}
+          value={extraLabel}
+          onOpen={() => openModal("extra")}
+          testId="pro-card-extra"
+          helpKey="help_sec_custom_prompt"
+        />
 
         <div className="mv-setting-card mv-setting-card--static">
           <div className="flex flex-col gap-2.5 sm:flex-row sm:items-center sm:justify-end">
@@ -306,14 +328,29 @@ export default function Pro() {
             type="range"
             min="0"
             max="100"
+            step="1"
             value={intensity}
-            onChange={(e) => setIntensity(+e.target.value)}
+            onChange={(e) => setIntensity(Number(e.target.value))}
+            onInput={(e) => setIntensity(Number(e.target.value))}
             className="pro-intensity-range"
             data-testid="pro-intensity"
             aria-valuemin={0}
             aria-valuemax={100}
             aria-valuenow={intensity}
           />
+          <div className="flex flex-wrap gap-2 mt-3">
+            {[25, 55, 85].map((n) => (
+              <button
+                type="button"
+                key={n}
+                onClick={() => setIntensity(n)}
+                className={`mktvid-chip text-[11px] ${intensity === n ? "mktvid-chip-active" : ""}`}
+                data-testid={`pro-intensity-preset-${n}`}
+              >
+                {n}%
+              </button>
+            ))}
+          </div>
           <div className="flex justify-between text-[10px] text-zinc-600 mt-2.5 px-0.5 font-mono uppercase tracking-[0.1em]">
             <span>{t("pro_intensity_subtle")}</span>
             <span>{t("pro_intensity_balanced")}</span>
@@ -321,6 +358,21 @@ export default function Pro() {
           </div>
         </div>
         <button type="button" onClick={closeModal} className="rp-modal-confirm mt-3" data-testid="pro-intensity-confirm">
+          <Check className="w-4 h-4" /> {t("confirm") || "Confirmar"}
+        </button>
+      </SettingModal>
+
+      <SettingModal open={openKey === "quality"} title={modalTitle} onClose={closeModal}>
+        <div className="mv-picker__chips">
+          <button type="button" onClick={() => setHdQuality(false)} className={`mktvid-chip ${!hdQuality ? "mktvid-chip-active" : ""}`} data-testid="pro-quality-standard">
+            {t("quality_standard") || "Padrão"}
+          </button>
+          <button type="button" onClick={() => setHdQuality(true)} className={`mktvid-chip ${hdQuality ? "mktvid-chip-active" : ""}`} data-testid="pro-quality-hd">
+            HD <span className="text-[#A855F7] font-mono text-[10px] ml-1">+{surcharges.hdImage ?? 8}</span>
+          </button>
+        </div>
+        <div className="mt-2"><StudioHelpTip helpKey="help_ctrl_hd_quality" testId="pro-hd-quality-help" size="lg" /></div>
+        <button type="button" onClick={closeModal} className="rp-modal-confirm mt-3" data-testid="pro-quality-confirm">
           <Check className="w-4 h-4" /> {t("confirm") || "Confirmar"}
         </button>
       </SettingModal>

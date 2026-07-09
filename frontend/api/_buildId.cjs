@@ -1,2 +1,2 @@
 "use strict";
-module.exports = "rp-tools-compact-v1";
+module.exports = "rp-pro-hd-intensity-v1";

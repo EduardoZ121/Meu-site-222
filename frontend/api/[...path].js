@@ -74,7 +74,7 @@ const { handlePromptAssistRoute } = require("./lib/promptAssist.cjs");
 const PADRAO_STYLES_BASE = require("./lib/padraoStylesData.cjs");
 const PADRAO_STYLE_EXTENSIONS = require("./lib/padraoStyleExtensions.cjs");
 const PADRAO_STYLES_LIST = [...PADRAO_STYLES_BASE, ...PADRAO_STYLE_EXTENSIONS];
-const { finalizeImagePrompt } = require("./lib/imageQualityPrompts.cjs");
+const { finalizeImagePrompt, appendHdQualityPrompt, buildProIntensitySuffix } = require("./lib/imageQualityPrompts.cjs");
 const {
   PHOTO_EDIT_IDENTITY_BLOCK,
   appendPhotoEditIdentity,
@@ -2027,7 +2027,7 @@ async function routePost(path, fields, files, req) {
       prompt = await improvePrompt(prompt, lang, {});
     }
     if (wantsHd) {
-      prompt += "\n\nUltra high detail, sharp focus, professional photography quality, 8K clarity, refined textures.";
+      prompt = appendHdQualityPrompt(prompt, true);
     }
     const surcharges = getSurcharges(region);
     const choice = resolveImageModelChoice(fields);
@@ -2054,10 +2054,15 @@ async function routePost(path, fields, files, req) {
     let prompt = text(fields, "prompt", "professional photo edit, preserve identity");
     const lang = text(fields, "lang", "en").slice(0, 2);
     const surcharges = getSurcharges(region);
+    const wantsHd = truthyField(fields, "hd_quality");
     let editCost = CREDIT.edit;
     if (truthyField(fields, "improve_prompt")) {
       prompt = await improvePrompt(prompt, lang, { tool: "edit" });
       editCost += surcharges.enhancePrompt ?? 5;
+    }
+    if (wantsHd) {
+      prompt = appendHdQualityPrompt(prompt, true);
+      editCost = applyGenerationSurcharges(editCost, surcharges, { hdQuality: true, hdMode: "image" });
     }
     const { primary, refs } = await resolveStudioPhotoRefs(files, fields);
     if (refs.length > 0) {
@@ -2096,6 +2101,8 @@ async function routePost(path, fields, files, req) {
     const padrao = getPadraoStyle(styleId);
     const subject = text(fields, "subject", "the person").trim() || padrao?.subject || "the person";
     const extra = text(fields, "extra_prompt", "").trim();
+    const surcharges = getSurcharges(region);
+    const wantsHd = truthyField(fields, "hd_quality");
     let prompt;
     if (padrao?.prompt) {
       prompt = upgradePadraoPrompt(padrao.prompt.replace(/\[subject\]/gi, subject));
@@ -2103,10 +2110,17 @@ async function routePost(path, fields, files, req) {
     } else {
       prompt = `Apply the ${styleId || "editorial"} style to ${subject}. Preserve identity, face, pose and expression. ${extra}`;
     }
+    if (wantsHd) {
+      prompt = appendHdQualityPrompt(prompt, true);
+    }
+    const easyCost = applyGenerationSurcharges(CREDIT.easy, surcharges, {
+      hdQuality: wantsHd,
+      hdMode: "image",
+    });
     const input = await imageInput(fields, files, "standard", appendPhotoEditIdentity(prompt));
     const fluxFallbackInput = await buildFluxEasyFallbackInput(input, prompt);
     return submitBillableGeneration(req, fields, {
-      cost: CREDIT.easy,
+      cost: easyCost,
       type: "easy",
       modelId: MODELS.standard,
       input,
@@ -2124,21 +2138,24 @@ async function routePost(path, fields, files, req) {
     const presetId = text(fields, "preset_id", "ultra_real");
     const preset = getProPreset(presetId);
     const extra = text(fields, "extra_prompt", "").trim();
-    const intensity = Number(text(fields, "intensity", "70"));
+    const intensity = Number(text(fields, "intensity", "55"));
+    const surcharges = getSurcharges(region);
+    const wantsHd = truthyField(fields, "hd_quality");
     let prompt = preset?.prompt
       || "Professional portrait retouch. Preserve identity and natural facial features.";
     if (extra) prompt += `\n\nAdditional instructions: ${extra}`;
-    if (Number.isFinite(intensity)) {
-      if (intensity < 34) {
-        prompt += "\n\nApply a very subtle, gentle enhancement. Do not change apparent age or add facial lines.";
-      } else if (intensity > 66) {
-        prompt += "\n\nApply a stronger visible enhancement while strictly preserving identity and exact apparent age — never add wrinkles, aged texture, or make the subject look older.";
-      }
+    prompt += buildProIntensitySuffix(intensity);
+    if (wantsHd) {
+      prompt = appendHdQualityPrompt(prompt, true);
     }
     prompt = appendProRetouchIdentity(prompt);
+    const proCost = applyGenerationSurcharges(CREDIT.pro, surcharges, {
+      hdQuality: wantsHd,
+      hdMode: "image",
+    });
     const input = await imageInput(fields, files, "pro", prompt);
     return submitBillableGeneration(req, fields, {
-      cost: CREDIT.pro,
+      cost: proCost,
       type: "image",
       modelId: MODELS.pro,
       input,

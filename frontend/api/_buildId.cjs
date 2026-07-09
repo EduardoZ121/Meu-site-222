@@ -1,2 +1,2 @@
 "use strict";
-module.exports = "rp-gerar-models-v2";
+module.exports = "rp-pro-compact-v1";

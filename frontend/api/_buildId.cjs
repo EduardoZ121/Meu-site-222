@@ -1,2 +1,2 @@
 "use strict";
-module.exports = "rp-upscale-compact-v1";
+module.exports = "rp-bgremove-compact-v1";

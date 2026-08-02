@@ -458,8 +458,7 @@ export default function CarouselPage() {
               value={campaignBrief}
               onChange={(e) => setCampaignBrief(e.target.value)}
               rows={3}
-              maxLength={600}
-              placeholder={t("car_brief_ph")}
+                            placeholder={t("car_brief_ph")}
               className="rp-editor-textarea min-h-[88px]"
               data-testid="carousel-brief"
             />

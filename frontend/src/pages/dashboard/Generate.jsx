@@ -28,7 +28,7 @@ import { apiAspectRatio } from "../../lib/apiAspectRatio";
 import { hasStudioCredits, useStudioGenerateGate } from "../../lib/useStudioGenerateGate";
 import PromptEnhanceToggle from "../../components/promptAssist/PromptEnhanceToggle";
 import StudioHelpTip from "../../components/studio/StudioHelpTip";
-import { PROMPT_MAX_LENGTH } from "../../lib/promptLimits";
+import { clampPrompt } from "../../lib/promptLimits";
 import SettingCard from "../../components/studio/SettingCard";
 import SettingModal from "../../components/studio/SettingModal";
 import { applyGenerationSurcharges, getSurcharges } from "../../lib/creditPricing";
@@ -332,11 +332,10 @@ export default function Generate() {
           <div className="rp-gen-prompt-wrap">
             <textarea
               value={prompt}
-              onChange={(e) => setPrompt(e.target.value)}
+              onChange={(e) => setPrompt(clampPrompt(e.target.value))}
               onFocus={() => setPromptFocused(true)}
               onBlur={() => setPromptFocused(false)}
               rows={4}
-              maxLength={PROMPT_MAX_LENGTH}
               placeholder={showOverlayPh ? "" : fallbackPh}
               className="rp-gen-textarea"
               data-testid="prompt-input"
@@ -353,7 +352,7 @@ export default function Generate() {
           </div>
           <div className="rp-gen-prompt-footer">
             <CompactImagePicker value={photos} onChange={setPhotos} maxFiles={5} testId="gen-photo" showMultiHint />
-            <span className="rp-gen-charcount">{prompt.length}/{PROMPT_MAX_LENGTH}</span>
+            <span className="rp-gen-charcount">{prompt.length}</span>
           </div>
           <div className="rp-gen-glass-row">
             <button type="button" onClick={() => navigate("/app/wizard")} className="rp-gen-glass-btn" data-testid="open-wizard">

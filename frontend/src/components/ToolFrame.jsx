@@ -55,7 +55,7 @@ export default function ToolFrame({
   promptLabel = "Prompt",
   prompt,
   onPromptChange,
-  promptMax = 600,
+  promptMax = 0,
   ideas,
   onShuffleIdeas,
   aspectRatios = ["1:1", "3:4", "4:5", "9:16", "16:9", "21:9"],
@@ -216,12 +216,14 @@ export default function ToolFrame({
                   value={prompt}
                   onChange={(e) => onPromptChange(e.target.value)}
                   rows={3}
-                  maxLength={promptMax}
+                  {...(promptMax > 0 ? { maxLength: promptMax } : {})}
                   placeholder={ideas?.[0] ? t("tool_example", { text: ideas[0] }) : t("tool_prompt_ph")}
                   className="rp-editor-textarea rp-editor-textarea--compact min-h-[88px] pr-14"
                   data-testid={`${testId}-prompt`}
                 />
-                <span className="absolute bottom-3 right-3 text-[#5A5A5E] text-[10px] font-mono tracking-wide">{prompt.length} / {promptMax}</span>
+                <span className="absolute bottom-3 right-3 text-[#5A5A5E] text-[10px] font-mono tracking-wide">
+                  {promptMax > 0 ? `${prompt.length} / ${promptMax}` : prompt.length}
+                </span>
               </div>
               {ideas && ideas.length > 0 && (
                 <div className="flex items-start gap-2 mt-3 flex-wrap">

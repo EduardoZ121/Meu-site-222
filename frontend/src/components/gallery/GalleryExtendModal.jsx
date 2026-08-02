@@ -10,7 +10,7 @@ import { getSurcharges } from "../../lib/creditPricing";
 import { computeVideoExtendCost, buildVideoExtendSurcharge } from "../../lib/videoExtendPricing";
 import { useI18n } from "../../lib/i18n";
 import PromptEnhanceToggle from "../promptAssist/PromptEnhanceToggle";
-import { PROMPT_MAX_LENGTH } from "../../lib/promptLimits";
+import { clampPrompt } from "../../lib/promptLimits";
 
 const DURATIONS = [4, 6, 8, 10];
 const RESOLUTIONS = ["1080p", "720p"];
@@ -143,7 +143,7 @@ export default function GalleryExtendModal({ item, onClose, onStarted }) {
               <p className="text-[#8A8A8E] text-[12px] leading-relaxed">{t("vid_extend_source_hint")}</p>
               <textarea
                 value={prompt}
-                onChange={(e) => setPrompt(e.target.value.slice(0, PROMPT_MAX_LENGTH))}
+                onChange={(e) => setPrompt(clampPrompt(e.target.value))}
                 rows={4}
                 placeholder={t("vid_extend_prompt_placeholder")}
                 className="rp-editor-textarea rp-editor-textarea--compact min-h-[100px] w-full"

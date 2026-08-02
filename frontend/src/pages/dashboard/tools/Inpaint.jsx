@@ -18,7 +18,6 @@ import { useStudioGenerateGate } from "../../../lib/useStudioGenerateGate";
 import { primaryStudioPhoto } from "../../../lib/studioFormData";
 import { useStudioSessionBack } from "../../../lib/useStudioSessionBack";
 import { useStudioMediaPreview } from "../../../hooks/useStudioMediaPreview";
-import { PROMPT_MAX_LENGTH } from "../../../lib/promptLimits";
 import { useI18n } from "../../../lib/i18n";
 import { useLocalizedTools } from "../../../lib/useLocalizedTools";
 import useTitle from "../../../lib/useTitle";
@@ -198,8 +197,7 @@ export default function Inpaint() {
             value={prompt}
             onChange={(e) => setPrompt(e.target.value)}
             rows={3}
-            maxLength={PROMPT_MAX_LENGTH}
-            placeholder={t("tool_prompt_ph")}
+                        placeholder={t("tool_prompt_ph")}
             className="rp-editor-textarea rp-editor-textarea--compact min-h-[88px] w-full"
             data-testid="inpaint-prompt"
           />

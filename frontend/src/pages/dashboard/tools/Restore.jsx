@@ -18,7 +18,6 @@ import { useStudioGenerateGate } from "../../../lib/useStudioGenerateGate";
 import { primaryStudioPhoto } from "../../../lib/studioFormData";
 import { useI18n } from "../../../lib/i18n";
 import { useStudioI18n } from "../../../lib/useStudioI18n";
-import { PROMPT_MAX_LENGTH } from "../../../lib/promptLimits";
 import { useStudioSessionBack } from "../../../lib/useStudioSessionBack";
 import { RESTORE_LEVEL_KEYS } from "../../../lib/toolPagesLocales";
 import { restoreCostForLevel } from "../../../lib/creditPricing";
@@ -278,8 +277,7 @@ export default function Restore() {
           value={customPrompt}
           onChange={(e) => setCustomPrompt(e.target.value)}
           rows={4}
-          maxLength={PROMPT_MAX_LENGTH}
-          placeholder={t("restore_prompt_ph")}
+                    placeholder={t("restore_prompt_ph")}
           className="rp-editor-textarea rp-editor-textarea--compact min-h-[100px] w-full"
           data-testid="restore-custom-prompt"
         />

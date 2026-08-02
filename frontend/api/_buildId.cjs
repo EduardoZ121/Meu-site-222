@@ -1,2 +1,2 @@
 "use strict";
-module.exports = "rp-ui-corners-fix-v6";
+module.exports = "rp-ui-corners-fix-v7";

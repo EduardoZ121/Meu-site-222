@@ -19,6 +19,7 @@ import {
 import { scrollStudioToTop } from "../../lib/scrollToStudioResult";
 import { useStudioSessionBack } from "../../lib/useStudioSessionBack";
 import StudioHelpTip from "../../components/studio/StudioHelpTip";
+import { PROMPT_MAX_LENGTH } from "../../lib/promptLimits";
 
 const STEP_ICONS = {
   image: ImageIcon,
@@ -242,7 +243,7 @@ export default function Wizard() {
         <p className="text-[#7C3AED] text-[10px] font-mono uppercase tracking-[0.22em] mb-3">
           {t("wiz_result_eyebrow")}
         </p>
-        <h1 className="text-[#F4F1EA] text-[36px] md:text-[44px] font-light tracking-[-0.02em] leading-[1.05] mb-8 font-['Inter_Tight']">
+        <h1 className="text-[#F4F1EA] text-[36px] md:text-[44px] font-light tracking-[-0.02em] leading-[1.05] mb-8 font-display">
           {t("wiz_result_title")}
         </h1>
 
@@ -262,12 +263,12 @@ export default function Wizard() {
               value={composed}
               onChange={(e) => setComposed(e.target.value)}
               rows={12}
-              className="relative w-full bg-[#0B0B0C] border border-[#2E2E30] focus:border-[#7C3AED] text-[#F4F1EA] text-[15px] leading-relaxed px-4 py-3 rounded-lg focus:outline-none resize-none font-['Inter_Tight'] transition-colors"
+              className="relative w-full bg-[#0B0B0C] border border-[#2E2E30] focus:border-[#7C3AED] text-[#F4F1EA] text-[15px] leading-relaxed px-4 py-3 rounded-lg focus:outline-none resize-none font-display transition-colors"
               data-testid="wizard-edit-textarea"
             />
           ) : (
             <p
-              className="relative text-[#F4F1EA] text-[17px] md:text-[18px] leading-[1.55] font-light font-['Inter_Tight'] whitespace-pre-wrap"
+              className="relative text-[#F4F1EA] text-[17px] md:text-[18px] leading-[1.55] font-light font-display whitespace-pre-wrap"
               data-testid="wizard-composed-text"
             >
               {composed}
@@ -310,7 +311,7 @@ export default function Wizard() {
           <div className="flex items-start gap-3">
             <div className="min-w-0 flex-1">
               <p className="text-[#7C3AED] text-[10px] font-mono uppercase tracking-[0.22em] mb-2">{t("wiz_eyebrow")}</p>
-              <h1 className="text-[#F4F1EA] text-[32px] md:text-[44px] font-light tracking-[-0.02em] leading-[1.02] mb-2 font-['Inter_Tight']">
+              <h1 className="text-[#F4F1EA] text-[32px] md:text-[44px] font-light tracking-[-0.02em] leading-[1.02] mb-2 font-display">
                 {t("wiz_title_a")}{" "}
                 <span className="italic text-[#C4B5FD]">{t("wiz_title_strong")}</span>
               </h1>
@@ -335,7 +336,7 @@ export default function Wizard() {
 
       <AnimatePresence mode="wait">
         <motion.div key={id} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} transition={{ duration: 0.28, ease: [0.16, 1, 0.3, 1] }}>
-          <h2 className="text-[#F4F1EA] text-[26px] md:text-[34px] font-light tracking-[-0.02em] mb-2 font-['Inter_Tight']" data-testid="wizard-question">
+          <h2 className="text-[#F4F1EA] text-[26px] md:text-[34px] font-light tracking-[-0.02em] mb-2 font-display" data-testid="wizard-question">
             <StepIcon className="inline-block w-7 h-7 text-[#C4B5FD] mr-3 -mt-1" strokeWidth={1.5} />
             {step.title}
           </h2>
@@ -363,13 +364,13 @@ export default function Wizard() {
                 value={q7Text}
                 onChange={(e) => setQ7Text(e.target.value)}
                 rows={6}
-                maxLength={800}
+                maxLength={PROMPT_MAX_LENGTH}
                 placeholder={t("wiz_q4_ph")}
-                className="w-full bg-[#13131A] border border-[#2E2E30] focus:border-[#7C3AED] text-[#F4F1EA] text-[15px] placeholder:text-[#5A5A5E] px-4 py-4 rounded-lg focus:outline-none resize-none font-['Inter_Tight'] transition-colors"
+                className="w-full bg-[#13131A] border border-[#2E2E30] focus:border-[#7C3AED] text-[#F4F1EA] text-[15px] placeholder:text-[#5A5A5E] px-4 py-4 rounded-lg focus:outline-none resize-none font-display transition-colors"
                 data-testid="wiz-q7"
                 autoFocus
               />
-              <p className="text-[#5A5A5E] text-[11px] text-right mt-1.5 font-mono">{q7Text.length} / 800</p>
+              <p className="text-[#5A5A5E] text-[11px] text-right mt-1.5 font-mono">{q7Text.length} / {PROMPT_MAX_LENGTH}</p>
               <p className="text-[#8A8A8E] text-[11.5px] mb-2 mt-3">{t("wiz_inspire")}</p>
               <div className="flex flex-wrap gap-2">
                 {q7Examples.map((s) => (
@@ -387,7 +388,7 @@ export default function Wizard() {
                 value={q9Text}
                 onChange={(e) => setQ9Text(e.target.value)}
                 placeholder={t("wiz_q5_ph")}
-                className="w-full bg-[#13131A] border border-[#2E2E30] focus:border-[#7C3AED] text-[#F4F1EA] text-[15px] placeholder:text-[#5A5A5E] px-4 py-4 rounded-lg focus:outline-none font-['Inter_Tight'] transition-colors"
+                className="w-full bg-[#13131A] border border-[#2E2E30] focus:border-[#7C3AED] text-[#F4F1EA] text-[15px] placeholder:text-[#5A5A5E] px-4 py-4 rounded-lg focus:outline-none font-display transition-colors"
                 data-testid="wiz-q9"
                 autoFocus
               />
@@ -425,7 +426,7 @@ function OptionCard({ active, onClick, label, hint, emoji, testId }) {
       <div className="relative flex items-start gap-3">
         {emoji && <span className="text-[#C4B5FD] text-[16px] mt-0.5">{emoji}</span>}
         <div className="flex-1 min-w-0">
-          <p className={`text-[13.5px] font-medium font-['Inter_Tight'] ${active ? "text-[#F4F1EA]" : "text-[#F4F1EA]/85"}`}>{label}</p>
+          <p className={`text-[13.5px] font-medium font-display ${active ? "text-[#F4F1EA]" : "text-[#F4F1EA]/85"}`}>{label}</p>
           {hint && <p className="text-[#8A8A8E] text-[11px] mt-0.5">{hint}</p>}
         </div>
         {active && (

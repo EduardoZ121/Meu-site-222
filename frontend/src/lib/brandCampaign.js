@@ -4,7 +4,8 @@ export const BRAND_CAMPAIGN_MAX = 10;
 
 export function computeBrandCampaignCost(perImage, count) {
   const n = Math.max(1, Math.min(BRAND_CAMPAIGN_MAX, Math.round(Number(count) || 1)));
-  return { count: n, total: (Number(perImage) || 40) * n, perImage: Number(perImage) || 40 };
+  const per = Number(perImage) || 50;
+  return { count: n, total: per * n, perImage: per };
 }
 
 export const BRAND_CAMPAIGN_ASPECTS = [

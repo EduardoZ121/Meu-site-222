@@ -41,7 +41,7 @@ export default function Legal() {
         <p className="text-[10px] font-mono uppercase tracking-[0.2em] text-[#7C3AED] mb-3">
           {t("legal_page_title")}
         </p>
-        <h1 className="text-3xl md:text-4xl font-light tracking-tight font-['Inter_Tight'] mb-2">
+        <h1 className="text-3xl md:text-4xl font-light tracking-tight font-display mb-2">
           {t(meta.titleKey)}
         </h1>
         <p className="text-[#5A5A5E] text-xs font-mono mb-8">{t("legal_updated")}</p>

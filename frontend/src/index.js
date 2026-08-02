@@ -2,10 +2,12 @@ import React from "react";
 import ReactDOM from "react-dom/client";
 import { markPwaSessionFromUrl } from "@/lib/pwaMode";
 import { ensureRoutingEpoch, syncClientBuildWithServer } from "@/lib/clientBuildSync";
+import { initTheme } from "@/lib/theme";
 import "@/i18n";
 import "@/index.css";
 import App from "@/App";
 
+initTheme();
 markPwaSessionFromUrl();
 
 const root = ReactDOM.createRoot(document.getElementById("root"));

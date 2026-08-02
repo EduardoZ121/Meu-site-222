@@ -37,7 +37,11 @@ export function customPurchasePrice(credits) {
 }
 
 export function computeVideoGenerateCost(costs, surcharges, { duration = 6, mode = "text", testMode = false } = {}) {
-  if (testMode) return 0;
+  if (testMode) {
+    const testCost = Number(costs.videoTest);
+    if (Number.isFinite(testCost) && testCost > 0) return Math.round(testCost);
+    return Math.max(1, Math.round((Number(costs.videoFast) || 42) * 0.4));
+  }
   let cost = mode === "image"
     ? (costs.videoImage ?? costs.video ?? 150)
     : (costs.video ?? 40);

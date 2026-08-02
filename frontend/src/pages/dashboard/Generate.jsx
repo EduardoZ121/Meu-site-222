@@ -28,15 +28,23 @@ import { apiAspectRatio } from "../../lib/apiAspectRatio";
 import { hasStudioCredits, useStudioGenerateGate } from "../../lib/useStudioGenerateGate";
 import PromptEnhanceToggle from "../../components/promptAssist/PromptEnhanceToggle";
 import StudioHelpTip from "../../components/studio/StudioHelpTip";
+import { PROMPT_MAX_LENGTH } from "../../lib/promptLimits";
 import SettingCard from "../../components/studio/SettingCard";
 import SettingModal from "../../components/studio/SettingModal";
 import { applyGenerationSurcharges, getSurcharges } from "../../lib/creditPricing";
 import { IMAGE_MODEL_OPTIONS, getImageModel, imageModelBaseCredits } from "../../lib/imageModelCatalog";
+import { imageModelBlurbKey, imageModelProvider } from "../../lib/imageModelMeta";
 
 const SUBJECT_KEYS = [
   { value: "the man", labelKey: "studio_subj_man" },
   { value: "the woman", labelKey: "studio_subj_woman" },
   { value: "the person", labelKey: "studio_subj_person" },
+];
+
+const PROMPT_ROTATE_KEYS = [
+  "studio_ph_rotate_1",
+  "studio_ph_rotate_2",
+  "studio_ph_rotate_3",
 ];
 
 // Modelos definidos em src/config/imageModels.json (Replicate)
@@ -47,6 +55,25 @@ function aspectApiModel(modelId) {
   if (key === "standard") return "standard";
   if (key === "pro") return "pro";
   return "flux";
+}
+
+function useRotatingPlaceholder(keys, enabled, intervalMs = 4200) {
+  const [index, setIndex] = useState(0);
+  const [fade, setFade] = useState(true);
+
+  useEffect(() => {
+    if (!enabled || keys.length < 2) return undefined;
+    const id = window.setInterval(() => {
+      setFade(false);
+      window.setTimeout(() => {
+        setIndex((i) => (i + 1) % keys.length);
+        setFade(true);
+      }, 220);
+    }, intervalMs);
+    return () => window.clearInterval(id);
+  }, [enabled, keys, intervalMs]);
+
+  return { key: keys[index % keys.length], fade };
 }
 
 export default function Generate() {
@@ -72,6 +99,7 @@ export default function Generate() {
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState(null);
   const [progress, setProgress] = useState(0);
+  const [promptFocused, setPromptFocused] = useState(false);
 
   const [padrao, setPadrao] = useState([]);
   const [padraoCat, setPadraoCat] = useState("men");
@@ -81,6 +109,8 @@ export default function Generate() {
   const [openKey, setOpenKey] = useState(null);
   const openModal = (key) => setOpenKey(key);
   const closeModal = () => setOpenKey(null);
+
+  const rotate = useRotatingPlaceholder(PROMPT_ROTATE_KEYS, !prompt.trim());
 
   useEffect(() => {
     api.get("/public/padrao-styles")
@@ -147,9 +177,6 @@ export default function Generate() {
 
     clearUploadToast();
     setBusy(true); setResult(null); setProgress(0);
-    // #region agent log
-    fetch("http://127.0.0.1:7522/ingest/85cd46ef-59a7-4954-8db4-f9a1dbe4f482", { method: "POST", headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "df885c" }, body: JSON.stringify({ sessionId: "df885c", location: "Generate.jsx:generate", message: "generate submit", data: { mode, hdQuality, improve, cost, hasPhoto: Boolean(photo) }, timestamp: Date.now(), hypothesisId: "H-hd-generate" }) }).catch(() => {});
-    // #endregion
     let submitData;
     try {
       if (mode === "easy") {
@@ -207,11 +234,18 @@ export default function Generate() {
         credits_spent: submitData.credits_spent || cost,
         type: "image",
       });
-      const data = await pollPrediction(submitData.prediction_id, {
-        onTick: (sec) => setProgress(sec),
-        credits_spent: submitData.credits_spent || cost,
-        type: "image",
-      });
+      // If axios interceptor already polled (skip header missed), reuse result.
+      let data = submitData;
+      if (!data?.creation?.result_urls?.length) {
+        if (!submitData?.prediction_id) {
+          throw new Error("Resposta inválida do servidor (sem prediction_id).");
+        }
+        data = await pollPrediction(submitData.prediction_id, {
+          onTick: (sec) => setProgress(sec),
+          credits_spent: submitData.credits_spent || cost,
+          type: "image",
+        });
+      }
       const creation = normalizeCreation(data?.creation);
       if (!primaryResultUrl(creation)) throw new Error(t("common_no_result"));
       setResult(creation);
@@ -230,19 +264,61 @@ export default function Generate() {
   const aspectLabel = (aspect === "match" || aspect === ASPECT_MATCH)
     ? (t("aspect_original") || t("aspect_match") || "Original")
     : String(aspect || "4:5").toUpperCase();
-  const qualityLabel = hdQuality ? "HD" : (t("quality_standard") || "Padrão");
-  const styleLabel = picked ? picked.nome : (t("studio_styles_optional") || "Opcional");
+  const qualityLabel = hdQuality ? "HD" : (t("quality_standard"));
+  const styleLabel = picked
+    ? picked.nome
+    : (t("studio_styles_none") || t("studio_styles_optional"));
   const modelOption = MODEL_OPTIONS.find((m) => m.id === model) || MODEL_OPTIONS[0];
+  const modelProvider = imageModelProvider(modelOption);
+  const blurbKey = imageModelBlurbKey(modelOption);
+  const blurbRaw = blurbKey ? t(blurbKey) : "";
+  const modelBlurb = blurbRaw && blurbRaw !== blurbKey
+    ? blurbRaw
+    : modelOption.tagKey === "model_tag_default"
+      ? (t("model_tag_default"))
+      : modelOption.tagKey === "model_tag_fast"
+        ? (t("model_tag_fast"))
+        : `${modelOption.credits} ${t("credits")}`;
+  const modelMeta = [modelProvider, modelBlurb].filter(Boolean).join(" · ");
   const modelLabel = modelOption.name;
   const modalTitle = {
-    format: t("studio_acc_format"),
-    quality: t("studio_hd_quality"),
-    style: t("studio_acc_styles"),
-    model: t("studio_model") || "Modelo",
+    format: t("studio_card_format") || t("studio_acc_format"),
+    quality: t("studio_card_quality") || t("studio_hd_quality"),
+    style: t("studio_card_style") || t("studio_acc_styles"),
+    model: t("studio_card_model") || t("studio_model"),
   }[openKey] || "";
 
+  const rotatingPh = t(rotate.key);
+  const fallbackPh = photo ? t("studio_placeholder_photo") : t("studio_placeholder_text");
+  const showOverlayPh = !prompt.trim();
+
+  const summaryStrip = (
+    <div className="rp-gen-summary" data-testid="gen-summary">
+      <span className="rp-gen-summary__item">
+        <span className="rp-gen-summary__k">{t("studio_card_model")}</span>
+        <span className="rp-gen-summary__v">{!photo ? modelLabel : "—"}</span>
+      </span>
+      <span className="rp-gen-summary__item">
+        <span className="rp-gen-summary__k">{t("studio_card_format")}</span>
+        <span className="rp-gen-summary__v rp-gen-summary__v--mono">{aspectLabel}</span>
+      </span>
+      <span className="rp-gen-summary__item">
+        <span className="rp-gen-summary__k">{t("studio_card_quality")}</span>
+        <span className="rp-gen-summary__v rp-gen-summary__v--mono">{qualityLabel}</span>
+      </span>
+      <span className="rp-gen-summary__item">
+        <span className="rp-gen-summary__k">{t("studio_card_style")}</span>
+        <span className="rp-gen-summary__v">{styleLabel}</span>
+      </span>
+      <span className="rp-gen-summary__item rp-gen-summary__item--credits">
+        <span className="rp-gen-summary__k">{t("label_credits") || "Créditos"}</span>
+        <span className="rp-gen-summary__v rp-gen-summary__v--mono rp-gen-summary__v--accent">{cost}</span>
+      </span>
+    </div>
+  );
+
   return (
-    <StudioCompactShell testId="generate-page" maxWidth="720px" className="pb-8">
+    <StudioCompactShell testId="generate-page" maxWidth="720px" className="rp-gen-page pb-8">
       <StudioInlineHeader
         eyebrow={t("studio_eyebrow")}
         title={t("studio_title")}
@@ -251,84 +327,129 @@ export default function Generate() {
         helpKey="help_page_generate"
       />
 
-      <div className="space-y-2.5">
-          {/* Describe box (prompt + ícone de imagens) */}
-          <div className="rounded-2xl border border-white/[0.08] bg-[#141418]/80 p-3 md:p-4">
+      <div className="rp-gen-stack">
+        <div className={`rp-gen-prompt-card${promptFocused ? " rp-gen-prompt-card--focus" : ""}`}>
+          <div className="rp-gen-prompt-wrap">
             <textarea
               value={prompt}
               onChange={(e) => setPrompt(e.target.value)}
-              rows={3}
-              maxLength={800}
-              placeholder={photo ? t("studio_placeholder_photo") : t("studio_placeholder_text")}
-              className="rp-editor-textarea rp-editor-textarea--compact min-h-[92px]"
+              onFocus={() => setPromptFocused(true)}
+              onBlur={() => setPromptFocused(false)}
+              rows={4}
+              maxLength={PROMPT_MAX_LENGTH}
+              placeholder={showOverlayPh ? "" : fallbackPh}
+              className="rp-gen-textarea"
               data-testid="prompt-input"
+              aria-label={t("studio_acc_prompt")}
             />
-            <div className="flex items-center justify-between gap-2 mt-3">
-              <CompactImagePicker value={photos} onChange={setPhotos} maxFiles={5} testId="gen-photo" />
-              <span className="text-[#5A5A5E] text-[10px] font-mono tabular-nums shrink-0">{prompt.length}/800</span>
-            </div>
-            <div className="flex flex-wrap gap-2 mt-3">
-              <button type="button" onClick={() => navigate("/app/wizard")} className="rp-btn-surface" data-testid="open-wizard">
-                <Wand2 className="w-3.5 h-3.5" strokeWidth={1.5} /> {t("studio_wizard")}
-              </button>
-              <button type="button" onClick={() => navigate("/app/suggest")} className="rp-btn-surface" data-testid="open-suggest">
-                <Lightbulb className="w-3.5 h-3.5" strokeWidth={1.5} /> {t("studio_suggest")}
-              </button>
-            </div>
+            {showOverlayPh ? (
+              <span
+                className={`rp-gen-placeholder${rotate.fade ? " rp-gen-placeholder--in" : " rp-gen-placeholder--out"}`}
+                aria-hidden
+              >
+                {rotatingPh && rotatingPh !== rotate.key ? rotatingPh : fallbackPh}
+              </span>
+            ) : null}
           </div>
+          <div className="rp-gen-prompt-footer">
+            <CompactImagePicker value={photos} onChange={setPhotos} maxFiles={5} testId="gen-photo" />
+            <span className="rp-gen-charcount">{prompt.length}/{PROMPT_MAX_LENGTH}</span>
+          </div>
+          <div className="rp-gen-glass-row">
+            <button type="button" onClick={() => navigate("/app/wizard")} className="rp-gen-glass-btn" data-testid="open-wizard">
+              <Wand2 className="w-3.5 h-3.5" strokeWidth={1.5} /> {t("studio_wizard")}
+            </button>
+            <button type="button" onClick={() => navigate("/app/suggest")} className="rp-gen-glass-btn" data-testid="open-suggest">
+              <Lightbulb className="w-3.5 h-3.5" strokeWidth={1.5} /> {t("studio_suggest")}
+            </button>
+          </div>
+        </div>
 
-          {/* Cartões de definição compactos (abrem em modal) */}
-          <div className="mv-setting-grid">
-            <SettingCard icon={Ratio} label={t("studio_acc_format")} value={aspectLabel} onOpen={() => openModal("format")} testId="gen-card-format" helpKey="help_sec_format" />
-            <SettingCard icon={Gauge} label={t("studio_hd_quality")} value={qualityLabel} onOpen={() => openModal("quality")} testId="gen-card-quality" helpKey="help_ctrl_hd_quality" />
-          </div>
-          {!photo && (
-            <SettingCard icon={Cpu} label={t("studio_model") || "Modelo"} value={modelLabel} onOpen={() => openModal("model")} testId="gen-card-model" helpKey="help_sec_model" />
-          )}
-          <SettingCard icon={Palette} label={t("studio_acc_styles")} value={styleLabel} onOpen={() => openModal("style")} testId="gen-card-style" helpKey="help_sec_styles" />
+        <div className="mv-setting-grid">
+          <SettingCard
+            icon={Ratio}
+            label={t("studio_card_format") || t("studio_acc_format")}
+            value={aspectLabel}
+            onOpen={() => openModal("format")}
+            testId="gen-card-format"
+            helpKey="help_sec_format"
+          />
+          <SettingCard
+            icon={Gauge}
+            label={t("studio_card_quality") || t("studio_hd_quality")}
+            value={qualityLabel}
+            onOpen={() => openModal("quality")}
+            testId="gen-card-quality"
+            helpKey="help_ctrl_hd_quality"
+          />
+        </div>
+        {!photo && (
+          <SettingCard
+            icon={Cpu}
+            label={t("studio_card_model") || t("studio_model")}
+            value={modelLabel}
+            meta={modelMeta}
+            onOpen={() => openModal("model")}
+            testId="gen-card-model"
+            helpKey="help_sec_model"
+            className="rp-gen-model-card"
+          />
+        )}
+        <SettingCard
+          icon={Palette}
+          label={t("studio_card_style") || t("studio_acc_styles")}
+          value={styleLabel}
+          onOpen={() => openModal("style")}
+          testId="gen-card-style"
+          helpKey="help_sec_styles"
+        />
 
-          {/* Melhorar prompt + Gerar (compacto, lado a lado) */}
-          <div className="mv-setting-card mv-setting-card--static">
-            <div className="flex flex-col gap-2.5 sm:flex-row sm:items-center sm:justify-between">
-              <PromptEnhanceToggle
-                checked={improve}
-                onChange={setImprove}
-                locked={false}
-                onLockedClick={undefined}
-                testId="improve-toggle"
-                cost={surcharges.enhancePrompt ?? 5}
-              />
-              <StudioGenerateBar
-                layout="inline"
-                ready={gateReady}
-                busy={busy}
-                onClick={generate}
-                label={ctaLabel}
-                busyLabel={progress > 0 ? t("studio_generating", { n: progress }) : t("studio_sending")}
-                hint={gateHint}
-                cost={cost}
-                testId="generate-button"
-                buttonClassName="rp-gen-btn-inline"
-                className="w-full sm:w-auto"
-              />
-            </div>
-            <div className="mt-2 pt-2 border-t border-white/[0.06]">
-              <StudioGenerateCostMeta cost={cost} user={user} />
-            </div>
+        <div className="rp-gen-refine-card">
+          <PromptEnhanceToggle
+            checked={improve}
+            onChange={setImprove}
+            locked={false}
+            onLockedClick={undefined}
+            testId="improve-toggle"
+            cost={surcharges.enhancePrompt ?? 5}
+          />
+        </div>
+
+        {summaryStrip}
+
+        <div className="mv-setting-card mv-setting-card--static rp-gen-inline-cta" data-testid="generate-inline-wrap">
+          <div className="flex flex-col gap-2.5 sm:flex-row sm:items-center sm:justify-end">
+            <StudioGenerateBar
+              layout="inline"
+              ready={gateReady}
+              busy={busy}
+              onClick={generate}
+              label={ctaLabel}
+              busyLabel={progress > 0 ? t("studio_generating", { n: progress }) : t("studio_sending")}
+              hint={gateHint}
+              cost={cost}
+              testId="generate-button"
+              buttonClassName="rp-gen-btn-inline rp-gen-cta w-full sm:w-auto"
+              className="w-full sm:w-auto"
+            />
           </div>
+          <div className="mt-2 pt-2 border-t border-white/[0.06]">
+            <StudioGenerateCostMeta cost={cost} user={user} className="rp-gen-cost-meta" />
+          </div>
+        </div>
       </div>
 
       <SettingModal open={openKey === "format"} title={modalTitle} onClose={closeModal}>
         <AspectPicker value={aspect} onChange={setAspect} hasPhoto={!!photo} testIdPrefix="aspect" />
         <button type="button" onClick={closeModal} className="rp-modal-confirm mt-3" data-testid="format-confirm">
-          <Check className="w-4 h-4" /> {t("confirm") || "Confirmar"}
+          <Check className="w-4 h-4" /> {t("confirm")}
         </button>
       </SettingModal>
 
       <SettingModal open={openKey === "quality"} title={modalTitle} onClose={closeModal}>
         <div className="mv-picker__chips">
           <button type="button" onClick={() => setHdQuality(false)} className={`mktvid-chip ${!hdQuality ? "mktvid-chip-active" : ""}`} data-testid="quality-standard">
-            {t("quality_standard") || "Padrão"}
+            {t("quality_standard")}
           </button>
           <button type="button" onClick={() => setHdQuality(true)} className={`mktvid-chip ${hdQuality ? "mktvid-chip-active" : ""}`} data-testid="quality-hd">
             HD <span className="text-[#A855F7] font-mono text-[10px] ml-1">+{surcharges.hdImage ?? 8}</span>
@@ -336,39 +457,54 @@ export default function Generate() {
         </div>
         <div className="mt-2"><StudioHelpTip helpKey="help_ctrl_hd_quality" testId="hd-quality-help" size="lg" /></div>
         <button type="button" onClick={closeModal} className="rp-modal-confirm mt-3" data-testid="quality-confirm">
-          <Check className="w-4 h-4" /> {t("confirm") || "Confirmar"}
+          <Check className="w-4 h-4" /> {t("confirm")}
         </button>
       </SettingModal>
 
       <SettingModal open={openKey === "model"} title={modalTitle} onClose={closeModal}>
-        <p className="text-[12px] text-[#8A8A8E] mb-3 leading-relaxed">{t("help_sec_model")}</p>
+        <div className="flex items-start gap-2 mb-3">
+          <p className="rp-gen-model-help flex-1 m-0">{t("help_sec_model")}</p>
+          <StudioHelpTip helpKey="help_sec_model" testId="model-section-help" size="lg" />
+        </div>
         <div className="grid grid-cols-1 gap-2 max-h-[52vh] overflow-y-auto overscroll-contain pr-0.5" data-testid="model-grid">
           {MODEL_OPTIONS.map((m) => {
             const active = model === m.id;
+            const provider = imageModelProvider(m);
+            const mBlurbKey = imageModelBlurbKey(m);
+            const mBlurbRaw = mBlurbKey ? t(mBlurbKey) : "";
+            const mBlurb = mBlurbRaw && mBlurbRaw !== mBlurbKey
+              ? mBlurbRaw
+              : m.tagKey === "model_tag_default"
+                ? (t("model_tag_default"))
+                : m.tagKey === "model_tag_fast"
+                  ? (t("model_tag_fast"))
+                  : `${m.credits} ${t("credits")}`;
+            const modelHelpKey = `help_model_${m.id}`;
             return (
-              <button
-                type="button"
+              <div
                 key={m.id}
-                onClick={() => { setModel(m.id); closeModal(); }}
                 className={`rp-model-row ${active ? "rp-model-row--active" : ""}`}
-                data-testid={`model-${m.id}`}
               >
-                <span className="rp-model-ico rp-model-ico--logo">
-                  <img src={m.logo} alt="" className="h-6 w-6 object-contain" />
-                </span>
-                <span className="flex-1 text-left min-w-0">
-                  <span className="block text-[13px] font-medium text-[#F4F1EA]">{m.name}</span>
-                  <span className="block text-[10px] font-mono uppercase tracking-[0.12em] text-[#8A8A8E]">
-                    {m.tagKey === "model_tag_default"
-                      ? (t("model_tag_default") || "Padrão")
-                      : m.tagKey === "model_tag_fast"
-                        ? (t("model_tag_fast") || "Rápido")
-                        : `${m.credits} ${t("credits")}`}
-                    {m.tagKey ? ` · ${m.credits} ${t("credits")}` : ""}
+                <button
+                  type="button"
+                  onClick={() => { setModel(m.id); closeModal(); }}
+                  className="flex flex-1 items-center gap-3 min-w-0 text-left bg-transparent border-0 p-0 cursor-pointer"
+                  data-testid={`model-${m.id}`}
+                >
+                  <span className="rp-model-ico rp-model-ico--logo">
+                    <img src={m.logo} alt="" className="h-6 w-6 object-contain" />
                   </span>
-                </span>
-                {active && <Check className="w-4 h-4 text-[#A855F7] shrink-0" />}
-              </button>
+                  <span className="flex-1 text-left min-w-0">
+                    <span className="rp-gen-model-name">{m.name}</span>
+                    <span className="block text-[10px] font-mono uppercase tracking-[0.12em] text-[#8A8A8E]">
+                      {[provider, mBlurb].filter(Boolean).join(" · ")}
+                      {` · ${m.credits} ${t("credits")}`}
+                    </span>
+                  </span>
+                  {active && <Check className="w-4 h-4 text-[#A855F7] shrink-0" />}
+                </button>
+                <StudioHelpTip helpKey={modelHelpKey} testId={`model-help-${m.id}`} />
+              </div>
             );
           })}
         </div>
@@ -428,7 +564,7 @@ export default function Generate() {
           ))}
         </div>
         <button type="button" onClick={closeModal} className="rp-modal-confirm" data-testid="style-confirm">
-          <Check className="w-4 h-4" /> {t("confirm") || "Confirmar"}
+          <Check className="w-4 h-4" /> {t("confirm")}
         </button>
       </SettingModal>
 

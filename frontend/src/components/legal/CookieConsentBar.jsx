@@ -36,7 +36,7 @@ export default function CookieConsentBar() {
               <div className="flex-1 min-w-0">
                 <p
                   id="cookie-consent-title"
-                  className="text-[13px] font-semibold text-[#F4F1EA] font-['Inter_Tight'] mb-1"
+                  className="text-[13px] font-semibold text-[#F4F1EA] font-display mb-1"
                 >
                   {t("consent_title")}
                 </p>

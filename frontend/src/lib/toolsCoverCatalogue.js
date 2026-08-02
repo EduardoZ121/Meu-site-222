@@ -13,6 +13,8 @@ const IMAGE_COVERS = {
   colorize: "/images/tools/colorize.jpg",
   inpaint: "/images/tools/inpaint.jpg",
   posters: "/images/tools/posters.jpg",
+  brand_campaign: "/images/tools/brand_campaign.jpg",
+  gpt_hq_studio: "/images/tools/gpt_hq_studio.jpg",
   manga_studio: "/images/tools/manga_studio.jpg",
   wizard: "/images/tools/wizard.jpg",
   carousel: "/images/tools/carousel.jpg",
@@ -55,9 +57,12 @@ const OBJECT_POSITION = {
   colorize: "center center",
   inpaint: "center center",
   posters: "center center",
+  brand_campaign: "center center",
+  gpt_hq_studio: "center 22%",
   manga_studio: "center 20%",
   wizard: "center center",
   image: "center 35%",
+  "text-fast": "center center",
   "text-marketing": "center 40%",
   "marketing-video-ai": "center center",
   "motion-flyer-ai": "center center",
@@ -67,7 +72,7 @@ const OBJECT_POSITION = {
 };
 
 /** Bump quando substituir capas — evita cache antigo no browser */
-const COVER_VERSION = "12";
+const COVER_VERSION = "16";
 
 function withVersion(path) {
   return `${path}?v=${COVER_VERSION}`;

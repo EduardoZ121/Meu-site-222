@@ -5,10 +5,10 @@ import { toast } from "sonner";
 import useTitle from "../../lib/useTitle";
 import AdminMarketingPanel from "../../components/admin/AdminMarketingPanel";
 import AdminAiTextPlayground from "../../components/admin/AdminAiTextPlayground";
-import AdminAiLab from "../../components/admin/AdminAiLab";
 import AdminEnginePanel from "../../components/admin/AdminEnginePanel";
+import AdminGenerationsPanel from "../../components/admin/AdminGenerationsPanel";
 
-const TABS = ["overview", "finance", "engine", "lab", "marketing", "ai_playground", "users", "ip", "purchases", "tx"];
+const TABS = ["overview", "finance", "engine", "marketing", "ai_playground", "generations", "users", "ip", "purchases", "tx"];
 
 export default function Admin() {
   const { t } = useI18n();
@@ -149,10 +149,6 @@ export default function Admin() {
         <FinancePanel finance={finance} t={t} onSaved={() => { reload(); toast.success(t("adm_fin_saved")); }} />
       )}
 
-      {tab === "lab" && (
-        <AdminAiLab />
-      )}
-
       {tab === "engine" && (
         <AdminEnginePanel />
       )}
@@ -163,6 +159,10 @@ export default function Admin() {
 
       {tab === "ai_playground" && (
         <AdminAiTextPlayground />
+      )}
+
+      {tab === "generations" && (
+        <AdminGenerationsPanel t={t} />
       )}
 
       {tab === "users" && (
@@ -363,13 +363,16 @@ function UsersTable({ users, t, adjustOpen, setAdjustOpen, patchUser, adjustCred
 
 function FinancePanel({ finance, t, onSaved }) {
   const [balanceInput, setBalanceInput] = useState("");
+  const [thresholdInput, setThresholdInput] = useState("");
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     if (finance?.settings?.replicate_balance_usd != null) {
       setBalanceInput(String(finance.settings.replicate_balance_usd));
     }
-  }, [finance?.settings?.replicate_balance_usd]);
+    const thr = finance?.settings?.low_balance_threshold_usd ?? finance?.low_balance_threshold_usd;
+    if (thr != null) setThresholdInput(String(thr));
+  }, [finance?.settings?.replicate_balance_usd, finance?.settings?.low_balance_threshold_usd, finance?.low_balance_threshold_usd]);
 
   if (!finance) {
     return (
@@ -386,9 +389,12 @@ function FinancePanel({ finance, t, onSaved }) {
       toast.error(t("adm_fin_balance_invalid"));
       return;
     }
+    const payload = { replicate_balance_usd: v };
+    const thr = parseFloat(thresholdInput);
+    if (Number.isFinite(thr) && thr >= 0) payload.low_balance_threshold_usd = thr;
     setSaving(true);
     try {
-      await api.patch("/admin/finance", { replicate_balance_usd: v });
+      await api.patch("/admin/finance", payload);
       onSaved();
     } catch {
       toast.error(t("failed"));
@@ -398,12 +404,21 @@ function FinancePanel({ finance, t, onSaved }) {
   };
 
   const topUp = finance.top_up_recommended_usd ?? finance.replicate_reserve_needed_usd;
-  const alert = finance.balance_ok === false;
+  const alert = finance.balance_ok === false || finance.low_balance_warning;
 
   return (
     <section data-testid="admin-finance">
       <h2 className="font-heading text-2xl text-rp-text mb-2">{t("adm_tab_finance")}</h2>
       <p className="text-rp-mute text-sm mb-8 max-w-2xl">{t("adm_fin_intro")}</p>
+
+      {finance.low_balance_warning && (
+        <div className="border border-red-500/50 bg-red-500/10 p-4 mb-6 text-red-300 text-sm" data-testid="admin-low-balance-warning">
+          {t("adm_fin_low_warn")} ${Number(finance.low_balance_threshold_usd || 0).toFixed(2)}
+          {" · "}
+          {t("adm_fin_balance_saved")}: ${Number(finance.replicate_balance_usd || 0).toFixed(2)}
+          <span className="block text-xs mt-1 opacity-80">{t("adm_fin_balance_est_label")}</span>
+        </div>
+      )}
 
       <div className={`border p-6 mb-10 ${alert ? "border-red-500/50 bg-red-500/5" : "border-rp-purple/40 bg-rp-surface"}`}>
         <p className="text-[10px] font-mono uppercase tracking-[0.18em] text-rp-mute2 mb-2">{t("adm_fin_topup")}</p>
@@ -414,16 +429,40 @@ function FinancePanel({ finance, t, onSaved }) {
       </div>
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-px bg-rp-border mb-10">
+        <Stat label={t("adm_fin_rev_day")} value={`€${finance.revenue_day_eur ?? 0}`} />
+        <Stat label={t("adm_fin_rev_month")} value={`€${finance.revenue_month_eur ?? 0}`} />
+        <Stat label={t("adm_fin_spend_day")} value={finance.spend_credits_day ?? 0} />
+        <Stat label={t("adm_fin_spend_month")} value={finance.spend_credits_month ?? 0} />
         <Stat label={t("adm_fin_buyers")} value={finance.unique_buyers} />
         <Stat label={t("adm_fin_purchases")} value={finance.purchases_total} />
         <Stat label={t("adm_fin_credits_sold")} value={finance.credits_sold} />
         <Stat label={t("adm_circulation")} value={finance.credits_in_circulation} />
+        <Stat label={t("adm_fin_hq_circ")} value={finance.premium_credits_in_circulation ?? 0} />
         <Stat label={t("adm_fin_spent")} value={finance.credits_spent ?? 0} />
         <Stat label={t("adm_fin_spent_usd")} value={`$${finance.replicate_spent_estimated_usd ?? 0}`} />
+        <Stat label={t("adm_fin_openai_spent")} value={`$${finance.openai_spent_estimated_usd ?? 0}`} />
         <Stat label={t("adm_fin_reserve_needed")} value={`$${finance.replicate_reserve_needed_usd}`} />
         <Stat label={t("adm_fin_reserve_allocated")} value={`$${finance.replicate_reserve_allocated_usd}`} />
         <Stat label={t("adm_fin_margin")} value={`$${finance.estimated_margin_usd_total}`} />
+        <Stat label={t("adm_fin_profit")} value={`$${finance.estimated_profit_usd ?? finance.estimated_margin_usd_total}`} />
         <Stat label={t("adm_revenue")} value={`€${finance.revenue_eur}`} />
+        <Stat
+          label={t("adm_fin_rep_balance")}
+          value={finance.replicate_balance_usd != null ? `$${finance.replicate_balance_usd}` : "—"}
+        />
+      </div>
+
+      <div className="border border-amber-500/30 bg-amber-500/5 p-4 mb-8 max-w-3xl text-sm text-rp-mute">
+        <p className="font-mono text-[10px] uppercase tracking-wider text-amber-200/80 mb-2">{t("adm_fin_balances_title")}</p>
+        <p className="mb-1">
+          <span className="text-rp-text">{t("adm_fin_rep_balance")}:</span>{" "}
+          {finance.replicate_balance_usd != null ? `$${finance.replicate_balance_usd}` : "—"}{" "}
+          <span className="text-rp-mute2">({t("adm_fin_balance_est_label")})</span>
+        </p>
+        <p>
+          <span className="text-rp-text">{t("adm_fin_openai_balance")}:</span>{" "}
+          {finance.openai_balance?.label || t("adm_fin_openai_na")}
+        </p>
       </div>
 
       <div className="border border-rp-border p-5 mb-10 max-w-3xl bg-rp-surface/40">
@@ -542,7 +581,7 @@ function FinancePanel({ finance, t, onSaved }) {
       <div className="border border-rp-border p-5 mb-10 max-w-xl">
         <p className="eyebrow mb-3">{t("adm_fin_balance_title")}</p>
         <p className="text-rp-mute text-sm mb-4">{t("adm_fin_balance_hint")}</p>
-        <div className="flex gap-2 flex-wrap">
+        <div className="flex gap-2 flex-wrap mb-4">
           <input
             type="number"
             step="0.01"
@@ -554,6 +593,20 @@ function FinancePanel({ finance, t, onSaved }) {
             data-testid="replicate-balance-input"
           />
           <span className="self-center text-rp-mute font-mono text-sm">USD</span>
+        </div>
+        <p className="text-rp-mute text-xs mb-2">{t("adm_fin_threshold_label")}</p>
+        <div className="flex gap-2 flex-wrap">
+          <input
+            type="number"
+            step="0.01"
+            min="0"
+            value={thresholdInput}
+            onChange={(e) => setThresholdInput(e.target.value)}
+            className="field-input w-40 !py-2"
+            placeholder="15"
+            data-testid="replicate-threshold-input"
+          />
+          <span className="self-center text-rp-mute font-mono text-sm">USD</span>
           <button type="button" onClick={saveBalance} disabled={saving} className="btn-primary !py-2 !px-5">
             {saving ? "…" : t("save")}
           </button>
@@ -562,6 +615,8 @@ function FinancePanel({ finance, t, onSaved }) {
           <p className="text-rp-mute2 text-xs mt-3 font-mono">
             {t("adm_fin_balance_saved")}: ${finance.replicate_balance_usd}
             {finance.balance_ok ? ` · ${t("adm_fin_balance_ok")}` : ` · ${t("adm_fin_balance_low")}`}
+            {" · "}
+            {t("adm_fin_balance_est_label")}
           </p>
         )}
       </div>

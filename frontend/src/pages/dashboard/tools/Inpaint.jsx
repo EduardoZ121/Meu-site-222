@@ -18,6 +18,7 @@ import { useStudioGenerateGate } from "../../../lib/useStudioGenerateGate";
 import { primaryStudioPhoto } from "../../../lib/studioFormData";
 import { useStudioSessionBack } from "../../../lib/useStudioSessionBack";
 import { useStudioMediaPreview } from "../../../hooks/useStudioMediaPreview";
+import { PROMPT_MAX_LENGTH } from "../../../lib/promptLimits";
 import { useI18n } from "../../../lib/i18n";
 import { useLocalizedTools } from "../../../lib/useLocalizedTools";
 import useTitle from "../../../lib/useTitle";
@@ -147,7 +148,7 @@ export default function Inpaint() {
 
         {photoUrl && (
           <div className="rounded-2xl border border-white/[0.08] bg-[#141418]/80 p-3 md:p-4">
-            <label className="flex items-center gap-2 text-[#F4F1EA] text-[13px] font-medium mb-3 font-['Inter_Tight']">
+            <label className="flex items-center gap-2 text-[#F4F1EA] text-[13px] font-medium mb-3 font-display">
               {t("inpaint_paint_zone")}
               <StudioHelpTip helpKey="help_sec_inpaint_mask" testId="inpaint-mask-help" />
             </label>
@@ -197,7 +198,7 @@ export default function Inpaint() {
             value={prompt}
             onChange={(e) => setPrompt(e.target.value)}
             rows={3}
-            maxLength={600}
+            maxLength={PROMPT_MAX_LENGTH}
             placeholder={t("tool_prompt_ph")}
             className="rp-editor-textarea rp-editor-textarea--compact min-h-[88px] w-full"
             data-testid="inpaint-prompt"

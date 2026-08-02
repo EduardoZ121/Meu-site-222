@@ -317,7 +317,7 @@ export default function MangaFlowEditor() {
       setEdges((eds) => eds.map((e) => e.id === editingEdge.id ? {
         ...e, data: { ...e.data, ...edgeData },
         label: fullLabel,
-        labelStyle: { fill: condition?.value ? "#FDE68A" : "#C4B5FD", fontSize: 11, fontFamily: "'Inter Tight', sans-serif" },
+        labelStyle: { fill: condition?.value ? "#FDE68A" : "#C4B5FD", fontSize: 11, fontFamily: "var(--font-display)" },
         labelBgStyle: { fill: "#111118", fillOpacity: 0.92 }, labelBgPadding: [6, 4], labelBgBorderRadius: 6,
       } : e));
       setEditingEdge(null); return;
@@ -328,7 +328,7 @@ export default function MangaFlowEditor() {
       id: `e_${pendingConnection.source}_${pendingConnection.target}_${Date.now()}`,
       data: edgeData,
       label: fullLabel,
-      labelStyle: { fill: condition?.value ? "#FDE68A" : "#C4B5FD", fontSize: 11, fontFamily: "'Inter Tight', sans-serif" },
+      labelStyle: { fill: condition?.value ? "#FDE68A" : "#C4B5FD", fontSize: 11, fontFamily: "var(--font-display)" },
       labelBgStyle: { fill: "#111118", fillOpacity: 0.92 }, labelBgPadding: [6, 4], labelBgBorderRadius: 6,
     };
     setEdges((eds) => addEdge(edge, eds)); setPendingConnection(null);
@@ -601,7 +601,7 @@ export default function MangaFlowEditor() {
         <div className="flex items-center gap-3 min-w-0">
           <div className="w-8 h-8 rounded-lg bg-[#9333EA]/20 border border-[#9333EA]/40 flex items-center justify-center text-sm shrink-0">🎌</div>
           <div className="min-w-0">
-            <p className="text-[13px] text-[#F5F5F7] font-semibold font-['Inter_Tight'] truncate">{projectName}</p>
+            <p className="text-[13px] text-[#F5F5F7] font-semibold font-display truncate">{projectName}</p>
             <p className="text-[10px] text-[#5A5A5E] font-mono uppercase tracking-wider">Manga Flow Studio</p>
           </div>
         </div>

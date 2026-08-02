@@ -97,7 +97,11 @@ export function costKeyForVideoTool(toolId, { hasPhoto = false } = {}) {
 
 export function computeVideoToolCost(costs, surcharges, toolId, { duration = 6, testMode = false, hasPhoto = false } = {}) {
   const meta = getVideoToolMeta(toolId);
-  if (testMode && meta.testMode) return costs.videoTest ?? 0;
+  if (testMode && meta.testMode) {
+    const testCost = Number(costs.videoTest);
+    if (Number.isFinite(testCost) && testCost > 0) return Math.round(testCost);
+    return Math.max(1, Math.round((Number(costs.videoFast) || 42) * 0.4));
+  }
   const key = costKeyForVideoTool(toolId, { hasPhoto });
   let cost = costs[key] ?? costs.video ?? 50;
   const dur = Math.round(Number(duration));

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
-import { Clapperboard, ChevronDown } from "lucide-react";
+import { Check, Clock, Clapperboard, Film, ImageIcon, MessageSquare, Monitor, Sliders, Volume2 } from "lucide-react";
 import {
   formatApiError,
   uploadPost,
@@ -18,11 +18,14 @@ import { getSurcharges } from "../../lib/creditPricing";
 import { toast } from "sonner";
 import ImageUploadZone from "../../components/ImageUploadZone";
 import StudioVideoUpload from "../../components/StudioVideoUpload";
+import SettingCard from "../../components/studio/SettingCard";
+import SettingModal from "../../components/studio/SettingModal";
 import StudioGenerateBar from "../../components/StudioGenerateBar";
 import StudioGenerateCostMeta from "../../components/StudioGenerateCostMeta";
 import StudioVideoUploadNotice from "../../components/studio/StudioVideoUploadNotice";
 import { isPhotoUploadBusy } from "../../components/studio/StudioPhotoUploadNotice";
 import PromptEnhanceToggle from "../../components/promptAssist/PromptEnhanceToggle";
+import { PROMPT_MAX_LENGTH } from "../../lib/promptLimits";
 import { useStudioGenerateGate } from "../../lib/useStudioGenerateGate";
 import VideoEditModeTabs from "../../components/video/VideoEditModeTabs";
 import VideoEditTemplatePanel from "../../components/video/VideoEditTemplatePanel";
@@ -48,21 +51,6 @@ function chipClass(active) {
       ? "border-[#7C3AED] bg-[#7C3AED]/15 text-[#F4F1EA]"
       : "border-[#2E2E30] bg-[#0A0A0C] text-[#8A8A8E] hover:border-[#5A5A5E]",
   ].join(" ");
-}
-
-function EditPanel({ title, hint, children, testId }) {
-  return (
-    <section
-      className="rounded-xl md:rounded-2xl border border-[#2E2E30] bg-[#0F0F12] p-3 md:p-5"
-      data-testid={testId}
-    >
-      <h3 className="text-[#F4F1EA] text-[13px] md:text-[14px] font-medium font-['Inter_Tight'] mb-0.5">{title}</h3>
-      {hint ? (
-        <p className="hidden sm:block text-[#6f6f76] text-[11px] mb-2 md:mb-3 leading-relaxed">{hint}</p>
-      ) : null}
-      {children}
-    </section>
-  );
 }
 
 export default function VideoEditorAdmin({ category }) {
@@ -97,7 +85,9 @@ export default function VideoEditorAdmin({ category }) {
   const [videoCloudProgress, setVideoCloudProgress] = useState(null);
   const [uploadPhase, setUploadPhase] = useState("");
   const [selectedTplId, setSelectedTplId] = useState(null);
-  const [advancedOpen, setAdvancedOpen] = useState(false);
+  const [openKey, setOpenKey] = useState(null);
+  const openModal = (key) => setOpenKey(key);
+  const closeModal = () => setOpenKey(null);
 
   const setMode = useCallback((modeId) => {
     setEditModeId(modeId);
@@ -108,7 +98,7 @@ export default function VideoEditorAdmin({ category }) {
 
   const handleTemplateSelect = useCallback((tpl) => {
     setSelectedTplId(tpl.id);
-    setPrompt(tpl.prompt.slice(0, 800));
+    setPrompt(tpl.prompt.slice(0, PROMPT_MAX_LENGTH));
   }, []);
 
   useEffect(() => {
@@ -260,215 +250,272 @@ export default function VideoEditorAdmin({ category }) {
       ? t("vid_vfx_notice")
       : null;
 
+  const resolutionLabel = RESOLUTIONS.find((r) => r.v === resolution)?.labelKey
+    ? t(RESOLUTIONS.find((r) => r.v === resolution).labelKey)
+    : resolution;
+  const durationLabel = `${duration}s`;
+  const aspectLabel = ASPECTS.find((a) => a.v === aspect)?.labelKey
+    ? t(ASPECTS.find((a) => a.v === aspect).labelKey)
+    : aspect;
+  const audioLabel = audioSetting === "origin" ? t("vid_edit_audio_origin") : t("vid_edit_audio_auto");
+  const templateLabel = selectedTplId
+    ? selectedTplId.replace(/_/g, " ")
+    : t("studio_optional");
+  const referenceLabel = reference ? reference.name?.slice(0, 20) || t("vid_v2v_step_reference") : t("studio_optional");
+  const promptPreview = prompt.trim().length > 28 ? `${prompt.trim().slice(0, 28)}…` : prompt.trim() || t("vid_edit_prompt_placeholder");
+
+  const modalTitle = {
+    templates: t("vid_v2v_templates") || "Templates",
+    reference: t("vid_v2v_step_reference"),
+    prompt: t("vid_v2v_step_prompt"),
+    advanced: t("vid_v2v_advanced"),
+  }[openKey] || "";
+
   return (
     <>
-      <div className="min-w-0" data-testid="video-editor-v2v">
+      <div className="space-y-2.5 min-w-0" data-testid="video-editor-v2v">
         <VideoEditModeTabs modeId={editModeId} onChange={setMode} disabled={busy} />
 
-        <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,420px)_minmax(0,1fr)] gap-3 md:gap-5 xl:gap-6 items-start">
-          {/* Templates primeiro no telemóvel; coluna direita no desktop */}
-          <div className="min-w-0 order-1 xl:order-2 xl:sticky xl:top-4 xl:max-h-[calc(100vh-1.5rem)] xl:overflow-y-auto">
-            <VideoEditTemplatePanel
-              modeId={editModeId}
-              selectedId={selectedTplId}
-              onSelect={handleTemplateSelect}
-              disabled={busy}
+        <div className="rounded-2xl border border-white/[0.08] bg-[#141418]/80 p-3 md:p-4">
+          <p className="text-[#9CA3AF] text-[12px] leading-relaxed mb-3">{t("vid_v2v_video_hint")}</p>
+          <StudioVideoUpload
+            value={video}
+            onChange={(f) => { setVideo(f); if (!f) setVideoCloudUrl(null); }}
+            onCloudUrlChange={setVideoCloudUrl}
+            onCloudProgressChange={setVideoCloudProgress}
+            onStatusChange={setVideoUploadStatus}
+            disabled={busy}
+            maxDurationSec={engine.maxDurationSec}
+            requireCloudUrl={engine.requiresCloudUrl}
+            testId="video-edit-source"
+          />
+          <StudioVideoUploadNotice
+            status={videoUploadStatus}
+            progress={videoCloudProgress}
+            className="mt-3"
+          />
+          <p className="text-[#5A5A5E] text-[10px] mt-2">
+            {t("vid_edit_eta_hint", { min: eta.min, max: eta.max })}
+          </p>
+        </div>
+
+        <div className="mv-setting-grid">
+          <SettingCard
+            icon={Film}
+            label={t("vid_v2v_templates") || "Templates"}
+            value={templateLabel}
+            onOpen={() => openModal("templates")}
+            testId="video-edit-card-templates"
+          />
+          <SettingCard
+            icon={ImageIcon}
+            label={t("vid_v2v_step_reference")}
+            value={referenceLabel}
+            onOpen={() => openModal("reference")}
+            testId="video-edit-card-reference"
+          />
+        </div>
+
+        <SettingCard
+          icon={MessageSquare}
+          label={t("vid_v2v_step_prompt")}
+          value={promptPreview}
+          onOpen={() => openModal("prompt")}
+          testId="video-edit-card-prompt"
+        />
+
+        <SettingCard
+          icon={Sliders}
+          label={t("vid_v2v_advanced")}
+          value={`${resolutionLabel} · ${durationLabel} · ${aspectLabel}`}
+          onOpen={() => openModal("advanced")}
+          testId="video-edit-card-advanced"
+        />
+
+        <div className="mv-setting-card mv-setting-card--static">
+          <div className="flex flex-col gap-2.5 sm:flex-row sm:items-center sm:justify-end">
+            <StudioGenerateBar
+              layout="inline"
+              ready={ready}
+              busy={busy}
+              onClick={run}
+              label={t("vid_edit_btn", { n: cost })}
+              busyLabel={
+                uploadPhase === "send"
+                  ? t("vid_edit_uploading")
+                  : t("vid_edit_processing")
+              }
+              hint={!user?.email && user ? t("vid_edit_notify_no_email") : hint}
+              blockedNotify="message"
+              cost={cost}
+              testId="video-edit-submit"
+              icon={Clapperboard}
+              buttonClassName="rp-gen-btn-inline w-full sm:w-auto"
             />
           </div>
-
-          <div className="space-y-3 md:space-y-4 min-w-0 order-2 xl:order-1">
-            <EditPanel
-              title={t("vid_v2v_step_video")}
-              hint={t("vid_v2v_video_hint")}
-              testId="video-edit-panel-source"
-            >
-              <StudioVideoUpload
-                value={video}
-                onChange={(f) => { setVideo(f); if (!f) setVideoCloudUrl(null); }}
-                onCloudUrlChange={setVideoCloudUrl}
-                onCloudProgressChange={setVideoCloudProgress}
-                onStatusChange={setVideoUploadStatus}
-                disabled={busy}
-                maxDurationSec={engine.maxDurationSec}
-                requireCloudUrl={engine.requiresCloudUrl}
-                testId="video-edit-source"
-              />
-              <StudioVideoUploadNotice
-                status={videoUploadStatus}
-                progress={videoCloudProgress}
-                className="mt-3"
-              />
-              <p className="text-[#5A5A5E] text-[10px] mt-2">
-                {t("vid_edit_eta_hint", { min: eta.min, max: eta.max })}
-              </p>
-            </EditPanel>
-
-            <EditPanel
-              title={t("vid_v2v_step_reference")}
-              hint={t("vid_v2v_reference_hint")}
-              testId="video-edit-panel-reference"
-            >
-              <div className="max-w-[240px]">
-                <ImageUploadZone
-                  value={reference}
-                  onChange={setReference}
-                  layout="square"
-                  enableRemotePersist={false}
-                  testId="video-edit-reference"
-                  emptyLabel={t("vid_v2v_ref_empty")}
-                  emptyHint={t("upload_empty_hint")}
-                />
-              </div>
-            </EditPanel>
-
-            <EditPanel
-              title={t("vid_v2v_step_prompt")}
-              hint={t("vid_v2v_prompt_hint")}
-              testId="video-edit-panel-prompt"
-            >
-              {modeNotice && (
-                <p className="mb-3 rounded-lg border border-violet-500/25 bg-violet-500/10 px-3 py-2 text-[11px] text-[#C4B5FD] leading-relaxed">
-                  {modeNotice}
-                </p>
-              )}
-              <div className="flex justify-end mb-2">
-                <span className="text-[#5A5A5E] text-[11px] font-mono">{prompt.length}/800</span>
-              </div>
-              <textarea
-                value={prompt}
-                onChange={(e) => {
-                  setPrompt(e.target.value.slice(0, 800));
-                  setSelectedTplId(null);
-                }}
-                rows={4}
-                placeholder={t("vid_edit_prompt_placeholder")}
-                className="rp-editor-textarea rp-editor-textarea--compact min-h-[100px] w-full"
-                data-testid="video-edit-prompt"
-              />
-              <div className="mt-3">
-                <PromptEnhanceToggle
-                  checked={improve}
-                  onChange={setImprove}
-                  locked={false}
-                  onLockedClick={undefined}
-                  testId="video-edit-improve"
-                  cost={surcharges.enhancePrompt ?? 5}
-                />
-              </div>
-            </EditPanel>
-
-            <div className="rounded-2xl border border-[#2E2E30] bg-[#0F0F12] overflow-hidden">
-              <button
-                type="button"
-                onClick={() => setAdvancedOpen((v) => !v)}
-                className="w-full flex items-center justify-between px-4 py-3.5 text-left hover:bg-[#141418] transition-colors"
-                data-testid="video-edit-advanced-toggle"
-              >
-                <span className="text-[#F4F1EA] text-[13px] font-medium">{t("vid_v2v_advanced")}</span>
-                <ChevronDown className={`w-4 h-4 text-[#8A8A8E] transition-transform ${advancedOpen ? "rotate-180" : ""}`} />
-              </button>
-              {advancedOpen && (
-                <div className="px-4 pb-4 space-y-4 border-t border-[#2E2E30] pt-4">
-                  <div>
-                    <p className="text-[#8A8A8E] text-[11px] mb-2 uppercase tracking-wider">{t("vid_edit_resolution")}</p>
-                    <div className="flex flex-wrap gap-2">
-                      {RESOLUTIONS.map((r) => {
-                        const extra = videoSurcharge.resolution[r.v];
-                        return (
-                          <button
-                            key={r.v}
-                            type="button"
-                            onClick={() => setResolution(r.v)}
-                            className={chipClass(resolution === r.v)}
-                            data-testid={`video-edit-res-${r.v}`}
-                          >
-                            {r.labelKey ? t(r.labelKey) : r.label}
-                            {extra > 0 ? ` +${extra}` : ""}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
-                  <div>
-                    <p className="text-[#8A8A8E] text-[11px] mb-2 uppercase tracking-wider">{t("vid_edit_duration")}</p>
-                    <div className="flex flex-wrap gap-2">
-                      {DURATIONS.map((d) => {
-                        const extra = videoSurcharge.duration[d];
-                        return (
-                          <button
-                            key={d}
-                            type="button"
-                            onClick={() => setDuration(d)}
-                            className={chipClass(duration === d)}
-                            data-testid={`video-edit-dur-${d}`}
-                          >
-                            {d}s{extra > 0 ? ` +${extra}` : ""}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
-                  <div>
-                    <p className="text-[#8A8A8E] text-[11px] mb-2 uppercase tracking-wider">{t("vid_edit_aspect")}</p>
-                    <div className="flex flex-wrap gap-2">
-                      {ASPECTS.map((a) => (
-                        <button
-                          key={a.v}
-                          type="button"
-                          onClick={() => setAspect(a.v)}
-                          className={chipClass(aspect === a.v)}
-                          data-testid={`video-edit-ar-${a.v}`}
-                        >
-                          {a.labelKey ? t(a.labelKey) : a.label}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                  <div>
-                    <p className="text-[#8A8A8E] text-[11px] mb-2 uppercase tracking-wider">{t("vid_edit_audio")}</p>
-                    <div className="flex flex-wrap gap-2">
-                      <button
-                        type="button"
-                        onClick={() => setAudioSetting("origin")}
-                        className={chipClass(audioSetting === "origin")}
-                        data-testid="video-edit-audio-origin"
-                      >
-                        {t("vid_edit_audio_origin")}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setAudioSetting("auto")}
-                        className={chipClass(audioSetting === "auto")}
-                        data-testid="video-edit-audio-auto"
-                      >
-                        {t("vid_edit_audio_auto")}
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
+          <div className="mt-2 pt-2 border-t border-white/[0.06]">
+            <StudioGenerateCostMeta cost={cost} user={user} />
           </div>
         </div>
       </div>
 
-      <StudioGenerateBar
-        ready={ready}
-        busy={busy}
-        onClick={run}
-        label={t("vid_edit_btn", { n: cost })}
-        busyLabel={
-          uploadPhase === "send"
-            ? t("vid_edit_uploading")
-            : t("vid_edit_processing")
-        }
-        hint={!user?.email && user ? t("vid_edit_notify_no_email") : hint}
-        blockedNotify="message"
-        cost={cost}
-        testId="video-edit-submit"
-        icon={Clapperboard}
-        costMeta={<StudioGenerateCostMeta cost={cost} user={user} />}
-      />
+      <SettingModal open={openKey === "templates"} title={modalTitle} onClose={closeModal}>
+        <VideoEditTemplatePanel
+          modeId={editModeId}
+          selectedId={selectedTplId}
+          onSelect={(tpl) => {
+            handleTemplateSelect(tpl);
+            closeModal();
+          }}
+          disabled={busy}
+        />
+        <button type="button" onClick={closeModal} className="rp-modal-confirm mt-3" data-testid="video-edit-templates-confirm">
+          <Check className="w-4 h-4" /> {t("confirm")}
+        </button>
+      </SettingModal>
+
+      <SettingModal open={openKey === "reference"} title={modalTitle} onClose={closeModal}>
+        <p className="text-[#8A8A8E] text-[12px] mb-3">{t("vid_v2v_reference_hint")}</p>
+        <div className="max-w-[240px]">
+          <ImageUploadZone
+            value={reference}
+            onChange={setReference}
+            layout="square"
+            enableRemotePersist={false}
+            testId="video-edit-reference"
+            emptyLabel={t("vid_v2v_ref_empty")}
+            emptyHint={t("upload_empty_hint")}
+          />
+        </div>
+        <button type="button" onClick={closeModal} className="rp-modal-confirm mt-3" data-testid="video-edit-reference-confirm">
+          <Check className="w-4 h-4" /> {t("confirm")}
+        </button>
+      </SettingModal>
+
+      <SettingModal open={openKey === "prompt"} title={modalTitle} onClose={closeModal}>
+        {modeNotice && (
+          <p className="mb-3 rounded-lg border border-violet-500/25 bg-violet-500/10 px-3 py-2 text-[11px] text-[#C4B5FD] leading-relaxed">
+            {modeNotice}
+          </p>
+        )}
+        <div className="flex justify-end mb-2">
+          <span className="text-[#5A5A5E] text-[11px] font-mono">{prompt.length}/{PROMPT_MAX_LENGTH}</span>
+        </div>
+        <textarea
+          value={prompt}
+          onChange={(e) => {
+            setPrompt(e.target.value.slice(0, PROMPT_MAX_LENGTH));
+            setSelectedTplId(null);
+          }}
+          rows={4}
+          placeholder={t("vid_edit_prompt_placeholder")}
+          className="rp-editor-textarea rp-editor-textarea--compact min-h-[100px] w-full"
+          data-testid="video-edit-prompt"
+        />
+        <div className="mt-3">
+          <PromptEnhanceToggle
+            checked={improve}
+            onChange={setImprove}
+            locked={false}
+            onLockedClick={undefined}
+            testId="video-edit-improve"
+            cost={surcharges.enhancePrompt ?? 5}
+          />
+        </div>
+        <button type="button" onClick={closeModal} className="rp-modal-confirm mt-3" data-testid="video-edit-prompt-confirm">
+          <Check className="w-4 h-4" /> {t("confirm")}
+        </button>
+      </SettingModal>
+
+      <SettingModal open={openKey === "advanced"} title={modalTitle} onClose={closeModal}>
+        <div className="space-y-4">
+          <div>
+            <p className="text-[#8A8A8E] text-[11px] mb-2 uppercase tracking-wider flex items-center gap-1.5">
+              <Monitor className="w-3 h-3" /> {t("vid_edit_resolution")}
+            </p>
+            <div className="flex flex-wrap gap-2">
+              {RESOLUTIONS.map((r) => {
+                const extra = videoSurcharge.resolution[r.v];
+                return (
+                  <button
+                    key={r.v}
+                    type="button"
+                    onClick={() => setResolution(r.v)}
+                    className={chipClass(resolution === r.v)}
+                    data-testid={`video-edit-res-${r.v}`}
+                  >
+                    {r.labelKey ? t(r.labelKey) : r.label}
+                    {extra > 0 ? ` +${extra}` : ""}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+          <div>
+            <p className="text-[#8A8A8E] text-[11px] mb-2 uppercase tracking-wider flex items-center gap-1.5">
+              <Clock className="w-3 h-3" /> {t("vid_edit_duration")}
+            </p>
+            <div className="flex flex-wrap gap-2">
+              {DURATIONS.map((d) => {
+                const extra = videoSurcharge.duration[d];
+                return (
+                  <button
+                    key={d}
+                    type="button"
+                    onClick={() => setDuration(d)}
+                    className={chipClass(duration === d)}
+                    data-testid={`video-edit-dur-${d}`}
+                  >
+                    {d}s{extra > 0 ? ` +${extra}` : ""}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+          <div>
+            <p className="text-[#8A8A8E] text-[11px] mb-2 uppercase tracking-wider">{t("vid_edit_aspect")}</p>
+            <div className="flex flex-wrap gap-2">
+              {ASPECTS.map((a) => (
+                <button
+                  key={a.v}
+                  type="button"
+                  onClick={() => setAspect(a.v)}
+                  className={chipClass(aspect === a.v)}
+                  data-testid={`video-edit-ar-${a.v}`}
+                >
+                  {a.labelKey ? t(a.labelKey) : a.label}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div>
+            <p className="text-[#8A8A8E] text-[11px] mb-2 uppercase tracking-wider flex items-center gap-1.5">
+              <Volume2 className="w-3 h-3" /> {t("vid_edit_audio")}
+            </p>
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={() => setAudioSetting("origin")}
+                className={chipClass(audioSetting === "origin")}
+                data-testid="video-edit-audio-origin"
+              >
+                {t("vid_edit_audio_origin")}
+              </button>
+              <button
+                type="button"
+                onClick={() => setAudioSetting("auto")}
+                className={chipClass(audioSetting === "auto")}
+                data-testid="video-edit-audio-auto"
+              >
+                {t("vid_edit_audio_auto")}
+              </button>
+            </div>
+          </div>
+        </div>
+        <button type="button" onClick={closeModal} className="rp-modal-confirm mt-3" data-testid="video-edit-advanced-confirm">
+          <Check className="w-4 h-4" /> {t("confirm")}
+        </button>
+      </SettingModal>
     </>
   );
 }

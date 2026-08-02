@@ -18,6 +18,7 @@ import { useStudioGenerateGate } from "../../../lib/useStudioGenerateGate";
 import { primaryStudioPhoto } from "../../../lib/studioFormData";
 import { useI18n } from "../../../lib/i18n";
 import { useStudioI18n } from "../../../lib/useStudioI18n";
+import { PROMPT_MAX_LENGTH } from "../../../lib/promptLimits";
 import { useStudioSessionBack } from "../../../lib/useStudioSessionBack";
 import { COLORIZE_STYLE_KEYS } from "../../../lib/toolPagesLocales";
 import useTitle from "../../../lib/useTitle";
@@ -54,7 +55,7 @@ function Toggle({ active, onClick, label, hint, testId }) {
         }`} />
       </div>
       <div className="flex-1 min-w-0">
-        <p className="text-[#F4F1EA] text-[13px] font-medium font-['Inter_Tight']">{label}</p>
+        <p className="text-[#F4F1EA] text-[13px] font-medium font-display">{label}</p>
         <p className="text-[#8A8A8E] text-[11.5px] leading-snug mt-0.5">{hint}</p>
       </div>
     </button>
@@ -114,7 +115,7 @@ export default function Colorize() {
   const tuningLabel = `${tuningCount}/2 · ${t(vibe === "moderno" ? "colorize_vibe_modern" : "colorize_vibe_vintage")}`;
   const extraLabel = customPrompt.trim()
     ? `${customPrompt.trim().slice(0, 36)}${customPrompt.trim().length > 36 ? "…" : ""}`
-    : (t("studio_styles_optional") || "Opcional");
+    : (t("studio_styles_optional"));
 
   const run = async () => {
     if (!photo) { toast.error(t("colorize_err_upload")); return; }
@@ -242,7 +243,7 @@ export default function Colorize() {
                   </div>
                 )}
               </div>
-              <p className={`relative text-[14px] font-light tracking-[-0.01em] mb-1 font-['Inter_Tight'] ${
+              <p className={`relative text-[14px] font-light tracking-[-0.01em] mb-1 font-display ${
                 style === key ? "text-[#F4F1EA]" : "text-[#F4F1EA]/85"
               }`}>{label}</p>
               <p className="relative text-[#8A8A8E] text-[10.5px] leading-snug">{styleHint}</p>
@@ -250,7 +251,7 @@ export default function Colorize() {
           ))}
         </div>
         <button type="button" onClick={closeModal} className="rp-modal-confirm mt-3" data-testid="colorize-style-confirm">
-          <Check className="w-4 h-4" /> {t("confirm") || "Confirmar"}
+          <Check className="w-4 h-4" /> {t("confirm")}
         </button>
       </SettingModal>
 
@@ -259,7 +260,7 @@ export default function Colorize() {
           <Toggle active={preserveSkin} onClick={() => setPreserveSkin(!preserveSkin)} label={t("colorize_toggle_skin")} hint={t("colorize_toggle_skin_hint")} testId="colorize-toggle-skin" />
           <Toggle active={enhanceDetails} onClick={() => setEnhanceDetails(!enhanceDetails)} label={t("colorize_toggle_details")} hint={t("colorize_toggle_details_hint")} testId="colorize-toggle-details" />
           <div className="rounded-xl border border-[#2E2E30] bg-[#13131A]/50 p-3.5" data-testid="colorize-vibe">
-            <p className="text-[#F4F1EA] text-[13px] font-medium font-['Inter_Tight']">{t("colorize_finish_label")}</p>
+            <p className="text-[#F4F1EA] text-[13px] font-medium font-display">{t("colorize_finish_label")}</p>
             <p className="text-[#8A8A8E] text-[11.5px] leading-snug mt-0.5 mb-3">{t("colorize_feel")}</p>
             <div className="inline-flex rounded-lg border border-[#2E2E30] p-0.5 bg-[#0B0B0C]">
               {VIBE_OPTIONS.map(({ value, labelKey }) => (
@@ -268,7 +269,7 @@ export default function Colorize() {
                   key={value}
                   onClick={() => setVibe(value)}
                   data-testid={`colorize-vibe-${value}`}
-                  className={`px-4 py-1.5 text-[12px] rounded-md transition-all font-['Inter_Tight'] ${
+                  className={`px-4 py-1.5 text-[12px] rounded-md transition-all font-display ${
                     vibe === value
                       ? "bg-[#7C3AED] text-white shadow-sm shadow-[#7C3AED]/30"
                       : "text-[#8A8A8E] hover:text-[#F4F1EA]"
@@ -281,7 +282,7 @@ export default function Colorize() {
           </div>
         </div>
         <button type="button" onClick={closeModal} className="rp-modal-confirm mt-3" data-testid="colorize-tuning-confirm">
-          <Check className="w-4 h-4" /> {t("confirm") || "Confirmar"}
+          <Check className="w-4 h-4" /> {t("confirm")}
         </button>
       </SettingModal>
 
@@ -290,7 +291,7 @@ export default function Colorize() {
           value={customPrompt}
           onChange={(e) => setCustomPrompt(e.target.value)}
           rows={4}
-          maxLength={280}
+          maxLength={PROMPT_MAX_LENGTH}
           placeholder={t("colorize_prompt_ph")}
           className="rp-editor-textarea rp-editor-textarea--compact min-h-[100px] w-full"
           data-testid="colorize-custom-prompt"
@@ -308,7 +309,7 @@ export default function Colorize() {
           ))}
         </div>
         <button type="button" onClick={closeModal} className="rp-modal-confirm mt-3" data-testid="colorize-extra-confirm">
-          <Check className="w-4 h-4" /> {t("confirm") || "Confirmar"}
+          <Check className="w-4 h-4" /> {t("confirm")}
         </button>
       </SettingModal>
 

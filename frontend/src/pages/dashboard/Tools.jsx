@@ -1,7 +1,8 @@
-import { useMemo, useState } from "react";
-import { Link } from "react-router-dom";
+import { useCallback, useMemo, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { Crown, LockKeyhole, ShieldCheck, Sparkles } from "lucide-react";
+import {
+  Sparkles, Play, LayoutGrid, Wrench, Lightbulb, Film, Scissors,
+} from "lucide-react";
 import ToolsHubCard from "../../components/tools/ToolsHubCard";
 import useTitle from "../../lib/useTitle";
 import { usePricing } from "../../lib/PricingContext";
@@ -13,7 +14,8 @@ import { toolCatalogueCost, videoCatalogueCost } from "../../lib/pricingRegions"
 import { getVideoCategoriesForUser } from "../../lib/videoCatalogue";
 import { cn } from "../../lib/utils";
 import StudioHelpTip from "../../components/studio/StudioHelpTip";
-import { SUPPORT_EMAIL, SUPPORT_MAILTO } from "../../lib/supportEmail";
+import { scrollStudioToTop } from "../../lib/scrollToStudioResult";
+import { CLIENT_BUILD_ID } from "../../lib/buildInfo";
 
 const pageEase = [0.16, 1, 0.3, 1];
 
@@ -21,17 +23,19 @@ const GRID_CLASS =
   "grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-2 sm:gap-2.5 md:gap-3";
 
 const IMAGE_CATEGORIES = [
-  { id: "all", labelKey: "tools_grid.filter_all" },
-  { id: "generation", labelKey: "tools_grid.cat_generation" },
-  { id: "utility", labelKey: "tools_grid.cat_utility" },
-  { id: "creative", labelKey: "tools_grid.cat_creative" },
+  { id: "all", labelKey: "tools_grid.filter_all", icon: LayoutGrid },
+  { id: "generation", labelKey: "tools_grid.cat_generation", icon: Sparkles },
+  { id: "utility", labelKey: "tools_grid.cat_utility", icon: Wrench },
+  { id: "creative", labelKey: "tools_grid.cat_creative", icon: Lightbulb },
 ];
 
 const VIDEO_CATEGORIES_FILTER = [
-  { id: "all", labelKey: "tools_grid.filter_all" },
-  { id: "create", labelKey: "vid_section_create" },
-  { id: "edit", labelKey: "vid_section_edit" },
+  { id: "all", labelKey: "tools_grid.filter_all", icon: LayoutGrid },
+  { id: "create", labelKey: "vid_section_create", icon: Film },
+  { id: "edit", labelKey: "vid_section_edit", icon: Scissors },
 ];
+
+const APP_VERSION = "2.0";
 
 function FilterPills({ items, value, onChange, testIdPrefix }) {
   return (
@@ -40,7 +44,7 @@ function FilterPills({ items, value, onChange, testIdPrefix }) {
       role="tablist"
       data-testid={testIdPrefix}
     >
-      {items.map(({ id, label }) => {
+      {items.map(({ id, label, icon: Icon }) => {
         const active = value === id;
         return (
           <button
@@ -52,6 +56,7 @@ function FilterPills({ items, value, onChange, testIdPrefix }) {
             data-testid={`${testIdPrefix}-${id}`}
             className={active ? "rp-tools-hub-pill rp-tools-hub-pill--active" : "rp-tools-hub-pill"}
           >
+            {Icon && <Icon className="rp-tools-hub-pill__ico" strokeWidth={1.75} aria-hidden />}
             {label}
           </button>
         );
@@ -72,6 +77,7 @@ export default function Tools() {
   const [tier, setTier] = useState("image");
   const [imageCategory, setImageCategory] = useState("all");
   const [videoCategory, setVideoCategory] = useState("all");
+  const [showNewOnly, setShowNewOnly] = useState(false);
 
   const videoFlowCategories = useMemo(() => getVideoCategoriesForUser(user), [user]);
 
@@ -111,8 +117,8 @@ export default function Tools() {
   );
 
   const tierTabs = useMemo(() => [
-    { id: "image", label: t("tools_grid.tab_image") },
-    { id: "video", label: t("tools_grid.tab_video") },
+    { id: "image", label: t("tools_grid.tab_image"), icon: Sparkles },
+    { id: "video", label: t("tools_grid.tab_video"), icon: Play },
   ], [t]);
 
   const filteredImageTools = useMemo(() => {
@@ -123,8 +129,11 @@ export default function Tools() {
     if (view === "pinned") {
       list = list.filter((tool) => isPinned(tool.id));
     }
+    if (showNewOnly) {
+      list = list.filter((tool) => tool.isNew);
+    }
     return list;
-  }, [imageTools, imageCategory, view, isPinned]);
+  }, [imageTools, imageCategory, view, isPinned, showNewOnly]);
 
   const filteredVideoTools = useMemo(() => {
     let list = videoCategories;
@@ -134,14 +143,41 @@ export default function Tools() {
     if (view === "pinned") {
       list = list.filter((cat) => isPinned(cat.id));
     }
+    if (showNewOnly) {
+      list = list.filter((cat) => cat.catalogueTool?.isNew);
+    }
     return list;
-  }, [videoCategories, videoCategory, view, isPinned]);
+  }, [videoCategories, videoCategory, view, isPinned, showNewOnly]);
 
   const activeList = tier === "image" ? filteredImageTools : filteredVideoTools;
   const tabCount = tier === "image" ? imageTools.length : videoCategories.length;
 
+  const versionLabel = useMemo(() => {
+    const build = (CLIENT_BUILD_ID || "").trim();
+    const display = build && build !== APP_VERSION ? `${APP_VERSION} · ${build}` : APP_VERSION;
+    return t("tools_grid.end_footer_version", { v: display });
+  }, [t]);
+
+  const clearNewFilter = useCallback(() => {
+    if (showNewOnly) setShowNewOnly(false);
+  }, [showNewOnly]);
+
+  const handleExploreNew = useCallback(() => {
+    setView("all");
+    setImageCategory("all");
+    setVideoCategory("all");
+    setShowNewOnly(true);
+
+    const hasNewVideo = tools.some((tool) => tool.tier === "video" && tool.isNew);
+    const hasNewImage = tools.some((tool) => tool.tier === "image" && tool.isNew);
+    if (hasNewVideo) setTier("video");
+    else if (hasNewImage) setTier("image");
+
+    scrollStudioToTop("smooth");
+  }, [tools]);
+
   return (
-    <div className="rp-tools-hub w-full max-w-[1200px] mx-auto pb-20" data-testid="tools-page">
+    <div className="rp-tools-hub w-full max-w-[1200px] mx-auto pb-8" data-testid="tools-page">
       <header className="mb-4 md:mb-6">
         <div className="flex items-start gap-3">
           <div className="flex-1 min-w-0">
@@ -157,7 +193,7 @@ export default function Tools() {
         </div>
       </header>
 
-      <div className="mb-3 flex items-center gap-4 border-b border-white/[0.06]">
+      <div className="rp-tools-hub-view-tabs mb-3 flex items-center gap-5 border-b border-white/[0.06]">
         {[
           { id: "all", label: t("tools_grid.tab_all") },
           { id: "pinned", label: t("tools_grid.tab_pinned") },
@@ -167,21 +203,21 @@ export default function Tools() {
             <button
               key={id}
               type="button"
-              onClick={() => setView(id)}
+              onClick={() => {
+                clearNewFilter();
+                setView(id);
+              }}
               data-testid={`tools-view-${id}`}
               className={cn(
-                "relative pb-2.5 text-[14px] font-medium transition-colors",
-                active ? "text-[#EDEBE8]" : "text-[#6b6b70] hover:text-[#a8a8ad]",
+                "rp-tools-hub-view-tab relative pb-2.5 text-[14px] font-medium transition-colors",
+                active && "rp-tools-hub-view-tab--active",
               )}
             >
               {label}
               {id === "pinned" && pinnedIds.length > 0 && (
-                <span className="ml-1.5 text-[11px] text-violet-300 tabular-nums">
+                <span className="ml-1.5 text-[11px] text-[#7c3aed] tabular-nums opacity-80">
                   {pinnedIds.length}
                 </span>
-              )}
-              {active && (
-                <span className="absolute inset-x-0 -bottom-px h-0.5 rounded-full bg-violet-500" />
               )}
             </button>
           );
@@ -189,12 +225,12 @@ export default function Tools() {
       </div>
 
       <div
-        className="mb-3 flex gap-2 overflow-x-auto pb-1 scrollbar-none"
+        className="rp-tools-hub-tier-tabs mb-3 grid grid-cols-2 gap-2"
         role="tablist"
         aria-label={t("tools_grid.page_eyebrow")}
         data-testid="tools-tier-tabs"
       >
-        {tierTabs.map(({ id, label }) => {
+        {tierTabs.map(({ id, label, icon: Icon }) => {
           const active = tier === id;
           return (
             <button
@@ -202,11 +238,15 @@ export default function Tools() {
               type="button"
               role="tab"
               aria-selected={active}
-              onClick={() => setTier(id)}
+              onClick={() => {
+                clearNewFilter();
+                setTier(id);
+              }}
               data-testid={id === "image" ? "tab-image" : "tab-video"}
-              className={active ? "rp-tools-hub-pill rp-tools-hub-pill--active" : "rp-tools-hub-pill"}
+              className={active ? "rp-tools-hub-tier-tab rp-tools-hub-tier-tab--active" : "rp-tools-hub-tier-tab"}
             >
-              {label}
+              <Icon className="rp-tools-hub-tier-tab__ico" strokeWidth={1.75} aria-hidden />
+              <span className="rp-tools-hub-tier-tab__label">{label}</span>
             </button>
           );
         })}
@@ -217,14 +257,20 @@ export default function Tools() {
           <FilterPills
             items={imageCategoryFilters}
             value={imageCategory}
-            onChange={setImageCategory}
+            onChange={(id) => {
+              clearNewFilter();
+              setImageCategory(id);
+            }}
             testIdPrefix="tools-image-filter"
           />
         ) : (
           <FilterPills
             items={videoCategoryFilters}
             value={videoCategory}
-            onChange={setVideoCategory}
+            onChange={(id) => {
+              clearNewFilter();
+              setVideoCategory(id);
+            }}
             testIdPrefix="tools-video-filter"
           />
         )}
@@ -234,19 +280,18 @@ export default function Tools() {
         {t("tools_grid.count_label", { n: activeList.length })}
       </p>
 
-      <AnimatePresence mode="wait">
+      <AnimatePresence mode="sync">
         <motion.div
-          key={`${tier}-${view}-${tier === "image" ? imageCategory : videoCategory}`}
+          key={`${tier}-${view}-${tier === "image" ? imageCategory : videoCategory}-${showNewOnly ? "new" : "all"}`}
           role="tabpanel"
-          initial={{ opacity: 0, y: 8 }}
-          animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: -6 }}
-          transition={{ duration: 0.25, ease: pageEase }}
+          initial={false}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.15 }}
           data-testid={tier === "image" ? "tools-grid-sections" : "tools-video-sections"}
         >
           {activeList.length === 0 ? (
             <div
-              className="rounded-2xl border border-white/[0.08] bg-[#141418]/80 px-6 py-12 text-center"
+              className="rounded-2xl bg-[#141418]/80 px-6 py-12 text-center shadow-[0_10px_30px_rgba(0,0,0,0.25)]"
               data-testid="tools-empty"
             >
               <p className="text-[#8A8A8E] text-[14px]">
@@ -298,65 +343,32 @@ export default function Tools() {
         </motion.div>
       </AnimatePresence>
 
-      <footer className="mt-10 md:mt-14 rounded-3xl border border-white/[0.08] bg-[#0f0f15]/80 px-5 py-6 md:px-7 md:py-7 shadow-[0_24px_80px_-48px_rgba(0,0,0,0.9)]">
-        <div className="grid gap-6 md:grid-cols-[1.25fr_1fr_1fr]">
-          <div>
-            <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-[#9333EA]/30 bg-[#9333EA]/10 px-3 py-1.5 text-[10px] font-mono uppercase tracking-[0.16em] text-[#C4B5FD]">
-              <Sparkles className="h-3.5 w-3.5" strokeWidth={1.75} />
-              RemakePix Studio
-            </div>
-            <p className="max-w-md text-[13px] leading-relaxed text-[#8A8A8E]">
-              Crie imagens, vídeos, posters, campanhas e restaurações com créditos flexíveis, histórico na galeria e ferramentas organizadas para trabalho profissional.
-            </p>
-          </div>
-
-          <div>
-            <p className="mb-3 text-[11px] font-mono uppercase tracking-[0.16em] text-[#EDEBE8]">
-              Confiança
-            </p>
-            <div className="space-y-2 text-[13px] text-[#8A8A8E]">
-              <p className="flex items-center gap-2">
-                <ShieldCheck className="h-4 w-4 text-emerald-300" strokeWidth={1.75} />
-                Galeria e notificações ligadas à sua conta.
-              </p>
-              <p className="flex items-center gap-2">
-                <LockKeyhole className="h-4 w-4 text-sky-300" strokeWidth={1.75} />
-                Uploads tratados com acesso protegido.
-              </p>
-              <p className="flex items-center gap-2">
-                <Crown className="h-4 w-4 text-amber-300" strokeWidth={1.75} />
-                Motores rápidos e HQ para maior qualidade.
-              </p>
-            </div>
-          </div>
-
-          <div>
-            <p className="mb-3 text-[11px] font-mono uppercase tracking-[0.16em] text-[#EDEBE8]">
-              Informações
-            </p>
-            <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-[13px]">
-              <Link to="/app/gallery" className="text-[#8A8A8E] hover:text-white transition-colors">
-                {t("sidebar.gallery")}
-              </Link>
-              <Link to="/app/billing" className="text-[#8A8A8E] hover:text-white transition-colors">
-                {t("sidebar.billing")}
-              </Link>
-              <Link to="/legal/terms" className="text-[#8A8A8E] hover:text-white transition-colors">
-                {t("footer_terms")}
-              </Link>
-              <Link to="/legal/privacy" className="text-[#8A8A8E] hover:text-white transition-colors">
-                {t("footer_privacy")}
-              </Link>
-              <a href={SUPPORT_MAILTO} className="col-span-2 text-[#C4B5FD] hover:text-white transition-colors">
-                {SUPPORT_EMAIL}
-              </a>
-            </div>
-            <p className="mt-4 text-[11px] text-[#5A5A5E]">
-              © {new Date().getFullYear()} RemakePix. Ferramentas criativas para uso responsável.
-            </p>
-          </div>
+      <motion.section
+        className="rp-tools-end"
+        initial={{ opacity: 0, y: 16 }}
+        whileInView={{ opacity: 1, y: 0 }}
+        viewport={{ once: true, margin: "-40px" }}
+        transition={{ duration: 0.45, ease: pageEase }}
+        data-testid="tools-end"
+      >
+        <div className="rp-tools-cta">
+          <h2 className="rp-tools-cta__title">{t("tools_grid.end_cta_title")}</h2>
+          <p className="rp-tools-cta__body">{t("tools_grid.end_cta_body")}</p>
+          <button
+            type="button"
+            className="rp-tools-cta__btn"
+            onClick={handleExploreNew}
+            data-testid="tools-end-cta"
+          >
+            <Sparkles className="rp-tools-cta__btn-ico" strokeWidth={1.75} aria-hidden />
+            {t("tools_grid.end_cta_button")}
+          </button>
         </div>
-      </footer>
+        <footer className="rp-tools-end__footer">
+          <p className="rp-tools-end__copy">{t("tools_grid.end_footer_copy")}</p>
+          <p className="rp-tools-end__version">{versionLabel}</p>
+        </footer>
+      </motion.section>
     </div>
   );
 }

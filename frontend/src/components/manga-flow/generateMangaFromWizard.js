@@ -20,7 +20,7 @@ function edge(srcId, tgtId, prompt, condition, srcNode, tgtNode) {
     source: srcId, target: tgtId, type: "smoothstep", animated: true,
     data: { prompt: prompt || "", condition: condition || null, ...semanticFields },
     label,
-    labelStyle: { fill: "#C4B5FD", fontSize: 11, fontFamily: "'Inter Tight', sans-serif" },
+    labelStyle: { fill: "#C4B5FD", fontSize: 11, fontFamily: "var(--font-display)" },
     labelBgStyle: { fill: "#111118", fillOpacity: 0.92 },
     labelBgPadding: [6, 4], labelBgBorderRadius: 6,
   };

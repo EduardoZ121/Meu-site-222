@@ -13,7 +13,7 @@ export default function StudioInlineHeader({ eyebrow, title, description, testId
         <div className="flex-1 min-w-0">
           {eyebrow ? <p className="rp-editor-section-cap mb-1.5">{eyebrow}</p> : null}
           {title ? (
-            <h1 className="rp-studio-page-title mb-2 font-['Inter_Tight'] text-[1.35rem] md:text-[2rem]">
+            <h1 className="rp-studio-page-title mb-2 font-display text-[1.35rem] md:text-[2rem]">
               {title}
             </h1>
           ) : null}

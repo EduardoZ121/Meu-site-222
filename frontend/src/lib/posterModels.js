@@ -1,4 +1,4 @@
-/** Normaliza modelos de pôster vindos da API. */
+/** Normaliza modelos de pôster vindos da API — labels canónicos EN (UI traduz via i18n keys). */
 export function normalizePosterModel(model) {
   if (!model) return model;
   const key = model.key;
@@ -14,8 +14,8 @@ export function normalizePosterModel(model) {
   if (key === "grok") {
     return {
       ...model,
-      label: model.label || "Baixa qualidade",
-      tag: model.tag || "Rápido · económico",
+      label: model.label || "Low quality",
+      tag: model.tag || "Fast · economical",
       wallet: "standard",
       supports_photo: true,
     };
@@ -24,8 +24,8 @@ export function normalizePosterModel(model) {
     return {
       ...model,
       key: "flux2",
-      label: model.label || "Média qualidade",
-      tag: model.tag || "Foto-realista",
+      label: model.label || "Medium quality",
+      tag: model.tag || "Photo-realistic",
       wallet: "standard",
       supports_photo: true,
     };

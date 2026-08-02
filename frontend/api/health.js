@@ -53,7 +53,7 @@ module.exports = async function handler(req, res) {
         ? Boolean(kvProbe?.ok)
         : false;
   const maxDurationSec = Number(process.env.VERCEL_PRO_MAX_DURATION_SEC || 800) || 800;
-  let buildId = process.env.APP_BUILD_ID || process.env.REACT_APP_BUILD_ID || "upload-generate-v11";
+  let buildId = process.env.APP_BUILD_ID || process.env.REACT_APP_BUILD_ID || "rp-clothes-compact-v1";
   try {
     buildId = require("./_buildId.cjs");
   } catch {

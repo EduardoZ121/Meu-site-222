@@ -173,7 +173,7 @@ export default function VideoEditTemplatePanel({
 
       <div className="mb-2 md:mb-3">
 
-        <h3 className="text-[#F4F1EA] text-[13px] md:text-[15px] font-medium font-['Inter_Tight']">
+        <h3 className="text-[#F4F1EA] text-[13px] md:text-[15px] font-medium font-display">
 
           {t("vid_v2v_templates_title")}
 

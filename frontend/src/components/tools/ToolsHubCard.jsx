@@ -5,7 +5,6 @@ import { Pin, Sparkles } from "lucide-react";
 import {
   getToolCover,
   getToolCoverPosition,
-  getToolPoster,
   isVideoToolCover,
 } from "../../lib/toolsCoverCatalogue";
 import { cn } from "../../lib/utils";
@@ -16,7 +15,6 @@ function CoverMedia({ id, tier }) {
   const src = getToolCover(id, tier);
   const objectPosition = getToolCoverPosition(id);
   const useVideo = isVideoToolCover(id, tier);
-  const poster = useVideo ? getToolPoster(id, tier) : null;
   const [loaded, setLoaded] = useState(false);
   const [errored, setErrored] = useState(false);
   const mediaRef = useRef(null);
@@ -35,7 +33,7 @@ function CoverMedia({ id, tier }) {
   }
 
   const mediaClass = cn(
-    "absolute inset-0 h-full w-full object-cover transition-opacity duration-300",
+    "absolute inset-0 h-full w-full object-cover",
     loaded ? "opacity-100" : "opacity-0",
   );
 
@@ -48,15 +46,15 @@ function CoverMedia({ id, tier }) {
         <video
           ref={mediaRef}
           src={src}
-          poster={poster}
           className={mediaClass}
           style={{ objectPosition }}
           autoPlay
           muted
           loop
           playsInline
-          preload="metadata"
+          preload="auto"
           onLoadedData={() => setLoaded(true)}
+          onCanPlay={() => setLoaded(true)}
           onError={() => {
             setErrored(true);
             setLoaded(true);
@@ -117,10 +115,10 @@ export default function ToolsHubCard({
     >
       <Link
         to={to}
-        className="rp-tools-hub-card group block h-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500/50 rounded-2xl"
+        className="rp-tools-hub-card group block h-full focus-visible:outline-none rounded-2xl"
         data-testid={testId || `tool-${id}`}
       >
-        <div className="rp-tools-hub-card__media relative aspect-square rounded-2xl overflow-hidden bg-[#0a0a0c] border border-white/[0.08]">
+        <div className="rp-tools-hub-card__media relative aspect-square overflow-hidden bg-[#121216]">
           <CoverMedia id={id} tier={tier} />
           <div
             className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent pointer-events-none z-[2]"
@@ -136,10 +134,10 @@ export default function ToolsHubCard({
                 onTogglePin(id);
               }}
               className={cn(
-                "absolute top-2 right-2 z-[4] flex h-8 w-8 items-center justify-center rounded-full border backdrop-blur-md transition-all",
+                "absolute top-2 right-2 z-[4] flex h-8 w-8 items-center justify-center rounded-full backdrop-blur-md transition-all shadow-lg",
                 pinned
-                  ? "border-violet-400/50 bg-violet-500/35 text-violet-100"
-                  : "border-white/15 bg-black/35 text-white/80 hover:bg-black/50 hover:text-white",
+                  ? "bg-violet-500/40 text-violet-100"
+                  : "bg-black/45 text-white/80 hover:bg-black/60 hover:text-white",
               )}
               aria-label={pinned ? t("tools_grid.unpin") : t("tools_grid.pin")}
               aria-pressed={pinned}
@@ -154,12 +152,12 @@ export default function ToolsHubCard({
 
           <div className="absolute top-2 left-2 z-[3] flex flex-wrap gap-1">
             {isNew && (
-              <span className="px-2 py-0.5 rounded-full text-[9px] font-semibold uppercase tracking-wide text-white bg-violet-600/90 border border-white/15">
+              <span className="rp-tools-hub-card__badge px-2 py-0.5 rounded-full text-[9px] font-semibold uppercase tracking-wide text-white bg-gradient-to-r from-violet-600 to-fuchsia-600 shadow-md">
                 {t("label_new")}
               </span>
             )}
             {isBeta && (
-              <span className="px-2 py-0.5 rounded-full text-[9px] font-semibold uppercase tracking-wide text-amber-100 bg-amber-500/25 border border-amber-400/25">
+              <span className="rp-tools-hub-card__badge px-2 py-0.5 rounded-full text-[9px] font-semibold uppercase tracking-wide text-amber-100 bg-amber-500/30 shadow-md">
                 {t("badge_beta")}
               </span>
             )}
@@ -167,7 +165,7 @@ export default function ToolsHubCard({
 
           {showCost && (
             <div className="absolute bottom-2 right-2 z-[3]">
-              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold tabular-nums text-[#f4e8d4] bg-black/45 border border-white/10 backdrop-blur-md">
+              <span className="rp-tools-hub-card__cost inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold tabular-nums text-[#f4e8d4] bg-black/55 backdrop-blur-md shadow-md">
                 <Sparkles className="w-2.5 h-2.5 text-[#c7a77a]" strokeWidth={2} />
                 {cost}
               </span>
@@ -175,14 +173,14 @@ export default function ToolsHubCard({
           )}
           {isFree && (
             <div className="absolute bottom-2 right-2 z-[3]">
-              <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold text-emerald-200 bg-emerald-500/20 border border-emerald-400/25 backdrop-blur-md">
+              <span className="rp-tools-hub-card__badge px-2 py-0.5 rounded-full text-[10px] font-semibold text-emerald-200 bg-emerald-500/25 backdrop-blur-md shadow-md">
                 {t("label_free")}
               </span>
             </div>
           )}
         </div>
 
-        <p className="mt-1.5 px-0.5 text-[12px] sm:text-[13px] font-medium text-[#EDEBE8] leading-snug line-clamp-2 font-['Inter_Tight'] group-hover:text-violet-100 transition-colors">
+        <p className="rp-tools-hub-card__name mt-1.5 px-0.5 text-[12px] sm:text-[13px] leading-snug line-clamp-2 transition-colors">
           {name}
         </p>
       </Link>

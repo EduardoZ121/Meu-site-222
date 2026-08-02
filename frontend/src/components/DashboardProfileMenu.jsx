@@ -101,6 +101,7 @@ export default function DashboardProfileMenu({ compact = false }) {
 
   const initial = (user.name || user.email || "?").slice(0, 1).toUpperCase();
   const displayName = user.name || user.email?.split("@")[0] || t("profile_menu_guest");
+  const avatarUrl = user.avatar_url || null;
 
   const closeMenu = () => setMenuOpen(false);
 
@@ -139,7 +140,16 @@ export default function DashboardProfileMenu({ compact = false }) {
             data-testid="header-avatar"
             aria-label={t("profile_menu_open")}
           >
-            {initial}
+            {avatarUrl ? (
+              <img
+                src={avatarUrl}
+                alt=""
+                className="w-full h-full rounded-full object-cover"
+                referrerPolicy="no-referrer"
+              />
+            ) : (
+              initial
+            )}
             {(unreadCount > 0) && (
               <span
                 className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] px-1 flex items-center justify-center rounded-full bg-[#7C3AED] text-[10px] font-bold text-white shadow-[0_0_10px_rgba(168,85,247,0.6)] ring-2 ring-[#0B0B0C]"
@@ -154,13 +164,17 @@ export default function DashboardProfileMenu({ compact = false }) {
         <DropdownMenuContent
           align="end"
           sideOffset={10}
-          className="w-[min(100vw-1.5rem,380px)] p-0 bg-[#13131A] border border-[#9333EA]/25 text-[#F4F1EA] shadow-[0_20px_56px_-12px_rgba(0,0,0,0.9)] z-[55] max-h-[min(85vh,640px)] overflow-hidden flex flex-col"
+          className="rp-profile-menu w-[min(100vw-1.5rem,380px)] p-0 bg-[#13131A] border border-[#9333EA]/25 text-[#F4F1EA] shadow-[0_20px_56px_-12px_rgba(0,0,0,0.9)] z-[55] max-h-[min(85vh,640px)] overflow-hidden flex flex-col"
         >
           {/* Conta */}
           <div className="px-4 py-4 border-b border-white/[0.08] bg-gradient-to-br from-[#7C3AED]/10 to-transparent">
             <div className="flex items-center gap-3">
-              <span className="w-12 h-12 rounded-full bg-gradient-to-br from-[#7C3AED]/40 to-[#9333EA]/20 border border-[#A855F7]/40 flex items-center justify-center text-lg font-semibold shrink-0">
-                {initial}
+              <span className="w-12 h-12 rounded-full bg-gradient-to-br from-[#7C3AED]/40 to-[#9333EA]/20 border border-[#A855F7]/40 flex items-center justify-center text-lg font-semibold shrink-0 overflow-hidden">
+                {avatarUrl ? (
+                  <img src={avatarUrl} alt="" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                ) : (
+                  initial
+                )}
               </span>
               <div className="min-w-0 flex-1">
                 <p className="text-[15px] font-semibold truncate">{displayName}</p>

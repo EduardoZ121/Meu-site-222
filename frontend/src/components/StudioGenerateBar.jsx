@@ -6,6 +6,9 @@ import { useAuth } from "../lib/auth";
 import { useI18n } from "../lib/i18n";
 import { redirectForGenerateAccess, resolveGenerateAccess } from "../lib/studioGenerateAccess";
 
+import { formatApiError } from "../lib/api";
+import { humanizeGenerationError } from "../lib/friendlyGenerationError";
+
 /**
  * Botão Gerar unificado — todas as sessões do estúdio.
  * layout: sticky (barra inferior) | inline (no formulário)
@@ -57,7 +60,10 @@ export default function StudioGenerateBar({
       await Promise.resolve(onClick?.());
     } catch (err) {
       console.error("[StudioGenerateBar]", err);
-      toast.error(err?.message || "Não foi possível iniciar a geração.", { duration: 8000 });
+      toast.error(
+        humanizeGenerationError(err?.message, t) || formatApiError(err, t("studio_gen_start_fail"), { t }),
+        { duration: 8000 },
+      );
     }
   };
 
@@ -94,7 +100,9 @@ export default function StudioGenerateBar({
       >
         {busy ? (
           <>
-            <Loader2 className="w-4 h-4 animate-spin" strokeWidth={2} />
+            <span className="rp-gen-spinner" aria-hidden>
+              <Loader2 className="w-4 h-4 animate-spin" strokeWidth={2} />
+            </span>
             {busyLabel || label}
           </>
         ) : (

@@ -161,25 +161,25 @@ export default function StyleCover({
       {!imageOnly && (
         <>
           <div
-            className={`absolute right-3 top-3 font-['JetBrains_Mono'] text-[28px] ${hasPhoto ? "text-white/40 drop-shadow-[0_2px_12px_rgba(0,0,0,0.7)]" : "text-white/30 drop-shadow-[0_0_18px_rgba(255,255,255,0.25)]"}`}
+            className={`absolute right-3 top-3 font-mono text-[28px] ${hasPhoto ? "text-white/40 drop-shadow-[0_2px_12px_rgba(0,0,0,0.7)]" : "text-white/30 drop-shadow-[0_0_18px_rgba(255,255,255,0.25)]"}`}
           >
             {visual.symbol}
           </div>
 
-          <div className={`absolute left-3 top-3 flex h-10 w-10 items-center justify-center rounded-full border font-['JetBrains_Mono'] text-[11px] font-semibold tracking-[0.08em] backdrop-blur-sm ${hasPhoto ? "border-white/20 bg-black/45 text-white/90" : "border-white/25 bg-black/20 text-white/80"}`}>
+          <div className={`absolute left-3 top-3 flex h-10 w-10 items-center justify-center rounded-full border font-mono text-[11px] font-semibold tracking-[0.08em] backdrop-blur-sm ${hasPhoto ? "border-white/20 bg-black/45 text-white/90" : "border-white/25 bg-black/20 text-white/80"}`}>
             {initials}
           </div>
 
           <div className="absolute inset-x-0 bottom-0 p-3">
             {eyebrow && (
-              <p className="mb-1 font-['JetBrains_Mono'] text-[8px] uppercase tracking-[0.18em] text-white/55">
+              <p className="mb-1 font-mono text-[8px] uppercase tracking-[0.18em] text-white/55">
                 {eyebrow}
               </p>
             )}
-            <p className={`${compact ? "text-[12px]" : "text-[13px]"} line-clamp-2 font-['Inter_Tight'] font-medium leading-tight text-[#F4F1EA] drop-shadow-md`}>
+            <p className={`${compact ? "text-[12px]" : "text-[13px]"} line-clamp-2 font-display font-medium leading-tight text-[#F4F1EA] drop-shadow-md`}>
               {title || id}
             </p>
-            {premium && <p className="mt-1 font-['JetBrains_Mono'] text-[8px] uppercase tracking-[0.16em] text-[#FDE68A]">Premium</p>}
+            {premium && <p className="mt-1 font-mono text-[8px] uppercase tracking-[0.16em] text-[#FDE68A]">Premium</p>}
           </div>
         </>
       )}

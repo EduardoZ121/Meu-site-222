@@ -1051,8 +1051,8 @@
     align-items: center;
     justify-content: center;
     gap: 0.45rem;
-    min-height: 44px;
-    padding: 0.65rem 0.75rem;
+    min-height: 48px;
+    padding: 0.75rem 0.85rem;
     border-radius: 0.9rem;
     border: 1px solid rgba(255, 255, 255, 0.08);
     background: rgba(255, 255, 255, 0.03);
@@ -1145,6 +1145,212 @@
     color: #5a5a5e;
     font-size: 11px;
     font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  }
+
+  /* ─── Generate studio (rp-gen-*) — sem isto o textarea fica branco e o resumo cola tudo ─── */
+  .rp-gen-page .rp-gen-stack {
+    display: flex;
+    flex-direction: column;
+    gap: 0.65rem;
+  }
+  .rp-gen-prompt-card {
+    border-radius: 1.1rem;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    background: #141418;
+    padding: 0.75rem 0.8rem 0.7rem;
+  }
+  .rp-gen-prompt-card--focus {
+    border-color: rgba(168, 85, 247, 0.45);
+    box-shadow: 0 0 0 1px rgba(124, 58, 237, 0.18) inset;
+  }
+  .rp-gen-prompt-wrap {
+    position: relative;
+  }
+  .rp-gen-textarea {
+    display: block;
+    width: 100%;
+    min-height: 110px;
+    resize: vertical;
+    border: 0;
+    outline: none;
+    background: transparent !important;
+    color: #f4f1ea !important;
+    caret-color: #c4b5fd;
+    font-size: 14px;
+    line-height: 1.45;
+    font-family: "Inter Tight", system-ui, sans-serif;
+    padding: 0.15rem 0.1rem 0.35rem;
+  }
+  .rp-gen-textarea::placeholder {
+    color: #5a5a5e;
+  }
+  .rp-gen-placeholder {
+    pointer-events: none;
+    position: absolute;
+    inset: 0.15rem 0.1rem auto 0.1rem;
+    color: #5a5a5e;
+    font-size: 14px;
+    line-height: 1.45;
+    font-family: "Inter Tight", system-ui, sans-serif;
+    transition: opacity 0.25s ease;
+  }
+  .rp-gen-placeholder--in { opacity: 1; }
+  .rp-gen-placeholder--out { opacity: 0; }
+  .rp-gen-prompt-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    margin-top: 0.35rem;
+    padding-top: 0.45rem;
+    border-top: 1px solid rgba(255, 255, 255, 0.06);
+  }
+  .rp-gen-charcount {
+    color: #5a5a5e;
+    font-size: 11px;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    flex-shrink: 0;
+  }
+  .rp-gen-glass-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.45rem;
+    margin-top: 0.55rem;
+  }
+  .rp-gen-glass-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    min-height: 34px;
+    padding: 0.35rem 0.7rem;
+    border-radius: 9999px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    background: rgba(255, 255, 255, 0.04);
+    color: #c9c9ce;
+    font-size: 12px;
+    font-weight: 500;
+  }
+  .rp-gen-glass-btn:hover {
+    color: #f4f1ea;
+    border-color: rgba(168, 85, 247, 0.35);
+  }
+  .rp-gen-summary {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.45rem 0.75rem;
+    padding: 0.65rem 0.75rem;
+    border-radius: 0.9rem;
+    border: 1px solid rgba(255, 255, 255, 0.07);
+    background: rgba(20, 20, 24, 0.85);
+  }
+  .rp-gen-summary__item {
+    display: inline-flex;
+    align-items: baseline;
+    gap: 0.3rem;
+    min-width: 0;
+    max-width: 100%;
+  }
+  .rp-gen-summary__k {
+    color: #6b6b70;
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    font-weight: 600;
+  }
+  .rp-gen-summary__v {
+    color: #e8e6e0;
+    font-size: 12px;
+    font-weight: 500;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 11rem;
+  }
+  .rp-gen-summary__v--mono {
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  }
+  .rp-gen-summary__v--accent {
+    color: #c4b5fd;
+  }
+  .rp-gen-refine-card,
+  .rp-gen-refine {
+    border-radius: 0.9rem;
+    border: 1px solid rgba(255, 255, 255, 0.07);
+    background: rgba(20, 20, 24, 0.85);
+    padding: 0.65rem 0.75rem;
+  }
+  .rp-gen-refine__label {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.55rem;
+    cursor: pointer;
+    width: 100%;
+  }
+  .rp-gen-refine__label--locked {
+    opacity: 0.7;
+    cursor: not-allowed;
+  }
+  .rp-gen-refine__check {
+    margin-top: 0.2rem;
+    width: 1rem;
+    height: 1rem;
+    flex-shrink: 0;
+  }
+  .rp-gen-refine__ico {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.7rem;
+    height: 1.7rem;
+    border-radius: 0.5rem;
+    background: rgba(124, 58, 237, 0.16);
+    color: #c4b5fd;
+    flex-shrink: 0;
+  }
+  .rp-gen-refine__copy {
+    display: flex;
+    flex-direction: column;
+    gap: 0.15rem;
+    min-width: 0;
+    flex: 1;
+  }
+  .rp-gen-refine__title {
+    display: inline-flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.35rem;
+    color: #f4f1ea;
+    font-size: 13px;
+    font-weight: 500;
+  }
+  .rp-gen-refine__cost {
+    color: #a78bfa;
+    font-size: 11px;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  }
+  .rp-gen-refine__hint {
+    color: #8a8a8e;
+    font-size: 11.5px;
+    line-height: 1.35;
+  }
+  .rp-gen-refine__lock {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.2rem;
+    color: #8a8a8e;
+    font-size: 11px;
+  }
+  .rp-gen-model-help {
+    color: #8a8a8e;
+    font-size: 12px;
+    line-height: 1.4;
+  }
+  .rp-gen-model-name {
+    color: #f4f1ea;
+    font-weight: 500;
+  }
+  .rp-gen-inline-cta {
+    margin-top: 0.15rem;
   }
 
   .rp-studio-top-bar {
@@ -1510,6 +1716,15 @@
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+    min-width: 0;
+    max-width: 100%;
+  }
+  .mv-setting-value__text {
+    display: block;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    min-width: 0;
   }
 
   .mv-picker {

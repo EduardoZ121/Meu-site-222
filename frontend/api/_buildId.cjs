@@ -1,2 +1,2 @@
 "use strict";
-module.exports = "rp-site-ui-hotfix-v4";
+module.exports = "rp-gen-css-fix-v5";

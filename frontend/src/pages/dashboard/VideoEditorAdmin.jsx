@@ -25,7 +25,7 @@ import StudioGenerateCostMeta from "../../components/StudioGenerateCostMeta";
 import StudioVideoUploadNotice from "../../components/studio/StudioVideoUploadNotice";
 import { isPhotoUploadBusy } from "../../components/studio/StudioPhotoUploadNotice";
 import PromptEnhanceToggle from "../../components/promptAssist/PromptEnhanceToggle";
-import { PROMPT_MAX_LENGTH } from "../../lib/promptLimits";
+import { clampPrompt } from "../../lib/promptLimits";
 import { useStudioGenerateGate } from "../../lib/useStudioGenerateGate";
 import VideoEditModeTabs from "../../components/video/VideoEditModeTabs";
 import VideoEditTemplatePanel from "../../components/video/VideoEditTemplatePanel";
@@ -98,7 +98,7 @@ export default function VideoEditorAdmin({ category }) {
 
   const handleTemplateSelect = useCallback((tpl) => {
     setSelectedTplId(tpl.id);
-    setPrompt(tpl.prompt.slice(0, PROMPT_MAX_LENGTH));
+    setPrompt(clampPrompt(tpl.prompt));
   }, []);
 
   useEffect(() => {
@@ -399,12 +399,12 @@ export default function VideoEditorAdmin({ category }) {
           </p>
         )}
         <div className="flex justify-end mb-2">
-          <span className="text-[#5A5A5E] text-[11px] font-mono">{prompt.length}/{PROMPT_MAX_LENGTH}</span>
+          <span className="text-[#5A5A5E] text-[11px] font-mono">{prompt.length}</span>
         </div>
         <textarea
           value={prompt}
           onChange={(e) => {
-            setPrompt(e.target.value.slice(0, PROMPT_MAX_LENGTH));
+            setPrompt(clampPrompt(e.target.value));
             setSelectedTplId(null);
           }}
           rows={4}

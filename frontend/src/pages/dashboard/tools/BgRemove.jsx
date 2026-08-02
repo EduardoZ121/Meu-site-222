@@ -9,7 +9,6 @@ import { usePricing } from "../../../lib/PricingContext";
 import { useI18n } from "../../../lib/i18n";
 import { useStudioI18n } from "../../../lib/useStudioI18n";
 import { BG_SCENE_KEYS } from "../../../lib/toolPagesLocales";
-import { PROMPT_MAX_LENGTH } from "../../../lib/promptLimits";
 import CompactImagePicker from "../../../components/studio/CompactImagePicker";
 import GenerationBubble from "../../../components/studio/GenerationBubble";
 import SettingCard from "../../../components/studio/SettingCard";
@@ -395,8 +394,7 @@ export default function BgRemove() {
               value={customPrompt}
               onChange={(e) => setCustomPrompt(e.target.value)}
               rows={3}
-              maxLength={PROMPT_MAX_LENGTH}
-              placeholder={t("bg_prompt_ph")}
+                            placeholder={t("bg_prompt_ph")}
               className="rp-editor-textarea rp-editor-textarea--compact min-h-[88px] w-full"
               data-testid="bg-remove-custom-prompt"
             />

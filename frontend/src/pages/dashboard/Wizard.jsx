@@ -19,7 +19,6 @@ import {
 import { scrollStudioToTop } from "../../lib/scrollToStudioResult";
 import { useStudioSessionBack } from "../../lib/useStudioSessionBack";
 import StudioHelpTip from "../../components/studio/StudioHelpTip";
-import { PROMPT_MAX_LENGTH } from "../../lib/promptLimits";
 
 const STEP_ICONS = {
   image: ImageIcon,
@@ -364,13 +363,12 @@ export default function Wizard() {
                 value={q7Text}
                 onChange={(e) => setQ7Text(e.target.value)}
                 rows={6}
-                maxLength={PROMPT_MAX_LENGTH}
-                placeholder={t("wiz_q4_ph")}
+                                placeholder={t("wiz_q4_ph")}
                 className="w-full bg-[#13131A] border border-[#2E2E30] focus:border-[#7C3AED] text-[#F4F1EA] text-[15px] placeholder:text-[#5A5A5E] px-4 py-4 rounded-lg focus:outline-none resize-none font-display transition-colors"
                 data-testid="wiz-q7"
                 autoFocus
               />
-              <p className="text-[#5A5A5E] text-[11px] text-right mt-1.5 font-mono">{q7Text.length} / {PROMPT_MAX_LENGTH}</p>
+              <p className="text-[#5A5A5E] text-[11px] text-right mt-1.5 font-mono">{q7Text.length}</p>
               <p className="text-[#8A8A8E] text-[11.5px] mb-2 mt-3">{t("wiz_inspire")}</p>
               <div className="flex flex-wrap gap-2">
                 {q7Examples.map((s) => (

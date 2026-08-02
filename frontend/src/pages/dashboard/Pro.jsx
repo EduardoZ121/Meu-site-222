@@ -23,7 +23,6 @@ import StudioGenerateCostMeta from "../../components/StudioGenerateCostMeta";
 import StudioCompactShell from "../../components/studio/StudioCompactShell";
 import StudioInlineHeader from "../../components/studio/StudioInlineHeader";
 import { useStudioGenerateGate } from "../../lib/useStudioGenerateGate";
-import { PROMPT_MAX_LENGTH } from "../../lib/promptLimits";
 import { appendStudioPhotos, primaryStudioPhoto } from "../../lib/studioFormData";
 import { useStudioI18n } from "../../lib/useStudioI18n";
 import StudioHelpTip from "../../components/studio/StudioHelpTip";
@@ -383,8 +382,7 @@ export default function Pro() {
           value={customPrompt}
           onChange={(e) => setCustomPrompt(e.target.value)}
           rows={4}
-          maxLength={PROMPT_MAX_LENGTH}
-          placeholder={t("pro_extra_ph")}
+                    placeholder={t("pro_extra_ph")}
           className="rp-editor-textarea rp-editor-textarea--compact min-h-[100px] w-full"
           data-testid="pro-custom"
         />

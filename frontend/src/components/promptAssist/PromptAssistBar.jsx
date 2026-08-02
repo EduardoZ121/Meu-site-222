@@ -13,7 +13,7 @@ export default function PromptAssistBar({
   onOpenWizard,
   onOpenSuggest,
   promptLength = 0,
-  maxLength = 800,
+  maxLength = 0,
   testIdPrefix = "prompt-assist",
 }) {
   const { t } = useI18n();
@@ -29,9 +29,13 @@ export default function PromptAssistBar({
           testId={`${testIdPrefix}-improve`}
           cost={enhanceCost}
         />
-        {maxLength > 0 && (
+        {maxLength > 0 ? (
           <span className="text-[#6B7280] text-[10px] font-mono tabular-nums">
             {promptLength}/{maxLength}
+          </span>
+        ) : (
+          <span className="text-[#6B7280] text-[10px] font-mono tabular-nums">
+            {promptLength}
           </span>
         )}
       </div>

@@ -20,7 +20,7 @@ import { apiAspectRatio } from "../../lib/apiAspectRatio";
 import { usePhotoAspectDefault } from "../../lib/usePhotoAspectDefault";
 import { useStudioGenerateGate } from "../../lib/useStudioGenerateGate";
 import { primaryStudioPhoto } from "../../lib/studioFormData";
-import { PROMPT_MAX_LENGTH } from "../../lib/promptLimits";
+import { clampPrompt } from "../../lib/promptLimits";
 
 const ASPECTS = ["16:9", "9:16", "1:1", "4:5"];
 
@@ -218,14 +218,14 @@ export default function VideoGenerate({ category }) {
         <div className="rounded-2xl border border-white/[0.08] bg-[#141418]/80 p-3 md:p-4">
           <textarea
             value={prompt}
-            onChange={(e) => setPrompt(e.target.value.slice(0, PROMPT_MAX_LENGTH))}
+            onChange={(e) => setPrompt(clampPrompt(e.target.value))}
             rows={3}
             placeholder={t("vid_prompt_placeholder")}
             className="rp-editor-textarea rp-editor-textarea--compact min-h-[88px] w-full"
             data-testid={`video-${modeId}-prompt`}
           />
           <div className="flex items-center justify-end mt-2">
-            <span className="text-[#5A5A5E] text-[11px] font-mono">{prompt.length}/{PROMPT_MAX_LENGTH}</span>
+            <span className="text-[#5A5A5E] text-[11px] font-mono">{prompt.length}</span>
           </div>
           <div className="flex flex-wrap gap-2 mt-2">
             {ideas.map((idea) => (

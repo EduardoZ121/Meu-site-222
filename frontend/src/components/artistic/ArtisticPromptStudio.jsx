@@ -203,9 +203,8 @@ export default function ArtisticPromptStudio({
 
       <textarea
         value={prompt}
-        onChange={(e) => setPrompt(e.target.value.slice(0, 800))}
+        onChange={(e) => setPrompt(e.target.value)}
         rows={inputMode === "text" ? 7 : 5}
-        maxLength={800}
         placeholder={
           inputMode === "text" ? t("art_prompt_ph_text") : t("art_prompt_ph_image")
         }
@@ -219,7 +218,7 @@ export default function ArtisticPromptStudio({
           <button
             key={idea}
             type="button"
-            onClick={() => setPrompt(idea.slice(0, 800))}
+            onClick={() => setPrompt(idea)}
             className="art-studio-quick-chip"
             data-testid="artistic-quick-prompt"
           >
@@ -255,7 +254,7 @@ export default function ArtisticPromptStudio({
         onOpenWizard={() => setWizardOpen(true)}
         onOpenSuggest={() => setSuggestOpen(true)}
         promptLength={prompt.length}
-        maxLength={800}
+        maxLength={0}
         testIdPrefix="artistic-prompt-assist"
       />
 

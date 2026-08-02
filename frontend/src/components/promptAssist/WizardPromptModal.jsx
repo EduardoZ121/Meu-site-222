@@ -263,7 +263,6 @@ export default function WizardPromptModal({ open, onOpenChange, onApply }) {
                         value={q7Text}
                         onChange={(e) => setQ7Text(e.target.value)}
                         rows={5}
-                        maxLength={800}
                         placeholder={t("wiz_q4_ph")}
                         className="w-full bg-[#0A0A0F] border border-[rgba(147,51,234,0.25)] focus:border-[#9333EA] rounded-xl text-white text-[14px] px-3 py-3 resize-none focus:outline-none"
                         data-testid="wizard-modal-q7"

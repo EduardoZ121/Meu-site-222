@@ -1,2 +1,2 @@
 "use strict";
-module.exports = "rp-studio-back-v9";
+module.exports = "rp-posters-gallery-css-v10";

@@ -28,13 +28,8 @@ function loadGoogleScript() {
   });
 }
 
-function buttonWidth(el) {
-  const raw = Math.floor(el?.getBoundingClientRect?.().width || el?.offsetWidth || 0);
-  // Nunca forçar 320px — no telemóvel isso rebenta o ecrã
-  return Math.max(200, Math.min(raw || 280, 400));
-}
-
 export default function GoogleAuthButton({ onCredential, label = "Continuar com Google" }) {
+  const hostRef = useRef(null);
   const buttonRef = useRef(null);
   const onCredentialRef = useRef(onCredential);
   const [ready, setReady] = useState(false);
@@ -45,25 +40,31 @@ export default function GoogleAuthButton({ onCredential, label = "Continuar com 
 
   useEffect(() => {
     let cancelled = false;
+    let onResize = null;
     if (!GOOGLE_CLIENT_ID) return undefined;
 
     const render = (google) => {
-      if (cancelled || !buttonRef.current || !google?.accounts?.id) return;
+      if (cancelled || !hostRef.current || !buttonRef.current || !google?.accounts?.id) return;
+      const width = Math.max(
+        200,
+        Math.min(Math.floor(hostRef.current.getBoundingClientRect().width || 280), 400),
+      );
       buttonRef.current.innerHTML = "";
+      buttonRef.current.style.width = `${width}px`;
       google.accounts.id.renderButton(buttonRef.current, {
         theme: "outline",
         size: "large",
         type: "standard",
         shape: "rectangular",
         text: "continue_with",
-        width: buttonWidth(buttonRef.current),
+        width,
       });
       setReady(true);
     };
 
     loadGoogleScript()
       .then((google) => {
-        if (cancelled || !buttonRef.current) return;
+        if (cancelled) return;
 
         if (!gsiInitialized) {
           google.accounts.id.initialize({
@@ -90,14 +91,16 @@ export default function GoogleAuthButton({ onCredential, label = "Continuar com 
           gsiInitialized = true;
         }
 
-        render(google);
-        const onResize = () => render(google);
+        requestAnimationFrame(() => render(google));
+        onResize = () => render(google);
         window.addEventListener("resize", onResize);
-        return () => window.removeEventListener("resize", onResize);
       })
       .catch(() => toast.error("Falhou a carregar Google Login."));
 
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+      if (onResize) window.removeEventListener("resize", onResize);
+    };
   }, []);
 
   if (!GOOGLE_CLIENT_ID) {
@@ -113,7 +116,7 @@ export default function GoogleAuthButton({ onCredential, label = "Continuar com 
   }
 
   return (
-    <div className="w-full max-w-full overflow-hidden">
+    <div ref={hostRef} className="w-full max-w-full">
       {!ready && (
         <button
           type="button"
@@ -125,7 +128,7 @@ export default function GoogleAuthButton({ onCredential, label = "Continuar com 
       )}
       <div
         ref={buttonRef}
-        className={`min-h-[44px] w-full max-w-full overflow-hidden rounded-lg bg-white ${ready ? "" : "hidden"}`}
+        className={`min-h-[44px] overflow-hidden rounded-lg ${ready ? "" : "hidden"}`}
         aria-label={label}
         data-testid="google-auth-button"
       />

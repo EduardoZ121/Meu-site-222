@@ -1,2 +1,2 @@
 "use strict";
-module.exports = "rp-clothes-mobile-fix-v2";
+module.exports = "rp-site-ui-hotfix-v3";

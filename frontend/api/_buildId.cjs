@@ -1,2 +1,2 @@
 "use strict";
-module.exports = "rp-brand-remake-v11";
+module.exports = "rp-generate-multiref-v12";

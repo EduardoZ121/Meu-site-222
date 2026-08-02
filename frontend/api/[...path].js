@@ -80,6 +80,8 @@ const {
   appendPhotoEditIdentity,
   appendProRetouchIdentity,
   upgradePadraoPrompt,
+  looksLikeStudioJoinIntent,
+  buildStudioMultiRefFlexibleBlock,
   buildStudioMultiCombineBlock,
   buildStudioDualPersonBlock,
   buildMangaDualCharacterBlock,
@@ -1677,21 +1679,40 @@ function buildStudioMultiImageBundle(fields, urls, userPrompt) {
   }
 
   let instruction = String(userPrompt || "").trim();
+  const joinIntent = looksLikeStudioJoinIntent(instruction);
+
+  // Sem prompt: edição flexível guiada pelas labels Image 1…N (não forçar join).
   if (!instruction) {
-    instruction = "Place all reference subjects together in one natural photorealistic photograph.";
-  } else if (all.length === 2 && instruction.length < 40) {
+    instruction = (
+      "Use Image 1 as the main subject/frame unless a different role is implied by the references. "
+      + "Apply Image 2…N according to how they best complete a natural photorealistic edit — "
+      + "only place multiple people together if that is the clear purpose of the references."
+    );
+  } else if (joinIntent && all.length === 2 && instruction.length < 48) {
+    // Só expandir prompts curtos de join — NÃO expandir “muda a pose”, “posição”, etc.
     instruction = (
       `${instruction}. `
-      + "Both people together in one photo, full-size, same scale, side by side, "
+      + "Both people together in one photo, full-size, same scale, side by side unless a different arrangement is specified, "
       + "both faces sharp and clearly visible, photorealistic."
     );
   }
 
-  let promptFinal = all.length === 2
-    ? `${buildStudioDualPersonBlock()}\n\n${buildStudioMultiCombineBlock(2)}`
-    : buildStudioMultiCombineBlock(all.length);
+  // Base sempre flexível (Image 1 / Image 2…); blocos de join só se o pedido for juntar.
+  let promptFinal = buildStudioMultiRefFlexibleBlock(all.length);
+  if (joinIntent) {
+    promptFinal = all.length === 2
+      ? `${promptFinal}\n\n${buildStudioDualPersonBlock()}\n\n${buildStudioMultiCombineBlock(2)}`
+      : `${promptFinal}\n\n${buildStudioMultiCombineBlock(all.length)}`;
+  }
   promptFinal = `${promptFinal}\n\nScene / user request: ${instruction}`;
-  promptFinal = appendPhotoEditIdentity(promptFinal);
+  // Não usar PHOTO_EDIT_IDENTITY_BLOCK (single-photo): ele trava pose/enquadramento
+  // e impede pedidos como “posição da imagem 2” / outfit / fundo.
+  if (!promptFinal.includes("MULTI-REF IDENTITY (mandatory)")) {
+    promptFinal = `${promptFinal}\n\nMULTI-REF IDENTITY (mandatory): When a labeled image is used as a person, `
+      + "preserve that person's exact face, bone structure, eyes, nose, lips, skin tone, ethnicity and hair. "
+      + "Pose, framing, background, wardrobe and composition may change freely when the user request requires it. "
+      + "Do not face-swap identities between Image slots unless asked.";
+  }
   promptFinal = finalizeImagePrompt(promptFinal, {
     modelKey: "pro",
     hasPersonPhoto: true,

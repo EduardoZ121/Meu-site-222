@@ -352,7 +352,7 @@ export default function Generate() {
             ) : null}
           </div>
           <div className="rp-gen-prompt-footer">
-            <CompactImagePicker value={photos} onChange={setPhotos} maxFiles={5} testId="gen-photo" />
+            <CompactImagePicker value={photos} onChange={setPhotos} maxFiles={5} testId="gen-photo" showMultiHint />
             <span className="rp-gen-charcount">{prompt.length}/{PROMPT_MAX_LENGTH}</span>
           </div>
           <div className="rp-gen-glass-row">

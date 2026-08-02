@@ -187,11 +187,13 @@ export default function MultiImageUpload({
               {previewUrls[idx] ? (
                 <img src={previewUrls[idx]} alt="" className="h-full w-full object-cover" />
               ) : null}
-              <span className={`absolute bottom-0 left-0 right-0 px-1 py-0.5 text-center text-[9px] font-mono uppercase tracking-wide ${
-                idx === 0 ? "bg-[#7C3AED] text-white" : "bg-black/80 text-[#C4B5FD]"
-              }`}
+              <span
+                className={`absolute bottom-0 left-0 right-0 px-1 py-0.5 text-center text-[9px] font-mono uppercase tracking-wide ${
+                  idx === 0 ? "bg-[#7C3AED] text-white" : "bg-black/80 text-[#C4B5FD]"
+                }`}
+                title={t("upload_multi_image_n", { n: idx + 1 })}
               >
-                {idx === 0 ? t("upload_multi_main") : t("upload_multi_ref")}
+                {idx + 1}
               </span>
               {!disabled && (
                 <button
@@ -262,7 +264,7 @@ export default function MultiImageUpload({
             />
             <span className="absolute top-3 left-3 z-20 inline-flex items-center gap-1 rounded-md bg-[#7C3AED]/90 px-2 py-0.5 text-[10px] font-mono uppercase tracking-wide text-white">
               <Star className="h-3 w-3" />
-              {t("upload_multi_main")}
+              {t("upload_multi_image_n", { n: 1 })}
             </span>
             <div className="absolute bottom-0 left-0 right-0 z-20 flex items-center justify-center gap-2 border-t border-emerald-500/30 bg-emerald-950/90 px-3 py-2.5">
               <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-400" aria-hidden />

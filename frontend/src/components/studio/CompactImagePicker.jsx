@@ -8,7 +8,7 @@ import { materializeUploadFile } from "../../lib/durableUploadFile";
 
 /**
  * Seletor de imagens compacto (só um ícone + miniaturas).
- * Substitui a caixa grande de upload: a pessoa clica no ícone e escolhe as imagens.
+ * Com 2+ imagens: etiquetas Image 1 / Image 2… para o prompt multi-ref (como no group).
  */
 export default function CompactImagePicker({
   value = [],
@@ -16,6 +16,7 @@ export default function CompactImagePicker({
   maxFiles = 5,
   disabled = false,
   testId = "compact-image-picker",
+  showMultiHint = false,
 }) {
   const { t } = useI18n();
   const files = useMemo(() => (Array.isArray(value) ? value.filter(Boolean) : []), [value]);
@@ -88,55 +89,74 @@ export default function CompactImagePicker({
   };
 
   const canAddMore = files.length < maxFiles;
+  const multi = maxFiles > 1;
 
   return (
-    <div className="flex items-center gap-2 flex-wrap" data-testid={`${testId}-wrap`}>
-      <input
-        ref={inputRef}
-        type="file"
-        accept={IMAGE_ACCEPT}
-        multiple
-        className="sr-only"
-        disabled={disabled || busy || !canAddMore}
-        onChange={onPick}
-        data-testid={`${testId}-input`}
-      />
-      <button
-        type="button"
-        onClick={() => inputRef.current?.click()}
-        disabled={disabled || busy || !canAddMore}
-        className="mv-icon-btn"
-        aria-label={t("mktvid_add_image") || "Adicionar imagem"}
-        title={t("mktvid_add_image") || "Adicionar imagem"}
-        data-testid={`${testId}-btn`}
-      >
-        {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <ImagePlus className="w-4 h-4" strokeWidth={1.75} />}
-      </button>
-
-      {files.map((file, idx) => (
-        <div
-          key={`${file?.lastModified}-${file?.size}-${idx}`}
-          className="relative h-10 w-10 shrink-0 overflow-hidden rounded-lg border border-white/[0.12] bg-[#141418] group"
-          data-testid={`${testId}-thumb-${idx}`}
+    <div className="flex flex-col gap-1.5 min-w-0" data-testid={`${testId}-wrap`}>
+      <div className="flex items-center gap-2 flex-wrap">
+        <input
+          ref={inputRef}
+          type="file"
+          accept={IMAGE_ACCEPT}
+          multiple={multi}
+          className="sr-only"
+          disabled={disabled || busy || !canAddMore}
+          onChange={onPick}
+          data-testid={`${testId}-input`}
+        />
+        <button
+          type="button"
+          onClick={() => inputRef.current?.click()}
+          disabled={disabled || busy || !canAddMore}
+          className="mv-icon-btn"
+          aria-label={t("mktvid_add_image") || "Adicionar imagem"}
+          title={t("mktvid_add_image") || "Adicionar imagem"}
+          data-testid={`${testId}-btn`}
         >
-          {previews[idx] ? <img src={previews[idx]} alt="" className="h-full w-full object-cover" /> : null}
-          {idx === 0 && (
-            <span className="absolute bottom-0 left-0 right-0 bg-[#7C3AED] text-white text-[7px] font-mono text-center uppercase leading-tight">
-              {t("upload_multi_main")}
-            </span>
-          )}
-          {!disabled && (
-            <button
-              type="button"
-              onClick={() => removeAt(idx)}
-              className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-black/85 text-white border border-white/20"
-              aria-label={t("remove")}
+          {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <ImagePlus className="w-4 h-4" strokeWidth={1.75} />}
+        </button>
+
+        {files.map((file, idx) => {
+          const label = multi
+            ? String(idx + 1)
+            : t("upload_multi_main");
+          const aria = multi
+            ? t("upload_multi_image_n", { n: idx + 1 })
+            : t("upload_multi_main");
+          return (
+            <div
+              key={`${file?.lastModified}-${file?.size}-${idx}`}
+              className="relative h-10 w-10 shrink-0 overflow-hidden rounded-lg border border-white/[0.12] bg-[#141418] group"
+              data-testid={`${testId}-thumb-${idx}`}
+              title={aria}
             >
-              <X className="h-2.5 w-2.5" />
-            </button>
-          )}
-        </div>
-      ))}
+              {previews[idx] ? <img src={previews[idx]} alt={aria} className="h-full w-full object-cover" /> : null}
+              <span
+                className={`absolute bottom-0 left-0 right-0 text-white text-[7px] font-mono text-center uppercase leading-tight ${
+                  idx === 0 ? "bg-[#7C3AED]" : "bg-black/75"
+                }`}
+              >
+                {label}
+              </span>
+              {!disabled && (
+                <button
+                  type="button"
+                  onClick={() => removeAt(idx)}
+                  className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-black/85 text-white border border-white/20"
+                  aria-label={t("remove")}
+                >
+                  <X className="h-2.5 w-2.5" />
+                </button>
+              )}
+            </div>
+          );
+        })}
+      </div>
+      {showMultiHint && files.length >= 2 ? (
+        <p className="text-[10px] text-[#C4B5FD]/90 leading-relaxed max-w-[min(100%,28rem)]" data-testid={`${testId}-multi-hint`}>
+          {t("upload_multi_combine_hint")}
+        </p>
+      ) : null}
     </div>
   );
 }

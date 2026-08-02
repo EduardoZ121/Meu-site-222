@@ -189,7 +189,48 @@ function buildMangaComicSheetBlock(panelCount = 4) {
   return lines.join("\n");
 }
 
-/** Estúdio — combinar 2+ fotos (principal + referências) numa só imagem. */
+/**
+ * Detecta se o utilizador pediu explicitamente juntar / combinar pessoas.
+ * Sem isto, o estúdio NÃO deve forçar side-by-side — a pedido pode ser pose,
+ * posição, fundo, outfit, etc. (mesmo contrato flexível do fluxo multi-ref / group).
+ */
+function looksLikeStudioJoinIntent(userPrompt) {
+  const s = String(userPrompt || "").toLowerCase();
+  if (!s.trim()) return false;
+  return /\b(join|merge|combine|together|side\s*by\s*side|both\s+people|both\s+of\s+(them|us)|juntar|junte|junt[ae]s?|combinar|combin[ae]|juntos?|lado\s*a\s*lado|as\s+duas|os\s+dois|unir|une\s+(as|os)|mettre\s+ensemble|ensemble|juntos|juntarlas|juntarlos)\b/i.test(
+    s,
+  );
+}
+
+/**
+ * Estúdio multi-ref flexível (Image 1…N) — identidade bloqueada; composição segue o pedido do utilizador.
+ * Igual espírito ao group/manga: marcar imagens e obedecer a join, pose, posição, fundo, etc.
+ */
+function buildStudioMultiRefFlexibleBlock(imageCount) {
+  const n = Math.min(Math.max(Number(imageCount) || 2, 2), 5);
+  const lines = [
+    `MULTI-REFERENCE STUDIO EDIT (${n} labeled source images) — MANDATORY:`,
+    "- Each input is labeled Image 1 … Image N. When the user says \"image 1\", \"image 2\", \"foto 1\", \"foto 2\", they mean these slots.",
+    "- Image 1 = MAIN upload. Images 2…N = REFERENCE uploads.",
+    "- Preserve exact identity from each labeled image when that person/object is used: face, hair, skin tone, body proportions, outfit (unless the user asks to change clothes/look).",
+    "- Do NOT swap, merge, blend or average identities between images unless the user explicitly asks for a face/body mix.",
+    "- Do NOT invent extra people. Do NOT clone the same person twice unless asked.",
+    "- Output exactly ONE cohesive photorealistic result — not a collage, split-screen, or side-by-side contact sheet of the uploads.",
+    "- People stay FULL-SIZE at natural scale — never dolls, toys, figurines, miniatures, or props in someone's hands (unless the user asks for that).",
+    "- Follow the USER REQUEST for composition: join people, change pose/position, put the person from Image 1 into the pose/place of Image 2, use one image as background/scene and another as subject, transfer outfit, lighting, or any other directed edit.",
+    "- Do NOT assume subjects must stand side by side or all appear together unless the user request says so.",
+    "- Unified lighting and natural perspective unless the brief asks otherwise.",
+  ];
+  for (let i = 1; i <= n; i += 1) {
+    const role = i === 1 ? "MAIN" : "REFERENCE";
+    lines.push(
+      `- Image ${i} (${role}): sole identity source for whoever/whatever the user attributes to Image ${i}.`,
+    );
+  }
+  return lines.join("\n");
+}
+
+/** Estúdio — forçar juntar 2+ sujeitos (só quando o pedido é claramente join/combine). */
 function buildStudioMultiCombineBlock(imageCount) {
   const n = Math.min(Math.max(Number(imageCount) || 2, 2), 5);
   const lines = [
@@ -210,7 +251,7 @@ function buildStudioMultiCombineBlock(imageCount) {
   return lines.join("\n");
 }
 
-/** Duas pessoas reais — fotografia (não manga). */
+/** Duas pessoas reais — fotografia (não manga). Usar quando o pedido é juntar as duas. */
 function buildStudioDualPersonBlock() {
   return [
     "DUAL PERSON PHOTO COMPOSE — PHOTOREALISTIC (mandatory):",
@@ -330,6 +371,8 @@ module.exports = {
   appendProRetouchIdentity,
   PRO_RETOUCH_AGE_GUARD,
   upgradePadraoPrompt,
+  looksLikeStudioJoinIntent,
+  buildStudioMultiRefFlexibleBlock,
   buildStudioMultiCombineBlock,
   buildStudioDualPersonBlock,
   buildPosterLayoutDualPersonBlock,

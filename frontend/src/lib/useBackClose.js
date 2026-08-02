@@ -8,7 +8,8 @@ import { useEffect, useRef } from "react";
  * Padrão: ao abrir, empurra uma entrada "marcador" no histórico (mesmo URL, invisível).
  * Quando o utilizador carrega em voltar, o `popstate` consome esse marcador e fecha o
  * overlay — um passo de cada vez. Se o overlay for fechado por outro meio (clique fora,
- * Esc, escolher um item), o marcador é limpo do histórico para não deixar entradas soltas.
+ * Esc, escolher um item), limpa o marcador com replaceState (NÃO history.back) para
+ * não disparar o StudioNavContext e saltar a sessão inteira.
  *
  * @param {boolean} isOpen        se o overlay está aberto
  * @param {() => void} onClose    callback para fechar o overlay
@@ -22,8 +23,10 @@ export function useBackClose(isOpen, onClose) {
     if (isOpen) {
       if (!pushedRef.current) {
         try {
+          // Só marca overlay — não copiar rpStudioBack para o topo,
+          // para o pop distinguir "fechar menu" de "sair da sessão".
           window.history.pushState(
-            { ...(window.history.state || {}), rpOverlay: true },
+            { rpOverlay: true },
             "",
             window.location.href,
           );
@@ -42,13 +45,14 @@ export function useBackClose(isOpen, onClose) {
       return () => window.removeEventListener("popstate", onPop);
     }
 
-    // Overlay fechado por outro meio: se ainda temos o nosso marcador no topo do
-    // histórico, consumimo-lo para não deixar uma entrada extra pendente.
+    // Overlay fechado por outro meio: limpar marcador sem history.back().
     if (pushedRef.current) {
       pushedRef.current = false;
       try {
         if (window.history.state?.rpOverlay) {
-          window.history.back();
+          const next = { ...(window.history.state || {}) };
+          delete next.rpOverlay;
+          window.history.replaceState(next, "", window.location.href);
         }
       } catch {
         /* ignora */

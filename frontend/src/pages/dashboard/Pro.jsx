@@ -69,7 +69,7 @@ export default function Pro() {
     [costs.pro, surcharges, hdQuality],
   );
 
-  useStudioSessionBack(() => navigate("/app/tools"));
+  useStudioSessionBack("/app/tools");
 
   useEffect(() => {
     api.get("/public/pro-presets")

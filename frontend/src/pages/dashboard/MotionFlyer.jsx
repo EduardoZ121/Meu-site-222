@@ -49,7 +49,7 @@ export default function MotionFlyer() {
   const { user, refresh } = useAuth();
   const { region } = usePricing();
   useTitle(t("mfly_title"));
-  useStudioSessionBack(() => navigate("/app/video"));
+  useStudioSessionBack("/app/video");
 
 
 

@@ -27,13 +27,13 @@ export default function StudioTopBar({ titleKey }) {
   const showHqBadge = onHqWallet || (user?.premium_credits ?? 0) > 0 || user?.is_unlimited;
 
   const handleBack = useCallback(() => {
-    // Um passo só — nunca history.back() aqui (no APK isso saltava várias sessões).
+    // Um passo só — performStudioBack consome o trap; replace evita hubs fantasma no APK.
     if (performStudioBack()) return;
     if (rel.startsWith("video/")) {
-      navigate("/app/video");
+      navigate("/app/video", { replace: true });
       return;
     }
-    navigate("/app/tools");
+    navigate("/app/tools", { replace: true });
   }, [performStudioBack, rel, navigate]);
 
   const stdLabel = t("header.credits") || t("header_credits") || "Créditos";

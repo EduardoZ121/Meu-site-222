@@ -84,7 +84,7 @@ export default function Artistic() {
   const openModal = (key) => setOpenKey(key);
   const closeModal = () => setOpenKey(null);
 
-  useStudioSessionBack(() => navigate("/app/tools"));
+  useStudioSessionBack("/app/tools");
 
   const includeNsfw = useMemo(() => canAccessNsfwArtisticStyles(user), [user]);
 

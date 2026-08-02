@@ -86,7 +86,7 @@ export default function GptHqStudio() {
   const openModal = (key) => setOpenKey(key);
   const closeModal = () => setOpenKey(null);
 
-  useStudioSessionBack(() => navigate("/app/tools"));
+  useStudioSessionBack("/app/tools");
 
   useEffect(() => {
     api.get("/public/gpt-hq-styles")

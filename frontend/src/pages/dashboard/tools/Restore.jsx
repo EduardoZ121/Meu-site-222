@@ -108,7 +108,7 @@ export default function Restore() {
 
   const cost = useMemo(() => restoreCostForLevel(costs, level), [costs, level]);
 
-  useStudioSessionBack(() => navigate("/app/tools"));
+  useStudioSessionBack("/app/tools");
 
   const { ready, hint } = useStudioGenerateGate({
     busy,

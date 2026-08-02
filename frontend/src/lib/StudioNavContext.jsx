@@ -14,12 +14,17 @@ const StudioNavContext = createContext(null);
  * Workspace back navigation.
  * - Seta do header: um passo via performStudioBack()
  * - Botão físico Voltar (APK/TWA/Android): intercepta popstate, um passo por toque
+ *
+ * Trap (`rpStudioBack`) + overlays (`rpOverlay`) partilham o canal popstate —
+ * o onPop distingue: se ainda há `rpStudioBack` no estado actual, foi só fechar
+ * overlay; senão consome a sessão (um nível).
  */
 export function StudioNavProvider({ children }) {
   const [sessionBackHandler, setSessionBackHandler] = useState(null);
   const handlerRef = useRef(null);
   const trapArmedRef = useRef(false);
   const ignoreNextPopRef = useRef(false);
+  const pendingExitRef = useRef(null);
 
   handlerRef.current = sessionBackHandler;
 
@@ -69,20 +74,63 @@ export function StudioNavProvider({ children }) {
     };
   }, [armTrap, disarmTrapQuietly]);
 
+  /**
+   * Um passo de sessão: consome o trap do histórico (se existir) e corre o handler.
+   * O handler deve preferir navigate(..., { replace: true }) para não deixar fantasmas.
+   */
   const performStudioBack = useCallback(() => {
     const handler = handlerRef.current;
-    if (typeof handler === "function") {
-      handler();
-      return true;
+    if (typeof handler !== "function") return false;
+
+    const runExit = () => {
+      pendingExitRef.current = null;
+      try {
+        handler();
+      } catch {
+        /* handler falhou — não rearmar */
+      }
+    };
+
+    try {
+      if (window.history.state?.rpStudioBack) {
+        ignoreNextPopRef.current = true;
+        trapArmedRef.current = false;
+        pendingExitRef.current = runExit;
+        window.history.back();
+        // Fallback se popstate não disparar (alguns WebViews)
+        window.setTimeout(() => {
+          if (pendingExitRef.current === runExit) {
+            ignoreNextPopRef.current = false;
+            runExit();
+          }
+        }, 120);
+        return true;
+      }
+    } catch {
+      /* cai no exit directo */
     }
-    return false;
-  }, []);
+
+    disarmTrapQuietly();
+    runExit();
+    return true;
+  }, [disarmTrapQuietly]);
 
   useEffect(() => {
     const onPop = () => {
       if (ignoreNextPopRef.current) {
         ignoreNextPopRef.current = false;
         trapArmedRef.current = false;
+        const pending = pendingExitRef.current;
+        pendingExitRef.current = null;
+        if (typeof pending === "function") {
+          pending();
+        }
+        return;
+      }
+
+      // Overlay fechado por cima do trap → ainda estamos no marcador da sessão.
+      if (window.history.state?.rpStudioBack) {
+        trapArmedRef.current = true;
         return;
       }
 
@@ -91,8 +139,13 @@ export function StudioNavProvider({ children }) {
 
       if (typeof handler !== "function") return;
 
-      handler();
+      try {
+        handler();
+      } catch {
+        /* ignora */
+      }
 
+      // Se a sessão continua montada (passo interno: wizard/posters), rearmar trap.
       requestAnimationFrame(() => {
         if (handlerRef.current) armTrap();
       });

@@ -162,7 +162,7 @@ export default function Wizard() {
       scrollStudioToTop();
       return;
     }
-    navigate("/app/tools");
+    navigate("/app/tools", { replace: true });
   }, [composed, stepIdx, navigate]);
 
   useStudioSessionBack(handleSessionBack);

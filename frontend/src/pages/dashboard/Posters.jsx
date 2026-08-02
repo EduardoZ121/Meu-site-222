@@ -417,7 +417,7 @@ export default function Posters() {
       applyInternalBack();
       return;
     }
-    navigate("/app/tools");
+    navigate("/app/tools", { replace: true });
   }, [picked, variantBase, applyInternalBack, navigate]);
 
   useStudioSessionBack(handleSessionBack);

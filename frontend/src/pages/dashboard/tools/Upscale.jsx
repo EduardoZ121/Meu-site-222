@@ -68,7 +68,7 @@ export default function Upscale() {
 
   const cost = costs.upscale;
 
-  useStudioSessionBack(() => navigate("/app/tools"));
+  useStudioSessionBack("/app/tools");
 
   const { ready, hint } = useStudioGenerateGate({
     busy,

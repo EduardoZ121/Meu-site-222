@@ -5,15 +5,23 @@ import { useStudioNav } from "./StudioNavContext";
 /**
  * Regista handler de voltar da sessão (limpa automaticamente no unmount).
  * Aceita função ou path string (ex.: "/app/tools").
- * Usa ref estável para o handler mudar (ex. passo do wizard) sem rearmar o histórico.
+ * Paths usam navigate(..., { replace: true }) para não empilhar hubs por cima
+ * do trap (no APK isso fazia o voltar saltar várias sessões).
+ *
+ * @param {string|Function|null|undefined} handlerOrPath
+ * @param {boolean} [enabled=true] — false = não regista (ex.: VideoFlow a redireccionar)
  */
-export function useStudioSessionBack(handlerOrPath) {
+export function useStudioSessionBack(handlerOrPath, enabled = true) {
   const navigate = useNavigate();
   const { registerSessionBack } = useStudioNav();
   const handlerRef = useRef(handlerOrPath);
   handlerRef.current = handlerOrPath;
 
   useEffect(() => {
+    if (!enabled || handlerOrPath == null) {
+      return registerSessionBack(null);
+    }
+
     return registerSessionBack(() => {
       const h = handlerRef.current;
       if (typeof h === "function") {
@@ -21,8 +29,8 @@ export function useStudioSessionBack(handlerOrPath) {
         return;
       }
       if (typeof h === "string" && h) {
-        navigate(h);
+        navigate(h, { replace: true });
       }
     });
-  }, [registerSessionBack, navigate]);
+  }, [registerSessionBack, navigate, enabled, handlerOrPath == null]);
 }

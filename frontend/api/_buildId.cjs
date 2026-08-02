@@ -1,2 +1,2 @@
 "use strict";
-module.exports = "rp-mobile-bottom-nav-v8";
+module.exports = "rp-studio-back-v9";

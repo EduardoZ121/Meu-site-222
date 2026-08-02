@@ -137,7 +137,7 @@ export default function BgRemove() {
 
   const cost = mode === "scene" || mode === "custom" ? costs.bgRemoveScene : costs.bgRemove;
 
-  useStudioSessionBack(() => navigate("/app/tools"));
+  useStudioSessionBack("/app/tools");
 
   const customBgOk = mode !== "custom" || customPrompt.trim().length >= 4;
 

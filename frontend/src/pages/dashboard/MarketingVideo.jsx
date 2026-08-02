@@ -85,7 +85,7 @@ export default function MarketingVideo() {
   const { user, refresh } = useAuth();
   const { region } = usePricing();
   useTitle(t("mktvid_title"));
-  useStudioSessionBack(() => navigate("/app/video"));
+  useStudioSessionBack("/app/video");
 
   const [mode, setMode] = useState("quick");
   const [files, setFiles] = useState([]);

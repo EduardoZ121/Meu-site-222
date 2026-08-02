@@ -4,8 +4,9 @@ import { useAuth } from "../../lib/auth";
 import { useI18n } from "../../lib/i18n";
 import { useNotifications } from "../../lib/NotificationContext";
 import { useProfileDrawer } from "../../lib/ProfileDrawerContext";
+import { isWorkspacePath } from "../../lib/dashboardRouteMode";
 
-function TabButton({ to, icon: Icon, label, active, badge, onClick, testId, avatarInitial }) {
+function TabButton({ to, icon: Icon, label, active, badge, onClick, testId, avatarInitial, replace }) {
   const inner = (
     <>
       <span className="rp-app-bottom-nav-icon-wrap">
@@ -41,6 +42,7 @@ function TabButton({ to, icon: Icon, label, active, badge, onClick, testId, avat
   return (
     <NavLink
       to={to}
+      replace={replace}
       className={({ isActive }) =>
         `rp-app-bottom-nav-btn ${isActive || active ? "rp-app-bottom-nav-btn--active" : ""}`
       }
@@ -63,6 +65,8 @@ export default function AppBottomNav() {
 
   const initial = (user.name || user.email || "?").slice(0, 2).toUpperCase();
   const onNotifications = pathname.startsWith("/app/notifications");
+  // Dentro de uma sessão (ex. vídeo), trocar de tab com replace evita traps fantasma no APK.
+  const leaveWorkspaceReplace = isWorkspacePath(pathname);
 
   return (
     <nav className="rp-app-bottom-nav md:hidden" aria-label={t("bottom_nav_label")} data-testid="app-bottom-nav">
@@ -70,6 +74,7 @@ export default function AppBottomNav() {
         to="/app/tools"
         icon={Home}
         label={t("bottom_nav_home")}
+        replace={leaveWorkspaceReplace}
         testId="bottom-nav-home"
       />
       <TabButton
@@ -78,12 +83,14 @@ export default function AppBottomNav() {
         label={t("bottom_nav_notifications")}
         badge={unreadCount}
         active={onNotifications}
+        replace={leaveWorkspaceReplace}
         testId="bottom-nav-notifications"
       />
       <TabButton
         to="/app/generate"
         icon={PlusSquare}
         label={t("bottom_nav_create")}
+        replace={leaveWorkspaceReplace}
         testId="bottom-nav-create"
       />
       <TabButton

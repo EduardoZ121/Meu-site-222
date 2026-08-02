@@ -63,7 +63,7 @@ export default function ClothesChanger() {
 
   const cost = costs.clothes;
 
-  useStudioSessionBack(() => navigate("/app/tools"));
+  useStudioSessionBack("/app/tools");
 
   const changeTypes = useMemo(
     () => [

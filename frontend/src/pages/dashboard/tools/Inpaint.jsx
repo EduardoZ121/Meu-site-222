@@ -47,7 +47,7 @@ export default function Inpaint() {
   const imgRef = useRef(null);
   const cost = costs.inpaint;
 
-  useStudioSessionBack(() => navigate("/app/tools"));
+  useStudioSessionBack("/app/tools");
 
   const { ready, hint } = useStudioGenerateGate({
     busy,

@@ -100,7 +100,7 @@ export default function Colorize() {
 
   const cost = costs.colorize;
 
-  useStudioSessionBack(() => navigate("/app/tools"));
+  useStudioSessionBack("/app/tools");
 
   const { ready, hint } = useStudioGenerateGate({
     busy,

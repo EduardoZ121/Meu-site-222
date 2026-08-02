@@ -41,7 +41,7 @@ export default function Referrals() {
   const shareTelegram = () => window.open(`https://t.me/share/url?url=${encodeURIComponent(link)}&text=${encodeURIComponent(shareMsg)}`, "_blank");
   const shareNative = async () => {
     if (navigator.share) {
-      try { await navigator.share({ title: "Remake Pixel", text: shareMsg, url: link }); } catch { /* user cancel */ }
+      try { await navigator.share({ title: "Remake", text: shareMsg, url: link }); } catch { /* user cancel */ }
     } else copy(shareMsg, "link");
   };
 

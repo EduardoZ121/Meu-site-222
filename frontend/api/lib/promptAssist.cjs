@@ -302,7 +302,7 @@ function buildImproveSystemPrompt(context = {}) {
 
   if (tool === "artistic") {
     system +=
-      " Context: Remake Pixel Artistic Studio. The chosen visual style preset is applied separately; "
+      " Context: Remake Artistic Studio. The chosen visual style preset is applied separately; "
       + "your job is to sharpen the USER's intent (subject, outfit, action, environment).";
     if (styleLabel) system += ` Active style name: ${styleLabel}.`;
     if (styleSuffix) {

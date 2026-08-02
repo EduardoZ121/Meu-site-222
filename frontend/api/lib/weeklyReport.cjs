@@ -41,7 +41,7 @@ async function runWeeklyReport() {
   }
   const stats = await buildWeeklyStats();
   const label = periodLabel();
-  const subject = `Remake Pixel — resumo semanal (${new Date().toLocaleDateString("pt-PT")})`;
+  const subject = `Remake — resumo semanal (${new Date().toLocaleDateString("pt-PT")})`;
   const html = formatReportHtml(stats, label);
   const text = formatReportText(stats, label);
   const sent = await sendResendEmail({ to: WEEKLY_TO, subject, html, text });

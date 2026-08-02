@@ -433,7 +433,7 @@ export default function Profile() {
       </div>
 
       <footer className="rp-prof-foot">
-        <span>RemakePix</span>
+        <span>Remake</span>
         <span className="rp-prof-foot__dot" aria-hidden>
           ·
         </span>

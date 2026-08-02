@@ -1,2 +1,2 @@
 "use strict";
-module.exports = "rp-studio-back-v9";
+module.exports = "rp-brand-remake-v11";

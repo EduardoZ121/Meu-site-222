@@ -49,7 +49,7 @@ export default function Footer() {
           </a>
         </div>
 
-        <p className="text-center text-[#5A5A5E] text-[10px] font-mono">&copy; 2026 Remake Pixel. {t("footer_rights")}</p>
+        <p className="text-center text-[#5A5A5E] text-[10px] font-mono">&copy; 2026 Remake. {t("footer_rights")}</p>
       </div>
     </footer>
   );

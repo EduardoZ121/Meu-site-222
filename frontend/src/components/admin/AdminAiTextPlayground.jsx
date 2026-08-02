@@ -104,7 +104,7 @@ export default function AdminAiTextPlayground() {
             value={system}
             onChange={(e) => setSystem(e.target.value)}
             rows={2}
-            placeholder="Ex.: És um assistente simpático da RemakePixel que responde em português."
+            placeholder="Ex.: És um assistente simpático da Remake que responde em português."
             className="field-input w-full !py-2 text-sm"
             data-testid="ai-pg-system"
           />

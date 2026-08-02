@@ -109,7 +109,7 @@ async function runOneModel(model, { messages, temperature, maxTokens }) {
       maxTokens,
       extraHeaders: {
         "HTTP-Referer": "https://remakepix.com",
-        "X-Title": "RemakePixel AI Playground",
+        "X-Title": "Remake AI Playground",
       },
     });
     return { model, provider, ok: true, reply: out.reply, usage: out.usage, latency_ms: Date.now() - started };

@@ -17,7 +17,7 @@ function videoReadyCopy(lang) {
   const l = String(lang || "pt").slice(0, 2).toLowerCase();
   if (l === "en") {
     return {
-      subject: "Your video is ready — Remake Pixel",
+      subject: "Your video is ready — Remake",
       headline: "Your edited video is ready",
       body: "Open the link below to watch or download your clip.",
       watch: "Watch video",
@@ -25,7 +25,7 @@ function videoReadyCopy(lang) {
     };
   }
   return {
-    subject: "O teu vídeo está pronto — Remake Pixel",
+    subject: "O teu vídeo está pronto — Remake",
     headline: "O teu vídeo editado está pronto",
     body: "Abre o link abaixo para ver ou descarregar o clip.",
     watch: "Ver vídeo",
@@ -52,7 +52,7 @@ function videoFailedCopy(lang) {
   const l = String(lang || "pt").slice(0, 2).toLowerCase();
   if (l === "en") {
     return {
-      subject: "Your video could not be generated — Remake Pixel",
+      subject: "Your video could not be generated — Remake",
       headline: "Video generation failed",
       intro: "We could not finish your video edit. Your credits were refunded automatically.",
       reasonLabel: "What happened",
@@ -61,7 +61,7 @@ function videoFailedCopy(lang) {
     };
   }
   return {
-    subject: "Não foi possível gerar o teu vídeo — Remake Pixel",
+    subject: "Não foi possível gerar o teu vídeo — Remake",
     headline: "A geração do vídeo falhou",
     intro: "Não conseguimos concluir a edição do teu vídeo. Os créditos foram devolvidos automaticamente.",
     reasonLabel: "O que aconteceu",
@@ -148,10 +148,10 @@ function creationReadyCopy(lang, isVideo, meta = {}) {
 
   const subjectParts = [batchLine, nameLine, typeLabel].filter(Boolean);
   if (creationId) subjectParts.push(`#${creationId.slice(-6)}`);
-  const subjectSuffix = en ? "Remake Pixel" : "Remake Pixel";
+  const subjectSuffix = en ? "Remake" : "Remake";
   const subject = subjectParts.length
     ? `${subjectParts.join(" · ")} — ${subjectSuffix}`
-    : (en ? "Your creation is ready — Remake Pixel" : "A tua criação está pronta — Remake Pixel");
+    : (en ? "Your creation is ready — Remake" : "A tua criação está pronta — Remake");
 
   if (en) {
     return isVideo

@@ -559,7 +559,7 @@ export default function Gallery({ favoritesOnly = false }) {
       const objectUrl = URL.createObjectURL(data);
       const a = document.createElement("a");
       a.href = objectUrl;
-      a.download = `remake-pixel-${item.id.slice(0, 8)}.${ext}`;
+      a.download = `remake-${item.id.slice(0, 8)}.${ext}`;
       document.body.appendChild(a);
       a.click();
       a.remove();

@@ -1,5 +1,5 @@
 const WEEKLY_TO = String(process.env.WEEKLY_REPORT_EMAIL || "eduardozola121998@gmail.com").trim();
-const FROM = String(process.env.REPORT_FROM_EMAIL || "Remake Pixel <noreply@remakepix.com>").trim();
+const FROM = String(process.env.REPORT_FROM_EMAIL || "Remake <noreply@remakepix.com>").trim();
 
 async function sendResendEmail({ to, subject, html, text, idempotencyKey }) {
   const key = process.env.RESEND_API_KEY;
@@ -81,7 +81,7 @@ function formatReportHtml(stats, periodLabel) {
   return [
     "<!DOCTYPE html><html><body style=\"font-family:system-ui,sans-serif;background:#f8f8fc;padding:24px\">",
     "<div style=\"max-width:560px;margin:0 auto;background:#fff;border-radius:12px;padding:24px;border:1px solid #e8e8f0\">",
-    `<h1 style="margin:0 0 4px;font-size:22px">Remake Pixel — ${esc(periodLabel)}</h1>`,
+    `<h1 style="margin:0 0 4px;font-size:22px">Remake — ${esc(periodLabel)}</h1>`,
     "<p style=\"margin:0 0 20px;color:#888;font-size:13px\">Relatório semanal automático (sábado)</p>",
     `<table style="width:100%;border-collapse:collapse">${tr}</table>`,
     balanceAlert,
@@ -93,7 +93,7 @@ function formatReportHtml(stats, periodLabel) {
 
 function formatReportText(stats, periodLabel) {
   return [
-    `Remake Pixel — ${periodLabel}`,
+    `Remake — ${periodLabel}`,
     "",
     `Utilizadores: ${stats.users}`,
     `Registos (7d): ${stats.signups_week}`,

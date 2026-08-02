@@ -491,7 +491,7 @@ function creationFromPending(pending, urls) {
   return {
     id: pending.id,
     type: resolved,
-    prompt: pending.prompt || "Remake Pixel generation",
+    prompt: pending.prompt || "Remake generation",
     model_used: pending.model_used,
     aspect_ratio: pending.aspect_ratio,
     result_urls: urls,

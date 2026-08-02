@@ -7,7 +7,7 @@ export function isProductionHost(hostname = "") {
 }
 
 /** Site oficial Vercel — API sempre no mesmo domínio, nunca Emergent. */
-export function isRemakePixSiteHost(hostname = "") {
+export function isRemakeSiteHost(hostname = "") {
   const h = String(hostname || "").toLowerCase();
   if (isProductionHost(h)) return true;
   return h.endsWith(".vercel.app") && h.includes("remakepix");

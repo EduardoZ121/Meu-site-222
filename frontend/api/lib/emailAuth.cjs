@@ -230,10 +230,10 @@ async function loginEmailUser(payload, req) {
 async function sendPasswordResetEmail({ to, resetUrl }) {
   const key = process.env.RESEND_API_KEY;
   if (!key) return { ok: false, skipped: true };
-  const from = String(process.env.REPORT_FROM_EMAIL || "Remake Pixel <noreply@remakepix.com>").trim();
-  const subject = "Recuperar palavra-passe — Remake Pixel";
+  const from = String(process.env.REPORT_FROM_EMAIL || "Remake <noreply@remakepix.com>").trim();
+  const subject = "Recuperar palavra-passe — Remake";
   const html = [
-    "<p>Recebeste este email porque pediste recuperação de palavra-passe no Remake Pixel.</p>",
+    "<p>Recebeste este email porque pediste recuperação de palavra-passe no Remake.</p>",
     `<p><a href="${resetUrl}">Definir nova palavra-passe</a></p>`,
     "<p>O link expira em 1 hora. Se não pediste isto, ignora este email.</p>",
   ].join("");

@@ -81,7 +81,7 @@ export default function PwaLoginScreen() {
           </div>
         </div>
 
-        <p className="pwa-login__brand">Remake Pixel</p>
+        <p className="pwa-login__brand">Remake</p>
         <p className="pwa-login__tagline">{t("pwa_login_tagline")}</p>
 
         <div className="pwa-login__actions">

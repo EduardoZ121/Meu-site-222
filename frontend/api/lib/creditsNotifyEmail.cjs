@@ -6,12 +6,12 @@ function creditsGrantedCopy(lang, amount, balance) {
   const l = String(lang || "pt").slice(0, 2).toLowerCase();
   if (l === "en") {
     return {
-      subject: `🎁 +${amount} credits added — Remake Pixel`,
+      subject: `🎁 +${amount} credits added — Remake`,
       preheader: `Your new balance is ${balance} credits. Open the studio and create.`,
       badge: "CREDITS ADDED",
       headline: "Fresh credits landed in your account",
       subheadline: "You're ready to create — images, posters, and video.",
-      body: `We added ${amount} credits to your Remake Pixel wallet.`,
+      body: `We added ${amount} credits to your Remake wallet.`,
       balanceLabel: "New balance",
       balanceSub: "Use anytime · no expiry",
       cta: "Open studio",
@@ -24,12 +24,12 @@ function creditsGrantedCopy(lang, amount, balance) {
     };
   }
   return {
-    subject: `🎁 +${amount} créditos — Remake Pixel`,
+    subject: `🎁 +${amount} créditos — Remake`,
     preheader: `O teu saldo actual é ${balance} créditos. Abre o estúdio e cria.`,
     badge: "CRÉDITOS ADICIONADOS",
     headline: "Créditos frescos na tua conta",
     subheadline: "Estás pronto para criar — imagens, pósteres e vídeo.",
-    body: `Adicionámos ${amount} créditos à tua carteira Remake Pixel.`,
+    body: `Adicionámos ${amount} créditos à tua carteira Remake.`,
     balanceLabel: "Saldo actual",
     balanceSub: "Usa quando quiseres · sem expiração",
     cta: "Abrir estúdio",
@@ -71,8 +71,8 @@ async function sendCreditsGrantedEmail({ to, lang, amount, balance, reason }) {
     ctaPrimary: { label: copy.cta, url: "/app/tools" },
     ctaSecondary: { label: copy.billing, url: "/app/billing" },
     footerLines: [
-      "Remake Pixel · remakepix.com",
-      "Créditos oferecidos pela equipa Remake Pixel.",
+      "Remake · remakepix.com",
+      "Créditos oferecidos pela equipa Remake.",
     ],
   });
 

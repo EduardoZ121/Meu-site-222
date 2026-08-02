@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 
 /* ──────────────────────────────────────────────────────────────────────
-   Remake Pixel · Triple-track scramble marquee
+   Remake · Triple-track scramble marquee
    ──────────────────────────────────────────────────────────────────────
    Why this is different than a plain CSS scroll:
 

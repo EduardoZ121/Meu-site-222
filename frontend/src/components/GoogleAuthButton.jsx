@@ -28,6 +28,12 @@ function loadGoogleScript() {
   });
 }
 
+function buttonWidth(el) {
+  const raw = Math.floor(el?.getBoundingClientRect?.().width || el?.offsetWidth || 0);
+  // Nunca forçar 320px — no telemóvel isso rebenta o ecrã
+  return Math.max(200, Math.min(raw || 280, 400));
+}
+
 export default function GoogleAuthButton({ onCredential, label = "Continuar com Google" }) {
   const buttonRef = useRef(null);
   const onCredentialRef = useRef(onCredential);
@@ -40,6 +46,20 @@ export default function GoogleAuthButton({ onCredential, label = "Continuar com 
   useEffect(() => {
     let cancelled = false;
     if (!GOOGLE_CLIENT_ID) return undefined;
+
+    const render = (google) => {
+      if (cancelled || !buttonRef.current || !google?.accounts?.id) return;
+      buttonRef.current.innerHTML = "";
+      google.accounts.id.renderButton(buttonRef.current, {
+        theme: "outline",
+        size: "large",
+        type: "standard",
+        shape: "rectangular",
+        text: "continue_with",
+        width: buttonWidth(buttonRef.current),
+      });
+      setReady(true);
+    };
 
     loadGoogleScript()
       .then((google) => {
@@ -70,15 +90,10 @@ export default function GoogleAuthButton({ onCredential, label = "Continuar com 
           gsiInitialized = true;
         }
 
-        google.accounts.id.renderButton(buttonRef.current, {
-          theme: "outline",
-          size: "large",
-          type: "standard",
-          shape: "rectangular",
-          text: "continue_with",
-          width: Math.max(buttonRef.current.offsetWidth || 0, 320),
-        });
-        setReady(true);
+        render(google);
+        const onResize = () => render(google);
+        window.addEventListener("resize", onResize);
+        return () => window.removeEventListener("resize", onResize);
       })
       .catch(() => toast.error("Falhou a carregar Google Login."));
 
@@ -98,7 +113,7 @@ export default function GoogleAuthButton({ onCredential, label = "Continuar com 
   }
 
   return (
-    <div className="w-full">
+    <div className="w-full max-w-full overflow-hidden">
       {!ready && (
         <button
           type="button"
@@ -110,7 +125,7 @@ export default function GoogleAuthButton({ onCredential, label = "Continuar com 
       )}
       <div
         ref={buttonRef}
-        className={`min-h-[44px] w-full overflow-hidden rounded-lg bg-white ${ready ? "" : "hidden"}`}
+        className={`min-h-[44px] w-full max-w-full overflow-hidden rounded-lg bg-white ${ready ? "" : "hidden"}`}
         aria-label={label}
         data-testid="google-auth-button"
       />

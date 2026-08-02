@@ -218,7 +218,7 @@ export default function VideoExtend({ category }) {
           <StudioAccordionSection title={t("vid_extend_prompt_label")} defaultOpen testId="video-extend-acc-prompt">
             <textarea
               value={prompt}
-              onChange={(e) => setPrompt(e.target.value.slice(0, 800))}
+              onChange={(e) => setPrompt(e.target.value)}
               rows={3}
               placeholder={t("vid_extend_prompt_placeholder")}
               className="rp-editor-textarea rp-editor-textarea--compact min-h-[88px]"

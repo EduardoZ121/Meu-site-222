@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
+import { Layers, Check } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { uploadPost } from "../../../lib/api";
@@ -7,6 +8,8 @@ import { useAuth } from "../../../lib/auth";
 import { usePricing } from "../../../lib/PricingContext";
 import ImageUploadZone from "../../../components/ImageUploadZone";
 import GenerationBubble from "../../../components/studio/GenerationBubble";
+import SettingCard from "../../../components/studio/SettingCard";
+import SettingModal from "../../../components/studio/SettingModal";
 import StudioCompactShell from "../../../components/studio/StudioCompactShell";
 import StudioInlineHeader from "../../../components/studio/StudioInlineHeader";
 import StudioGenerateBar from "../../../components/StudioGenerateBar";
@@ -52,12 +55,25 @@ export default function ClothesChanger() {
 
   const [photo, setPhoto] = useState(null);
   const [garment, setGarment] = useState(null);
+  const [changeType, setChangeType] = useState("full");
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState(null);
+  const [typeOpen, setTypeOpen] = useState(false);
 
   const cost = costs.clothes;
 
   useStudioSessionBack(() => navigate("/app/tools"));
+
+  const changeTypes = useMemo(
+    () => [
+      { id: "full", label: t("clothes_change_full"), hint: t("clothes_change_full_hint") },
+      { id: "piece", label: t("clothes_change_piece"), hint: t("clothes_change_piece_hint") },
+      { id: "color", label: t("clothes_change_color"), hint: t("clothes_change_color_hint") },
+    ],
+    [t],
+  );
+
+  const typeLabel = changeTypes.find((c) => c.id === changeType)?.label || changeType;
 
   const { ready, hint } = useStudioGenerateGate({
     busy,
@@ -89,7 +105,7 @@ export default function ClothesChanger() {
       const fd = new FormData();
       fd.append("photo", photo);
       fd.append("garment", garment);
-      fd.append("change_type", "full");
+      fd.append("change_type", changeType);
 
       const { data } = await uploadPost("/tools/clothes", fd, { timeout: 240000 });
       const creation = normalizeCreation(data?.creation);
@@ -142,9 +158,17 @@ export default function ClothesChanger() {
               testId="clothes-garment"
             />
           </div>
-          <p className="text-[#6B7280] text-[11px] mt-3 leading-relaxed">
-            {t("clothes_garment_helper")}
-          </p>
+        </div>
+
+        <div className="mv-setting-grid">
+          <SettingCard
+            icon={Layers}
+            label={t("clothes_section_type")}
+            value={typeLabel}
+            onOpen={() => setTypeOpen(true)}
+            testId="clothes-card-type"
+            helpKey="help_sec_clothes_garment"
+          />
         </div>
 
         <div className="mv-setting-card mv-setting-card--static">
@@ -167,6 +191,41 @@ export default function ClothesChanger() {
           </div>
         </div>
       </div>
+
+      <SettingModal
+        open={typeOpen}
+        title={t("clothes_section_type")}
+        onClose={() => setTypeOpen(false)}
+      >
+        <div className="grid grid-cols-1 gap-2" data-testid="change-types">
+          {changeTypes.map((ct) => (
+            <button
+              type="button"
+              key={ct.id}
+              onClick={() => setChangeType(ct.id)}
+              className={`text-left p-4 border-2 rounded-xl transition-all ${
+                changeType === ct.id
+                  ? "border-[#7C3AED] bg-[#7C3AED]/10"
+                  : "border-[#2E2E30] hover:border-[#7C3AED]/40 bg-[#13131A]"
+              }`}
+              data-testid={`change-type-${ct.id}`}
+            >
+              <p className={`text-[14px] font-medium font-display mb-1 ${changeType === ct.id ? "text-[#C4B5FD]" : "text-[#F4F1EA]"}`}>
+                {ct.label}
+              </p>
+              <p className="text-[#8A8A8E] text-[11px]">{ct.hint}</p>
+            </button>
+          ))}
+        </div>
+        <button
+          type="button"
+          onClick={() => setTypeOpen(false)}
+          className="rp-modal-confirm mt-3"
+          data-testid="clothes-type-confirm"
+        >
+          <Check className="w-4 h-4" /> {t("confirm") || "Confirmar"}
+        </button>
+      </SettingModal>
 
       <GenerationBubble busy={busy} result={result} onChange={setResult} />
     </StudioCompactShell>

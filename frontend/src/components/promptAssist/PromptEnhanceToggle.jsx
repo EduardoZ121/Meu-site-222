@@ -32,7 +32,7 @@ export default function PromptEnhanceToggle({
             }
             onChange(e.target.checked);
           }}
-          className="rp-gen-refine__check accent-[#7C3AED]"
+          className="rp-gen-refine__check"
         />
         <span className="rp-gen-refine__ico" aria-hidden>
           <Sparkles className="w-3.5 h-3.5" strokeWidth={1.75} />
@@ -55,7 +55,9 @@ export default function PromptEnhanceToggle({
           ) : null}
         </span>
       </label>
-      {helpKey ? <StudioHelpTip helpKey={helpKey} testId={`${testId}-help`} /> : null}
+      {helpKey ? (
+        <StudioHelpTip helpKey={helpKey} testId={`${testId}-help`} className="rp-gen-refine__help" />
+      ) : null}
     </div>
   );
 }

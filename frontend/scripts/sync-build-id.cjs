@@ -10,7 +10,7 @@ const root = path.join(__dirname, "..");
 const id =
   process.env.VERCEL_GIT_COMMIT_SHA?.slice(0, 12) ||
   process.env.REACT_APP_BUILD_ID ||
-  "rp-gen-css-fix-v5";
+  "rp-ui-corners-fix-v6";
 
 fs.writeFileSync(
   path.join(root, "api", "_buildId.cjs"),

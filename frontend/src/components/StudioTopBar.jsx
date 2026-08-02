@@ -41,7 +41,7 @@ export default function StudioTopBar({ titleKey }) {
 
   return (
     <header
-      className="rp-studio-top-bar shrink-0 z-50 grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-1 sm:gap-3 px-2 sm:px-4 md:px-6 h-12 sm:h-14 backdrop-blur-xl w-full max-w-[100vw]"
+      className="rp-studio-top-bar shrink-0 z-50 grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-1 sm:gap-3 px-3 sm:px-4 md:px-6 h-12 sm:h-14 backdrop-blur-xl w-full max-w-[100vw]"
       data-testid="studio-top-bar"
     >
       <div className="justify-self-start flex items-center gap-1 shrink-0">

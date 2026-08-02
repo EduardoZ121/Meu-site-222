@@ -1,2 +1,2 @@
 "use strict";
-module.exports = "rp-gen-css-fix-v5";
+module.exports = "rp-ui-corners-fix-v6";

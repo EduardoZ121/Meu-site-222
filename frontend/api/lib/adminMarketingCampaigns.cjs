@@ -14,7 +14,7 @@ const DEFAULT_CAMPAIGNS = [
   {
     id: "video_ai_power",
     title: "Vídeo IA — Potência cinematográfica",
-    subject: "🔥 Vídeo IA no Remake Pixel — transforma clips em anúncios",
+    subject: "🔥 Vídeo IA no Remake — transforma clips em anúncios",
     preheader: "Editor de vídeo, marketing IA e motion flyers — abre o estúdio agora.",
     heroImage: "/marketing-email/campaign-video-ai.png",
     badge: "NOVIDADE",
@@ -258,8 +258,8 @@ function buildCampaignHtml(campaign) {
     ctaPrimary: campaign.ctaPrimary,
     ctaSecondary: campaign.ctaSecondary || null,
     footerLines: [
-      "Remake Pixel · remakepix.com",
-      "Recebeste este email porque tens conta no Remake Pixel.",
+      "Remake · remakepix.com",
+      "Recebeste este email porque tens conta no Remake.",
       "Para deixar de receber promoções, responde a este email.",
     ],
   });
@@ -420,7 +420,7 @@ function emptyCampaignTemplate() {
     paragraphs: ["Primeiro parágrafo do email."],
     bullets: [],
     highlight: null,
-    ctaPrimary: { label: "Abrir Remake Pixel", url: "/app/tools" },
+    ctaPrimary: { label: "Abrir Remake", url: "/app/tools" },
     ctaSecondary: null,
   };
 }

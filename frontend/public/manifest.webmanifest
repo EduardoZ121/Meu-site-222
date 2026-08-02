@@ -1,7 +1,7 @@
 {
-  "name": "RemakePix",
-  "short_name": "RemakePix",
-  "description": "Estúdio AI de imagem e vídeo — RemakePix.",
+  "name": "Remake",
+  "short_name": "Remake",
+  "description": "Estúdio AI de imagem e vídeo — Remake.",
   "id": "/",
   "start_url": "/login?source=android_app",
   "scope": "/",

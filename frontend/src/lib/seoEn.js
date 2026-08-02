@@ -3,58 +3,58 @@
  * Primary indexing language: en (see index.html + siteMeta).
  */
 
-export const SITE_NAME = "Remake Pixel";
+export const SITE_NAME = "Remake";
 export const SITE_ORIGIN = "https://remakepix.com";
 
 export const SEO_HOME = {
-  title: "Remake Pixel — AI Image & Video Studio",
+  title: "Remake — AI Image & Video Studio",
   documentTitle: "AI Image & Video Studio",
   description:
     "Create and edit images with AI: 96+ styles, professional posters, video generation, background removal, upscale, and Pro retouching. Pay-as-you-go credits — no subscription required.",
   keywords:
-    "AI image generator, AI photo editor, remove background, AI video, poster maker, image upscale, photo restore, AI art studio, Remake Pixel",
+    "AI image generator, AI photo editor, remove background, AI video, poster maker, image upscale, photo restore, AI art studio, Remake",
   path: "/",
 };
 
 export const SEO_DISCOVER = {
-  title: "How Remake Pixel Works — AI Creative Studio",
+  title: "How Remake Works — AI Creative Studio",
   documentTitle: "How It Works",
   description:
-    "See how Remake Pixel works: generate images from text, apply artistic styles, edit photos, design posters, create AI video, and use pro tools — all with simple credits.",
+    "See how Remake works: generate images from text, apply artistic styles, edit photos, design posters, create AI video, and use pro tools — all with simple credits.",
   keywords:
-    "how AI image generator works, Remake Pixel features, AI studio tutorial, AI poster tool, AI video generator",
+    "how AI image generator works, Remake features, AI studio tutorial, AI poster tool, AI video generator",
   path: "/discover",
 };
 
 export const SEO_EXPLORE = {
-  title: "Explore AI Creations — Remake Pixel Gallery",
+  title: "Explore AI Creations — Remake Gallery",
   documentTitle: "Explore Gallery",
   description:
-    "Browse public AI-generated images from the Remake Pixel community. Inspiration for portraits, posters, styles, and creative projects.",
+    "Browse public AI-generated images from the Remake community. Inspiration for portraits, posters, styles, and creative projects.",
   path: "/explore",
 };
 
 export const SEO_LOGIN = {
-  title: "Log in — Remake Pixel",
+  title: "Log in — Remake",
   documentTitle: "Log in",
-  description: "Sign in to your Remake Pixel studio. Generate and edit images with AI using credits.",
+  description: "Sign in to your Remake studio. Generate and edit images with AI using credits.",
   path: "/login",
   noindex: true,
 };
 
 export const SEO_REGISTER = {
-  title: "Create account — Remake Pixel",
+  title: "Create account — Remake",
   documentTitle: "Create account",
   description:
-    "Create your Remake Pixel account. AI image generation, posters, video, and editing tools in one studio — buy credits when you are ready.",
+    "Create your Remake account. AI image generation, posters, video, and editing tools in one studio — buy credits when you are ready.",
   path: "/register",
 };
 
 /** FAQ copy for FAQPage schema (English). */
 export const SEO_FAQ = [
   {
-    q: "What is Remake Pixel?",
-    a: "Remake Pixel is an AI image and video studio that combines generation, editing, artistic styles, professional posters, video, and utility tools in one credit-based account.",
+    q: "What is Remake?",
+    a: "Remake is an AI image and video studio that combines generation, editing, artistic styles, professional posters, video, and utility tools in one credit-based account.",
   },
   {
     q: "How do credits work?",

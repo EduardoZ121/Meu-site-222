@@ -25,11 +25,11 @@ export function buildGenerationWhatsAppUrl(creation, { lang = "pt", siteOrigin }
   const type = creation?.type || "image";
   const spent = creation?.credits_spent;
 
-  const pt = `✅ Remake Pixel — a tua ${type === "video" ? "geração de vídeo" : "imagem"} está pronta!${
+  const pt = `✅ Remake — a tua ${type === "video" ? "geração de vídeo" : "imagem"} está pronta!${
     spent ? ` (${spent} créditos)` : ""
   }${url ? `\n\nVer resultado: ${url}` : `\n\nAbre a galeria: ${origin}/app/gallery`}`;
 
-  const en = `✅ Remake Pixel — your ${type === "video" ? "video" : "image"} is ready!${
+  const en = `✅ Remake — your ${type === "video" ? "video" : "image"} is ready!${
     spent ? ` (${spent} credits)` : ""
   }${url ? `\n\nView result: ${url}` : `\n\nOpen gallery: ${origin}/app/gallery`}`;
 

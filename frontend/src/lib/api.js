@@ -11,14 +11,14 @@ import { isBrowserOnlineFlag } from "./uploadReachability";
 import { normalizeCreation } from "./creationUrls";
 import { warmGalleryAfterSuccess, writeGalleryCache, mergeCreationIntoList, prefetchGalleryHistory } from "./galleryCache";
 import { notifyCreditsUpdate, notifyGenerationComplete, notifyGenerationFailed } from "./notifyUser";
-import { isProductionHost, isRemakePixSiteHost } from "./canonicalOrigin";
+import { isProductionHost, isRemakeSiteHost } from "./canonicalOrigin";
 
 /** Evita mixed content: página em https + backend em http → o browser bloqueia e parece "Network Error". */
 function resolveBaseUrl() {
   if (typeof window !== "undefined") {
     const host = window.location.hostname || "";
     // remakepix.com + URLs Vercel do projeto → API local (/api), nunca Emergent.
-    if (isRemakePixSiteHost(host)) return "";
+    if (isRemakeSiteHost(host)) return "";
   }
 
   const raw = String(process.env.REACT_APP_BACKEND_URL || "").trim().replace(/\/$/, "");

@@ -24,7 +24,7 @@ export default function Founder() {
             transition={{ duration: 0.8, ease: EASE }}
           >
             <div className="aspect-[3/4] rounded-sm overflow-hidden max-w-[320px] md:max-w-[380px] border border-[#2E2E30]">
-              <img src="/images/founder.jpg" alt="Remake Pixel studio" className="w-full h-full object-cover" loading="lazy" />
+              <img src="/images/founder.jpg" alt="Remake studio" className="w-full h-full object-cover" loading="lazy" />
             </div>
             <div className="flex flex-wrap gap-2 mt-4 md:mt-6">
               {["IA aplicada", "Design editorial", "Conteúdo social", "Fluxos por créditos"].map((b) => (
@@ -40,9 +40,9 @@ export default function Founder() {
           >
             <p className="eyebrow mb-3 md:mb-4">Visão</p>
             <h2 className="heading-lg mb-1">Criado para transformar ideias em ativos visuais.</h2>
-            <p className="text-[#5A5A5E] text-[10px] font-mono uppercase tracking-[0.15em] mb-6 md:mb-8">Remake Pixel · Estúdio criativo com IA</p>
+            <p className="text-[#5A5A5E] text-[10px] font-mono uppercase tracking-[0.15em] mb-6 md:mb-8">Remake · Estúdio criativo com IA</p>
             <div className="space-y-3 md:space-y-4 mb-8 md:mb-10">
-              <p className="body-text">O Remake Pixel existe para reduzir a distância entre uma boa ideia e uma imagem com acabamento profissional.</p>
+              <p className="body-text">O Remake existe para reduzir a distância entre uma boa ideia e uma imagem com acabamento profissional.</p>
               <p className="body-text">Em vez de dezenas de apps soltas, junta geração, edição, estilos, pôsteres, vídeo e ferramentas rápidas num fluxo simples, visual e pronto para publicação.</p>
             </div>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">

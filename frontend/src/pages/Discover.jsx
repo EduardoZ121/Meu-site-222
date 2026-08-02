@@ -3,7 +3,7 @@ import Navbar from "../components/Navbar";
 import Footer from "../sections/Footer";
 import DiscoverIntro from "../components/landing/DiscoverIntro";
 import ShowcasePanel from "../components/landing/ShowcasePanel";
-import InsideRemakePixel from "../sections/InsideRemakePixel";
+import InsideRemake from "../sections/InsideRemake";
 import AvailableNow from "../sections/AvailableNow";
 import Pricing from "../sections/Pricing";
 import Reviews from "../sections/Reviews";
@@ -47,7 +47,7 @@ export default function Discover() {
         ))}
       </section>
 
-      <InsideRemakePixel />
+      <InsideRemake />
       <AvailableNow />
       <Pricing />
       <Reviews />

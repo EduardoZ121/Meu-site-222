@@ -10,7 +10,7 @@ import { formatHttpError } from "./uploadErrors";
 
 import { isBrowserOnlineFlag } from "./uploadReachability";
 
-import { isRemakePixSiteHost } from "./canonicalOrigin";
+import { isRemakeSiteHost } from "./canonicalOrigin";
 
 import { resolveVideoContentType, withNormalizedVideoType } from "./videoMedia";
 
@@ -20,7 +20,7 @@ import { VIDEO_VERCEL_SAFE_BYTES } from "./uploadConstants";
 
 function joinApiPath(path) {
 
-  if (typeof window !== "undefined" && isRemakePixSiteHost(window.location.hostname)) {
+  if (typeof window !== "undefined" && isRemakeSiteHost(window.location.hostname)) {
 
     const p = path.startsWith("/") ? path : `/${path}`;
 

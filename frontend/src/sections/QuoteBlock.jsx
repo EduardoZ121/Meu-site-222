@@ -3,7 +3,7 @@ import { useEffect, useRef } from "react";
 const lines = [
   "Carrega a tua foto.",
   "Define o mood.",
-  "Remake Pixel transforma um frame",
+  "Remake transforma um frame",
   "em campanhas premium,",
   "pôsteres, vídeos e visuais IA",
   "prontos para publicar.",

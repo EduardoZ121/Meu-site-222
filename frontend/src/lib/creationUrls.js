@@ -99,7 +99,7 @@ export function authMediaPath(creationId) {
   return `/generations/${encodeURIComponent(id)}/media`;
 }
 
-export async function downloadCreationFile(url, filename = "remake-pixel.jpg") {
+export async function downloadCreationFile(url, filename = "remake.jpg") {
   if (!url) throw new Error("Sem ficheiro para descarregar.");
   const tryUrls = [url, proxiedMediaUrl(url)].filter((u, i, a) => a.indexOf(u) === i);
   let lastErr;

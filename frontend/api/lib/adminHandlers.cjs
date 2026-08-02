@@ -234,7 +234,7 @@ async function adminAdjustCredits(userId, amount, reason) {
         lang: before.lang || "pt",
         amount: numericAmount,
         balance,
-        reason: reason || "Créditos oferecidos pela equipa Remake Pixel",
+        reason: reason || "Créditos oferecidos pela equipa Remake",
       });
       emailSent = Boolean(mailed?.ok);
     } catch (err) {

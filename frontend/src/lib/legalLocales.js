@@ -17,7 +17,7 @@ const en = {
   legal_cookies_title: "Cookie policy",
   legal_updated: "Last updated: May 2026",
   legal_terms_1:
-    "Remake Pixel is an AI image and video studio. You must be 18+ (or the legal age in your country) to use paid features.",
+    "Remake is an AI image and video studio. You must be 18+ (or the legal age in your country) to use paid features.",
   legal_terms_2:
     "Credits are digital. Paid packages are generally non-refundable in cash after purchase, except where the law requires otherwise.",
   legal_terms_3:
@@ -66,7 +66,7 @@ const pt = {
   legal_cookies_title: "Política de cookies",
   legal_updated: "Última atualização: maio de 2026",
   legal_terms_1:
-    "O Remake Pixel é um estúdio de imagem e vídeo com IA. Deves ter 18+ anos (ou a idade legal no teu país) para usar funções pagas.",
+    "O Remake é um estúdio de imagem e vídeo com IA. Deves ter 18+ anos (ou a idade legal no teu país) para usar funções pagas.",
   legal_terms_2:
     "Os créditos são digitais. Os pacotes pagos, em regra, não são reembolsáveis em dinheiro após a compra, salvo quando a lei o exigir.",
   legal_terms_3:

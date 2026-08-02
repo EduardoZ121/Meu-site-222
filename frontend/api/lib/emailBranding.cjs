@@ -66,8 +66,8 @@ function buildPromoEmailHtml({
     : "";
 
   const footerHtml = (footerLines.length ? footerLines : [
-    "Remake Pixel · remakepix.com",
-    "Recebeste este email porque tens conta no Remake Pixel.",
+    "Remake · remakepix.com",
+    "Recebeste este email porque tens conta no Remake.",
   ]).map((l) => `<p style="margin:0 0 6px;font-size:11px;color:#71717a;line-height:1.5">${esc(l)}</p>`).join("");
 
   return `<!DOCTYPE html>

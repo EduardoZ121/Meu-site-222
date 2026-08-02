@@ -1646,7 +1646,7 @@ function creationFromPrediction(prediction) {
   return {
     id: prediction.id,
     type: prediction.input?.__type || "image",
-    prompt: prediction.input?.prompt || "Remake Pixel generation",
+    prompt: prediction.input?.prompt || "Remake generation",
     model_used: "Motor IA",
     aspect_ratio: prediction.input?.aspect_ratio || "1:1",
     result_urls: urls,
@@ -3399,7 +3399,7 @@ If user food reference is absent, generate a fitting premium fast-food item. If 
             unit_amount: subPlan.amount_cents,
             recurring: { interval: "month" },
             product_data: {
-              name: `Remake Pixel — ${subPlan.name}`,
+              name: `Remake — ${subPlan.name}`,
               description: subPlan.tagline || `${subPlan.credits_per_month} créditos/mês`,
             },
           },
@@ -3451,7 +3451,7 @@ If user food reference is absent, generate a fitting premium fast-food item. If 
             currency: cfg.currency,
             unit_amount: hqPkg.amount_cents,
             product_data: {
-              name: `Remake Pixel HQ — ${hqPkg.name} (${premiumCredits} créditos HQ)`,
+              name: `Remake HQ — ${hqPkg.name} (${premiumCredits} créditos HQ)`,
               description: hqPkg.tagline || "Créditos para posters alta qualidade",
             },
           },
@@ -3508,7 +3508,7 @@ If user food reference is absent, generate a fitting premium fast-food item. If 
           currency: cfg.currency,
           unit_amount: amountCents,
           product_data: {
-            name: `Remake Pixel — ${packageLabel} (${credits} créditos)`,
+            name: `Remake — ${packageLabel} (${credits} créditos)`,
             description: packageTagline,
           },
         },

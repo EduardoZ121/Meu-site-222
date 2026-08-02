@@ -70,7 +70,7 @@ export default function Legal() {
 
         <p className="mt-12">
           <Link to="/" className="text-[#A855F7] text-sm hover:underline">
-            ← Remake Pixel
+            ← Remake
           </Link>
         </p>
       </main>

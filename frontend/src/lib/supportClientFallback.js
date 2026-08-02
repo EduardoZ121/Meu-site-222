@@ -33,9 +33,9 @@ function replyFor(lang, user, userText) {
   }
 
   if (lang === "en") {
-    return `${hey}! I'm Sofia from Remake Pixel.\n\nTell me what you want to create (portrait, poster, remove background…) and I'll point you to the right tool with a link.\n\n• [Studio](${origin}/app/generate)\n• [Video](${origin}/app/video)\n• [Billing / credits](${origin}/app/billing)`;
+    return `${hey}! I'm Sofia from Remake.\n\nTell me what you want to create (portrait, poster, remove background…) and I'll point you to the right tool with a link.\n\n• [Studio](${origin}/app/generate)\n• [Video](${origin}/app/video)\n• [Billing / credits](${origin}/app/billing)`;
   }
-  return `${hey}! Sou a Sofia do Remake Pixel.\n\nDiz-me o que queres criar (retrato, poster, tirar fundo…) e indico-te o caminho com link.\n\n• [Estúdio](${origin}/app/generate)\n• [Vídeo](${origin}/app/video)\n• [Créditos](${origin}/app/billing)`;
+  return `${hey}! Sou a Sofia do Remake.\n\nDiz-me o que queres criar (retrato, poster, tirar fundo…) e indico-te o caminho com link.\n\n• [Estúdio](${origin}/app/generate)\n• [Vídeo](${origin}/app/video)\n• [Créditos](${origin}/app/billing)`;
 }
 
 export function isLocalAuthToken() {

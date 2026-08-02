@@ -1,2 +1,2 @@
 "use strict";
-module.exports = "rp-posters-gallery-css-v10";
+module.exports = "rp-brand-remake-v11";

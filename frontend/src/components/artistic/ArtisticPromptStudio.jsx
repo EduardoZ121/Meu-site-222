@@ -105,7 +105,7 @@ export default function ArtisticPromptStudio({
   };
 
   const applyFromHistory = (text) => {
-    setPrompt(text.slice(0, 800));
+    setPrompt(text);
   };
 
   const handleGenerate = () => {

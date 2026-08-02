@@ -1412,6 +1412,437 @@
     margin-top: 0.15rem;
   }
 
+  /* ─── Mobile: barra inferior (Início / Alertas / Criar / Perfil) ───
+     Sem este CSS a nav aparece como lista vertical no canto — UX partida no telemóvel. */
+  .rp-app-bottom-nav {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 120;
+    display: flex;
+    flex-direction: row;
+    align-items: stretch;
+    justify-content: space-around;
+    gap: 0.15rem;
+    min-height: 3.65rem;
+    padding: 0.35rem 0.4rem calc(0.35rem + env(safe-area-inset-bottom, 0px));
+    background: rgba(10, 10, 12, 0.94);
+    backdrop-filter: blur(18px);
+    -webkit-backdrop-filter: blur(18px);
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+    box-shadow: 0 -10px 32px -18px rgba(0, 0, 0, 0.75);
+  }
+  .rp-app-bottom-nav-btn {
+    flex: 1 1 0;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.2rem;
+    padding: 0.35rem 0.2rem;
+    margin: 0;
+    border: 0;
+    border-radius: 0.7rem;
+    background: transparent;
+    color: #8a8a8e;
+    text-decoration: none;
+    font: inherit;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+    transition: color 0.2s ease, background 0.2s ease;
+  }
+  .rp-app-bottom-nav-btn:hover,
+  .rp-app-bottom-nav-btn:focus-visible {
+    color: #e4e4e7;
+    background: rgba(124, 58, 237, 0.1);
+    outline: none;
+  }
+  .rp-app-bottom-nav-btn--active {
+    color: #f4f1ea;
+  }
+  .rp-app-bottom-nav-btn--active .rp-app-bottom-nav-label {
+    color: #c4b5fd;
+  }
+  .rp-app-bottom-nav-icon-wrap {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.65rem;
+    height: 1.65rem;
+  }
+  .rp-app-bottom-nav-avatar {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.55rem;
+    height: 1.55rem;
+    border-radius: 9999px;
+    background: linear-gradient(135deg, rgba(124, 58, 237, 0.55), rgba(192, 38, 211, 0.35));
+    border: 1px solid rgba(196, 181, 253, 0.45);
+    color: #fafafa;
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    line-height: 1;
+  }
+  .rp-app-bottom-nav-badge {
+    position: absolute;
+    top: -0.3rem;
+    right: -0.45rem;
+    min-width: 1rem;
+    height: 1rem;
+    padding: 0 0.28rem;
+    border-radius: 9999px;
+    background: #7c3aed;
+    color: #fff;
+    font-size: 9px;
+    font-weight: 700;
+    line-height: 1rem;
+    text-align: center;
+    box-shadow: 0 0 0 2px #0a0a0c;
+  }
+  .rp-app-bottom-nav-label {
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 10px;
+    font-weight: 500;
+    letter-spacing: 0.02em;
+    line-height: 1.1;
+    color: inherit;
+  }
+  @media (min-width: 768px) {
+    .rp-app-bottom-nav {
+      display: none !important;
+    }
+  }
+
+  /* ─── Mobile: drawer do perfil (abre do lado direito) ─── */
+  .rp-drawer-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 140;
+    background: rgba(0, 0, 0, 0.62);
+    backdrop-filter: blur(2px);
+    -webkit-backdrop-filter: blur(2px);
+    border: 0;
+    padding: 0;
+    cursor: pointer;
+  }
+  .rp-drawer {
+    position: fixed;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 150;
+    display: flex;
+    flex-direction: column;
+    width: min(20.5rem, 88vw);
+    max-width: 100%;
+    background: #0c0c10;
+    border-left: 1px solid rgba(255, 255, 255, 0.08);
+    box-shadow: -18px 0 48px -20px rgba(0, 0, 0, 0.75);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  .rp-drawer-header {
+    flex-shrink: 0;
+    padding: 0.85rem 1rem 0.75rem;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+    background: linear-gradient(180deg, rgba(124, 58, 237, 0.12), transparent 85%);
+  }
+  .rp-drawer-header__brand {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    margin-bottom: 0.85rem;
+  }
+  .rp-drawer-logo-link {
+    min-width: 0;
+    text-decoration: none;
+  }
+  .rp-drawer-close {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2rem;
+    height: 2rem;
+    border-radius: 0.65rem;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    background: rgba(255, 255, 255, 0.04);
+    color: #a1a1aa;
+    cursor: pointer;
+  }
+  .rp-drawer-close:hover {
+    color: #fafafa;
+    border-color: rgba(168, 85, 247, 0.4);
+  }
+  .rp-drawer-header__row {
+    margin-bottom: 0.85rem;
+  }
+  .rp-drawer-credits {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    padding: 0.55rem 0.75rem;
+    border-radius: 0.75rem;
+    border: 1px solid rgba(168, 85, 247, 0.3);
+    background: rgba(124, 58, 237, 0.12);
+    text-decoration: none;
+    color: #f4f1ea;
+  }
+  .rp-drawer-credits__label {
+    font-size: 11px;
+    color: #c4b5fd;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+  }
+  .rp-drawer-credits__value {
+    font-size: 15px;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+  }
+  .rp-drawer-credits__infinity {
+    width: 1.1rem;
+    height: 1.1rem;
+    color: #c4b5fd;
+  }
+  .rp-drawer-user {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    min-width: 0;
+  }
+  .rp-drawer-avatar {
+    flex-shrink: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2.5rem;
+    height: 2.5rem;
+    border-radius: 9999px;
+    background: rgba(124, 58, 237, 0.28);
+    border: 1px solid rgba(168, 85, 247, 0.4);
+    color: #fafafa;
+    font-weight: 700;
+    overflow: hidden;
+  }
+  .rp-drawer-avatar__img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+  .rp-drawer-user__meta {
+    min-width: 0;
+    flex: 1;
+  }
+  .rp-drawer-user__name-row {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    min-width: 0;
+  }
+  .rp-drawer-user__name {
+    margin: 0;
+    font-size: 14px;
+    font-weight: 600;
+    color: #fafafa;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .rp-drawer-user__sub {
+    margin: 0.15rem 0 0;
+    font-size: 11.5px;
+    color: #8a8a8e;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .rp-drawer-premium {
+    flex-shrink: 0;
+    padding: 0.12rem 0.4rem;
+    border-radius: 9999px;
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: #fde68a;
+    background: rgba(234, 179, 8, 0.14);
+    border: 1px solid rgba(234, 179, 8, 0.35);
+  }
+  .rp-drawer-body {
+    flex: 1 1 auto;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+  .rp-drawer-nav {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    padding: 0.65rem 0.55rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.15rem;
+  }
+  .rp-drawer-item {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 0.7rem;
+    padding: 0.7rem 0.75rem 0.7rem 0.85rem;
+    border-radius: 0.75rem;
+    color: #a1a1aa;
+    text-decoration: none;
+    transition: background 0.2s ease, color 0.2s ease;
+  }
+  .rp-drawer-item:hover {
+    background: rgba(255, 255, 255, 0.04);
+    color: #f4f1ea;
+  }
+  .rp-drawer-item--active {
+    background: rgba(124, 58, 237, 0.14);
+    color: #fafafa;
+  }
+  .rp-drawer-item__bar {
+    position: absolute;
+    left: 0.2rem;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 3px;
+    height: 0;
+    border-radius: 9999px;
+    background: #a855f7;
+    transition: height 0.2s ease;
+  }
+  .rp-drawer-item--active .rp-drawer-item__bar {
+    height: 1.15rem;
+  }
+  .rp-drawer-item__icon {
+    width: 1.15rem;
+    height: 1.15rem;
+    flex-shrink: 0;
+    color: #71717a;
+  }
+  .rp-drawer-item__icon--active,
+  .rp-drawer-item--active .rp-drawer-item__icon {
+    color: #c4b5fd;
+  }
+  .rp-drawer-item__label {
+    font-size: 13.5px;
+    font-weight: 500;
+    min-width: 0;
+  }
+  .rp-drawer-divider {
+    height: 1px;
+    margin: 0.45rem 0.6rem;
+    background: rgba(255, 255, 255, 0.06);
+  }
+  .rp-drawer-footer {
+    flex-shrink: 0;
+    padding: 0.75rem 0.85rem 1rem;
+    border-top: 1px solid rgba(255, 255, 255, 0.06);
+    display: flex;
+    flex-direction: column;
+    gap: 0.65rem;
+  }
+  .rp-drawer-langs {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 0.35rem;
+  }
+  .rp-drawer-lang {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.15rem;
+    padding: 0.4rem 0.2rem;
+    border-radius: 0.55rem;
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    background: rgba(255, 255, 255, 0.02);
+    color: #8a8a8e;
+    cursor: pointer;
+    font: inherit;
+  }
+  .rp-drawer-lang--active {
+    border-color: rgba(168, 85, 247, 0.45);
+    background: rgba(124, 58, 237, 0.16);
+    color: #f4f1ea;
+  }
+  .rp-drawer-lang__flag {
+    font-size: 14px;
+    line-height: 1;
+  }
+  .rp-drawer-lang__name {
+    font-size: 9.5px;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+  .rp-drawer-logout {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    width: 100%;
+    padding: 0.7rem 0.85rem;
+    border-radius: 0.75rem;
+    border: 1px solid rgba(248, 113, 113, 0.28);
+    background: rgba(127, 29, 29, 0.18);
+    color: #fca5a5;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  .rp-drawer-logout-confirm {
+    display: flex;
+    flex-direction: column;
+    gap: 0.55rem;
+  }
+  .rp-drawer-logout-confirm__text {
+    margin: 0;
+    font-size: 12.5px;
+    color: #d4d4d8;
+    text-align: center;
+  }
+  .rp-drawer-logout-confirm__actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.45rem;
+  }
+  .rp-drawer-logout-confirm__cancel,
+  .rp-drawer-logout-confirm__yes {
+    padding: 0.55rem 0.5rem;
+    border-radius: 0.65rem;
+    font-size: 12.5px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  .rp-drawer-logout-confirm__cancel {
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    background: rgba(255, 255, 255, 0.04);
+    color: #e4e4e7;
+  }
+  .rp-drawer-logout-confirm__yes {
+    border: 1px solid rgba(248, 113, 113, 0.35);
+    background: rgba(185, 28, 28, 0.35);
+    color: #fecaca;
+  }
+  @media (min-width: 768px) {
+    .rp-drawer,
+    .rp-drawer-overlay {
+      display: none !important;
+    }
+  }
+
   .rp-studio-top-bar {
     box-sizing: border-box;
   }

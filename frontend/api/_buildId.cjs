@@ -1,2 +1,2 @@
 "use strict";
-module.exports = "rp-ui-corners-fix-v7";
+module.exports = "rp-mobile-bottom-nav-v8";

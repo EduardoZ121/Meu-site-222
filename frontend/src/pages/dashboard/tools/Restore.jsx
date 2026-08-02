@@ -18,6 +18,7 @@ import { useStudioGenerateGate } from "../../../lib/useStudioGenerateGate";
 import { primaryStudioPhoto } from "../../../lib/studioFormData";
 import { useI18n } from "../../../lib/i18n";
 import { useStudioI18n } from "../../../lib/useStudioI18n";
+import { PROMPT_MAX_LENGTH } from "../../../lib/promptLimits";
 import { useStudioSessionBack } from "../../../lib/useStudioSessionBack";
 import { RESTORE_LEVEL_KEYS } from "../../../lib/toolPagesLocales";
 import { restoreCostForLevel } from "../../../lib/creditPricing";
@@ -62,7 +63,7 @@ function Toggle({ active, onClick, label, hint, testId }) {
         }`} />
       </div>
       <div className="flex-1 min-w-0">
-        <p className="text-[#F4F1EA] text-[13px] font-medium font-['Inter_Tight']">{label}</p>
+        <p className="text-[#F4F1EA] text-[13px] font-medium font-display">{label}</p>
         <p className="text-[#8A8A8E] text-[11.5px] leading-snug mt-0.5">{hint}</p>
       </div>
     </button>
@@ -121,7 +122,7 @@ export default function Restore() {
   const levelLabel = t(`restore_level_${level}_label`);
   const extraLabel = customPrompt.trim()
     ? `${customPrompt.trim().slice(0, 36)}${customPrompt.trim().length > 36 ? "…" : ""}`
-    : (t("studio_styles_optional") || "Opcional");
+    : (t("studio_styles_optional"));
 
   const run = async () => {
     if (!photo) { toast.error(t("restore_err_upload")); return; }
@@ -248,7 +249,7 @@ export default function Restore() {
                   </div>
                 )}
               </div>
-              <p className={`relative text-[16px] font-light tracking-[-0.01em] mb-1 font-['Inter_Tight'] ${
+              <p className={`relative text-[16px] font-light tracking-[-0.01em] mb-1 font-display ${
                 level === key ? "text-[#F4F1EA]" : "text-[#F4F1EA]/85"
               }`}>{label}</p>
               <p className="relative text-[#8A8A8E] text-[11.5px] leading-snug">{levelHint}</p>
@@ -256,7 +257,7 @@ export default function Restore() {
           ))}
         </div>
         <button type="button" onClick={closeModal} className="rp-modal-confirm mt-3" data-testid="restore-level-confirm">
-          <Check className="w-4 h-4" /> {t("confirm") || "Confirmar"}
+          <Check className="w-4 h-4" /> {t("confirm")}
         </button>
       </SettingModal>
 
@@ -268,7 +269,7 @@ export default function Restore() {
           <Toggle active={sharpen} onClick={() => setSharpen(!sharpen)} label={t("restore_toggle_sharpen")} hint={t("restore_toggle_sharpen_hint")} testId="restore-toggle-sharpen" />
         </div>
         <button type="button" onClick={closeModal} className="rp-modal-confirm mt-3" data-testid="restore-options-confirm">
-          <Check className="w-4 h-4" /> {t("confirm") || "Confirmar"}
+          <Check className="w-4 h-4" /> {t("confirm")}
         </button>
       </SettingModal>
 
@@ -277,7 +278,7 @@ export default function Restore() {
           value={customPrompt}
           onChange={(e) => setCustomPrompt(e.target.value)}
           rows={4}
-          maxLength={280}
+          maxLength={PROMPT_MAX_LENGTH}
           placeholder={t("restore_prompt_ph")}
           className="rp-editor-textarea rp-editor-textarea--compact min-h-[100px] w-full"
           data-testid="restore-custom-prompt"
@@ -295,7 +296,7 @@ export default function Restore() {
           ))}
         </div>
         <button type="button" onClick={closeModal} className="rp-modal-confirm mt-3" data-testid="restore-extra-confirm">
-          <Check className="w-4 h-4" /> {t("confirm") || "Confirmar"}
+          <Check className="w-4 h-4" /> {t("confirm")}
         </button>
       </SettingModal>
 

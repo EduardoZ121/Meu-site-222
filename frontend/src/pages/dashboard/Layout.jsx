@@ -5,16 +5,20 @@ import { isAdminUser } from "../../lib/isAdmin";
 import { useI18n } from "../../lib/i18n";
 import {
   Sparkles, Images, Heart, CreditCard, User, Users, ShieldCheck, LogOut,
-  Film, FileText, BookOpen, Menu, Settings, LayoutGrid, Camera, Wand2, Lock, Palette, Megaphone, Layers,
+  Film, FileText, BookOpen, Settings, LayoutGrid, Camera, Wand2, Lock, Palette, Megaphone, Layers, Crown,
 } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { useEffect, useMemo } from "react";
+import { motion } from "framer-motion";
 import Logo from "../../components/Logo";
+import AppBottomNav from "../../components/navigation/AppBottomNav";
+import ProfileDrawer from "../../components/navigation/ProfileDrawer";
 import { NotificationProvider } from "../../lib/NotificationContext";
+import { GenerationBubbleProvider } from "../../lib/GenerationBubbleContext";
+import { GenerationBubbleHost } from "../../components/studio/GenerationBubble";
+import { ProfileDrawerProvider } from "../../lib/ProfileDrawerContext";
 import useAppNoIndex from "../../lib/useAppNoIndex";
-import { useBackClose } from "../../lib/useBackClose";
-
-const navSpring = { type: "spring", stiffness: 380, damping: 32 };
+import { api } from "../../lib/api";
+import { prefetchGalleryHistory } from "../../lib/galleryCache";
 
 function SidebarSectionLabel({ children, testId }) {
   return (
@@ -100,8 +104,6 @@ export default function DashboardLayout() {
   const { user, refresh, logout } = useAuth();
   const { t } = useI18n();
   const navigate = useNavigate();
-  const [mobileOpen, setMobileOpen] = useState(false);
-  useBackClose(mobileOpen, () => setMobileOpen(false));
   const { pathname } = useLocation();
   const workspaceMode = isWorkspacePath(pathname);
 
@@ -112,9 +114,10 @@ export default function DashboardLayout() {
       { to: "/app/pro", icon: Camera, label: t("sidebar.pro") },
       { to: "/app/artistic", icon: Palette, label: t("sidebar_artistic") },
       { to: "/app/posters", icon: FileText, label: t("sidebar.posters") },
+      { to: "/app/gpt-hq-studio", icon: Crown, label: t("sidebar_gpt_hq_studio") },
       { to: "/app/video", icon: Film, label: t("sidebar.video") },
       { to: "/app/marketing-video", icon: Megaphone, label: t("sidebar_marketing_video") },
-      ...(isAdminUser(user) ? [{ to: "/app/brand-campaign", icon: Layers, label: t("sidebar_brand_campaign") }] : []),
+      { to: "/app/brand-campaign", icon: Layers, label: t("sidebar_brand_campaign") },
       { to: "/app/motion-flyer", icon: Sparkles, label: t("sidebar_motion_flyer") },
       ...(isAdminUser(user) ? [{
         to: "/app/manga-studio",
@@ -177,6 +180,15 @@ export default function DashboardLayout() {
     return () => clearInterval(interval);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Warm gallery cache while user browses tools/studio so Galeria opens instantly.
+  useEffect(() => {
+    if (!user?.id) return undefined;
+    const t = window.setTimeout(() => {
+      prefetchGalleryHistory(api).catch(() => {});
+    }, 800);
+    return () => window.clearTimeout(t);
+  }, [user?.id]);
 
   let linkIndex = 0;
 
@@ -266,8 +278,10 @@ export default function DashboardLayout() {
 
   return (
     <NotificationProvider>
+      <GenerationBubbleProvider>
+      <ProfileDrawerProvider>
       <motion.div
-        className={`min-h-screen h-[100dvh] md:min-h-screen bg-rp-bg flex font-['Inter_Tight'] text-rp-text touch-manipulation overflow-hidden w-full max-w-[100vw] ${
+        className={`min-h-screen h-[100dvh] md:min-h-screen bg-rp-bg flex font-display text-rp-text touch-manipulation overflow-hidden w-full max-w-[100vw] rp-with-bottom-nav ${
           workspaceMode ? "rp-dashboard--workspace" : ""
         }`}
         data-testid="dashboard-layout"
@@ -278,35 +292,15 @@ export default function DashboardLayout() {
           <SidebarContent />
         </aside>
 
-        <AnimatePresence>
-          {mobileOpen && (
-            <>
-              <motion.div
-                key="overlay"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                onClick={() => setMobileOpen(false)}
-                className="md:hidden fixed inset-0 bg-black/60 z-40"
-              />
-              <motion.aside
-                key="drawer"
-                initial={{ x: "-100%" }}
-                animate={{ x: 0 }}
-                exit={{ x: "-100%" }}
-                transition={navSpring}
-                className="md:hidden fixed left-0 top-0 bottom-0 z-50 flex w-[300px] flex-col border-r border-white/[0.06] bg-zinc-950/95 backdrop-blur-xl"
-              >
-                <SidebarContent onClick={() => setMobileOpen(false)} />
-              </motion.aside>
-            </>
-          )}
-        </AnimatePresence>
-
         <div className="flex-1 min-w-0 w-full max-w-full flex flex-col min-h-0 h-full overflow-hidden">
-          <Outlet context={{ openMobileNav: () => setMobileOpen(true), workspaceMode }} />
+          <Outlet context={{ workspaceMode }} />
         </div>
+        <AppBottomNav />
+        <ProfileDrawer />
+        <GenerationBubbleHost />
       </motion.div>
+      </ProfileDrawerProvider>
+      </GenerationBubbleProvider>
     </NotificationProvider>
   );
 }

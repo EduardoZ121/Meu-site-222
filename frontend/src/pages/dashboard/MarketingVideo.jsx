@@ -7,7 +7,11 @@ import { useI18n } from "../../lib/i18n";
 import { usePricing } from "../../lib/PricingContext";
 import { isAdminUser } from "../../lib/isAdmin";
 import useTitle from "../../lib/useTitle";
+import { useStudioSessionBack } from "../../lib/useStudioSessionBack";
+import { useNavigate } from "react-router-dom";
 import StudioCompactShell from "../../components/studio/StudioCompactShell";
+import StudioInlineHeader from "../../components/studio/StudioInlineHeader";
+import GenerationBubble from "../../components/studio/GenerationBubble";
 import StudioGenerateBar from "../../components/StudioGenerateBar";
 import StudioGenerateCostMeta from "../../components/StudioGenerateCostMeta";
 import { useStudioGenerateGate } from "../../lib/useStudioGenerateGate";
@@ -77,9 +81,11 @@ function ModeToggle({ mode, onChange, disabled, t, showCgi = false }) {
 
 export default function MarketingVideo() {
   const { t, lang } = useI18n();
+  const navigate = useNavigate();
   const { user, refresh } = useAuth();
   const { region } = usePricing();
   useTitle(t("mktvid_title"));
+  useStudioSessionBack(() => navigate("/app/video"));
 
   const [mode, setMode] = useState("quick");
   const [files, setFiles] = useState([]);
@@ -89,7 +95,8 @@ export default function MarketingVideo() {
   const [categories, setCategories] = useState([]);
   const [visualStyles, setVisualStyles] = useState([]);
   const [cgiTemplates, setCgiTemplates] = useState([]);
-  const [cgiTemplateId, setCgiTemplateId] = useState("character_reveal");
+  const [cgiTemplateId, setCgiTemplateId] = useState("anime_epic_trailer");
+  const [customStoryboard, setCustomStoryboard] = useState("");
   const [cgiStoryboardAdmin, setCgiStoryboardAdmin] = useState(false);
   const [category, setCategory] = useState("");
   const [visualStyle, setVisualStyle] = useState("");
@@ -115,7 +122,7 @@ export default function MarketingVideo() {
   const loadConfig = useCallback(async () => {
     try {
       const { data } = await api.get("/marketing-video/config", {
-        headers: { "x-pricing-region": region || "intl", "x-lang": lang || "pt" },
+        headers: { "x-pricing-region": region || "intl", "x-lang": lang || "en" },
       });
       if (data?.pricing) setPricing(data.pricing);
       if (data?.categories) setCategories(data.categories);
@@ -173,6 +180,9 @@ export default function MarketingVideo() {
       fd.append("lang", lang || "pt");
       fd.append("mode", mode);
       if (mode === "cgi_preview" && cgiTemplateId) fd.append("template_id", cgiTemplateId);
+      if (mode === "cgi_preview" && customStoryboard.trim()) {
+        fd.append("custom_storyboard", customStoryboard.trim());
+      }
       if (mode === "custom") {
         if (category) fd.append("category", category);
         if (visualStyle) fd.append("visual_style", visualStyle);
@@ -209,20 +219,22 @@ export default function MarketingVideo() {
   const stageLabel = t(MARKETING_VIDEO_STAGE_KEYS[stageIdx] || MARKETING_VIDEO_STAGE_KEYS[0]);
 
   return (
-    <StudioCompactShell testId="marketing-video-page" className="pb-4 md:pb-8">
-      <div className="mb-3 md:mb-4 space-y-2">
-        <ModeToggle mode={mode} onChange={setMode} disabled={busy} t={t} showCgi={showCgi} />
-        <p className="hidden sm:block text-[11px] text-[#6b6b70]">
-          {mode === "quick"
-            ? t("mktvid_mode_quick_desc")
-            : mode === "cgi_preview"
-              ? t("mktvid_mode_cgi_desc")
-              : t("mktvid_mode_custom_desc")}
-        </p>
-      </div>
+    <StudioCompactShell testId="marketing-video-page" maxWidth="720px" className="pb-8">
+      <StudioInlineHeader
+        eyebrow={t("vid_cap")}
+        title={t("mktvid_title")}
+        description={t("mktvid_subtitle")}
+        testId="marketing-video-header"
+        helpKey="help_page_marketing_video"
+      />
 
-      <div className="rounded-xl md:rounded-2xl border border-white/[0.08] bg-[#141418]/80 p-3 md:p-5 space-y-3 md:space-y-4 mb-4">
-        <MarketingVideoImageGrid files={files} onChange={setFiles} disabled={busy} />
+      <div className="space-y-2.5">
+        <ModeToggle mode={mode} onChange={setMode} disabled={busy} t={t} showCgi={showCgi} />
+
+        <div className="rounded-2xl border border-white/[0.08] bg-[#141418]/80 p-3 md:p-4">
+          <p className="text-[#9CA3AF] text-[12px] leading-relaxed mb-3">{t("mktvid_upload_hint")}</p>
+          <MarketingVideoImageGrid files={files} onChange={setFiles} disabled={busy} />
+        </div>
 
         <MarketingVideoOptions
           mode={mode}
@@ -235,6 +247,8 @@ export default function MarketingVideo() {
           cgiTemplates={cgiTemplates}
           cgiTemplateId={cgiTemplateId}
           onCgiTemplateChange={setCgiTemplateId}
+          customStoryboard={customStoryboard}
+          onCustomStoryboardChange={setCustomStoryboard}
           showCgiStoryboard={cgiStoryboardAdmin && isAdminUser(user)}
           formats={formats}
           formatId={formatId}
@@ -243,30 +257,28 @@ export default function MarketingVideo() {
           busy={busy}
         />
 
-        {busy && (
-          <div className="space-y-1.5" data-testid="mktvid-progress">
-            <div className="h-1 rounded-full bg-[#2E2E30] overflow-hidden">
-              <div
-                className="h-full bg-gradient-to-r from-[#7C3AED] to-[#A855F7] transition-all duration-500"
-                style={{ width: `${Math.min(95, 8 + progress * 0.4)}%` }}
-              />
-            </div>
-            <p className="text-[11px] text-[#C4B5FD]">{stageLabel}</p>
-          </div>
-        )}
-      </div>
+        {busy ? <GenerationBubble busy={busy} progress={progress} result={null} onChange={() => {}} /> : null}
 
-      <StudioGenerateBar
-        ready={ready && !busy}
-        busy={busy}
-        onClick={generate}
-        label={t("mktvid_generate")}
-        busyLabel={t("mktvid_generating_bg")}
-        hint={hint}
-        cost={cost}
-        testId="mktvid-generate-btn"
-        costMeta={<StudioGenerateCostMeta cost={cost} user={user} />}
-      />
+        <div className="mv-setting-card mv-setting-card--static">
+          <div className="flex flex-col gap-2.5 sm:flex-row sm:items-center sm:justify-end">
+            <StudioGenerateBar
+              layout="inline"
+              ready={ready && !busy}
+              busy={busy}
+              onClick={generate}
+              label={t("mktvid_generate")}
+              busyLabel={t("mktvid_generating_bg")}
+              hint={hint}
+              cost={cost}
+              testId="mktvid-generate-btn"
+              buttonClassName="rp-gen-btn-inline w-full sm:w-auto"
+            />
+          </div>
+          <div className="mt-2 pt-2 border-t border-white/[0.06]">
+            <StudioGenerateCostMeta cost={cost} user={user} />
+          </div>
+        </div>
+      </div>
 
       <details className="mt-6 md:mt-8 group" data-testid="mktvid-history">
         <summary className="flex items-center justify-between gap-2 cursor-pointer list-none py-1">

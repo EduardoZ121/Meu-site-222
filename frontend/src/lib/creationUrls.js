@@ -53,23 +53,50 @@ export function normalizeCreation(creation) {
 export function isVideoCreation(creation, url) {
   if (creation?.type === "video") return true;
   const u = url || primaryResultUrl(creation);
-  return /\.(mp4|webm|mov)(\?|$)/i.test(u);
+  return /\.(mp4|webm|mov)(\?|$)/i.test(u) || /\/video\//i.test(u);
 }
 
-/** Proxy same-origin (só quando o CDN bloqueia hotlink). */
+/** Hosts that often block hotlinks / expire / need same-origin proxy. */
+export function mediaNeedsProxy(url) {
+  if (!url || url.startsWith("data:")) return false;
+  return (
+    /replicate\.delivery|replicate\.com\/api/i.test(url)
+    || /\.amazonaws\.com\//i.test(url)
+    || /cloudfront\.net\//i.test(url)
+    || /blob\.vercel-storage\.com\//i.test(url)
+  );
+}
+
+/** Ephemeral hosts: prefer proxy immediately (direct often 403/expired). */
+export function mediaPreferProxyFirst(url) {
+  if (!url || url.startsWith("data:")) return false;
+  return /replicate\.delivery|replicate\.com\/api/i.test(url);
+}
+
+/** Proxy same-origin (CDN hotlink block / private S3 / expired Replicate). */
 export function proxiedMediaUrl(url) {
   if (!url || url.startsWith("data:")) return url;
-  if (/replicate\.delivery|replicate\.com\/api/i.test(url)) {
-    return `${API}/generations/proxy-media?u=${encodeURIComponent(url)}`;
-  }
+  if (!mediaNeedsProxy(url)) return url;
+  return `${API}/generations/proxy-media?u=${encodeURIComponent(url)}`;
+}
+
+/**
+ * URL for <img>/<video>.
+ * useProxy=true → force proxy when host is known to need it.
+ * Ephemeral hosts default to proxy-first even when useProxy is false.
+ */
+export function displayMediaUrl(url, useProxy = false) {
+  if (!url) return "";
+  if (url.startsWith("data:")) return url;
+  if (useProxy || mediaPreferProxyFirst(url)) return proxiedMediaUrl(url);
   return url;
 }
 
-/** URL para <img>/<video> — directo primeiro; proxy só se necessário. */
-export function displayMediaUrl(url, useProxy = false) {
-  if (!url) return "";
-  if (useProxy) return proxiedMediaUrl(url);
-  return url;
+/** Authenticated bytes endpoint (requires Bearer — use via blob fetch, not raw <img>). */
+export function authMediaPath(creationId) {
+  const id = String(creationId || "").trim();
+  if (!id) return "";
+  return `/generations/${encodeURIComponent(id)}/media`;
 }
 
 export async function downloadCreationFile(url, filename = "remake-pixel.jpg") {

@@ -1,25 +1,18 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-
 import { ChevronDown, RefreshCw } from "lucide-react";
-
+import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
-
 import { api, formatApiError, trackPendingPrediction, uploadPost } from "../../lib/api";
-
 import { useAuth } from "../../lib/auth";
-
 import { useI18n } from "../../lib/i18n";
-
 import { usePricing } from "../../lib/PricingContext";
-
 import useTitle from "../../lib/useTitle";
-
+import { useStudioSessionBack } from "../../lib/useStudioSessionBack";
 import StudioCompactShell from "../../components/studio/StudioCompactShell";
-
+import StudioInlineHeader from "../../components/studio/StudioInlineHeader";
+import GenerationBubble from "../../components/studio/GenerationBubble";
 import StudioGenerateBar from "../../components/StudioGenerateBar";
-
 import StudioGenerateCostMeta from "../../components/StudioGenerateCostMeta";
-
 import { useStudioGenerateGate } from "../../lib/useStudioGenerateGate";
 
 import MotionFlyerUpload from "../../components/motion-flyer/MotionFlyerUpload";
@@ -51,14 +44,12 @@ import {
 
 
 export default function MotionFlyer() {
-
   const { t, lang } = useI18n();
-
+  const navigate = useNavigate();
   const { user, refresh } = useAuth();
-
   const { region } = usePricing();
-
   useTitle(t("mfly_title"));
+  useStudioSessionBack(() => navigate("/app/video"));
 
 
 
@@ -100,7 +91,7 @@ export default function MotionFlyer() {
 
       const { data } = await api.get("/motion-flyer/config", {
 
-        headers: { "x-pricing-region": region || "intl", "x-lang": lang || "pt" },
+        headers: { "x-pricing-region": region || "intl", "x-lang": lang || "en" },
 
       });
 
@@ -333,64 +324,44 @@ export default function MotionFlyer() {
 
 
   return (
+    <StudioCompactShell testId="motion-flyer-page" maxWidth="720px" className="pb-8">
+      <StudioInlineHeader
+        eyebrow={t("vid_cap")}
+        title={t("mfly_title")}
+        description={t("mfly_subtitle")}
+        testId="motion-flyer-header"
+      />
 
-    <StudioCompactShell testId="motion-flyer-page" className="pb-4 md:pb-8">
-
-      <p className="mb-3 md:mb-4 text-[11px] text-[#6b6b70] hidden sm:block">{t("mfly_subtitle")}</p>
-
-
-
-      <div className="rounded-xl md:rounded-2xl border border-white/[0.08] bg-[#141418]/80 p-3 md:p-5 space-y-3 md:space-y-4 mb-4">
-
-        <MotionFlyerUpload file={file} onChange={handleFileChange} disabled={busy} />
-
-
+      <div className="space-y-2.5">
+        <div className="rounded-2xl border border-white/[0.08] bg-[#141418]/80 p-3 md:p-4">
+          <p className="text-[#9CA3AF] text-[12px] leading-relaxed mb-3">{t("mfly_upload_hint")}</p>
+          <MotionFlyerUpload file={file} onChange={handleFileChange} disabled={busy} />
+        </div>
 
         <MotionFlyerOptions imageAspect={imageAspect} cost={cost} />
 
+        {busy ? <GenerationBubble busy={busy} result={null} onChange={() => {}} /> : null}
 
-
-        {busy && (
-
-          <div className="space-y-1.5" data-testid="mfly-progress">
-
-            <div className="h-1 rounded-full bg-[#2E2E30] overflow-hidden">
-
-              <div className="h-full w-2/3 bg-gradient-to-r from-[#7C3AED] to-[#A855F7] animate-pulse" />
-
-            </div>
-
-            <p className="text-[11px] text-[#C4B5FD]">{stageLabel}</p>
-
+        <div className="mv-setting-card mv-setting-card--static">
+          <div className="flex flex-col gap-2.5 sm:flex-row sm:items-center sm:justify-end">
+            <StudioGenerateBar
+              layout="inline"
+              ready={ready && !busy}
+              busy={busy}
+              onClick={generate}
+              label={t("mfly_generate")}
+              busyLabel={t("mfly_generating_bg")}
+              hint={hint}
+              cost={cost}
+              testId="mfly-generate-btn"
+              buttonClassName="rp-gen-btn-inline w-full sm:w-auto"
+            />
           </div>
-
-        )}
-
+          <div className="mt-2 pt-2 border-t border-white/[0.06]">
+            <StudioGenerateCostMeta cost={cost} user={user} />
+          </div>
+        </div>
       </div>
-
-
-
-      <StudioGenerateBar
-
-        ready={ready && !busy}
-
-        busy={busy}
-
-        onClick={generate}
-
-        label={t("mfly_generate")}
-
-        busyLabel={t("mfly_generating_bg")}
-
-        hint={hint}
-
-        cost={cost}
-
-        testId="mfly-generate-btn"
-
-        costMeta={<StudioGenerateCostMeta cost={cost} user={user} />}
-
-      />
 
 
 

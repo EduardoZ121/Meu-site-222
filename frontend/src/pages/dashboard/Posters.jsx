@@ -1,9 +1,9 @@
-import { Component, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Component, memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Loader2, Sparkles, ArrowLeft, Check, Layers, Crown, Zap, Aperture,
-  Image as ImageIcon, Lock,
+  Image as ImageIcon, Lock, Ratio, Cpu, MessageSquare, Globe, ArrowUpRight,
 } from "lucide-react";
-import { motion } from "framer-motion";
+import { LayoutGroup, motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import {
   api,
@@ -44,12 +44,10 @@ import {
   isTiaAnyPosterTemplate,
   splitPosterPlaceholders,
 } from "../../lib/posterPrompt";
-import { PosterSection, CustomTextLayersEditor } from "../../components/poster/PosterEditorParts";
-import StudioHelpTip from "../../components/studio/StudioHelpTip";
+import { CustomTextLayersEditor } from "../../components/poster/PosterEditorParts";
 import PosterMoodPalette from "../../components/poster/PosterMoodPalette";
 import AspectPicker from "../../components/AspectPicker";
 import { apiAspectRatio } from "../../lib/apiAspectRatio";
-import StudioResultAnchor from "../../components/StudioResultAnchor";
 import StudioGenerateBar from "../../components/StudioGenerateBar";
 import StudioGenerateCostMeta from "../../components/StudioGenerateCostMeta";
 import { useStudioGenerateGate } from "../../lib/useStudioGenerateGate";
@@ -68,6 +66,12 @@ import { useStudioSessionBack } from "../../lib/useStudioSessionBack";
 import { appendStudioPhotos, primaryStudioPhoto } from "../../lib/studioFormData";
 import PosterMotionFlyerButton from "../../components/poster/PosterMotionFlyerButton";
 import { canAccessTiaAnyPosters } from "../../lib/isAdmin";
+import SettingCard from "../../components/studio/SettingCard";
+import SettingModal from "../../components/studio/SettingModal";
+import StudioCompactShell from "../../components/studio/StudioCompactShell";
+import StudioInlineHeader from "../../components/studio/StudioInlineHeader";
+import CompactImagePicker from "../../components/studio/CompactImagePicker";
+import GenerationBubble from "../../components/studio/GenerationBubble";
 
 /* ------------------------------------------------------------------ */
 /*  Constants                                                          */
@@ -75,9 +79,15 @@ import { canAccessTiaAnyPosters } from "../../lib/isAdmin";
 
 const CAT_ORDER = POSTER_CAT_ORDER;
 
-/** Grelha compacta — 2 colunas no telemóvel (igual /app/tools). */
+/** Grelha compacta — 3 colunas no telemóvel (igual mockup). */
 const POSTER_GRID_CLASS =
-  "grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-2 sm:gap-2.5 md:gap-3";
+  "grid grid-cols-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-1.5 sm:gap-2 md:gap-2.5";
+
+const POSTER_HERO_PREVIEWS = [
+  "/images/poster-covers/dj_nightlife__night_vibes.jpg",
+  "/images/poster-covers/fashion_sale_identity__promotional_sale.jpg",
+  "/images/poster-covers/ig_ref_fashion_putra__classic.jpg",
+];
 
 // Gradient backgrounds per category — gives visual hierarchy to template cards
 const CAT_GRADIENTS = {
@@ -108,6 +118,12 @@ const CAT_GRADIENTS = {
 };
 
 const isLong = (k) => /text|description|tagline|story|notes|additional|caption|quote|details|deck|subhead|positions|extra_text|policy|description/i.test(k);
+
+function posterModelsForTemplate(models, template) {
+  const list = normalizePosterModels(models?.length ? models : FALLBACK_POSTER_MODELS);
+  if (template && isTiaAnyPosterTemplate(template)) return list;
+  return list.filter((m) => m.key === "gpt_image");
+}
 
 const POSTER_OUTPUT_LANGS = [
   { key: "pt", labelKey: "post_output_lang_pt" },
@@ -204,8 +220,6 @@ export default function Posters() {
   }, [activeCategories, allowedTemplates, category]);
   const [picked, setPicked] = useState(null);
   const [variantBase, setVariantBase] = useState(null);
-  const posterHistoryKeyRef = useRef("");
-  const skipNextHistoryPushRef = useRef(false);
 
   const labelFor = (k, fieldIndex, template = picked) =>
     posterFieldLabel(k, lang, { template, fieldIndex });
@@ -216,7 +230,7 @@ export default function Posters() {
   const photo = primaryStudioPhoto(photos);
   const [logo, setLogo] = useState(null);
   const [outputLang, setOutputLang] = useState("pt");
-  const [modelKey, setModelKey] = useState("grok");
+  const [modelKey, setModelKey] = useState("gpt_image");
   const [aspect, setAspect] = usePhotoAspectDefault(photo, "4:5", "4:5");
   const [numOutputs, setNumOutputs] = useState(1);
   const [mood, setMood] = useState("");
@@ -260,11 +274,18 @@ export default function Posters() {
   }, []);
 
   useEffect(() => {
-    if (!openaiReady && modelKey === "gpt_image") {
-      setModelKey("grok");
+    if (!openaiReady && modelKey === "gpt_image" && !picked) {
       toast.error(t("post_gpt_unavailable"), { duration: 10000 });
     }
-  }, [openaiReady, modelKey, t]);
+  }, [openaiReady, modelKey, picked, t]);
+
+  useEffect(() => {
+    if (!picked) return;
+    const allowed = posterModelsForTemplate(models, picked);
+    if (!allowed.some((m) => m.key === modelKey)) {
+      setModelKey(allowed[0]?.key || "gpt_image");
+    }
+  }, [picked, models, modelKey]);
 
   useEffect(() => {
     const pc = posterModelCosts(region);
@@ -285,16 +306,15 @@ export default function Posters() {
     return m;
   }, [allowedTemplates]);
 
-  const selectedModel = models.find((m) => m.key === modelKey) || { cost: 10 };
+  const editorModels = useMemo(
+    () => posterModelsForTemplate(models, picked),
+    [models, picked],
+  );
+
+  const selectedModel = editorModels.find((m) => m.key === modelKey) || editorModels[0] || { cost: 10 };
   const usesPremiumWallet = modelKey === "gpt_image" || selectedModel.wallet === "premium";
   const dualPhotoMode = Boolean(picked && isPosterDualPhotoTemplate(picked));
-  const igRefDualMode = Boolean(
-    picked && String(picked.id || "").startsWith("ig_ref_") && dualPhotoMode,
-  );
-  const proModel = models.find((m) => m.key === "flux2");
-  const billablePerImage = dualPhotoMode && !igRefDualMode
-    ? (proModel?.cost ?? selectedModel.cost)
-    : selectedModel.cost;
+  const billablePerImage = selectedModel.cost;
   const totalCost = billablePerImage * numOutputs;
   const userBalance = usesPremiumWallet
     ? (user?.premium_credits ?? 0)
@@ -318,10 +338,8 @@ export default function Posters() {
     setNumOutputs(1);
     if (isTiaAnyPosterTemplate(tpl)) {
       setModelKey("flux2");
-    } else if (isPosterFashionTemplate(tpl)) {
-      setModelKey("flux2");
-    } else if (isPosterDualPhotoTemplate(tpl) && !String(tpl.id || "").startsWith("ig_ref_")) {
-      setModelKey("flux2");
+    } else {
+      setModelKey("gpt_image");
     }
     if (!photo) {
       if (tpl.aspect) {
@@ -381,17 +399,6 @@ export default function Posters() {
     scrollStudioToTop();
   }, [picked?.id, variantBase?.id]);
 
-  useEffect(() => {
-    if (!picked) return;
-    if (
-      isPosterDualPhotoTemplate(picked)
-      && modelKey === "grok"
-      && !String(picked.id || "").startsWith("ig_ref_")
-    ) {
-      setModelKey("flux2");
-    }
-  }, [picked, modelKey]);
-
   const applyInternalBack = useCallback(() => {
     if (picked) {
       backFromEditor();
@@ -407,10 +414,6 @@ export default function Posters() {
 
   const handleSessionBack = useCallback(() => {
     if (picked || variantBase) {
-      if (window.history.state?.rpPosterInternal) {
-        window.history.back();
-        return;
-      }
       applyInternalBack();
       return;
     }
@@ -419,40 +422,14 @@ export default function Posters() {
 
   useStudioSessionBack(handleSessionBack);
 
-  const posterInternalKey = picked?.id
-    ? `editor:${picked.id}`
-    : variantBase?.id
-      ? `variants:${variantBase.id}`
-      : "";
-
-  useEffect(() => {
-    if (!posterInternalKey) {
-      posterHistoryKeyRef.current = "";
-      return;
-    }
-    if (skipNextHistoryPushRef.current) {
-      skipNextHistoryPushRef.current = false;
-      posterHistoryKeyRef.current = posterInternalKey;
-      return;
-    }
-    if (posterHistoryKeyRef.current === posterInternalKey) return;
-    window.history.pushState(
-      { ...(window.history.state || {}), rpPosterInternal: posterInternalKey },
-      "",
-      window.location.href,
-    );
-    posterHistoryKeyRef.current = posterInternalKey;
-  }, [posterInternalKey]);
-
-  useEffect(() => {
-    const onPopState = () => {
-      if (!picked && !variantBase) return;
-      skipNextHistoryPushRef.current = true;
-      applyInternalBack();
-    };
-    window.addEventListener("popstate", onPopState);
-    return () => window.removeEventListener("popstate", onPopState);
-  }, [picked, variantBase, applyInternalBack]);
+  const catsRef = useRef(null);
+  const focusCategories = useCallback(() => {
+    const el = catsRef.current;
+    if (!el) return;
+    el.scrollIntoView({ behavior: "smooth", block: "start" });
+    const first = el.querySelector("button");
+    if (first instanceof HTMLElement) first.focus({ preventScroll: true });
+  }, []);
 
   const generate = async () => {
     if (busy) return;
@@ -483,7 +460,7 @@ export default function Posters() {
 
     const tiaAnyTemplate = isTiaAnyPosterTemplate(picked);
     if (tiaAnyTemplate && !tiaAnyAllowed) {
-      toast.error("Este botão é exclusivo da Tia Any Fast Food.", { duration: 8000 });
+      toast.error(t("post_tia_any_exclusive"), { duration: 8000 });
       return;
     }
 
@@ -605,7 +582,7 @@ export default function Posters() {
         logo={logo} setLogo={setLogo}
         outputLang={outputLang} setOutputLang={setOutputLang}
         modelKey={modelKey} setModelKey={setModelKey}
-        models={models}
+        models={editorModels}
         openaiReady={openaiReady}
         aspect={aspect} setAspect={setAspect}
         numOutputs={numOutputs} setNumOutputs={setNumOutputs}
@@ -632,46 +609,59 @@ export default function Posters() {
   /*  GRID                                                         */
   /* ============================================================ */
   return (
-    <div className="max-w-[1400px] mx-auto pb-6" data-testid="posters-page">
-      <header className="rp-poster-hero mb-5 md:mb-8">
-        <div className="rp-poster-hero__row">
-          <span className="rp-poster-hero__eyebrow">{t("sidebar_posters")}</span>
-          <span className="rp-poster-hero__badge">{(templates.length || 44)}+</span>
+    <div className="rp-poster-page max-w-[1400px] mx-auto" data-testid="posters-page">
+      <header className="rp-poster-hero">
+        <div className="rp-poster-hero__inner">
+          <div className="rp-poster-hero__copy">
+            <div className="rp-poster-hero__row">
+              <span className="rp-poster-hero__eyebrow">{t("sidebar_posters")}</span>
+              <span className="rp-poster-hero__badge">{(templates.length || 44)}+</span>
+            </div>
+            <h1 className="rp-poster-hero__title">{t("sidebar_posters")}</h1>
+            <p className="rp-poster-hero__desc">
+              {t("post_grid_desc", { n: templates.length || 44 })}
+            </p>
+          </div>
+          <div className="rp-poster-hero__previews" aria-hidden>
+            {POSTER_HERO_PREVIEWS.map((src, i) => (
+              <div key={src} className={`rp-poster-hero__preview rp-poster-hero__preview--${i + 1}`}>
+                <img src={src} alt="" loading="lazy" decoding="async" />
+              </div>
+            ))}
+          </div>
         </div>
-        <h1 className="rp-poster-hero__title">{t("sidebar_posters")}</h1>
-        <p className="rp-poster-hero__desc">
-          {t("post_grid_desc", { n: templates.length || 44 })}
-        </p>
       </header>
 
-      {/* Tabs */}
-      <div className="flex flex-wrap gap-2 mb-4 md:mb-6 overflow-x-auto pb-1 scrollbar-none" data-testid="poster-cats">
-        {activeCategories.map((c) => (
-          <button
-            key={c}
-            onClick={() => setCategory(c)}
-            className={`rp-poster-cat shrink-0 ${category === c ? "rp-poster-cat--active" : ""}`}
-            data-testid={`postercat-${c}`}
-          >
-            <span className="truncate">{catLabel(c)}</span>
-            <span className="rp-poster-cat__count shrink-0">
-              {counts[c] ?? "—"}
-            </span>
-          </button>
-        ))}
+      <LayoutGroup id="rp-poster-cats">
+        <div ref={catsRef} className="rp-poster-cat-grid" data-testid="poster-cats">
+          {activeCategories.map((c) => {
+            const active = category === c;
+            return (
+              <motion.button
+                key={c}
+                type="button"
+                layout
+                onClick={() => setCategory(c)}
+                transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
+                className={`rp-poster-cat ${active ? "rp-poster-cat--active" : ""}`}
+                data-testid={`postercat-${c}`}
+              >
+                <span className="truncate">{catLabel(c)}</span>
+                <span className="rp-poster-cat__count shrink-0">
+                  {counts[c] ?? "—"}
+                </span>
+              </motion.button>
+            );
+          })}
+        </div>
+      </LayoutGroup>
+
+      <div className="rp-poster-hint">
+        <span className="rp-poster-hint__ico">
+          <Sparkles className="w-3 h-3" strokeWidth={1.75} aria-hidden />
+        </span>
+        <p>{t("post_premium_pick_hint")}</p>
       </div>
-
-      {category === "flyers" && (
-        <p className="mb-5 md:mb-6 text-[#C4B5FD] text-[13px] sm:text-[14px] max-w-[720px] leading-relaxed border border-[#7C3AED]/30 rounded-xl px-3 py-2.5 sm:px-4 sm:py-3 bg-[#7C3AED]/10 break-words">
-          {t("post_flyers_pick_hint")}
-        </p>
-      )}
-
-      {(category === "business" || category === "dj" || category === "concert" || category === "fitness" || category === "barber" || category === "carousel" || category === "editorial" || category === "fashion") && (
-        <p className="mb-5 md:mb-6 text-[#C4B5FD] text-[13px] sm:text-[14px] max-w-[720px] leading-relaxed border border-[#7C3AED]/30 rounded-xl px-3 py-2.5 sm:px-4 sm:py-3 bg-[#7C3AED]/10 break-words">
-          {t("post_premium_pick_hint")}
-        </p>
-      )}
 
       {/* Grid */}
       <div className={POSTER_GRID_CLASS} data-testid="poster-templates-grid">
@@ -679,6 +669,20 @@ export default function Posters() {
           <TemplateCard key={tpl.id} tpl={tpl} index={i} onClick={() => openTemplate(tpl)} catLabel={catLabel} t={t} />
         ))}
       </div>
+
+      <aside className="rp-poster-weekly" data-testid="poster-weekly-cta">
+        <h2 className="rp-poster-weekly__title">{t("post_cta_weekly_title")}</h2>
+        <p className="rp-poster-weekly__body">{t("post_cta_weekly_body")}</p>
+        <button
+          type="button"
+          className="rp-poster-weekly__btn"
+          onClick={focusCategories}
+          data-testid="poster-weekly-cta-btn"
+        >
+          {t("post_cta_weekly_btn")}
+          <ArrowUpRight className="w-3.5 h-3.5" strokeWidth={2} aria-hidden />
+        </button>
+      </aside>
     </div>
   );
 }
@@ -706,7 +710,7 @@ function VariantPicker({ base, variants, onBack, onPick, catLabel, t }) {
         <p className="text-[#7C3AED] text-[10px] font-mono uppercase tracking-[0.16em] sm:tracking-[0.22em] mb-2 sm:mb-3 break-words">
           {catLabel(base.category)} · {t("post_variant_picker_eyebrow_n", { n: variants.length })}
         </p>
-        <h1 className="text-[#F4F1EA] text-[22px] sm:text-[32px] md:text-[44px] font-light tracking-[-0.02em] mb-2 sm:mb-3 font-['Inter_Tight'] break-words leading-[1.1]">
+        <h1 className="text-[#F4F1EA] text-[22px] sm:text-[32px] md:text-[44px] font-light tracking-[-0.02em] mb-2 sm:mb-3 font-display break-words leading-[1.1]">
           {base.label || base.id}
         </h1>
         <p className="text-[#8A8A8E] text-[13px] sm:text-[15px] max-w-[640px] leading-relaxed break-words">
@@ -766,21 +770,25 @@ function VariantPicker({ base, variants, onBack, onPick, catLabel, t }) {
 /*  Template card                                                      */
 /* ------------------------------------------------------------------ */
 
-function TemplateCard({ tpl, index, onClick, catLabel, t }) {
+const TemplateCard = memo(function TemplateCard({ tpl, index, onClick, catLabel, t }) {
   const hasVariants = posterTemplateHasVariants(tpl);
   const variantCount = hasVariants ? getFlyerVariants(tpl.id, tpl).length : 0;
   const gradient = CAT_GRADIENTS[tpl.category] || CAT_GRADIENTS.editorial;
+  const metaLabel = hasVariants
+    ? t("post_flyer_styles_count", { n: variantCount })
+    : (tpl.placeholders?.length ? t("post_template_fields", { n: tpl.placeholders.length }) : t("post_template_ready_short"));
   return (
     <motion.button
       type="button"
       onClick={onClick}
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.35, delay: Math.min(index * 0.04, 0.4), ease: [0.16, 1, 0.3, 1] }}
-      className="rp-poster-card group relative flex h-full flex-col text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500/50 rounded-2xl"
+      whileTap={{ scale: 0.985 }}
+      transition={{ duration: 0.28, delay: Math.min(index * 0.04, 0.4), ease: [0.16, 1, 0.3, 1] }}
+      className="rp-poster-card group relative flex h-full flex-col text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500/50 rounded-xl"
       data-testid={`tpl-${tpl.id}`}
     >
-      <div className="rp-poster-card__frame relative aspect-square overflow-hidden rounded-2xl border border-white/[0.08] bg-[#0a0a0c]" style={{ background: gradient }}>
+      <div className="rp-poster-card__frame relative aspect-[4/5] overflow-hidden rounded-xl border border-white/[0.08] bg-[#0a0a0c]" style={{ background: gradient }}>
         <StyleCover
           id={tpl.id}
           title={tpl.label || tpl.id}
@@ -799,37 +807,35 @@ function TemplateCard({ tpl, index, onClick, catLabel, t }) {
           </div>
         )}
         {tpl.subtag && (
-          <div className="absolute left-2 top-9 sm:left-3 sm:top-12 max-w-[85%] rounded-full border border-white/20 bg-black/30 px-1.5 py-0.5 sm:px-2 sm:py-1 font-['JetBrains_Mono'] text-[7px] sm:text-[8px] uppercase tracking-[0.12em] text-white/75 backdrop-blur-sm truncate z-[2]">
+          <div className="rp-poster-meta rp-poster-meta--sub absolute left-2 top-9 sm:left-3 sm:top-12 z-[2] truncate">
             {tpl.subtag}
           </div>
         )}
         {isPosterDualPhotoTemplate(tpl) && (
-          <div className="absolute left-2 top-2 sm:left-3 sm:top-3 z-[2] rounded-full border border-amber-400/40 bg-amber-500/25 px-1.5 py-0.5 sm:px-2 sm:py-1 font-['JetBrains_Mono'] text-[7px] sm:text-[8px] uppercase tracking-[0.12em] text-amber-100 backdrop-blur-sm">
+          <div className="rp-poster-meta rp-poster-meta--amber absolute left-2 top-2 sm:left-3 sm:top-3 z-[2]">
             {t("post_dual_photo_badge")}
           </div>
         )}
-        <div className="absolute bottom-2 right-2 sm:bottom-3 sm:right-3 z-[2] font-['JetBrains_Mono'] text-[8px] sm:text-[9px] uppercase tracking-[0.14em] text-white/70">
-          {hasVariants
-            ? t("post_flyer_styles_count", { n: variantCount })
-            : (tpl.placeholders?.length ? t("post_template_fields", { n: tpl.placeholders.length }) : t("post_template_ready_short"))}
+        <div className="rp-poster-meta absolute bottom-2 right-2 sm:bottom-3 sm:right-3 z-[2]">
+          {metaLabel}
         </div>
 
-        <div className="absolute inset-0 z-[3] hidden sm:flex items-center justify-center bg-[#7C3AED]/85 backdrop-blur-md opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+        <div className="absolute inset-0 z-[3] hidden sm:flex items-center justify-center bg-[#7C3AED]/85 backdrop-blur-md opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none">
           <span className="text-white text-[11px] font-medium uppercase tracking-[0.12em] px-4 py-2 border border-white/50 rounded-full">
             {t("post_open_editor")}
           </span>
         </div>
       </div>
 
-      <div className="mt-2 px-0.5 flex items-start justify-between gap-1">
-        <p className="rp-poster-card__label line-clamp-2 flex-1">
+      <div className="mt-1.5 px-0.5 flex items-start justify-between gap-0.5">
+        <p className="rp-poster-card__label line-clamp-2 flex-1 text-[10px] sm:text-[11px]">
           {tpl.label || tpl.id}
         </p>
         <Layers className="hidden sm:block w-3.5 h-3.5 text-[#7C3AED]/70 shrink-0 mt-0.5" />
       </div>
     </motion.button>
   );
-}
+});
 
 /* ------------------------------------------------------------------ */
 /*  Editor error boundary (evita ecrã preto total em runtime)          */
@@ -851,7 +857,7 @@ class PosterEditorErrorBoundary extends Component {
     if (error) {
       return (
         <div className="max-w-[640px] mx-auto py-16 px-6 text-center" data-testid="posters-editor-error">
-          <p className="text-[#F4F1EA] text-[18px] font-medium mb-2 font-['Inter_Tight']">
+          <p className="text-[#F4F1EA] text-[18px] font-medium mb-2 font-display">
             {t("post_editor_error_title")}
           </p>
           <p className="text-[#8A8A8E] text-[14px] mb-6 leading-relaxed">
@@ -885,15 +891,24 @@ function Editor(props) {
     t, labelFor, catLabel,
   } = props;
 
+  const [openKey, setOpenKey] = useState(null);
+  const openModal = (key) => setOpenKey(key);
+  const closeModal = () => setOpenKey(null);
+
   const photo = primaryStudioPhoto(photos);
   const photoCount = (Array.isArray(photos) ? photos : []).filter(Boolean).length;
   const dualPhotoStyle = isPosterDualPhotoTemplate(picked);
   const tiaAnyStyle = isTiaAnyPosterTemplate(picked);
 
   const modelsForPicker = useMemo(() => {
-    if (models?.length) return models;
-    return FALLBACK_POSTER_MODELS;
-  }, [models]);
+    const list = models?.length ? models : FALLBACK_POSTER_MODELS;
+    if (tiaAnyStyle) return normalizePosterModels(list);
+    return normalizePosterModels(list).filter((m) => m.key === "gpt_image");
+  }, [models, tiaAnyStyle]);
+
+  const showEnginePicker = modelsForPicker.length > 1;
+
+  const selectedModel = modelsForPicker.find((m) => m.key === modelKey) || modelsForPicker[0];
 
   const usesPremiumWallet = modelKey === "gpt_image"
     || modelsForPicker.find((m) => m.key === modelKey)?.wallet === "premium";
@@ -923,7 +938,7 @@ function Editor(props) {
   const posterFormatItems = useMemo(() => {
     const mapped = [
       { key: "1:1", label: t("post_fmt_square"), hint: t("post_fmt_square_hint") },
-      { key: "2:3", label: "Menu 2:3", hint: "1080×1620" },
+      { key: "2:3", label: t("post_fmt_menu") || "2:3", hint: "1080×1620" },
       { key: "4:5", label: t("post_fmt_feed"), hint: t("post_fmt_feed_hint") },
       { key: "9:16", label: t("post_fmt_story"), hint: t("post_fmt_story_hint") },
       { key: "16:9", label: t("post_fmt_banner"), hint: t("post_fmt_banner_hint") },
@@ -935,6 +950,61 @@ function Editor(props) {
       ...mapped,
     ];
   }, [photo, t]);
+
+  const effectiveAspect = aspect === "match" && !photo
+    ? (picked?.aspect || "4:5")
+    : (aspect || picked?.aspect || "4:5");
+  const aspectLabel = effectiveAspect === "match"
+    ? (t("aspect_original") || t("aspect_match") || "Original")
+    : String(effectiveAspect).toUpperCase();
+  const formatLabel = numOutputs > 1 ? `${aspectLabel} · ${numOutputs}×` : aspectLabel;
+  const engineLabel = posterModelLabel(selectedModel, t);
+  const moodLabel = mood
+    ? (t(`post_mood_${mood}`) !== `post_mood_${mood}` ? t(`post_mood_${mood}`) : mood)
+    : (t("studio_styles_optional"));
+  const layersLabel = customBlocks.length > 0
+    ? `${customBlocks.length} ${t("post_sec_layers").toLowerCase()}`
+    : (t("studio_styles_optional"));
+  const langLabel = POSTER_OUTPUT_LANGS.find((l) => l.key === outputLang);
+  const outputLangLabel = langLabel ? t(langLabel.labelKey) : outputLang;
+  const logoLabel = logo ? t("upload_loaded") : (t("studio_styles_optional"));
+  const garmentLabel = logo ? t("upload_loaded") : (t("studio_styles_optional"));
+  const promptPreviewLabel = promptPreview.trim().length > 42
+    ? `${promptPreview.trim().slice(0, 42)}…`
+    : (promptPreview.trim() || (t("studio_styles_optional")));
+
+  const modalTitle = {
+    engine: t("post_sec_engine"),
+    format: t("post_sec_format"),
+    mood: t("post_sec_mood"),
+    layers: t("post_sec_layers"),
+    lang: t("post_sec_output_lang"),
+    logo: t("post_sec_logo"),
+    garment: t("post_sec_fashion_garment"),
+    prompt: t("post_sec_prompt"),
+  }[openKey] || "";
+
+  const photoSectionTitle = tiaAnyStyle
+    ? "Referências opcionais"
+    : isPosterFoodTemplate(picked)
+      ? t("post_sec_food_ref")
+      : isPosterProductTemplate(picked)
+        ? t("post_sec_product_ref")
+        : isPosterFashionTemplate(picked)
+          ? t("post_sec_fashion_person")
+          : t("post_sec_ref");
+
+  const photoSectionHint = tiaAnyStyle
+    ? "Carrega uma pessoa, uma comida, ou ambas: 1.ª imagem pessoa/funcionário, 2.ª imagem comida/prato. Logo e uniforme já vão ocultos."
+    : isPosterFoodTemplate(picked)
+      ? t("post_sec_food_ref_hint")
+      : isPosterProductTemplate(picked)
+        ? t("post_sec_product_ref_hint")
+        : isPosterFashionTemplate(picked)
+          ? t("post_sec_fashion_person_hint")
+          : dualPhotoStyle
+            ? t("post_dual_photo_upload_hint")
+            : t("post_sec_ref_hint");
 
   const fashionNeedsPhoto = isPosterFashionTemplate(picked) && !photo;
   const dualNeedsPhotos = dualPhotoStyle && photoCount < 2;
@@ -961,470 +1031,423 @@ function Editor(props) {
         ? t("post_generating_variations", { n: numOutputs })
         : t("post_generating_poster");
 
+  const renderTemplateFields = () => {
+    const fields = [...menuFields, ...detailFields];
+    if (!fields.length) return null;
+    return (
+      <div className="rounded-2xl border border-white/[0.08] bg-[#141418]/80 p-3 md:p-4 space-y-4">
+        <div>
+          <p className="mv-setting-eyebrow mb-1">
+            {menuFields.length && detailFields.length
+              ? `${t("post_sec_menu")} · ${isPosterMenuTemplate(picked) ? t("post_sec_business") : t("post_sec_details")}`
+              : menuFields.length
+                ? t("post_sec_menu")
+                : (isPosterMenuTemplate(picked) ? t("post_sec_business") : t("post_sec_details"))}
+          </p>
+          <p className="text-[#8A8A8E] text-[12px] leading-relaxed">
+            {picked.category === "flyer" ? t("post_hint_flyer") : t("post_hint_default")}
+          </p>
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          {fields.map((p) => {
+            const idx = picked.placeholders.indexOf(p);
+            const isOptional = (picked.optional || []).includes(p);
+            const originalText = (picked.replacements || {})[p] || "";
+            return (
+              <div key={p} className={isLong(p) ? "sm:col-span-2" : ""}>
+                <label className="block text-[#F4F1EA] text-[12px] font-medium mb-1.5 font-display">
+                  {labelFor(p, idx)}{" "}
+                  {isOptional
+                    ? <span className="text-[#5A5A5E] text-[11px] font-normal">{t("post_optional")}</span>
+                    : <span className="text-[#7C3AED]">*</span>}
+                </label>
+                {isLong(p) ? (
+                  <textarea
+                    rows={2}
+                    value={values[p] || ""}
+                    onChange={(e) => setValues({ ...values, [p]: e.target.value })}
+                    placeholder={originalText || `ex: ${labelFor(p, idx).toLowerCase()}...`}
+                    className="rp-editor-textarea rp-editor-textarea--compact min-h-[72px]"
+                    data-testid={`field-${p}`}
+                  />
+                ) : (
+                  <input
+                    value={values[p] || ""}
+                    onChange={(e) => setValues({ ...values, [p]: e.target.value })}
+                    placeholder={originalText || labelFor(p, idx)}
+                    className="w-full bg-[#13131A] border border-[#2E2E30] focus:border-[#7C3AED] text-[#F4F1EA] text-[14px] placeholder:text-[#5A5A5E] px-3 py-2.5 rounded-lg focus:outline-none font-display"
+                    data-testid={`field-${p}`}
+                  />
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    );
+  };
+
   return (
-    <div className="max-w-[1400px] mx-auto pb-32 min-w-0" data-testid="posters-editor">
+    <StudioCompactShell testId="posters-editor" maxWidth="720px" className="pb-8">
       <button
+        type="button"
         onClick={onBack}
-        className="rp-studio-back hidden md:inline-flex"
+        className="rp-studio-back hidden md:inline-flex mb-4"
         data-testid="posters-back-to-grid"
       >
         <ArrowLeft className="w-4 h-4" /> {t("post_back_templates")}
       </button>
 
-      {/* Header */}
-      <div className="mb-6 md:mb-10 flex flex-col sm:flex-row items-start gap-3 sm:gap-5">
-        <div
-          className="shrink-0 w-16 h-20 sm:w-20 sm:h-24 rounded-xl border border-white/[0.08] bg-[#0a0a0c] shadow-lg shadow-black/40 relative overflow-hidden"
-          style={
-            posterCoverSrc(picked.id) || posterCoverSrc(picked.variantParentId)
-              ? undefined
-              : { background: CAT_GRADIENTS[picked.category] }
-          }
-        >
-          <StyleCover
-            id={picked.id}
-            title={picked.variantLabel || picked.label || picked.id}
-            prompt={picked.prompt}
-            category={picked.category}
-            compact
-            imageOnly
-            coverSrc={posterCoverSrc(picked.id) || posterCoverSrc(picked.variantParentId) || ""}
-            className="absolute inset-0 h-full w-full"
-          />
-        </div>
-        <div className="flex-1 min-w-0 flex items-start gap-3">
-          <div className="min-w-0 flex-1">
-            <p className="text-[#7C3AED] text-[10px] font-mono uppercase tracking-[0.16em] sm:tracking-[0.22em] mb-1.5 sm:mb-2 break-words">
-              {catLabel(picked.category)}
-            </p>
-            <h1 className="text-[#F4F1EA] text-[22px] sm:text-[28px] md:text-[36px] font-light tracking-[-0.02em] mb-1.5 sm:mb-2 font-['Inter_Tight'] break-words leading-[1.1]">
-              {picked.label || picked.id}
-            </h1>
-            <p className="text-[#8A8A8E] text-[13px] sm:text-[14px] max-w-[640px] leading-relaxed break-words">
-              {picked.variantLabelKey
-                ? t("post_template_variant_ready", { style: t(picked.variantLabelKey) })
-                : t("post_template_ready")}
-            </p>
-          </div>
-          <StudioHelpTip helpKey="help_page_posters" size="lg" testId="posters-page-help" className="shrink-0 mt-1" />
-        </div>
-      </div>
+      <StudioInlineHeader
+        eyebrow={catLabel(picked.category)}
+        title={picked.label || picked.id}
+        description={
+          picked.variantLabelKey
+            ? t("post_template_variant_ready", { style: t(picked.variantLabelKey) })
+            : t("post_template_ready")
+        }
+        testId="posters-editor-header"
+        helpKey="help_page_posters"
+      />
 
       {dualPhotoStyle && (
-        <div className="mb-5 rounded-xl border border-amber-500/25 bg-amber-500/10 px-4 py-3 text-[13px] text-amber-100 leading-relaxed">
+        <div className="mb-3 rounded-xl border border-amber-500/25 bg-amber-500/10 px-3 py-2.5 text-[12px] text-amber-100 leading-relaxed">
           {t("post_dual_photo_banner")}
         </div>
       )}
 
       {tiaAnyStyle && (
-        <div className="mb-5 rounded-xl border border-orange-500/25 bg-orange-500/10 px-4 py-3 text-[13px] text-orange-100 leading-relaxed">
-          Tia Any Fast Food: a logo oficial e a polo preta são aplicadas automaticamente. Upload 1 opcional = pessoa/funcionário (preserva identidade). Upload 2 opcional = comida/prato (preserva aparência exata).
+        <div className="mb-3 rounded-xl border border-orange-500/25 bg-orange-500/10 px-3 py-2.5 text-[12px] text-orange-100 leading-relaxed">
+          {t("post_tia_any_banner")}
         </div>
       )}
 
-      <div className="grid grid-cols-1 xl:grid-cols-[1fr_440px] gap-10">
-        {/* ====== LEFT: form ====== */}
-        <motion.div className="space-y-5">
-          <PosterSection
-            title={
-              tiaAnyStyle
-                ? "Referências opcionais"
-                : isPosterFoodTemplate(picked)
-                ? t("post_sec_food_ref")
-                : isPosterProductTemplate(picked)
-                  ? t("post_sec_product_ref")
-                  : isPosterFashionTemplate(picked)
-                    ? t("post_sec_fashion_person")
-                    : t("post_sec_ref")
-            }
-            optional={!isPosterFashionTemplate(picked)}
-            defaultOpen
-            hint={
-              tiaAnyStyle
-                ? "Carrega uma pessoa, uma comida, ou ambas: 1.ª imagem pessoa/funcionário, 2.ª imagem comida/prato. Logo e uniforme já vão ocultos."
-                : isPosterFoodTemplate(picked)
-                ? t("post_sec_food_ref_hint")
-                : isPosterProductTemplate(picked)
-                  ? t("post_sec_product_ref_hint")
-                  : isPosterFashionTemplate(picked)
-                    ? t("post_sec_fashion_person_hint")
-                    : t("post_sec_ref_hint")
-            }
-            helpKey="help_sec_post_photo"
-          >
-            <div className="max-w-[560px]">
-              <ImageUploadZone
-                multiple
-                maxFiles={5}
-                value={photos}
-                onChange={setPhotos}
-                layout="wide"
-                testId="poster-photo"
-                compressOptions={{ maxSize: 2048 }}
-                emptyLabel={
-                  tiaAnyStyle
-                    ? "Upload pessoa e/ou comida"
-                    : isPosterFoodTemplate(picked)
-                    ? t("post_food_upload_label")
-                    : isPosterProductTemplate(picked)
-                      ? t("post_product_upload_label")
-                      : isPosterFashionTemplate(picked)
-                        ? t("post_fashion_person_upload_label")
-                        : dualPhotoStyle
-                          ? t("post_dual_photo_upload_label")
-                          : t("upload_drop")
-                }
-                emptyHint={
-                  tiaAnyStyle
-                    ? "Opcional · 1.ª pessoa, 2.ª comida · JPG, PNG ou WebP"
-                    : isPosterFoodTemplate(picked)
-                    ? t("post_food_upload_hint")
-                    : isPosterProductTemplate(picked)
-                      ? t("post_product_upload_hint")
-                      : isPosterFashionTemplate(picked)
-                        ? t("post_fashion_person_upload_hint")
-                        : dualPhotoStyle
-                          ? t("post_dual_photo_upload_hint")
-                          : t("tool_accept_formats")
-                }
-              />
-            </div>
-          </PosterSection>
+      <div className="space-y-2.5">
+        <div className="rounded-2xl border border-white/[0.08] bg-[#141418]/80 p-3 md:p-4">
+          <p className="mv-setting-eyebrow mb-1">{photoSectionTitle}</p>
+          <p className="text-[#8A8A8E] text-[12px] leading-relaxed mb-3">{photoSectionHint}</p>
+          <CompactImagePicker
+            value={photos}
+            onChange={setPhotos}
+            maxFiles={dualPhotoStyle ? 2 : 5}
+            testId="poster-photo"
+          />
+        </div>
 
-          {isPosterFashionTemplate(picked) && (
-            <PosterSection title={t("post_sec_fashion_garment")} optional hint={t("post_sec_fashion_garment_hint")} helpKey="help_sec_post_garment">
-              <div className="max-w-[280px]">
-                <ImageUploadZone
-                  value={logo}
-                  onChange={setLogo}
-                  layout="square"
-                  testId="poster-garment"
-                  compressOptions={{ maxSize: 2048 }}
-                  emptyLabel={t("post_fashion_garment_upload_label")}
-                  emptyHint={t("post_fashion_garment_upload_hint")}
-                />
-              </div>
-            </PosterSection>
-          )}
+        {renderTemplateFields()}
 
-          {isPosterFoodTemplate(picked) && (
-            <PosterSection title={t("post_sec_logo")} optional hint={t("post_sec_logo_hint")} helpKey="help_sec_post_logo">
-              <div className="max-w-[280px]">
-                <ImageUploadZone
-                  value={logo}
-                  onChange={setLogo}
-                  layout="square"
-                  testId="poster-logo"
-                  compressOptions={{ maxSize: 1024 }}
-                  emptyLabel={t("post_logo_upload_label")}
-                  emptyHint={t("post_logo_upload_hint")}
-                />
-              </div>
-            </PosterSection>
-          )}
-
-          {isPosterFoodTemplate(picked) && (
-            <PosterSection title={t("post_sec_output_lang")} hint={t("post_sec_output_lang_hint")} helpKey="help_sec_post_lang">
-              <select
-                value={outputLang}
-                onChange={(e) => setOutputLang(e.target.value)}
-                className="w-full max-w-xs bg-[#13131A] border border-[#2E2E30] focus:border-[#7C3AED] text-[#F4F1EA] text-[14px] px-4 py-3 rounded-lg focus:outline-none"
-                data-testid="poster-output-lang"
-              >
-                {POSTER_OUTPUT_LANGS.map(({ key, labelKey }) => (
-                  <option key={key} value={key}>{t(labelKey)}</option>
-                ))}
-              </select>
-            </PosterSection>
-          )}
-
-          {menuFields.length > 0 && (
-            <PosterSection title={t("post_sec_menu")} hint={t("post_sec_menu_hint")} helpKey="help_sec_post_menu">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                {menuFields.map((p) => {
-                  const fieldIndex = picked.placeholders.indexOf(p);
-                  const isOptional = (picked.optional || []).includes(p);
-                  const originalText = (picked.replacements || {})[p] || "";
-                  return (
-                    <div key={p}>
-                      <label className="block text-[#F4F1EA] text-[12.5px] font-medium mb-1.5">
-                        {labelFor(p, fieldIndex)}{" "}
-                        {isOptional ? <span className="text-[#5A5A5E] text-[11px]">{t("post_optional")}</span> : <span className="text-[#7C3AED]">*</span>}
-                      </label>
-                      <input
-                        value={values[p] || ""}
-                        onChange={(e) => setValues({ ...values, [p]: e.target.value })}
-                        placeholder={originalText || labelFor(p, fieldIndex)}
-                        className="w-full bg-[#13131A] border border-[#2E2E30] focus:border-[#7C3AED] text-[#F4F1EA] text-[14px] px-4 py-3 rounded-lg"
-                        data-testid={`field-${p}`}
-                      />
-                    </div>
-                  );
-                })}
-              </div>
-            </PosterSection>
-          )}
-
-          {detailFields.length > 0 && (
-          <PosterSection
-            title={isPosterMenuTemplate(picked) ? t("post_sec_business") : t("post_sec_details")}
-            optional={picked.optional?.length === picked.placeholders.length}
-            hint={picked.category === "flyer" ? t("post_hint_flyer") : t("post_hint_default")}
-            helpKey="help_sec_post_details"
-          >
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              {detailFields.map((p) => {
-                const idx = picked.placeholders.indexOf(p);
-                const isOptional = (picked.optional || []).includes(p);
-                const originalText = (picked.replacements || {})[p] || "";
-                return (
-                <div key={p} className={isLong(p) ? "sm:col-span-2" : ""}>
-                  <label className="block text-[#F4F1EA] text-[12.5px] font-medium mb-1.5 font-['Inter_Tight']">
-                    {labelFor(p, idx)}{" "}
-                    {isOptional
-                      ? <span className="text-[#5A5A5E] text-[11px] font-normal">{t("post_optional")}</span>
-                      : <span className="text-[#7C3AED]">*</span>}
-                  </label>
-                  {isLong(p) ? (
-                    <textarea
-                      rows={2}
-                      value={values[p] || ""}
-                      onChange={(e) => setValues({ ...values, [p]: e.target.value })}
-                      placeholder={originalText || `ex: ${labelFor(p, idx).toLowerCase()}...`}
-                      className="w-full bg-[#13131A] border border-[#2E2E30] focus:border-[#7C3AED] text-[#F4F1EA] text-[14px] placeholder:text-[#5A5A5E] px-4 py-3 rounded-lg focus:outline-none resize-none font-['Inter_Tight']"
-                      data-testid={`field-${p}`}
-                    />
-                  ) : (
-                    <input
-                      value={values[p] || ""}
-                      onChange={(e) => setValues({ ...values, [p]: e.target.value })}
-                      placeholder={originalText || `ex: ${labelFor(p, idx).toLowerCase()}...`}
-                      className="w-full bg-[#13131A] border border-[#2E2E30] focus:border-[#7C3AED] text-[#F4F1EA] text-[14px] placeholder:text-[#5A5A5E] px-4 py-3 rounded-lg focus:outline-none font-['Inter_Tight']"
-                      data-testid={`field-${p}`}
-                    />
-                  )}
+        <div className="mv-setting-grid">
+          {showEnginePicker ? (
+            <SettingCard
+              icon={Cpu}
+              label={t("post_sec_engine")}
+              value={engineLabel}
+              onOpen={() => openModal("engine")}
+              testId="poster-card-engine"
+              helpKey="help_sec_post_engine"
+            />
+          ) : (
+            <div className="mv-setting-card mv-setting-card--static">
+              <div className="flex items-center gap-2.5">
+                <span className="mv-setting-card__ico">
+                  <Crown className="w-4 h-4 text-[#FACC15]" strokeWidth={1.75} />
+                </span>
+                <div className="min-w-0">
+                  <p className="mv-setting-eyebrow">{t("post_sec_engine")}</p>
+                  <p className="text-[#F4F1EA] text-[13px] font-medium truncate">{engineLabel}</p>
                 </div>
-              );})}
+              </div>
             </div>
-          </PosterSection>
           )}
-
-          {!isPosterFashionTemplate(picked) && (
-          <PosterSection
-            title={t("post_sec_layers")}
-            optional
-            hint={t("post_sec_layers_hint")}
-            helpKey="help_sec_post_layers"
-          >
-            <CustomTextLayersEditor blocks={customBlocks} onChange={setCustomBlocks} />
-          </PosterSection>
-          )}
-
-          <PosterSection
-            title={t("post_sec_mood")}
-            optional
-            hint={t("post_visual_hint")}
-            helpKey="help_sec_post_mood"
-          >
-            <PosterMoodPalette
-              mood={mood}
-              setMood={setMood}
-              paletteColors={paletteColors}
-              setPaletteColors={setPaletteColors}
-              moodIds={POSTER_MOOD_IDS}
-              t={t}
-            />
-          </PosterSection>
-
-          <PosterSection
-            title={t("post_sec_engine")}
-            hint={t("post_sec_engine_hint")}
-            helpKey="help_sec_post_engine"
-          >
-            <div className="mb-3 flex flex-col sm:flex-row sm:items-center gap-2 rounded-xl border border-[#FACC15]/25 bg-[#1a1505]/55 px-3 py-2.5 text-[11px] leading-relaxed">
-              <span className="inline-flex items-center gap-1.5 text-[#C4B5FD] font-medium shrink-0">
-                <span className="w-2 h-2 rounded-full bg-[#A855F7]" aria-hidden />
-                {t("post_wallet_standard")}
-              </span>
-              <span className="hidden sm:inline text-[#5A5A5E]">·</span>
-              <span className="inline-flex items-center gap-1.5 text-[#FACC15] font-medium shrink-0">
-                <Crown className="w-3 h-3" strokeWidth={1.75} aria-hidden />
-                {t("post_wallet_hq")}
-              </span>
-              <span className="text-[#8A8A8E] sm:ml-auto">{t("post_sec_engine_wallets")}</span>
-            </div>
-            <p className="mb-3 rounded-xl border border-[#FACC15]/30 bg-[#FACC15]/10 px-3 py-2 text-[#FACC15] text-[12px] leading-relaxed">
-              {t("post_hq_clear_hint")}
-            </p>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3" data-testid="poster-models">
-              {modelsForPicker.map((m) => {
-                const Icon = MODEL_ICONS[m.key] || Zap;
-                const disabled = m.key === "gpt_image" && !openaiReady;
-                const active = modelKey === m.key;
-                return (
-                  <button
-                    key={m.key}
-                    onClick={() => !disabled && setModelKey(m.key)}
-                    disabled={disabled}
-                    data-testid={`poster-model-${m.key}`}
-                    className={`relative text-left p-4 rounded-2xl border-2 transition-all overflow-hidden group ${
-                      disabled
-                        ? "border-[#1F1F22] bg-[#0E0E12]/40 opacity-50 cursor-not-allowed"
-                        : active
-                          ? "border-[#7C3AED] bg-[#7C3AED]/10"
-                          : "border-[#2E2E30] bg-[#13131A]/50 hover:border-[#7C3AED]/40"
-                    }`}
-                  >
-                    {m.key === "gpt_image" && !disabled && (
-                      <div className="absolute -top-px -right-px bg-gradient-to-l from-[#FACC15] to-[#F59E0B] text-black text-[9px] font-bold uppercase tracking-wider px-2 py-1 rounded-bl-lg">
-                        HQ
-                      </div>
-                    )}
-                    {active && (
-                      <div className="absolute -top-12 -right-12 w-32 h-32 bg-[#7C3AED]/20 blur-3xl pointer-events-none" />
-                    )}
-                    <div className="relative flex items-start justify-between mb-3">
-                      <Icon className={`w-5 h-5 ${active ? "text-[#C4B5FD]" : "text-[#8A8A8E]"}`} strokeWidth={1.5} />
-                      <div className="flex items-center gap-1">
-                        {m.key === "gpt_image" && !disabled && (
-                          <span
-                            className="relative z-10"
-                            onClick={(e) => e.stopPropagation()}
-                            onKeyDown={(e) => e.stopPropagation()}
-                            role="presentation"
-                          >
-                            <StudioHelpTip helpKey="help_sec_post_hq" testId="poster-hq-help" />
-                          </span>
-                        )}
-                        {active && (
-                          <div className="w-5 h-5 rounded-full bg-[#7C3AED] flex items-center justify-center">
-                            <Check className="w-3 h-3 text-white" strokeWidth={3} />
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                    <p className={`relative text-[15px] font-light tracking-[-0.01em] mb-1 font-['Inter_Tight'] ${
-                      active ? "text-[#F4F1EA]" : "text-[#F4F1EA]/85"
-                    }`}>{posterModelLabel(m, t)}</p>
-                    <p className="relative text-[#8A8A8E] text-[11px] mb-1">{posterModelTag(m, t)}</p>
-                    <p className="relative mb-2">
-                      <span className={`inline-flex items-center gap-1 text-[9px] font-mono uppercase tracking-wider px-2 py-0.5 rounded-full border ${
-                        m.wallet === "premium" || m.key === "gpt_image"
-                          ? "text-[#FACC15] border-[#FACC15]/30 bg-[#FACC15]/10"
-                          : "text-[#C4B5FD] border-[#9333EA]/25 bg-[#9333EA]/10"
-                      }`}>
-                        {m.wallet === "premium" || m.key === "gpt_image"
-                          ? t("post_wallet_hq")
-                          : t("post_wallet_standard")}
-                      </span>
-                    </p>
-                    <p className="relative text-[12px] font-mono">
-                      {m.wallet === "premium" || m.key === "gpt_image" ? (
-                        <span className="text-[#FACC15]">{t("bill_hq_credits_count", { n: m.cost })}</span>
-                      ) : (
-                        <span className="text-[#C4B5FD]">{t("bill_credits_count", { n: m.cost })}</span>
-                      )}
-                    </p>
-                  </button>
-                );
-              })}
-            </div>
-            {modelKey === "gpt_image" && openaiReady && (
-              <p className="mt-3 text-[#FACC15]/90 text-[12px] leading-relaxed border border-[#FACC15]/25 rounded-xl px-4 py-3 bg-[#FACC15]/5">
-                {t("post_hq_email_note")}
-              </p>
-            )}
-          </PosterSection>
-
-          <PosterSection
-            title={t("post_sec_format")}
-            hint={t("post_sec_format_hint")}
+          <SettingCard
+            icon={Ratio}
+            label={t("post_sec_format")}
+            value={formatLabel}
+            onOpen={() => openModal("format")}
+            testId="poster-card-format"
             helpKey="help_sec_post_format"
-          >
-            <AspectPicker
-              value={
-                aspect === "match" && !photo
-                  ? (picked?.aspect || "4:5")
-                  : (aspect || picked?.aspect || "4:5")
-              }
-              onChange={setAspect}
-              items={posterFormatItems}
-              columns="grid grid-cols-2 sm:grid-cols-5 gap-2.5 mb-5"
-              testIdPrefix="poster-format"
+          />
+        </div>
+
+        <div className="mv-setting-grid">
+          <SettingCard
+            icon={Sparkles}
+            label={t("post_sec_mood")}
+            value={moodLabel}
+            onOpen={() => openModal("mood")}
+            testId="poster-card-mood"
+            helpKey="help_sec_post_mood"
+          />
+          {!isPosterFashionTemplate(picked) && (
+            <SettingCard
+              icon={Layers}
+              label={t("post_sec_layers")}
+              value={layersLabel}
+              onOpen={() => openModal("layers")}
+              testId="poster-card-layers"
+              helpKey="help_sec_post_layers"
             />
+          )}
+        </div>
 
-            <div className="flex items-center justify-between p-4 rounded-xl border border-[#2E2E30] bg-[#13131A]/50">
-              <div>
-                <p className="text-[#F4F1EA] text-[13px] font-medium font-['Inter_Tight']">{t("post_gen_variations")}</p>
-                <p className="text-[#8A8A8E] text-[11.5px] mt-0.5">
-                  {t("post_variations_hint", { n: perImageCost })}
-                </p>
-              </div>
-              <div className="inline-flex rounded-lg border border-[#2E2E30] p-0.5 bg-[#0B0B0C]" data-testid="poster-variations">
-                {[1, 2, 3, 4].map((n) => (
-                  <button
-                    key={n}
-                    onClick={() => setNumOutputs(n)}
-                    className={`w-10 py-1.5 text-[12px] rounded-md transition-all font-['Inter_Tight'] ${
-                      numOutputs === n
-                        ? "bg-[#7C3AED] text-white shadow-sm shadow-[#7C3AED]/30"
-                        : "text-[#8A8A8E] hover:text-[#F4F1EA]"
-                    }`}
-                    data-testid={`poster-variations-${n}`}
-                  >
-                    {n}×
-                  </button>
-                ))}
-              </div>
-            </div>
-          </PosterSection>
+        {(isPosterFoodTemplate(picked) || isPosterFashionTemplate(picked)) && (
+          <div className="mv-setting-grid">
+            {isPosterFoodTemplate(picked) && (
+              <>
+                <SettingCard
+                  icon={Globe}
+                  label={t("post_sec_output_lang")}
+                  value={outputLangLabel}
+                  onOpen={() => openModal("lang")}
+                  testId="poster-card-lang"
+                  helpKey="help_sec_post_lang"
+                />
+                <SettingCard
+                  icon={ImageIcon}
+                  label={t("post_sec_logo")}
+                  value={logoLabel}
+                  onOpen={() => openModal("logo")}
+                  testId="poster-card-logo"
+                  helpKey="help_sec_post_logo"
+                />
+              </>
+            )}
+            {isPosterFashionTemplate(picked) && (
+              <SettingCard
+                icon={ImageIcon}
+                label={t("post_sec_fashion_garment")}
+                value={garmentLabel}
+                onOpen={() => openModal("garment")}
+                testId="poster-card-garment"
+                helpKey="help_sec_post_garment"
+              />
+            )}
+          </div>
+        )}
 
-          <PosterSection
-            title={t("post_sec_prompt")}
-            optional
-            hint={t("post_sec_prompt_hint")}
-            helpKey="help_sec_post_prompt"
-          >
-            <p
-              className="text-[#8A8A8E] text-[11px] leading-relaxed font-mono max-h-40 overflow-y-auto whitespace-pre-wrap break-words"
-              data-testid="poster-prompt-preview"
-            >
-              {promptPreview}
-            </p>
-          </PosterSection>
-        </motion.div>
+        <SettingCard
+          icon={MessageSquare}
+          label={t("post_sec_prompt")}
+          value={promptPreviewLabel}
+          onOpen={() => openModal("prompt")}
+          testId="poster-card-prompt"
+          helpKey="help_sec_post_prompt"
+        />
 
-        {/* ====== RIGHT: result panel ====== */}
-        <StudioResultAnchor busy={busy} ready={Boolean(primaryResultUrl(result))} className="xl:sticky xl:top-[80px] self-start">
-          <p className="text-[#5A5A5E] text-[10px] font-mono uppercase tracking-[0.2em] mb-3">{t("post_preview_label")}</p>
-          <PosterResult busy={busy} result={result} setResult={setResult} aspect={aspect} />
-        </StudioResultAnchor>
+        <div className="mv-setting-card mv-setting-card--static">
+          <div className="flex flex-col gap-2.5 sm:flex-row sm:items-center sm:justify-end">
+            <StudioGenerateBar
+              layout="inline"
+              ready={genReady}
+              busy={busy}
+              onClick={onGenerate}
+              label={usesPremiumWallet ? t("post_gen_btn_hq", { n: totalCost }) : t("post_gen_btn", { n: totalCost })}
+              busyLabel={genBusyLabel}
+              hint={genHint}
+              cost={totalCost}
+              canAffordCheck={(u) => {
+                if (!u || u.is_unlimited || u.role === "admin") return true;
+                const bal = usesPremiumWallet ? (u.premium_credits ?? 0) : (u.total_standard_credits ?? u.credits ?? 0);
+                return bal >= totalCost;
+              }}
+              testId="poster-generate"
+              buttonClassName="rp-gen-btn-inline w-full sm:w-auto"
+            />
+          </div>
+          <div className="mt-2 pt-2 border-t border-white/[0.06]">
+            <StudioGenerateCostMeta
+              cost={totalCost}
+              user={user}
+              wallet={usesPremiumWallet ? "premium" : "standard"}
+              extra={`${numOutputs}× ${perImageCost}`}
+            />
+          </div>
+        </div>
+
+        <GenerationBubble busy={busy} progress={genProgress} result={result} onChange={setResult} />
       </div>
 
-      <StudioGenerateBar
-        ready={genReady}
-        busy={busy}
-        onClick={onGenerate}
-        label={usesPremiumWallet ? t("post_gen_btn_hq", { n: totalCost }) : t("post_gen_btn", { n: totalCost })}
-        busyLabel={genBusyLabel}
-        hint={genHint || (missing.length > 0 ? `${t("post_fill")}: ${missing.map((k) => labelFor(k, picked?.placeholders?.indexOf(k))).join(", ")}` : null)}
-        cost={totalCost}
-        canAffordCheck={(u) => {
-          if (!u || u.is_unlimited || u.role === "admin") return true;
-          const bal = usesPremiumWallet ? (u.premium_credits ?? 0) : (u.total_standard_credits ?? u.credits ?? 0);
-          return bal >= totalCost;
-        }}
-        testId="poster-generate"
-        costMeta={(
-          <StudioGenerateCostMeta
-            cost={totalCost}
-            user={user}
-            wallet={usesPremiumWallet ? "premium" : "standard"}
-            extra={`${numOutputs}× ${perImageCost}`}
-          />
+      <SettingModal open={openKey === "engine"} title={modalTitle} onClose={closeModal}>
+        <div className="mb-3 flex flex-col sm:flex-row sm:items-center gap-2 rounded-xl border border-[#FACC15]/25 bg-[#1a1505]/55 px-3 py-2.5 text-[11px] leading-relaxed">
+          <span className="inline-flex items-center gap-1.5 text-[#C4B5FD] font-medium shrink-0">
+            <span className="w-2 h-2 rounded-full bg-[#A855F7]" aria-hidden />
+            {t("post_wallet_standard")}
+          </span>
+          <span className="hidden sm:inline text-[#5A5A5E]">·</span>
+          <span className="inline-flex items-center gap-1.5 text-[#FACC15] font-medium shrink-0">
+            <Crown className="w-3 h-3" strokeWidth={1.75} aria-hidden />
+            {t("post_wallet_hq")}
+          </span>
+          <span className="text-[#8A8A8E] sm:ml-auto">{t("post_sec_engine_wallets")}</span>
+        </div>
+        <p className="mb-3 rounded-xl border border-[#FACC15]/30 bg-[#FACC15]/10 px-3 py-2 text-[#FACC15] text-[12px] leading-relaxed">
+          {t("post_hq_clear_hint")}
+        </p>
+        <div className="grid grid-cols-1 gap-2 max-h-[52vh] overflow-y-auto overscroll-contain pr-0.5" data-testid="poster-models">
+          {modelsForPicker.map((m) => {
+            const Icon = MODEL_ICONS[m.key] || Zap;
+            const disabled = m.key === "gpt_image" && !openaiReady;
+            const active = modelKey === m.key;
+            return (
+              <button
+                type="button"
+                key={m.key}
+                onClick={() => { if (!disabled) { setModelKey(m.key); closeModal(); } }}
+                disabled={disabled}
+                data-testid={`poster-model-${m.key}`}
+                className={`rp-model-row ${active ? "rp-model-row--active" : ""} ${disabled ? "opacity-50 cursor-not-allowed" : ""}`}
+              >
+                <span className="rp-model-ico">
+                  <Icon className="w-5 h-5" strokeWidth={1.5} />
+                </span>
+                <span className="flex-1 text-left min-w-0">
+                  <span className="block text-[13px] font-medium text-[#F4F1EA]">{posterModelLabel(m, t)}</span>
+                  <span className="block text-[10px] text-[#8A8A8E]">{posterModelTag(m, t)}</span>
+                  <span className={`inline-flex mt-1 text-[9px] font-mono uppercase tracking-wider px-2 py-0.5 rounded-full border ${
+                    m.wallet === "premium" || m.key === "gpt_image"
+                      ? "text-[#FACC15] border-[#FACC15]/30 bg-[#FACC15]/10"
+                      : "text-[#C4B5FD] border-[#9333EA]/25 bg-[#9333EA]/10"
+                  }`}>
+                    {m.wallet === "premium" || m.key === "gpt_image"
+                      ? t("post_wallet_hq")
+                      : t("post_wallet_standard")}
+                    {" · "}
+                    {m.wallet === "premium" || m.key === "gpt_image"
+                      ? t("bill_hq_credits_count", { n: m.cost })
+                      : t("bill_credits_count", { n: m.cost })}
+                  </span>
+                </span>
+                {active && <Check className="w-4 h-4 text-[#A855F7] shrink-0" />}
+              </button>
+            );
+          })}
+        </div>
+        {modelKey === "gpt_image" && openaiReady && (
+          <p className="mt-3 text-[#FACC15]/90 text-[12px] leading-relaxed border border-[#FACC15]/25 rounded-xl px-3 py-2 bg-[#FACC15]/5">
+            {t("post_hq_email_note")}
+          </p>
         )}
-      />
-    </div>
+      </SettingModal>
+
+      <SettingModal open={openKey === "format"} title={modalTitle} onClose={closeModal}>
+        <AspectPicker
+          value={effectiveAspect}
+          onChange={setAspect}
+          items={posterFormatItems}
+          columns="grid grid-cols-2 sm:grid-cols-3 gap-2.5"
+          testIdPrefix="poster-format"
+        />
+        <div className="mt-4 flex items-center justify-between p-3 rounded-xl border border-white/[0.08] bg-[#13131A]/50">
+          <div>
+            <p className="text-[#F4F1EA] text-[13px] font-medium font-display">{t("post_gen_variations")}</p>
+            <p className="text-[#8A8A8E] text-[11px] mt-0.5">
+              {t("post_variations_hint", { n: perImageCost })}
+            </p>
+          </div>
+          <div className="inline-flex rounded-lg border border-[#2E2E30] p-0.5 bg-[#0B0B0C]" data-testid="poster-variations">
+            {[1, 2, 3, 4].map((n) => (
+              <button
+                type="button"
+                key={n}
+                onClick={() => setNumOutputs(n)}
+                className={`w-10 py-1.5 text-[12px] rounded-md transition-all font-display ${
+                  numOutputs === n
+                    ? "bg-[#7C3AED] text-white shadow-sm shadow-[#7C3AED]/30"
+                    : "text-[#8A8A8E] hover:text-[#F4F1EA]"
+                }`}
+                data-testid={`poster-variations-${n}`}
+              >
+                {n}×
+              </button>
+            ))}
+          </div>
+        </div>
+        <button type="button" onClick={closeModal} className="rp-modal-confirm mt-3" data-testid="poster-format-confirm">
+          <Check className="w-4 h-4" /> {t("confirm")}
+        </button>
+      </SettingModal>
+
+      <SettingModal open={openKey === "mood"} title={modalTitle} onClose={closeModal}>
+        <PosterMoodPalette
+          mood={mood}
+          setMood={setMood}
+          paletteColors={paletteColors}
+          setPaletteColors={setPaletteColors}
+          moodIds={POSTER_MOOD_IDS}
+          t={t}
+        />
+        <button type="button" onClick={closeModal} className="rp-modal-confirm mt-3" data-testid="poster-mood-confirm">
+          <Check className="w-4 h-4" /> {t("confirm")}
+        </button>
+      </SettingModal>
+
+      <SettingModal open={openKey === "layers"} title={modalTitle} onClose={closeModal}>
+        <CustomTextLayersEditor blocks={customBlocks} onChange={setCustomBlocks} />
+        <button type="button" onClick={closeModal} className="rp-modal-confirm mt-3" data-testid="poster-layers-confirm">
+          <Check className="w-4 h-4" /> {t("confirm")}
+        </button>
+      </SettingModal>
+
+      <SettingModal open={openKey === "lang"} title={modalTitle} onClose={closeModal}>
+        <select
+          value={outputLang}
+          onChange={(e) => setOutputLang(e.target.value)}
+          className="w-full bg-[#13131A] border border-[#2E2E30] focus:border-[#7C3AED] text-[#F4F1EA] text-[14px] px-4 py-3 rounded-lg focus:outline-none"
+          data-testid="poster-output-lang"
+        >
+          {POSTER_OUTPUT_LANGS.map(({ key, labelKey }) => (
+            <option key={key} value={key}>{t(labelKey)}</option>
+          ))}
+        </select>
+        <button type="button" onClick={closeModal} className="rp-modal-confirm mt-3" data-testid="poster-lang-confirm">
+          <Check className="w-4 h-4" /> {t("confirm")}
+        </button>
+      </SettingModal>
+
+      <SettingModal open={openKey === "logo"} title={modalTitle} onClose={closeModal}>
+        <p className="text-[#8A8A8E] text-[12px] mb-3 leading-relaxed">{t("post_sec_logo_hint")}</p>
+        <ImageUploadZone
+          value={logo}
+          onChange={setLogo}
+          layout="square"
+          testId="poster-logo"
+          compressOptions={{ maxSize: 1024 }}
+          emptyLabel={t("post_logo_upload_label")}
+          emptyHint={t("post_logo_upload_hint")}
+        />
+        <button type="button" onClick={closeModal} className="rp-modal-confirm mt-3" data-testid="poster-logo-confirm">
+          <Check className="w-4 h-4" /> {t("confirm")}
+        </button>
+      </SettingModal>
+
+      <SettingModal open={openKey === "garment"} title={modalTitle} onClose={closeModal}>
+        <p className="text-[#8A8A8E] text-[12px] mb-3 leading-relaxed">{t("post_sec_fashion_garment_hint")}</p>
+        <ImageUploadZone
+          value={logo}
+          onChange={setLogo}
+          layout="square"
+          testId="poster-garment"
+          compressOptions={{ maxSize: 2048 }}
+          emptyLabel={t("post_fashion_garment_upload_label")}
+          emptyHint={t("post_fashion_garment_upload_hint")}
+        />
+        <button type="button" onClick={closeModal} className="rp-modal-confirm mt-3" data-testid="poster-garment-confirm">
+          <Check className="w-4 h-4" /> {t("confirm")}
+        </button>
+      </SettingModal>
+
+      <SettingModal open={openKey === "prompt"} title={modalTitle} onClose={closeModal}>
+        <p
+          className="text-[#8A8A8E] text-[11px] leading-relaxed font-mono max-h-[50vh] overflow-y-auto whitespace-pre-wrap break-words"
+          data-testid="poster-prompt-preview"
+        >
+          {promptPreview}
+        </p>
+        <button type="button" onClick={closeModal} className="rp-modal-confirm mt-3" data-testid="poster-prompt-confirm">
+          <Check className="w-4 h-4" /> {t("confirm")}
+        </button>
+      </SettingModal>
+    </StudioCompactShell>
   );
 }
 
@@ -1469,8 +1492,8 @@ function PosterResult({ busy, result, setResult, aspect }) {
       <div className={`rounded-2xl bg-[#0E0E12] border border-[#2E2E30] ${aspectClass} flex flex-col items-center justify-center p-10 relative overflow-hidden`} data-testid="poster-loading">
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,rgba(124,58,237,0.18),transparent_65%)] animate-pulse pointer-events-none" />
         <div className="relative w-14 h-14 rounded-full border-2 border-[#7C3AED]/30 border-t-[#C4B5FD] animate-spin mb-5" />
-        <p className="relative text-[#F4F1EA] text-[14px] font-medium font-['Inter_Tight']">{t("post_composing")}</p>
-        <p className="relative text-[#5A5A5E] text-[11px] font-mono uppercase mt-2 tracking-[0.18em]">30–120 seg</p>
+        <p className="relative text-[#F4F1EA] text-[14px] font-medium font-display">{t("post_composing")}</p>
+        <p className="relative text-[#5A5A5E] text-[11px] font-mono uppercase mt-2 tracking-[0.18em]">{t("post_eta")}</p>
       </div>
     );
   }
@@ -1500,7 +1523,7 @@ function PosterResult({ busy, result, setResult, aspect }) {
       document.body.appendChild(a); a.click(); a.remove();
       setTimeout(() => URL.revokeObjectURL(u), 1000);
     } catch {
-      toast.error("Falha ao baixar.");
+      toast.error(t("post_download_fail"));
     }
   };
 

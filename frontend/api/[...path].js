@@ -1593,17 +1593,21 @@ function buildRestorePrompt(fields) {
 
 function buildClothesPrompt(fields, hasGarment) {
   const POSE_LOCK =
-    "Keep IDENTICAL pose, body proportions, camera angle, framing, background and lighting from the person photo. "
-    + "Only clothing/outfit pixels may change — no body reshaping, no re-posing, no stance change.";
+    "Keep IDENTICAL pose, body proportions, body shape, limbs, hands, camera angle, framing, background and lighting from the person photo. "
+    + "Only clothing/outfit pixels may change — no body reshaping, no re-posing, no stance change, no face swap.";
+  const IDENTITY_LOCK =
+    `${PHOTO_EDIT_IDENTITY_BLOCK} `
+    + "CRITICAL OUTFIT SWAP RULES: keep the exact same person (face, identity, age, skin tone, hair, body). "
+    + "Change ONLY the clothes/garments. Do not invent a different person, do not alter anatomy, do not change the background.";
   const userPrompt = text(fields, "prompt", "").trim();
   const changeType = text(fields, "change_type", "full");
   if (hasGarment) {
     let p = (
-      "Two reference images: (1) the person, (2) the clothing/outfit to wear. "
+      "Two reference images: (1) the person whose identity must stay identical, (2) the clothing/outfit to wear. "
       + "Generate exactly ONE photorealistic photo of that same person now wearing the outfit from image 2. "
-      + `${PHOTO_EDIT_IDENTITY_BLOCK} `
+      + `${IDENTITY_LOCK} `
       + `${POSE_LOCK} `
-      + "Copy style, color, fabric, cut, patterns and details from the garment reference. "
+      + "Copy style, color, fabric, cut, patterns and details from the garment reference onto this same person. "
       + "Do NOT output a collage, split screen, diptych, or side-by-side comparison. "
       + "Do NOT show both source images in the result — only the dressed person."
     );
@@ -1612,7 +1616,7 @@ function buildClothesPrompt(fields, hasGarment) {
   }
   if (!userPrompt) {
     return (
-      `Change outfit only. ${PHOTO_EDIT_IDENTITY_BLOCK} ${POSE_LOCK} Photorealistic, natural lighting.`
+      `Change outfit only. ${IDENTITY_LOCK} ${POSE_LOCK} Photorealistic, natural lighting.`
     );
   }
   const prefix = {
@@ -1623,7 +1627,7 @@ function buildClothesPrompt(fields, hasGarment) {
   };
   return (
     `${prefix[changeType] || prefix.full}${userPrompt}. `
-    + `${PHOTO_EDIT_IDENTITY_BLOCK} ${POSE_LOCK} Photorealistic, natural lighting.`
+    + `${IDENTITY_LOCK} ${POSE_LOCK} Photorealistic, natural lighting.`
   );
 }
 
@@ -3298,27 +3302,32 @@ If user food reference is absent, generate a fitting premium fast-food item. If 
       });
     }
 
-    const hasGarment = Boolean(person && garment);
-    const prompt = buildClothesPrompt(fields, hasGarment);
-    const input = { prompt, aspect_ratio: "match_input_image" };
-    let modelId = MODELS.standard;
-    let modelUsed = MODELS.standard;
-
-    if (hasGarment) {
-      input.images = [person, garment];
-      modelId = MODELS.pro;
-      modelUsed = MODELS.pro;
-    } else if (person) {
-      input.image = person;
+    if (!person) {
+      const err = new Error("Envia uma foto da pessoa.");
+      err.status = 400;
+      throw err;
     }
+    if (!garment) {
+      const err = new Error("Envia uma foto da roupa de referência.");
+      err.status = 400;
+      throw err;
+    }
+
+    const hasGarment = true;
+    const prompt = buildClothesPrompt(fields, hasGarment);
+    const input = {
+      prompt,
+      aspect_ratio: "match_input_image",
+      images: [person, garment],
+    };
 
     return submitBillableGeneration(req, fields, {
       cost: CREDIT.clothes,
       type: "image",
-      modelId,
+      modelId: MODELS.pro,
       input,
       prompt,
-      modelUsed,
+      modelUsed: MODELS.pro,
       spendDescription: "Trocar roupa",
     });
   }

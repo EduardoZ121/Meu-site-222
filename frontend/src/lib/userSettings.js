@@ -5,6 +5,7 @@ const STORAGE_KEY = "rp_settings";
 const DEFAULTS = {
   aspect_ratio_default: "match",
   lang: "en",
+  theme: "dark",
 };
 
 export function readUserSettings() {

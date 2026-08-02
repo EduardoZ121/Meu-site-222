@@ -137,6 +137,7 @@ export function toolCatalogueCost(toolId, regionId) {
     colorize: c.colorize,
     inpaint: c.inpaint,
     posters: c.posterFast,
+    gpt_hq_studio: getPosterHqPremiumCost(),
     carousel: c.carouselFastPerSlide,
     manga: c.mangaPanel,
     manga_studio: c.mangaPanel,
@@ -144,7 +145,7 @@ export function toolCatalogueCost(toolId, regionId) {
     wizard: 0,
     motion_flyer: c.motionFlyerByDuration?.[10] ?? 200,
     marketing_video: c.marketingVideoByDuration?.[15] ?? 240,
-    brand_campaign: c.brandCampaignPerImage ?? c.posterPro ?? 40,
+    brand_campaign: c.brandCampaignPerImage ?? getPosterHqPremiumCost(),
   };
   return map[toolId] ?? c.image;
 }

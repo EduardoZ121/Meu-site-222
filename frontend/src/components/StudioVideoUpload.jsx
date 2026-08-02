@@ -2,15 +2,17 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import ImageUploadZone, { VIDEO_DIRECT_MAX_BYTES } from "./ImageUploadZone";
 import { uploadVideoToCloud } from "../lib/blobUploadClient";
 import { pickBlobOffloadTimeoutMs, MAX_VIDEO_SOURCE_PICKER_BYTES } from "../lib/uploadConstants";
-import { readVideoDurationSeconds } from "../lib/videoMedia";
+import { formatHttpError } from "../lib/uploadErrors";
+import { readVideoDurationSeconds, withNormalizedVideoType } from "../lib/videoMedia";
 import { useI18n } from "../lib/i18n";
 import { toast } from "sonner";
 
 export { VIDEO_DIRECT_MAX_BYTES };
 
 /**
- * Upload de vídeo → Vercel Blob (multipart, directo no browser).
- * Sem compressor/recortador — ficheiro vai directo para a nuvem.
+ * Upload de vídeo → S3 / Blob (multipart, directo no browser).
+ * Sucesso/erro só dependem de uploadGenRef — NUNCA do value do pai
+ * (race React: upload rápido pode terminar antes do setState do ficheiro).
  */
 export default function StudioVideoUpload({
   value,
@@ -30,7 +32,10 @@ export default function StudioVideoUpload({
   const [cloudProgress, setCloudProgress] = useState(null);
   const [cloudUrl, setCloudUrl] = useState(null);
   const [uploadError, setUploadError] = useState(null);
+  /** Monotonic generation — only cancellation token for in-flight uploads. */
   const uploadGenRef = useRef(0);
+  /** Last file chosen (retry) — not used to gate success. */
+  const pendingFileRef = useRef(null);
   const valueRef = useRef(value);
   valueRef.current = value;
 
@@ -41,6 +46,8 @@ export default function StudioVideoUpload({
 
   useEffect(() => {
     if (!value) {
+      uploadGenRef.current += 1;
+      pendingFileRef.current = null;
       setCloudProgress(null);
       setCloudUrl(null);
       setUploadError(null);
@@ -52,8 +59,11 @@ export default function StudioVideoUpload({
   const startCloudUpload = useCallback((file) => {
     if (!file) return;
 
+    const normalized = withNormalizedVideoType(file);
     uploadGenRef.current += 1;
     const gen = uploadGenRef.current;
+    pendingFileRef.current = normalized;
+
     setCloudUrl(null);
     setUploadError(null);
     onCloudUrlChange?.(null);
@@ -61,7 +71,7 @@ export default function StudioVideoUpload({
     onStatusChange?.("saving");
     toast.message(t("vid_cloud_upload_start"), { duration: 5000 });
 
-    void readVideoDurationSeconds(file, { timeoutMs: 8000 })
+    void readVideoDurationSeconds(normalized, { timeoutMs: 8000 })
       .then((dur) => {
         if (Number.isFinite(dur) && dur > maxDurationSec) {
           toast.message(
@@ -70,18 +80,18 @@ export default function StudioVideoUpload({
           );
         }
       })
-      .catch(() => { /* upload anyway */ });
+      .catch(() => { /* HEVC/MOV: duration unknown — upload continues */ });
 
-    void uploadVideoToCloud(file, {
-      timeoutMs: pickBlobOffloadTimeoutMs(file.size, true),
+    void uploadVideoToCloud(normalized, {
+      timeoutMs: pickBlobOffloadTimeoutMs(normalized.size, true),
       onProgress: (pct) => {
         if (gen !== uploadGenRef.current) return;
         setProgress(pct);
       },
     })
       .then((url) => {
+        /* Only gen matters — do NOT compare valueRef/file identity (React race). */
         if (gen !== uploadGenRef.current) return;
-        if (valueRef.current !== file) return;
         setCloudUrl(url);
         onCloudUrlChange?.(url);
         onStatusChange?.("saved");
@@ -95,14 +105,17 @@ export default function StudioVideoUpload({
         onCloudUrlChange?.(null);
         onStatusChange?.("error");
         setProgress(null);
-        const msg = err?.message || t("vid_cloud_upload_fail");
+        const msg = formatHttpError(err, t("vid_cloud_upload_fail"), {
+          context: "video_upload",
+          t,
+        });
         setUploadError(msg);
         toast.error(msg, { duration: 12000 });
       });
-  }, [maxDurationSec, onCloudUrlChange, onCloudProgressChange, onStatusChange, setProgress, t]);
+  }, [maxDurationSec, onCloudUrlChange, onStatusChange, setProgress, t]);
 
   const retryCloudUpload = useCallback(() => {
-    const file = valueRef.current;
+    const file = pendingFileRef.current || valueRef.current;
     if (!file) return;
     startCloudUpload(file);
   }, [startCloudUpload]);
@@ -113,20 +126,22 @@ export default function StudioVideoUpload({
   }, [onStatusChange]);
 
   const handleChange = useCallback((file) => {
-    uploadGenRef.current += 1;
-    setProgress(null);
-    setUploadError(null);
-    setCloudUrl(null);
-    onCloudUrlChange?.(null);
-
     if (!file) {
+      uploadGenRef.current += 1;
+      pendingFileRef.current = null;
+      setProgress(null);
+      setUploadError(null);
+      setCloudUrl(null);
+      onCloudUrlChange?.(null);
       onChange(null);
       onStatusChange?.("idle");
       return;
     }
 
-    onChange(file);
-    startCloudUpload(file);
+    const normalized = withNormalizedVideoType(file);
+    /* Parent state update is async — upload must not wait on valueRef. */
+    onChange(normalized);
+    startCloudUpload(normalized);
   }, [onChange, onCloudUrlChange, onStatusChange, setProgress, startCloudUpload]);
 
   const cloudReady = Boolean(value) && !uploadError && (

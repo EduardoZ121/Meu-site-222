@@ -1,6 +1,18 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Link, Navigate } from "react-router-dom";
-import { CheckCircle2, Globe, ImageIcon, Link2, Loader2, Sparkles, XCircle } from "lucide-react";
+import { Link } from "react-router-dom";
+import {
+  Check,
+  CheckCircle2,
+  Globe,
+  ImageIcon,
+  Layers,
+  Link2,
+  Loader2,
+  Palette,
+  Ratio,
+  Sparkles,
+  XCircle,
+} from "lucide-react";
 import { toast } from "sonner";
 import { api, formatApiError, notifyCreationSucceeded, pollPrediction, uploadPost } from "../../lib/api";
 import { useAuth } from "../../lib/auth";
@@ -9,11 +21,15 @@ import { useI18n } from "../../lib/i18n";
 import { usePricing } from "../../lib/PricingContext";
 import useTitle from "../../lib/useTitle";
 import StudioCompactShell from "../../components/studio/StudioCompactShell";
+import StudioInlineHeader from "../../components/studio/StudioInlineHeader";
 import StudioGenerateBar from "../../components/StudioGenerateBar";
 import StudioGenerateCostMeta from "../../components/StudioGenerateCostMeta";
-import { useStudioGenerateGate } from "../../lib/useStudioGenerateGate";
-import BrandCampaignStylePanel from "../../components/brand-campaign/BrandCampaignStylePanel";
+import SettingCard from "../../components/studio/SettingCard";
+import SettingModal from "../../components/studio/SettingModal";
 import MultiImageUpload from "../../components/studio/MultiImageUpload";
+import BrandCampaignStylePanel from "../../components/brand-campaign/BrandCampaignStylePanel";
+import StudioHelpTip from "../../components/studio/StudioHelpTip";
+import { useStudioGenerateGate } from "../../lib/useStudioGenerateGate";
 import {
   BRAND_CAMPAIGN_ASPECTS,
   computeBrandCampaignCost,
@@ -60,7 +76,7 @@ export default function BrandCampaign() {
   const [files, setFiles] = useState([]);
   const [aspect, setAspect] = useState("4:5");
   const [outputCount, setOutputCount] = useState(4);
-  const [perImageCost, setPerImageCost] = useState(costs?.brandCampaignPerImage ?? costs?.posterPro ?? 40);
+  const [perImageCost, setPerImageCost] = useState(costs?.brandCampaignPerImage ?? 50);
   const [brief, setBrief] = useState(null);
   const [results, setResults] = useState([]);
   const [slots, setSlots] = useState([]);
@@ -71,8 +87,12 @@ export default function BrandCampaign() {
   const [busy, setBusy] = useState(false);
   const [progress, setProgress] = useState(0);
   const [progressLabel, setProgressLabel] = useState("");
+  const [openKey, setOpenKey] = useState(null);
   const progressTimerRef = useRef(null);
   const notifiedIdsRef = useRef(new Set());
+
+  const openModal = (key) => setOpenKey(key);
+  const closeModal = () => setOpenKey(null);
 
   const costInfo = useMemo(
     () => computeBrandCampaignCost(perImageCost, outputCount),
@@ -80,18 +100,39 @@ export default function BrandCampaign() {
   );
 
   const hasSource = websiteUrl.trim().length > 8 || files.length > 0;
+  const premiumBalance = user?.premium_credits ?? 0;
+  const needsHq = costInfo.total > 0
+    && !user?.is_unlimited
+    && !isAdminUser(user)
+    && premiumBalance < costInfo.total;
 
   const { ready, hint } = useStudioGenerateGate({
     user,
     cost: costInfo.total,
-    readyOverride: hasSource,
-    hintOverride: !hasSource ? t("bc_hint_source") : null,
+    readyOverride: hasSource && !needsHq,
+    hintOverride: !hasSource
+      ? t("bc_hint_source")
+      : needsHq
+        ? t("bc_need_hq_credits", { need: costInfo.total, have: premiumBalance })
+        : null,
   });
+
+  const styleCategoryLabel = useMemo(() => {
+    const hit = styleCategories.find((c) => c.id === styleCategory);
+    return hit?.label || t("bc_style_category_label");
+  }, [styleCategories, styleCategory, t]);
+
+  const styleModeLabel = stylePresetMode === "random"
+    ? t("bc_style_mode_random")
+    : t("bc_style_mode_auto");
+
+  const aspectMeta = BRAND_CAMPAIGN_ASPECTS.find((a) => a.id === aspect);
+  const aspectLabel = aspectMeta ? `${t(aspectMeta.labelKey)} · ${aspect}` : aspect;
 
   const loadConfig = useCallback(async () => {
     try {
       const { data } = await api.get("/brand-campaign/config", {
-        headers: { "x-pricing-region": region || "intl", "x-lang": lang || "pt" },
+        headers: { "x-pricing-region": region || "intl", "x-lang": lang || "en" },
       });
       if (data?.per_image_cost) setPerImageCost(data.per_image_cost);
       if (data?.style_categories?.length) setStyleCategories(data.style_categories);
@@ -132,6 +173,7 @@ export default function BrandCampaign() {
     if (user?.email) fd.append("notify_email", user.email);
     const { data } = await uploadPost("/brand-campaign/analyze", fd, {
       timeout: 180000,
+      attempts: 1,
       headers: { "X-Skip-Auto-Poll": "1" },
     });
     if (!data?.brief?.concepts?.length) {
@@ -281,7 +323,8 @@ export default function BrandCampaign() {
       if (user?.email) fd.append("notify_email", user.email);
 
       const { data } = await uploadPost("/generate/brand-campaign-batch", fd, {
-        timeout: 780000,
+        timeout: Math.max(300_000, total * 90_000),
+        attempts: 1,
         headers: { "X-Skip-Auto-Poll": "1" },
       });
 
@@ -329,268 +372,344 @@ export default function BrandCampaign() {
 
   if (loading) {
     return (
-      <StudioCompactShell testId="brand-campaign-page" maxWidth="960px">
+      <StudioCompactShell testId="brand-campaign-page" maxWidth="720px" className="pb-8">
         <div className="flex min-h-[40vh] items-center justify-center" data-testid="bc-loading">
           <Loader2 className="h-8 w-8 animate-spin text-violet-400" aria-hidden />
         </div>
       </StudioCompactShell>
     );
   }
-  if (!isAdminUser(user)) {
-    return <Navigate to="/app/tools" replace />;
-  }
 
   const showSlots = busy || slots.length > 0;
+  const modalTitle = {
+    count: t("bc_count_label"),
+    format: t("bc_aspect_label"),
+    style: t("bc_style_title"),
+  }[openKey] || "";
 
   return (
-    <StudioCompactShell testId="brand-campaign-page" maxWidth="960px">
-      <header className="mb-5 md:mb-6">
-        <p className="text-[11px] uppercase tracking-[0.18em] text-violet-400/90 mb-2">{t("bc_eyebrow")}</p>
-        <div className="flex flex-wrap items-center gap-2 mb-2">
-          <h1 className="text-xl md:text-2xl font-semibold text-[#EDEBE8] font-['Inter_Tight']">{t("bc_title")}</h1>
-          <span className="px-2 py-0.5 rounded text-[10px] font-mono uppercase tracking-wider bg-amber-500/15 text-amber-300 border border-amber-500/30">
-            {t("bc_admin_badge")}
+    <StudioCompactShell testId="brand-campaign-page" maxWidth="720px" className="pb-8">
+      <StudioInlineHeader
+        eyebrow={t("bc_eyebrow")}
+        title={(
+          <span className="inline-flex flex-wrap items-center gap-2">
+            {t("bc_title")}
+            <span className="px-2 py-0.5 rounded text-[10px] font-mono uppercase tracking-wider bg-amber-500/15 text-amber-300 border border-amber-500/30">
+              {t("bc_admin_badge")}
+            </span>
           </span>
-        </div>
-        <p className="text-[14px] text-[#8A8A8E] leading-relaxed max-w-2xl">{t("bc_subtitle")}</p>
-      </header>
+        )}
+        description={t("bc_subtitle")}
+        testId="bc-header"
+        helpKey="help_page_brand_campaign"
+      />
 
-      <section className="rp-editor-panel p-4 sm:p-5 mb-4 space-y-4">
-        <div>
-          <label className="flex items-center gap-2 text-[11px] font-mono uppercase tracking-wider text-[#8A8A8E] mb-2">
-            <Globe className="w-3.5 h-3.5" />
-            {t("bc_url_label")}
-          </label>
-          <div className="relative">
-            <Link2 className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#6b6b70]" />
-            <input
-              type="url"
-              value={websiteUrl}
-              onChange={(e) => { setWebsiteUrl(e.target.value); setBrief(null); }}
-              placeholder={t("bc_url_placeholder")}
-              className="w-full pl-10 pr-4 py-3 rounded-xl bg-[#0B0B0C]/80 border border-white/[0.08] text-[#EDEBE8] text-sm placeholder:text-[#5A5A5E] focus:border-violet-500/50 focus:outline-none"
-              data-testid="bc-url-input"
-              disabled={busy}
-            />
-          </div>
-          <p className="mt-1.5 text-[11px] text-[#6b6b70]">{t("bc_url_hint")}</p>
-        </div>
+      <figure
+        className="mb-3 md:mb-4 overflow-hidden rounded-2xl border border-violet-500/20 bg-[#0C0C12] shadow-[0_18px_48px_-18px_rgba(0,0,0,0.85),0_0_0_1px_rgba(124,58,237,0.18)]"
+        data-testid="bc-how-it-works"
+      >
+        <img
+          src="/images/brand-campaign-how-it-works.png"
+          alt={t("bc_tutorial_alt")}
+          className="block w-full h-auto object-contain object-top"
+          loading="eager"
+          decoding="async"
+        />
+        <figcaption className="px-3 py-2.5 md:px-4 text-[11px] md:text-[12px] leading-snug text-[#8A8A8E] border-t border-white/[0.06]">
+          {t("bc_tutorial_caption")}
+        </figcaption>
+      </figure>
 
-        <div>
-          <p className="text-[11px] font-mono uppercase tracking-wider text-[#8A8A8E] mb-2">{t("bc_photos_label")}</p>
-          <MultiImageUpload
-            value={files}
-            onChange={handleFilesChange}
-            maxFiles={5}
-            disabled={busy}
-            testId="bc-upload"
-            layout="wide"
-            size="compact"
-            emptyLabel={t("bc_photos_empty")}
-            emptyHint={t("bc_photos_hint")}
-          />
-          {files.length > 0 && (
-            <p className="mt-2 text-[11px] text-emerald-400/90" data-testid="bc-photos-ready">
-              {t("bc_photos_ready", { n: files.length })}
-            </p>
-          )}
-        </div>
-      </section>
-
-      {styleCategories.length > 0 && (
-        <div className="mb-4">
-          <BrandCampaignStylePanel
-            categories={styleCategories}
-            category={styleCategory}
-            onCategoryChange={setStyleCategory}
-            presetMode={stylePresetMode}
-            onPresetModeChange={setStylePresetMode}
-            disabled={busy}
-            presetCount={stylePresetCount}
-          />
-        </div>
-      )}
-
-      <section className="rp-editor-panel p-4 sm:p-5 mb-4 space-y-4">
-        <div>
-          <p className="text-[11px] font-mono uppercase tracking-wider text-[#8A8A8E] mb-3">{t("bc_count_label")}</p>
-          <div className="flex flex-wrap gap-2" data-testid="bc-count-picker">
-            {COUNT_OPTIONS.map((n) => (
-              <button
-                key={n}
-                type="button"
+      <div className="space-y-2.5">
+        <div className="rounded-2xl border border-white/[0.08] bg-[#141418]/80 p-3 md:p-4 space-y-4">
+          <div>
+            <label className="flex items-center gap-2 text-[11px] font-mono uppercase tracking-wider text-[#8A8A8E] mb-2">
+              <Globe className="w-3.5 h-3.5 text-[#A855F7]" />
+              {t("bc_url_label")}
+              <StudioHelpTip helpKey="help_sec_bc_url" testId="bc-url-help" />
+            </label>
+            <div className="relative">
+              <Link2 className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#6b6b70]" />
+              <input
+                type="url"
+                value={websiteUrl}
+                onChange={(e) => { setWebsiteUrl(e.target.value); setBrief(null); }}
+                placeholder={t("bc_url_placeholder")}
+                className="w-full pl-10 pr-4 py-3 rounded-xl bg-[#0B0B0C]/80 border border-white/[0.08] text-[#EDEBE8] text-sm placeholder:text-[#5A5A5E] focus:border-violet-500/50 focus:outline-none"
+                data-testid="bc-url-input"
                 disabled={busy}
-                onClick={() => setOutputCount(n)}
-                className={cn(
-                  "min-w-[2.5rem] h-10 px-3 rounded-xl text-sm font-semibold tabular-nums transition-all border",
-                  outputCount === n
-                    ? "bg-violet-600 border-violet-500 text-white shadow-[0_0_20px_-6px_rgba(139,92,246,0.8)]"
-                    : "bg-[#0B0B0C]/60 border-white/[0.08] text-[#8A8A8E] hover:text-white hover:border-white/20",
-                )}
-                data-testid={`bc-count-${n}`}
-              >
-                {n}
-              </button>
-            ))}
-          </div>
-          <p className="mt-2 text-[11px] text-[#6b6b70]">
-            {t("bc_count_hint", { per: costInfo.perImage, total: costInfo.total })}
-          </p>
-        </div>
-
-        <div>
-          <p className="text-[11px] font-mono uppercase tracking-wider text-[#8A8A8E] mb-2">{t("bc_aspect_label")}</p>
-          <div className="flex flex-wrap gap-2">
-            {BRAND_CAMPAIGN_ASPECTS.map(({ id, labelKey }) => (
-              <button
-                key={id}
-                type="button"
-                disabled={busy}
-                onClick={() => setAspect(id)}
-                className={cn(
-                  "px-3 py-2 rounded-lg text-[12px] font-medium border transition-all",
-                  aspect === id
-                    ? "bg-violet-600/20 border-violet-500/50 text-violet-200"
-                    : "border-white/[0.08] text-[#8A8A8E] hover:text-white",
-                )}
-              >
-                {t(labelKey)} ({id})
-              </button>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {user?.email && (
-        <p className="mb-4 text-[11px] text-[#8A8A8E] leading-relaxed px-1" data-testid="bc-email-hint">
-          {t("bc_notify_email")} — {t("bc_notify_email_hint")}
-        </p>
-      )}
-
-      {brief && (
-        <section className="rp-editor-panel p-4 sm:p-5 mb-4" data-testid="bc-brief-preview">
-          <p className="text-[11px] font-mono uppercase tracking-wider text-emerald-400/90 mb-2">{t("bc_brief_ready")}</p>
-          <h2 className="text-lg font-semibold text-white mb-1">{brief.brand_name || t("bc_brand_unknown")}</h2>
-          <p className="text-[13px] text-[#9CA3AF] mb-3">{brief.product_summary}</p>
-          {brief.site_read_method && (
-            <p className="text-[11px] text-emerald-400/80 mb-2">{t("bc_read_method", { method: brief.site_read_method })}</p>
-          )}
-          {(brief.vision_images_count > 0 || brief.uploaded_photos_count > 0) && (
-            <p className="text-[11px] text-emerald-400/80 mb-2" data-testid="bc-vision-used">
-              {t("bc_vision_used", {
-                n: brief.vision_images_count || brief.uploaded_photos_count || files.length,
-              })}
-            </p>
-          )}
-          {brief.reference_image_urls?.length > 0 && (
-            <p className="text-[11px] text-[#8A8A8E] mb-3">{t("bc_refs_found", { n: brief.reference_image_urls.length })}</p>
-          )}
-          {brief.color_palette?.length > 0 && (
-            <div className="flex flex-wrap gap-2 mb-3">
-              {brief.color_palette.map((c) => (
-                <span key={c} className="text-[11px] px-2 py-1 rounded-full bg-white/[0.06] text-[#C4B5FD] border border-white/10">
-                  {c}
-                </span>
-              ))}
+              />
             </div>
-          )}
-          <ul className="space-y-1.5 text-[12px] text-[#8A8A8E]">
-            {(brief.concepts || []).slice(0, outputCount).map((c, i) => (
-              <li key={c.title || i} className="flex gap-2">
-                <span className="text-violet-400 font-mono shrink-0">{i + 1}.</span>
-                <span>{c.title}</span>
-              </li>
-            ))}
-          </ul>
-        </section>
-      )}
-
-      {showSlots && (
-        <section className="mb-4 rounded-xl border border-violet-500/30 bg-violet-500/10 px-4 py-4" data-testid="bc-progress-slots">
-          {busy && (
-            <>
-              <p className="text-[13px] text-violet-200 mb-2">{progressLabel}</p>
-              <div className="h-1.5 bg-black/40 rounded-full overflow-hidden mb-4">
-                <div className="h-full bg-violet-500 transition-all duration-300" style={{ width: `${progress}%` }} />
-              </div>
-            </>
-          )}
-          <p className="text-[11px] font-mono uppercase tracking-wider text-[#8A8A8E] mb-3">{t("bc_results")}</p>
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-            {slots.map((slot) => (
-              <div
-                key={slot.index}
-                className={cn(
-                  "rounded-xl overflow-hidden border bg-[#0E0E12]",
-                  slot.status === "done" && "border-emerald-500/40",
-                  slot.status === "error" && "border-red-500/40",
-                  slot.status === "generating" && "border-violet-500/30",
-                  slot.status === "pending" && "border-amber-500/40",
-                )}
-              >
-                <div className="relative aspect-[4/5] bg-[#0B0B0C] flex items-center justify-center">
-                  {slot.url ? (
-                    <img src={slot.url} alt={slot.title} className="w-full h-full object-cover" />
-                  ) : slot.status === "generating" || slot.status === "pending" ? (
-                    <Loader2 className="w-8 h-8 text-violet-400 animate-spin" />
-                  ) : slot.status === "error" ? (
-                    <XCircle className="w-8 h-8 text-red-400/80" />
-                  ) : (
-                    <ImageIcon className="w-8 h-8 text-[#4b4b50]" />
-                  )}
-                  {slot.status === "done" && (
-                    <CheckCircle2 className="absolute top-2 right-2 w-5 h-5 text-emerald-400 drop-shadow" />
-                  )}
-                </div>
-                <div className="px-2 py-2 space-y-0.5">
-                  <p className="text-[10px] text-[#8A8A8E] truncate">{slot.title}</p>
-                  <p className={cn(
-                    "text-[10px] font-mono uppercase",
-                    slot.status === "done" && "text-emerald-400",
-                    slot.status === "error" && "text-red-400",
-                    slot.status === "generating" && "text-violet-300",
-                    slot.status === "pending" && "text-amber-300",
-                  )}
-                  >
-                    {slot.status === "done" && t("bc_slot_done")}
-                    {slot.status === "generating" && t("bc_slot_generating")}
-                    {slot.status === "pending" && t("bc_slot_pending")}
-                    {slot.status === "error" && (slot.error || t("bc_slot_error"))}
-                    {slot.status === "waiting" && t("bc_slot_waiting")}
-                  </p>
-                </div>
-              </div>
-            ))}
+            <p className="mt-1.5 text-[11px] text-[#6b6b70]">{t("bc_url_hint")}</p>
           </div>
-          {(results.length > 0 || busy) && (
-            <p className="mt-3 text-[11px] text-[#8A8A8E]">
-              {t("bc_gallery_hint")}{" "}
-              <Link to="/app/gallery" className="text-violet-300 hover:text-violet-200 underline underline-offset-2">
-                {t("bc_view_gallery")}
-              </Link>
-            </p>
-          )}
-        </section>
-      )}
 
-      <StudioGenerateBar
-        ready={ready}
-        busy={busy}
-        onClick={generate}
-        label={t("bc_generate", { n: outputCount })}
-        busyLabel={progressLabel || t("bc_generating")}
-        hint={hint}
-        cost={costInfo.total}
-        costMeta={(
-          <StudioGenerateCostMeta
-            cost={costInfo.total}
-            user={user}
-            extra={`${outputCount}× ${costInfo.perImage} cr`}
+          <div>
+            <p className="flex items-center gap-2 text-[11px] font-mono uppercase tracking-wider text-[#8A8A8E] mb-2">
+              {t("bc_photos_label")}
+              <StudioHelpTip helpKey="help_sec_bc_photos" testId="bc-photos-help" />
+            </p>
+            <MultiImageUpload
+              value={files}
+              onChange={handleFilesChange}
+              maxFiles={5}
+              disabled={busy}
+              testId="bc-upload"
+              layout="wide"
+              size="compact"
+              emptyLabel={t("bc_photos_empty")}
+              emptyHint={t("bc_photos_hint")}
+            />
+            {files.length > 0 && (
+              <p className="mt-2 text-[11px] text-emerald-400/90" data-testid="bc-photos-ready">
+                {t("bc_photos_ready", { n: files.length })}
+              </p>
+            )}
+          </div>
+        </div>
+
+        <div className="mv-setting-grid">
+          <SettingCard
+            icon={Layers}
+            label={t("bc_count_label")}
+            value={`${outputCount}`}
+            meta={`${costInfo.total} HQ · ${costInfo.perImage}/img`}
+            onOpen={() => openModal("count")}
+            testId="bc-card-count"
+            disabled={busy}
+            helpKey="help_sec_bc_count"
+          />
+          <SettingCard
+            icon={Ratio}
+            label={t("bc_aspect_label")}
+            value={aspectLabel}
+            onOpen={() => openModal("format")}
+            testId="bc-card-format"
+            disabled={busy}
+            helpKey="help_sec_format"
+          />
+        </div>
+
+        {styleCategories.length > 0 && (
+          <SettingCard
+            icon={Palette}
+            label={t("bc_style_title")}
+            value={`${styleCategoryLabel} · ${styleModeLabel}`}
+            meta={t("bc_style_hint", { n: stylePresetCount || 60 })}
+            onOpen={() => openModal("style")}
+            testId="bc-card-style"
+            disabled={busy}
+            helpKey="help_sec_bc_style"
           />
         )}
-        testId="bc-generate"
-        icon={Sparkles}
-      />
+
+        {user?.email && (
+          <p className="text-[11px] text-[#8A8A8E] leading-relaxed px-1" data-testid="bc-email-hint">
+            {t("bc_notify_email")} — {t("bc_notify_email_hint")}
+          </p>
+        )}
+
+        {brief && (
+          <section className="rounded-2xl border border-emerald-500/20 bg-emerald-500/[0.06] p-3 md:p-4" data-testid="bc-brief-preview">
+            <p className="text-[11px] font-mono uppercase tracking-wider text-emerald-400/90 mb-2">{t("bc_brief_ready")}</p>
+            <h2 className="text-lg font-semibold text-white mb-1 font-display">{brief.brand_name || t("bc_brand_unknown")}</h2>
+            <p className="text-[13px] text-[#9CA3AF] mb-3">{brief.product_summary}</p>
+            {brief.site_read_method && (
+              <p className="text-[11px] text-emerald-400/80 mb-2">{t("bc_read_method", { method: brief.site_read_method })}</p>
+            )}
+            {(brief.vision_images_count > 0 || brief.uploaded_photos_count > 0) && (
+              <p className="text-[11px] text-emerald-400/80 mb-2" data-testid="bc-vision-used">
+                {t("bc_vision_used", {
+                  n: brief.vision_images_count || brief.uploaded_photos_count || files.length,
+                })}
+              </p>
+            )}
+            {brief.reference_image_urls?.length > 0 && (
+              <p className="text-[11px] text-[#8A8A8E] mb-3">{t("bc_refs_found", { n: brief.reference_image_urls.length })}</p>
+            )}
+            {brief.color_palette?.length > 0 && (
+              <div className="flex flex-wrap gap-2 mb-3">
+                {brief.color_palette.map((c) => (
+                  <span key={c} className="text-[11px] px-2 py-1 rounded-lg bg-white/[0.06] text-[#C4B5FD] border border-white/10">
+                    {c}
+                  </span>
+                ))}
+              </div>
+            )}
+            <ul className="space-y-1.5 text-[12px] text-[#8A8A8E]">
+              {(brief.concepts || []).slice(0, outputCount).map((c, i) => (
+                <li key={c.title || i} className="flex gap-2">
+                  <span className="text-violet-400 font-mono shrink-0">{i + 1}.</span>
+                  <span>{c.title}</span>
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
+
+        {showSlots && (
+          <section className="rounded-2xl border border-violet-500/30 bg-violet-500/10 px-4 py-4" data-testid="bc-progress-slots">
+            {busy && (
+              <>
+                <p className="text-[13px] text-violet-200 mb-2">{progressLabel}</p>
+                <div className="h-1.5 bg-black/40 rounded-full overflow-hidden mb-4">
+                  <div className="h-full bg-violet-500 transition-all duration-300" style={{ width: `${progress}%` }} />
+                </div>
+              </>
+            )}
+            <p className="text-[11px] font-mono uppercase tracking-wider text-[#8A8A8E] mb-3">{t("bc_results")}</p>
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+              {slots.map((slot) => (
+                <div
+                  key={slot.index}
+                  className={cn(
+                    "rounded-xl overflow-hidden border bg-[#0E0E12]",
+                    slot.status === "done" && "border-emerald-500/40",
+                    slot.status === "error" && "border-red-500/40",
+                    slot.status === "generating" && "border-violet-500/30",
+                    slot.status === "pending" && "border-amber-500/40",
+                  )}
+                >
+                  <div className="relative aspect-[4/5] bg-[#0B0B0C] flex items-center justify-center">
+                    {slot.url ? (
+                      <img src={slot.url} alt={slot.title} className="w-full h-full object-cover" />
+                    ) : slot.status === "generating" || slot.status === "pending" ? (
+                      <Loader2 className="w-8 h-8 text-violet-400 animate-spin" />
+                    ) : slot.status === "error" ? (
+                      <XCircle className="w-8 h-8 text-red-400/80" />
+                    ) : (
+                      <ImageIcon className="w-8 h-8 text-[#4b4b50]" />
+                    )}
+                    {slot.status === "done" && (
+                      <CheckCircle2 className="absolute top-2 right-2 w-5 h-5 text-emerald-400 drop-shadow" />
+                    )}
+                  </div>
+                  <div className="px-2 py-2 space-y-0.5">
+                    <p className="text-[10px] text-[#8A8A8E] truncate">{slot.title}</p>
+                    <p className={cn(
+                      "text-[10px] font-mono uppercase",
+                      slot.status === "done" && "text-emerald-400",
+                      slot.status === "error" && "text-red-400",
+                      slot.status === "generating" && "text-violet-300",
+                      slot.status === "pending" && "text-amber-300",
+                    )}
+                    >
+                      {slot.status === "done" && t("bc_slot_done")}
+                      {slot.status === "generating" && t("bc_slot_generating")}
+                      {slot.status === "pending" && t("bc_slot_pending")}
+                      {slot.status === "error" && (slot.error || t("bc_slot_error"))}
+                      {slot.status === "waiting" && t("bc_slot_waiting")}
+                    </p>
+                  </div>
+                </div>
+              ))}
+            </div>
+            {(results.length > 0 || busy) && (
+              <p className="mt-3 text-[11px] text-[#8A8A8E]">
+                {t("bc_gallery_hint")}{" "}
+                <Link to="/app/gallery" className="text-violet-300 hover:text-violet-200 underline underline-offset-2">
+                  {t("bc_view_gallery")}
+                </Link>
+              </p>
+            )}
+          </section>
+        )}
+
+        <div className="mv-setting-card mv-setting-card--static">
+          <div className="flex flex-col gap-2.5 sm:flex-row sm:items-center sm:justify-end">
+            <StudioGenerateBar
+              layout="inline"
+              ready={ready}
+              busy={busy}
+              onClick={generate}
+              label={t("bc_generate", { n: outputCount })}
+              busyLabel={progressLabel || t("bc_generating")}
+              hint={hint}
+              cost={costInfo.total}
+              testId="bc-generate"
+              icon={Sparkles}
+              buttonClassName="rp-gen-btn-inline w-full sm:w-auto"
+            />
+          </div>
+          <div className="mt-2 pt-2 border-t border-white/[0.06]">
+            <StudioGenerateCostMeta
+              cost={costInfo.total}
+              user={user}
+              wallet="premium"
+              extra={`${outputCount}× ${costInfo.perImage} HQ`}
+            />
+          </div>
+        </div>
+      </div>
+
+      <SettingModal open={openKey === "count"} title={modalTitle} onClose={closeModal}>
+        <div className="grid grid-cols-5 gap-2" data-testid="bc-count-picker">
+          {COUNT_OPTIONS.map((n) => (
+            <button
+              key={n}
+              type="button"
+              disabled={busy}
+              onClick={() => { setOutputCount(n); closeModal(); }}
+              className={cn(
+                "min-h-[2.75rem] rounded-xl text-sm font-semibold tabular-nums transition-all border",
+                outputCount === n
+                  ? "bg-violet-600 border-violet-500 text-white"
+                  : "bg-[#0B0B0C]/60 border-white/[0.08] text-[#8A8A8E] hover:text-white hover:border-white/20",
+              )}
+              data-testid={`bc-count-${n}`}
+            >
+              {n}
+            </button>
+          ))}
+        </div>
+        <p className="mt-3 text-[11px] text-[#6b6b70]">
+          {t("bc_count_hint", { per: costInfo.perImage, total: costInfo.total })}
+        </p>
+        <button type="button" onClick={closeModal} className="rp-modal-confirm mt-3" data-testid="bc-count-confirm">
+          <Check className="w-4 h-4" /> {t("confirm")}
+        </button>
+      </SettingModal>
+
+      <SettingModal open={openKey === "format"} title={modalTitle} onClose={closeModal}>
+        <div className="grid grid-cols-2 gap-2">
+          {BRAND_CAMPAIGN_ASPECTS.map(({ id, labelKey }) => (
+            <button
+              key={id}
+              type="button"
+              disabled={busy}
+              onClick={() => { setAspect(id); closeModal(); }}
+              className={cn(
+                "px-3 py-3 rounded-xl text-[12px] font-medium border transition-all text-left",
+                aspect === id
+                  ? "bg-violet-600/20 border-violet-500/50 text-violet-200"
+                  : "border-white/[0.08] text-[#8A8A8E] hover:text-white",
+              )}
+              data-testid={`bc-aspect-${id.replace(":", "-")}`}
+            >
+              <span className="block font-semibold text-[#EDEBE8]">{t(labelKey)}</span>
+              <span className="font-mono text-[11px] opacity-70">{id}</span>
+            </button>
+          ))}
+        </div>
+        <button type="button" onClick={closeModal} className="rp-modal-confirm mt-3" data-testid="bc-format-confirm">
+          <Check className="w-4 h-4" /> {t("confirm")}
+        </button>
+      </SettingModal>
+
+      <SettingModal open={openKey === "style"} title={modalTitle} onClose={closeModal}>
+        <BrandCampaignStylePanel
+          categories={styleCategories}
+          category={styleCategory}
+          onCategoryChange={setStyleCategory}
+          presetMode={stylePresetMode}
+          onPresetModeChange={setStylePresetMode}
+          disabled={busy}
+          presetCount={stylePresetCount}
+          embedded
+        />
+        <button type="button" onClick={closeModal} className="rp-modal-confirm mt-3" data-testid="bc-style-confirm">
+          <Check className="w-4 h-4" /> {t("confirm")}
+        </button>
+      </SettingModal>
     </StudioCompactShell>
   );
 }

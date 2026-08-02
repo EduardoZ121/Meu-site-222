@@ -1,2 +1,2 @@
 "use strict";
-module.exports = "rp-pro-hd-intensity-v1";
+module.exports = "rp-clothes-dual-frames-v1";

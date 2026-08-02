@@ -13,7 +13,9 @@ import {
   VIDEO_UPLOAD_ACCEPT,
   VIDEO_VERCEL_SAFE_BYTES,
   MAX_VIDEO_UPLOAD_BYTES,
+  withNormalizedVideoType,
 } from "../lib/videoMedia";
+import { analyzeVideoPreview } from "../lib/videoPreview";
 import { MAX_IMAGE_DIRECT_BYTES } from "../lib/uploadConstants";
 import { CLIENT_BUILD_ID } from "../lib/buildInfo";
 import { formatHttpError } from "../lib/uploadErrors";
@@ -225,16 +227,17 @@ function SingleImageUploadZone({
         return;
       }
 
+      const normalized = withNormalizedVideoType(file);
       runIdRef.current += 1;
       const rid = runIdRef.current;
       lastPreparedRef.current = null;
       setPersistState("saving");
       notifyStatus("saving");
-      onChange(file);
-      void runBackgroundVideo(file, rid);
+      onChange(normalized);
+      void runBackgroundVideo(normalized, rid);
 
       if (Number.isFinite(maxVideoDurationSec) && maxVideoDurationSec > 0) {
-        void readVideoDurationSeconds(file, { timeoutMs: 6000 })
+        void readVideoDurationSeconds(normalized, { timeoutMs: 6000 })
           .then((dur) => {
             if (dur > maxVideoDurationSec) {
               const msg = t("vid_err_too_long", { n: Math.round(maxVideoDurationSec) });
@@ -346,6 +349,10 @@ function SingleImageUploadZone({
   const uploadReady = forceUploadReady != null ? forceUploadReady : persistState === "saved" && Boolean(value);
   const hasPreview = Boolean(previewUrl && value);
   const showPreviewShell = Boolean(value) && (hasPreview || uploadBusy || previewImgError);
+  const videoPreviewAnalysis = isVideo && value ? analyzeVideoPreview(value) : null;
+  const videoPreviewLikelyBroken = Boolean(
+    isVideo && value && (previewImgError || videoPreviewAnalysis?.showThumbnailOnly),
+  );
 
   return (
     <div
@@ -405,15 +412,29 @@ function SingleImageUploadZone({
         {showPreviewShell ? (
           <>
             {isVideo ? (
-              <video
-                src={previewUrl}
-                className="relative z-[1] h-full w-full object-contain bg-black p-3 pb-14"
-                controls
-                playsInline
-                muted
-                data-testid={`${testId}-preview`}
-                onError={() => setPreviewImgError(true)}
-              />
+              videoPreviewLikelyBroken ? (
+                <div
+                  className="relative z-[1] flex h-full w-full flex-col items-center justify-center gap-2 bg-black px-4 text-center pb-14"
+                  data-testid={`${testId}-preview-fallback`}
+                >
+                  <p className="text-sm font-medium text-zinc-200 truncate max-w-full px-2">
+                    {value?.name || t("vid_upload_title")}
+                  </p>
+                  <p className="text-xs text-amber-200/90 max-w-[260px] leading-snug">
+                    {t("vid_preview_codec_hint")}
+                  </p>
+                </div>
+              ) : (
+                <video
+                  src={previewUrl}
+                  className="relative z-[1] h-full w-full object-contain bg-black p-3 pb-14"
+                  controls
+                  playsInline
+                  muted
+                  data-testid={`${testId}-preview`}
+                  onError={() => setPreviewImgError(true)}
+                />
+              )
             ) : (
               <>
                 <img
@@ -437,7 +458,7 @@ function SingleImageUploadZone({
                 )}
               </>
             )}
-            {previewImgError && isVideo && (
+            {previewImgError && isVideo && !videoPreviewLikelyBroken && (
               <div className="absolute inset-0 z-[1] flex flex-col items-center justify-center gap-2 bg-black/90 px-4 text-center pb-12">
                 <p className="text-sm font-medium text-zinc-200">{value?.name || t("vid_upload_title")}</p>
                 <p className="text-xs text-zinc-500 max-w-[240px]">{t("vid_preview_codec_hint")}</p>

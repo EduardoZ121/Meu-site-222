@@ -39,7 +39,7 @@ function Toggle({ active, onClick, label, hint, testId }) {
         }`} />
       </div>
       <div className="flex-1 min-w-0">
-        <p className="text-[#F4F1EA] text-[13px] font-medium font-['Inter_Tight']">{label}</p>
+        <p className="text-[#F4F1EA] text-[13px] font-medium font-display">{label}</p>
         <p className="text-[#8A8A8E] text-[11.5px] leading-snug mt-0.5">{hint}</p>
       </div>
     </button>
@@ -89,7 +89,7 @@ export default function Upscale() {
   const tuningCount = [sharpen, denoise, preserveColors].filter(Boolean).length;
   const scaleLabel = scale === 4 ? t("upscale_scale_4_label") : t("upscale_scale_2_label");
   const tuningLabel = tuningCount === 0
-    ? (t("studio_styles_optional") || "Opcional")
+    ? (t("studio_styles_optional"))
     : `${tuningCount}/3`;
 
   const run = async () => {
@@ -207,7 +207,7 @@ export default function Upscale() {
                   </div>
                 )}
               </div>
-              <p className={`relative text-[16px] font-light tracking-[-0.01em] mb-1 font-['Inter_Tight'] ${
+              <p className={`relative text-[16px] font-light tracking-[-0.01em] mb-1 font-display ${
                 scale === s ? "text-[#F4F1EA]" : "text-[#F4F1EA]/85"
               }`}>
                 {label}
@@ -217,7 +217,7 @@ export default function Upscale() {
           ))}
         </div>
         <button type="button" onClick={closeModal} className="rp-modal-confirm mt-3" data-testid="upscale-scale-confirm">
-          <Check className="w-4 h-4" /> {t("confirm") || "Confirmar"}
+          <Check className="w-4 h-4" /> {t("confirm")}
         </button>
       </SettingModal>
 
@@ -246,7 +246,7 @@ export default function Upscale() {
           />
         </div>
         <button type="button" onClick={closeModal} className="rp-modal-confirm mt-3" data-testid="upscale-tuning-confirm">
-          <Check className="w-4 h-4" /> {t("confirm") || "Confirmar"}
+          <Check className="w-4 h-4" /> {t("confirm")}
         </button>
       </SettingModal>
 

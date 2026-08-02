@@ -50,7 +50,7 @@ export default function CollapsibleSection({
         >
           <div className="flex-1 min-w-0 text-left">
             <div className="flex items-center gap-2 flex-wrap">
-              <p className="text-[13px] font-medium text-[#EDEBE8] font-['Inter_Tight']">
+              <p className="text-[13px] font-medium text-[#EDEBE8] font-display">
                 {title}
               </p>
               {optional && (

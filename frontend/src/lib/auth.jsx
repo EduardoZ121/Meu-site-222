@@ -130,7 +130,7 @@ export function AuthProvider({ children }) {
     if (!token) return;
     localStorage.setItem("rp_token", token);
     setLoading(true);
-    api.get("/auth/me")
+    api.get("/auth/me", { timeout: 15000 })
       .then((r) => {
         const u = normalizeServerUser(r.data);
         setUser(u);
@@ -158,7 +158,7 @@ export function AuthProvider({ children }) {
       setLoading(false);
       return;
     }
-    api.get("/auth/me")
+    api.get("/auth/me", { timeout: 15000 })
       .then((r) => {
         const u = normalizeServerUser(r.data);
         setUser(u);

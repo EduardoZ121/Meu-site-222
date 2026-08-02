@@ -13,6 +13,7 @@ import {
   markAllStoredRead,
   markStoredRead,
   pushStoredNotification,
+  removeStoredNotification,
   saveNotifications,
 } from "./notificationsStore";
 
@@ -76,6 +77,10 @@ export function NotificationProvider({ children }) {
     persist(clearStoredNotifications());
   }, [persist]);
 
+  const dismiss = useCallback((id) => {
+    persist(removeStoredNotification(id));
+  }, [persist]);
+
   useEffect(() => {
     const onNotif = (event) => addNotification(event.detail);
     window.addEventListener("rp:notification", onNotif);
@@ -106,9 +111,10 @@ export function NotificationProvider({ children }) {
       markRead,
       markAllRead,
       clearAll,
+      dismiss,
       addNotification,
     }),
-    [enriched, unreadCount, markRead, markAllRead, clearAll, addNotification],
+    [enriched, unreadCount, markRead, markAllRead, clearAll, dismiss, addNotification],
   );
 
   return (

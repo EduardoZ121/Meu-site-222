@@ -9,6 +9,7 @@ import { usePricing } from "../../../lib/PricingContext";
 import { useI18n } from "../../../lib/i18n";
 import { useStudioI18n } from "../../../lib/useStudioI18n";
 import { BG_SCENE_KEYS } from "../../../lib/toolPagesLocales";
+import { PROMPT_MAX_LENGTH } from "../../../lib/promptLimits";
 import CompactImagePicker from "../../../components/studio/CompactImagePicker";
 import GenerationBubble from "../../../components/studio/GenerationBubble";
 import SettingCard from "../../../components/studio/SettingCard";
@@ -53,7 +54,7 @@ function ModeTab({ active, onClick, label, hint, testId }) {
           : "border-[#2E2E30] bg-[#13131A]/50 hover:border-[#7C3AED]/40"
       }`}
     >
-      <p className={`text-[13px] font-medium mb-1 font-['Inter_Tight'] ${active ? "text-[#F4F1EA]" : "text-[#F4F1EA]/85"}`}>
+      <p className={`text-[13px] font-medium mb-1 font-display ${active ? "text-[#F4F1EA]" : "text-[#F4F1EA]/85"}`}>
         {label}
       </p>
       <p className="text-[#8A8A8E] text-[11px] leading-snug">{hint}</p>
@@ -89,7 +90,7 @@ function Toggle({ active, onClick, label, hint, disabled, disabledHint, testId }
         />
       </div>
       <div className="flex-1 min-w-0">
-        <p className="text-[#F4F1EA] text-[13px] font-medium font-['Inter_Tight']">{label}</p>
+        <p className="text-[#F4F1EA] text-[13px] font-medium font-display">{label}</p>
         <p className="text-[#8A8A8E] text-[11.5px] leading-snug mt-0.5">
           {hint}{disabled && disabledHint ? <span className="text-[#5A5A5E]"> {disabledHint}</span> : null}
         </p>
@@ -167,7 +168,7 @@ export default function BgRemove() {
 
   const tuningCount = (refineHair ? 1 : 0) + (keepShadow && mode !== "transparent" ? 1 : 0);
   const tuningLabel = tuningCount === 0
-    ? (t("studio_styles_optional") || "Opcional")
+    ? (t("studio_styles_optional"))
     : `${tuningCount}/2`;
 
   const run = async () => {
@@ -374,7 +375,7 @@ export default function BgRemove() {
                   data-testid={`bg-scene-${p.key}`}
                 >
                   <div className="absolute inset-0 bg-black/25" />
-                  <span className="relative text-white text-[12px] font-medium drop-shadow font-['Inter_Tight']">
+                  <span className="relative text-white text-[12px] font-medium drop-shadow font-display">
                     {p.label}
                   </span>
                   {sceneKey === p.key && (
@@ -394,7 +395,7 @@ export default function BgRemove() {
               value={customPrompt}
               onChange={(e) => setCustomPrompt(e.target.value)}
               rows={3}
-              maxLength={300}
+              maxLength={PROMPT_MAX_LENGTH}
               placeholder={t("bg_prompt_ph")}
               className="rp-editor-textarea rp-editor-textarea--compact min-h-[88px] w-full"
               data-testid="bg-remove-custom-prompt"
@@ -415,7 +416,7 @@ export default function BgRemove() {
         )}
 
         <button type="button" onClick={closeModal} className="rp-modal-confirm mt-3" data-testid="bg-mode-confirm">
-          <Check className="w-4 h-4" /> {t("confirm") || "Confirmar"}
+          <Check className="w-4 h-4" /> {t("confirm")}
         </button>
       </SettingModal>
 
@@ -439,7 +440,7 @@ export default function BgRemove() {
           />
         </div>
         <button type="button" onClick={closeModal} className="rp-modal-confirm mt-3" data-testid="bg-tuning-confirm">
-          <Check className="w-4 h-4" /> {t("confirm") || "Confirmar"}
+          <Check className="w-4 h-4" /> {t("confirm")}
         </button>
       </SettingModal>
 

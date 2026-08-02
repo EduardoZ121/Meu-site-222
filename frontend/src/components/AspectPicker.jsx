@@ -55,7 +55,7 @@ export default function AspectPicker({
               onClick={() => onChange(key)}
               data-testid={`${testIdPrefix}-${key}`}
               className={cn(
-                "relative flex flex-col items-center justify-center gap-1 transition-all overflow-hidden border font-['Inter_Tight'] w-full",
+                "relative flex flex-col items-center justify-center gap-1 transition-all overflow-hidden border font-display w-full",
                 compact ? "py-2 px-2 rounded-lg text-[10px]" : premium ? "py-3.5 rounded-xl text-[12px] font-medium" : "py-3 rounded-xl text-[11px] font-medium",
                 active
                   ? premium

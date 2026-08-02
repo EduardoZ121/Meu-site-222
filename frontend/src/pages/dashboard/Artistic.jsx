@@ -257,10 +257,10 @@ export default function Artistic() {
   const aspectLabel = (aspect === "match" || aspect === ASPECT_MATCH)
     ? (t("aspect_original") || t("aspect_match") || "Original")
     : String(aspect || "3:4").toUpperCase();
-  const styleLabel = getStyleById(styleId)?.label || t("studio_styles_optional") || "Opcional";
+  const styleLabel = getStyleById(styleId)?.label || t("studio_styles_optional");
   const effectsLabel = effectCount > 0
     ? `${effectCount} ${t("art_sec_effects").toLowerCase()}`
-    : (t("studio_styles_optional") || "Opcional");
+    : (t("studio_styles_optional"));
 
   const modalTitle = {
     format: t("studio_acc_format"),
@@ -391,7 +391,7 @@ export default function Artistic() {
       <SettingModal open={openKey === "format"} title={modalTitle} onClose={closeModal}>
         <AspectPicker value={aspect} onChange={setAspect} hasPhoto={!!photo} testIdPrefix="art-aspect" />
         <button type="button" onClick={closeModal} className="rp-modal-confirm mt-3" data-testid="art-format-confirm">
-          <Check className="w-4 h-4" /> {t("confirm") || "Confirmar"}
+          <Check className="w-4 h-4" /> {t("confirm")}
         </button>
       </SettingModal>
 
@@ -401,14 +401,14 @@ export default function Artistic() {
         </p>
         {styleGallery}
         <button type="button" onClick={closeModal} className="rp-modal-confirm mt-3" data-testid="art-style-confirm">
-          <Check className="w-4 h-4" /> {t("confirm") || "Confirmar"}
+          <Check className="w-4 h-4" /> {t("confirm")}
         </button>
       </SettingModal>
 
       <SettingModal open={openKey === "effects"} title={modalTitle} onClose={closeModal}>
         {effectsPanel}
         <button type="button" onClick={closeModal} className="rp-modal-confirm mt-3" data-testid="art-effects-confirm">
-          <Check className="w-4 h-4" /> {t("confirm") || "Confirmar"}
+          <Check className="w-4 h-4" /> {t("confirm")}
         </button>
       </SettingModal>
 

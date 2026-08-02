@@ -14,10 +14,60 @@ export { VIDEO_VERCEL_SAFE_BYTES };
 export const IMAGE_UPLOAD_ACCEPT =
   "image/png,image/jpeg,image/webp,.png,.jpg,.jpeg,.webp";
 
+/** Aceitar contentores comuns (iPhone MOV/HEVC, Android, WhatsApp, 3GP). */
 export const VIDEO_UPLOAD_ACCEPT =
-  "video/mp4,video/quicktime,video/x-m4v,video/webm,.mp4,.mov,.m4v,.webm";
+  "video/*,video/mp4,video/quicktime,video/x-m4v,video/webm,video/3gpp,.mp4,.mov,.m4v,.webm,.3gp,.3gpp";
 
-const VIDEO_EXT = /\.(mp4|mov|m4v)$/i;
+const VIDEO_EXT = /\.(mp4|mov|m4v|webm|3gp|3gpp)$/i;
+
+/** MIME normalizado para Blob/S3 (lista fechada no servidor). */
+export function resolveVideoContentType(file) {
+  const raw = String(file?.type || "").toLowerCase().split(";")[0].trim();
+  const name = String(file?.name || "").toLowerCase();
+
+  if (raw === "video/mp4" || raw === "video/webm" || raw === "video/quicktime") return raw;
+  /* Telemóveis / WhatsApp às vezes mandam application/mp4 ou vazio. */
+  if (raw === "application/mp4" || raw === "audio/mp4") return "video/mp4";
+  if (raw === "video/x-m4v" || /\.m4v$/i.test(name)) return "video/mp4";
+  if (raw === "video/3gpp" || raw === "video/3gpp2" || /\.3gpp?$/i.test(name)) return "video/mp4";
+  if (/\.mov$/i.test(name)) return "video/quicktime";
+  if (/\.webm$/i.test(name)) return "video/webm";
+  if (/\.mp4$/i.test(name)) return "video/mp4";
+  if (!raw || raw === "application/octet-stream" || raw === "binary/octet-stream") {
+    if (/\.mov$/i.test(name)) return "video/quicktime";
+    if (/\.webm$/i.test(name)) return "video/webm";
+    return "video/mp4";
+  }
+  if (raw.startsWith("video/")) return "video/mp4";
+  /* MIME estranho: confiar na extensão, senão MP4. */
+  if (/\.(mp4|m4v|3gpp?)$/i.test(name)) return "video/mp4";
+  if (/\.mov$/i.test(name)) return "video/quicktime";
+  if (/\.webm$/i.test(name)) return "video/webm";
+  return "video/mp4";
+}
+
+/**
+ * MIME estável para uploads.
+ * Clipes grandes: NÃO recriar File (iOS/Android podem falhar / OOM de forma intermitente).
+ * O contentType enviado a S3/Blob vem de resolveVideoContentType().
+ */
+export function withNormalizedVideoType(file) {
+  if (!file) return file;
+  const type = resolveVideoContentType(file);
+  const name = file.name && /\.[a-z0-9]{2,5}$/i.test(file.name)
+    ? file.name
+    : `video.${type === "video/webm" ? "webm" : type === "video/quicktime" ? "mov" : "mp4"}`;
+  if (file.type === type && file.name === name) return file;
+  if (file.size > 2_000_000) return file;
+  try {
+    return new File([file], name, {
+      type,
+      lastModified: file.lastModified || Date.now(),
+    });
+  } catch {
+    return file;
+  }
+}
 
 export function looksLikeVideoUpload(file) {
   if (!file) return false;
@@ -26,11 +76,10 @@ export function looksLikeVideoUpload(file) {
     if (type === "video/ogg") return false;
     return true;
   }
-  if (type === "application/octet-stream") {
-    const name = (file.name || "").toLowerCase();
+  const name = (file.name || "").toLowerCase();
+  if (!type || type === "application/octet-stream") {
     return VIDEO_EXT.test(name);
   }
-  const name = (file.name || "").toLowerCase();
   return VIDEO_EXT.test(name);
 }
 

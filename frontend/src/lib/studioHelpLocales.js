@@ -88,6 +88,7 @@ const en = {
   help_sec_inpaint_mask: "Brush over the area to replace. White = edit zone; leave the rest untouched.",
 
   help_sec_set_language: "Interface language. Reloads the app to apply.",
+  help_sec_set_theme: "Dark (default black + purple) or Light (bright surfaces, purple accents).",
   help_sec_set_aspect: "Default format when you open Generate or similar tools. You can still change per session.",
   help_sec_set_password: "Change login password. Not available for Google-only accounts.",
   help_sec_set_whatsapp: "Optional WhatsApp number for generation-ready alerts when enabled.",
@@ -108,6 +109,45 @@ const en = {
   help_ctrl_suggest: "AI prompt ideas based on your goal. Tap to open the suggest page.",
   help_sec_model:
     "Pick the AI engine for text-to-image. Grok is the default (15 credits). Flux, Seedream and Imagen excel at photorealism; Ideogram at text in images; Recraft at design. Each model has its own credit cost.",
+
+  help_model_grok: "xAI Grok Imagine — strong default for photoreal portraits and creative scenes. Balanced quality and cost (15 credits).",
+  help_model_nano_banana: "Google Nano Banana — versatile edits and generation, good all-rounder for photo + prompt workflows.",
+  help_model_seedream45: "ByteDance Seedream 4.5 — detailed composition and product-style shots; higher credit cost.",
+  help_model_flux2_pro: "Black Forest Labs Flux 2 Pro — professional photorealism and lighting control.",
+  help_model_flux2_max: "Flux 2 Max — maximum detail for final exports; slowest and most expensive Flux option here.",
+  help_model_flux2_klein: "Flux 2 Klein — speed/quality balance when Pro is more than you need.",
+  help_model_imagen4_fast: "Google Imagen 4 Fast — quick, clean results at lower cost.",
+  help_model_imagen4: "Google Imagen 4 — higher-fidelity Google photorealism.",
+  help_model_ideogram_turbo: "Ideogram v3 Turbo — fast text-in-image and poster-like typography.",
+  help_model_ideogram_quality: "Ideogram v3 Quality — best Ideogram typography and layout fidelity.",
+  help_model_recraft_v4: "Recraft v4 — design, icons, and vector-friendly graphics.",
+  help_model_flux_schnell: "Flux Schnell — ultra-fast drafts for exploring ideas cheaply.",
+  help_model_flux_dev: "Flux Dev — creative control for experimental looks.",
+
+  help_page_brand_campaign:
+    "On-brand ads from a website URL and/or product photos. AI reads brand colors and offer, then generates a batch of ad images with GPT HQ (50 HQ credits per image).",
+  help_sec_bc_url: "Paste your brand website. Optional if you upload photos — used to read titles, colors, and product context.",
+  help_sec_bc_photos: "Up to 5 product or brand photos. Works with URL only, photos only, or both.",
+  help_sec_bc_count: "How many ad variations to generate in this batch. Cost = 50 HQ credits × count.",
+  help_sec_bc_style: "Marketing style category and how prompts are chosen (auto rotate vs random) for each ad.",
+
+  help_page_gpt_hq:
+    "AURUM / GPT-HQ studio — premium HQ-credit styles for ultra-sharp posters and retouches. Needs a photo and a style.",
+  help_sec_gpt_hq_style: "Pick one HQ style preset. Locked cards are coming soon. Cost is shown in HQ credits.",
+
+  help_page_marketing_video:
+    "Turn product photos into a short marketing video. Choose Quick, Custom, or CGI mode, then format and style.",
+  help_page_video:
+    "Video hub — create clips from text or image, edit existing footage, or open Marketing Video / Motion Flyer.",
+  help_sec_mktvid_format: "Output aspect for TikTok, Reels, feed, or landscape — match where you will post.",
+  help_sec_mktvid_category: "Campaign category steers music/mood and story beats. Auto lets the AI pick.",
+  help_sec_mktvid_style: "Visual look of the clip — clean, luxury, bold, etc. Random varies each run.",
+  help_sec_mktvid_cgi_template: "CGI motion template — pick a prebuilt camera/product move.",
+  help_sec_mktvid_cgi_storyboard: "Optional custom storyboard text that overrides the template narrative.",
+
+  help_sec_vid_duration: "Clip length in seconds. Longer clips cost more credits and take longer to render.",
+  help_sec_vid_motion: "How much camera or subject motion — subtle vs dynamic. Higher motion can look less stable.",
+  help_sec_vid_reference: "Optional reference image to guide identity, product, or style while generating the video.",
 
   help_sec_video_edit_prompt:
     "This tool edits your clip — it keeps the original movement (walk, dance, gestures). Works well: change outfit, background, lighting, colours, add or remove objects. Often fails: new pose, different action (e.g. walking → dancing). For a new action, use Image → Video with a frame from your clip.",
@@ -207,6 +247,7 @@ const pt = {
   help_sec_inpaint_mask: "Pinta a zona a substituir. Branco = área a editar; o resto fica intacto.",
 
   help_sec_set_language: "Idioma da interface. Recarrega a app para aplicar.",
+  help_sec_set_theme: "Escuro (preto + roxo por defeito) ou Claro (superfícies claras, acentos roxos).",
   help_sec_set_aspect: "Formato padrão ao abrires Gerar ou ferramentas similares. Podes mudar em cada sessão.",
   help_sec_set_password: "Alterar palavra-passe. Indisponível para contas só Google.",
   help_sec_set_whatsapp: "Número WhatsApp opcional para avisos quando a geração termina.",
@@ -228,15 +269,116 @@ const pt = {
   help_sec_model:
     "Escolhe o motor de IA para texto→imagem. Grok é o padrão (15 créditos). Flux, Seedream e Imagen são ótimos em fotorrealismo; Ideogram em texto na imagem; Recraft em design. Cada modelo tem o seu preço em créditos.",
 
+  help_model_grok: "xAI Grok Imagine — bom padrão para retratos fotorrealistas e cenas criativas. Equilíbrio qualidade/custo (15 créditos).",
+  help_model_nano_banana: "Google Nano Banana — edição e geração versáteis, bom para fluxos foto + prompt.",
+  help_model_seedream45: "ByteDance Seedream 4.5 — composição detalhada e produtos; custa mais créditos.",
+  help_model_flux2_pro: "Black Forest Labs Flux 2 Pro — fotorrealismo profissional e controlo de luz.",
+  help_model_flux2_max: "Flux 2 Max — máximo detalhe para export final; opção Flux mais cara e lenta aqui.",
+  help_model_flux2_klein: "Flux 2 Klein — equilíbrio velocidade/qualidade quando o Pro é demais.",
+  help_model_imagen4_fast: "Google Imagen 4 Fast — resultados rápidos e limpos a menor custo.",
+  help_model_imagen4: "Google Imagen 4 — fotorrealismo Google com mais fidelidade.",
+  help_model_ideogram_turbo: "Ideogram v3 Turbo — texto na imagem e tipografia rápida.",
+  help_model_ideogram_quality: "Ideogram v3 Quality — melhor tipografia e layout Ideogram.",
+  help_model_recraft_v4: "Recraft v4 — design, ícones e gráficos com ar vectorial.",
+  help_model_flux_schnell: "Flux Schnell — rascunhos ultrarrápidos para explorar ideias.",
+  help_model_flux_dev: "Flux Dev — controlo criativo para looks experimentais.",
+
+  help_page_brand_campaign:
+    "Anúncios on-brand a partir do URL do site e/ou fotos do produto. A IA lê cores e oferta e gera um lote de imagens com GPT HQ (50 créditos HQ por imagem).",
+  help_sec_bc_url: "Cola o site da marca. Opcional se carregares fotos — serve para ler títulos, cores e contexto.",
+  help_sec_bc_photos: "Até 5 fotos de produto ou marca. Funciona só com URL, só com fotos, ou os dois.",
+  help_sec_bc_count: "Quantas variações de anúncio gerar neste lote. Custo = 50 créditos HQ × quantidade.",
+  help_sec_bc_style: "Categoria de estilo de marketing e como os prompts são escolhidos (rotação automática vs aleatório).",
+
+  help_page_gpt_hq:
+    "Estúdio AURUM / GPT-HQ — estilos premium com créditos HQ para posters e retoques ultra-nítidos. Precisa de foto e estilo.",
+  help_sec_gpt_hq_style: "Escolhe um preset HQ. Cartões bloqueados estão em breve. O custo aparece em créditos HQ.",
+
+  help_page_marketing_video:
+    "Transforma fotos de produto num vídeo curto de marketing. Escolhe Rápido, Personalizado ou CGI, depois formato e estilo.",
+  help_page_video:
+    "Hub de vídeo — cria clips a partir de texto ou imagem, edita footage, ou abre Vídeo Marketing / Motion Flyer.",
+  help_sec_mktvid_format: "Proporção de saída para TikTok, Reels, feed ou horizontal — alinha com onde vais publicar.",
+  help_sec_mktvid_category: "Categoria da campanha orienta mood e batidas da história. Auto deixa a IA escolher.",
+  help_sec_mktvid_style: "Look visual do clip — clean, luxury, bold, etc. Aleatório varia em cada geração.",
+  help_sec_mktvid_cgi_template: "Template CGI de movimento — escolhe um movimento de câmara/produto pronto.",
+  help_sec_mktvid_cgi_storyboard: "Storyboard em texto opcional que substitui a narrativa do template.",
+
+  help_sec_vid_duration: "Duração do clip em segundos. Mais longo = mais créditos e mais tempo de render.",
+  help_sec_vid_motion: "Quanto movimento de câmara ou sujeito — subtil vs dinâmico. Mais movimento pode ficar menos estável.",
+  help_sec_vid_reference: "Imagem de referência opcional para identidade, produto ou estilo no vídeo.",
+
   help_sec_video_edit_prompt:
     "Esta ferramenta edita o teu clip — mantém o movimento original (andar, dançar, gestos). Funciona bem: trocar roupa, fundo, luz, cores, adicionar ou remover objectos. Costuma falhar: nova pose ou acção diferente (ex.: caminhar → dançar). Para acção nova, usa Imagem → Vídeo com um frame do clip.",
 };
 
 export function mergeStudioHelpLocales(dict) {
+  const es = {
+    ...en,
+    help_tip_aria: "Mostrar ayuda",
+    help_tip_close_aria: "Cerrar ayuda",
+    help_page_generate:
+      "Crea imágenes desde texto, edita una foto con un prompt o aplica un estilo. Foto opcional — sin foto generas solo con texto.",
+    help_page_brand_campaign:
+      "Anuncios on-brand desde la URL del sitio y/o fotos del producto. La IA lee colores y oferta y genera un lote de imágenes.",
+    help_sec_bc_url: "Pega el sitio de la marca. Opcional si subes fotos — sirve para leer títulos, colores y contexto.",
+    help_sec_bc_photos: "Hasta 5 fotos de producto o marca. Funciona solo con URL, solo con fotos, o ambos.",
+    help_sec_bc_count: "Cuántas variaciones de anuncio generar en este lote. Coste = créditos por imagen × cantidad.",
+    help_sec_bc_style: "Categoría de estilo de marketing y cómo se eligen los prompts (rotar automático vs aleatorio).",
+    help_page_gpt_hq:
+      "Estudio AURUM / GPT-HQ — estilos premium con créditos HQ para posters y retoques ultra nítidos. Necesita foto y estilo.",
+    help_sec_gpt_hq_style: "Elige un preset HQ. Las tarjetas bloqueadas llegan pronto. El coste se muestra en créditos HQ.",
+    help_page_marketing_video:
+      "Convierte fotos de producto en un vídeo corto de marketing. Elige Rápido, Personalizado o CGI, luego formato y estilo.",
+    help_sec_mktvid_format: "Proporción de salida para TikTok, Reels, feed o horizontal — alinea con dónde publicarás.",
+    help_sec_mktvid_category: "La categoría orienta el mood y la historia. Auto deja que la IA elija.",
+    help_sec_mktvid_style: "Look visual del clip — clean, luxury, bold, etc. Aleatorio varía en cada generación.",
+    help_sec_model:
+      "Elige el motor de IA para texto→imagen. Grok es el predeterminado (15 créditos). Flux, Seedream e Imagen destacan en fotorrealismo; Ideogram en texto en imagen; Recraft en diseño.",
+    help_sec_vid_duration: "Duración del clip en segundos. Más largo = más créditos y más tiempo de render.",
+    help_sec_vid_motion: "Cuánto movimiento de cámara o sujeto — sutil vs dinámico.",
+    help_sec_vid_reference: "Imagen de referencia opcional para identidad, producto o estilo en el vídeo.",
+    help_ctrl_hd_quality:
+      "Más detalle y nitidez en texto→imagen (+8 créditos). Más lento; ideal para exportación final.",
+    help_sec_format:
+      "Forma de salida. “Original” mantiene las proporciones de tu foto. Otros botones fuerzan cuadrado, story, paisaje, etc.",
+  };
+
+  const fr = {
+    ...en,
+    help_tip_aria: "Afficher l'aide",
+    help_tip_close_aria: "Fermer l'aide",
+    help_page_generate:
+      "Créez des images à partir de texte, éditez une photo avec un prompt ou appliquez un style. Photo optionnelle — sans photo, génération texte seul.",
+    help_page_brand_campaign:
+      "Pubs on-brand à partir de l'URL du site et/ou de photos produit. L'IA lit couleurs et offre, puis génère un lot d'images.",
+    help_sec_bc_url: "Collez le site de la marque. Optionnel si vous uploadez des photos — pour lire titres, couleurs et contexte.",
+    help_sec_bc_photos: "Jusqu'à 5 photos produit ou marque. Fonctionne avec URL seule, photos seules, ou les deux.",
+    help_sec_bc_count: "Combien de variations d'annonces générer. Coût = crédits par image × quantité.",
+    help_sec_bc_style: "Catégorie de style marketing et comment les prompts sont choisis (rotation auto vs aléatoire).",
+    help_page_gpt_hq:
+      "Studio AURUM / GPT-HQ — styles premium avec crédits HQ pour posters et retouches ultra nettes. Photo et style requis.",
+    help_sec_gpt_hq_style: "Choisissez un preset HQ. Les cartes verrouillées arrivent bientôt. Coût en crédits HQ.",
+    help_page_marketing_video:
+      "Transformez des photos produit en courte vidéo marketing. Choisissez Rapide, Perso ou CGI, puis format et style.",
+    help_sec_mktvid_format: "Format de sortie pour TikTok, Reels, feed ou paysage — selon où vous publiez.",
+    help_sec_mktvid_category: "La catégorie oriente l'ambiance et l'histoire. Auto laisse l'IA choisir.",
+    help_sec_mktvid_style: "Look visuel du clip — clean, luxury, bold, etc. Aléatoire varie à chaque génération.",
+    help_sec_model:
+      "Choisissez le moteur IA pour texte→image. Grok est le défaut (15 crédits). Flux, Seedream et Imagen excellent en photoréalisme ; Ideogram pour le texte dans l'image ; Recraft pour le design.",
+    help_sec_vid_duration: "Durée du clip en secondes. Plus long = plus de crédits et de temps de rendu.",
+    help_sec_vid_motion: "Quantité de mouvement caméra/sujet — subtil vs dynamique.",
+    help_sec_vid_reference: "Image de référence optionnelle pour l'identité, le produit ou le style de la vidéo.",
+    help_ctrl_hd_quality:
+      "Plus de détail et de netteté en texte→image (+8 crédits). Plus lent ; idéal pour l'export final.",
+    help_sec_format:
+      "Format de sortie. « Original » garde les proportions de votre photo. Les autres forcent carré, story, paysage, etc.",
+  };
+
   Object.assign(dict.en, en);
   Object.assign(dict.pt, pt);
-  Object.assign(dict.es, { ...en, ...dict.es });
-  Object.assign(dict.fr, { ...en, ...dict.fr });
+  Object.assign(dict.es, { ...es, ...dict.es });
+  Object.assign(dict.fr, { ...fr, ...dict.fr });
 }
 
 /** Mapa de proporções → chave de ajuda */

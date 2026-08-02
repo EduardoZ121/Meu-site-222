@@ -8,9 +8,9 @@ export default function Logo({ to = "/", size = "default", variant = "default", 
   const wordmark =
     variant === "header" ? (
       <span
-        className="text-[#F4F1EA] leading-none tracking-tight"
+        className="rp-logo-wordmark leading-none tracking-tight"
         style={{
-          fontFamily: "'Inter Tight', system-ui, sans-serif",
+          fontFamily: "var(--font-display)",
           fontSize: size === "lg" ? "16px" : "14px",
           letterSpacing: "-0.02em",
         }}
@@ -20,9 +20,9 @@ export default function Logo({ to = "/", size = "default", variant = "default", 
       </span>
     ) : (
       <span
-        className="text-[#F4F1EA] leading-none"
+        className="rp-logo-wordmark leading-none"
         style={{
-          fontFamily: "'Inter Tight', system-ui, sans-serif",
+          fontFamily: "var(--font-display)",
           fontSize: size === "lg" ? "16px" : "13px",
           fontWeight: 500,
           letterSpacing: "-0.01em",
@@ -35,13 +35,13 @@ export default function Logo({ to = "/", size = "default", variant = "default", 
   const inner = (
     <span className={`inline-flex items-center gap-2 ${className}`} data-testid="logo">
       <span
-        className="font-bold tracking-tight text-[#F4F1EA] leading-none"
+        className="rp-logo-mark font-bold tracking-tight leading-none"
         style={{
-          fontFamily: "'Inter Tight', system-ui, sans-serif",
+          fontFamily: "var(--font-display)",
           fontSize: size === "lg" ? "26px" : "18px",
         }}
       >
-        R<span className="text-[#A855F7]">.</span>
+        R<span className="rp-logo-dot">.</span>
       </span>
       {wordmark}
     </span>

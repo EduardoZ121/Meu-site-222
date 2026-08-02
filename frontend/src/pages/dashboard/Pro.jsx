@@ -23,6 +23,7 @@ import StudioGenerateCostMeta from "../../components/StudioGenerateCostMeta";
 import StudioCompactShell from "../../components/studio/StudioCompactShell";
 import StudioInlineHeader from "../../components/studio/StudioInlineHeader";
 import { useStudioGenerateGate } from "../../lib/useStudioGenerateGate";
+import { PROMPT_MAX_LENGTH } from "../../lib/promptLimits";
 import { appendStudioPhotos, primaryStudioPhoto } from "../../lib/studioFormData";
 import { useStudioI18n } from "../../lib/useStudioI18n";
 import StudioHelpTip from "../../components/studio/StudioHelpTip";
@@ -102,9 +103,6 @@ export default function Pro() {
     clearUploadToast();
     setBusy(true);
     setResult(null);
-    // #region agent log
-    fetch("http://127.0.0.1:7522/ingest/85cd46ef-59a7-4954-8db4-f9a1dbe4f482", { method: "POST", headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "df885c" }, body: JSON.stringify({ sessionId: "df885c", location: "Pro.jsx:generate", message: "pro submit", data: { intensity, hdQuality, preset, extraLen: customPrompt.trim().length, cost }, timestamp: Date.now(), hypothesisId: "H-pro-controls" }) }).catch(() => {});
-    // #endregion
     try {
       const fd = new FormData();
       appendStudioPhotos(fd, photos);
@@ -147,10 +145,10 @@ export default function Pro() {
     : String(aspect || "4:5").toUpperCase();
   const presetLabel = pickedPreset?.nome || t("pro_pick_preset");
   const intensityValue = `${intensityLabel} · ${intensity}%`;
-  const qualityLabel = hdQuality ? "HD" : (t("quality_standard") || "Padrão");
+  const qualityLabel = hdQuality ? "HD" : (t("quality_standard"));
   const extraLabel = customPrompt.trim()
     ? customPrompt.trim().slice(0, 42) + (customPrompt.trim().length > 42 ? "…" : "")
-    : (t("studio_styles_optional") || "Opcional");
+    : (t("studio_styles_optional"));
 
   const modalTitle = {
     format: t("pro_step_format"),
@@ -259,7 +257,7 @@ export default function Pro() {
           premium
         />
         <button type="button" onClick={closeModal} className="rp-modal-confirm mt-3" data-testid="pro-format-confirm">
-          <Check className="w-4 h-4" /> {t("confirm") || "Confirmar"}
+          <Check className="w-4 h-4" /> {t("confirm")}
         </button>
       </SettingModal>
 
@@ -273,7 +271,7 @@ export default function Pro() {
               className={`rp-select-card text-left p-3 ${category === c ? "rp-select-card-active" : ""}`}
               data-testid={`procat-${c}`}
             >
-              <p className={`text-[12px] font-semibold font-['Inter_Tight'] mb-0.5 ${category === c ? "text-[#C4B5FD]" : "text-[#F4F1EA]"}`}>
+              <p className={`text-[12px] font-semibold font-display mb-0.5 ${category === c ? "text-[#C4B5FD]" : "text-[#F4F1EA]"}`}>
                 {CAT_LABELS[c]}
               </p>
               <p className="text-[#8A8A8E] text-[10px] leading-snug line-clamp-2">{CAT_DESC[c]}</p>
@@ -307,7 +305,7 @@ export default function Pro() {
           })}
         </div>
         <button type="button" onClick={closeModal} className="rp-modal-confirm mt-3" data-testid="pro-preset-confirm">
-          <Check className="w-4 h-4" /> {t("confirm") || "Confirmar"}
+          <Check className="w-4 h-4" /> {t("confirm")}
         </button>
       </SettingModal>
 
@@ -320,7 +318,7 @@ export default function Pro() {
             <span className="text-[11px] font-mono uppercase tracking-[0.12em] text-[#8A8A8E]">
               {t("pro_step_intensity")}
             </span>
-            <span className="text-[#E9D5FF] text-sm font-semibold font-['Inter_Tight'] tabular-nums">
+            <span className="text-[#E9D5FF] text-sm font-semibold font-display tabular-nums">
               {intensityLabel} · {intensity}%
             </span>
           </div>
@@ -358,14 +356,14 @@ export default function Pro() {
           </div>
         </div>
         <button type="button" onClick={closeModal} className="rp-modal-confirm mt-3" data-testid="pro-intensity-confirm">
-          <Check className="w-4 h-4" /> {t("confirm") || "Confirmar"}
+          <Check className="w-4 h-4" /> {t("confirm")}
         </button>
       </SettingModal>
 
       <SettingModal open={openKey === "quality"} title={modalTitle} onClose={closeModal}>
         <div className="mv-picker__chips">
           <button type="button" onClick={() => setHdQuality(false)} className={`mktvid-chip ${!hdQuality ? "mktvid-chip-active" : ""}`} data-testid="pro-quality-standard">
-            {t("quality_standard") || "Padrão"}
+            {t("quality_standard")}
           </button>
           <button type="button" onClick={() => setHdQuality(true)} className={`mktvid-chip ${hdQuality ? "mktvid-chip-active" : ""}`} data-testid="pro-quality-hd">
             HD <span className="text-[#A855F7] font-mono text-[10px] ml-1">+{surcharges.hdImage ?? 8}</span>
@@ -373,7 +371,7 @@ export default function Pro() {
         </div>
         <div className="mt-2"><StudioHelpTip helpKey="help_ctrl_hd_quality" testId="pro-hd-quality-help" size="lg" /></div>
         <button type="button" onClick={closeModal} className="rp-modal-confirm mt-3" data-testid="pro-quality-confirm">
-          <Check className="w-4 h-4" /> {t("confirm") || "Confirmar"}
+          <Check className="w-4 h-4" /> {t("confirm")}
         </button>
       </SettingModal>
 
@@ -385,13 +383,13 @@ export default function Pro() {
           value={customPrompt}
           onChange={(e) => setCustomPrompt(e.target.value)}
           rows={4}
-          maxLength={300}
+          maxLength={PROMPT_MAX_LENGTH}
           placeholder={t("pro_extra_ph")}
           className="rp-editor-textarea rp-editor-textarea--compact min-h-[100px] w-full"
           data-testid="pro-custom"
         />
         <button type="button" onClick={closeModal} className="rp-modal-confirm mt-3" data-testid="pro-extra-confirm">
-          <Check className="w-4 h-4" /> {t("confirm") || "Confirmar"}
+          <Check className="w-4 h-4" /> {t("confirm")}
         </button>
       </SettingModal>
 

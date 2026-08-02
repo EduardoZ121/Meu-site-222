@@ -10,6 +10,8 @@ import {
   Image as ImageIcon,
   Mail,
   MessageCircle,
+  Moon,
+  Sun,
 } from "lucide-react";
 import { api, formatApiError } from "../../lib/api";
 import { useAuth } from "../../lib/auth";
@@ -18,6 +20,7 @@ import { LANG_LABELS, LANG_ORDER } from "../../lib/localeStrings";
 import { readUserSettings, writeUserSettings } from "../../lib/userSettings";
 import { normalizeWhatsAppPhone } from "../../lib/whatsappNotify";
 import { setLanguageAndReload } from "../../lib/remakepixLanguage";
+import { getTheme, setTheme } from "../../lib/theme";
 import useTitle from "../../lib/useTitle";
 import { toast } from "sonner";
 import AspectPicker from "../../components/AspectPicker";
@@ -31,6 +34,7 @@ export default function Settings() {
   useTitle(t("sidebar_settings"));
 
   const [aspect, setAspect] = useState(() => readUserSettings().aspect_ratio_default || "match");
+  const [theme, setThemeState] = useState(() => getTheme());
   const [pwCurrent, setPwCurrent] = useState("");
   const [pwNew, setPwNew] = useState("");
   const [pwConfirm, setPwConfirm] = useState("");
@@ -46,6 +50,7 @@ export default function Settings() {
     if (s.aspect_ratio_default) setAspect(s.aspect_ratio_default);
     setWaPhone(s.whatsapp_phone || "");
     setWaNotify(Boolean(s.whatsapp_notify));
+    setThemeState(getTheme());
   }, []);
 
   useEffect(() => {
@@ -78,6 +83,13 @@ export default function Settings() {
     writeUserSettings({ lang: code });
     toast.success(t("set_lang_reload"));
     setLanguageAndReload(code);
+  };
+
+  const pickTheme = (value) => {
+    const next = setTheme(value);
+    writeUserSettings({ theme: next });
+    setThemeState(next);
+    toast.success(t("set_theme_saved"));
   };
 
   const pickAspect = (value) => {
@@ -118,7 +130,7 @@ export default function Settings() {
             <p className="text-[10px] font-mono uppercase tracking-[0.22em] text-[#7C3AED] mb-2">
               {t("set_page_cap")}
             </p>
-            <h1 className="text-[#F4F1EA] text-3xl font-light tracking-tight font-['Inter_Tight'] mb-2">
+            <h1 className="text-[#F4F1EA] text-3xl font-light tracking-tight font-display mb-2">
               {t("set_page_title")}
             </h1>
             <p className="text-[#8A8A8E] text-sm leading-relaxed">{t("set_page_desc")}</p>
@@ -174,6 +186,48 @@ export default function Settings() {
                 </span>
               </button>
             ))}
+          </div>
+        </Section>
+
+        <Section title={t("set_section_theme")} icon={Moon} helpKey="help_sec_set_theme">
+          <p className="text-xs text-[#8A8A8E] mb-3 leading-relaxed">{t("set_theme_hint")}</p>
+          <div className="grid grid-cols-2 gap-2">
+            <button
+              type="button"
+              onClick={() => pickTheme("dark")}
+              data-testid="theme-dark"
+              className={`rounded-xl border px-4 py-3 text-left transition-all flex items-start gap-3 ${
+                theme === "dark"
+                  ? "border-[#A855F7] bg-[#7C3AED]/15 text-white shadow-[0_0_20px_-8px_rgba(168,85,247,0.45)]"
+                  : "border-[#2E2E30] bg-[#13131A] text-[#8A8A8E] hover:border-[#7C3AED]/40 hover:text-white"
+              }`}
+            >
+              <Moon className="w-4 h-4 mt-0.5 shrink-0 text-[#A855F7]" strokeWidth={1.75} />
+              <span>
+                <span className="block text-sm font-medium">{t("set_theme_dark")}</span>
+                <span className="block text-[10px] font-mono uppercase tracking-wider mt-0.5 opacity-70">
+                  {t("set_theme_dark_hint")}
+                </span>
+              </span>
+            </button>
+            <button
+              type="button"
+              onClick={() => pickTheme("light")}
+              data-testid="theme-light"
+              className={`rounded-xl border px-4 py-3 text-left transition-all flex items-start gap-3 ${
+                theme === "light"
+                  ? "border-[#A855F7] bg-[#7C3AED]/15 text-white shadow-[0_0_20px_-8px_rgba(168,85,247,0.45)]"
+                  : "border-[#2E2E30] bg-[#13131A] text-[#8A8A8E] hover:border-[#7C3AED]/40 hover:text-white"
+              }`}
+            >
+              <Sun className="w-4 h-4 mt-0.5 shrink-0 text-[#A855F7]" strokeWidth={1.75} />
+              <span>
+                <span className="block text-sm font-medium">{t("set_theme_light")}</span>
+                <span className="block text-[10px] font-mono uppercase tracking-wider mt-0.5 opacity-70">
+                  {t("set_theme_light_hint")}
+                </span>
+              </span>
+            </button>
           </div>
         </Section>
 

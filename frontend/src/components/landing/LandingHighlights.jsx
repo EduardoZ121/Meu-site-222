@@ -20,10 +20,10 @@ export default function LandingHighlights() {
   return (
     <section
       ref={ref}
-      className="relative py-20 md:py-28 border-t border-[#2E2E30] bg-[#0B0B0C]"
+      className="relative py-20 md:py-28 border-t border-[#2E2E30] bg-[#0B0B0C] overflow-hidden"
       data-testid="landing-highlights"
     >
-      <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[320px] h-[320px] pointer-events-none">
+      <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[320px] h-[320px] max-w-full pointer-events-none overflow-hidden">
         <div className="landing-pulse-ring w-full h-full" />
       </div>
 

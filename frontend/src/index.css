@@ -61,12 +61,14 @@
   }
 
   html {
+    color-scheme: dark;
     scroll-behavior: smooth;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     -webkit-text-size-adjust: 100%;
     text-size-adjust: 100%;
     touch-action: manipulation;
+    overflow-x: hidden;
   }
 
   body {
@@ -81,6 +83,12 @@
     overflow-x: hidden;
     touch-action: manipulation;
     overscroll-behavior-x: none;
+  }
+
+  /* Checkboxes nativos no tema escuro — evita o quadrado branco no canto */
+  input[type="checkbox"] {
+    accent-color: #7c3aed;
+    color-scheme: dark;
   }
 
   #root {
@@ -669,6 +677,23 @@
   .btn-ghost:hover {
     color: var(--rp-text);
     border-bottom-color: var(--rp-accent);
+  }
+
+  /* Layout partilhado — login/registo/explore/footer (estava em falta → logo colado ao canto) */
+  .container-rp {
+    width: 100%;
+    max-width: 1400px;
+    margin-left: auto;
+    margin-right: auto;
+    padding-left: max(1.25rem, env(safe-area-inset-left, 0px));
+    padding-right: max(1.25rem, env(safe-area-inset-right, 0px));
+    box-sizing: border-box;
+  }
+  @media (min-width: 1024px) {
+    .container-rp {
+      padding-left: max(2.5rem, env(safe-area-inset-left, 0px));
+      padding-right: max(2.5rem, env(safe-area-inset-right, 0px));
+    }
   }
 
   .eyebrow {
@@ -1274,6 +1299,9 @@
   }
   .rp-gen-refine-card,
   .rp-gen-refine {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.5rem;
     border-radius: 0.9rem;
     border: 1px solid rgba(255, 255, 255, 0.07);
     background: rgba(20, 20, 24, 0.85);
@@ -1284,16 +1312,47 @@
     align-items: flex-start;
     gap: 0.55rem;
     cursor: pointer;
-    width: 100%;
+    min-width: 0;
+    flex: 1;
   }
   .rp-gen-refine__label--locked {
     opacity: 0.7;
     cursor: not-allowed;
   }
   .rp-gen-refine__check {
+    appearance: none;
+    -webkit-appearance: none;
+    margin-top: 0.35rem;
+    width: 1.05rem;
+    height: 1.05rem;
+    flex-shrink: 0;
+    border-radius: 0.3rem;
+    border: 1.5px solid rgba(168, 85, 247, 0.55);
+    background: rgba(12, 12, 16, 0.95);
+    box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.35);
+    cursor: pointer;
+    transition: border-color 0.2s ease, background 0.2s ease, box-shadow 0.2s ease;
+  }
+  .rp-gen-refine__check:checked {
+    border-color: #a855f7;
+    background-color: #7c3aed;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='%23fafafa' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M3.5 8.5l3 3 6-6'/%3E%3C/svg%3E");
+    background-size: 12px 12px;
+    background-position: center;
+    background-repeat: no-repeat;
+    box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.22);
+  }
+  .rp-gen-refine__check:focus-visible {
+    outline: 2px solid rgba(168, 85, 247, 0.7);
+    outline-offset: 2px;
+  }
+  .rp-gen-refine__check:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+  }
+  .rp-gen-refine > .rp-help-tip,
+  .rp-gen-refine__help {
     margin-top: 0.2rem;
-    width: 1rem;
-    height: 1rem;
     flex-shrink: 0;
   }
   .rp-gen-refine__ico {
@@ -1702,9 +1761,14 @@
     font-size: 9px;
     font-weight: 600;
     text-transform: uppercase;
-    letter-spacing: 0.14em;
+    letter-spacing: 0.1em;
     color: #8a8a8e;
     font-family: 'Inter Tight', system-ui, sans-serif;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    flex: 1;
   }
 
   .mv-setting-value {

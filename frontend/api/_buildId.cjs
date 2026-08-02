@@ -1,2 +1,2 @@
 "use strict";
-module.exports = "rp-clothes-compact-v1";
+module.exports = "rp-clothes-dual-frames-v1";

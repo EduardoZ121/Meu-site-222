@@ -32,6 +32,7 @@ function PhotoBox({ photo, onChange, label, helper, emptyLabel, testId }) {
           onChange(next || null);
         }}
         layout="square"
+        className="min-h-[140px] sm:min-h-[200px]"
         testId={testId}
         compressOptions={{
           maxSize: 1280,
@@ -134,7 +135,8 @@ export default function ClothesChanger() {
           <p className="text-[#9CA3AF] text-[12px] leading-relaxed mb-3">
             {t("clothes_section_photos")}
           </p>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 md:gap-4" data-testid="clothes-photo-grid">
+          {/* Sempre 2 colunas (como antes) — no telemóvel empilhar deixa as caixas enormes e parte o ecrã */}
+          <div className="grid grid-cols-2 gap-2 sm:gap-3 max-w-[600px]" data-testid="clothes-photo-grid">
             <PhotoBox
               photo={photo}
               onChange={(next) => {

@@ -110,7 +110,7 @@
     },
     "clothes_changer": {
       "garment_label": "Roupa de referência *",
-      "garment_helper": "Foto da peça ou outfit a vestir. Mantém o rosto, o corpo e a identidade — só muda a roupa.",
+      "garment_helper": "Foto da peça ou outfit",
       "btn": "Gerar Nova Roupa · {n} créditos",
       "success": "Nova roupa pronta · {n} créditos",
       "section_photos": "1 · Fotos",
@@ -2248,7 +2248,7 @@
     "colorize_success": "Foto colorida · {n} créditos",
     "colorize_section_photo": "01 · Imagem em P&B",
     "clothes_garment_label": "Roupa de referência *",
-    "clothes_garment_helper": "Foto da peça ou outfit a vestir. Mantém o rosto, o corpo e a identidade — só muda a roupa.",
+    "clothes_garment_helper": "Foto da peça ou outfit",
     "clothes_btn": "Gerar Nova Roupa · {n} créditos",
     "clothes_success": "Nova roupa pronta · {n} créditos",
     "clothes_section_photos": "1 · Fotos",

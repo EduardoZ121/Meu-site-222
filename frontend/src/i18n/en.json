@@ -108,7 +108,7 @@
     },
     "clothes_changer": {
       "garment_label": "Reference outfit *",
-      "garment_helper": "Photo of the garment or outfit to wear. Keeps face, body and identity — only clothes change.",
+      "garment_helper": "Photo of the garment or outfit",
       "btn": "Generate new outfit · {n} credits",
       "success": "New outfit ready · {n} credits",
       "section_photos": "1 · Photos",
@@ -2245,7 +2245,7 @@
     "colorize_success": "Photo colorized · {n} credits",
     "colorize_section_photo": "01 · B&W image",
     "clothes_garment_label": "Reference outfit *",
-    "clothes_garment_helper": "Photo of the garment or outfit to wear. Keeps face, body and identity — only clothes change.",
+    "clothes_garment_helper": "Photo of the garment or outfit",
     "clothes_btn": "Generate new outfit · {n} credits",
     "clothes_success": "New outfit ready · {n} credits",
     "clothes_section_photos": "1 · Photos",

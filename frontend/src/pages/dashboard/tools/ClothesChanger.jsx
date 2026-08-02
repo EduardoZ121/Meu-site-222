@@ -155,11 +155,14 @@ export default function ClothesChanger() {
                 setResult(null);
               }}
               label={t("clothes_garment_label")}
-              helper={t("clothes_garment_helper")}
+              helper={t("clothes_fashion_garment_helper") || "Foto da peça"}
               emptyLabel={t("clothes_upload_empty")}
               testId="clothes-garment"
             />
           </div>
+          <p className="text-[#6B7280] text-[11px] mt-2 leading-relaxed">
+            {t("clothes_desc")}
+          </p>
         </div>
 
         <div className="mv-setting-grid">

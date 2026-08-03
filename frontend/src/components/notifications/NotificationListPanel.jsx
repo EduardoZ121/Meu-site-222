@@ -72,7 +72,7 @@ const FullPageCard = memo(function FullPageCard({
   );
 });
 
-const ITEM_ESTIMATE = 128;
+const ITEM_ESTIMATE = 136;
 const OVERSCAN = 6;
 
 /** Lista virtual leve (sem dependências) para a página completa. */

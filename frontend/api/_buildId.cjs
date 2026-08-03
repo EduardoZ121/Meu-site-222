@@ -1,2 +1,2 @@
 "use strict";
-module.exports = "rp-credit-surcharge-ux-v16";
+module.exports = "rp-credit-surcharge-ux-v17";

@@ -33,7 +33,7 @@ export default function StudioGenerateBar({
   /** Créditos desta geração — usado para login/comprar créditos ao clicar Gerar. */
   cost = 0,
   /** Mostra o custo num pill sempre visível (evita corte do número no botão). */
-  showCostPill = false,
+  showCostPill = true,
   gateOnGenerate = true,
   canAffordCheck = null,
 }) {

@@ -32,6 +32,8 @@ export default function StudioGenerateBar({
   blockedNotify = "error",
   /** Créditos desta geração — usado para login/comprar créditos ao clicar Gerar. */
   cost = 0,
+  /** Mostra o custo num pill sempre visível (evita corte do número no botão). */
+  showCostPill = false,
   gateOnGenerate = true,
   canAffordCheck = null,
 }) {
@@ -103,12 +105,17 @@ export default function StudioGenerateBar({
             <span className="rp-gen-spinner" aria-hidden>
               <Loader2 className="w-4 h-4 animate-spin" strokeWidth={2} />
             </span>
-            {busyLabel || label}
+            <span className="rp-gen-btn-text">{busyLabel || label}</span>
           </>
         ) : (
           <>
-            <Icon className="w-4 h-4" strokeWidth={1.5} />
-            {label}
+            <Icon className="w-4 h-4 shrink-0" strokeWidth={1.5} />
+            <span className="rp-gen-btn-text">{label}</span>
+            {showCostPill && Number(cost) > 0 ? (
+              <span className="rp-gen-cost-pill" data-testid={`${testId}-cost-pill`}>
+                {cost}
+              </span>
+            ) : null}
           </>
         )}
       </button>

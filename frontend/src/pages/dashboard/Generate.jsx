@@ -124,25 +124,58 @@ export default function Generate() {
 
   const catLabel = (c) => t(`cat_${c}`) || c;
 
-  const { mode, cost, ctaLabel, styleNeedsPhoto } = useMemo(() => {
+  const { mode, cost, baseCost, ctaLabel, styleNeedsPhoto, costExtras } = useMemo(() => {
+    const hdExtra = hdQuality ? (Number(surcharges.hdImage) || 8) : 0;
+    const improveExtra = improve ? (Number(surcharges.enhancePrompt) || 5) : 0;
+    const extras = [];
+    if (hdExtra) extras.push({ id: "hd", label: "HD", amount: hdExtra });
+    if (improveExtra) extras.push({ id: "improve", label: t("studio_improve") || "Refine", amount: improveExtra });
+
     if (photo && pickedStyle) {
-      const easyCost = applyGenerationSurcharges(costs.easy, surcharges, { hdQuality, hdMode: "image" });
-      return { mode: "easy", cost: easyCost, ctaLabel: t("studio_cta_easy", { n: easyCost }), styleNeedsPhoto: false };
+      const base = Number(costs.easy) || 15;
+      const easyCost = applyGenerationSurcharges(base, surcharges, {
+        improvePrompt: improve,
+        hdQuality,
+        hdMode: "image",
+      });
+      return {
+        mode: "easy",
+        baseCost: base,
+        cost: easyCost,
+        ctaLabel: t("studio_cta_easy", { n: easyCost }),
+        styleNeedsPhoto: false,
+        costExtras: extras,
+      };
     }
     if (photo && !pickedStyle) {
-      const editCost = applyGenerationSurcharges(costs.edit, surcharges, { improvePrompt: improve, hdQuality, hdMode: "image" });
-      return { mode: "edit", cost: editCost, ctaLabel: t("studio_cta_edit", { n: editCost }), styleNeedsPhoto: false };
+      const base = Number(costs.edit) || 15;
+      const editCost = applyGenerationSurcharges(base, surcharges, {
+        improvePrompt: improve,
+        hdQuality,
+        hdMode: "image",
+      });
+      return {
+        mode: "edit",
+        baseCost: base,
+        cost: editCost,
+        ctaLabel: t("studio_cta_edit", { n: editCost }),
+        styleNeedsPhoto: false,
+        costExtras: extras,
+      };
     }
-    const textCost = applyGenerationSurcharges(imageModelBaseCredits(model, costs), surcharges, {
+    const base = Number(imageModelBaseCredits(model, costs)) || 15;
+    const textCost = applyGenerationSurcharges(base, surcharges, {
       improvePrompt: improve,
       hdQuality,
       hdMode: "image",
     });
     return {
       mode: "text",
+      baseCost: base,
       cost: textCost,
       ctaLabel: t("studio_cta_text", { n: textCost }),
       styleNeedsPhoto: Boolean(pickedStyle),
+      costExtras: extras,
     };
   }, [photo, pickedStyle, costs, surcharges, t, improve, hdQuality, model]);
 
@@ -195,6 +228,7 @@ export default function Generate() {
         }));
         fd.append("lang", lang || "en");
         if (prompt.trim()) fd.append("extra_prompt", prompt.trim());
+        if (improve) fd.append("improve_prompt", "1");
         if (hdQuality) fd.append("hd_quality", "1");
         ({ data: submitData } = await uploadPost("/generate/easy", fd, { timeout: 120000, headers: { "X-Skip-Auto-Poll": "1" } }));
       } else if (mode === "edit") {
@@ -310,9 +344,16 @@ export default function Generate() {
         <span className="rp-gen-summary__k">{t("studio_card_style")}</span>
         <span className="rp-gen-summary__v">{styleLabel}</span>
       </span>
-      <span className="rp-gen-summary__item rp-gen-summary__item--credits">
+      <span className="rp-gen-summary__item rp-gen-summary__item--credits" data-testid="gen-summary-cost">
         <span className="rp-gen-summary__k">{t("label_credits") || "Créditos"}</span>
-        <span className="rp-gen-summary__v rp-gen-summary__v--mono rp-gen-summary__v--accent">{cost}</span>
+        <span className="rp-gen-summary__v rp-gen-summary__v--mono rp-gen-summary__v--accent" key={cost}>{cost}</span>
+        {costExtras?.length ? (
+          <span className="rp-gen-summary__extras">
+            {costExtras.map((x) => (
+              <span key={x.id} className="rp-gen-summary__extra">+{x.amount} {x.label}</span>
+            ))}
+          </span>
+        ) : null}
       </span>
     </div>
   );
@@ -417,6 +458,19 @@ export default function Generate() {
         {summaryStrip}
 
         <div className="mv-setting-card mv-setting-card--static rp-gen-inline-cta" data-testid="generate-inline-wrap">
+          <div className="rp-gen-cost-breakdown" data-testid="gen-cost-breakdown">
+            <span className="rp-gen-cost-breakdown__base">
+              {t("tool_cost_label")}: <strong>{baseCost}</strong>
+            </span>
+            {costExtras?.map((x) => (
+              <span key={x.id} className="rp-gen-cost-breakdown__chip" data-testid={`gen-cost-extra-${x.id}`}>
+                +{x.amount} {x.label}
+              </span>
+            ))}
+            <span className="rp-gen-cost-breakdown__total" data-testid="gen-cost-total">
+              = {cost} {t("label_credits")}
+            </span>
+          </div>
           <div className="flex flex-col gap-2.5 sm:flex-row sm:items-center sm:justify-end">
             <StudioGenerateBar
               layout="inline"
@@ -427,6 +481,7 @@ export default function Generate() {
               busyLabel={progress > 0 ? t("studio_generating", { n: progress }) : t("studio_sending")}
               hint={gateHint}
               cost={cost}
+              showCostPill
               testId="generate-button"
               buttonClassName="rp-gen-btn-inline rp-gen-cta w-full sm:w-auto"
               className="w-full sm:w-auto"

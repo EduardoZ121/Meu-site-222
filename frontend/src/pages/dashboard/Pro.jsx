@@ -237,6 +237,7 @@ export default function Pro() {
               busyLabel={t("pro_loading")}
               hint={hint}
               cost={cost}
+              showCostPill
               testId="pro-create"
               buttonClassName="rp-gen-btn-inline w-full sm:w-auto"
             />

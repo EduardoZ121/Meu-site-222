@@ -100,14 +100,14 @@ export function applyGenerationSurcharges(cost, surcharges, {
   hdQuality = false,
   hdMode = "image",
 } = {}) {
-  let total = cost;
-  if (improvePrompt) total += surcharges.enhancePrompt ?? 5;
+  const base = Number(cost);
+  let total = Number.isFinite(base) ? base : 0;
+  const sc = surcharges && typeof surcharges === "object" ? surcharges : {};
+  if (improvePrompt) total += Number(sc.enhancePrompt) || 5;
   if (hdQuality) {
-    total += hdMode === "simple"
-      ? (surcharges.hdSimple ?? 5)
-      : hdMode === "video"
-        ? (surcharges.hdVideo ?? 15)
-        : (surcharges.hdImage ?? 8);
+    if (hdMode === "simple") total += Number(sc.hdSimple) || 5;
+    else if (hdMode === "video") total += Number(sc.hdVideo) || 15;
+    else total += Number(sc.hdImage) || 8;
   }
-  return total;
+  return Math.round(total);
 }

@@ -24,9 +24,11 @@ const FALLBACK = {
   upload_err_maintenance:
     "Servidor temporariamente indisponível. Tenta em breve ou contacta o suporte (Sofia / suporte@remakepix.com).",
   upload_err_video_type: "Formato de vídeo não aceite. Usa MP4, MOV, WEBM ou 3GP.",
+  upload_err_image_type: "Formato de imagem não aceite. Usa JPEG, PNG ou WEBP.",
   upload_err_video_network:
     "Rede instável durante o envio do vídeo. Mantém o Wi‑Fi/dados e toca em «Tentar upload outra vez».",
   upload_err_video_auth: "Sessão expirada. Entra outra vez e volta a enviar o vídeo.",
+  err_insufficient_credits: "Créditos insuficientes. Compra mais em Faturação.",
 };
 
 function tr(key, t, vars) {
@@ -70,17 +72,12 @@ function onlineSendMessage(t) {
  * @param {{ context?: string, t?: (k: string, v?: object) => string }} [opts]
  */
 export function formatHttpError(err, fallback = "Falhou.", opts = {}) {
-  const raw = String(err?.response?.data?.detail || err?.message || "");
+  const detailFromBodyEarly = typeof err?.response?.data?.detail === "string"
+    ? err.response.data.detail.trim()
+    : "";
+  const raw = String(detailFromBodyEarly || err?.message || "");
   const ctx = opts.context || "";
   const t = opts.t;
-
-  // NSFW / safety / opaque API junk → shared friendly keys (err_nsfw_*, err_contact_support)
-  const friendly = mapFriendlyGenerationError(raw, t)
-    || mapFriendlyGenerationError(
-      typeof err?.response?.data?.detail === "string" ? err.response.data.detail : "",
-      t,
-    );
-  if (friendly) return friendly;
 
   if (/compress_too_large/i.test(raw) || err?.code === "COMPRESS_TOO_LARGE") {
     return tr("upload_compress_fail", t);
@@ -97,11 +94,20 @@ export function formatHttpError(err, fallback = "Falhou.", opts = {}) {
     return tr("upload_err_preview", t);
   }
 
+  // MIME / format before NSFW mapping — "content type not allowed" is upload, not adult content.
   if (/formato inválido|unsupported|content.?type|allowedContentTypes|not allowed/i.test(raw)) {
     if (ctx === "video_upload" || /vídeo|video/i.test(raw)) {
       return tr("upload_err_video_type", t);
     }
+    if (ctx === "image_upload" || ctx === "image_pick" || /image|foto|photo|jpeg|png|webp/i.test(raw)) {
+      return tr("upload_err_image_type", t);
+    }
   }
+
+  // NSFW / safety / opaque API junk → shared friendly keys (err_nsfw_*, err_contact_support)
+  const friendly = mapFriendlyGenerationError(raw, t)
+    || mapFriendlyGenerationError(detailFromBodyEarly, t);
+  if (friendly) return friendly;
 
   if (/FUNCTION_INVOCATION_FAILED|A server error has occurred/i.test(raw)) {
     const detail = err?.response?.data?.detail;
@@ -158,9 +164,10 @@ export function formatHttpError(err, fallback = "Falhou.", opts = {}) {
       if (status >= 500 || detail.length > 200) return humanizeGenerationError("", t);
       return detail.trim();
     }
-    if (status === 402) return tr("common_need_credits", t) !== "common_need_credits"
-      ? tr("common_need_credits", t)
-      : "Créditos insuficientes.";
+    if (status === 402) {
+      if (detailFromBody) return detailFromBody;
+      return tr("err_insufficient_credits", t);
+    }
     if (status === 429) return "Demasiados pedidos. Espera um minuto.";
     if (status >= 500) return humanizeGenerationError("", t);
     return humanizeGenerationError(`HTTP ${status}`, t);

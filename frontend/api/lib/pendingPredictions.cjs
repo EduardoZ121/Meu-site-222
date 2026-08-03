@@ -440,7 +440,9 @@ async function deliverVideoFailureNotifyEmail(pending, friendlyError, rawError) 
     return { skipped: true, reason: "already_sent" };
   }
 
-  const message = String(friendlyError || formatGenerationError(rawError, pending.lang || "pt")).trim();
+  const message = String(
+    friendlyError || formatGenerationError(rawError, pending.lang || "pt", { type: pending.type }),
+  ).trim();
   const result = await sendVideoFailedEmail({
     to: email,
     lang: pending.lang || "pt",
@@ -532,7 +534,7 @@ async function finalizePending(pending, replicateInfo) {
         return pollPending(pending, async () => replicateInfo);
       }
       const newBalance = await refundPendingCost(claimed, "Refund: empty output");
-      const friendlyEmpty = formatGenerationError("empty output", lang);
+      const friendlyEmpty = formatGenerationError("empty output", lang, { type: pending.type });
       await deliverVideoFailureNotifyEmail(claimed, friendlyEmpty, "empty output");
       return {
         status: "failed",
@@ -623,7 +625,7 @@ async function finalizePending(pending, replicateInfo) {
     return pollPending(pending, async () => replicateInfo);
   }
 
-  const friendly = formatGenerationError(rawErr, lang);
+  const friendly = formatGenerationError(rawErr, lang, { type: claimed.type || pending.type });
   const newBalance = await refundPendingCost(claimed, `Refund: ${String(rawErr).slice(0, 120)}`);
   await deliverVideoFailureNotifyEmail(claimed, friendly, rawErr);
   return {
@@ -665,7 +667,7 @@ async function pollPending(pending, getReplicatePrediction) {
     if (isVideoNotifyType(pending.type) && pending.notify_email && !pending.notify_email_sent_at) {
       await deliverVideoFailureNotifyEmail(
         pending,
-        formatGenerationError(pending.error || "Generation failed", lang),
+        formatGenerationError(pending.error || "Generation failed", lang, { type: pending.type }),
         pending.error,
       );
     }
@@ -676,7 +678,7 @@ async function pollPending(pending, getReplicatePrediction) {
     );
     return {
       status: "failed",
-      error: formatGenerationError(pending.error || "Generation failed", lang),
+      error: formatGenerationError(pending.error || "Generation failed", lang, { type: pending.type }),
       ...pollBalanceFields(user, pending),
       prediction_id: pending.id,
       refunded: true,

@@ -377,13 +377,17 @@ const en = {
   notif_generation_body: "Your result is in the gallery.",
   notif_generation_body_spent: "Spent {n} credits · balance {balance}. Open the gallery.",
   err_nsfw_blocked:
-    "This request was blocked for sensitive or adult content. Try a different prompt or image — credits for this attempt are usually refunded.",
+    "This request was blocked for sensitive or adult content (NSFW). Try a different prompt or image — credits for this attempt are usually refunded.",
   err_safety_blocked:
     "The AI safety filter blocked this generation. Soften the prompt or try another photo. Credits for this attempt are usually refunded.",
   err_moderation:
     "This content didn’t pass moderation. Adjust the prompt or reference image and try again.",
   err_contact_support:
-    "Something went wrong with this generation. Try again in a moment. If it keeps happening, email suporte@remakepix.com — we’re happy to help.",
+    "Something went wrong with this generation. Try again in a moment. If it keeps happening, talk to Sofia in support or email suporte@remakepix.com.",
+  err_insufficient_credits: "Not enough credits. Buy more in Billing.",
+  err_maintenance:
+    "The generation service is temporarily unavailable. Your credits were refunded. Try again later or contact support.",
+  upload_err_image_type: "Image format not accepted. Use JPEG, PNG or WEBP.",
   notif_refund_title: "Credits refunded",
   notif_refund_body: "{n} credits returned to your balance.",
   notif_panel_title: "Notifications",
@@ -616,11 +620,6 @@ const en = {
   upload_err_video_type: "Video format not accepted. Use MP4, MOV, WEBM or 3GP.",
   upload_err_video_network: "Unstable network during video upload. Keep Wi‑Fi/data on and tap «Try upload again».",
   upload_err_video_auth: "Session expired. Sign in again and re-upload the video.",
-  err_nsfw_blocked: "This content isn’t allowed (NSFW). Try a different image or description.",
-  err_safety_blocked: "The AI safety filter blocked this generation. Try a different image or a softer description.",
-  err_moderation: "This content didn’t pass moderation. Adjust the prompt or reference image and try again.",
-  err_contact_support:
-    "Something went wrong with this generation. Try again in a moment. If it keeps happening, talk to Sofia in the support chat or email suporte@remakepix.com.",
   studio_gen_start_fail: "Could not start generation.",
   post_tia_any_exclusive: "This template is exclusive to Tia Any Fast Food.",
   post_tia_any_banner:
@@ -1288,13 +1287,17 @@ const pt = {
   notif_generation_body: "O teu resultado está na galeria.",
   notif_generation_body_spent: "Gastaste {n} créditos · saldo {balance}. Abre a galeria.",
   err_nsfw_blocked:
-    "Este pedido foi bloqueado por conteúdo sensível ou adulto. Tenta outro prompt ou imagem — os créditos desta tentativa costumam ser reembolsados.",
+    "Este pedido foi bloqueado por conteúdo sensível ou adulto (NSFW). Tenta outro prompt ou imagem — os créditos desta tentativa costumam ser reembolsados.",
   err_safety_blocked:
     "O filtro de segurança da IA bloqueou esta geração. Suaviza o prompt ou tenta outra foto. Os créditos desta tentativa costumam ser reembolsados.",
   err_moderation:
     "Este conteúdo não passou na moderação. Ajusta o prompt ou a imagem de referência e tenta outra vez.",
   err_contact_support:
-    "Algo correu mal nesta geração. Tenta outra vez dentro de momentos. Se continuar, escreve para suporte@remakepix.com — ajudamos com gosto.",
+    "Algo correu mal nesta geração. Tenta outra vez dentro de momentos. Se continuar, fala com a Sofia no suporte ou escreve para suporte@remakepix.com.",
+  err_insufficient_credits: "Créditos insuficientes. Compra mais em Faturação.",
+  err_maintenance:
+    "O serviço de geração está temporariamente indisponível. Os teus créditos foram devolvidos. Tenta mais tarde ou contacta o suporte.",
+  upload_err_image_type: "Formato de imagem não aceite. Usa JPEG, PNG ou WEBP.",
   notif_refund_title: "Créditos devolvidos",
   notif_refund_body: "{n} créditos repostos no teu saldo.",
   notif_panel_title: "Notificações",
@@ -1527,11 +1530,6 @@ const pt = {
   upload_err_video_type: "Formato de vídeo não aceite. Usa MP4, MOV, WEBM ou 3GP.",
   upload_err_video_network: "Rede instável durante o envio do vídeo. Mantém o Wi‑Fi/dados e toca em «Tentar upload outra vez».",
   upload_err_video_auth: "Sessão expirada. Entra outra vez e volta a enviar o vídeo.",
-  err_nsfw_blocked: "Este conteúdo não é permitido (NSFW). Tenta outra imagem ou descrição.",
-  err_safety_blocked: "O filtro de segurança da IA bloqueou esta geração. Tenta outra imagem ou uma descrição mais suave.",
-  err_moderation: "Este conteúdo não passou na moderação. Ajusta o prompt ou a imagem de referência e tenta de novo.",
-  err_contact_support:
-    "Algo correu mal nesta geração. Tenta outra vez dentro de momentos. Se continuar, fala com a Sofia no chat de suporte ou escreve para suporte@remakepix.com.",
   studio_gen_start_fail: "Não foi possível iniciar a geração.",
   post_tia_any_exclusive: "Este template é exclusivo da Tia Any Fast Food.",
   post_tia_any_banner:

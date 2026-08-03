@@ -226,6 +226,13 @@ function userAskedForQuality(text) {
   );
 }
 
+function looksLikeMultiRefEditPrompt(text) {
+  const s = String(text || "");
+  return /\b(image|imagem|img|foto|photo)\s*[#:-]?\s*[1-5]\b/i.test(s)
+    || /\b(image|imagem|foto)\s+(one|two|three|um|dois|três|una|dos)\b/i.test(s)
+    || /\b(first|second|terceira?|segunda?|primeira?)\s+(image|imagem|foto|photo)\b/i.test(s);
+}
+
 function buildImproveSystemPrompt(context = {}) {
   const tool = String(context.tool || "").trim();
   const styleLabel = String(context.style_label || "").trim();
@@ -233,6 +240,40 @@ function buildImproveSystemPrompt(context = {}) {
   const imageMode = Boolean(context.image_mode);
   const videoPreset = String(context.video_preset || "").trim().toLowerCase();
   const userPrompt = String(context.user_prompt || "").trim();
+  const multiRef = Boolean(context.multi_ref) || looksLikeMultiRefEditPrompt(userPrompt);
+  const refCount = Math.max(0, Number(context.ref_count) || 0);
+
+  if (tool === "edit" || (tool === "easy" && imageMode)) {
+    let system =
+      "You are an expert prompt engineer for AI IMAGE EDITING with uploaded reference photo(s). "
+      + "The user already has source image(s) and wrote an EDIT instruction — NOT a text-to-image brief for a new random person. "
+      + "Rewrite into ONE precise English edit prompt (60–140 words). "
+      + "Respond ONLY with the improved prompt — no quotes, no labels, no explanations.\n\n"
+      + "CRITICAL RULES:\n"
+      + "1) Keep the user's edit intent exactly (pose/position transfer, outfit, background, join people, lighting, etc.).\n"
+      + "2) Preserve every Image 1 / Image 2 / foto 1 / foto 2 label and role the user mentioned — never drop them.\n"
+      + "3) Explicitly require keeping the exact identity/face/body from each labeled source image that is used.\n"
+      + "4) FORBIDDEN: inventing a new model, celebrity lookalike, stock face, or unrelated character.\n"
+      + "5) FORBIDDEN: turning the request into a generic cinematic photoshoot of a different person.\n"
+      + "6) Do NOT add unrelated 8K/HDR/quality spam unless the user asked for quality.\n"
+      + "7) Keep ALL wardrobe, pose, action and composition requests — never censor or replace them.\n"
+      + "8) Write as an edit directive (\"Keep person from Image 1…\", \"Match pose from Image 2…\"), not as a new scene from scratch.";
+
+    if (multiRef || refCount >= 2) {
+      system +=
+        "\n\nMULTI-REFERENCE MODE: Inputs are labeled Image 1 (main) … Image N (references). "
+        + "If the user wants the person from Image 1 in the pose/position/clothes/scene of Image 2 "
+        + "(or any similar directed transfer), state that literally. "
+        + "Identity comes ONLY from the labeled images — never invent people.";
+    } else {
+      system +=
+        "\n\nSINGLE-PHOTO EDIT MODE: Start by locking the uploaded person's identity, then describe only the requested changes.";
+    }
+    if (userAskedForQuality(userPrompt)) {
+      system += "\n\nThe user DID ask for quality/resolution — you may include moderate quality cues tied to their request.";
+    }
+    return system;
+  }
 
   if (tool === "video_edit") {
     let system =
@@ -327,13 +368,14 @@ async function improvePrompt(prompt, lang = "en", context = {}) {
   const tool = String(context.tool || "").trim();
   const isVideoEdit = tool === "video_edit";
   const isVideoExtend = tool === "video_extend";
+  const isImageEdit = tool === "edit" || (tool === "easy" && Boolean(context.image_mode));
   const system = buildImproveSystemPrompt({ ...context, user_prompt: trimmed });
   try {
     const improved = await chatText({
       system,
       user: trimmed,
-      maxTokens: isVideoEdit || isVideoExtend ? 360 : 280,
-      temperature: isVideoEdit || isVideoExtend ? 0.55 : 0.8,
+      maxTokens: isVideoEdit || isVideoExtend || isImageEdit ? 360 : 280,
+      temperature: isVideoEdit || isVideoExtend || isImageEdit ? 0.45 : 0.8,
     });
     if (!improved || improved.length < 3) return trimmed;
     return improved;
@@ -425,6 +467,8 @@ async function handlePromptAssistRoute(path, req, res, { verifySessionToken, jso
       style_label: String(body.style_label || "").trim(),
       style_suffix: String(body.style_suffix || "").trim(),
       image_mode: body.image_mode === true || body.image_mode === "true" || body.image_mode === 1,
+      multi_ref: body.multi_ref === true || body.multi_ref === "true" || body.multi_ref === 1,
+      ref_count: Number(body.ref_count) || 0,
     };
     let newBalance = balance;
     if (!sessionUser?.is_unlimited) {

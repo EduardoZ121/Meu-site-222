@@ -1711,40 +1711,39 @@ function buildStudioMultiImageBundle(fields, urls, userPrompt) {
     promptFinal = `${promptFinal}\n\nMULTI-REF IDENTITY (mandatory): When a labeled image is used as a person, `
       + "preserve that person's exact face, bone structure, eyes, nose, lips, skin tone, ethnicity and hair. "
       + "Pose, framing, background, wardrobe and composition may change freely when the user request requires it. "
+      + "Do not invent a new person. Do not replace anyone with a random model. "
       + "Do not face-swap identities between Image slots unless asked.";
   }
   promptFinal = finalizeImagePrompt(promptFinal, {
-    modelKey: "pro",
+    modelKey: "nano",
     hasPersonPhoto: true,
     photoEdit: true,
   });
 
   const aspectRaw = text(fields, "aspect_ratio", "1:1").trim().toLowerCase();
-  let aspectRatio = "match_input_image";
+  let aspectHint = "3:4";
   if (aspectRaw && !["match", "match_input_image", "original"].includes(aspectRaw)) {
-    const normalized = normalizeRatio(aspectRaw, "pro");
-    if (FLUX_SUPPORTED.has(normalized)) aspectRatio = normalized;
+    aspectHint = normalizeRatio(aspectRaw, "nano");
+    if (aspectHint === "match_input_image") aspectHint = "3:4";
   }
 
-  const input = {
-    prompt: promptFinal,
-    images: all,
-    aspect_ratio: aspectRatio,
-    disable_safety_checker: true,
-    go_fast: false,
-    output_format: "jpg",
-    output_quality: 95,
-    megapixels: 1,
-  };
-  const aspectHint = aspectRatio === "match_input_image" ? "3:4" : aspectRatio;
-  input.prompt = appendAspectOutputInstruction(input.prompt, aspectHint);
+  // Nano Banana (image_input[]) — multi-ref estável tipo Grok Imagine / GPT.
+  // FLUX Klein com images[] inventava pessoas novas; não usar para 2+ fotos.
+  const input = buildNanoBananaPosterInput({
+    prompt: appendAspectOutputInstruction(promptFinal, aspectHint),
+    aspectRatio: aspectHint,
+    photoRef: all[0],
+    garmentRef: all[1],
+  });
+  input.image_input = all;
 
   return {
     input,
     prompt: promptFinal,
-    aspectRatio: aspectHint,
-    modelId: MODELS.pro,
-    modelUsed: "FLUX Klein · multi-ref",
+    aspectRatio: input.aspect_ratio || aspectHint,
+    modelId: "google/nano-banana",
+    modelUsed: "Nano Banana · multi-ref",
+    urls: all,
   };
 }
 
@@ -2081,8 +2080,15 @@ async function routePost(path, fields, files, req) {
     const surcharges = getSurcharges(region);
     const wantsHd = truthyField(fields, "hd_quality");
     const wantsImprove = truthyField(fields, "improve_prompt");
+    const { primary, refs } = await resolveStudioPhotoRefs(files, fields);
+    const multiRef = refs.length > 0;
     if (wantsImprove) {
-      prompt = await improvePrompt(prompt, lang, { tool: "edit" });
+      prompt = await improvePrompt(prompt, lang, {
+        tool: "edit",
+        image_mode: true,
+        multi_ref: multiRef,
+        ref_count: (primary ? 1 : 0) + refs.length,
+      });
     }
     if (wantsHd) {
       prompt = appendHdQualityPrompt(prompt, true);
@@ -2092,14 +2098,37 @@ async function routePost(path, fields, files, req) {
       hdQuality: wantsHd,
       hdMode: "image",
     });
-    const { primary, refs } = await resolveStudioPhotoRefs(files, fields);
-    if (refs.length > 0) {
+    if (multiRef) {
       if (!primary) {
         const err = new Error("Envia uma foto principal e pelo menos uma referência.");
         err.status = 400;
         throw err;
       }
       const bundle = buildStudioMultiImageBundle(fields, [primary, ...refs], prompt);
+      const { openaiConfigured } = require("./lib/openaiEnv.cjs");
+      // GPT Image multi-edit (alta fidelidade) = comportamento tipo Grok Imagine / ChatGPT.
+      if (openaiConfigured()) {
+        const size = aspectToOpenAISize(bundle.aspectRatio);
+        const outputAspect = openAISizeToAspectRatio(size);
+        const openaiPrompt = appendAspectOutputInstruction(bundle.prompt, outputAspect);
+        const result = await generateOpenAIImageEditDetailed({
+          prompt: openaiPrompt,
+          size,
+          imageRefs: bundle.urls || [primary, ...refs],
+          inputFidelity: "high",
+          preferMultipart: true,
+        });
+        return submitInstantPosterGeneration(req, fields, {
+          cost: editCost,
+          type: "image",
+          prompt: bundle.prompt,
+          aspectRatio: outputAspect,
+          modelUsed: `${result.modelUsed || "openai/gpt-image-1"} · multi-ref`,
+          urls: [result.url],
+          spendDescription: "Estúdio: editar foto (multi-ref)",
+          usePremiumWallet: false,
+        });
+      }
       return submitBillableGeneration(req, fields, {
         cost: editCost,
         type: "image",

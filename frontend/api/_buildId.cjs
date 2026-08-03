@@ -1,2 +1,2 @@
 "use strict";
-module.exports = "rp-credit-surcharge-ux-v17";
+module.exports = "rp-multiref-grok-imagine-v18";

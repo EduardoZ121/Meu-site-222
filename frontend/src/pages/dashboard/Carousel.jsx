@@ -344,7 +344,7 @@ export default function CarouselPage() {
     } catch (err) {
       if (allUrls.length > 0) {
         setResult({ result_urls: allUrls, credits_spent: creditsSpent, type: "carousel" });
-        toast.error(`${allUrls.length} slide(s) gerada(s). ${errMsg(err)}`, { duration: 9000 });
+        toast.error(t("car_partial_ok", { n: allUrls.length, err: errMsg(err) }), { duration: 9000 });
       } else if (lastPanoramaRef.current) {
         setResult({
           result_urls: [],

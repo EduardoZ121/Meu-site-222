@@ -278,7 +278,7 @@ export default function BrandCampaign() {
         notifiedIdsRef.current = notifyBatchResults([result], notifiedIdsRef.current, setBubbleResult);
         return { ok: result, failed: null };
       } catch (err) {
-        const message = formatApiError(err) || err?.message || t("bc_err_failed");
+        const message = formatApiError(err, t("bc_err_failed"), { t }) || t("bc_err_failed");
         setSlots((prev) => prev.map((slot) => (
           slot.index === job.concept_index
             ? { ...slot, status: "error", error: message }
@@ -373,7 +373,7 @@ export default function BrandCampaign() {
       }
     } catch (err) {
       console.error("[BrandCampaign]", err);
-      toast.error(formatApiError(err) || t("bc_err_failed"));
+      toast.error(formatApiError(err, t("bc_err_failed"), { t }) || t("bc_err_failed"), { duration: 9000 });
     } finally {
       if (progressTimerRef.current) {
         window.clearInterval(progressTimerRef.current);

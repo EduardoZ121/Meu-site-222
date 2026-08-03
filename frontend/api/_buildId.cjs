@@ -1,2 +1,2 @@
 "use strict";
-module.exports = "rp-brand-aurum-bubble-v21";
+module.exports = "rp-error-nsfw-messages-v22";

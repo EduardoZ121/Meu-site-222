@@ -1285,7 +1285,7 @@ async function submitBillableGeneration(req, fields, {
           modelUsed,
         });
       } catch (e) {
-        const err = new Error(formatGenerationError(e.message || "submit failed", lang));
+        const err = new Error(formatGenerationError(e.message || "submit failed", lang, { type }));
         err.status = e.status && e.status >= 400 && e.status < 600 ? e.status : 502;
         throw err;
       }
@@ -1337,7 +1337,7 @@ async function submitBillableGeneration(req, fields, {
       if (!forceBill || !isAdminEmail(userEmail)) {
         await addCredits(user.id, cost, "refund", `Refund: submit failed (${String(e.message || e).slice(0, 80)})`);
       }
-      const err = new Error(formatGenerationError(e.message || "submit failed", lang));
+      const err = new Error(formatGenerationError(e.message || "submit failed", lang, { type }));
       err.status = e.status && e.status >= 400 && e.status < 600 ? e.status : 502;
       throw err;
     }
@@ -3987,7 +3987,9 @@ async function handlePath(path, req, res) {
       if (status === "failed" || status === "canceled") {
         return json(res, 200, {
           status: "failed",
-          error: formatGenerationError(prediction.error || "A geração falhou.", lang),
+          error: formatGenerationError(prediction.error || "A geração falhou.", lang, {
+            type: prediction?.type || "",
+          }),
         });
       }
       return json(res, 200, { status, elapsed_seconds: 0 });
@@ -4300,17 +4302,32 @@ async function handlePath(path, req, res) {
           : "A imagem é demasiado grande para o servidor. Recarrega a página (Ctrl+F5) e tenta outra vez — o site comprime automaticamente antes de enviar.",
       });
     }
+    // Carteira Remake (créditos do utilizador) — nunca reescrever como "manutenção".
+    if (
+      err.status === 402
+      || /cr[eé]ditos (hq )?insuficientes|insufficient (premium )?credits/i.test(msg)
+    ) {
+      return json(res, 402, { detail: err.message || "Créditos insuficientes." });
+    }
+
     // Nunca expor erros crus do provedor (Replicate/billing/model) ao utilizador.
     // Só sanitiza rotas de geração e apenas quando o erro parece de provedor/infra;
     // mensagens de validação amigáveis (ex.: "Escreve um prompt.") passam intactas.
     const reqPath = String(pathFromRequest(req) || "");
-    if (reqPath.startsWith("generate/")) {
+    if (reqPath.startsWith("generate/") || reqPath.startsWith("brand-campaign/")) {
       const looksProvider = Boolean(err?.data)
-        || /replicate|insufficient|spend|billing|payment|\b402\b|\b50\d\b|modelerror|prediction|cuda|gpu|out of credit|quota|token|rate limit/i.test(msg);
+        || /replicate|spend(ing)? limit|payment method|modelerror|prediction failed|cuda|gpu|out of credit|quota exceeded|rate limit|E00[0-9]|nsfw|content policy|safety filter|flagged as sensitive/i.test(msg);
       if (looksProvider) {
         const lang = String(req?.headers?.["x-lang"] || req?.headers?.["accept-language"] || "pt").slice(0, 2).toLowerCase();
+        const typeHint = /marketing-video/.test(reqPath)
+          ? "marketing_video"
+          : /video/.test(reqPath)
+            ? "video"
+            : /poster|brand-campaign/.test(reqPath)
+              ? "poster"
+              : "image";
         return json(res, err.status && err.status >= 400 && err.status < 500 ? err.status : 502, {
-          detail: formatGenerationError(msg, lang),
+          detail: formatGenerationError(msg, lang, { type: typeHint }),
         });
       }
     }

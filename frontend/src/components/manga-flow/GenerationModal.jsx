@@ -3,7 +3,7 @@ import { createPortal } from "react-dom";
 import { useLocation, useNavigate } from "react-router-dom";
 import { X, Wand2, Download, Copy, Loader2, Sparkles, Image as ImageIcon, AlertCircle, BookOpen } from "lucide-react";
 import { buildFinalPrompt, buildFinalPagePrompt, countPanelNodes } from "./buildFlowPrompt";
-import { uploadPost, pollPrediction, trackPendingPrediction } from "../../lib/api";
+import { uploadPost, pollPrediction, trackPendingPrediction, formatApiError } from "../../lib/api";
 import {
   planMangaGeneration,
   appendMangaRefsToFormData,
@@ -315,9 +315,9 @@ export default function GenerationModal({
       if (onPageResults) onPageResults(completed);
 
     } catch (err) {
-      const msg = err?.response?.data?.detail || err?.message || "Generation failed";
+      const msg = formatApiError(err, t("common_fail") || "Geração falhou.", { t });
       setError(msg);
-      toast.error(msg);
+      toast.error(msg, { duration: 9000 });
     } finally {
       setGenerating(false);
     }

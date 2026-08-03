@@ -63,8 +63,9 @@ export default function StudioGenerateBar({
     } catch (err) {
       console.error("[StudioGenerateBar]", err);
       toast.error(
-        humanizeGenerationError(err?.message, t) || formatApiError(err, t("studio_gen_start_fail"), { t }),
-        { duration: 8000 },
+        formatApiError(err, t("studio_gen_start_fail"), { t })
+          || humanizeGenerationError(err?.message, t),
+        { duration: 9000 },
       );
     }
   };

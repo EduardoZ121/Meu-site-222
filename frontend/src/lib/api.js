@@ -527,40 +527,35 @@ async function pollTrackedPredictionOnce(predictionId, meta = {}) {
   }
   if (data.status === "failed") {
     notifiedPredictions.add(predictionId);
+    const failType = meta?.type || "image";
+    const failError = data.error || "Geração falhou.";
+    dispatchWalletSync(data, { refunded: data.refunded });
+    // Always surface WHY (NSFW / safety / empty) — never refund-only silence.
+    notifyGenerationFailed({
+      error: failError,
+      type: failType,
+      balance: data.new_balance,
+      credits: meta?.credits_spent,
+    });
     if (data.refunded) {
-      dispatchWalletSync(data, { refunded: data.refunded });
-      if (meta?.type === "video") {
-        notifyGenerationFailed({
-          error: data.error,
-          type: "video",
-          balance: data.new_balance,
-          credits: meta?.credits_spent,
-        });
-      } else {
-        notifyCreditsUpdate({
-          balance: data.new_balance,
-          refunded: true,
-          spent: meta?.credits_spent,
-        });
-      }
-    } else {
-      notifyGenerationFailed({
-        error: data.error,
-        type: meta?.type || "image",
+      notifyCreditsUpdate({
         balance: data.new_balance,
-        credits: meta?.credits_spent,
+        refunded: true,
+        spent: meta?.credits_spent,
       });
     }
-    notifyPredictionFailure(data.error || "Geração falhou.", {
+    notifyPredictionFailure(failError, {
       prediction_id: predictionId,
       source: "background",
+      type: failType,
     });
     window.dispatchEvent(new CustomEvent("rp:prediction-finished", {
       detail: {
         status: "failed",
         prediction_id: predictionId,
         source: "background",
-        error: data.error || "Geração falhou.",
+        error: failError,
+        type: failType,
       },
     }));
     removeTrackedPrediction(predictionId);
@@ -706,32 +701,24 @@ export async function pollPrediction(predictionId, opts = {}) {
     }
     if (data.status === "failed") {
       dispatchWalletSync(data, { refunded: data.refunded });
+      const failType = opts.type || "image";
+      const failError = data.error || "Geração falhou.";
       if (!silent) {
+        notifyGenerationFailed({
+          error: failError,
+          type: failType,
+          balance: data.new_balance,
+          credits: opts.credits_spent,
+        });
         if (data.refunded) {
-          if (opts.type === "video") {
-            notifyGenerationFailed({
-              error: data.error,
-              type: "video",
-              balance: data.new_balance,
-              credits: opts.credits_spent,
-            });
-          } else {
-            notifyCreditsUpdate({
-              balance: data.new_balance,
-              refunded: true,
-              spent: opts.credits_spent,
-            });
-          }
-        } else {
-          notifyGenerationFailed({
-            error: data.error,
-            type: opts.type || "image",
+          notifyCreditsUpdate({
             balance: data.new_balance,
-            credits: opts.credits_spent,
+            refunded: true,
+            spent: opts.credits_spent,
           });
         }
       }
-      const err = new Error(data.error || "Geração falhou.");
+      const err = new Error(failError);
       err.new_balance = data.new_balance;
       err.refunded = data.refunded;
       removeTrackedPrediction(predictionId);
@@ -742,6 +729,7 @@ export async function pollPrediction(predictionId, opts = {}) {
             prediction_id: predictionId,
             source: "foreground",
             error: err.message,
+            type: failType,
           },
         }));
       }

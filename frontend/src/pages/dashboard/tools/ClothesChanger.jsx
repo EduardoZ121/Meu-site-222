@@ -1,10 +1,11 @@
 import { useMemo, useState } from "react";
-import { Layers, Check } from "lucide-react";
+import { Layers, Check, Sparkles } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { uploadPost } from "../../../lib/api";
 import { normalizeCreation, primaryResultUrl } from "../../../lib/creationUrls";
 import { useAuth } from "../../../lib/auth";
+import { isAdminUser } from "../../../lib/isAdmin";
 import { usePricing } from "../../../lib/PricingContext";
 import ImageUploadZone from "../../../components/ImageUploadZone";
 import GenerationBubble from "../../../components/studio/GenerationBubble";
@@ -57,11 +58,14 @@ export default function ClothesChanger() {
   const [photo, setPhoto] = useState(null);
   const [garment, setGarment] = useState(null);
   const [changeType, setChangeType] = useState("full");
+  const [engine, setEngine] = useState("normal");
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState(null);
   const [typeOpen, setTypeOpen] = useState(false);
+  const [engineOpen, setEngineOpen] = useState(false);
 
   const cost = costs.clothes;
+  const isAdmin = isAdminUser(user);
 
   useStudioSessionBack("/app/tools");
 
@@ -74,7 +78,24 @@ export default function ClothesChanger() {
     [t],
   );
 
+  const engineOptions = useMemo(
+    () => [
+      {
+        id: "normal",
+        label: t("clothes_engine_normal") || "Normal · Flux",
+        hint: t("clothes_engine_normal_hint") || "Flux 2 Klein — standard outfit swap.",
+      },
+      {
+        id: "nsfw",
+        label: t("clothes_engine_nsfw") || "NSFW · Grok",
+        hint: t("clothes_engine_nsfw_hint") || "Grok Imagine — more permissive for adult / lingerie content (admin only).",
+      },
+    ],
+    [t],
+  );
+
   const typeLabel = changeTypes.find((c) => c.id === changeType)?.label || changeType;
+  const engineLabel = engineOptions.find((e) => e.id === engine)?.label || engine;
 
   const { ready, hint } = useStudioGenerateGate({
     busy,
@@ -107,6 +128,11 @@ export default function ClothesChanger() {
       fd.append("photo", photo);
       fd.append("garment", garment);
       fd.append("change_type", changeType);
+      if (isAdmin && engine === "nsfw") {
+        fd.append("engine", "nsfw");
+      } else {
+        fd.append("engine", "normal");
+      }
 
       const { data } = await uploadPost("/tools/clothes", fd, { timeout: 240000 });
       const creation = normalizeCreation(data?.creation);
@@ -174,6 +200,15 @@ export default function ClothesChanger() {
             testId="clothes-card-type"
             helpKey="help_sec_clothes_garment"
           />
+          {isAdmin ? (
+            <SettingCard
+              icon={Sparkles}
+              label={t("clothes_section_engine") || "Engine"}
+              value={engineLabel}
+              onOpen={() => setEngineOpen(true)}
+              testId="clothes-card-engine"
+            />
+          ) : null}
         </div>
 
         <div className="mv-setting-card mv-setting-card--static">
@@ -231,6 +266,46 @@ export default function ClothesChanger() {
           <Check className="w-4 h-4" /> {t("confirm") || "Confirmar"}
         </button>
       </SettingModal>
+
+      {isAdmin ? (
+        <SettingModal
+          open={engineOpen}
+          title={t("clothes_section_engine") || "Engine"}
+          onClose={() => setEngineOpen(false)}
+        >
+          <p className="text-[11px] text-[#8A8A8E] leading-relaxed mb-2" data-testid="clothes-engine-admin-note">
+            {t("clothes_engine_admin_only") || "Admin only — NSFW engine uses Grok Imagine (more permissive for adult content)."}
+          </p>
+          <div className="grid grid-cols-1 gap-2" data-testid="clothes-engines">
+            {engineOptions.map((opt) => (
+              <button
+                type="button"
+                key={opt.id}
+                onClick={() => setEngine(opt.id)}
+                className={`text-left p-4 border-2 rounded-xl transition-all ${
+                  engine === opt.id
+                    ? "border-[#7C3AED] bg-[#7C3AED]/10"
+                    : "border-[#2E2E30] hover:border-[#7C3AED]/40 bg-[#13131A]"
+                }`}
+                data-testid={`clothes-engine-${opt.id}`}
+              >
+                <p className={`text-[14px] font-medium font-display mb-1 ${engine === opt.id ? "text-[#C4B5FD]" : "text-[#F4F1EA]"}`}>
+                  {opt.label}
+                </p>
+                <p className="text-[#8A8A8E] text-[11px]">{opt.hint}</p>
+              </button>
+            ))}
+          </div>
+          <button
+            type="button"
+            onClick={() => setEngineOpen(false)}
+            className="rp-modal-confirm mt-3"
+            data-testid="clothes-engine-confirm"
+          >
+            <Check className="w-4 h-4" /> {t("confirm") || "Confirmar"}
+          </button>
+        </SettingModal>
+      ) : null}
 
       <GenerationBubble busy={busy} result={result} onChange={setResult} />
     </StudioCompactShell>

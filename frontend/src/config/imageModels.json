@@ -6,7 +6,7 @@
     "inputKey": "standard",
     "credits": 15,
     "tagKey": "model_tag_default",
-    "logo": "/images/model-logos/grok.svg"
+    "logo": "/images/model-logos/grok.png"
   },
   {
     "id": "nano_banana",
@@ -15,7 +15,7 @@
     "inputKey": "nano",
     "credits": 18,
     "tagKey": null,
-    "logo": "/images/model-logos/google.svg"
+    "logo": "/images/model-logos/nano-banana.png"
   },
   {
     "id": "seedream45",
@@ -24,7 +24,7 @@
     "inputKey": "seedream",
     "credits": 25,
     "tagKey": null,
-    "logo": "/images/model-logos/bytedance.svg"
+    "logo": "/images/model-logos/bytedance.png"
   },
   {
     "id": "flux2_pro",
@@ -33,7 +33,7 @@
     "inputKey": "flux",
     "credits": 35,
     "tagKey": null,
-    "logo": "/images/model-logos/flux.svg"
+    "logo": "/images/model-logos/flux.png"
   },
   {
     "id": "flux2_max",
@@ -42,7 +42,7 @@
     "inputKey": "flux",
     "credits": 45,
     "tagKey": null,
-    "logo": "/images/model-logos/flux.svg"
+    "logo": "/images/model-logos/flux.png"
   },
   {
     "id": "flux2_klein",
@@ -51,7 +51,7 @@
     "inputKey": "pro",
     "credits": 30,
     "tagKey": null,
-    "logo": "/images/model-logos/flux.svg"
+    "logo": "/images/model-logos/flux.png"
   },
   {
     "id": "imagen4_fast",
@@ -60,7 +60,7 @@
     "inputKey": "imagen",
     "credits": 12,
     "tagKey": "model_tag_fast",
-    "logo": "/images/model-logos/google.svg"
+    "logo": "/images/model-logos/google.png"
   },
   {
     "id": "imagen4",
@@ -69,7 +69,7 @@
     "inputKey": "imagen",
     "credits": 28,
     "tagKey": null,
-    "logo": "/images/model-logos/google.svg"
+    "logo": "/images/model-logos/google.png"
   },
   {
     "id": "ideogram_turbo",
@@ -78,7 +78,7 @@
     "inputKey": "ideogram",
     "credits": 18,
     "tagKey": "model_tag_fast",
-    "logo": "/images/model-logos/ideogram.svg"
+    "logo": "/images/model-logos/ideogram.png"
   },
   {
     "id": "ideogram_quality",
@@ -87,7 +87,7 @@
     "inputKey": "ideogram",
     "credits": 35,
     "tagKey": null,
-    "logo": "/images/model-logos/ideogram.svg"
+    "logo": "/images/model-logos/ideogram.png"
   },
   {
     "id": "recraft_v4",
@@ -96,7 +96,7 @@
     "inputKey": "recraft",
     "credits": 25,
     "tagKey": null,
-    "logo": "/images/model-logos/recraft.svg"
+    "logo": "/images/model-logos/recraft.png"
   },
   {
     "id": "flux_schnell",
@@ -105,7 +105,7 @@
     "inputKey": "flux",
     "credits": 10,
     "tagKey": "model_tag_fast",
-    "logo": "/images/model-logos/flux.svg"
+    "logo": "/images/model-logos/flux.png"
   },
   {
     "id": "flux_dev",
@@ -114,6 +114,6 @@
     "inputKey": "flux",
     "credits": 22,
     "tagKey": null,
-    "logo": "/images/model-logos/flux.svg"
+    "logo": "/images/model-logos/flux.png"
   }
 ]

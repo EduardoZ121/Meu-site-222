@@ -1,2 +1,2 @@
 "use strict";
-module.exports = "rp-multiref-grok-imagine-v18";
+module.exports = "rp-model-logos-v19";

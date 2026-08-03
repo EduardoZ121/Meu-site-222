@@ -546,7 +546,7 @@ export default function Generate() {
                   data-testid={`model-${m.id}`}
                 >
                   <span className="rp-model-ico rp-model-ico--logo">
-                    <img src={m.logo} alt="" className="h-6 w-6 object-contain" />
+                    <img src={m.logo} alt={m.name} loading="lazy" decoding="async" />
                   </span>
                   <span className="flex-1 text-left min-w-0">
                     <span className="rp-gen-model-name">{m.name}</span>

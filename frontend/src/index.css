@@ -2524,9 +2524,16 @@
     flex-shrink: 0;
   }
   .rp-model-ico--logo {
-    padding: 0.35rem;
-    background: rgba(255, 255, 255, 0.06);
-    border-color: rgba(255, 255, 255, 0.1);
+    padding: 0.28rem;
+    background: #ffffff;
+    border-color: rgba(255, 255, 255, 0.55);
+    box-shadow: 0 1px 0 rgba(0, 0, 0, 0.25);
+  }
+  .rp-model-ico--logo img {
+    display: block;
+    width: 1.65rem;
+    height: 1.65rem;
+    object-fit: contain;
   }
 
   .rp-gen-btn-inline {

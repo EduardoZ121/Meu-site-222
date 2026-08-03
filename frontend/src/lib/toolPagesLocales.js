@@ -196,6 +196,12 @@ const en = {
   clothes_err_person: "Upload a photo of the person.",
   clothes_err_garment: "Upload a garment photo OR describe the new outfit in text.",
   clothes_desc: "Swap anyone's outfit. Upload a person photo and garment reference or describe the look in text.",
+  clothes_section_engine: "Engine",
+  clothes_engine_normal: "Normal · Flux",
+  clothes_engine_normal_hint: "Flux 2 Klein — standard outfit swap.",
+  clothes_engine_nsfw: "NSFW · Grok",
+  clothes_engine_nsfw_hint: "Grok Imagine — more permissive for adult / lingerie content.",
+  clothes_engine_admin_only: "Admin only. NSFW uses Grok Imagine (more permissive for adult content).",
 };
 
 const pt = {
@@ -394,6 +400,12 @@ const pt = {
   clothes_err_person: "Envia uma foto da pessoa.",
   clothes_err_garment: "Envia uma foto da roupa OU descreve a roupa nova no campo de texto.",
   clothes_desc: "Envia foto da pessoa. Envia foto da roupa OU descreve em palavras. O modelo preserva o rosto e a pose.",
+  clothes_section_engine: "Motor",
+  clothes_engine_normal: "Normal · Flux",
+  clothes_engine_normal_hint: "Flux 2 Klein — troca de roupa padrão.",
+  clothes_engine_nsfw: "NSFW · Grok",
+  clothes_engine_nsfw_hint: "Grok Imagine — mais permissivo para conteúdo adulto / lingerie.",
+  clothes_engine_admin_only: "Só admin. NSFW usa Grok Imagine (mais permissivo para conteúdo adulto).",
 };
 
 export function mergeToolPagesLocales(dict) {

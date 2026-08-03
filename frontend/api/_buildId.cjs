@@ -1,2 +1,2 @@
 "use strict";
-module.exports = "rp-prompt-nolimit-v14";
+module.exports = "rp-hub-premium-ux-v15";

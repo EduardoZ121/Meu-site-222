@@ -1,6 +1,23 @@
 import { VIDEO_TOOL_IDS } from "./videoModels";
 
-/** Motor Vídeo→Vídeo — Wan 2.7 (único motor activo). */
+/** Motor Vídeo→Vídeo — Grok (NSFW-friendly) + Wan 2.7 (SFW / detalhado). */
+export const GROK_VIDEO_EDIT = {
+  id: VIDEO_TOOL_IDS.grok_edit,
+  labelKey: "vid_edit_engine_grok",
+  descKey: "vid_edit_engine_grok_desc",
+  badgeKey: "vid_edit_engine_grok_badge",
+  maxDurationSec: 8,
+  durations: [8],
+  resolutions: ["original"],
+  showAspect: false,
+  showReference: false,
+  showAudio: false,
+  showDuration: false,
+  showResolution: false,
+  requiresCloudUrl: true,
+  nsfwFriendly: true,
+};
+
 export const WAN_VIDEO_EDIT = {
   id: VIDEO_TOOL_IDS.wan_edit,
   labelKey: "vid_edit_engine_wan",
@@ -15,15 +32,16 @@ export const WAN_VIDEO_EDIT = {
   showDuration: true,
   showResolution: true,
   requiresCloudUrl: true,
+  nsfwFriendly: false,
 };
 
-/** @deprecated Use WAN_VIDEO_EDIT — mantido para imports antigos. */
-export const VIDEO_EDIT_ENGINES = [WAN_VIDEO_EDIT];
+export const VIDEO_EDIT_ENGINES = [GROK_VIDEO_EDIT, WAN_VIDEO_EDIT];
 
-export function getVideoEditEngine() {
-  return WAN_VIDEO_EDIT;
+export function getVideoEditEngine(engineId) {
+  const id = String(engineId || "").trim();
+  return VIDEO_EDIT_ENGINES.find((e) => e.id === id) || GROK_VIDEO_EDIT;
 }
 
 export function defaultVideoEditEngineId() {
-  return VIDEO_TOOL_IDS.wan_edit;
+  return VIDEO_TOOL_IDS.grok_edit;
 }

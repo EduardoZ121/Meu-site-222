@@ -200,7 +200,8 @@ function buildWanExtendInput({ firstClip, prompt, duration, resolution = "1080p"
     prompt,
     duration: dur,
     resolution: res,
-    enable_prompt_expansion: true,
+    // false: a expansão Alibaba pode reescrever/recusar prompts adultos.
+    enable_prompt_expansion: false,
   };
 }
 
@@ -220,9 +221,17 @@ function applyPresetPrefix(preset, userPrompt) {
   return `${prefix}${userPrompt}`;
 }
 
-/** Vídeo→vídeo — apenas Wan 2.7 (Grok/Kling desactivados). */
-function resolveVideoEditToolId(_raw) {
-  return "wan_edit";
+/**
+ * Vídeo→vídeo.
+ * Default: Grok (mais permissivo para NSFW / edits adultos).
+ * Wan 2.7 continua disponível mas o host costuma recusar conteúdo adulto.
+ */
+function resolveVideoEditToolId(raw) {
+  const id = String(raw || "").trim().toLowerCase();
+  if (id === "wan_edit" || id === "wan-2.7" || id === "wan") return "wan_edit";
+  if (id === "kling_edit" || id === "kling-o1" || id === "kling_o1") return "kling_edit";
+  if (id === "grok_edit" || id === "grok" || id === "grok-imagine") return "grok_edit";
+  return "grok_edit";
 }
 
 function klingEditModeFromResolution(resolution) {

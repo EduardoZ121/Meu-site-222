@@ -11,7 +11,12 @@ import { useAuth } from "../../lib/auth";
 import { usePricing } from "../../lib/PricingContext";
 import { useI18n } from "../../lib/i18n";
 import { computeVideoEditCost, buildVideoEditSurcharge } from "../../lib/videoEditPricing";
-import { WAN_VIDEO_EDIT } from "../../lib/videoEditEngines";
+import {
+  VIDEO_EDIT_ENGINES,
+  GROK_VIDEO_EDIT,
+  getVideoEditEngine,
+  defaultVideoEditEngineId,
+} from "../../lib/videoEditEngines";
 import { VIDEO_TOOL_IDS } from "../../lib/videoModels";
 import { pickBlobOffloadTimeoutMs } from "../../lib/uploadConstants";
 import { getSurcharges } from "../../lib/creditPricing";
@@ -54,7 +59,6 @@ function chipClass(active) {
 }
 
 export default function VideoEditorAdmin({ category }) {
-  const engine = WAN_VIDEO_EDIT;
   const { t, lang } = useI18n();
   const [searchParams, setSearchParams] = useSearchParams();
   const initialMode = resolveEditMode(
@@ -63,6 +67,9 @@ export default function VideoEditorAdmin({ category }) {
   const [editModeId, setEditModeId] = useState(initialMode);
   const editMode = useMemo(() => findVideoEditMode(editModeId), [editModeId]);
   const preset = editMode.preset;
+  const [engineId, setEngineId] = useState(defaultVideoEditEngineId());
+  const engine = useMemo(() => getVideoEditEngine(engineId), [engineId]);
+  const isGrok = engine.id === VIDEO_TOOL_IDS.grok_edit;
 
   const { refresh, user } = useAuth();
   const { costs, region } = usePricing();
@@ -76,7 +83,7 @@ export default function VideoEditorAdmin({ category }) {
   const [reference, setReference] = useState(null);
   const [prompt, setPrompt] = useState("");
   const [resolution, setResolution] = useState("original");
-  const [duration, setDuration] = useState(6);
+  const [duration, setDuration] = useState(8);
   const [improve, setImprove] = useState(false);
   const [aspect, setAspect] = useState("auto");
   const [audioSetting, setAudioSetting] = useState("origin");
@@ -107,15 +114,23 @@ export default function VideoEditorAdmin({ category }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams]);
 
+  useEffect(() => {
+    if (isGrok) {
+      setDuration(8);
+      setResolution("original");
+      setAspect("auto");
+    }
+  }, [isGrok]);
+
   const cost = useMemo(() => {
     let total = computeVideoEditCost(baseCost, {
-      resolution,
-      duration,
+      resolution: isGrok ? "original" : resolution,
+      duration: isGrok ? 8 : duration,
       regionId: region,
     });
     if (improve) total += surcharges.enhancePrompt ?? 5;
     return total;
-  }, [baseCost, resolution, duration, improve, surcharges.enhancePrompt, region]);
+  }, [baseCost, resolution, duration, improve, surcharges.enhancePrompt, region, isGrok]);
 
   const videoUploading = isPhotoUploadBusy(videoUploadStatus);
   const cloudReady = Boolean(videoCloudUrl);
@@ -152,19 +167,23 @@ export default function VideoEditorAdmin({ category }) {
         const sec = Math.max(0, Math.round(s));
         setSourceDurationSec(sec);
         if (sec > 0) {
-          const cap = Math.min(10, sec);
-          setDuration((prev) => {
-            if (prev <= cap) return prev;
-            const allowed = DURATIONS.filter((d) => d <= cap);
-            return allowed.length ? allowed[allowed.length - 1] : 4;
-          });
+          if (isGrok) {
+            setDuration(8);
+          } else {
+            const cap = Math.min(10, sec);
+            setDuration((prev) => {
+              if (prev <= cap) return prev;
+              const allowed = DURATIONS.filter((d) => d <= cap);
+              return allowed.length ? allowed[allowed.length - 1] : 4;
+            });
+          }
         }
       })
       .catch(() => {
         if (mounted) setSourceDurationSec(0);
       });
     return () => { mounted = false; };
-  }, [video]);
+  }, [video, isGrok]);
 
   const run = async () => {
     if (videoUploading) {
@@ -205,10 +224,10 @@ export default function VideoEditorAdmin({ category }) {
       fd.append("audio_setting", audioSetting);
       fd.append("lang", lang || "pt");
       if (preset) fd.append("video_preset", preset);
-      fd.append("video_tool", VIDEO_TOOL_IDS.wan_edit);
+      fd.append("video_tool", engine.id || VIDEO_TOOL_IDS.grok_edit);
       if (improve) fd.append("improve_prompt", "1");
       fd.append("video_url", videoCloudUrl);
-      if (reference) fd.append("reference_image", reference);
+      if (reference && engine.showReference) fd.append("reference_image", reference);
       fd.append("notify_by_email", "1");
       fd.append("notify_email", user.email);
 
@@ -276,6 +295,46 @@ export default function VideoEditorAdmin({ category }) {
       <div className="space-y-2.5 min-w-0" data-testid="video-editor-v2v">
         <VideoEditModeTabs modeId={editModeId} onChange={setMode} disabled={busy} />
 
+        <div className="rounded-2xl border border-white/[0.08] bg-[#141418]/80 p-3 md:p-4" data-testid="video-edit-engine">
+          <p className="text-[11px] font-mono uppercase tracking-[0.14em] text-[#8A8A8E] mb-2">
+            {t("vid_edit_engine_title")}
+          </p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            {VIDEO_EDIT_ENGINES.map((eng) => {
+              const active = engineId === eng.id;
+              return (
+                <button
+                  key={eng.id}
+                  type="button"
+                  disabled={busy}
+                  onClick={() => setEngineId(eng.id)}
+                  className={[
+                    "text-left rounded-xl border px-3 py-2.5 transition-colors",
+                    active
+                      ? "border-[#7C3AED] bg-[#7C3AED]/15"
+                      : "border-white/[0.08] bg-[#0A0A0C] hover:border-[#5A5A5E]",
+                  ].join(" ")}
+                  data-testid={`video-edit-engine-${eng.id}`}
+                >
+                  <span className="flex items-center justify-between gap-2">
+                    <span className="text-[13px] font-medium text-[#F4F1EA]">{t(eng.labelKey)}</span>
+                    <span className="text-[10px] font-mono uppercase tracking-[0.1em] text-[#C4B5FD]">
+                      {t(eng.badgeKey)}
+                    </span>
+                  </span>
+                  <span className="block mt-1 text-[11px] text-[#9CA3AF] leading-snug">{t(eng.descKey)}</span>
+                </button>
+              );
+            })}
+          </div>
+          <p className="mt-2 text-[11px] text-[#C4B5FD]/90 leading-relaxed">
+            {t("vid_edit_engine_nsfw_hint")}
+          </p>
+          {isGrok ? (
+            <p className="mt-1.5 text-[11px] text-[#8A8A8E] leading-relaxed">{t("vid_edit_grok_limits")}</p>
+          ) : null}
+        </div>
+
         <div className="rounded-2xl border border-white/[0.08] bg-[#141418]/80 p-3 md:p-4">
           <p className="text-[#9CA3AF] text-[12px] leading-relaxed mb-3">{t("vid_v2v_video_hint")}</p>
           <StudioVideoUpload
@@ -307,13 +366,15 @@ export default function VideoEditorAdmin({ category }) {
             onOpen={() => openModal("templates")}
             testId="video-edit-card-templates"
           />
-          <SettingCard
-            icon={ImageIcon}
-            label={t("vid_v2v_step_reference")}
-            value={referenceLabel}
-            onOpen={() => openModal("reference")}
-            testId="video-edit-card-reference"
-          />
+          {engine.showReference ? (
+            <SettingCard
+              icon={ImageIcon}
+              label={t("vid_v2v_step_reference")}
+              value={referenceLabel}
+              onOpen={() => openModal("reference")}
+              testId="video-edit-card-reference"
+            />
+          ) : null}
         </div>
 
         <SettingCard
@@ -324,13 +385,19 @@ export default function VideoEditorAdmin({ category }) {
           testId="video-edit-card-prompt"
         />
 
-        <SettingCard
-          icon={Sliders}
-          label={t("vid_v2v_advanced")}
-          value={`${resolutionLabel} · ${durationLabel} · ${aspectLabel}`}
-          onOpen={() => openModal("advanced")}
-          testId="video-edit-card-advanced"
-        />
+        {!isGrok ? (
+          <SettingCard
+            icon={Sliders}
+            label={t("vid_v2v_advanced")}
+            value={`${resolutionLabel} · ${durationLabel} · ${aspectLabel}`}
+            onOpen={() => openModal("advanced")}
+            testId="video-edit-card-advanced"
+          />
+        ) : (
+          <div className="rounded-xl border border-white/[0.06] bg-[#141418]/60 px-3 py-2.5 text-[11px] text-[#8A8A8E]">
+            {t("vid_edit_grok_duration_default")} · 8s
+          </div>
+        )}
 
         <div className="mv-setting-card mv-setting-card--static">
           <div className="flex flex-col gap-2.5 sm:flex-row sm:items-center sm:justify-end">

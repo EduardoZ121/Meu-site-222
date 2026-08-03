@@ -1,2 +1,2 @@
 "use strict";
-module.exports = "rp-model-logos-v19";
+module.exports = "rp-video-nsfw-grok-v20";

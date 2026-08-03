@@ -587,9 +587,9 @@ async function grokVideoEditInput(fields, files) {
   const { buildGrokEditInput } = require("./lib/videoModels.cjs");
   const GROK_MAX_SEC = 8;
   const fromUrl = await resolveVideoEditMediaUrl(files, fields);
-  const dur = Math.round(Number(text(fields, "duration", String(GROK_MAX_SEC))));
-  if (dur !== GROK_MAX_SEC) {
-    const err = new Error(`Grok só gera clips até ${GROK_MAX_SEC} segundos.`);
+  const dur = Math.round(Number(text(fields, "duration", String(GROK_MAX_SEC))) || GROK_MAX_SEC);
+  if (dur > GROK_MAX_SEC) {
+    const err = new Error(`Grok só edita clips até ${GROK_MAX_SEC} segundos — corta o vídeo e tenta outra vez.`);
     err.status = 400;
     throw err;
   }
@@ -2922,9 +2922,11 @@ If user food reference is absent, generate a fitting premium fast-food item. If 
     const {
       applyPresetPrefix,
       MODELS: VIDEO_MODELS,
+      resolveVideoEditToolId,
     } = require("./lib/videoModels.cjs");
     const lang = text(fields, "lang", "en").slice(0, 2);
     const preset = text(fields, "video_preset", "").trim();
+    const editTool = resolveVideoEditToolId(text(fields, "video_tool", "grok_edit"));
     let rawPrompt = text(fields, "prompt", "").trim();
     if (truthyField(fields, "improve_prompt") && rawPrompt.length >= 3) {
       rawPrompt = await improvePrompt(rawPrompt, lang, {
@@ -2936,26 +2938,50 @@ If user food reference is absent, generate a fitting premium fast-food item. If 
       rawPrompt = applyPresetPrefix(preset, rawPrompt);
     }
     fields.prompt = rawPrompt;
-    const { input, prompt } = await videoEditInput(fields, files);
     const surcharges = getSurcharges(region);
     const { validateVideoEditOptions, computeVideoEditCostForEngine } = require("./lib/videoEditPricing.cjs");
-    const resOpts = validateVideoEditOptions({
-      resolution: text(fields, "resolution", "original"),
-      duration: text(fields, "duration", "6"),
-    });
-    let cost = computeVideoEditCostForEngine(CREDIT, surcharges, "wan_edit", resOpts);
+
+    let built;
+    let modelId;
+    let aspectRatio;
+    let resOpts;
+
+    if (editTool === "grok_edit") {
+      // Grok Imagine: melhor caminho NSFW / edits adultos (Wan costuma recusar).
+      built = await grokVideoEditInput(fields, files);
+      modelId = VIDEO_MODELS.grok_edit;
+      aspectRatio = "auto";
+      resOpts = { resolution: "original", duration: 8 };
+    } else if (editTool === "kling_edit") {
+      built = await klingVideoEditInput(fields, files);
+      modelId = VIDEO_MODELS.kling_edit;
+      aspectRatio = "auto";
+      resOpts = validateVideoEditOptions({
+        resolution: text(fields, "resolution", "original"),
+        duration: text(fields, "duration", "6"),
+      });
+    } else {
+      built = await videoEditInput(fields, files);
+      modelId = VIDEO_MODELS.wan_edit;
+      aspectRatio = built.input.aspect_ratio;
+      resOpts = validateVideoEditOptions({
+        resolution: text(fields, "resolution", "original"),
+        duration: text(fields, "duration", "6"),
+      });
+    }
+
+    let cost = computeVideoEditCostForEngine(CREDIT, surcharges, editTool, resOpts);
     if (truthyField(fields, "improve_prompt")) {
       cost += surcharges.enhancePrompt ?? 5;
     }
-    const modelId = VIDEO_MODELS.wan_edit;
     return submitBillableGeneration(req, fields, {
       cost,
       type: "video",
       modelId,
-      input,
-      prompt,
-      aspectRatio: input.aspect_ratio,
-      modelUsed: modelId,
+      input: built.input,
+      prompt: built.prompt,
+      aspectRatio,
+      modelUsed: `${modelId} · ${editTool}`,
       spendDescription: "Editor vídeo",
     });
   }

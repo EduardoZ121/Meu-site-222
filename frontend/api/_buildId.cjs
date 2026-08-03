@@ -1,2 +1,2 @@
 "use strict";
-module.exports = "rp-error-nsfw-messages-v22";
+module.exports = "rp-clothes-admin-nsfw-v23";

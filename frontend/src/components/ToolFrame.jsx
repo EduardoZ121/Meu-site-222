@@ -288,6 +288,7 @@ export default function ToolFrame({
         hint={hint}
         blockedNotify={photoUploading ? "message" : "error"}
         cost={billedCost}
+        showCostPill
         testId={`${testId}-create-btn`}
         costMeta={<StudioGenerateCostMeta cost={billedCost} user={user} />}
       />

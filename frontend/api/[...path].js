@@ -2080,15 +2080,18 @@ async function routePost(path, fields, files, req) {
     const lang = text(fields, "lang", "en").slice(0, 2);
     const surcharges = getSurcharges(region);
     const wantsHd = truthyField(fields, "hd_quality");
-    let editCost = CREDIT.edit;
-    if (truthyField(fields, "improve_prompt")) {
+    const wantsImprove = truthyField(fields, "improve_prompt");
+    if (wantsImprove) {
       prompt = await improvePrompt(prompt, lang, { tool: "edit" });
-      editCost += surcharges.enhancePrompt ?? 5;
     }
     if (wantsHd) {
       prompt = appendHdQualityPrompt(prompt, true);
-      editCost = applyGenerationSurcharges(editCost, surcharges, { hdQuality: true, hdMode: "image" });
     }
+    const editCost = applyGenerationSurcharges(CREDIT.edit, surcharges, {
+      improvePrompt: wantsImprove,
+      hdQuality: wantsHd,
+      hdMode: "image",
+    });
     const { primary, refs } = await resolveStudioPhotoRefs(files, fields);
     if (refs.length > 0) {
       if (!primary) {
@@ -2128,6 +2131,8 @@ async function routePost(path, fields, files, req) {
     const extra = text(fields, "extra_prompt", "").trim();
     const surcharges = getSurcharges(region);
     const wantsHd = truthyField(fields, "hd_quality");
+    const wantsImprove = truthyField(fields, "improve_prompt");
+    const lang = text(fields, "lang", "en").slice(0, 2);
     let prompt;
     if (padrao?.prompt) {
       prompt = upgradePadraoPrompt(padrao.prompt.replace(/\[subject\]/gi, subject));
@@ -2135,10 +2140,14 @@ async function routePost(path, fields, files, req) {
     } else {
       prompt = `Apply the ${styleId || "editorial"} style to ${subject}. Preserve identity, face, pose and expression. ${extra}`;
     }
+    if (wantsImprove) {
+      prompt = await improvePrompt(prompt, lang, { tool: "easy" });
+    }
     if (wantsHd) {
       prompt = appendHdQualityPrompt(prompt, true);
     }
     const easyCost = applyGenerationSurcharges(CREDIT.easy, surcharges, {
+      improvePrompt: wantsImprove,
       hdQuality: wantsHd,
       hdMode: "image",
     });

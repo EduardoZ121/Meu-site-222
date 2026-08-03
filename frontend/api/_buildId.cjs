@@ -1,2 +1,2 @@
 "use strict";
-module.exports = "rp-video-nsfw-grok-v20";
+module.exports = "rp-brand-aurum-bubble-v21";

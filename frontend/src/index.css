@@ -2342,10 +2342,10 @@
     cursor: not-allowed;
   }
 
-  /* Bolha flutuante de geração (arrastável) */
+  /* Bolha flutuante de geração (tipo OpenArt) — acima da bottom nav / drawers */
   .rp-gen-bubble-wrap {
     position: fixed;
-    z-index: 60;
+    z-index: 180;
     touch-action: none;
     cursor: grab;
     animation: rpBubbleFloat 3.2s ease-in-out infinite;
@@ -2367,33 +2367,43 @@
   }
   .rp-gen-bubble {
     position: relative;
-    height: 3.25rem;
-    width: 3.25rem;
+    height: 3.6rem;
+    width: 3.6rem;
     border-radius: 9999px;
     display: inline-flex;
     align-items: center;
     justify-content: center;
     overflow: hidden;
-    border: 1px solid rgba(168, 85, 247, 0.55);
-    background: linear-gradient(135deg, rgba(124, 58, 237, 0.9), rgba(17, 17, 19, 0.95));
-    box-shadow: 0 10px 30px -8px rgba(124, 58, 237, 0.6);
+    border: 2px solid rgba(255, 255, 255, 0.88);
+    background: linear-gradient(145deg, rgba(28, 28, 32, 0.96), rgba(12, 12, 14, 0.98));
+    box-shadow:
+      0 0 0 1px rgba(0, 0, 0, 0.35),
+      0 14px 36px -10px rgba(0, 0, 0, 0.72),
+      0 0 0 3px rgba(250, 204, 21, 0.22);
     transition: transform 0.2s ease, opacity 0.2s ease, box-shadow 0.2s ease;
   }
   .rp-gen-bubble--docked {
     transform: translateX(-38%);
     opacity: 0.88;
-    box-shadow: 0 6px 18px -6px rgba(124, 58, 237, 0.5);
+    box-shadow: 0 6px 18px -6px rgba(0, 0, 0, 0.55);
   }
   .rp-gen-bubble-wrap:hover .rp-gen-bubble--docked {
     transform: translateX(0);
     opacity: 1;
   }
+  .rp-gen-bubble-wrap:hover .rp-gen-bubble {
+    transform: scale(1.05);
+    box-shadow:
+      0 0 0 1px rgba(0, 0, 0, 0.35),
+      0 18px 42px -10px rgba(0, 0, 0, 0.78),
+      0 0 0 3px rgba(250, 204, 21, 0.35);
+  }
 
   .rp-gen-bubble__pulse {
     position: absolute;
-    inset: -4px;
+    inset: -5px;
     border-radius: 9999px;
-    border: 2px solid rgba(168, 85, 247, 0.55);
+    border: 2px solid rgba(250, 204, 21, 0.55);
     animation: rpGenPulse 1.5s ease-out infinite;
   }
   @keyframes rpGenPulse {
@@ -2403,18 +2413,41 @@
 
   .rp-gen-bubble__dot {
     position: absolute;
-    top: 0.15rem;
-    right: 0.15rem;
-    height: 0.65rem;
-    width: 0.65rem;
+    top: 0.12rem;
+    right: 0.12rem;
+    height: 0.7rem;
+    width: 0.7rem;
     border-radius: 9999px;
     background: #34d399;
     border: 2px solid #0b0b0c;
+    box-shadow: 0 0 0 1px rgba(52, 211, 153, 0.35);
+  }
+
+  .rp-gen-bubble__dismiss {
+    position: absolute;
+    top: -0.35rem;
+    right: -0.35rem;
+    z-index: 2;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.35rem;
+    height: 1.35rem;
+    border-radius: 9999px;
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    background: rgba(18, 18, 22, 0.92);
+    color: #e5e5e7;
+    box-shadow: 0 6px 14px -8px rgba(0, 0, 0, 0.8);
+    cursor: pointer;
+  }
+  .rp-gen-bubble__dismiss:hover {
+    background: rgba(40, 40, 46, 0.98);
+    color: #fff;
   }
 
   .rp-gen-panel {
     position: fixed;
-    z-index: 61;
+    z-index: 181;
     width: min(92vw, 340px);
     max-height: 70vh;
     overflow-y: auto;

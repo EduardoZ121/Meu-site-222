@@ -11,8 +11,9 @@ import {
 } from "../../lib/GenerationBubbleContext";
 
 const POS_KEY = "rp-gen-bubble-pos";
-const BUBBLE = 52;
-const MARGIN = 8;
+const BUBBLE = 58;
+const MARGIN = 12;
+const BOTTOM_NAV_CLEARANCE = 88;
 
 function readSavedPos() {
   try {
@@ -43,7 +44,10 @@ export function GenerationBubbleHost() {
 
   const clampPos = useCallback((x, y) => {
     const maxX = Math.max(MARGIN, window.innerWidth - BUBBLE - MARGIN);
-    const maxY = Math.max(MARGIN, window.innerHeight - BUBBLE - 40 - MARGIN);
+    const maxY = Math.max(
+      MARGIN,
+      window.innerHeight - BUBBLE - BOTTOM_NAV_CLEARANCE - MARGIN,
+    );
     return {
       x: Math.min(maxX, Math.max(MARGIN, x)),
       y: Math.min(maxY, Math.max(MARGIN, y)),
@@ -52,8 +56,9 @@ export function GenerationBubbleHost() {
 
   useEffect(() => {
     if (pos.y != null) return;
-    const y = Math.round(window.innerHeight * 0.5 - BUBBLE / 2);
-    setPos((p) => clampPos(p.x, y));
+    // OpenArt-style: dock near lower-left, clear of the mobile bottom nav.
+    const y = Math.round(window.innerHeight - BUBBLE - BOTTOM_NAV_CLEARANCE - MARGIN);
+    setPos((p) => clampPos(p.x ?? MARGIN, y));
   }, [pos.y, clampPos]);
 
   useEffect(() => {

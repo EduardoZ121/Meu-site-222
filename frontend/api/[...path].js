@@ -88,6 +88,7 @@ const {
   buildMangaComicSheetBlock,
 } = require("./lib/identityPrompts.cjs");
 const { getProPreset, listProPresets } = require("./lib/proPresetsData.cjs");
+const { getGptHqStyle, listGptHqStylesPublic } = require("./lib/gptHqStylesData.cjs");
 const {
   isS3Configured,
   isTrustedS3MediaUrl,
@@ -2229,6 +2230,69 @@ async function routePost(path, fields, files, req) {
     });
   }
 
+  if (path === "generate/gpt-hq-style") {
+    const { openaiConfigured } = require("./lib/openaiEnv.cjs");
+    if (!openaiConfigured()) {
+      const err = new Error("OpenAI não está configurado para AURUM / GPT HQ.");
+      err.status = 503;
+      throw err;
+    }
+    const styleId = text(fields, "style_id", "").trim();
+    const style = getGptHqStyle(styleId);
+    if (!style?.prompt || style.comingSoon) {
+      const err = new Error("Estilo AURUM inválido ou indisponível.");
+      err.status = 400;
+      throw err;
+    }
+    const photoRef = await resolveImageRef(files, fields, "photo", "photo_url");
+    if (!photoRef) {
+      const err = new Error("Envia uma foto para o AURUM.");
+      err.status = 400;
+      throw err;
+    }
+    const quality = String(text(fields, "quality", "hq") || "hq").toLowerCase();
+    const ultra = quality === "ultra";
+    let prompt = String(style.prompt).trim();
+    prompt = appendProRetouchIdentity(prompt);
+    if (ultra) {
+      prompt = appendHdQualityPrompt(prompt, true);
+      prompt += "\n\nUltra HQ finish: maximum micro-detail, print-ready sharpness, natural skin without plastic look.";
+    }
+    const rawAspect = text(fields, "aspect_ratio", "3:4");
+    const aspectRatio = ["match", "match_input_image", "original"].includes(String(rawAspect || "").toLowerCase())
+      ? "3:4"
+      : normalizeRatio(rawAspect, "flux");
+    const size = aspectToOpenAISize(aspectRatio === "match_input_image" ? "3:4" : aspectRatio);
+    const outputAspect = openAISizeToAspectRatio(size);
+    const openaiPrompt = appendAspectOutputInstruction(
+      finalizeImagePrompt(prompt, {
+        photoEdit: true,
+        hasPersonPhoto: true,
+      }),
+      outputAspect,
+    );
+    const result = await generateOpenAIImageEditDetailed({
+      prompt: openaiPrompt,
+      size,
+      imageRefs: [photoRef],
+      inputFidelity: "high",
+      preferMultipart: true,
+    });
+    const cost = Number(style.cost) > 0
+      ? Math.round(Number(style.cost))
+      : posterHqPremiumCost(1);
+    return submitInstantPosterGeneration(req, fields, {
+      cost,
+      type: "image",
+      prompt,
+      aspectRatio: outputAspect,
+      modelUsed: `${result.modelUsed || "openai/gpt-image-1"} · AURUM`,
+      urls: [result.url],
+      spendDescription: `AURUM · ${style.name || styleId}`,
+      usePremiumWallet: true,
+    });
+  }
+
   if (path === "generate/artistic-studio") {
     const styleId = text(fields, "style_id", "").trim();
     const experimental = isArtisticExperimentalStyleId(styleId);
@@ -3675,6 +3739,10 @@ async function handlePath(path, req, res) {
 
     if (req.method === "GET" && path === "public/pro-presets") {
       return json(res, 200, { presets: listProPresets() });
+    }
+
+    if (req.method === "GET" && path === "public/gpt-hq-styles") {
+      return json(res, 200, { styles: listGptHqStylesPublic() });
     }
 
     if (req.method === "GET" && path === "public/poster-templates") {

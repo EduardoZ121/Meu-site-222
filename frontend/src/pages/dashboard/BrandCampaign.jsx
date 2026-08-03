@@ -29,12 +29,14 @@ import SettingModal from "../../components/studio/SettingModal";
 import MultiImageUpload from "../../components/studio/MultiImageUpload";
 import BrandCampaignStylePanel from "../../components/brand-campaign/BrandCampaignStylePanel";
 import StudioHelpTip from "../../components/studio/StudioHelpTip";
+import GenerationBubble from "../../components/studio/GenerationBubble";
 import { useStudioGenerateGate } from "../../lib/useStudioGenerateGate";
 import {
   BRAND_CAMPAIGN_ASPECTS,
   computeBrandCampaignCost,
 } from "../../lib/brandCampaign";
 import { cn } from "../../lib/utils";
+import { normalizeCreation, primaryResultUrl } from "../../lib/creationUrls";
 
 const COUNT_OPTIONS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
 
@@ -48,21 +50,31 @@ function buildInitialSlots(brief, count) {
   }));
 }
 
-function notifyBatchResults(results = [], seen = new Set()) {
+function toBubbleCreation(item) {
+  const id = item?.creation_id || item?.prediction_id || item?.creation?.id;
+  const creation = item?.creation || {
+    id,
+    type: "poster",
+    result_urls: item?.url ? [item.url] : [],
+    credits_spent: item?.credits_spent || 0,
+  };
+  const normalized = normalizeCreation(creation);
+  return primaryResultUrl(normalized) || normalized?.id ? normalized : null;
+}
+
+function notifyBatchResults(results = [], seen = new Set(), onLatest) {
+  let latest = null;
   for (const item of results) {
     const id = item.creation_id || item.prediction_id;
     if (id && seen.has(id)) continue;
     if (id) seen.add(id);
-    const creation = item.creation || {
-      id,
-      type: "poster",
-      result_urls: item.url ? [item.url] : [],
-      credits_spent: item.credits_spent || 0,
-    };
-    if (creation.result_urls?.length) {
+    const creation = toBubbleCreation(item);
+    if (creation?.result_urls?.length) {
       notifyCreationSucceeded(creation);
+      latest = creation;
     }
   }
+  if (latest && typeof onLatest === "function") onLatest(latest);
   return seen;
 }
 
@@ -87,6 +99,7 @@ export default function BrandCampaign() {
   const [busy, setBusy] = useState(false);
   const [progress, setProgress] = useState(0);
   const [progressLabel, setProgressLabel] = useState("");
+  const [bubbleResult, setBubbleResult] = useState(null);
   const [openKey, setOpenKey] = useState(null);
   const progressTimerRef = useRef(null);
   const notifiedIdsRef = useRef(new Set());
@@ -221,7 +234,7 @@ export default function BrandCampaign() {
 
     setSlots(nextSlots);
     setResults(ok.map((r) => ({ url: r.url, title: r.title || activeBrief.concepts?.[r.concept_index]?.title })));
-    notifiedIdsRef.current = notifyBatchResults(ok, notifiedIdsRef.current);
+    notifiedIdsRef.current = notifyBatchResults(ok, notifiedIdsRef.current, setBubbleResult);
     return { ok, failed, deferred, creditsSpent: data?.credits_spent || 0 };
   };
 
@@ -262,7 +275,7 @@ export default function BrandCampaign() {
             : slot
         )));
         setResults((prev) => [...prev, { url, title: result.title }]);
-        notifiedIdsRef.current = notifyBatchResults([result], notifiedIdsRef.current);
+        notifiedIdsRef.current = notifyBatchResults([result], notifiedIdsRef.current, setBubbleResult);
         return { ok: result, failed: null };
       } catch (err) {
         const message = formatApiError(err) || err?.message || t("bc_err_failed");
@@ -295,6 +308,7 @@ export default function BrandCampaign() {
 
     setBusy(true);
     setResults([]);
+    setBubbleResult(null);
     setProgress(0);
     setProgressLabel(t("bc_analyzing"));
     notifiedIdsRef.current = new Set();
@@ -409,7 +423,7 @@ export default function BrandCampaign() {
         data-testid="bc-how-it-works"
       >
         <img
-          src="/images/brand-campaign-how-it-works.png"
+          src="/images/brand-campaign-how-it-works.png?v=21"
           alt={t("bc_tutorial_alt")}
           className="block w-full h-auto object-contain object-top"
           loading="eager"
@@ -710,6 +724,13 @@ export default function BrandCampaign() {
           <Check className="w-4 h-4" /> {t("confirm")}
         </button>
       </SettingModal>
+
+      <GenerationBubble
+        busy={busy}
+        progress={progress}
+        result={bubbleResult}
+        onChange={setBubbleResult}
+      />
     </StudioCompactShell>
   );
 }

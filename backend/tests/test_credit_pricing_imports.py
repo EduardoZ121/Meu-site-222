@@ -8,6 +8,9 @@ from pathlib import Path
 APP_ROOT = Path("/app")
 ENTRYPOINT = APP_ROOT / "frontend/api/[...path].js"
 CJS_PRICING = APP_ROOT / "frontend/api/lib/creditPricing.cjs"
+FRONTEND_PRICING = APP_ROOT / "frontend/src/lib/creditPricing.js"
+PRICING_REGIONS = APP_ROOT / "frontend/src/lib/pricingRegions.js"
+GENERATE_PAGE = APP_ROOT / "frontend/src/pages/dashboard/Generate.jsx"
 SOURCE_SUFFIXES = {".js", ".jsx", ".cjs", ".mjs", ".ts", ".tsx"}
 EXCLUDED_PARTS = {"node_modules", "build", "dist", ".git"}
 
@@ -73,6 +76,22 @@ def test_credit_pricing_cjs_defines_and_exports_apply_generation_surcharges():
     assert re.search(r"\bgetSurcharges\b", export_block.group("body"))
 
 
+def test_frontend_import_exports_and_dependency_chain_are_intact():
+    generate_source = GENERATE_PAGE.read_text(encoding="utf-8")
+    pricing_source = FRONTEND_PRICING.read_text(encoding="utf-8")
+    regions_source = PRICING_REGIONS.read_text(encoding="utf-8")
+
+    assert re.search(
+        r'import\s*\{\s*applyGenerationSurcharges\s*,\s*getSurcharges\s*\}\s*from\s*"\.\./\.\./lib/creditPricing"',
+        generate_source,
+    )
+    assert re.search(r"export\s+function\s+applyGenerationSurcharges\s*\(", pricing_source)
+    assert re.search(r"export\s+function\s+getSurcharges\s*\(", pricing_source)
+    assert re.search(r'import\s*\{[^}]*getRegionConfig[^}]*pricingData[^}]*\}\s*from\s*"\./pricingRegions"', pricing_source)
+    assert re.search(r'import\s+pricingData\s+from\s*"\.\./config/pricing\.json"', regions_source)
+    assert "creditPricing" not in regions_source
+
+
 # Runtime syntax/module checks for the exact production JavaScript files.
 def test_serverless_entrypoint_has_valid_node_syntax():
     result = subprocess.run(
@@ -131,12 +150,24 @@ def test_fresh_entrypoint_load_has_no_apply_generation_surcharges_reference_erro
 def test_all_apply_generation_surcharge_calls_have_a_binding():
     files = call_files("applyGenerationSurcharges")
     assert files, "No applyGenerationSurcharges call sites found"
-    missing = [str(path) for path in files if not has_credit_pricing_binding(path.read_text(encoding="utf-8"), "applyGenerationSurcharges")]
+    missing = [
+        str(path)
+        for path in files
+        if not has_credit_pricing_binding(
+            path.read_text(encoding="utf-8"), "applyGenerationSurcharges"
+        )
+    ]
     assert not missing, f"Unbound applyGenerationSurcharges calls: {missing}"
 
 
 def test_all_get_surcharges_calls_have_a_binding():
     files = call_files("getSurcharges")
     assert files, "No getSurcharges call sites found"
-    missing = [str(path) for path in files if not has_credit_pricing_binding(path.read_text(encoding="utf-8"), "getSurcharges")]
+    missing = [
+        str(path)
+        for path in files
+        if not has_credit_pricing_binding(
+            path.read_text(encoding="utf-8"), "getSurcharges"
+        )
+    ]
     assert not missing, f"Unbound getSurcharges calls: {missing}"

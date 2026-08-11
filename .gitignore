@@ -80,4 +80,3 @@ agenthub/agents/youtube/db
 
 # Caches
 .cache/
-frontend/node_modules/.cache/default-development/0.pack

@@ -1,0 +1,35 @@
+{
+  "summary": "Re-verified the production Vercel credit-pricing fix after the fresh import. All 8 targeted static/runtime regression tests passed, the fresh Node load completed without an applyGenerationSurcharges error, both pricing-helper global binding audits found no orphan calls, and the production frontend build exited 0.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_credit_pricing_imports.py",
+    "/app/test_reports/pytest/credit_pricing_imports.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "Non-blocking maintainability risk: /app/frontend/api/[...path].js is 4,428 lines; splitting route families into focused modules would reduce the chance of future missing-import regressions.",
+    "The successful build still reports pre-existing React hook dependency warnings in MultiImageUpload.jsx and useStudioSessionBack.js, plus a 957.5 kB gzip main bundle warning; none affect this fix."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_credit_pricing_imports.py",
+    "/app/test_reports/pytest/credit_pricing_imports.xml",
+    "/app/test_reports/iteration_3.json"
+  ],
+  "success_rate": {
+    "backend": "100% (8/8 targeted static/runtime regression tests)",
+    "frontend": "N/A (UI intentionally skipped); production build passed"
+  },
+  "seed_data_creation": "None",
+  "should_call_test_agent_after_fix": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "The Vercel entrypoint destructure at lines 118-127 binds both getSurcharges and applyGenerationSurcharges. Four serverless applyGenerationSurcharges calls and all repository getSurcharges calls have same-file definitions/imports. Generate.jsx retains both frontend imports; creditPricing.js exports both helpers and has an acyclic creditPricing.js -> pricingRegions.js -> pricing.json chain. Do not validate this production-only Vercel path through the preview FastAPI API.",
+  "rca_of_the_issue": "The production ReferenceError was caused by applyGenerationSurcharges being called in frontend/api/[...path].js without being destructured from ./lib/creditPricing.cjs. The current destructure binds it, the CJS module exports it, fresh Node loading no longer surfaces the error, and yarn build succeeds."
+}

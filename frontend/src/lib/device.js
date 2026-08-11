@@ -1,3 +1,9 @@
+/** Deteta Android (Chrome WebView / browser). */
+export function isAndroid() {
+  if (typeof navigator === "undefined") return false;
+  return /Android/i.test(navigator.userAgent || "");
+}
+
 /** Deteta iOS / iPadOS (inclui iPad com UA “Macintosh”). */
 export function isIOS() {
   if (typeof navigator === "undefined") return false;

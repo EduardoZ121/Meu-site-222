@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Sparkles, Palette, Sun, Camera, Cloud, Sliders } from "lucide-react";
-import { useSearchParams } from "react-router-dom";
-import { api, formatApiError, uploadPost } from "../../lib/api";
+import { Sparkles, Palette, Sun, Camera, Cloud, Sliders, Ratio, Check } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { api, pollPrediction, trackPendingPrediction, uploadPost } from "../../lib/api";
+import { hasStudioCredits, useStudioGenerateGate } from "../../lib/useStudioGenerateGate";
 import { normalizeCreation, primaryResultUrl } from "../../lib/creationUrls";
-import CreationResultMedia from "../../components/CreationResultMedia";
 import { useAuth } from "../../lib/auth";
 import { useI18n } from "../../lib/i18n";
 import { usePricing } from "../../lib/PricingContext";
@@ -11,23 +11,22 @@ import { computeArtisticEffectSurcharge } from "../../lib/creditPricing";
 import { toast } from "sonner";
 import { apiAspectRatio } from "../../lib/apiAspectRatio";
 import ArtisticStyleCard from "../../components/artistic/ArtisticStyleCard";
-import ArtisticLabStyleCard from "../../components/artistic/ArtisticLabStyleCard";
 import ArtisticEffectOption from "../../components/artistic/ArtisticEffectOption";
 import DraggableRecipeBubble from "../../components/artistic/DraggableRecipeBubble";
-import ArtisticStudioHeader from "../../components/artistic/ArtisticStudioHeader";
-import ArtisticStudioTabs from "../../components/artistic/ArtisticStudioTabs";
 import ArtisticCategoryRail from "../../components/artistic/ArtisticCategoryRail";
-import ArtisticStudioModule from "../../components/artistic/ArtisticStudioModule";
-import ArtisticPromptStudio from "../../components/artistic/ArtisticPromptStudio";
-import ArtisticResultStudio from "../../components/artistic/ArtisticResultStudio";
-import ArtisticFlowSteps from "../../components/artistic/ArtisticFlowSteps";
-import { isPhotoUploadBusy } from "../../components/studio/StudioPhotoUploadNotice";
-import { usePhotoAspectDefault } from "../../lib/usePhotoAspectDefault";
-import { pushArtisticPromptHistory } from "../../lib/artisticPromptHistory";
+import CompactImagePicker from "../../components/studio/CompactImagePicker";
+import GenerationBubble from "../../components/studio/GenerationBubble";
+import SettingCard from "../../components/studio/SettingCard";
+import SettingModal from "../../components/studio/SettingModal";
+import StudioCompactShell from "../../components/studio/StudioCompactShell";
+import StudioInlineHeader from "../../components/studio/StudioInlineHeader";
+import StudioGenerateBar from "../../components/StudioGenerateBar";
+import StudioGenerateCostMeta from "../../components/StudioGenerateCostMeta";
+import AspectPicker from "../../components/AspectPicker";
+import { appendStudioPhotos, primaryStudioPhoto } from "../../lib/studioFormData";
 import { localizeArtisticCatalog } from "../../lib/artisticStudioLocales";
 import { canAccessNsfwArtisticStyles } from "../../lib/artisticStudioData";
 import { isArtisticExperimentalStyle } from "../../lib/artisticLabStyles";
-import { ARTISTIC_LAB_MODEL_LABEL } from "../../lib/artisticStudioEngines";
 import {
   buildArtisticStudioPrompt,
   buildRecipeChips,
@@ -36,19 +35,36 @@ import {
 } from "../../lib/buildArtisticStudioPrompt";
 import useTitle from "../../lib/useTitle";
 import { useStudioI18n } from "../../lib/useStudioI18n";
+import { useStudioSessionBack } from "../../lib/useStudioSessionBack";
+import { usePhotoAspectDefault, ASPECT_MATCH } from "../../lib/usePhotoAspectDefault";
 
 const SECTION_ICONS = {
   light: Sun,
   lens: Camera,
   cloud: Cloud,
   palette: Palette,
+  brush: Palette,
+  frame: Sparkles,
 };
+
+function countActiveEffects(effects, sections) {
+  let n = 0;
+  for (const section of sections) {
+    if (section.type === "radio") {
+      if (effects[section.id]) n += 1;
+    } else {
+      const box = effects[section.id] || {};
+      n += Object.values(box).filter(Boolean).length;
+    }
+  }
+  return n;
+}
 
 export default function Artistic() {
   const { lang, t } = useI18n();
   const { errToast, clearUploadToast } = useStudioI18n();
   useTitle(t("art_page_title"));
-  const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
   const { refresh, user } = useAuth();
   const { costs, region } = usePricing();
 
@@ -59,20 +75,16 @@ export default function Artistic() {
     () => costs.artistic + computeArtisticEffectSurcharge(effects, region),
     [costs.artistic, effects, region],
   );
-  const [inputMode, setInputMode] = useState("text");
-  const [prompt, setPrompt] = useState(searchParams.get("prompt") || "");
-  const [improve, setImprove] = useState(false);
-  const [wizardOpen, setWizardOpen] = useState(false);
-  const [suggestOpen, setSuggestOpen] = useState(false);
-  const [photo, setPhoto] = useState(null);
-  const [aspect, setAspect] = usePhotoAspectDefault(photo, "3:4", "match");
+  const [photos, setPhotos] = useState([]);
+  const photo = primaryStudioPhoto(photos);
+  const [aspect, setAspect] = usePhotoAspectDefault(photos, "3:4", "3:4");
   const [busy, setBusy] = useState(false);
-  const [improving, setImproving] = useState(false);
   const [result, setResult] = useState(null);
-  const [meta, setMeta] = useState(null);
-  const [mobileTab, setMobileTab] = useState("generate");
-  const [photoUploadStatus, setPhotoUploadStatus] = useState("idle");
-  const photoUploading = isPhotoUploadBusy(photoUploadStatus);
+  const [openKey, setOpenKey] = useState(null);
+  const openModal = (key) => setOpenKey(key);
+  const closeModal = () => setOpenKey(null);
+
+  useStudioSessionBack("/app/tools");
 
   const includeNsfw = useMemo(() => canAccessNsfwArtisticStyles(user), [user]);
 
@@ -80,31 +92,6 @@ export default function Artistic() {
     () => localizeArtisticCatalog(lang, { includeNsfw }),
     [lang, includeNsfw],
   );
-
-  const selectedStyle = useMemo(
-    () => catalog.styles.find((s) => s.id === styleId) || null,
-    [catalog.styles, styleId],
-  );
-
-  useEffect(() => {
-    const q = searchParams.get("prompt");
-    if (q) setPrompt(q);
-  }, [searchParams]);
-
-  useEffect(() => {
-    if (!includeNsfw && styleCat === "nsfw") {
-      setStyleCat("photography");
-    }
-  }, [includeNsfw, styleCat]);
-
-  useEffect(() => {
-    if (!includeNsfw && styleId) {
-      const picked = catalog.styles.find((s) => s.id === styleId);
-      if (picked?.adminOnly || picked?.cat === "nsfw") {
-        setStyleId(null);
-      }
-    }
-  }, [includeNsfw, styleId, catalog.styles]);
 
   useEffect(() => {
     const catIds = catalog.categories.map((c) => c.id);
@@ -118,61 +105,19 @@ export default function Artistic() {
     [catalog.styles, styleCat],
   );
 
-  const isLabCategory = styleCat === "nsfw";
-  const isPhotoCategory = styleCat === "photography";
-
-  useEffect(() => {
-    if (isPhotoCategory && inputMode !== "image") {
-      setInputMode("image");
-    }
-  }, [isPhotoCategory, inputMode]);
-
-  useEffect(() => {
-    if (inputMode === "text" && aspect === "match") {
-      setAspect("3:4");
-    }
-  }, [inputMode, aspect, setAspect]);
-  const labPresets = useMemo(
-    () => stylesInCat.filter((s) => s.labPreset),
-    [stylesInCat],
-  );
-  const classicExperimental = useMemo(
-    () => stylesInCat.filter((s) => !s.labPreset),
-    [stylesInCat],
-  );
-  const labLightStyles = useMemo(
-    () => classicExperimental.filter((s) => s.tier !== "heavy"),
-    [classicExperimental],
-  );
-  const labHeavyStyles = useMemo(
-    () => classicExperimental.filter((s) => s.tier === "heavy"),
-    [classicExperimental],
-  );
-
   const isLabStyle = useMemo(
     () => isArtisticExperimentalStyle(styleId),
     [styleId],
   );
-
-  const isPhotoStyle = useMemo(() => {
-    const picked = getStyleById(styleId);
-    return picked?.cat === "photography";
-  }, [styleId]);
 
   const recipeChips = useMemo(
     () => buildRecipeChips({ styleId, effects }),
     [styleId, effects],
   );
 
-  const promptFinal = useMemo(
-    () => buildArtisticStudioPrompt({
-      userPrompt: prompt,
-      styleId,
-      styleCat,
-      effects,
-      imageMode: inputMode === "image",
-    }),
-    [prompt, styleId, styleCat, effects, inputMode],
+  const effectCount = useMemo(
+    () => countActiveEffects(effects, catalog.sections),
+    [effects, catalog.sections],
   );
 
   const setRadioEffect = (sectionId, optionId) => {
@@ -186,40 +131,41 @@ export default function Artistic() {
     }));
   };
 
-  const selectStyle = useCallback(
-    (id) => {
-      setStyleId(id);
-      setMobileTab("generate");
-      const picked = catalog.styles.find((s) => s.id === id);
-      if (picked?.cat === "nsfw" && inputMode !== "image") {
-        setInputMode("image");
-        toast.message(t("art_lab_image_hint"));
-      }
-      if (picked?.cat === "photography" && inputMode !== "image") {
-        setInputMode("image");
-        toast.message(t("art_photo_image_hint"));
-      }
-    },
-    [catalog.styles, inputMode, t],
-  );
+  const selectStyle = useCallback((id) => {
+    setStyleId(id);
+    const picked = catalog.styles.find((s) => s.id === id);
+    if (picked?.cat) setStyleCat(picked.cat);
+    closeModal();
+  }, [catalog.styles]);
 
   const clearAll = () => {
     setStyleId(null);
     setEffects(EMPTY_EFFECTS);
-    setPrompt("");
     toast.message(t("art_recipe_cleared"));
   };
 
+  const generateReady = Boolean(photo) && Boolean(styleId);
+
+  const { ready: gateReady, hint: gateHint } = useStudioGenerateGate({
+    busy,
+    user,
+    cost,
+    requirePhoto: true,
+    photo,
+    readyOverride: generateReady,
+    hintOverride: !photo
+      ? t("art_err_image_mode")
+      : !styleId
+        ? t("art_flow_step_style_hint")
+        : null,
+  });
+
   const generate = useCallback(async () => {
-    if (photoUploading) {
-      toast.message(t("upload_wait_generate"), { duration: 6000 });
+    if (!styleId) {
+      toast.error(t("art_flow_step_style_hint"));
       return;
     }
-    if (!styleId && prompt.trim().length < 3) {
-      toast.error(t("studio_err_text"));
-      return;
-    }
-    if (inputMode === "image" && !photo) {
+    if (!photo) {
       toast.error(t("art_err_image_mode"));
       return;
     }
@@ -227,11 +173,7 @@ export default function Artistic() {
       toast.error(t("art_lab_need_photo"));
       return;
     }
-    if ((isPhotoStyle || isPhotoCategory) && !photo) {
-      toast.error(t("art_photo_need_photo"));
-      return;
-    }
-    if ((user?.credits ?? 0) < cost) {
+    if (!hasStudioCredits(user, cost)) {
       toast.error(t("common_need_credits", { need: cost, have: user?.credits ?? 0 }));
       return;
     }
@@ -239,81 +181,55 @@ export default function Artistic() {
     clearUploadToast();
     setBusy(true);
     setResult(null);
+    const pollOpts = {
+      credits_spent: cost,
+      type: "artistic",
+      timeoutMs: 240_000,
+    };
+    const skipPollHeaders = { "X-Skip-Auto-Poll": "1" };
     try {
-      let userPrompt = prompt.trim();
-      if (improve && userPrompt.length >= 3) {
-        const pickedStyle = getStyleById(styleId);
-        try {
-          const { data: imp } = await api.post("/prompt/improve", {
-            prompt: userPrompt,
-            lang: lang || "en",
-            tool: "artistic",
-            style_id: styleId || "",
-            style_label: pickedStyle?.label || "",
-            style_suffix: pickedStyle?.suffix || "",
-            image_mode: inputMode === "image",
-          });
-          if (imp?.prompt && imp.prompt.trim().length >= 3) {
-            userPrompt = imp.prompt.trim();
-            setPrompt(userPrompt);
-            if (imp.enhanced) {
-              toast.success(t("art_prompt_refined"));
-            } else {
-              toast.message(t("art_refine_unchanged"));
-            }
-          }
-        } catch (impErr) {
-          const detail = impErr?.response?.data?.detail;
-          toast.error(detail || t("art_refine_unavailable"));
-        }
-      }
-
       const finalPrompt = buildArtisticStudioPrompt({
-        userPrompt,
+        userPrompt: "",
         styleId,
-        styleCat,
         effects,
-        imageMode: inputMode === "image",
+        imageMode: true,
       });
 
-      let data;
-      if (inputMode === "image" && photo) {
-        const fd = new FormData();
-        fd.append("photo", photo);
-        fd.append("prompt_final", finalPrompt);
-        fd.append("aspect_ratio", apiAspectRatio(aspect, { model: "artistic", hasPhoto: true }));
-        fd.append("style_id", styleId || "");
-        fd.append("style_cat", styleCat || "");
-        fd.append("effects_json", JSON.stringify(effects));
-        ({ data } = await uploadPost("/generate/artistic-studio", fd, { timeout: 240000 }));
-      } else {
-        ({ data } = await api.post("/generate/artistic-studio", {
-          prompt_final: finalPrompt,
-          aspect_ratio: apiAspectRatio(aspect, { model: "artistic", hasPhoto: false }),
-          style_id: styleId || "",
-          style_cat: styleCat || "",
-          effects_json: JSON.stringify(effects),
-        }));
+      const fd = new FormData();
+      appendStudioPhotos(fd, photos);
+      fd.append("prompt_final", finalPrompt);
+      fd.append("aspect_ratio", apiAspectRatio(aspect, {
+        model: "artistic",
+        hasPhoto: aspect === "match" || aspect === ASPECT_MATCH,
+      }));
+      fd.append("style_id", styleId || "");
+      fd.append("style_cat", styleCat || "");
+      fd.append("effects_json", JSON.stringify(effects));
+      fd.append("lang", lang || "en");
+      const { data: submitData } = await uploadPost("/generate/artistic-studio", fd, {
+        timeout: 120_000,
+        pollTimeoutMs: 240_000,
+        headers: skipPollHeaders,
+      });
+
+      if (!submitData?.prediction_id) {
+        throw new Error(t("common_no_result"));
       }
 
-      const creation = normalizeCreation(data?.creation || data);
-      if (data?.deferred) {
-        // Background mode — result lands in gallery + notifications later.
-        if (userPrompt.length >= 3) pushArtisticPromptHistory(userPrompt);
-        await refresh().catch(() => {});
-        return;
-      }
+      trackPendingPrediction(submitData.prediction_id, {
+        credits_spent: submitData.credits_spent || cost,
+        type: "artistic",
+      });
+      const data = await pollPrediction(submitData.prediction_id, {
+        ...pollOpts,
+        credits_spent: submitData.credits_spent || cost,
+      });
+
+      const creation = normalizeCreation(data?.creation);
       if (!primaryResultUrl(creation)) {
         throw new Error(t("common_no_result"));
       }
       setResult(creation);
-      if (userPrompt.length >= 3) pushArtisticPromptHistory(userPrompt);
-      setMeta({
-        style: getStyleById(styleId)?.label,
-        chips: recipeChips,
-        seed: creation.id?.slice?.(0, 8),
-        lastPrompt: userPrompt,
-      });
       toast.success(t("common_generated", { n: creation.credits_spent ?? cost }));
       await refresh();
     } catch (err) {
@@ -324,72 +240,33 @@ export default function Artistic() {
   }, [
     styleId,
     styleCat,
-    photoUploading,
     isLabStyle,
-    isPhotoStyle,
-    isPhotoCategory,
-    prompt,
-    inputMode,
     photo,
+    photos,
     user,
     cost,
-    improve,
     lang,
     effects,
     aspect,
-    recipeChips,
     refresh,
     t,
     errToast,
     clearUploadToast,
   ]);
 
-  const downloadUrl = primaryResultUrl(result);
+  const aspectLabel = (aspect === "match" || aspect === ASPECT_MATCH)
+    ? (t("aspect_original") || t("aspect_match") || "Original")
+    : String(aspect || "3:4").toUpperCase();
+  const styleLabel = getStyleById(styleId)?.label || t("studio_styles_optional");
+  const effectsLabel = effectCount > 0
+    ? `${effectCount} ${t("art_sec_effects").toLowerCase()}`
+    : (t("studio_styles_optional"));
 
-  const improvePromptOnly = useCallback(async () => {
-    const userPrompt = prompt.trim();
-    if (userPrompt.length < 3) {
-      toast.error(t("studio_err_text"));
-      return;
-    }
-    setImproving(true);
-    try {
-      const pickedStyle = getStyleById(styleId);
-      const { data: imp } = await api.post("/prompt/improve", {
-        prompt: userPrompt,
-        lang: lang || "en",
-        tool: "artistic",
-        style_id: styleId || "",
-        style_label: pickedStyle?.label || "",
-        style_suffix: pickedStyle?.suffix || "",
-        image_mode: inputMode === "image",
-      });
-      if (imp?.prompt && imp.prompt.trim().length >= 3) {
-        setPrompt(imp.prompt.trim().slice(0, 800));
-        toast.success(imp.enhanced ? t("art_prompt_refined") : t("art_refine_unchanged"));
-      }
-    } catch (impErr) {
-      toast.error(impErr?.response?.data?.detail || t("art_refine_unavailable"));
-    } finally {
-      setImproving(false);
-    }
-  }, [prompt, styleId, inputMode, lang, t]);
-
-  const panelVisibility = (tab) =>
-    mobileTab !== tab ? "hidden lg:block" : "";
-
-  const leftColumnVisibility =
-    mobileTab === "style" || mobileTab === "effects" ? "" : "hidden lg:block";
-
-  const selectCategory = useCallback(
-    (catId) => {
-      setStyleCat(catId);
-      if (catId === "photography") {
-        setInputMode("image");
-      }
-    },
-    [],
-  );
+  const modalTitle = {
+    format: t("studio_acc_format"),
+    style: t("art_sec_style"),
+    effects: t("art_sec_effects"),
+  }[openKey] || "";
 
   const styleGallery = (
     <>
@@ -397,209 +274,146 @@ export default function Artistic() {
         categories={catalog.categories}
         styles={catalog.styles}
         activeId={styleCat}
-        onSelect={selectCategory}
+        onSelect={setStyleCat}
       />
       <p className="text-[#9CA3AF] text-[10px] font-mono uppercase tracking-[0.14em] mb-3">
         {catalog.categories.find((c) => c.id === styleCat)?.label}
-        {isLabCategory && includeNsfw ? ` · ${t("art_nsfw_admin_badge")}` : ""}
       </p>
-      {isLabCategory && includeNsfw ? (
-        <div className="art-lab-panel mb-4 rounded-xl border border-[rgba(236,72,153,0.25)] bg-gradient-to-br from-[#1a0a1f]/80 via-[#111118] to-[#0a0a0f] p-3 md:p-4 max-h-[min(calc(100dvh-12rem),720px)] overflow-y-auto overflow-x-hidden">
-          <p className="text-[#f0abfc] text-[11px] font-semibold mb-1">{t("art_lab_title")}</p>
-          <p className="text-[#6B7280] text-[9px] font-mono uppercase tracking-wider mb-1">
-            {t("art_lab_engine_note", { model: ARTISTIC_LAB_MODEL_LABEL })}
-          </p>
-          <p className="text-[#9CA3AF] text-[10px] leading-snug mb-3">{t("art_lab_desc")}</p>
-          <div className="art-lab-scroll flex gap-2.5 overflow-x-auto pb-2 w-full min-w-0 snap-x snap-mandatory [-webkit-overflow-scrolling:touch] md:grid md:grid-cols-2 md:gap-2.5 md:overflow-visible md:pb-0 lg:grid-cols-2">
-            {labPresets.map((s) => (
-              <div key={s.id} className="snap-start shrink-0 w-[min(72vw,220px)] md:w-auto md:shrink">
-                <ArtisticLabStyleCard style={s} selected={styleId === s.id} onSelect={selectStyle} />
-              </div>
-            ))}
-          </div>
-          {labLightStyles.length > 0 && (
-            <>
-              <p className="text-[#6B7280] text-[9px] font-mono uppercase tracking-[0.16em] mt-4 mb-2">
-                {t("art_lab_light_row")}
-              </p>
-              <div className="art-studio-styles-grid !max-h-none">
-                {labLightStyles.map((s) => (
-                  <ArtisticStyleCard key={s.id} style={s} selected={styleId === s.id} onSelect={selectStyle} />
-                ))}
-              </div>
-            </>
-          )}
-          {labHeavyStyles.length > 0 && (
-            <>
-              <p className="text-[#6B7280] text-[9px] font-mono uppercase tracking-[0.16em] mt-4 mb-2">
-                {t("art_lab_heavy_row")}
-              </p>
-              <div className="art-studio-styles-grid !max-h-none">
-                {labHeavyStyles.map((s) => (
-                  <ArtisticStyleCard key={s.id} style={s} selected={styleId === s.id} onSelect={selectStyle} />
-                ))}
-              </div>
-            </>
-          )}
-        </div>
-      ) : isPhotoCategory ? (
-        <div className="art-photo-panel mb-4 p-3 md:p-4 max-h-[min(calc(100dvh-12rem),720px)] overflow-y-auto overflow-x-hidden">
-          <div className="flex flex-wrap items-center gap-2 mb-2">
-            <p className="text-[#fde68a] text-[11px] font-semibold">{t("art_photo_title")}</p>
-            <span className="art-photo-panel__badge">{t("art_photo_identity_badge")}</span>
-          </div>
-          <p className="text-[#6B7280] text-[9px] font-mono uppercase tracking-wider mb-1">
-            {t("art_photo_engine_note")}
-          </p>
-          <p className="text-[#9CA3AF] text-[10px] leading-snug mb-3">{t("art_photo_desc")}</p>
-          <div className="art-studio-styles-grid art-photo-styles-grid">
-            {stylesInCat.map((s) => (
-              <ArtisticStyleCard key={s.id} style={s} selected={styleId === s.id} onSelect={selectStyle} />
-            ))}
-          </div>
-        </div>
-      ) : (
-        <div className="art-studio-styles-grid">
-          {stylesInCat.map((s) => (
-            <ArtisticStyleCard key={s.id} style={s} selected={styleId === s.id} onSelect={selectStyle} />
-          ))}
-        </div>
-      )}
+      <div className="art-studio-styles-grid max-h-[46vh] overflow-y-auto overscroll-contain pr-0.5">
+        {stylesInCat.map((s) => (
+          <ArtisticStyleCard key={s.id} style={s} selected={styleId === s.id} onSelect={selectStyle} />
+        ))}
+      </div>
     </>
   );
 
-  return (
-    <div
-      className="rp-artistic-page w-full min-w-0 max-w-full mx-auto px-1 sm:px-0 pb-8 md:pb-14 md:max-w-[1680px]"
-      data-testid="artistic-studio-page"
-    >
-      <ArtisticStudioHeader />
-
-      <ArtisticFlowSteps activeStep={mobileTab} styleSelected={Boolean(styleId)} />
-
-      <ArtisticStudioTabs value={mobileTab} onChange={setMobileTab} />
-
-      <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_420px] gap-4 md:gap-6 w-full min-w-0">
-        <div className={`space-y-4 md:space-y-6 min-w-0 ${leftColumnVisibility}`}>
-          <ArtisticStudioModule
-            title={t("art_sec_style")}
-            subtitle={t("art_module_style_hint")}
-            icon={Palette}
-            className={panelVisibility("style")}
-            testId="artistic-module-style"
-          >
-            <p className="text-[#6B7280] text-[10px] mb-3">
-              {t("art_styles_count", { n: catalog.styles.length })}
+  const effectsPanel = (
+    <div className="space-y-6 max-h-[52vh] overflow-y-auto overscroll-contain pr-0.5">
+      {catalog.sections.map((section) => {
+        const SecIcon = SECTION_ICONS[section.icon] || Sparkles;
+        return (
+          <div key={section.id}>
+            <p className="text-[#9CA3AF] text-[10px] font-mono uppercase tracking-[0.16em] mb-2.5 flex items-center gap-1.5">
+              <SecIcon className="w-3.5 h-3.5 text-[#67e8f9]" /> {section.title}
             </p>
-            {styleGallery}
-          </ArtisticStudioModule>
-
-          <ArtisticStudioModule
-            title={t("art_sec_effects")}
-            subtitle={t("art_module_effects_hint")}
-            icon={Sliders}
-            accent="cyan"
-            className={`${panelVisibility("effects")} max-h-[min(calc(100dvh-12rem),640px)] lg:max-h-none overflow-y-auto`}
-            testId="artistic-module-effects"
-          >
-            <div className="space-y-6">
-              {catalog.sections.map((section) => {
-                const SecIcon = SECTION_ICONS[section.icon] || Sparkles;
+            <div className="space-y-1">
+              {section.options.map((opt) => {
+                const active =
+                  section.type === "radio"
+                    ? effects[section.id] === opt.id
+                    : Boolean(effects[section.id]?.[opt.id]);
                 return (
-                  <div key={section.id}>
-                    <p className="text-[#9CA3AF] text-[10px] font-mono uppercase tracking-[0.16em] mb-2.5 flex items-center gap-1.5">
-                      <SecIcon className="w-3.5 h-3.5 text-[#67e8f9]" /> {section.title}
-                    </p>
-                    <div className="space-y-1">
-                      {section.options.map((opt) => {
-                        const active =
-                          section.type === "radio"
-                            ? effects[section.id] === opt.id
-                            : Boolean(effects[section.id]?.[opt.id]);
-                        return (
-                          <ArtisticEffectOption
-                            key={opt.id}
-                            section={section}
-                            opt={opt}
-                            active={active}
-                            onToggle={() => {
-                              if (section.type === "radio") setRadioEffect(section.id, opt.id);
-                              else toggleCheckboxEffect(section.id, opt.id);
-                            }}
-                          />
-                        );
-                      })}
-                    </div>
-                  </div>
+                  <ArtisticEffectOption
+                    key={opt.id}
+                    section={section}
+                    opt={opt}
+                    active={active}
+                    onToggle={() => {
+                      if (section.type === "radio") setRadioEffect(section.id, opt.id);
+                      else toggleCheckboxEffect(section.id, opt.id);
+                    }}
+                  />
                 );
               })}
             </div>
-          </ArtisticStudioModule>
-        </div>
-
-        <ArtisticStudioModule
-          title={t("art_sec_generate")}
-          subtitle={t("art_module_prompt_hint")}
-          icon={Sparkles}
-          accent="pink"
-          className={`${panelVisibility("generate")} lg:sticky lg:top-20 lg:self-start flex flex-col art-studio-module--generate`}
-          testId="artistic-module-prompt"
-        >
-          {!styleId && (
-            <div className="mb-4 rounded-xl border border-dashed border-[rgba(147,51,234,0.35)] bg-[rgba(124,58,237,0.08)] px-4 py-3">
-              <p className="text-[#C4B5FD] text-[13px] leading-relaxed">{t("art_pick_style_hint")}</p>
-            </div>
-          )}
-          {selectedStyle && (
-            <p className="mb-4 text-[11px] font-mono uppercase tracking-[0.12em] text-[#A855F7]">
-              {t("art_selected_style", { name: selectedStyle.label })}
-            </p>
-          )}
-          <ArtisticPromptStudio
-            inputMode={inputMode}
-            setInputMode={setInputMode}
-            isLabStyle={isLabStyle}
-            isPhotoStyle={isPhotoStyle}
-            isPhotoCategory={isPhotoCategory}
-            photoUploadStatus={photoUploadStatus}
-            onPhotoUploadStatusChange={setPhotoUploadStatus}
-            photo={photo}
-            setPhoto={setPhoto}
-            prompt={prompt}
-            setPrompt={setPrompt}
-            aspect={aspect}
-            setAspect={setAspect}
-            improve={improve}
-            setImprove={setImprove}
-            busy={busy}
-            cost={cost}
-            user={user}
-            styleId={styleId}
-            onGenerate={generate}
-            onImprovePrompt={improvePromptOnly}
-            improving={improving}
-          />
-          <ArtisticResultStudio
-            busy={busy}
-            downloadUrl={downloadUrl}
-            result={result}
-            meta={meta}
-            recipeChips={recipeChips}
-            onVary={generate}
-            onRefine={() => {
-              setPrompt((p) => `${p}${p ? " " : ""}refine details, higher quality`);
-              toast.message(t("art_refine_toast"));
-            }}
-            onReusePrompt={() => {
-              if (meta?.lastPrompt) setPrompt(meta.lastPrompt);
-              else toast.message(t("art_result_reuse"));
-            }}
-          />
-        </ArtisticStudioModule>
-      </div>
-
-      <DraggableRecipeBubble chips={recipeChips} onClearAll={clearAll} />
+          </div>
+        );
+      })}
     </div>
   );
-}
 
+  return (
+    <StudioCompactShell testId="artistic-studio-page" maxWidth="720px" className="pb-8">
+      <StudioInlineHeader
+        eyebrow={t("art_brand")}
+        title={t("art_hero_title")}
+        description={t("art_hero_subtitle")}
+        testId="artistic-header"
+        helpKey="help_page_artistic"
+      />
+
+      <div className="space-y-2.5">
+        <div className="rounded-2xl border border-white/[0.08] bg-[#141418]/80 p-3 md:p-4">
+          <p className="text-[#9CA3AF] text-[12px] leading-relaxed mb-3">
+            {t("art_photo_desc")}
+          </p>
+          <CompactImagePicker value={photos} onChange={setPhotos} maxFiles={5} testId="art-photo" />
+        </div>
+
+        <div className="mv-setting-grid">
+          <SettingCard
+            icon={Ratio}
+            label={t("studio_acc_format")}
+            value={aspectLabel}
+            onOpen={() => openModal("format")}
+            testId="art-card-format"
+            helpKey="help_sec_format"
+          />
+          <SettingCard
+            icon={Palette}
+            label={t("art_sec_style")}
+            value={styleLabel}
+            onOpen={() => openModal("style")}
+            testId="art-card-style"
+            helpKey="help_sec_art_style"
+          />
+        </div>
+        <SettingCard
+          icon={Sliders}
+          label={t("art_sec_effects")}
+          value={effectsLabel}
+          onOpen={() => openModal("effects")}
+          testId="art-card-effects"
+          helpKey="help_sec_art_effects"
+        />
+
+        <div className="mv-setting-card mv-setting-card--static">
+          <div className="flex flex-col gap-2.5 sm:flex-row sm:items-center sm:justify-end">
+            <StudioGenerateBar
+              layout="inline"
+              ready={gateReady}
+              busy={busy}
+              onClick={generate}
+              label={t("art_generate_credits", { n: cost })}
+              busyLabel={t("studio_sending")}
+              hint={gateHint}
+              cost={cost}
+              testId="artistic-generate-button"
+              buttonClassName="rp-gen-btn-inline w-full sm:w-auto"
+            />
+          </div>
+          <div className="mt-2 pt-2 border-t border-white/[0.06]">
+            <StudioGenerateCostMeta cost={cost} user={user} />
+          </div>
+        </div>
+      </div>
+
+      <SettingModal open={openKey === "format"} title={modalTitle} onClose={closeModal}>
+        <AspectPicker value={aspect} onChange={setAspect} hasPhoto={!!photo} testIdPrefix="art-aspect" />
+        <button type="button" onClick={closeModal} className="rp-modal-confirm mt-3" data-testid="art-format-confirm">
+          <Check className="w-4 h-4" /> {t("confirm")}
+        </button>
+      </SettingModal>
+
+      <SettingModal open={openKey === "style"} title={modalTitle} onClose={closeModal}>
+        <p className="text-[#6B7280] text-[10px] mb-3">
+          {t("art_styles_count", { n: catalog.styles.length })}
+        </p>
+        {styleGallery}
+        <button type="button" onClick={closeModal} className="rp-modal-confirm mt-3" data-testid="art-style-confirm">
+          <Check className="w-4 h-4" /> {t("confirm")}
+        </button>
+      </SettingModal>
+
+      <SettingModal open={openKey === "effects"} title={modalTitle} onClose={closeModal}>
+        {effectsPanel}
+        <button type="button" onClick={closeModal} className="rp-modal-confirm mt-3" data-testid="art-effects-confirm">
+          <Check className="w-4 h-4" /> {t("confirm")}
+        </button>
+      </SettingModal>
+
+      <GenerationBubble busy={busy} result={result} onChange={setResult} />
+      <DraggableRecipeBubble chips={recipeChips} onClearAll={clearAll} />
+    </StudioCompactShell>
+  );
+}

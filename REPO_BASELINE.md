@@ -36,6 +36,13 @@ Não criar de novo: `components/`, `images/`, `index.html`, `src/` (CRA na raiz)
 
 Capa nova → **sempre** `frontend/public/images/hero-bg.jpg`.
 
+## Pastas removidas (não recriar)
+
+- `src/`, `components/`, `public/` na raiz — cópias CRA antigas
+- `frontend/frontend/` — clone Emergent duplicado
+- `frontend/vercel.json` — **obrigatório** se o projeto Vercel tiver Root Directory = `frontend` (config atual do remakepix)
+- `test_reports/`, `memory/`, `plan.md` — artefactos internos (histórico em `docs/PRD.md`)
+
 ## Antes de push
 
 ```bash

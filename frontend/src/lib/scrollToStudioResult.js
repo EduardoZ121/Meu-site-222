@@ -32,6 +32,27 @@ function isMostlyVisibleInRoot(element, root) {
 }
 
 /**
+ * Volta ao topo do contentor com scroll do estúdio (imediato, duplo frame para pós-render).
+ */
+export function scrollStudioToTop(behavior = "auto") {
+  if (typeof document === "undefined") return;
+
+  const run = () => {
+    const root = findStudioScrollRoot();
+    if (root) {
+      root.scrollTo({ top: 0, behavior });
+      return;
+    }
+    window.scrollTo({ top: 0, behavior });
+  };
+
+  run();
+  if (typeof requestAnimationFrame === "function") {
+    requestAnimationFrame(run);
+  }
+}
+
+/**
  * Scroll suave até o painel de resultado (só dentro da sessão atual).
  */
 export function scrollElementIntoStudioView(element) {

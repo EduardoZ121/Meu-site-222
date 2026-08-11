@@ -1,0 +1,244 @@
+[
+  {
+    "id": "social_typo_hero",
+    "source_id": "social_typo_hero",
+    "familyId": "social_typo_hero",
+    "styleVariants": true,
+    "category": "social",
+    "label": "SOCIAL TYPO",
+    "subtag": "6 estilos · Tipografia editorial IG",
+    "productTemplate": false,
+    "placeholders": [
+      "META_LABEL",
+      "BRAND_NAME",
+      "CATEGORY_TAG",
+      "MAIN_TITLE",
+      "HEADLINE",
+      "SUBTITLE"
+    ],
+    "optional": [
+      "SUBTITLE"
+    ],
+    "replacements": {
+      "META_LABEL": "JUNE 2026",
+      "BRAND_NAME": "LOREM BRAND",
+      "CATEGORY_TAG": "Graphic Design",
+      "MAIN_TITLE": "Social",
+      "HEADLINE": "fonts collection",
+      "SUBTITLE": "Editable lorem headline"
+    },
+    "prompt": "REFERENCE PHOTO (mandatory): Use the uploaded photo as the exact same person — preserve 100% of their face, facial features, skin tone, ethnicity, hair texture and likeness. Seamlessly composite them into this poster like professional photo retouching: unified lighting on face and body, natural skin blend, no floating cutout, no pasted sticker look, no disjointed face layer. Place the subject in the pose/position described below while keeping their real identity. Typography and graphic elements must sit in clear layout zones — never let text overlap, cut through or hide behind the face.\n\nTop metadata row (small caps, clean sans-serif, muted gray): left \"{{META_LABEL}}\", center \"{{BRAND_NAME}}\", right \"{{CATEGORY_TAG}}\".\n\nVertical Instagram post 4:5, soft pastel sky and editorial field background with subtle surreal atmosphere (original composition, not copied).\nCenter-right: optional subject from reference photo integrated naturally, calm pose.\nMassive bold black sans-serif \"{{HEADLINE}}\" with soft drop shadow dominates center.\nKeyword \"{{MAIN_TITLE}}\" inside vibrant neon-lime rectangular badge above headline.\nSmall \"{{SUBTITLE}}\" tucked under headline tail.\nPremium design-education carousel energy, high whitespace, magazine cover hierarchy.",
+    "aspect": "4:5"
+  },
+  {
+    "id": "automotive_showroom",
+    "source_id": "automotive_showroom",
+    "familyId": "automotive_showroom",
+    "styleVariants": true,
+    "category": "automotive",
+    "label": "AUTO SHOWROOM",
+    "subtag": "5 estilos · Stand & vendas",
+    "productTemplate": true,
+    "placeholders": [
+      "BRAND_NAME",
+      "MODEL_NAME",
+      "MAIN_TITLE",
+      "PRICE",
+      "PROMO_TEXT",
+      "CTA",
+      "PHONE"
+    ],
+    "optional": [
+      "PROMO_TEXT",
+      "PHONE"
+    ],
+    "replacements": {
+      "BRAND_NAME": "LOREM BRAND",
+      "MODEL_NAME": "LOREM MODEL X",
+      "MAIN_TITLE": "PREMIUM DRIVE",
+      "PRICE": "€29.900",
+      "PROMO_TEXT": "-30% OFF",
+      "CTA": "BOOK TEST DRIVE",
+      "PHONE": "+351 912 345 678"
+    },
+    "prompt": "REFERENCE PHOTO (mandatory): Use the uploaded photo as the exact same product — preserve shape, colors, materials, branding, packaging and proportions. Composite it naturally into the poster with matching lighting, perspective, reflections and soft shadows; no floating cutout look. Scale the product hero prominently but keep realistic perspective.\n\nVertical automotive dealership Instagram post 4:5, dark studio with gold accent spotlight and reflective floor.\nReference vehicle hero center, realistic 3D stage pedestal, cinematic rim light.\nTop: brand \"{{BRAND_NAME}}\", model \"{{MODEL_NAME}}\".\nHeadline \"{{MAIN_TITLE}}\" in bold condensed white, circular promo badge \"{{PROMO_TEXT}}\".\nPrice tag \"{{PRICE}}\" and CTA button \"{{CTA}}\", footer phone \"{{PHONE}}\".\nLuxury car ad layout, never obscure vehicle lines with text.",
+    "aspect": "4:5"
+  },
+  {
+    "id": "beauty_glow",
+    "source_id": "beauty_glow",
+    "familyId": "beauty_glow",
+    "styleVariants": true,
+    "category": "beauty",
+    "label": "BEAUTY & SKIN",
+    "subtag": "6 estilos · Cosmética & skincare",
+    "productTemplate": true,
+    "placeholders": [
+      "BRAND_NAME",
+      "PRODUCT_NAME",
+      "MAIN_TITLE",
+      "BENEFIT",
+      "PRICE",
+      "CTA"
+    ],
+    "optional": [
+      "BENEFIT"
+    ],
+    "replacements": {
+      "BRAND_NAME": "LOREM BRAND",
+      "PRODUCT_NAME": "LOREM SERUM",
+      "MAIN_TITLE": "GLOW SKIN",
+      "BENEFIT": "Hydrating · Vegan · Clean",
+      "PRICE": "€49.99",
+      "CTA": "SHOP NOW"
+    },
+    "prompt": "REFERENCE PHOTO (mandatory): Use the uploaded photo as the exact same product — preserve shape, colors, materials, branding, packaging and proportions. Composite it naturally into the poster with matching lighting, perspective, reflections and soft shadows; no floating cutout look. Scale the product hero prominently but keep realistic perspective.\n\nVertical beauty product Instagram post 4:5, soft pink gradient, floating 3D pedestal with subtle shadow.\nReference product bottle hero center, glass reflections, dewy highlights.\nBrand \"{{BRAND_NAME}}\", product \"{{PRODUCT_NAME}}\", headline \"{{MAIN_TITLE}}\".\nBenefit chips \"{{BENEFIT}}\", price \"{{PRICE}}\", CTA pill \"{{CTA}}\".\nPremium cosmetics e-commerce aesthetic.",
+    "aspect": "4:5"
+  },
+  {
+    "id": "retail_product_3d",
+    "source_id": "retail_product_3d",
+    "familyId": "retail_product_3d",
+    "styleVariants": true,
+    "category": "retail",
+    "label": "RETAIL 3D",
+    "subtag": "6 estilos · Produto & e-commerce",
+    "productTemplate": true,
+    "placeholders": [
+      "BRAND_NAME",
+      "PRODUCT_NAME",
+      "MAIN_TITLE",
+      "PRICE",
+      "DISCOUNT",
+      "CTA"
+    ],
+    "optional": [
+      "DISCOUNT"
+    ],
+    "replacements": {
+      "BRAND_NAME": "LOREM BRAND",
+      "PRODUCT_NAME": "LOREM PRODUCT",
+      "MAIN_TITLE": "LOREM IPSUM",
+      "PRICE": "€49.99",
+      "DISCOUNT": "30% OFF",
+      "CTA": "SHOP NOW"
+    },
+    "prompt": "REFERENCE PHOTO (mandatory): Use the uploaded photo as the exact same product — preserve shape, colors, materials, branding, packaging and proportions. Composite it naturally into the poster with matching lighting, perspective, reflections and soft shadows; no floating cutout look. Scale the product hero prominently but keep realistic perspective.\n\nVertical e-commerce Instagram post 4:5, blue studio gradient, product on white 3D cylinder pedestal with soft shadow.\nReference product hero center, realistic lighting and reflection.\nBrand \"{{BRAND_NAME}}\", name \"{{PRODUCT_NAME}}\", headline \"{{MAIN_TITLE}}\".\nPrice \"{{PRICE}}\", discount badge \"{{DISCOUNT}}\", CTA \"{{CTA}}\".",
+    "aspect": "4:5"
+  },
+  {
+    "id": "fashion_ig_shop",
+    "source_id": "fashion_ig_shop",
+    "familyId": "fashion_ig_shop",
+    "styleVariants": true,
+    "category": "fashion",
+    "label": "FASHION IG SHOP",
+    "subtag": "5 estilos · Venda no Instagram",
+    "productTemplate": false,
+    "placeholders": [
+      "BRAND_NAME",
+      "MAIN_TITLE",
+      "PRICE",
+      "SIZE_INFO",
+      "CTA",
+      "CONTACT"
+    ],
+    "optional": [
+      "SIZE_INFO",
+      "CONTACT"
+    ],
+    "replacements": {
+      "BRAND_NAME": "LOREM BRAND",
+      "MAIN_TITLE": "NEW DROP",
+      "PRICE": "€49.99",
+      "SIZE_INFO": "S · M · L · XL",
+      "CTA": "DM TO ORDER",
+      "CONTACT": "+351 912 345 678"
+    },
+    "prompt": "REFERENCE PHOTO (mandatory): Use the uploaded photo as the exact same person — preserve 100% of their face, facial features, skin tone, ethnicity, hair texture and likeness. Seamlessly composite them into this poster like professional photo retouching: unified lighting on face and body, natural skin blend, no floating cutout, no pasted sticker look, no disjointed face layer. Place the subject in the pose/position described below while keeping their real identity. Typography and graphic elements must sit in clear layout zones — never let text overlap, cut through or hide behind the face.\n\nVertical Instagram fashion sale post 4:5, hot pink on black, streetwear energy.\nReference model full outfit from photo, confident pose, unified lighting.\nBrand \"{{BRAND_NAME}}\", headline \"{{MAIN_TITLE}}\", price tag \"{{PRICE}}\".\nSize row \"{{SIZE_INFO}}\", CTA \"{{CTA}}\", contact \"{{CONTACT}}\". Text never covers face.",
+    "aspect": "4:5"
+  },
+  {
+    "id": "gaming_stream",
+    "source_id": "gaming_stream",
+    "familyId": "gaming_stream",
+    "styleVariants": true,
+    "category": "gaming",
+    "label": "GAMING & STREAM",
+    "subtag": "5 estilos · Gameplay & live",
+    "productTemplate": false,
+    "placeholders": [
+      "CHANNEL_NAME",
+      "MAIN_TITLE",
+      "GAME_TITLE",
+      "STREAM_TIME",
+      "CTA"
+    ],
+    "optional": [],
+    "replacements": {
+      "CHANNEL_NAME": "LOREM CHANNEL",
+      "MAIN_TITLE": "LIVE NOW",
+      "GAME_TITLE": "LOREM QUEST",
+      "STREAM_TIME": "LIVE · 8PM",
+      "CTA": "WATCH LIVE"
+    },
+    "prompt": "REFERENCE PHOTO (mandatory): Use the uploaded photo as the exact same person — preserve 100% of their face, facial features, skin tone, ethnicity, hair texture and likeness. Seamlessly composite them into this poster like professional photo retouching: unified lighting on face and body, natural skin blend, no floating cutout, no pasted sticker look, no disjointed face layer. Place the subject in the pose/position described below while keeping their real identity. Typography and graphic elements must sit in clear layout zones — never let text overlap, cut through or hide behind the face.\n\nVertical gaming stream promo 4:5, RGB purple-cyan glow, esports energy.\nReference streamer portrait with headset integrated naturally, gameplay UI frame hints in background (generic, no copyrighted game logos).\nChannel \"{{CHANNEL_NAME}}\", headline \"{{MAIN_TITLE}}\", game \"{{GAME_TITLE}}\".\nSchedule \"{{STREAM_TIME}}\", CTA \"{{CTA}}\". Text clear of face.",
+    "aspect": "4:5"
+  },
+  {
+    "id": "youtube_creator",
+    "source_id": "youtube_creator",
+    "familyId": "youtube_creator",
+    "styleVariants": true,
+    "category": "youtube",
+    "label": "YOUTUBE",
+    "subtag": "5 estilos · Thumbnail & promo",
+    "productTemplate": false,
+    "placeholders": [
+      "CHANNEL_NAME",
+      "MAIN_TITLE",
+      "EPISODE_TITLE",
+      "CTA"
+    ],
+    "optional": [],
+    "replacements": {
+      "CHANNEL_NAME": "LOREM CHANNEL",
+      "MAIN_TITLE": "LOREM IPSUM",
+      "EPISODE_TITLE": "Episode 01",
+      "CTA": "WATCH NOW"
+    },
+    "prompt": "REFERENCE PHOTO (mandatory): Use the uploaded photo as the exact same person — preserve 100% of their face, facial features, skin tone, ethnicity, hair texture and likeness. Seamlessly composite them into this poster like professional photo retouching: unified lighting on face and body, natural skin blend, no floating cutout, no pasted sticker look, no disjointed face layer. Place the subject in the pose/position described below while keeping their real identity. Typography and graphic elements must sit in clear layout zones — never let text overlap, cut through or hide behind the face.\n\nVertical YouTube promo 4:5 styled like high-CTR thumbnail layout (original, not copying any channel).\nReference creator expressive face large right, bold outlined text left: \"{{MAIN_TITLE}}\".\nChannel \"{{CHANNEL_NAME}}\", episode \"{{EPISODE_TITLE}}\", red subscribe-style CTA \"{{CTA}}\".\nHigh contrast, thick strokes, clear readable hierarchy.",
+    "aspect": "4:5"
+  },
+  {
+    "id": "promo_flyer_3d",
+    "source_id": "promo_flyer_3d",
+    "familyId": "promo_flyer_3d",
+    "styleVariants": true,
+    "category": "flyers",
+    "label": "PROMO 3D",
+    "subtag": "6 estilos · Flyers multi-nicho",
+    "productTemplate": true,
+    "placeholders": [
+      "BRAND_NAME",
+      "MAIN_TITLE",
+      "PROMO_TEXT",
+      "PRICE",
+      "CTA",
+      "CONTACT"
+    ],
+    "optional": [
+      "CONTACT"
+    ],
+    "replacements": {
+      "BRAND_NAME": "LOREM BRAND",
+      "MAIN_TITLE": "LOREM IPSUM",
+      "PROMO_TEXT": "-30% OFF",
+      "PRICE": "€49.99",
+      "CTA": "SHOP NOW",
+      "CONTACT": "+351 912 345 678"
+    },
+    "prompt": "REFERENCE PHOTO (mandatory): Use the uploaded photo as the exact same product — preserve shape, colors, materials, branding, packaging and proportions. Composite it naturally into the poster with matching lighting, perspective, reflections and soft shadows; no floating cutout look. Scale the product hero prominently but keep realistic perspective.\n\nVertical promotional flyer 4:5 with 3D extruded typography and floating geometric shapes.\nReference product hero on stylized 3D platform, dynamic orange-yellow energy.\nBrand \"{{BRAND_NAME}}\", headline \"{{MAIN_TITLE}}\", promo \"{{PROMO_TEXT}}\".\nPrice \"{{PRICE}}\", CTA \"{{CTA}}\", contact \"{{CONTACT}}\". Original layout inspired by high-end IG design grids.",
+    "aspect": "4:5"
+  }
+]

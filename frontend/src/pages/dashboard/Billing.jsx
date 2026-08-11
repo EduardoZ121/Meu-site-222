@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { api } from "../../lib/api";
 import { useAuth } from "../../lib/auth";
@@ -8,13 +8,15 @@ import { toast } from "sonner";
 import useTitle from "../../lib/useTitle";
 import {
   Sparkles, Zap, Rocket, Check, ArrowRight, Coins, Receipt, RefreshCw,
-  TrendingUp, Plus, Minus, HelpCircle,
+  TrendingUp, Plus, Minus, HelpCircle, Crown, Mail, Lock,
 } from "lucide-react";
 import { FALLBACK_PACKAGES } from "../../lib/publicFallbacks";
 import { usePricing } from "../../lib/PricingContext";
 import { setStoredPricingRegion } from "../../lib/pricingRegions";
+import { getPremiumPackagesForRegion, getSubscriptionPlansForRegion } from "../../lib/pricingRegions";
 import { BILLING_FAQ_KEYS, BILLING_PKG_KEYS } from "../../lib/billingLocales";
 import { customPurchasePrice, getPricingMeta } from "../../lib/creditPricing";
+import { resolveCanonicalOrigin } from "../../lib/canonicalOrigin";
 
 const PKG_ICONS = { starter: Sparkles, creator: Zap, studio: Rocket, pro: Rocket };
 
@@ -36,10 +38,12 @@ export default function Billing() {
     };
   };
   useTitle(t("sidebar_billing"));
-  const { user, addCredits, getLocalTransactions } = useAuth();
+  const { user, addCredits, addPremiumCredits, getLocalTransactions, refresh } = useAuth();
   const { region, symbol, label, checkoutNote, refresh: refreshPricing } = usePricing();
   const [params, setParams] = useSearchParams();
   const [pkgs, setPkgs] = useState([]);
+  const [hqPkgs, setHqPkgs] = useState([]);
+  const [subPlans, setSubPlans] = useState([]);
   const [txs, setTxs] = useState([]);
   const [loadingTx, setLoadingTx] = useState(true);
   const [checkoutLoading, setCheckoutLoading] = useState(null);
@@ -47,6 +51,7 @@ export default function Billing() {
   const pricingMeta = useMemo(() => getPricingMeta(), []);
   const minCustomCredits = pricingMeta.minCustomCredits || 150;
   const [customCredits, setCustomCredits] = useState(minCustomCredits);
+  const autoBuyAttempted = useRef(false);
 
   useEffect(() => {
     setCustomCredits((n) => Math.max(minCustomCredits, n));
@@ -63,9 +68,17 @@ export default function Billing() {
       .then((r) => {
         if (r.data.packages?.length) setPkgs(r.data.packages);
         else setPkgs(FALLBACK_PACKAGES);
+        if (r.data.premium_packages?.length) setHqPkgs(r.data.premium_packages);
+        else setHqPkgs(getPremiumPackagesForRegion(region));
+        if (r.data.subscription_plans?.length) setSubPlans(r.data.subscription_plans);
+        else setSubPlans(getSubscriptionPlansForRegion(region));
         if (r.data.region) setStoredPricingRegion(r.data.region);
       })
-      .catch(() => setPkgs(FALLBACK_PACKAGES));
+      .catch(() => {
+        setPkgs(FALLBACK_PACKAGES);
+        setHqPkgs(getPremiumPackagesForRegion(region));
+        setSubPlans(getSubscriptionPlansForRegion(region));
+      });
     api.get("/credits/transactions?limit=40")
       .then((r) => setTxs(r.data.transactions || []))
       .catch(() => setTxs(getLocalTransactions?.() || []))
@@ -88,37 +101,144 @@ export default function Billing() {
       return;
     }
     api.get(`/stripe/session?session_id=${encodeURIComponent(sessionId)}`)
-      .then((r) => {
-        if (!r.data?.paid || !r.data?.credits) throw new Error(t("bill_payment_pending"));
-        addCredits(r.data.credits, t("bill_purchase_desc", { pkg: r.data.package || "" }).trim());
-        emitNotification({
-          type: "credits_purchase",
-          titleKey: "notif_purchase_title",
-          bodyKey: "notif_purchase_body",
-          credits: r.data.credits,
-          balance: r.data.new_balance,
-          href: "/app/billing",
-        });
+      .then(async (r) => {
+        const isSub = r.data?.wallet === "subscription" || params.get("wallet") === "subscription";
+        if (isSub) {
+          if (!r.data?.paid) throw new Error(t("bill_payment_pending"));
+          await refresh();
+          emitNotification({
+            type: "subscription_active",
+            titleKey: "bill_sub_title",
+            bodyKey: "bill_sub_success",
+            href: "/app/billing",
+          });
+          toast.success(t("bill_sub_success"));
+          if (r.data.pricing_region) setStoredPricingRegion(r.data.pricing_region, { lock: true });
+          void refreshPricing();
+          localStorage.setItem(claimedKey, "1");
+          return;
+        }
+        const isHq = r.data?.wallet === "premium" || params.get("wallet") === "premium";
+        const units = isHq ? Number(r.data?.premium_credits || 0) : Number(r.data?.credits || 0);
+        if (!r.data?.paid || !units) throw new Error(t("bill_payment_pending"));
+        if (isHq) {
+          addPremiumCredits(units, t("bill_hq_purchase_desc", { pkg: r.data.package || "" }).trim());
+          emitNotification({
+            type: "credits_purchase",
+            titleKey: "notif_purchase_title",
+            bodyKey: "bill_hq_credits_added",
+            credits: units,
+            balance: r.data.new_premium_balance,
+            href: "/app/billing",
+          });
+          toast.success(t("bill_hq_credits_added", { n: units }));
+        } else {
+          addCredits(units, t("bill_purchase_desc", { pkg: r.data.package || "" }).trim());
+          emitNotification({
+            type: "credits_purchase",
+            titleKey: "notif_purchase_title",
+            bodyKey: "notif_purchase_body",
+            credits: units,
+            balance: r.data.new_balance,
+            href: "/app/billing",
+          });
+          toast.success(t("bill_credits_added", { n: units }));
+        }
         if (r.data.pricing_region) setStoredPricingRegion(r.data.pricing_region, { lock: true });
         void refreshPricing();
         localStorage.setItem(claimedKey, "1");
         setTxs(getLocalTransactions?.() || []);
-        toast.success(t("bill_credits_added", { n: r.data.credits }));
       })
       .catch((err) => toast.error(err?.response?.data?.detail || err?.message || t("bill_confirm_fail")))
       .finally(() => setParams({}));
-  }, [params, setParams, addCredits, getLocalTransactions, refreshPricing, t]);
+  }, [params, setParams, addCredits, addPremiumCredits, getLocalTransactions, refreshPricing, refresh, t]);
 
-  const buy = async (pkgId) => {
+  const buy = useCallback(async (pkgId) => {
     setCheckoutLoading(pkgId);
     try {
-      const { data } = await api.post("/stripe/checkout", { package: pkgId, origin: window.location.origin });
+      const { data } = await api.post("/stripe/checkout", { package: pkgId, origin: resolveCanonicalOrigin() });
+      window.location.href = data.checkout_url;
+    } catch (err) {
+      toast.error(err?.response?.data?.detail || t("bill_checkout_fail"));
+      setCheckoutLoading(null);
+    }
+  }, [t]);
+
+  useEffect(() => {
+    const highlightId = params.get("package");
+    if (!highlightId || !pkgs.length) return;
+    const el = document.querySelector(`[data-testid="billing-pkg-${highlightId}"]`);
+    if (el) el.scrollIntoView({ behavior: "smooth", block: "center" });
+  }, [params, pkgs]);
+
+  useEffect(() => {
+    const buyId = params.get("buy");
+    if (!buyId || !user || !pkgs.length || checkoutLoading || autoBuyAttempted.current) return;
+    if (!pkgs.some((p) => p.id === buyId)) return;
+    autoBuyAttempted.current = true;
+    void buy(buyId);
+  }, [params, user, pkgs, checkoutLoading, buy]);
+
+  const buyHq = async (pkgId) => {
+    setCheckoutLoading(`hq_${pkgId}`);
+    try {
+      const { data } = await api.post("/stripe/checkout", {
+        package: pkgId,
+        wallet: "premium",
+        origin: resolveCanonicalOrigin(),
+      });
       window.location.href = data.checkout_url;
     } catch (err) {
       toast.error(err?.response?.data?.detail || t("bill_checkout_fail"));
       setCheckoutLoading(null);
     }
   };
+
+  const buySubscription = async () => {
+    setCheckoutLoading("subscription");
+    try {
+      const { data } = await api.post("/stripe/checkout", {
+        package: "creator_monthly",
+        wallet: "subscription",
+        origin: resolveCanonicalOrigin(),
+      });
+      window.location.href = data.checkout_url;
+    } catch (err) {
+      toast.error(err?.response?.data?.detail || t("bill_checkout_fail"));
+      setCheckoutLoading(null);
+    }
+  };
+
+  const openPortal = async () => {
+    setCheckoutLoading("portal");
+    try {
+      const { data } = await api.post("/stripe/portal", { origin: resolveCanonicalOrigin() });
+      window.location.href = data.portal_url;
+    } catch (err) {
+      toast.error(err?.response?.data?.detail || t("bill_checkout_fail"));
+      setCheckoutLoading(null);
+    }
+  };
+
+  const subPlan = subPlans.find((p) => p.id === "creator_monthly") || subPlans[0];
+  const subActive = Boolean(user?.subscription?.active);
+  const purchasedCredits = user?.is_unlimited ? user?.credits : (user?.credits ?? 0);
+  const subscriptionCredits = user?.subscription_credits ?? 0;
+  const totalStandardCredits = user?.is_unlimited
+    ? user?.credits
+    : (user?.total_standard_credits ?? purchasedCredits);
+
+  const subBenefits = useMemo(
+    () => [
+      t("bill_sub_benefit_credits"),
+      t("bill_sub_benefit_templates"),
+      t("bill_sub_benefit_support"),
+      t("bill_sub_benefit_priority"),
+      t("bill_sub_benefit_early"),
+      t("bill_sub_benefit_packs"),
+    ],
+    [t],
+  );
 
   const buyCustom = async () => {
     if (customQuote.credits < minCustomCredits) {
@@ -129,7 +249,7 @@ export default function Billing() {
     try {
       const { data } = await api.post("/stripe/checkout", {
         custom_credits: customQuote.credits,
-        origin: window.location.origin,
+        origin: resolveCanonicalOrigin(),
       });
       window.location.href = data.checkout_url;
     } catch (err) {
@@ -160,17 +280,123 @@ export default function Billing() {
       )}
 
       {/* === Current balance pill === */}
-      <div className="inline-flex items-center gap-3 px-5 py-3 rounded-xl border border-rp-purple/35 bg-gradient-to-r from-rp-purple/15 to-rp-neonCyan/5 backdrop-blur-md shadow-[0_0_40px_-12px_rgba(124,58,237,0.35)] mb-10" data-testid="current-balance">
-        <Coins className="w-5 h-5 text-[#C4B5FD]" strokeWidth={1.5} />
-        <div>
-          <p className="text-[10px] font-mono uppercase tracking-[0.18em] text-[#C4B5FD]">{t("bill_balance_label")}</p>
-          <p className="text-rp-text text-[22px] font-light leading-none">
-            {user?.is_unlimited
-              ? t("bill_credits_unlimited")
-              : t("bill_credits_count", { n: user?.credits ?? 0 })}
-          </p>
+      <div className="flex flex-wrap gap-4 mb-10">
+        <div className="inline-flex items-center gap-3 px-5 py-3 rounded-xl border border-rp-purple/35 bg-gradient-to-r from-rp-purple/15 to-rp-neonCyan/5 backdrop-blur-md shadow-[0_0_40px_-12px_rgba(124,58,237,0.35)]" data-testid="current-balance">
+          <Coins className="w-5 h-5 text-[#C4B5FD]" strokeWidth={1.5} />
+          <div>
+            <p className="text-[10px] font-mono uppercase tracking-[0.18em] text-[#C4B5FD]">{t("bill_balance_label")}</p>
+            <p className="text-rp-text text-[22px] font-light leading-none">
+              {user?.is_unlimited
+                ? t("bill_credits_unlimited")
+                : t("bill_credits_count", { n: totalStandardCredits ?? 0 })}
+            </p>
+            {!user?.is_unlimited && subscriptionCredits > 0 && (
+              <p className="text-[#C4B5FD]/70 text-[11px] font-mono mt-1">
+                {t("bill_sub_credits_label")}: {subscriptionCredits} · {t("bill_credits_count", { n: purchasedCredits })}
+              </p>
+            )}
+          </div>
+        </div>
+        <div className="inline-flex items-center gap-3 px-5 py-3 rounded-xl border border-[#FACC15]/50 bg-gradient-to-r from-[#FACC15]/15 to-[#F59E0B]/10 backdrop-blur-md shadow-[0_0_42px_-18px_rgba(250,204,21,0.65)]" data-testid="hq-balance">
+          <Crown className="w-5 h-5 text-[#FACC15]" strokeWidth={1.5} />
+          <div>
+            <p className="text-[10px] font-mono uppercase tracking-[0.18em] text-[#FACC15]">{t("bill_hq_balance_label")}</p>
+            <p className="text-rp-text text-[22px] font-light leading-none">
+              {user?.is_unlimited
+                ? t("bill_hq_credits_unlimited")
+                : t("bill_hq_credits_count", { n: user?.premium_credits ?? 0 })}
+            </p>
+            <p className="text-[#FACC15]/75 text-[11px] font-mono mt-1">{t("bill_hq_balance_hint")}</p>
+          </div>
         </div>
       </div>
+
+      {/* === Creator Monthly === */}
+      {subPlan && (
+        <section className="mb-16" data-testid="billing-subscription">
+          <p className="text-[10px] font-mono uppercase tracking-[0.22em] text-[#EC4899] mb-3">{t("bill_sub_title")}</p>
+          <div className="rounded-2xl border border-[#EC4899]/35 bg-gradient-to-br from-[#1a0a18] via-rp-surface to-rp-bg p-7 md:p-9 overflow-hidden relative">
+            <div className="absolute top-0 right-0 w-64 h-64 bg-[#EC4899]/10 blur-3xl rounded-full pointer-events-none" />
+            <div className="relative flex flex-col lg:flex-row lg:items-start lg:justify-between gap-8">
+              <div className="flex-1 max-w-[640px]">
+                <div className="flex flex-wrap items-center gap-3 mb-4">
+                  <h2 className="text-rp-text text-[28px] md:text-[34px] font-semibold tracking-tight">{t("bill_sub_title")}</h2>
+                  {subActive && (
+                    <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#EC4899]/20 border border-[#EC4899]/40 text-[#F9A8D4] text-[10px] font-mono uppercase tracking-[0.14em]">
+                      <Check className="w-3 h-3" /> {t("bill_sub_active")}
+                    </span>
+                  )}
+                </div>
+                <div className="flex items-baseline gap-1.5 mb-2">
+                  <span className="text-rp-mute text-[18px]">{symbol || (subPlan.currency === "usd" ? "$" : "€")}</span>
+                  <span className="text-rp-text text-[48px] font-light leading-none tracking-tight">
+                    {subPlan.amount_display ?? (subPlan.amount_cents / 100)}
+                  </span>
+                  <span className="text-rp-mute text-[14px] font-mono uppercase tracking-[0.12em]">/ {lang === "pt" ? "mês" : "mo"}</span>
+                </div>
+                <p className="text-[#F9A8D4] text-[14px] font-medium mb-6">
+                  {t("bill_credits_count", { n: subPlan.credits_per_month || 400 })}
+                  <span className="text-rp-mute2 text-[12px] font-normal ml-2">· {subPlan.tagline}</span>
+                </p>
+                <ul className="space-y-2.5">
+                  {subBenefits.map((b) => (
+                    <li key={b} className="flex items-start gap-2.5 text-rp-text text-[14px]">
+                      <Check className="w-4 h-4 mt-0.5 text-[#EC4899] shrink-0" strokeWidth={2.5} />
+                      <span>{b}</span>
+                    </li>
+                  ))}
+                </ul>
+                {subActive && (
+                  <div className="mt-6 rounded-xl border border-[#EC4899]/25 bg-[#EC4899]/5 p-4">
+                    <p className="text-rp-mute text-[13px] mb-3">{t("bill_sub_support_hint")}</p>
+                    <a
+                      href={`mailto:${user?.subscription?.support_email || "suporte@remakepix.com"}?subject=${encodeURIComponent("Pedido personalizado — Creator Mensal")}`}
+                      className="inline-flex items-center gap-2 text-[#F9A8D4] text-[13px] font-medium hover:underline"
+                    >
+                      <Mail className="w-4 h-4" /> {t("bill_sub_support_cta")}
+                    </a>
+                  </div>
+                )}
+              </div>
+              <div className="shrink-0 flex flex-col gap-3 w-full lg:w-[240px]">
+                {subActive ? (
+                  <>
+                    <button
+                      type="button"
+                      onClick={openPortal}
+                      disabled={!!checkoutLoading}
+                      data-testid="manage-subscription"
+                      className="w-full inline-flex items-center justify-center gap-2 px-5 py-3.5 rounded-xl text-[12px] font-mono font-semibold uppercase tracking-[0.16em] border border-[#EC4899]/50 text-rp-text hover:bg-[#EC4899]/10 disabled:opacity-50 transition-all"
+                    >
+                      {checkoutLoading === "portal" ? t("bill_opening_stripe") : t("bill_sub_manage")}
+                    </button>
+                    <a
+                      href={`mailto:${user?.subscription?.support_email || "suporte@remakepix.com"}?subject=${encodeURIComponent("Pedido personalizado — Creator Mensal")}`}
+                      className="w-full inline-flex items-center justify-center gap-2 px-5 py-3.5 rounded-xl text-[12px] font-mono font-semibold uppercase tracking-[0.16em] bg-gradient-to-r from-[#EC4899] to-[#7C3AED] text-white hover:brightness-110 transition-all"
+                    >
+                      <Mail className="w-4 h-4" /> {t("bill_sub_support_cta")}
+                    </a>
+                  </>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={buySubscription}
+                    disabled={!!checkoutLoading}
+                    data-testid="buy-subscription"
+                    className="w-full inline-flex items-center justify-center gap-2 px-5 py-4 rounded-xl text-[12px] font-mono font-semibold uppercase tracking-[0.16em] bg-gradient-to-r from-[#EC4899] to-[#7C3AED] text-white shadow-lg shadow-[#EC4899]/35 hover:brightness-110 disabled:opacity-50 transition-all"
+                  >
+                    {checkoutLoading === "subscription" ? (
+                      t("bill_opening_stripe")
+                    ) : (
+                      <>{t("bill_sub_cta")} <ArrowRight className="w-4 h-4" /></>
+                    )}
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+        </section>
+      )}
 
       {/* === Pricing grid === */}
       <section className="mb-20">
@@ -310,6 +536,70 @@ export default function Billing() {
         </div>
       </section>
 
+      {/* === HQ Poster credits === */}
+      <section className="mb-20 rounded-3xl border border-[#FACC15]/35 bg-gradient-to-br from-[#1a1505]/80 via-rp-surface/70 to-rp-bg p-5 md:p-7 shadow-[0_0_70px_-36px_rgba(250,204,21,0.7)]">
+        <p className="text-[10px] font-mono uppercase tracking-[0.22em] text-[#FACC15] mb-3">{t("bill_hq_eyebrow")}</p>
+        <div className="flex flex-wrap items-center gap-3 mb-3">
+          <h2 className="text-rp-text text-[28px] font-semibold tracking-tight">{t("bill_hq_title")}</h2>
+          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full border border-[#FACC15]/35 bg-[#FACC15]/10 text-[#FACC15] text-[10px] font-mono uppercase tracking-[0.14em]">
+            <Crown className="w-3 h-3" strokeWidth={1.75} /> {t("post_engine_premium")}
+          </span>
+        </div>
+        <p className="text-rp-mute text-[14px] max-w-[720px] mb-2">{t("bill_hq_subtitle")}</p>
+        <p className="text-[#FACC15]/90 text-[12px] font-mono uppercase tracking-[0.12em] mb-8">{t("bill_hq_per_gen")}</p>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+          {hqPkgs.map((p) => {
+            const isPopular = p.badge === "popular";
+            const amount = p.amount_display ?? (p.amount_cents / 100);
+            const unitLabel = (p.currency || "eur") === "usd" ? "$" : "€";
+            const perUnit = (p.premium_credits / amount).toFixed(1);
+            return (
+              <div
+                key={p.id}
+                data-testid={`billing-hq-pkg-${p.id}`}
+                className={`relative rounded-2xl border p-7 backdrop-blur-xl transition-all duration-300 flex flex-col hover:-translate-y-1 ${
+                  isPopular
+                    ? "border-[#FACC15]/50 bg-gradient-to-br from-[#1a1505] via-rp-surface to-rp-bg shadow-[0_0_60px_-20px_rgba(250,204,21,0.35)]"
+                    : "border-[#FACC15]/25 bg-rp-surface/90 hover:border-[#FACC15]/40"
+                }`}
+              >
+                {isPopular && (
+                  <div className="absolute -top-3 left-1/2 -translate-x-1/2 inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-gradient-to-r from-[#FACC15] to-[#F59E0B] text-black text-[10px] font-mono uppercase tracking-[0.16em]">
+                    <TrendingUp className="w-3 h-3" /> {t("bill_most_popular")}
+                  </div>
+                )}
+                <div className="w-11 h-11 rounded-xl flex items-center justify-center mb-5 border border-[#FACC15]/20 bg-[#FACC15]/10 text-[#FACC15]">
+                  <Crown className="w-5 h-5" strokeWidth={1.5} />
+                </div>
+                <h3 className="text-rp-text text-[22px] font-semibold tracking-tight mb-1">{p.name}</h3>
+                <p className="text-[#FACC15] text-[10px] font-mono uppercase tracking-[0.18em] mb-5">{p.tagline}</p>
+                <div className="flex items-baseline gap-1.5 mb-1">
+                  <span className="text-rp-mute text-[16px]">{symbol || unitLabel}</span>
+                  <span className="text-rp-text text-[42px] font-light leading-none tracking-tight">{amount}</span>
+                </div>
+                <p className="text-[#FACC15] text-[14px] font-medium mb-6">
+                  {t("bill_hq_credits_count", { n: p.premium_credits })}
+                </p>
+                <p className="text-rp-mute2 text-[11px] font-mono uppercase tracking-[0.14em] mb-6">
+                  {t("bill_credits_per_unit", { n: perUnit, unit: unitLabel })}
+                </p>
+                <button
+                  type="button"
+                  onClick={() => buyHq(p.id)}
+                  disabled={!!checkoutLoading}
+                  data-testid={`buy-hq-${p.id}`}
+                  className="mt-auto w-full inline-flex items-center justify-center gap-2 px-5 py-3.5 rounded-xl text-[12px] font-mono font-semibold uppercase tracking-[0.16em] bg-gradient-to-r from-[#FACC15] to-[#F59E0B] text-black hover:brightness-110 disabled:opacity-50 transition-all"
+                >
+                  {checkoutLoading === `hq_${p.id}` ? t("bill_opening_stripe") : (
+                    <>{t("bill_buy", { name: p.name })} <ArrowRight className="w-4 h-4" /></>
+                  )}
+                </button>
+              </div>
+            );
+          })}
+        </div>
+      </section>
+
       {/* === Recent activity === */}
       <section className="mb-20">
         <div className="flex items-baseline justify-between mb-5">
@@ -362,7 +652,7 @@ export default function Billing() {
           <li>{t("bill_terms_4")}</li>
           <li>
             {t("bill_terms_5")}{" "}
-            <a href="mailto:suporte@remakepixel.com" className="text-[#C4B5FD] hover:underline">suporte@remakepixel.com</a>
+            <a href="mailto:suporte@remakepix.com" className="text-[#C4B5FD] hover:underline">suporte@remakepix.com</a>
           </li>
         </ul>
         <p className="text-rp-mute2 text-[12px] mt-5 font-mono uppercase tracking-[0.1em]">

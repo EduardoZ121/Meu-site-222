@@ -1,44 +1,69 @@
-import { Link, Navigate, useParams } from "react-router-dom";
-import { ArrowLeft } from "lucide-react";
+import { Navigate, useParams } from "react-router-dom";
 import { useI18n } from "../../lib/i18n";
+import { useAuth } from "../../lib/auth";
+import { isAdminUser } from "../../lib/isAdmin";
 import useTitle from "../../lib/useTitle";
-import { VIDEO_CATEGORIES, VIDEO_FLOW_MODES } from "../../lib/videoCatalogue";
+import { useStudioSessionBack } from "../../lib/useStudioSessionBack";
+import {
+  VIDEO_FLOW_MODES,
+  VIDEO_LEGACY_REDIRECTS,
+  findVideoCategory,
+} from "../../lib/videoCatalogue";
+import { LEGACY_EDIT_MODE_MAP } from "../../lib/videoEditCatalog";
 import VideoGenerate from "./VideoGenerate";
 import VideoEditorAdmin from "./VideoEditorAdmin";
+import StudioCompactShell from "../../components/studio/StudioCompactShell";
 
 export default function VideoFlow() {
   const { mode } = useParams();
   const { t } = useI18n();
+  const { user, loading } = useAuth();
   const valid = VIDEO_FLOW_MODES.has(mode);
-  const meta = valid ? VIDEO_CATEGORIES.find((c) => c.id === mode) : null;
-  useTitle(t(meta ? meta.nameKey : "sidebar_video"));
+  const legacyEditMode = LEGACY_EDIT_MODE_MAP[mode];
+  const legacyRedirect = VIDEO_LEGACY_REDIRECTS[mode];
+  const meta = valid && !legacyEditMode ? findVideoCategory(mode) : null;
+  const isEditFlow = Boolean(legacyEditMode) || meta?.flow === "edit";
+  const editReady = !isEditFlow || (!loading && isAdminUser(user));
+  const showSession = Boolean(valid && !legacyEditMode && !legacyRedirect && meta && editReady);
+
+  useTitle(t(isEditFlow ? "vid_v2v_title" : meta ? meta.nameKey : "sidebar_video"));
+  // Só armar o trap quando a sessão é real — redirects não devem empilhar histórico fantasma.
+  useStudioSessionBack("/app/video", showSession);
+
+  if (isEditFlow) {
+    if (loading) return <div className="min-h-[40vh] bg-rp-bg" />;
+    if (!isAdminUser(user)) {
+      return <Navigate to="/app/video" replace />;
+    }
+  }
+
+  if (legacyEditMode) {
+    return <Navigate to={`/app/video/edit?mode=${legacyEditMode}`} replace />;
+  }
 
   if (!valid) {
     return <Navigate to="/app/video" replace />;
   }
 
+  if (legacyRedirect) {
+    return <Navigate to={`/app/video/${legacyRedirect}`} replace />;
+  }
+
+  if (!meta) {
+    return <Navigate to="/app/video" replace />;
+  }
+
   return (
-    <div className="max-w-[1200px] mx-auto pb-20" data-testid={`video-flow-${mode}`}>
-      <Link
-        to="/app/video"
-        className="inline-flex items-center gap-2 mb-6 text-[13px] text-[#8A8A8E] hover:text-[#F4F1EA] transition-colors"
-        data-testid="video-back-hub"
-      >
-        <ArrowLeft className="w-4 h-4" strokeWidth={1.75} />
-        {t("vid_back_hub")}
-      </Link>
-
-      <header className="mb-8 md:mb-10">
-        <p className="text-[10px] font-mono uppercase tracking-[0.22em] text-[#7C3AED] mb-3">{t("vid_cap")}</p>
-        <h1 className="text-[#F4F1EA] font-light leading-[1.05] tracking-[-0.02em] text-[32px] md:text-[44px] mb-3 font-['Inter_Tight']">
-          {meta ? t(meta.nameKey) : t("sidebar_video")}
-        </h1>
-        <p className="text-[#8A8A8E] text-[15px] max-w-[640px]">
-          {meta ? t(meta.descKey) : t("vid_desc_body")}
-        </p>
-      </header>
-
-      {mode === "edit" ? <VideoEditorAdmin /> : <VideoGenerate mode={mode} />}
-    </div>
+    <StudioCompactShell
+      testId={`video-flow-${mode}`}
+      maxWidth={isEditFlow ? "960px" : "720px"}
+      className="pb-8"
+    >
+      {isEditFlow ? (
+        <VideoEditorAdmin category={meta} />
+      ) : (
+        <VideoGenerate category={meta} />
+      )}
+    </StudioCompactShell>
   );
 }

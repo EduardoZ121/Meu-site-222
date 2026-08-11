@@ -1,13 +1,13 @@
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { toast } from "sonner";
 import { CLIENT_BUILD_ID } from "../lib/buildInfo";
+import {
+  markStaleBuildToastShown,
+  shouldShowStaleBuildToast,
+} from "../lib/clientBuildSync";
 
-/**
- * Avisa e recarrega quando o browser tem JS antigo em cache.
- */
+/** Avisa 1× por deploy quando o browser ainda tem JS antigo após reload automático. */
 export default function BuildVersionGuard() {
-  const [dismissed, setDismissed] = useState(false);
-
   useEffect(() => {
     let cancelled = false;
     (async () => {
@@ -16,27 +16,25 @@ export default function BuildVersionGuard() {
         if (!r.ok || cancelled) return;
         const data = await r.json();
         const serverBuild = String(data.build || "");
-        if (!serverBuild || serverBuild === CLIENT_BUILD_ID || dismissed) return;
-        toast.error("Nova versão do site disponível. Recarrega para corrigir o upload.", {
-          duration: 20000,
+        if (!shouldShowStaleBuildToast(serverBuild)) return;
+
+        markStaleBuildToastShown(serverBuild);
+        toast.error("Nova versão disponível. Recarrega a página.", {
+          duration: 12000,
           id: "rp-build-mismatch",
           action: {
-            label: "Recarregar agora",
-            onClick: () => {
-              const u = new URL(window.location.href);
-              u.searchParams.set("rp_refresh", String(Date.now()));
-              window.location.replace(u.toString());
-            },
+            label: "Recarregar",
+            onClick: () => window.location.reload(),
           },
         });
       } catch {
-        /* offline — ignorar */
+        /* offline */
       }
     })();
     return () => {
       cancelled = true;
     };
-  }, [dismissed]);
+  }, []);
 
   return null;
 }

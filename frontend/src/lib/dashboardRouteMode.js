@@ -2,6 +2,8 @@
  * Rotas do dashboard: hub (lista/gestão) vs workspace (estúdio em ecrã cheio).
  */
 
+import { findVideoCategory } from "./videoCatalogue";
+
 const WORKSPACE_PREFIX = "/app/";
 
 /** Paths relativos a /app que usam layout de workspace (sem header global). */
@@ -10,9 +12,12 @@ export const WORKSPACE_ROUTE_IDS = new Set([
   "studio",
   "pro",
   "artistic",
-  "video",
+  "marketing-video",
+  "motion-flyer",
+  "brand-campaign",
   "posters",
   "manga-studio",
+  "gpt-hq-studio",
   "carousel",
   "wizard",
   "tools/bg-remove",
@@ -28,10 +33,14 @@ export const WORKSPACE_HEADER_KEYS = {
   generate: "sidebar.generate",
   studio: "sidebar.generate",
   pro: "sidebar.pro",
-  artistic: "sidebar.artistic",
+  artistic: "sidebar_artistic",
   video: "sidebar.video",
+  "marketing-video": "sidebar_marketing_video",
+  "motion-flyer": "sidebar_motion_flyer",
+  "brand-campaign": "sidebar_brand_campaign",
   posters: "sidebar.posters",
   "manga-studio": "sidebar.manga_studio",
+  "gpt-hq-studio": "sidebar_gpt_hq_studio",
   carousel: "sidebar.manga_studio",
   wizard: "sidebar.wizard",
   "tools/bg-remove": "tool_bg_remove_name",
@@ -52,11 +61,22 @@ export function getAppRelativePath(pathname) {
 export function isWorkspacePath(pathname) {
   const rel = getAppRelativePath(pathname);
   if (!rel) return false;
+  if (rel === "video") return false;
   if (WORKSPACE_ROUTE_IDS.has(rel)) return true;
+  if (rel.startsWith("video/")) return true;
   return false;
 }
 
 export function getWorkspaceHeaderKey(pathname) {
   const rel = getAppRelativePath(pathname);
+  if (rel.startsWith("video/")) {
+    const mode = rel.split("/")[1]?.split("?")[0];
+    const cat = findVideoCategory(mode);
+    if (cat?.nameKey) return cat.nameKey;
+    return WORKSPACE_HEADER_KEYS.video;
+  }
+  if (rel === "marketing-video") return WORKSPACE_HEADER_KEYS["marketing-video"];
+  if (rel === "motion-flyer") return WORKSPACE_HEADER_KEYS["motion-flyer"];
+  if (rel === "brand-campaign") return WORKSPACE_HEADER_KEYS["brand-campaign"];
   return WORKSPACE_HEADER_KEYS[rel] || "sidebar.generate";
 }

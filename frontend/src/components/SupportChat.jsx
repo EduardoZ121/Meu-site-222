@@ -7,6 +7,7 @@ import { api, formatApiError } from "../lib/api";
 import { useAuth } from "../lib/auth";
 import { isLocalAuthToken, supportFallbackReply } from "../lib/supportClientFallback";
 import { toast } from "sonner";
+import { SUPPORT_EMAIL, SUPPORT_MAILTO } from "../lib/supportEmail";
 
 const STORAGE_KEY = "rp_support_chat_v3";
 
@@ -165,7 +166,7 @@ export default function SupportChat({ open, onClose }) {
               lang: lang || "en",
               page: location.pathname,
             },
-            { timeout: 32000 },
+            { timeout: 45000 },
           );
           reply = String(data?.reply || "").trim();
           if (!reply) throw new Error(t("support_error"));
@@ -173,15 +174,18 @@ export default function SupportChat({ open, onClose }) {
 
         setMessages((prev) => [...prev, { role: "assistant", content: reply }]);
       } catch (err) {
+        const status = err?.response?.status;
         const fallback = supportFallbackReply({ lang: lang || "pt", user, userText: trimmed });
-        setMessages((prev) => [
-          ...prev,
-          {
-            role: "assistant",
-            content: fallback || `${formatApiError(err, t("support_error"))}\n\n${t("support_contact_hint")}`,
-          },
-        ]);
-        if (err?.response?.status === 503) toast.error(t("support_unavailable"));
+        const apiMsg = formatApiError(err, t("support_error"));
+        let content = fallback;
+        if (status === 401) {
+          content = `${fallback}\n\n${t("support_session_expired")}`;
+          toast.error(t("support_session_expired"), { duration: 8000 });
+        } else if (!content) {
+          content = `${apiMsg}\n\n${t("support_contact_hint")}`;
+        }
+        setMessages((prev) => [...prev, { role: "assistant", content }]);
+        if (status === 503) toast.error(t("support_unavailable"));
       } finally {
         setLoading(false);
       }
@@ -302,6 +306,13 @@ export default function SupportChat({ open, onClose }) {
                 </button>
               ))}
             </div>
+
+            <p className="shrink-0 px-4 pt-2 text-center text-[11px] text-[#8A8A8E]" data-testid="support-chat-email">
+              {t("support_email_label")}{" "}
+              <a href={SUPPORT_MAILTO} className="text-[#C4B5FD] hover:text-[#E9D5FF] underline underline-offset-2">
+                {SUPPORT_EMAIL}
+              </a>
+            </p>
 
             <form
               className="shrink-0 p-4 pt-2 border-t border-white/[0.08] pb-[max(1rem,env(safe-area-inset-bottom))]"

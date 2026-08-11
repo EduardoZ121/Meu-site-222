@@ -1,6 +1,14 @@
 /** Builds a detailed AI image prompt from the flow canvas nodes + edges.
  *  Includes strong character reference instructions when ref images exist. */
 
+import { buildReferenceSlotPromptSection, sortNodesForRefs } from "../../lib/mangaGenerationRefs";
+import { buildSemanticGraphSection } from "../../lib/mangaFlowSemantics";
+import { buildPagePromptFromFlow, shouldUseGraphPrompt } from "./buildFlowPagePrompt";
+import { shouldUseComicSheetMode } from "../../lib/mangaFlowOrchestrator";
+import { resolveEdgeSemantics } from "../../lib/mangaFlowSemantics";
+import { buildSceneGraphSummary } from "../../lib/mangaFlowGraph";
+import { hiddenPrompt, renderAllHiddenOptionsBlock } from "../../lib/mangaFlowPromptLibrary";
+
 export function buildPromptFromFlow(nodes, edges) {
   if (!nodes.length) return "// No cards on canvas. Add characters, scenarios and objects to generate a prompt.";
 
@@ -11,12 +19,21 @@ export function buildPromptFromFlow(nodes, edges) {
   }
 
   const lines = [];
-  const hasAnyRef = nodes.some(n => n.data?.refImageUrl);
-  const personRefs = (byType.person || []).filter(n => n.data?.refImageUrl);
-  const sceneRefs = (byType.scenario || []).filter(n => n.data?.refImageUrl);
-  const objectRefs = (byType.object || []).filter(n => n.data?.refImageUrl);
+  const hasRef = (n) => Boolean(n.data?.refImageUrl || n.data?.refPersistUrl || n.data?.refImage);
+  const hasAnyRef = nodes.some(hasRef);
+  const personRefs = sortNodesForRefs(byType.person || []).filter(hasRef);
+  const sceneRefs = sortNodesForRefs(byType.scenario || []).filter(hasRef);
+  const objectRefs = sortNodesForRefs(byType.object || []).filter(hasRef);
 
   lines.push("=== MANGA PANEL — AI IMAGE PROMPT ===\n");
+
+  // Scene-graph binding rules go FIRST: the user's connections control everything.
+  if (edges?.length) {
+    const sceneGraphBlock = buildSceneGraphSummary(nodes, edges);
+    if (sceneGraphBlock) {
+      lines.push(sceneGraphBlock);
+    }
+  }
 
   // ── COMPOSITION ──
   if (byType.panel?.length) {
@@ -71,9 +88,15 @@ export function buildPromptFromFlow(nodes, edges) {
       const angle = d.cameraAngle ? d.cameraAngle.replace(/_/g, " ") : "medium shot";
 
       lines.push(`### ${name}`);
+      const poseHidden = hiddenPrompt("pose", d.pose);
+      const emotionHidden = hiddenPrompt("emotion", d.emotion);
+      const camHidden = d.cameraAngle ? hiddenPrompt("person_camera", d.cameraAngle) : "";
       lines.push(`- Body pose: ${pose} (the character MUST be in this exact pose, not just standing)`);
+      if (poseHidden) lines.push(`  ↳ Hidden: ${poseHidden}`);
       lines.push(`- Facial expression: ${emotion}`);
-      lines.push(`- Camera framing: ${angle}`);
+      if (emotionHidden) lines.push(`  ↳ Hidden: ${emotionHidden}`);
+      lines.push(`- Camera framing: ${angle} — NOT a flat front-facing portrait; body turned with the scene.`);
+      if (camHidden) lines.push(`  ↳ Hidden: ${camHidden}`);
       if (d.clothing) lines.push(`- Outfit: ${d.clothing}`);
       if (d.actionDesc) lines.push(`- Action: ${d.actionDesc}`);
       if (d.layer && d.layer !== "midground") lines.push(`- Layer depth: ${d.layer}`);
@@ -152,22 +175,22 @@ export function buildPromptFromFlow(nodes, edges) {
     lines.push("");
   }
 
-  // ── INTERACTIONS ──
-  const interactions = edges.filter((e) => e.data?.prompt);
-  if (interactions.length) {
-    lines.push("## INTERACTIONS / ACTIONS");
-    interactions.forEach((e) => {
-      const src = nodes.find((n) => n.id === e.source);
-      const tgt = nodes.find((n) => n.id === e.target);
-      const srcName = src?.data?.name || src?.data?.text || src?.type || "?";
-      const tgtName = tgt?.data?.name || tgt?.data?.text || tgt?.type || "?";
-      let line = `${srcName} → ${tgtName}: ${e.data.prompt}`;
-      if (e.data.condition?.value) {
-        line += ` [CONDITION: if ${e.data.condition.field} ${e.data.condition.op} "${e.data.condition.value}"]`;
-      }
-      lines.push(line);
-    });
-    lines.push("");
+  if (edges.length) {
+    const semanticBlock = buildSemanticGraphSection(nodes, edges);
+    if (semanticBlock) {
+      lines.push(semanticBlock);
+    } else {
+      lines.push("## GRAPH CONNECTIONS");
+      edges.forEach((e) => {
+        const r = resolveEdgeSemantics(e, nodes);
+        let line = `${r.label} [${r.connectionType}]: ${r.aiInstruction}`;
+        if (e.data?.condition?.value) {
+          line += ` [CONDITION: if ${e.data.condition.field} ${e.data.condition.op} "${e.data.condition.value}"]`;
+        }
+        lines.push(line);
+      });
+      lines.push("");
+    }
   }
 
   // ══ CHARACTER REFERENCE INSTRUCTIONS (CRITICAL FOR AI) ══
@@ -176,10 +199,11 @@ export function buildPromptFromFlow(nodes, edges) {
     lines.push("CRITICAL: The following characters have reference images attached.");
     lines.push("The AI MUST preserve exact identity from the reference:");
     lines.push("");
-    personRefs.forEach((n) => {
+    personRefs.forEach((n, idx) => {
       const d = n.data;
       const name = d.name || "Character";
-      lines.push(`### ${name} — REFERENCE IMAGE PROVIDED`);
+      const slotHint = personRefs.length > 1 ? ` (maps to reference Image ${idx + 1} in API)` : "";
+      lines.push(`### ${name} — REFERENCE IMAGE PROVIDED${slotHint}`);
       lines.push(`- Use the EXACT SAME character from the reference image.`);
       lines.push(`- IDENTICAL face: same facial features, same eye shape, same eye color, same nose, same lips.`);
       lines.push(`- IDENTICAL hairstyle: same hair color, same hair length, same hair style, do NOT change hair.`);
@@ -197,9 +221,10 @@ export function buildPromptFromFlow(nodes, edges) {
   // ── SCENARIO REFERENCE ──
   if (sceneRefs.length) {
     lines.push("## SCENARIO REFERENCE IMAGES");
-    sceneRefs.forEach((n) => {
+    sceneRefs.forEach((n, idx) => {
       const d = n.data;
-      lines.push(`${d.name || "Scenario"}: Use the reference image as strong visual guide.`);
+      const slotHint = sceneRefs.length > 1 ? ` (reference Image ${idx + 1} if sent to API)` : "";
+      lines.push(`${d.name || "Scenario"}${slotHint}: Use the reference image as strong visual guide.`);
       lines.push(`  Match the style, lighting, color palette, architecture and atmosphere from the reference.`);
       if (d.refInstructions) lines.push(`  USER INSTRUCTIONS: ${d.refInstructions}`);
     });
@@ -269,65 +294,118 @@ const LIGHTING_PROMPTS = {
   moonlight: "cool moonlight, blue tones, night atmosphere",
 };
 
-/**
- * Builds the FINAL prompt for AI generation, combining canvas data with generation settings.
- */
-export function buildFinalPrompt(nodes, edges, settings = {}) {
+function appendFinalStyleSections(lines, settings, nodes) {
   const { model, quality, aspect, style, subStyle, detailLevel, lighting, mood, extraInstructions } = settings;
 
-  // Start with the full canvas prompt
-  const canvasPrompt = buildPromptFromFlow(nodes, edges);
-
-  const lines = [];
-
-  // Quality prefix
-  lines.push(QUALITY_PROMPTS[quality] || QUALITY_PROMPTS.high);
-  lines.push("");
-
-  // Add canvas content (without the old style section)
-  const canvasLines = canvasPrompt.split("\n");
-  const styleIdx = canvasLines.findIndex(l => l.startsWith("## STYLE"));
-  const contentLines = styleIdx >= 0 ? canvasLines.slice(0, styleIdx) : canvasLines;
-  lines.push(contentLines.join("\n"));
-
-  // Style section (from generation settings)
   lines.push("");
   lines.push("## STYLE");
   if (STYLE_PROMPTS[style]) lines.push(STYLE_PROMPTS[style] + ".");
+  const styleHidden = hiddenPrompt("gen_style", style);
+  if (styleHidden) lines.push(styleHidden);
   if (SUB_STYLE_PROMPTS[subStyle]) lines.push("Rendering: " + SUB_STYLE_PROMPTS[subStyle] + ".");
   if (detailLevel === "extreme") lines.push("Extremely detailed, every line and texture visible, production-quality artwork.");
   else if (detailLevel === "high") lines.push("Highly detailed artwork, clean professional finish.");
   if (LIGHTING_PROMPTS[lighting]) lines.push("Lighting: " + LIGHTING_PROMPTS[lighting] + ".");
   if (mood) lines.push("Mood: " + mood + " atmosphere.");
-  if (aspect) lines.push("Aspect ratio: " + aspect + ".");
+  if (aspect) {
+    const aspectHidden = hiddenPrompt("aspect", aspect);
+    lines.push("Aspect ratio: " + aspect + ".");
+    if (aspectHidden) lines.push(aspectHidden);
+  }
 
-  // Extra instructions
   if (extraInstructions?.trim()) {
     lines.push("");
     lines.push("## ADDITIONAL INSTRUCTIONS");
     lines.push(extraInstructions.trim());
   }
 
-  // Reference emphasis (if any refs exist)
-  const hasRefs = nodes.some(n => n.data?.refImageUrl);
+  const hasRefs = nodes.some(
+    (n) => n.data?.refImageUrl || n.data?.refPersistUrl || n.data?.refImage,
+  );
   if (hasRefs) {
     lines.push("");
-    lines.push("## ⚠ CRITICAL: CHARACTER/REFERENCE CONSISTENCY");
-    lines.push("All reference images provided MUST be followed strictly.");
-    lines.push("Character faces, bodies, hairstyles and outfits must be IDENTICAL to references.");
-    lines.push("IP-Adapter / character reference weight: MAXIMUM.");
-    lines.push("Do NOT alter, reimagine or change any referenced character's appearance.");
+    lines.push("## CHARACTER REFERENCE CONSISTENCY");
+    lines.push("Preserve exact identity from reference images in every panel; vary pose and camera only.");
   }
 
-  // Model hint
   if (model === "flux") {
     lines.push("");
     lines.push("Optimized for: Flux model (high consistency, detailed output).");
   }
 
-  // Negative (common for all models)
   lines.push("");
-  lines.push("Negative: blurry, low quality, deformed, bad anatomy, extra fingers, duplicate, watermark, signature, text artifacts.");
+  lines.push("Negative: blurry, low quality, deformed, bad anatomy, extra fingers, duplicate panels with identical content, symmetric front-facing portrait pose, watermark, signature.");
+}
 
+/**
+ * Multi-panel page prompt + generation settings.
+ */
+export function buildFinalPagePrompt(nodes, edges, settings = {}) {
+  const { model, quality, aspect, style, pageContext = {}, refSlots } = settings;
+  const pageBody = buildPagePromptFromFlow(nodes, edges, pageContext, refSlots);
+  if (!pageBody) return buildFinalPrompt(nodes, edges, settings);
+
+  const lines = [];
+  lines.push(QUALITY_PROMPTS[quality] || QUALITY_PROMPTS.high);
+  if (shouldUseComicSheetMode(nodes)) {
+    lines.push(
+      "COMIC SHEET MODE: Generate ONE complete manga page with multiple DISTINCT sequential panels in a single image.",
+    );
+    lines.push("Each panel must show different action, pose and framing — never duplicate the same shot.");
+  } else {
+    lines.push("Professional multi-panel manga page, print-ready, distinct story beats per frame.");
+  }
+  lines.push("");
+
+  if (refSlots?.length) {
+    const slotSection = buildReferenceSlotPromptSection(refSlots);
+    if (slotSection) lines.push(slotSection);
+  }
+
+  lines.push(pageBody);
+  appendFinalStyleSections(lines, settings, nodes);
+  return lines.join("\n");
+}
+
+export function countPanelNodes(nodes) {
+  return (nodes || []).filter((n) => n.type === "panel").length;
+}
+
+/**
+ * Builds the FINAL prompt for AI generation, combining canvas data with generation settings.
+ */
+export function buildFinalPrompt(nodes, edges, settings = {}) {
+  const { model, quality, aspect, style, subStyle, detailLevel, lighting, mood, extraInstructions, refSlots, pageContext = {} } = settings;
+
+  const lines = [];
+  lines.push(QUALITY_PROMPTS[quality] || QUALITY_PROMPTS.high);
+  lines.push("");
+
+  // Wizard context binds chip selections + AI-generated story at the top of every prompt.
+  if (pageContext?.wizardContext?.hiddenDirective) {
+    lines.push("## WIZARD CONTEXT (binding directives from Create-with-AI)");
+    lines.push(pageContext.wizardContext.hiddenDirective);
+    lines.push("");
+  }
+
+  if (refSlots?.length) {
+    const slotSection = buildReferenceSlotPromptSection(refSlots);
+    if (slotSection) lines.push(slotSection);
+  }
+
+  if (shouldUseGraphPrompt(nodes, edges)) {
+    const graphBody = buildPagePromptFromFlow(nodes, edges, pageContext, refSlots);
+    if (graphBody) lines.push(graphBody);
+  } else {
+    const canvasPrompt = buildPromptFromFlow(nodes, edges);
+    const canvasLines = canvasPrompt.split("\n");
+    const styleIdx = canvasLines.findIndex((l) => l.startsWith("## STYLE"));
+    const contentLines = styleIdx >= 0 ? canvasLines.slice(0, styleIdx) : canvasLines;
+    lines.push(contentLines.join("\n"));
+  }
+
+  appendFinalStyleSections(lines, settings, nodes);
+  const hiddenOpts = renderAllHiddenOptionsBlock(nodes);
+  if (hiddenOpts) lines.push(hiddenOpts);
   return lines.join("\n");
 }

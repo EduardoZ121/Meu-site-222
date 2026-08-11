@@ -1,15 +1,17 @@
-/** URLs e textos padrão para Open Graph / Twitter Cards (partilhas em redes sociais). */
-export const SITE_ORIGIN = "https://remakepix.com";
+/** URLs and default Open Graph / SEO (English — primary for indexing). */
+import { SEO_HOME, SITE_NAME, SITE_ORIGIN } from "./seoEn";
+
+export { SITE_ORIGIN };
 
 export const DEFAULT_OG = {
-  title: "Remake Pixel — Estúdio AI de imagem e vídeo",
-  description:
-    "Gera, edita e cria imagens com IA. 96 estilos, pôsteres profissionais, vídeo e ferramentas Pro — créditos simples, sem mensalidade obrigatória.",
+  title: SEO_HOME.title,
+  description: SEO_HOME.description,
+  keywords: SEO_HOME.keywords,
   image: `${SITE_ORIGIN}/og-image.jpg`,
   imageWidth: "1200",
   imageHeight: "630",
-  locale: "pt_PT",
-  siteName: "Remake Pixel",
+  locale: "en_US",
+  siteName: SITE_NAME,
 };
 
 export function absoluteUrl(pathname = "/") {

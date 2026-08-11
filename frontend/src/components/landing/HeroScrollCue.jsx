@@ -1,7 +1,10 @@
+import { motion, useReducedMotion } from "framer-motion";
+import { ChevronDown } from "lucide-react";
 import { useI18n } from "../../lib/i18n";
 
 export default function HeroScrollCue() {
   const { t } = useI18n();
+  const reduceMotion = useReducedMotion();
 
   const scrollDown = () => {
     const next = document.getElementById("home-next");
@@ -20,15 +23,18 @@ export default function HeroScrollCue() {
       aria-label={t("hero_scroll")}
       data-testid="hero-scroll-cue"
     >
-      <span className="hero-scroll-cue__ring" aria-hidden />
-      <span className="hero-scroll-cue__line" aria-hidden>
-        <span className="hero-scroll-cue__pulse" />
-      </span>
-      <span className="hero-scroll-cue__chevrons" aria-hidden>
-        <span />
-        <span />
-        <span />
-      </span>
+      <motion.span
+        className="hero-scroll-cue__icon"
+        animate={reduceMotion ? undefined : { y: [0, 5, 0] }}
+        transition={
+          reduceMotion
+            ? undefined
+            : { duration: 1.5, repeat: Infinity, ease: "easeInOut" }
+        }
+        aria-hidden
+      >
+        <ChevronDown className="w-5 h-5" strokeWidth={1.75} />
+      </motion.span>
       <span className="hero-scroll-cue__label">{t("hero_scroll")}</span>
     </button>
   );

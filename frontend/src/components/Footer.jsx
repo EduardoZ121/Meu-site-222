@@ -1,5 +1,6 @@
 import { useI18n } from "../lib/i18n";
 import { Link } from "react-router-dom";
+import { SUPPORT_EMAIL, SUPPORT_MAILTO } from "../lib/supportEmail";
 
 export default function Footer() {
   const { t } = useI18n();
@@ -9,8 +10,6 @@ export default function Footer() {
         <div className="flex items-center justify-center mb-8">
           <Link to="/" className="flex items-center gap-2.5" data-testid="footer-logo">
             <span className="font-heading italic text-[22px] text-rp-text">Remake</span>
-            <span className="w-[3px] h-[3px] bg-rp-purple rounded-full" />
-            <span className="font-mono text-[10px] uppercase tracking-[0.25em] text-rp-mute">Pixel</span>
           </Link>
         </div>
         <div className="flex flex-wrap items-center justify-center gap-6 mb-8">
@@ -28,8 +27,9 @@ export default function Footer() {
             </Link>
           ))}
           <a href="https://instagram.com/remake_pix" target="_blank" rel="noreferrer" className="text-rp-mute2 hover:text-rp-lavender text-[10px] font-mono uppercase tracking-[0.2em]">@remake_pix</a>
+          <a href={SUPPORT_MAILTO} className="text-rp-mute2 hover:text-rp-lavender text-[10px] font-mono uppercase tracking-[0.2em]" data-testid="footer-support-email">{SUPPORT_EMAIL}</a>
         </div>
-        <p className="text-center text-rp-mute2 text-[10px] font-mono tracking-wider">© 2026 Remake Pixel. {t("footer_rights")}</p>
+        <p className="text-center text-rp-mute2 text-[10px] font-mono tracking-wider">© 2026 Remake. {t("footer_rights")}</p>
       </div>
     </footer>
   );

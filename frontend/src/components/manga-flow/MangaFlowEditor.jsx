@@ -12,6 +12,7 @@ import {
   Download, Upload, BarChart3, Search, Keyboard, Sparkles,
 } from "lucide-react";
 import PersonNode from "./nodes/PersonNode";
+import SupportNode from "./nodes/SupportNode";
 import ScenarioNode from "./nodes/ScenarioNode";
 import ObjectNode from "./nodes/ObjectNode";
 import SpeechNode from "./nodes/SpeechNode";
@@ -20,6 +21,7 @@ import CameraNode from "./nodes/CameraNode";
 import PanelNode from "./nodes/PanelNode";
 import NodeInspector from "./NodeInspector";
 import ConnectionPromptModal from "./ConnectionPromptModal";
+import { buildEdgeSemanticData, enrichEdgesSemantics } from "../../lib/mangaFlowSemantics";
 import AddNodeMenu from "./AddNodeMenu";
 import TutorialOverlay from "./TutorialOverlay";
 import TemplatesModal from "./TemplatesModal";
@@ -38,7 +40,7 @@ import { buildPromptFromFlow } from "./buildFlowPrompt";
 import { toast } from "sonner";
 
 const nodeTypes = {
-  person: PersonNode, scenario: ScenarioNode, object: ObjectNode,
+  person: PersonNode, support: SupportNode, scenario: ScenarioNode, object: ObjectNode,
   speech: SpeechNode, effect: EffectNode, camera: CameraNode, panel: PanelNode,
 };
 
@@ -96,6 +98,31 @@ export default function MangaFlowEditor() {
   const pages = useMemo(() => project?.pages || [], [project?.pages]);
   const activePage = pages.find((p) => p.id === activePageId) || pages[0] || null;
   const activePageIndex = pages.findIndex((p) => p.id === activePageId);
+  const showMiniMap = nodes.length <= 45;
+  const pagesForGeneration = useMemo(() => (
+    pages.map((pg) => (pg.id === activePageId ? { ...pg, nodes, edges } : pg))
+  ), [pages, activePageId, nodes, edges]);
+
+  const generationPageContexts = useMemo(() => pagesForGeneration.map((pg, index) => {
+    const meta = project?.storyMeta;
+    const prior = pagesForGeneration
+      .slice(0, Math.max(0, index))
+      .map((priorPage, i) => `Page ${i + 1} (${priorPage.name}): ${priorPage.pageBeat || priorPage.name}`)
+      .join("; ");
+    return {
+      pageName: pg?.name,
+      pageBeat: pg?.pageBeat,
+      storySynopsis: [meta?.synopsis, meta?.storyPrompt].filter(Boolean).join(" ").trim(),
+      priorPagesSummary: prior || undefined,
+      wizardContext: project?.wizardContext || null,
+      totalPages: pagesForGeneration.length || 1,
+      activePageNumber: index + 1,
+      continuityIn: pg?.continuityIn,
+      continuityOut: pg?.continuityOut,
+      storyRole: pg?.storyRole,
+    };
+  }), [project?.storyMeta, project?.wizardContext, pagesForGeneration]);
+  const generationPageContext = generationPageContexts[Math.max(0, activePageIndex)] || generationPageContexts[0] || {};
 
   /* ---- History ---- */
   const pushHistory = useCallback(() => {
@@ -150,14 +177,36 @@ export default function MangaFlowEditor() {
     if (!localStorage.getItem("manga_flow_tutorial_done")) setShowTutorial(true);
   }, [setNodes, setEdges]);
 
+  /* Backfill semantic prompts on edges (old projects + after load). */
+  useEffect(() => {
+    if (!nodes.length) return;
+    setEdges((eds) => {
+      if (!eds.length) return eds;
+      const next = enrichEdgesSemantics(eds, nodes);
+      return next.some((e, i) => e !== eds[i]) ? next : eds;
+    });
+  }, [nodes, setEdges]);
+
   /* ---- Auto-save ---- */
   useEffect(() => {
     const timer = setTimeout(() => {
-      const updated = savePageState();
-      if (updated) { setProject(updated); saveFlowProject(updated); }
+      setProject((current) => {
+        if (!current || !activePageId) return current;
+        const currentPage = (current.pages || []).find((pg) => pg.id === activePageId);
+        if (currentPage?.nodes === nodes && currentPage?.edges === edges) return current;
+        const updated = {
+          ...current,
+          pages: (current.pages || []).map((pg) =>
+            pg.id === activePageId ? { ...pg, nodes, edges } : pg,
+          ),
+          activePageId,
+        };
+        saveFlowProject(updated);
+        return updated;
+      });
     }, 1500);
     return () => clearTimeout(timer);
-  }, [nodes, edges, savePageState]);
+  }, [nodes, edges, activePageId]);
 
   /* ---- Close dropdown on outside click ---- */
   useEffect(() => {
@@ -247,15 +296,28 @@ export default function MangaFlowEditor() {
   /* ---- Connections ---- */
   const onConnect = useCallback((params) => { pushHistory(); setPendingConnection(params); }, [pushHistory]);
 
-  const confirmConnection = useCallback((prompt, condition) => {
-    const labelText = prompt ? (prompt.length > 30 ? prompt.slice(0, 28) + "…" : prompt) : "";
+  const confirmConnection = useCallback((prompt, condition, relationType) => {
+    const srcNode = editingEdge?._srcNode || nodes.find((n) => n.id === pendingConnection?.source);
+    const tgtNode = editingEdge?._tgtNode || nodes.find((n) => n.id === pendingConnection?.target);
+    const semanticFields =
+      srcNode && tgtNode
+        ? buildEdgeSemanticData(srcNode, tgtNode, prompt || "", relationType || null)
+        : {};
+    const labelText = prompt
+      ? (prompt.length > 30 ? prompt.slice(0, 28) + "…" : prompt)
+      : semanticFields.connectionType?.replace("→", "→").slice(0, 12) || "link";
     const condLabel = condition?.value ? ` [if ${condition.field} ${condition.op} ${condition.value}]` : "";
-    const fullLabel = (labelText + condLabel).slice(0, 40) || "";
+    const fullLabel = (labelText + condLabel).slice(0, 40) || semanticFields.connectionType || "link";
+    const edgeData = {
+      prompt: prompt || "",
+      condition: condition || null,
+      ...semanticFields,
+    };
     if (editingEdge) {
       setEdges((eds) => eds.map((e) => e.id === editingEdge.id ? {
-        ...e, data: { ...e.data, prompt: prompt || "", condition: condition || null },
+        ...e, data: { ...e.data, ...edgeData },
         label: fullLabel,
-        labelStyle: { fill: condition?.value ? "#FDE68A" : "#C4B5FD", fontSize: 11, fontFamily: "'Inter Tight', sans-serif" },
+        labelStyle: { fill: condition?.value ? "#FDE68A" : "#C4B5FD", fontSize: 11, fontFamily: "var(--font-display)" },
         labelBgStyle: { fill: "#111118", fillOpacity: 0.92 }, labelBgPadding: [6, 4], labelBgBorderRadius: 6,
       } : e));
       setEditingEdge(null); return;
@@ -264,13 +326,13 @@ export default function MangaFlowEditor() {
     const edge = {
       ...pendingConnection,
       id: `e_${pendingConnection.source}_${pendingConnection.target}_${Date.now()}`,
-      data: { prompt: prompt || "", condition: condition || null },
+      data: edgeData,
       label: fullLabel,
-      labelStyle: { fill: condition?.value ? "#FDE68A" : "#C4B5FD", fontSize: 11, fontFamily: "'Inter Tight', sans-serif" },
+      labelStyle: { fill: condition?.value ? "#FDE68A" : "#C4B5FD", fontSize: 11, fontFamily: "var(--font-display)" },
       labelBgStyle: { fill: "#111118", fillOpacity: 0.92 }, labelBgPadding: [6, 4], labelBgBorderRadius: 6,
     };
     setEdges((eds) => addEdge(edge, eds)); setPendingConnection(null);
-  }, [pendingConnection, editingEdge, setEdges]);
+  }, [pendingConnection, editingEdge, setEdges, nodes]);
 
   const onEdgeClick = useCallback((_, edge) => {
     setEditingEdge({ ...edge, _srcNode: nodes.find((n) => n.id === edge.source), _tgtNode: nodes.find((n) => n.id === edge.target) });
@@ -433,6 +495,8 @@ export default function MangaFlowEditor() {
       ...project,
       pages: result.pages,
       activePageId: result.pages[0].id,
+      storyMeta: result.storyMeta || project?.storyMeta,
+      wizardContext: result.wizardContext || project?.wizardContext || null,
     };
     setProject(newProject);
     setActivePageId(result.pages[0].id);
@@ -443,6 +507,23 @@ export default function MangaFlowEditor() {
     saveFlowProject(newProject);
     setShowAIWizard(false);
   }, [project, setNodes, setEdges, pushHistory]);
+
+  const handlePageGenerationResults = useCallback((results) => {
+    if (!results?.length) return;
+    setProject((current) => {
+      if (!current?.pages?.length) return current;
+      const byPageId = new Map(results.map((item) => [item.pageId, item]));
+      const next = {
+        ...current,
+        pages: current.pages.map((pg) => {
+          const item = byPageId.get(pg.id);
+          return item ? { ...pg, generatedImageUrl: item.url, generatedAt: Date.now() } : pg;
+        }),
+      };
+      saveFlowProject(next);
+      return next;
+    });
+  }, []);
 
 
   /* ---- Fullscreen ---- */
@@ -520,14 +601,17 @@ export default function MangaFlowEditor() {
         <div className="flex items-center gap-3 min-w-0">
           <div className="w-8 h-8 rounded-lg bg-[#9333EA]/20 border border-[#9333EA]/40 flex items-center justify-center text-sm shrink-0">🎌</div>
           <div className="min-w-0">
-            <p className="text-[13px] text-[#F5F5F7] font-semibold font-['Inter_Tight'] truncate">{projectName}</p>
+            <p className="text-[13px] text-[#F5F5F7] font-semibold font-display truncate">{projectName}</p>
             <p className="text-[10px] text-[#5A5A5E] font-mono uppercase tracking-wider">Manga Flow Studio</p>
           </div>
         </div>
         {!zenMode && (
-        <div className="flex items-center gap-1 flex-wrap">
+        <div className="manga-flow-toolbar">
           <button onClick={() => setShowAddMenu(true)} className="manga-flow-btn manga-flow-btn-primary" data-testid="manga-flow-add-btn"><Plus className="w-4 h-4" /> Add</button>
-          <button onClick={() => setShowGeneration(true)} className="mfg-trigger-btn" data-testid="manga-flow-generate-page"><Wand2 className="w-4 h-4" /> Generate Page</button>
+          <button onClick={() => setShowGeneration(true)} className="mfg-trigger-btn" data-testid="manga-flow-generate-page">
+            <Wand2 className="w-4 h-4" />
+            {nodes.filter((n) => n.type === "panel").length >= 2 ? "Comic Sheet" : "Generate"}
+          </button>
           <button onClick={() => setShowAIWizard(true)} className="aiw-trigger-btn" data-testid="manga-flow-ai-wizard"><Sparkles className="w-4 h-4" /> Create with AI</button>
           <button onClick={autoArrange} className="manga-flow-btn" title="Auto Arrange"><LayoutGrid className="w-4 h-4" /></button>
           <button onClick={generatePrompt} className="manga-flow-btn manga-flow-btn-prompt" title="Generate AI Prompt"><Wand2 className="w-4 h-4" /></button>
@@ -621,7 +705,7 @@ export default function MangaFlowEditor() {
           >
             <Background color="#1a1a2e" gap={20} size={1} />
             <Controls className="manga-flow-controls" showInteractive={false} />
-            <MiniMap nodeColor={(n) => NODE_COLORS[n.type]?.border || "#666"} maskColor="rgba(10,10,15,0.85)" className="manga-flow-minimap" />
+            {showMiniMap && <MiniMap nodeColor={(n) => NODE_COLORS[n.type]?.border || "#666"} maskColor="rgba(10,10,15,0.85)" className="manga-flow-minimap" />}
             <Panel position="bottom-center" className="manga-flow-hint-panel">
               <p className="text-[11px] text-[#5A5A5E] font-mono">{activePage?.name} • {nodes.length} cards • {edges.length} links</p>
             </Panel>
@@ -644,6 +728,7 @@ export default function MangaFlowEditor() {
           target={editingEdge ? editingEdge._tgtNode : nodes.find((n) => n.id === pendingConnection.target)}
           initialPrompt={editingEdge?.data?.prompt || ""}
           initialCondition={editingEdge?.data?.condition || null}
+          initialRelationType={editingEdge?.data?.relationType || "talking_to"}
           isEditing={Boolean(editingEdge)}
           onConfirm={confirmConnection} onCancel={cancelConnectionModal} />
       )}
@@ -712,7 +797,18 @@ export default function MangaFlowEditor() {
       {showStats && <StatsPanel nodes={nodes} edges={edges} pages={pages.length} onClose={() => setShowStats(false)} />}
 
       {/* Generation Modal */}
-      {showGeneration && <GenerationModal nodes={nodes} edges={edges} onClose={() => setShowGeneration(false)} />}
+      {showGeneration && (
+        <GenerationModal
+          nodes={nodes}
+          edges={edges}
+          pages={pagesForGeneration}
+          pageContexts={generationPageContexts}
+          activePageIndex={Math.max(0, activePageIndex)}
+          pageContext={generationPageContext}
+          onPageResults={handlePageGenerationResults}
+          onClose={() => setShowGeneration(false)}
+        />
+      )}
 
       {/* AI Wizard */}
       {showAIWizard && <AIWizardModal onGenerate={handleWizardResult} onClose={() => setShowAIWizard(false)} />}

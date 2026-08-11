@@ -2,65 +2,65 @@ import {
   ARTISTIC_STUDIO_STYLES,
   ARTISTIC_EFFECT_SECTIONS,
 } from "./artisticStudioData";
-import { buildAiLabEditPrompt, buildPhotographyEditPrompt } from "./artisticLabPrompt";
+import {
+  isStylizedArtCategory,
+  resolveArtisticStyleSuffix,
+} from "./artisticStyleSuffixes";
 
 export function getStyleById(styleId) {
   return ARTISTIC_STUDIO_STYLES.find((s) => s.id === styleId) || null;
 }
 
+const PHOTO_IDENTITY =
+  "Edit the reference photo. Keep the exact same person: same face, bone structure, skin tone, apparent age, expression, hair, and body. "
+  + "Do not make them look older, younger, or like a different person.";
+
+const STYLIZE_FROM_PHOTO =
+  "Fully convert the entire image into the art style below—not a subtle photo filter or light retouch. "
+  + "The result must clearly look like the chosen medium (anime, cartoon, painting, etc.) "
+  + "while keeping the same recognizable person, face, and apparent age.";
+
+const TEXT_SCENE =
+  "Generate a single coherent image in the visual style below. Match the medium and aesthetics exactly.";
+
 export function buildArtisticStudioPrompt({
   userPrompt = "",
   styleId = null,
-  styleCat = null,
   effects = {},
   imageMode = false,
 }) {
-  const parts = [];
   const trimmed = String(userPrompt || "").trim();
-
   const style = getStyleById(styleId);
+  const styleSuffix = resolveArtisticStyleSuffix(style);
 
-  if (style?.cat === "nsfw") {
-    return buildAiLabEditPrompt({
-      userPrompt: trimmed,
-      styleSuffix: style?.suffix || "",
-    });
-  }
-
-  const effectParts = collectEffectPromptParts(effects);
-
-  const isPhotography =
-    style?.cat === "photography" || styleCat === "photography";
-
-  if (isPhotography && imageMode) {
-    return buildPhotographyEditPrompt({
-      userPrompt: trimmed,
-      styleSuffix: style?.suffix || "",
-      extras: effectParts,
-    });
-  }
+  const parts = [];
 
   if (imageMode) {
     parts.push(
-      "Edit and transform the provided reference image. Preserve the subject identity, face, and overall composition unless the edit explicitly requires change.",
+      isStylizedArtCategory(style?.cat) ? STYLIZE_FROM_PHOTO : PHOTO_IDENTITY,
     );
+  } else {
+    parts.push(TEXT_SCENE);
   }
 
   if (trimmed) parts.push(trimmed);
-  if (style?.labPreset) {
-    parts.push(
-      imageMode
-        ? "Rapid image edit: transform the reference photo while preserving identity, face, pose and framing."
-        : "Experimental diffusion rendering with editorial finish.",
-    );
+
+  if (styleSuffix) {
+    parts.push(`Style: ${styleSuffix}`);
   }
-  if (style?.suffix) parts.push(style.suffix);
 
-  parts.push(...effectParts);
-
-  parts.push(
-    "Ultra high quality, professional art direction, cohesive visual recipe, 8K detail where applicable.",
-  );
+  for (const section of ARTISTIC_EFFECT_SECTIONS) {
+    const value = effects[section.id];
+    if (section.type === "radio" && value) {
+      const opt = section.options.find((o) => o.id === value);
+      if (opt?.prompt) parts.push(opt.prompt);
+    }
+    if (section.type === "checkbox" && value && typeof value === "object") {
+      for (const opt of section.options) {
+        if (value[opt.id] && opt.prompt) parts.push(opt.prompt);
+      }
+    }
+  }
 
   return parts.filter(Boolean).join(". ").replace(/\.\s*\./g, ".");
 }
@@ -83,23 +83,6 @@ export function buildRecipeChips({ styleId, effects = {} }) {
     }
   }
   return chips;
-}
-
-function collectEffectPromptParts(effects = {}) {
-  const effectParts = [];
-  for (const section of ARTISTIC_EFFECT_SECTIONS) {
-    const value = effects[section.id];
-    if (section.type === "radio" && value) {
-      const opt = section.options.find((o) => o.id === value);
-      if (opt?.prompt) effectParts.push(opt.prompt);
-    }
-    if (section.type === "checkbox" && value && typeof value === "object") {
-      for (const opt of section.options) {
-        if (value[opt.id] && opt.prompt) effectParts.push(opt.prompt);
-      }
-    }
-  }
-  return effectParts;
 }
 
 function sectionEmoji(sectionId) {

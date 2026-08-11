@@ -11,8 +11,8 @@ export default function ToolsGridCard({ tool, index, region, t, compact = false 
   const isFree = tool.cost <= 0;
 
   const linkClass = compact
-    ? "group relative flex h-full flex-col overflow-hidden rounded-xl border border-[rgba(147,51,234,0.2)] bg-[#13131A] shadow-md transition-all duration-300 hover:-translate-y-0.5 hover:border-[#A855F7]/45 hover:shadow-[0_12px_32px_-14px_rgba(124,58,237,0.4)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500/50"
-    : "group relative flex h-full flex-col overflow-hidden rounded-2xl border border-white/[0.07] bg-white/[0.03] shadow-[0_1px_0_rgba(255,255,255,0.06)_inset,0_24px_48px_-32px_rgba(0,0,0,0.85)] backdrop-blur-xl transition-[transform,box-shadow,border-color] duration-500 ease-out hover:scale-[1.02] hover:border-violet-400/35 hover:shadow-[0_0_0_1px_rgba(168,85,247,0.12),0_28px_60px_-24px_rgba(124,58,237,0.55),0_0_80px_-20px_rgba(59,130,246,0.15)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500/50 focus-visible:ring-offset-2 focus-visible:ring-offset-[#08080c]";
+    ? "rp-glass-card rp-glass-card--compact group relative flex h-full flex-col transition-transform duration-300 hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500/50"
+    : "rp-glass-card rp-glass-card--roomy group relative flex h-full flex-col hover:scale-[1.01] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500/50 focus-visible:ring-offset-2 focus-visible:ring-offset-[#08080c]";
 
   return (
     <motion.article
@@ -30,31 +30,14 @@ export default function ToolsGridCard({ tool, index, region, t, compact = false 
         className={linkClass}
         data-testid={`tool-${tool.id}`}
       >
-        <div
-          className="pointer-events-none absolute -inset-px rounded-2xl opacity-0 transition-opacity duration-500 group-hover:opacity-100"
-          aria-hidden
-          style={{
-            background:
-              "linear-gradient(135deg, rgba(168,85,247,0.22) 0%, transparent 42%, rgba(59,130,246,0.12) 100%)",
-          }}
-        />
-
-        <div className={`relative overflow-hidden bg-[#0a0a0f] ${compact ? "aspect-[16/10]" : "aspect-[16/10]"}`}>
+        <div className={`rp-glass-card__media ${compact ? "aspect-[16/10]" : "aspect-[16/10]"}`}>
           <motion.div
             className={`absolute inset-0 transition-transform duration-700 ease-out ${compact ? "group-hover:scale-[1.03]" : "group-hover:scale-[1.06]"}`}
           >
             <ToolThumb id={tool.id} name={tool.name} variant={compact ? "default" : "premium"} />
           </motion.div>
 
-          <div
-            className="absolute inset-0 bg-gradient-to-t from-[#08080c] via-[#08080c]/40 to-transparent opacity-90 z-[1]"
-            aria-hidden
-          />
-          <div
-            className="absolute inset-0 bg-gradient-to-br from-violet-600/10 via-transparent to-blue-600/5 opacity-0 transition-opacity duration-500 group-hover:opacity-100 z-[1]"
-            aria-hidden
-          />
-
+          <div className="rp-glass-card__media-shade" aria-hidden />
           <div className="absolute top-3 left-3 z-[2] flex flex-wrap gap-1.5">
             {tool.isNew && (
               <span className="rp-badge-pulse inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-semibold uppercase tracking-wider text-white bg-gradient-to-r from-violet-600 to-violet-500 border border-white/20 shadow-[0_0_20px_-4px_rgba(168,85,247,0.8)]">
@@ -74,10 +57,10 @@ export default function ToolsGridCard({ tool, index, region, t, compact = false 
                 {t("label_free")}
               </span>
             ) : (
-              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold tabular-nums text-violet-100 bg-violet-500/20 border border-violet-400/30 backdrop-blur-md shadow-[0_0_24px_-8px_rgba(168,85,247,0.5)]">
-                <Sparkles className="w-3 h-3 text-violet-300" strokeWidth={2} />
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold tabular-nums text-[#f4e8d4] bg-[#c7a77a]/15 border border-[#c7a77a]/35 backdrop-blur-md">
+                <Sparkles className="w-3 h-3 text-[#c7a77a]" strokeWidth={2} />
                 {cost}
-                <span className="text-violet-300/80 font-medium">{t("label_credits_short")}</span>
+                <span className="text-[#c7a77a]/90 font-medium">{t("label_credits_short")}</span>
               </span>
             )}
           </div>
@@ -87,7 +70,7 @@ export default function ToolsGridCard({ tool, index, region, t, compact = false 
           </span>
         </div>
 
-        <div className={`relative flex flex-1 flex-col border-t border-white/[0.05] ${compact ? "gap-1 p-2.5 sm:p-3" : "gap-2 p-4 sm:p-5"}`}>
+        <div className={`rp-glass-card__body ${compact ? "gap-1 p-2.5 sm:p-3" : "gap-2 p-4 sm:p-5"}`}>
           <h3 className={`font-semibold text-white leading-snug font-['Inter_Tight'] group-hover:text-violet-50 transition-colors duration-300 line-clamp-1 ${compact ? "text-sm" : "text-[17px] sm:text-[18px] tracking-[-0.02em] line-clamp-2"}`}>
             {tool.name}
           </h3>
@@ -100,7 +83,7 @@ export default function ToolsGridCard({ tool, index, region, t, compact = false 
             <span
               className={`font-mono tracking-wider ${
                 compact ? "text-[10px]" : "text-[11px] uppercase tracking-[0.14em]"
-              } ${isFree ? "text-emerald-400/90" : "text-violet-400/90"}`}
+              } ${isFree ? "rp-type-value--free" : "rp-type-value"}`}
             >
               {isFree ? t("label_free") : `${cost} ${compact ? t("label_credits_short") : t("label_credits")}`}
             </span>

@@ -46,13 +46,6 @@ export const DISCOVER_SHOWCASE = [
     tagKeys: ["showcase_wizard_tag1", "showcase_wizard_tag2", "showcase_wizard_tag3"],
   },
   {
-    id: "manga",
-    image: "/images/discover/manga.jpg?v=2",
-    imageRight: true,
-    anim: "parallax-slide",
-    tagKeys: ["showcase_manga_tag1", "showcase_manga_tag2", "showcase_manga_tag3"],
-  },
-  {
     id: "tools",
     image: "/images/discover/tools.jpg?v=2",
     imageRight: false,

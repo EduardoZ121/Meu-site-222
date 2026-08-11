@@ -259,6 +259,7 @@ export default function MangaLibrarySidebar({
               emptyLabel={t("manga_upload_pose")}
               emptyHint={t("upload_empty_hint")}
               enableRemotePersist={false}
+              prepareOnPick
               compressOptions={{ maxSize: 800, maxBytes: 1.5 * 1024 * 1024 }}
             />
           </div>

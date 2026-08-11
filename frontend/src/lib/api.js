@@ -1,13 +1,28 @@
 import axios from "axios";
 
+import {
+  invalidateBlobUploadCache,
+  isBlobUploadEnabled,
+  uploadImageToCloud,
+  uploadVideoToCloud,
+} from "./blobUploadClient";
 import { formatHttpError } from "./uploadErrors";
 import { isBrowserOnlineFlag } from "./uploadReachability";
 import { normalizeCreation } from "./creationUrls";
-import { notifyCreditsUpdate, notifyGenerationComplete } from "./notifyUser";
+import { warmGalleryAfterSuccess, writeGalleryCache, mergeCreationIntoList, prefetchGalleryHistory } from "./galleryCache";
+import { notifyCreditsUpdate, notifyGenerationComplete, notifyGenerationFailed } from "./notifyUser";
+import { isProductionHost, isRemakeSiteHost } from "./canonicalOrigin";
 
 /** Evita mixed content: página em https + backend em http → o browser bloqueia e parece "Network Error". */
 function resolveBaseUrl() {
+  if (typeof window !== "undefined") {
+    const host = window.location.hostname || "";
+    // remakepix.com + URLs Vercel do projeto → API local (/api), nunca Emergent.
+    if (isRemakeSiteHost(host)) return "";
+  }
+
   const raw = String(process.env.REACT_APP_BACKEND_URL || "").trim().replace(/\/$/, "");
+  if (/emergentagent\.com/i.test(raw)) return "";
   if (
     typeof window !== "undefined"
     && window.location?.protocol === "https:"
@@ -36,7 +51,7 @@ export function formatApiError(err, fallback = "Falhou.", opts) {
 
 export const api = axios.create({
   baseURL: API,
-  timeout: 180000, // 3 min — image generation can take 30–90s
+  timeout: 300000, // Vercel Pro — gerações longas (GPT/vídeo) até ~13 min
 });
 
 function pricingRegionHeaderValue() {
@@ -107,7 +122,7 @@ export {
   isBlobUploadEnabled,
   uploadImageToCloud,
   uploadVideoToCloud,
-} from "./blobUploadClient";
+};
 
 /**
  * Multipart POST com várias tentativas. Usa XMLHttpRequest no browser (melhor em
@@ -134,6 +149,8 @@ export async function uploadPost(url, formData, config = {}) {
     const { prepareStudioFormDataForSubmit } = await import("./studioUpload/prepareSubmit");
     baseFd = await prepareStudioFormDataForSubmit(cloneFormData(formData), {
       emergencyCompress,
+      skipBlobOffload: config.skipBlobOffload,
+      blobOffloadTimeoutMs: config.blobOffloadTimeoutMs,
     });
   }
 
@@ -180,7 +197,7 @@ export async function uploadPost(url, formData, config = {}) {
       xhr.onerror = () => {
         const err = new Error(
           isBrowserOnlineFlag()
-            ? "Falha ao enviar o ficheiro. Recarrega (Ctrl+F5) e tenta outra vez."
+            ? "Falha ao enviar. Verifica a rede e tenta outra vez."
             : "Sem ligação à rede. Verifica Wi‑Fi ou dados móveis.",
         );
         err.code = "ERR_NETWORK";
@@ -196,6 +213,14 @@ export async function uploadPost(url, formData, config = {}) {
   }
 
   for (let i = 0; i < attempts; i += 1) {
+    if (typeof window !== "undefined" && i > 0) {
+      const { prepareStudioFormDataForSubmit } = await import("./studioUpload/prepareSubmit");
+      baseFd = await prepareStudioFormDataForSubmit(cloneFormData(formData), {
+        emergencyCompress,
+        skipBlobOffload: config.skipBlobOffload,
+        blobOffloadTimeoutMs: config.blobOffloadTimeoutMs,
+      });
+    }
     const body = cloneFormData(baseFd);
     try {
       if (useXhr) {
@@ -278,47 +303,61 @@ export async function uploadPost(url, formData, config = {}) {
   throw lastErr;
 }
 
+function headerHasSkipAutoPoll(headers) {
+  if (!headers) return false;
+  try {
+    if (typeof headers.get === "function") {
+      const v = headers.get("X-Skip-Auto-Poll") ?? headers.get("x-skip-auto-poll");
+      return v != null && String(v).trim().length > 0;
+    }
+  } catch { /* ignore */ }
+  const v = headers["X-Skip-Auto-Poll"] ?? headers["x-skip-auto-poll"];
+  return v != null && String(v).trim().length > 0;
+}
+
 api.interceptors.response.use(
   async (r) => {
     const urlStr = String(r.config?.url || "");
-    // Carousel routes must keep synchronous polling (multi-step flow needs
-    // the result URL inline to split the panorama into slides).
-    const isMultiStep = /\/generate\/carousel/.test(urlStr);
+    const isCarousel = /\/generate\/carousel/.test(urlStr);
+    const isVideoRoute = /\/generate\/video(-edit)?/.test(urlStr);
+    const skipAutoPoll = headerHasSkipAutoPoll(r.config?.headers);
     if (
       r?.data?.prediction_id &&
-      !r.config?.headers?.["X-Skip-Auto-Poll"] &&
+      !skipAutoPoll &&
       !urlStr.startsWith("/predictions/") &&
-      !isMultiStep
+      !isCarousel
     ) {
-      // Background mode: track the job and notify the user. The global
-      // watcher (startPendingPredictionsWatcher) handles completion via
-      // notifications + bell sound + gallery. The response is returned as
-      // `{ ...originalData, deferred: true }` so callers can detect that no
-      // synchronous `creation` will be present.
       if (r.data.credits_spent) {
         localStorage.setItem(`rp_prediction_${r.data.prediction_id}`, JSON.stringify({
           credits_spent: r.data.credits_spent,
-          type: r.data.type || "image",
+          type: r.data.type || (isVideoRoute ? "video" : "image"),
         }));
       }
-      try {
-        // Lazy import to avoid circular dep with bgGeneration.
-        // eslint-disable-next-line global-require
-        const { dispatchBackgroundJob } = await import("./bgGeneration");
-        dispatchBackgroundJob(r.data, {
-          type: r.data.type || "image",
-          creditsSpent: r.data.credits_spent || 0,
-        });
-      } catch { /* ignore notification failures */ }
-      return { ...r, data: { ...r.data, deferred: true } };
+      // Background mode: video only (long jobs). Images poll synchronously so
+      // the result panel + scroll work like before; gallery/notifications still
+      // fire via notifyCreationSucceeded when the poll completes.
+      if (isVideoRoute) {
+        try {
+          const { dispatchBackgroundJob } = await import("./bgGeneration");
+          dispatchBackgroundJob(r.data, {
+            type: r.data.type || "video",
+            creditsSpent: r.data.credits_spent || 0,
+          });
+        } catch { /* ignore notification failures */ }
+        return { ...r, data: { ...r.data, deferred: true } };
+      }
+      const data = await pollPrediction(r.data.prediction_id, {
+        credits_spent: r.data.credits_spent,
+        type: r.data.type || "image",
+      });
+      return { ...r, data };
     }
     if (
       r?.data?.prediction_id &&
-      !r.config?.headers?.["X-Skip-Auto-Poll"] &&
+      !skipAutoPoll &&
       !String(r.config?.url || "").startsWith("/predictions/") &&
-      /\/generate\/carousel/.test(String(r.config?.url || ""))
+      isCarousel
     ) {
-      // Carousel keeps the original synchronous auto-poll behaviour.
       if (r.data.credits_spent) {
         localStorage.setItem(`rp_prediction_${r.data.prediction_id}`, JSON.stringify({
           credits_spent: r.data.credits_spent,
@@ -342,9 +381,22 @@ api.interceptors.response.use(
 
 function notifyCreationSucceeded(creation) {
   if (typeof window === "undefined" || !creation) return;
-  window.dispatchEvent(new CustomEvent("rp:creation-succeeded", { detail: creation }));
-  notifyGenerationComplete(creation);
+  // Warm gallery cache + preload media BEFORE bubble/notification click
+  // so /app/gallery can paint instantly instead of a cold skeleton.
+  const warmed = warmGalleryAfterSuccess(creation);
+  window.dispatchEvent(new CustomEvent("rp:creation-succeeded", { detail: warmed || creation }));
+  notifyGenerationComplete(warmed || creation);
+  // Soft-prefetch full history so a later gallery open often hits warm data.
+  prefetchGalleryHistory(api, { force: true })
+    .then((list) => {
+      if (list && (warmed || creation)) {
+        writeGalleryCache(mergeCreationIntoList(list, warmed || creation));
+      }
+    })
+    .catch(() => {});
 }
+
+export { notifyCreationSucceeded };
 
 function notifyPredictionFailure(error, detail = {}) {
   if (typeof window === "undefined") return;
@@ -354,6 +406,16 @@ function notifyPredictionFailure(error, detail = {}) {
       ...detail,
     },
   }));
+}
+
+function dispatchWalletSync(data = {}, extra = {}) {
+  if (typeof window === "undefined") return;
+  const detail = { ...extra };
+  if (data.new_balance != null) detail.credits = data.new_balance;
+  if (data.new_premium_balance != null) detail.premium_credits = data.new_premium_balance;
+  if (detail.credits != null || detail.premium_credits != null) {
+    window.dispatchEvent(new CustomEvent("rp:credits-sync", { detail }));
+  }
 }
 
 export function trackPendingPrediction(predictionId, meta = {}) {
@@ -374,6 +436,17 @@ function removeTrackedPrediction(predictionId) {
   try { localStorage.removeItem(`${RP_PREDICTION_PREFIX}${predictionId}`); } catch { /* ignore */ }
 }
 
+function pruneStaleTrackedPredictions(maxAgeMs = 2 * 60 * 60 * 1000) {
+  if (typeof window === "undefined") return;
+  const now = Date.now();
+  for (const item of readTrackedPredictions()) {
+    const started = Number(item.meta?.started_at || 0);
+    if (started > 0 && now - started > maxAgeMs) {
+      removeTrackedPrediction(item.predictionId);
+    }
+  }
+}
+
 function readTrackedPredictions() {
   if (typeof window === "undefined") return [];
   try {
@@ -391,13 +464,33 @@ function readTrackedPredictions() {
   }
 }
 
+const missingPredictionCounts = new Map();
+
 async function pollTrackedPredictionOnce(predictionId, meta = {}) {
+  if (notifiedPredictions.has(predictionId)) return;
   let res;
   try {
-    res = await api.get(`/predictions/${predictionId}`);
+    res = await api.get(`/predictions/${predictionId}`, { timeout: 30000 });
   } catch (e) {
     const status = e?.response?.status;
+    // 404 is often a brief race right after create — do NOT kill the job on first miss.
+    if (status === 404) {
+      const n = (missingPredictionCounts.get(predictionId) || 0) + 1;
+      missingPredictionCounts.set(predictionId, n);
+      const started = Number(meta?.started_at || 0);
+      const ageMs = started > 0 ? Date.now() - started : 0;
+      if (n >= 8 || ageMs > 12 * 60 * 1000) {
+        missingPredictionCounts.delete(predictionId);
+        removeTrackedPrediction(predictionId);
+        notifyPredictionFailure(
+          e?.response?.data?.detail || "Geração não encontrada.",
+          { prediction_id: predictionId, source: "background" },
+        );
+      }
+      return;
+    }
     if (status && status >= 400 && status < 500 && status !== 429) {
+      missingPredictionCounts.delete(predictionId);
       removeTrackedPrediction(predictionId);
       notifyPredictionFailure(e?.response?.data?.detail || e?.message || "Geração falhou.", {
         prediction_id: predictionId,
@@ -406,30 +499,44 @@ async function pollTrackedPredictionOnce(predictionId, meta = {}) {
     }
     return;
   }
+  missingPredictionCounts.delete(predictionId);
   const data = res?.data || {};
   if (data.status === "succeeded") {
-    if (data.creation && !notifiedPredictions.has(predictionId)) {
-      if (meta?.credits_spent && !data.creation.credits_spent) data.creation.credits_spent = meta.credits_spent;
-      if (meta?.type && !data.creation.type) data.creation.type = meta.type;
-      const creation = normalizeCreation(data.creation);
-      if (creation?.result_urls?.length) {
-        notifiedPredictions.add(predictionId);
-        notifyCreationSucceeded({
-          ...creation,
-          ...(data.new_balance != null ? { new_balance: data.new_balance } : {}),
-        });
-        window.dispatchEvent(new CustomEvent("rp:prediction-finished", {
-          detail: { status: "succeeded", prediction_id: predictionId, source: "background" },
-        }));
-      }
+    const creation = data.creation ? normalizeCreation(data.creation) : null;
+    const hasUrls = Boolean(creation?.result_urls?.length);
+    if (hasUrls && !notifiedPredictions.has(predictionId)) {
+      if (meta?.credits_spent && !creation.credits_spent) creation.credits_spent = meta.credits_spent;
+      if (meta?.type && !creation.type) creation.type = meta.type;
+      notifiedPredictions.add(predictionId);
+      notifyCreationSucceeded({
+        ...creation,
+        ...(data.new_balance != null ? { new_balance: data.new_balance } : {}),
+        ...(data.new_premium_balance != null ? { new_premium_balance: data.new_premium_balance } : {}),
+      });
+      window.dispatchEvent(new CustomEvent("rp:prediction-finished", {
+        detail: { status: "succeeded", prediction_id: predictionId, source: "background" },
+      }));
+      removeTrackedPrediction(predictionId);
+    } else if (!hasUrls) {
+      window.dispatchEvent(new CustomEvent("rp:prediction-finished", {
+        detail: { status: "succeeded", prediction_id: predictionId, source: "background", repair: true },
+      }));
     }
-    if (data.new_balance != null && typeof window !== "undefined") {
-      window.dispatchEvent(new CustomEvent("rp:credits-sync", { detail: { credits: data.new_balance } }));
-    }
-    removeTrackedPrediction(predictionId);
+    dispatchWalletSync(data, { refunded: data.refunded });
     return;
   }
   if (data.status === "failed") {
+    notifiedPredictions.add(predictionId);
+    const failType = meta?.type || "image";
+    const failError = data.error || "Geração falhou.";
+    dispatchWalletSync(data, { refunded: data.refunded });
+    // Always surface WHY (NSFW / safety / empty) — never refund-only silence.
+    notifyGenerationFailed({
+      error: failError,
+      type: failType,
+      balance: data.new_balance,
+      credits: meta?.credits_spent,
+    });
     if (data.refunded) {
       notifyCreditsUpdate({
         balance: data.new_balance,
@@ -437,19 +544,41 @@ async function pollTrackedPredictionOnce(predictionId, meta = {}) {
         spent: meta?.credits_spent,
       });
     }
-    notifyPredictionFailure(data.error || "Geração falhou.", {
+    notifyPredictionFailure(failError, {
       prediction_id: predictionId,
       source: "background",
+      type: failType,
     });
     window.dispatchEvent(new CustomEvent("rp:prediction-finished", {
       detail: {
         status: "failed",
         prediction_id: predictionId,
         source: "background",
-        error: data.error || "Geração falhou.",
+        error: failError,
+        type: failType,
       },
     }));
     removeTrackedPrediction(predictionId);
+  }
+}
+
+/** Restaura jobs em curso do servidor (ex.: vídeo-to-vídeo após recarregar). */
+export async function syncServerPendingPredictions() {
+  if (typeof window === "undefined") return;
+  const token = localStorage.getItem("rp_token");
+  if (!token || isLocalToken(token)) return;
+  try {
+    const res = await api.get("/generations/pending", { timeout: 15000 });
+    const rows = (res.data?.pending || []).slice(0, 5);
+    for (const row of rows) {
+      if (!row?.prediction_id) continue;
+      trackPendingPrediction(row.prediction_id, {
+        credits_spent: row.credits_spent,
+        type: row.type || "video",
+      });
+    }
+  } catch {
+    /* offline / sessão */
   }
 }
 
@@ -457,14 +586,16 @@ export function startPendingPredictionsWatcher() {
   if (typeof window === "undefined" || backgroundWatcherStarted) return;
   backgroundWatcherStarted = true;
   const tick = async () => {
-    const pending = readTrackedPredictions();
+    pruneStaleTrackedPredictions();
+    await syncServerPendingPredictions();
+    const pending = readTrackedPredictions().slice(0, 3);
     for (const item of pending) {
       // eslint-disable-next-line no-await-in-loop
       await pollTrackedPredictionOnce(item.predictionId, item.meta);
     }
   };
   tick();
-  backgroundWatcherTimer = window.setInterval(tick, 5000);
+  backgroundWatcherTimer = window.setInterval(tick, 15000);
   window.addEventListener("beforeunload", () => {
     if (backgroundWatcherTimer) window.clearInterval(backgroundWatcherTimer);
   }, { once: true });
@@ -486,26 +617,49 @@ export function startPendingPredictionsWatcher() {
  * @throws Error on failure or timeout. Backend has already refunded credits.
  */
 export async function pollPrediction(predictionId, opts = {}) {
-  trackPendingPrediction(predictionId, {
-    credits_spent: opts.credits_spent,
-    type: opts.type,
-  });
+  if (!predictionId) {
+    throw new Error("Resposta inválida do servidor (sem prediction_id).");
+  }
+  const silent = opts.silent === true;
+  if (!opts.skipTrack) {
+    trackPendingPrediction(predictionId, {
+      credits_spent: opts.credits_spent,
+      type: opts.type,
+    });
+  }
   const intervalMs = opts.intervalMs ?? 2500;
   const timeoutMs  = opts.timeoutMs  ?? 240000;
   const onTick     = opts.onTick;
   const start = Date.now();
+  let consecutive404 = 0;
   while (Date.now() - start < timeoutMs) {
     let res;
     try {
-      res = await api.get(`/predictions/${predictionId}`);
+      res = await api.get(`/predictions/${predictionId}`, { timeout: 30000 });
     } catch (e) {
       const status = e?.response?.status;
+      if (status === 404) {
+        consecutive404 += 1;
+        // ~20s of consecutive misses → clear error (not infinite "still loading")
+        if (consecutive404 >= 8) {
+          const err = new Error(
+            e?.response?.data?.detail || "Geração não encontrada. Tenta gerar outra vez.",
+          );
+          err.status = 404;
+          removeTrackedPrediction(predictionId);
+          throw err;
+        }
+        await new Promise((r) => setTimeout(r, intervalMs));
+        continue;
+      }
+      consecutive404 = 0;
       if (status && status >= 400 && status < 500 && status !== 429) {
         throw e;
       }
       await new Promise((r) => setTimeout(r, intervalMs));
       continue;
     }
+    consecutive404 = 0;
     const data = res.data;
     if (data.status === "succeeded") {
       try {
@@ -518,54 +672,67 @@ export async function pollPrediction(predictionId, opts = {}) {
         removeTrackedPrediction(predictionId);
       } catch { /* ignore */ }
       if (data.new_balance != null && typeof window !== "undefined") {
-        window.dispatchEvent(new CustomEvent("rp:credits-sync", { detail: { credits: data.new_balance } }));
+        dispatchWalletSync(data);
       }
       if (!data.creation) {
         const err = new Error("Geração concluída sem resultado.");
         err.refunded = data.refunded;
         err.new_balance = data.new_balance;
+        err.new_premium_balance = data.new_premium_balance;
         throw err;
       }
       data.creation = normalizeCreation(data.creation);
       data.creation.server_billing = data.server_billing || data.creation.server_billing;
       if (data.new_balance != null) data.creation.new_balance = data.new_balance;
+      if (data.new_premium_balance != null) data.creation.new_premium_balance = data.new_premium_balance;
       if (!data.creation.result_urls?.length) {
         const err = new Error("Geração concluída sem ficheiro de resultado.");
         err.refunded = data.refunded;
         err.new_balance = data.new_balance;
         throw err;
       }
-      notifyCreationSucceeded(data.creation);
-      window.dispatchEvent(new CustomEvent("rp:prediction-finished", {
-        detail: { status: "succeeded", prediction_id: predictionId, source: "foreground" },
-      }));
+      if (!silent) {
+        notifyCreationSucceeded(data.creation);
+        window.dispatchEvent(new CustomEvent("rp:prediction-finished", {
+          detail: { status: "succeeded", prediction_id: predictionId, source: "foreground" },
+        }));
+      }
       return data;
     }
     if (data.status === "failed") {
-      if (data.new_balance != null && typeof window !== "undefined") {
-        window.dispatchEvent(new CustomEvent("rp:credits-sync", {
-          detail: { credits: data.new_balance, refunded: data.refunded },
-        }));
-      }
-      if (data.refunded) {
-        notifyCreditsUpdate({
+      dispatchWalletSync(data, { refunded: data.refunded });
+      const failType = opts.type || "image";
+      const failError = data.error || "Geração falhou.";
+      if (!silent) {
+        notifyGenerationFailed({
+          error: failError,
+          type: failType,
           balance: data.new_balance,
-          refunded: true,
-          spent: opts.credits_spent,
+          credits: opts.credits_spent,
         });
+        if (data.refunded) {
+          notifyCreditsUpdate({
+            balance: data.new_balance,
+            refunded: true,
+            spent: opts.credits_spent,
+          });
+        }
       }
-      const err = new Error(data.error || "Geração falhou.");
+      const err = new Error(failError);
       err.new_balance = data.new_balance;
       err.refunded = data.refunded;
       removeTrackedPrediction(predictionId);
-      window.dispatchEvent(new CustomEvent("rp:prediction-finished", {
-        detail: {
-          status: "failed",
-          prediction_id: predictionId,
-          source: "foreground",
-          error: err.message,
-        },
-      }));
+      if (!silent) {
+        window.dispatchEvent(new CustomEvent("rp:prediction-finished", {
+          detail: {
+            status: "failed",
+            prediction_id: predictionId,
+            source: "foreground",
+            error: err.message,
+            type: failType,
+          },
+        }));
+      }
       throw err;
     }
     if (onTick) onTick(data.elapsed_seconds || Math.floor((Date.now() - start) / 1000));
@@ -597,10 +764,11 @@ async function maybeAwaitMultipartCreation(data, skipPollHeader, config = {}) {
   }
 
   const pollTimeoutMs = config.pollTimeoutMs ?? Math.max(240_000, Number(config.timeout) || 0);
+  const isLongVideo = (data.type || config.type) === "video";
   const polled = await pollPrediction(pid, {
     credits_spent: data.credits_spent,
     type: data.type,
-    timeoutMs: pollTimeoutMs,
+    timeoutMs: isLongVideo ? Math.max(pollTimeoutMs, 1_800_000) : pollTimeoutMs,
     onTick: config.onPollTick,
     intervalMs: config.pollIntervalMs,
   });

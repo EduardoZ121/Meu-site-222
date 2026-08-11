@@ -1,6 +1,7 @@
 import { Link } from "react-router-dom";
 import Logo from "../components/Logo";
 import { useI18n } from "../lib/i18n";
+import { SUPPORT_EMAIL, SUPPORT_MAILTO } from "../lib/supportEmail";
 
 export default function Footer() {
   const { t } = useI18n();
@@ -39,9 +40,16 @@ export default function Footer() {
           >
             @remake_pix
           </a>
+          <a
+            href={SUPPORT_MAILTO}
+            className="text-[#5A5A5E] text-[10px] font-mono uppercase tracking-[0.12em] hover:text-[#7C3AED] transition-colors"
+            data-testid="footer-support-email"
+          >
+            {SUPPORT_EMAIL}
+          </a>
         </div>
 
-        <p className="text-center text-[#5A5A5E] text-[10px] font-mono">&copy; 2026 Remake Pixel. {t("footer_rights")}</p>
+        <p className="text-center text-[#5A5A5E] text-[10px] font-mono">&copy; 2026 Remake. {t("footer_rights")}</p>
       </div>
     </footer>
   );

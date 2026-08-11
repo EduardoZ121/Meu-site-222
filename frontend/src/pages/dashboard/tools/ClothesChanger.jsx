@@ -1,39 +1,39 @@
 import { useMemo, useState } from "react";
-import { ArrowLeft, Loader2, Sparkles, Shirt } from "lucide-react";
+import { Layers, Check, Sparkles } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { motion } from "framer-motion";
 import { toast } from "sonner";
-import { formatApiError, uploadPost } from "../../../lib/api";
+import { uploadPost } from "../../../lib/api";
 import { normalizeCreation, primaryResultUrl } from "../../../lib/creationUrls";
 import { useAuth } from "../../../lib/auth";
+import { isAdminUser } from "../../../lib/isAdmin";
 import { usePricing } from "../../../lib/PricingContext";
-import ResultPanel from "../../../components/ResultPanel";
 import ImageUploadZone from "../../../components/ImageUploadZone";
-import CollapsibleSection from "../../../components/CollapsibleSection";
-import StudioResultAnchor from "../../../components/StudioResultAnchor";
-import useTitle from "../../../lib/useTitle";
+import GenerationBubble from "../../../components/studio/GenerationBubble";
+import SettingCard from "../../../components/studio/SettingCard";
+import SettingModal from "../../../components/studio/SettingModal";
+import StudioCompactShell from "../../../components/studio/StudioCompactShell";
+import StudioInlineHeader from "../../../components/studio/StudioInlineHeader";
+import StudioGenerateBar from "../../../components/StudioGenerateBar";
+import StudioGenerateCostMeta from "../../../components/StudioGenerateCostMeta";
+import { useStudioGenerateGate } from "../../../lib/useStudioGenerateGate";
 import { useI18n } from "../../../lib/i18n";
 import { useStudioI18n } from "../../../lib/useStudioI18n";
-
-const STYLE_PRESETS = [
-  { id: "casual",      label: "Casual",      desc: "white t-shirt, blue jeans, sneakers" },
-  { id: "formal",      label: "Formal",      desc: "elegant black suit, white shirt, leather shoes" },
-  { id: "streetwear",  label: "Streetwear",  desc: "oversized hoodie, baggy cargo pants, high-top sneakers" },
-  { id: "luxury",      label: "Luxury",      desc: "designer outfit, silk shirt, gold accessories, premium look" },
-  { id: "sport",       label: "Sport",       desc: "athletic gym wear, performance fabric, sportswear" },
-  { id: "evening",     label: "Evening",     desc: "elegant evening dress, satin fabric, sophisticated styling" },
-  { id: "vintage",     label: "Vintage",     desc: "70s vintage fashion, retro pattern, classic tailoring" },
-  { id: "business",    label: "Business",    desc: "navy blazer, crisp shirt, tailored trousers" },
-];
+import { useStudioSessionBack } from "../../../lib/useStudioSessionBack";
+import useTitle from "../../../lib/useTitle";
 
 function PhotoBox({ photo, onChange, label, helper, emptyLabel, testId }) {
   return (
-    <div className="w-full">
-      <label className="block text-[#F4F1EA] text-[13px] font-medium mb-2 font-['Inter_Tight']">{label}</label>
+    <div className="w-full min-w-0">
+      <label className="block text-[#F4F1EA] text-[13px] font-medium mb-2 font-display">
+        {label}
+      </label>
       <ImageUploadZone
         value={photo}
-        onChange={onChange}
+        onChange={(next) => {
+          onChange(next || null);
+        }}
         layout="square"
+        className="min-h-[140px] sm:min-h-[200px]"
         testId={testId}
         compressOptions={{
           maxSize: 1280,
@@ -50,17 +50,24 @@ function PhotoBox({ photo, onChange, label, helper, emptyLabel, testId }) {
 export default function ClothesChanger() {
   const { t, errToast, clearUploadToast } = useStudioI18n();
   const { t: tCat } = useI18n();
+  const navigate = useNavigate();
   useTitle(tCat("tool_clothes_name"));
   const { refresh, user } = useAuth();
   const { costs } = usePricing();
-  const navigate = useNavigate();
+
   const [photo, setPhoto] = useState(null);
   const [garment, setGarment] = useState(null);
-  const [prompt, setPrompt] = useState("");
   const [changeType, setChangeType] = useState("full");
+  const [engine, setEngine] = useState("normal");
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState(null);
+  const [typeOpen, setTypeOpen] = useState(false);
+  const [engineOpen, setEngineOpen] = useState(false);
+
   const cost = costs.clothes;
+  const isAdmin = isAdminUser(user);
+
+  useStudioSessionBack("/app/tools");
 
   const changeTypes = useMemo(
     () => [
@@ -71,45 +78,60 @@ export default function ClothesChanger() {
     [t],
   );
 
-  const applyPreset = (preset) => {
-    setPrompt(preset.desc);
-  };
+  const engineOptions = useMemo(
+    () => [
+      {
+        id: "normal",
+        label: t("clothes_engine_normal") || "Normal · Flux",
+        hint: t("clothes_engine_normal_hint") || "Flux 2 Klein — standard outfit swap.",
+      },
+      {
+        id: "nsfw",
+        label: t("clothes_engine_nsfw") || "NSFW · Grok",
+        hint: t("clothes_engine_nsfw_hint") || "Grok Imagine — more permissive for adult / lingerie content (admin only).",
+      },
+    ],
+    [t],
+  );
 
-  // Auto-switch is no longer needed — backend chooses the best internal motor.
-  // composition when a garment is uploaded, regardless of change_type.
+  const typeLabel = changeTypes.find((c) => c.id === changeType)?.label || changeType;
+  const engineLabel = engineOptions.find((e) => e.id === engine)?.label || engine;
+
+  const { ready, hint } = useStudioGenerateGate({
+    busy,
+    user,
+    cost,
+    requirePhoto: true,
+    photo,
+    readyOverride: Boolean(photo && garment),
+    hintOverride: !photo
+      ? null
+      : !garment
+        ? t("clothes_err_garment")
+        : null,
+  });
 
   const run = async () => {
-    if (!photo) { toast.error(t("clothes_err_person")); return; }
-    if (!garment && prompt.trim().length < 3) {
+    if (!photo) {
+      toast.error(t("clothes_err_person"));
+      return;
+    }
+    if (!garment) {
       toast.error(t("clothes_err_garment"));
       return;
     }
-    if ((user?.credits ?? 0) < cost) {
-      toast.error(t("common_need_credits", { need: cost, have: user?.credits ?? 0 }));
-      return;
-    }
     clearUploadToast();
-    setBusy(true); setResult(null);
+    setBusy(true);
+    setResult(null);
     try {
       const fd = new FormData();
-
-      const finalPrompt = prompt.trim();
-      if (garment) {
-        fd.append("photo", photo);
-        fd.append("garment", garment);
-        if (finalPrompt) fd.append("prompt", finalPrompt);
-        fd.append("change_type", changeType);
+      fd.append("photo", photo);
+      fd.append("garment", garment);
+      fd.append("change_type", changeType);
+      if (isAdmin && engine === "nsfw") {
+        fd.append("engine", "nsfw");
       } else {
-        const prefixes = {
-          full:  "Replace all clothing with:",
-          piece: "Add/replace this specific clothing piece:",
-          color: "Keep the same outfit but change the color/style to:",
-        };
-        const prefix = prefixes[changeType] || "Change the outfit to:";
-
-        fd.append("photo", photo);
-        fd.append("prompt", `${prefix} ${finalPrompt}. Preserve face, body pose and identity. Photorealistic, natural lighting.`);
-        fd.append("change_type", changeType);
+        fd.append("engine", "normal");
       }
 
       const { data } = await uploadPost("/tools/clothes", fd, { timeout: 240000 });
@@ -120,136 +142,172 @@ export default function ClothesChanger() {
       await refresh();
     } catch (err) {
       errToast(err);
-    } finally { setBusy(false); }
+    } finally {
+      setBusy(false);
+    }
   };
 
   return (
-    <div className="max-w-[1400px] mx-auto pb-32" data-testid="clothes-page">
-      <header className="mb-8 md:mb-10">
-        <div className="flex items-center gap-3 mb-3">
-          <div className="w-9 h-9 rounded-full bg-[#7C3AED]/15 flex items-center justify-center">
-            <Shirt className="w-4 h-4 text-[#C4B5FD]" strokeWidth={1.5} />
+    <StudioCompactShell testId="clothes-page" maxWidth="900px" className="pb-8">
+      <StudioInlineHeader
+        title={tCat("tool_clothes_name")}
+        description={t("clothes_desc") || t("clothes_changer.description") || tCat("tool_clothes_desc")}
+        testId="clothes-header"
+        helpKey="help_tool_clothes"
+      />
+
+      <div className="space-y-2.5">
+        <div className="rounded-2xl border border-white/[0.08] bg-[#141418]/80 p-3 md:p-4">
+          <p className="text-[#9CA3AF] text-[12px] leading-relaxed mb-3">
+            {t("clothes_section_photos")}
+          </p>
+          {/* Sempre 2 colunas (como antes) — no telemóvel empilhar deixa as caixas enormes e parte o ecrã */}
+          <div className="grid grid-cols-2 gap-2 sm:gap-3 max-w-[600px]" data-testid="clothes-photo-grid">
+            <PhotoBox
+              photo={photo}
+              onChange={(next) => {
+                setPhoto(next);
+                setResult(null);
+              }}
+              label={t("clothes_person_label")}
+              helper={t("clothes_person_helper")}
+              emptyLabel={t("clothes_upload_empty")}
+              testId="clothes-photo"
+            />
+            <PhotoBox
+              photo={garment}
+              onChange={(next) => {
+                setGarment(next);
+                setResult(null);
+              }}
+              label={t("clothes_garment_label")}
+              helper={t("clothes_fashion_garment_helper") || "Foto da peça"}
+              emptyLabel={t("clothes_upload_empty")}
+              testId="clothes-garment"
+            />
           </div>
-          <p className="text-[#7C3AED] text-[10px] font-mono uppercase tracking-[0.22em]">{tCat("tool_clothes_name")}</p>
-        </div>
-        <h1 className="text-[#F4F1EA] text-[32px] md:text-[44px] font-light tracking-[-0.02em] leading-[1.1] mb-3 font-['Inter_Tight']">
-          {tCat("tool_clothes_name")}
-        </h1>
-        <p className="text-[#8A8A8E] text-[15px] max-w-[640px]">{t("clothes_changer.description")}</p>
-      </header>
-
-      <div className="grid grid-cols-1 xl:grid-cols-[1fr_400px] gap-10">
-        <div className="space-y-5">
-          {/* Step 1 — photos */}
-          <CollapsibleSection title={t("clothes_section_photos")} defaultOpen testId="clothes-section-photos">
-            <div className="grid grid-cols-2 gap-3 max-w-[600px]">
-              <PhotoBox
-                photo={photo}
-                onChange={setPhoto}
-                label={t("clothes_person_label")}
-                helper={t("clothes_person_helper")}
-                emptyLabel={t("clothes_upload_empty")}
-                testId="clothes-photo"
-              />
-              <PhotoBox
-                photo={garment}
-                onChange={setGarment}
-                label={t("clothes_garment_label")}
-                helper={t("clothes_garment_helper")}
-                emptyLabel={t("clothes_upload_empty")}
-                testId="clothes-garment"
-              />
-            </div>
-          </CollapsibleSection>
-
-          <CollapsibleSection title={t("clothes_section_type")} testId="clothes-section-type">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2" data-testid="change-types">
-              {changeTypes.map((ct) => (
-                <button
-                  key={ct.id}
-                  onClick={() => setChangeType(ct.id)}
-                  className={`text-left p-4 border-2 rounded-md transition-all ${
-                    changeType === ct.id
-                      ? "border-[#7C3AED] bg-[#7C3AED]/10 shadow-md shadow-[#7C3AED]/20"
-                      : "border-[#2E2E30] hover:border-[#7C3AED]/40 bg-[#13131A]"
-                  }`}
-                  data-testid={`change-type-${ct.id}`}
-                >
-                  <p className={`text-[14px] font-medium font-['Inter_Tight'] mb-1 ${changeType === ct.id ? "text-[#C4B5FD]" : "text-[#F4F1EA]"}`}>{ct.label}</p>
-                  <p className="text-[#8A8A8E] text-[11px]">{ct.hint}</p>
-                </button>
-              ))}
-            </div>
-          </CollapsibleSection>
-
-          {/* Step 3 — quick presets */}
-          {!garment && (
-            <CollapsibleSection title={t("clothes_section_presets")} optional testId="clothes-section-presets">
-              <div className="flex flex-wrap gap-2" data-testid="presets">
-                {STYLE_PRESETS.map((p) => (
-                  <button
-                    key={p.id}
-                    onClick={() => applyPreset(p)}
-                    className="px-4 py-2 border border-[#2E2E30] hover:border-[#7C3AED] text-[#8A8A8E] hover:text-[#C4B5FD] hover:bg-[#7C3AED]/5 text-[12px] font-medium rounded-full transition-all"
-                    data-testid={`preset-${p.id}`}
-                  >
-                    {p.label}
-                  </button>
-                ))}
-              </div>
-            </CollapsibleSection>
-          )}
-
-          {/* Step 4 — prompt */}
-          {!garment && (
-            <CollapsibleSection title={t("clothes_section_prompt")} testId="clothes-section-prompt">
-              <div className="relative">
-                <textarea
-                  value={prompt}
-                  onChange={(e) => setPrompt(e.target.value)}
-                  rows={4}
-                  maxLength={500}
-                  placeholder={t("clothes_prompt_ph")}
-                  className="w-full bg-[#13131A] border border-[#2E2E30] focus:border-[#7C3AED] text-[#F4F1EA] text-[15px] placeholder:text-[#5A5A5E] px-4 py-3.5 rounded-md focus:outline-none resize-none transition-colors"
-                  data-testid="clothes-prompt"
-                />
-                <span className="absolute bottom-3 right-3 text-[#5A5A5E] text-[11px] font-mono">{prompt.length}/500</span>
-              </div>
-            </CollapsibleSection>
-          )}
+          <p className="text-[#6B7280] text-[11px] mt-2 leading-relaxed">
+            {t("clothes_desc")}
+          </p>
         </div>
 
-        {/* RIGHT */}
-        <StudioResultAnchor busy={busy} ready={Boolean(primaryResultUrl(result))} className="xl:sticky xl:top-[80px] self-start">
-          <p className="text-[#5A5A5E] text-[10px] font-mono uppercase tracking-[0.2em] mb-3">{t("clothes_result_label")}</p>
-          <ResultPanel creation={result} loading={busy} onChange={setResult} emptyLabel={t("clothes_result_empty")} />
-        </StudioResultAnchor>
+        <div className="mv-setting-grid">
+          <SettingCard
+            icon={Layers}
+            label={t("clothes_section_type")}
+            value={typeLabel}
+            onOpen={() => setTypeOpen(true)}
+            testId="clothes-card-type"
+            helpKey="help_sec_clothes_garment"
+          />
+          {isAdmin ? (
+            <SettingCard
+              icon={Sparkles}
+              label={t("clothes_section_engine") || "Engine"}
+              value={engineLabel}
+              onOpen={() => setEngineOpen(true)}
+              testId="clothes-card-engine"
+            />
+          ) : null}
+        </div>
+
+        <div className="mv-setting-card mv-setting-card--static">
+          <div className="flex flex-col gap-2.5 sm:flex-row sm:items-center sm:justify-end">
+            <StudioGenerateBar
+              layout="inline"
+              ready={ready}
+              busy={busy}
+              onClick={run}
+              label={t("clothes_btn", { n: cost })}
+              busyLabel={t("clothes_dressing")}
+              hint={hint}
+              cost={cost}
+              testId="clothes-create"
+              buttonClassName="rp-gen-btn-inline w-full sm:w-auto"
+            />
+          </div>
+          <div className="mt-2 pt-2 border-t border-white/[0.06]">
+            <StudioGenerateCostMeta cost={cost} user={user} />
+          </div>
+        </div>
       </div>
 
-      {/* Sticky CTA */}
-      <motion.div initial={{ y: 100 }} animate={{ y: 0 }} className="fixed bottom-0 left-0 right-0 md:left-[240px] bg-gradient-to-t from-[#0B0B0C] via-[#0B0B0C] to-[#0B0B0C]/95 backdrop-blur-xl border-t border-[#2E2E30] z-30 px-4 sm:px-6 md:px-10 py-4">
-        <div className="max-w-[1400px] mx-auto flex items-center justify-between gap-4">
-          <div className="hidden sm:flex items-center gap-3 text-[12px]">
-            <span className="text-[#8A8A8E]">{t("clothes_credits_needed")}</span>
-            <span className="text-[#C4B5FD] font-medium text-[16px]">{cost}</span>
-            <span className="text-[#5A5A5E] mx-2">·</span>
-            <span className="text-[#8A8A8E]">{t("clothes_balance")}</span>
-            <span className="text-[#F4F1EA] font-medium">{user?.credits ?? 0}</span>
+      <SettingModal
+        open={typeOpen}
+        title={t("clothes_section_type")}
+        onClose={() => setTypeOpen(false)}
+      >
+        <div className="grid grid-cols-1 gap-2" data-testid="change-types">
+          {changeTypes.map((ct) => (
+            <button
+              type="button"
+              key={ct.id}
+              onClick={() => setChangeType(ct.id)}
+              className={`text-left p-4 border-2 rounded-xl transition-all ${
+                changeType === ct.id
+                  ? "border-[#7C3AED] bg-[#7C3AED]/10"
+                  : "border-[#2E2E30] hover:border-[#7C3AED]/40 bg-[#13131A]"
+              }`}
+              data-testid={`change-type-${ct.id}`}
+            >
+              <p className={`text-[14px] font-medium font-display mb-1 ${changeType === ct.id ? "text-[#C4B5FD]" : "text-[#F4F1EA]"}`}>
+                {ct.label}
+              </p>
+              <p className="text-[#8A8A8E] text-[11px]">{ct.hint}</p>
+            </button>
+          ))}
+        </div>
+        <button
+          type="button"
+          onClick={() => setTypeOpen(false)}
+          className="rp-modal-confirm mt-3"
+          data-testid="clothes-type-confirm"
+        >
+          <Check className="w-4 h-4" /> {t("confirm") || "Confirmar"}
+        </button>
+      </SettingModal>
+
+      {isAdmin ? (
+        <SettingModal
+          open={engineOpen}
+          title={t("clothes_section_engine") || "Engine"}
+          onClose={() => setEngineOpen(false)}
+        >
+          <p className="text-[11px] text-[#8A8A8E] leading-relaxed mb-2" data-testid="clothes-engine-admin-note">
+            {t("clothes_engine_admin_only") || "Admin only — NSFW engine uses Grok Imagine (more permissive for adult content)."}
+          </p>
+          <div className="grid grid-cols-1 gap-2" data-testid="clothes-engines">
+            {engineOptions.map((opt) => (
+              <button
+                type="button"
+                key={opt.id}
+                onClick={() => setEngine(opt.id)}
+                className={`text-left p-4 border-2 rounded-xl transition-all ${
+                  engine === opt.id
+                    ? "border-[#7C3AED] bg-[#7C3AED]/10"
+                    : "border-[#2E2E30] hover:border-[#7C3AED]/40 bg-[#13131A]"
+                }`}
+                data-testid={`clothes-engine-${opt.id}`}
+              >
+                <p className={`text-[14px] font-medium font-display mb-1 ${engine === opt.id ? "text-[#C4B5FD]" : "text-[#F4F1EA]"}`}>
+                  {opt.label}
+                </p>
+                <p className="text-[#8A8A8E] text-[11px]">{opt.hint}</p>
+              </button>
+            ))}
           </div>
           <button
-            onClick={run}
-            disabled={busy}
-            className="flex-1 sm:flex-initial sm:min-w-[260px] bg-gradient-to-r from-[#7C3AED] to-[#9333EA] hover:from-[#8B5CF6] hover:to-[#A855F7] disabled:from-[#1A1A1C] disabled:to-[#1A1A1C] disabled:text-[#5A5A5E] text-white py-3.5 rounded-md text-[13px] font-medium tracking-wide transition-all flex items-center justify-center gap-2 shadow-lg shadow-[#7C3AED]/30 hover:shadow-[#7C3AED]/50"
-            data-testid="clothes-create"
+            type="button"
+            onClick={() => setEngineOpen(false)}
+            className="rp-modal-confirm mt-3"
+            data-testid="clothes-engine-confirm"
           >
-            {busy ? (
-              <><Loader2 className="w-4 h-4 animate-spin" /> {t("clothes_dressing")}</>
-            ) : (
-              <><Sparkles className="w-4 h-4" /> {t("clothes_btn", { n: cost })}</>
-            )}
+            <Check className="w-4 h-4" /> {t("confirm") || "Confirmar"}
           </button>
-        </div>
-      </motion.div>
-    </div>
+        </SettingModal>
+      ) : null}
+
+      <GenerationBubble busy={busy} result={result} onChange={setResult} />
+    </StudioCompactShell>
   );
 }

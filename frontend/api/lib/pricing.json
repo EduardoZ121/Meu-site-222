@@ -2,7 +2,10 @@
   "meta": {
     "creditsPerEuro": 30,
     "minCustomCredits": 150,
-    "marginTargetPct": 75
+    "marginTargetPct": 72,
+    "replicateUsdPerCreditEstimate": 0.018,
+    "posterHqPremiumCostPerOutput": 50,
+    "pricingNote": "Créditos calibrados vs custo Replicate (~68–74% margem bruta no pack Starter a 30 cr/€)."
   },
   "regions": {
     "intl": {
@@ -49,47 +52,99 @@
           "badge": "bonus40"
         }
       },
+      "subscription": {
+        "creator_monthly": {
+          "name": "Creator Mensal",
+          "amount_cents": 1400,
+          "credits_per_month": 400,
+          "accumulating": false,
+          "tagline": "400 créditos/mês + templates exclusivos + suporte personalizado",
+          "badge": "subscription",
+          "personalized_requests_per_month": 2,
+          "personalized_sla": "24–48 horas"
+        }
+      },
       "costs": {
-        "image": 18,
-        "edit": 18,
-        "easy": 18,
-        "pro": 35,
-        "artistic": 25,
-        "video": 80,
-        "videoEdit": 120,
-        "bgRemove": 8,
-        "bgRemoveScene": 12,
-        "upscale": 12,
-        "restoreLight": 12,
-        "restoreMedium": 15,
-        "restoreDeep": 22,
-        "restore": 15,
-        "colorize": 15,
-        "clothes": 28,
-        "inpaint": 25,
+        "image": 15,
+        "edit": 15,
+        "easy": 15,
+        "pro": 30,
+        "artistic": 18,
+        "video": 58,
+        "videoImage": 160,
+        "videoTest": 0,
+        "videoFast": 42,
+        "videoFastImage": 48,
+        "videoMarketing": 65,
+        "videoMarketingImage": 86,
+        "videoElements": 92,
+        "videoEdit": 112,
+        "videoExtend": 86,
+        "marketingVideoByDuration": {
+          "15": 240
+        },
+        "motionFlyerByDuration": {
+          "10": 200
+        },
+        "bgRemove": 6,
+        "bgRemoveScene": 9,
+        "upscale": 8,
+        "restoreLight": 8,
+        "restoreMedium": 12,
+        "restoreDeep": 18,
+        "restore": 12,
+        "colorize": 10,
+        "clothes": 22,
+        "inpaint": 20,
         "carouselFastPerSlide": 5,
-        "carouselPremiumPerSlide": 10,
-        "mangaPanel": 20,
-        "mangaPage": 45,
-        "mangaChapter": 160,
-        "posterFast": 25,
+        "carouselPremiumPerSlide": 8,
+        "mangaPanel": 15,
+        "mangaPage": 32,
+        "mangaChapter": 105,
+        "posterFast": 28,
         "posterPro": 40,
-        "posterPremium": 40
+        "posterPremium": 55,
+        "brandCampaignPerImage": 40
+      },
+      "premium_packages": {
+        "hq_250": {
+          "name": "HQ Pack 5",
+          "amount_cents": 1000,
+          "premium_credits": 250,
+          "tagline": "5 posters alta qualidade (50 créditos HQ cada)",
+          "badge": "hq"
+        },
+        "hq_500": {
+          "name": "HQ Pack 10",
+          "amount_cents": 2000,
+          "premium_credits": 500,
+          "bonus_percent": 0,
+          "tagline": "10 posters · melhor valor",
+          "badge": "popular"
+        },
+        "hq_1000": {
+          "name": "HQ Pack 20",
+          "amount_cents": 3000,
+          "premium_credits": 1000,
+          "bonus_percent": 0,
+          "tagline": "20 posters · volume máximo",
+          "badge": "value"
+        }
       },
       "surcharges": {
-        "enhancePrompt": 3,
-        "hdImage": 8,
-        "hdSimple": 5,
-        "hdVideo": 15,
-        "videoDuration8": 25,
-        "videoDuration10": 50,
-        "videoEditResolutionHd": 15,
-        "videoEditDuration8": 25,
-        "videoEditDuration10": 50,
-        "artisticEffectPremium": 4,
-        "artisticEffectPremiumMax": 8,
-        "upscaleHd": 5,
-        "colorizeHd": 5
+        "enhancePrompt": 5,
+        "hdImage": 5,
+        "hdSimple": 3,
+        "hdVideo": 12,
+        "videoDuration8": 16,
+        "videoDuration10": 32,
+        "videoEditResolutionHd": 18,
+        "videoEditDuration8": 22,
+        "videoEditDuration10": 38,
+        "artisticEffectPremium": 2,
+        "artisticEffectPremiumMax": 4,
+        "upscaleHd": 3,
+        "colorizeHd": 3
       },
       "premiumArtisticEffects": [
         "color:neon_mood",
@@ -145,47 +200,99 @@
           "badge": "bonus40"
         }
       },
+      "subscription": {
+        "creator_monthly": {
+          "name": "Creator Mensal",
+          "amount_cents": 1499,
+          "credits_per_month": 400,
+          "accumulating": false,
+          "tagline": "400 credits/month + exclusive templates + personal support",
+          "badge": "subscription",
+          "personalized_requests_per_month": 2,
+          "personalized_sla": "24–48 hours"
+        }
+      },
       "costs": {
-        "image": 18,
-        "edit": 18,
-        "easy": 18,
-        "pro": 35,
-        "artistic": 25,
-        "video": 80,
-        "videoEdit": 120,
-        "bgRemove": 8,
-        "bgRemoveScene": 12,
-        "upscale": 12,
-        "restoreLight": 12,
-        "restoreMedium": 15,
-        "restoreDeep": 22,
-        "restore": 15,
-        "colorize": 15,
-        "clothes": 28,
-        "inpaint": 25,
+        "image": 15,
+        "edit": 15,
+        "easy": 15,
+        "pro": 30,
+        "artistic": 18,
+        "video": 58,
+        "videoImage": 160,
+        "videoTest": 0,
+        "videoFast": 42,
+        "videoFastImage": 48,
+        "videoMarketing": 65,
+        "videoMarketingImage": 86,
+        "videoElements": 92,
+        "videoEdit": 112,
+        "videoExtend": 86,
+        "marketingVideoByDuration": {
+          "15": 240
+        },
+        "motionFlyerByDuration": {
+          "10": 200
+        },
+        "bgRemove": 6,
+        "bgRemoveScene": 9,
+        "upscale": 8,
+        "restoreLight": 8,
+        "restoreMedium": 12,
+        "restoreDeep": 18,
+        "restore": 12,
+        "colorize": 10,
+        "clothes": 22,
+        "inpaint": 20,
         "carouselFastPerSlide": 5,
-        "carouselPremiumPerSlide": 10,
-        "mangaPanel": 20,
-        "mangaPage": 45,
-        "mangaChapter": 160,
-        "posterFast": 25,
+        "carouselPremiumPerSlide": 8,
+        "mangaPanel": 15,
+        "mangaPage": 32,
+        "mangaChapter": 105,
+        "posterFast": 28,
         "posterPro": 40,
-        "posterPremium": 40
+        "posterPremium": 55,
+        "brandCampaignPerImage": 40
+      },
+      "premium_packages": {
+        "hq_250": {
+          "name": "HQ Pack 5",
+          "amount_cents": 1000,
+          "premium_credits": 250,
+          "tagline": "5 posters alta qualidade (50 créditos HQ cada)",
+          "badge": "hq"
+        },
+        "hq_500": {
+          "name": "HQ Pack 10",
+          "amount_cents": 2000,
+          "premium_credits": 500,
+          "bonus_percent": 0,
+          "tagline": "10 posters · melhor valor",
+          "badge": "popular"
+        },
+        "hq_1000": {
+          "name": "HQ Pack 20",
+          "amount_cents": 3000,
+          "premium_credits": 1000,
+          "bonus_percent": 0,
+          "tagline": "20 posters · volume máximo",
+          "badge": "value"
+        }
       },
       "surcharges": {
-        "enhancePrompt": 3,
-        "hdImage": 8,
-        "hdSimple": 5,
-        "hdVideo": 15,
-        "videoDuration8": 25,
-        "videoDuration10": 50,
-        "videoEditResolutionHd": 15,
-        "videoEditDuration8": 25,
-        "videoEditDuration10": 50,
-        "artisticEffectPremium": 4,
-        "artisticEffectPremiumMax": 8,
-        "upscaleHd": 5,
-        "colorizeHd": 5
+        "enhancePrompt": 5,
+        "hdImage": 5,
+        "hdSimple": 3,
+        "hdVideo": 12,
+        "videoDuration8": 16,
+        "videoDuration10": 32,
+        "videoEditResolutionHd": 18,
+        "videoEditDuration8": 22,
+        "videoEditDuration10": 38,
+        "artisticEffectPremium": 2,
+        "artisticEffectPremiumMax": 4,
+        "upscaleHd": 3,
+        "colorizeHd": 3
       },
       "premiumArtisticEffects": [
         "color:neon_mood",

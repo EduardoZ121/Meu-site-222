@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet"/>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { width: 1080px; height: 1080px; overflow: hidden; }
+  body {
+    font-family: Inter, system-ui, sans-serif;
+    background: #0b0b0c;
+    background-image: radial-gradient(ellipse at 50% 0%, rgba(124,58,237,.25), transparent 55%);
+    color: #fff;
+    padding: 48px 40px;
+    display: flex;
+    flex-direction: column;
+  }
+  .slide { align-self: flex-end; font-size: 16px; color: #6b7280; font-weight: 600; }
+  .top { margin-top: 8px; text-align: center; }
+  .t1 { font-size: 28px; color: #d1d5db; font-weight: 500; }
+  .t2 {
+    font-size: 96px;
+    font-weight: 900;
+    line-height: 1;
+    margin-top: 8px;
+    background: linear-gradient(180deg, #c4b5fd 0%, #7c3aed 50%, #5b21b6 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    letter-spacing: -0.04em;
+  }
+  .t3 { font-size: 32px; font-weight: 700; margin-top: 12px; }
+  .t3 em { font-style: normal; color: #a855f7; }
+  .fan {
+    position: relative;
+    flex: 1;
+    margin-top: 20px;
+    min-height: 420px;
+  }
+  .poster {
+    position: absolute;
+    width: 180px;
+    height: 280px;
+    border-radius: 10px;
+    overflow: hidden;
+    box-shadow: 0 20px 50px rgba(0,0,0,.5);
+    bottom: 20px;
+  }
+  .poster .bg {
+    width: 100%;
+    height: 100%;
+    background-size: cover;
+    background-position: center;
+  }
+  .poster .lbl {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    padding: 12px;
+    background: linear-gradient(transparent, rgba(0,0,0,.85));
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+  }
+  .a1 { left: 80px; transform: rotate(-10deg); }
+  .a1 .bg { background-image: url('https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=400&q=80'); }
+  .a2 { left: 260px; transform: rotate(-3deg); }
+  .a2 .bg { background: linear-gradient(160deg,#312e81,#7c3aed); }
+  .a3 { left: 440px; transform: rotate(3deg); }
+  .a3 .bg { background-image: url('https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=400&q=80'); }
+  .a4 { left: 620px; transform: rotate(10deg); }
+  .a4 .bg { background: linear-gradient(160deg,#78350f,#f59e0b); }
+  .foot { text-align: center; font-size: 18px; color: #6b7280; margin-top: 8px; }
+</style>
+</head>
+<body>
+  <div class="slide">1/5</div>
+  <div class="top">
+    <div class="t1">I used Remake Pixel</div>
+    <div class="t2">AI</div>
+    <div class="t3">to create these <em>posters</em></div>
+  </div>
+  <div class="fan">
+    <div class="poster a1"><div class="bg"></div><div class="lbl">Pro Edit</div></div>
+    <div class="poster a2"><div class="bg"></div><div class="lbl">96 Styles</div></div>
+    <div class="poster a3"><div class="bg"></div><div class="lbl">Video 6s</div></div>
+    <div class="poster a4"><div class="bg"></div><div class="lbl">Music Poster</div></div>
+  </div>
+  <p class="foot">Generate · Edit · Posters · Video · remakepix.com</p>
+</body>
+</html>

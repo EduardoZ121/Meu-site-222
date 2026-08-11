@@ -57,7 +57,7 @@ export function apiAspectRatio(ratio = "1:1", opts = {}) {
     return UI_TO_STANDARD[r] || "1:1";
   }
 
-  if (model === "artistic" || model === "pro" || model === "kontext") {
+  if (model === "artistic" || model === "pro" || model === "kontext" || model === "flux") {
     if (MATCH_SENTINELS.has(r) || r === "match_input_image") return "match_input_image";
     if (FLUX_OK.has(r)) return r;
     return UI_TO_FLUX[r] || "1:1";

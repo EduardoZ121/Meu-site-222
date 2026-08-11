@@ -1,47 +1,34 @@
 import { Link } from "react-router-dom";
 
-/** Single source of truth for the Remake Pixel logo.
+/** Single source of truth for the Remake logo.
  * Used everywhere — landing navbar, dashboard sidebar, login, etc.
  * Two sizes: "default" (24px height) and "lg" (40px).
  */
 export default function Logo({ to = "/", size = "default", variant = "default", className = "" }) {
-  const wordmark =
-    variant === "header" ? (
-      <span
-        className="text-[#F4F1EA] leading-none tracking-tight"
-        style={{
-          fontFamily: "'Inter Tight', system-ui, sans-serif",
-          fontSize: size === "lg" ? "16px" : "14px",
-          letterSpacing: "-0.02em",
-        }}
-      >
-        <span className="font-bold">Remake </span>
-        <span className="font-normal">Pixel</span>
-      </span>
-    ) : (
-      <span
-        className="text-[#F4F1EA] leading-none"
-        style={{
-          fontFamily: "'Inter Tight', system-ui, sans-serif",
-          fontSize: size === "lg" ? "16px" : "13px",
-          fontWeight: 500,
-          letterSpacing: "-0.01em",
-        }}
-      >
-        Remake Pixel
-      </span>
-    );
+  const wordmark = (
+    <span
+      className="rp-logo-wordmark leading-none tracking-tight"
+      style={{
+        fontFamily: "var(--font-display)",
+        fontSize: size === "lg" ? "16px" : variant === "header" ? "14px" : "13px",
+        fontWeight: variant === "header" ? 700 : 500,
+        letterSpacing: "-0.02em",
+      }}
+    >
+      Remake
+    </span>
+  );
 
   const inner = (
     <span className={`inline-flex items-center gap-2 ${className}`} data-testid="logo">
       <span
-        className="font-bold tracking-tight text-[#F4F1EA] leading-none"
+        className="rp-logo-mark font-bold tracking-tight leading-none"
         style={{
-          fontFamily: "'Inter Tight', system-ui, sans-serif",
+          fontFamily: "var(--font-display)",
           fontSize: size === "lg" ? "26px" : "18px",
         }}
       >
-        R<span className="text-[#A855F7]">.</span>
+        R<span className="rp-logo-dot">.</span>
       </span>
       {wordmark}
     </span>

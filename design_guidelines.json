@@ -1,0 +1,124 @@
+{
+  "project": "Remake Pixel Platform",
+  "theme": "dark",
+  "archetype": "5_jewel_luxury",
+  "aesthetics": "cinematic_editorial",
+  "colors": {
+    "background": "#0A0A0F",
+    "foreground": "#F4F1EA",
+    "primary": "#7C3AED",
+    "primary_foreground": "#F4F1EA",
+    "secondary": "#C4B5FD",
+    "secondary_foreground": "#0A0A0F",
+    "accent": "#1A1A24",
+    "accent_foreground": "#F4F1EA",
+    "muted": "#121217",
+    "muted_foreground": "#8F8F99",
+    "border": "rgba(244, 241, 234, 0.08)",
+    "glass": "rgba(10, 10, 15, 0.65)",
+    "error": "#993333"
+  },
+  "typography": {
+    "font_family": {
+      "heading": "'Cormorant Garamond', serif",
+      "body": "'Manrope', sans-serif"
+    },
+    "hierarchy": {
+      "h1": "text-5xl sm:text-6xl+ tracking-tighter leading-none font-medium italic-leaning",
+      "h2": "text-3xl sm:text-4xl tracking-tight leading-none font-medium",
+      "h3": "text-xl sm:text-2xl tracking-tight font-medium",
+      "body": "text-base leading-relaxed tracking-normal font-light",
+      "overline": "text-xs uppercase tracking-[0.2em] font-body text-[#8F8F99]"
+    }
+  },
+  "spacing": {
+    "section": "py-24 sm:py-32",
+    "container": "px-6 sm:px-12 lg:px-24",
+    "gap": "gap-8 sm:gap-12"
+  },
+  "effects": {
+    "film_grain": "url('data:image/svg+xml,%3Csvg viewBox=\"0 0 200 200\" xmlns=\"http://www.w3.org/2000/svg\"%3E%3Cfilter id=\"noiseFilter\"%3E%3CfeTurbulence type=\"fractalNoise\" baseFrequency=\"0.65\" numOctaves=\"3\" stitchTiles=\"stitch\"/%3E%3C/filter%3E%3Crect width=\"100%25\" height=\"100%25\" filter=\"url(%23noiseFilter)\"/%3E%3C/svg%3E') fixed opacity-10 pointer-events-none",
+    "glassmorphism": "backdrop-blur-xl bg-black/60 border border-white/10",
+    "shadows": {
+      "subtle": "0 4px 24px rgba(0,0,0,0.4)",
+      "glow": "0 0 40px rgba(124, 58, 237, 0.15)"
+    }
+  },
+  "components": {
+    "navbar": {
+      "style": "glassmorphism sticky top-0 z-50 border-b border-white/5",
+      "links": "text-sm text-foreground/70 hover:text-foreground transition-colors",
+      "cta": "bg-primary text-primary_foreground rounded-none px-6 py-2 text-sm uppercase tracking-wider hover:bg-primary/90",
+      "i18n_switcher": "text-sm text-[#8F8F99] hover:text-[#F4F1EA] flex items-center gap-1 cursor-pointer"
+    },
+    "hero": {
+      "style": "relative min-h-[90vh] flex items-center justify-center overflow-hidden",
+      "background": "full-bleed photo with object-cover scale-105 for subtle parallax",
+      "overlay": "bg-gradient-to-b from-black/40 via-black/60 to-[#0A0A0F] absolute inset-0",
+      "text_alignment": "text-center z-10 max-w-4xl",
+      "title": "font-heading text-6xl md:text-8xl text-[#F4F1EA] tracking-tighter mb-6",
+      "subtitle": "font-body text-xl text-[#F4F1EA]/80 max-w-2xl mx-auto font-light"
+    },
+    "pricing_card": {
+      "base": "bg-[#121217] border border-white/5 p-8 flex flex-col relative overflow-hidden",
+      "popular_highlight": "border-[#7C3AED] shadow-[0_0_30px_rgba(124,58,237,0.1)]",
+      "popular_badge": "absolute top-0 right-0 bg-[#7C3AED] text-[#F4F1EA] text-[10px] uppercase tracking-widest px-4 py-1 rounded-bl-lg",
+      "button": "mt-auto w-full border border-white/10 hover:bg-[#7C3AED] hover:border-[#7C3AED] transition-colors text-[#F4F1EA] py-3 text-sm tracking-wide",
+      "button_popular": "mt-auto w-full bg-[#7C3AED] hover:bg-[#6D28D9] transition-colors text-[#F4F1EA] py-3 text-sm tracking-wide"
+    },
+    "dashboard_sidebar": {
+      "style": "w-64 bg-[#0A0A0F] border-r border-white/5 h-screen sticky top-0 flex flex-col p-6",
+      "links": "font-body text-sm text-[#8F8F99] hover:text-[#C4B5FD] py-3 transition-colors flex items-center gap-4 border-l-2 border-transparent pl-4 -ml-6",
+      "active_link": "text-[#C4B5FD] border-[#7C3AED] bg-gradient-to-r from-[#7C3AED]/10 to-transparent"
+    },
+    "generate_page": {
+      "tabs": "flex border-b border-white/10 mb-8",
+      "tab_item": "px-6 py-4 text-sm font-body border-b-2 border-transparent text-[#8F8F99] hover:text-[#F4F1EA] cursor-pointer transition-colors",
+      "tab_active": "border-[#7C3AED] text-[#C4B5FD]"
+    },
+    "image_result_modal": {
+      "backdrop": "fixed inset-0 z-50 bg-[#0A0A0F]/95 backdrop-blur-md flex items-center justify-center p-4 sm:p-8",
+      "container": "relative w-full max-w-7xl h-full max-h-[85vh] bg-[#121217] border border-white/10 flex flex-col md:flex-row overflow-hidden shadow-2xl",
+      "image_area": "flex-1 relative bg-black flex items-center justify-center",
+      "sidebar": "w-full md:w-96 bg-[#121217] border-t md:border-t-0 md:border-l border-white/10 p-6 sm:p-8 flex flex-col gap-6 overflow-y-auto"
+    },
+    "faq_accordion": {
+      "style": "max-w-3xl mx-auto border-t border-white/10 mt-16",
+      "item": "border-b border-white/10 py-6",
+      "question": "font-heading text-2xl text-[#F4F1EA] flex justify-between items-center cursor-pointer hover:text-[#C4B5FD] transition-colors",
+      "answer": "font-body text-[#8F8F99] pt-4 leading-relaxed"
+    },
+    "marquee": {
+      "style": "py-16 border-y border-white/5 bg-[#0A0A0F] overflow-hidden flex whitespace-nowrap",
+      "text": "font-heading italic text-4xl sm:text-5xl text-[#F4F1EA]/30 uppercase tracking-widest mx-12 flex items-center"
+    }
+  },
+  "animation": {
+    "duration": "400ms",
+    "easing": "cubic-bezier(0.16, 1, 0.3, 1)",
+    "hover_scale": "scale-[1.02]"
+  },
+  "image_urls": [
+    {
+      "url": "https://images.unsplash.com/photo-1763246508257-5b37ace404b7?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NDk1Nzd8MHwxfHNlYXJjaHwxfHxjaW5lbWF0aWMlMjBoYW5kcyUyMGxpZ2h0JTIwYmVhbSUyMGRhcmt8ZW58MHx8fHwxNzc4NTUwOTI4fDA&ixlib=rb-4.1.0&q=85",
+      "category": "hero",
+      "description": "Hand reaching towards bright light beam, highly cinematic, philosophical tone"
+    },
+    {
+      "url": "https://images.unsplash.com/photo-1761283523846-d1a482e9ba26?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA2MjJ8MHwxfHNlYXJjaHwxfHxjaW5lbWF0aWMlMjBkYXJrJTIwZmFicmljJTIwdGV4dHVyZXxlbnwwfHx8fDE3Nzg1NTA5Mjh8MA&ixlib=rb-4.1.0&q=85",
+      "category": "inside_section",
+      "description": "Cinematic dark fabric texture for interior sections"
+    },
+    {
+      "url": "https://images.unsplash.com/photo-1770896687186-895de50a4123?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjY2NzF8MHwxfHNlYXJjaHwyfHxtb29keSUyMGNpbmVtYXRpYyUyMHBvcnRyYWl0JTIwZGFya3xlbnwwfHx8fDE3Nzg1NTA5Mjh8MA&ixlib=rb-4.1.0&q=85",
+      "category": "founder_portrait",
+      "description": "Moody cinematic portrait of founder"
+    },
+    {
+      "url": "https://images.unsplash.com/photo-1773257607064-7c6a4cbb71f1?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA1NzB8MHwxfHNlYXJjaHwxfHxjaW5lbWF0aWMlMjBzbW9rZSUyMGRhcmt8ZW58MHx8fHwxNzc4NTUwOTM4fDA&ixlib=rb-4.1.0&q=85",
+      "category": "feature_background",
+      "description": "Two figures illuminated by spotlights and smoke in the dark"
+    }
+  ],
+  "instructions_to_main_agent": "Implement a cinematic, editorial platform. Install 'Cormorant Garamond' and 'Manrope' fonts from Google Fonts. Use Cormorant Garamond for headings (italicize strategically for editorial feel) and Manrope for body text. DO NOT use Inter, Roboto, Space Grotesk, or Playfair Display. The UI must strictly follow the Sober Editorial Purple palette (#0A0A0F bg, #7C3AED primary, #C4B5FD secondary). No neon glowing effects, no rainbow gradients, no 3D AI cartoonish graphics. Emojis as icons are BANNED - use lucide-react or phosphor-icons. Apply a global subtle film grain overlay. Create the marketing landing page structure as requested, followed by the robust, minimalistic dashboard. Add i18n switcher in header. Enforce `data-testid` on all interactable elements."
+}

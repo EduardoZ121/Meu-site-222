@@ -1,7 +1,23 @@
 import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
-import { ArrowUpRight, Clapperboard, ImageIcon, Sparkles, Type } from "lucide-react";
+import {
+  ArrowUpRight,
+  Briefcase,
+  Clapperboard,
+  Film,
+  ImageIcon,
+  Layers,
+  Megaphone,
+  Mountain,
+  Palette,
+  PartyPopper,
+  Shirt,
+  Sparkles,
+  Type,
+  Zap,
+} from "lucide-react";
 import { usePricing } from "../../lib/PricingContext";
+import { videoCatalogueCost } from "../../lib/pricingRegions";
 
 const cardEase = [0.16, 1, 0.3, 1];
 
@@ -9,17 +25,37 @@ const ICONS = {
   type: Type,
   image: ImageIcon,
   clapperboard: Clapperboard,
+  film: Film,
+  megaphone: Megaphone,
+  zap: Zap,
+  sparkles: Sparkles,
+  layers: Layers,
+  briefcase: Briefcase,
+  party: PartyPopper,
+  mountain: Mountain,
+  shirt: Shirt,
+  palette: Palette,
 };
 
 const ICON_STYLES = {
   type: "from-violet-600/40 to-indigo-900/60 text-violet-200",
   image: "from-cyan-600/35 to-violet-900/55 text-cyan-100",
   clapperboard: "from-fuchsia-600/35 to-violet-900/55 text-fuchsia-100",
+  film: "from-teal-600/35 to-emerald-900/55 text-teal-100",
+  megaphone: "from-amber-600/30 to-orange-900/50 text-amber-100",
+  zap: "from-emerald-600/30 to-teal-900/50 text-emerald-100",
+  sparkles: "from-violet-600/35 to-fuchsia-900/50 text-violet-100",
+  layers: "from-blue-600/30 to-indigo-900/50 text-blue-100",
+  briefcase: "from-stone-600/30 to-zinc-900/50 text-stone-100",
+  party: "from-pink-600/30 to-rose-900/50 text-pink-100",
+  mountain: "from-sky-600/30 to-blue-900/50 text-sky-100",
+  shirt: "from-purple-600/30 to-violet-900/50 text-purple-100",
+  palette: "from-rose-600/30 to-orange-900/50 text-rose-100",
 };
 
 export default function VideoGridCard({ category, index, t }) {
   const { costs } = usePricing();
-  const cost = costs[category.costKey] ?? costs.video ?? 80;
+  const cost = videoCatalogueCost(costs, category);
   const Icon = ICONS[category.icon] || Type;
   const iconStyle = ICON_STYLES[category.icon] || ICON_STYLES.type;
 
@@ -36,35 +72,35 @@ export default function VideoGridCard({ category, index, t }) {
     >
       <Link
         to={category.to}
-        className="group relative flex h-full flex-col overflow-hidden rounded-2xl border border-white/[0.07] bg-white/[0.03] shadow-[0_1px_0_rgba(255,255,255,0.06)_inset,0_24px_48px_-32px_rgba(0,0,0,0.85)] backdrop-blur-xl transition-[transform,box-shadow,border-color] duration-500 ease-out hover:scale-[1.02] hover:border-violet-400/35 hover:shadow-[0_0_0_1px_rgba(168,85,247,0.12),0_28px_60px_-24px_rgba(124,58,237,0.55)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500/50"
+        className="rp-glass-card rp-glass-card--roomy group relative flex h-full flex-col hover:scale-[1.01] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500/50"
         data-testid={`video-card-${category.id}`}
       >
-        <div
-          className="pointer-events-none absolute -inset-px rounded-2xl opacity-0 transition-opacity duration-500 group-hover:opacity-100"
-          aria-hidden
-          style={{
-            background:
-              "linear-gradient(135deg, rgba(168,85,247,0.22) 0%, transparent 42%, rgba(59,130,246,0.12) 100%)",
-          }}
-        />
-
-        <div className={`relative aspect-[16/10] overflow-hidden bg-gradient-to-br ${iconStyle}`}>
-          <div className="absolute inset-0 bg-[#0a0a0f]/50" aria-hidden />
-          <div className="absolute inset-0 flex items-center justify-center z-[1]">
-            <div className="w-16 h-16 rounded-2xl border border-white/15 bg-black/25 backdrop-blur-md flex items-center justify-center shadow-[0_0_40px_-8px_rgba(124,58,237,0.5)]">
+        <div className={`rp-glass-card__media aspect-[16/10] bg-gradient-to-br ${iconStyle}`}>
+          <div className="absolute inset-0 flex items-center justify-center z-[3]">
+            <div className="w-16 h-16 rounded-2xl border border-white/20 bg-white/[0.08] backdrop-blur-md flex items-center justify-center shadow-[0_0_40px_-8px_rgba(124,58,237,0.5)]">
               <Icon className="w-8 h-8" strokeWidth={1.5} />
             </div>
           </div>
-          <div
-            className="absolute inset-0 bg-gradient-to-t from-[#08080c] via-transparent to-transparent z-[1]"
-            aria-hidden
-          />
+          <div className="rp-glass-card__media-shade" aria-hidden />
+
+          <div className="absolute top-3 left-3 z-[2] flex flex-col gap-1.5">
+            {category.badgeKey && (
+              <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-[10px] font-medium text-violet-100 bg-violet-500/15 border border-violet-400/25 backdrop-blur-md">
+                {t(category.badgeKey)}
+              </span>
+            )}
+            {category.id === "image" && (
+              <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-[10px] font-medium text-cyan-100 bg-cyan-500/10 border border-cyan-400/25 backdrop-blur-md">
+                {t("vid_image_price_hint", { n: costs.videoImage ?? 150 })}
+              </span>
+            )}
+          </div>
 
           <div className="absolute top-3 right-3 z-[2]">
-            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold tabular-nums text-violet-100 bg-violet-500/20 border border-violet-400/30 backdrop-blur-md">
-              <Sparkles className="w-3 h-3 text-violet-300" strokeWidth={2} />
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold tabular-nums text-[#f4e8d4] bg-[#c7a77a]/15 border border-[#c7a77a]/35 backdrop-blur-md">
+              <Sparkles className="w-3 h-3 text-[#c7a77a]" strokeWidth={2} />
               {cost}
-              <span className="text-violet-300/80 font-medium">{t("label_credits_short")}</span>
+              <span className="text-[#c7a77a]/90 font-medium">{t("label_credits_short")}</span>
             </span>
           </div>
 
@@ -73,7 +109,7 @@ export default function VideoGridCard({ category, index, t }) {
           </span>
         </div>
 
-        <div className="relative flex flex-1 flex-col gap-2 p-4 sm:p-5 border-t border-white/[0.05]">
+        <div className="rp-glass-card__body gap-2 p-4 sm:p-5">
           <h3 className="text-[17px] sm:text-[18px] font-semibold text-white leading-snug tracking-[-0.02em] font-['Inter_Tight'] group-hover:text-violet-50 transition-colors line-clamp-2">
             {t(category.nameKey)}
           </h3>
@@ -81,10 +117,10 @@ export default function VideoGridCard({ category, index, t }) {
             {t(category.descKey)}
           </p>
           <div className="pt-2 flex items-center justify-between gap-3 mt-auto">
-            <span className="text-[11px] font-mono uppercase tracking-[0.14em] text-violet-400/90">
+            <span className="text-[11px] font-semibold tracking-wide rp-type-value">
               {cost} {t("label_credits")}
             </span>
-            <span className="text-[11px] font-medium text-zinc-500 group-hover:text-violet-300/90 transition-colors">
+            <span className="text-[11px] font-medium text-zinc-500 group-hover:text-[#d4bc94] transition-colors">
               {t("vid_grid_open")}
             </span>
           </div>

@@ -7,6 +7,7 @@ function getPricingMeta() {
     creditsPerEuro: root.creditsPerEuro ?? 30,
     minCustomCredits: root.minCustomCredits ?? 150,
     marginTargetPct: root.marginTargetPct ?? 75,
+    posterHqPremiumCostPerOutput: root.posterHqPremiumCostPerOutput ?? 50,
   };
 }
 
@@ -35,16 +36,29 @@ function customPurchaseAmountCents(credits) {
   return Math.ceil(cr / rate) * 100;
 }
 
-function computeVideoGenerateCost(CREDIT, surcharges, { duration = 6 } = {}) {
-  let cost = CREDIT.video ?? 80;
+function computeVideoGenerateCost(CREDIT, surcharges, { duration = 6, mode = "text", testMode = false } = {}) {
+  if (testMode) return 0;
+  let cost = mode === "image"
+    ? (CREDIT.videoImage ?? CREDIT.video ?? 150)
+    : (CREDIT.video ?? 40);
   const dur = Math.round(Number(duration));
   if (dur >= 10) cost += surcharges.videoDuration10 ?? 50;
   else if (dur >= 8) cost += surcharges.videoDuration8 ?? 25;
   return cost;
 }
 
+function computeVideoExtendCostFromConfig(CREDIT, surcharges, { resolution = "1080p", duration = 6 } = {}) {
+  let cost = CREDIT.videoExtend ?? CREDIT.videoEdit ?? 70;
+  const res = String(resolution || "1080p").trim().toLowerCase();
+  const dur = Math.round(Number(duration));
+  if (res === "720p" || res === "1080p") cost += surcharges.videoEditResolutionHd ?? 8;
+  if (dur >= 10) cost += surcharges.videoEditDuration10 ?? 25;
+  else if (dur >= 8) cost += surcharges.videoEditDuration8 ?? 12;
+  return cost;
+}
+
 function computeVideoEditCostFromConfig(CREDIT, surcharges, { resolution = "original", duration = 6 } = {}) {
-  let cost = CREDIT.videoEdit ?? 120;
+  let cost = CREDIT.videoEdit ?? 100;
   const res = String(resolution || "original").trim().toLowerCase();
   const dur = Math.round(Number(duration));
   if (res === "720p" || res === "1080p") cost += surcharges.videoEditResolutionHd ?? 15;
@@ -82,16 +96,16 @@ function applyGenerationSurcharges(cost, surcharges, {
   hdQuality = false,
   hdMode = "image",
 } = {}) {
-  let total = cost;
-  if (improvePrompt) total += surcharges.enhancePrompt ?? 3;
+  const base = Number(cost);
+  let total = Number.isFinite(base) ? base : 0;
+  const sc = surcharges && typeof surcharges === "object" ? surcharges : {};
+  if (improvePrompt) total += Number(sc.enhancePrompt) || 5;
   if (hdQuality) {
-    total += hdMode === "simple"
-      ? (surcharges.hdSimple ?? 5)
-      : hdMode === "video"
-        ? (surcharges.hdVideo ?? 15)
-        : (surcharges.hdImage ?? 8);
+    if (hdMode === "simple") total += Number(sc.hdSimple) || 5;
+    else if (hdMode === "video") total += Number(sc.hdVideo) || 15;
+    else total += Number(sc.hdImage) || 8;
   }
-  return total;
+  return Math.round(total);
 }
 
 module.exports = {
@@ -102,6 +116,7 @@ module.exports = {
   customPurchaseAmountCents,
   computeVideoGenerateCost,
   computeVideoEditCostFromConfig,
+  computeVideoExtendCostFromConfig,
   countPremiumArtisticEffects,
   computeArtisticEffectSurcharge,
   applyGenerationSurcharges,

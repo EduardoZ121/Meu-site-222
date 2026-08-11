@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 
 /* ──────────────────────────────────────────────────────────────────────
-   Remake Pixel · Triple-track scramble marquee
+   Remake · Triple-track scramble marquee
    ──────────────────────────────────────────────────────────────────────
    Why this is different than a plain CSS scroll:
 
@@ -50,9 +50,9 @@ const TRACK_B = [
   { t: "·" },
   { t: "Sem letra pequena.", italic: true },
   { t: "·" },
-  { t: "50 CRÉDITOS GRÁTIS", anchor: true },
+  { t: "PAGA SÓ O QUE USAS", anchor: true },
   { t: "·" },
-  { t: "AO REGISTAR", muted: true },
+  { t: "PACOTES DE CRÉDITOS", muted: true },
   { t: "·" },
   { t: "PORTUGUÊS" },
   { t: "·" },

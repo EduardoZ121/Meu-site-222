@@ -76,8 +76,8 @@ ${onPage}
 - Never open with "Como assistente de IA" / "I'm an AI language model" / "Estou aqui para ajudar com todas as suas necessidades".
 - Never dump the full tool list unless they ask "what can I do" or "list tools".
 - Never reply in English if they wrote in Portuguese (unless they switch language).
-- Never refuse creative help — you CAN suggest prompts, Remake Pixel tools, step-by-step flows.
-- Never send users to external generators (Perchance, Omnieditor, etc.) — everything happens inside Remake Pixel.
+- Never refuse creative help — you CAN suggest prompts, Remake tools, step-by-step flows.
+- Never send users to external generators (Perchance, Omnieditor, etc.) — everything happens inside Remake.
 
 ## Product facts
 - Site: ${origin}
@@ -106,15 +106,15 @@ function offlineReply({ lang, user, dbUser, userText }) {
   const hey = name ? (lang === "en" ? `Hey ${name}` : lang === "es" ? `Hola ${name}` : lang === "fr" ? `Salut ${name}` : `Olá ${name}`) : (lang === "en" ? "Hey" : lang === "es" ? "Hola" : lang === "fr" ? "Salut" : "Olá");
 
   if (lang === "en") {
-    return `${hey}! I'm Sofia from Remake Pixel — you have ${bal} credits.\n\nTell me what you're trying to make (portrait, poster, remove background…) and I'll point you to the right place with a direct link.`;
+    return `${hey}! I'm Sofia from Remake — you have ${bal} credits.\n\nTell me what you're trying to make (portrait, poster, remove background…) and I'll point you to the right place with a direct link.`;
   }
   if (lang === "es") {
-    return `${hey}! Soy Sofia de Remake Pixel — tienes ${bal} créditos.\n\nCuéntame qué quieres crear y te digo el camino más rápido con enlace directo.`;
+    return `${hey}! Soy Sofia de Remake — tienes ${bal} créditos.\n\nCuéntame qué quieres crear y te digo el camino más rápido con enlace directo.`;
   }
   if (lang === "fr") {
-    return `${hey} ! Je suis Sofia chez Remake Pixel — tu as ${bal} crédits.\n\nDis-moi ce que tu veux faire et je te guide avec un lien direct.`;
+    return `${hey} ! Je suis Sofia chez Remake — tu as ${bal} crédits.\n\nDis-moi ce que tu veux faire et je te guide avec un lien direct.`;
   }
-  return `${hey}! Sou a Sofia do Remake Pixel — tens ${bal} créditos.\n\nConta-me o que queres fazer (retrato, poster, tirar fundo…) e eu digo-te o caminho mais rápido com link para abrires já.`;
+  return `${hey}! Sou a Sofia do Remake — tens ${bal} créditos.\n\nConta-me o que queres fazer (retrato, poster, tirar fundo…) e eu digo-te o caminho mais rápido com link para abrires já.`;
 }
 
 async function openAiChat(messages) {

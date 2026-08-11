@@ -2,13 +2,20 @@ import { motion } from "framer-motion";
 import { Link } from "react-router-dom";
 import { ArrowRight, Sparkles } from "lucide-react";
 import { useI18n } from "../lib/i18n";
+import { useAuth } from "../lib/auth";
 import HeroFloatingPreviews from "../components/landing/HeroFloatingPreviews";
 import HeroScrollCue from "../components/landing/HeroScrollCue";
+import HeroVideoBackground from "./HeroVideoBackground";
 
 const EASE = [0.16, 1, 0.3, 1];
 
 export default function Hero() {
   const { t } = useI18n();
+  const { user } = useAuth();
+  const primaryHref = "/app/tools";
+  const primaryLabel = user
+    ? t("nav_open_app")
+    : t("hero_cta_primary");
 
   return (
     <section
@@ -17,15 +24,10 @@ export default function Hero() {
     >
       {/* Backdrop layers */}
       <div className="absolute inset-0 z-0">
-        <img
-          src="/images/hero-bg.jpg?v=13"
-          alt=""
-          className="w-full h-full object-cover opacity-[0.38]"
-          draggable={false}
-        />
+        <HeroVideoBackground />
         <div className="hero-aurora hero-aurora--static absolute inset-0" aria-hidden />
         {/* Vignette + tighter bottom fade for premium feel */}
-        <div className="absolute inset-0 bg-gradient-to-b from-[#0B0B0C]/85 via-[#0B0B0C]/45 to-[#0B0B0C]" />
+        <div className="absolute inset-0 bg-gradient-to-b from-[#0B0B0C]/75 via-[#0B0B0C]/35 to-[#0B0B0C]/90" />
         <div className="absolute inset-0 bg-[radial-gradient(120%_60%_at_50%_30%,rgba(124,58,237,0.18),transparent_60%)]" aria-hidden />
       </div>
       <HeroFloatingPreviews />
@@ -38,8 +40,8 @@ export default function Hero() {
           transition={{ duration: 0.6, delay: 0.25, ease: EASE }}
           className="inline-flex items-center gap-2 mb-8 px-3 py-1.5 rounded-full border border-white/10 bg-white/[0.03] backdrop-blur-sm"
         >
-          <Sparkles className="w-3 h-3 text-[#A855F7]" strokeWidth={2} />
-          <span className="text-[11px] font-medium text-[#D1D5DB] tracking-wide">
+          <Sparkles className="w-3 h-3 text-[#c7a77a]" strokeWidth={2} />
+          <span className="rp-type-eyebrow rp-type-eyebrow--sentence text-[11px]">
             {t("hero_eyebrow")}
           </span>
         </motion.div>
@@ -52,7 +54,7 @@ export default function Hero() {
         >
           {t("hero_title_1")}
           <br />
-          <span className="italic font-light text-rp-lavender">{t("hero_title_2")}</span>{" "}
+          <span className="rp-type-accent-word">{t("hero_title_2")}</span>{" "}
           {t("hero_title_3")}
         </motion.h1>
 
@@ -74,14 +76,14 @@ export default function Hero() {
           className="flex flex-col items-center gap-4 w-full max-w-[420px]"
         >
           <Link
-            to="/register"
-            className="group inline-flex items-center justify-center gap-2 w-full sm:w-auto px-7 py-3.5 rounded-xl bg-[#7C3AED] hover:bg-[#8B47EF] active:scale-[0.98] transition-all duration-200 shadow-[0_10px_40px_-12px_rgba(124,58,237,0.7)] hover:shadow-[0_14px_44px_-10px_rgba(124,58,237,0.85)]"
+            to={primaryHref}
+            className="btn-primary group w-full sm:w-auto active:scale-[0.98]"
             data-testid="hero-cta-primary"
           >
-            <span className="text-white text-[14px] font-semibold tracking-wide">
-              {t("hero_cta_primary")}
+            <span className="text-[14px] font-semibold tracking-wide">
+              {primaryLabel}
             </span>
-            <ArrowRight className="w-4 h-4 text-white transition-transform group-hover:translate-x-0.5" strokeWidth={2} />
+            <ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-0.5" strokeWidth={2} />
           </Link>
 
           <div className="flex items-center gap-5 text-[12px] text-[#6B7280]">
@@ -94,20 +96,9 @@ export default function Hero() {
             </Link>
           </div>
         </motion.div>
-
-        {/* Subtle trust strip — no cumulative numbers required, just a vibe */}
-        <motion.p
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 1.0, duration: 0.6 }}
-          className="mt-10 text-[10px] font-mono uppercase tracking-[0.22em] text-[#52525B]"
-        >
-          {t("hero_trust_strip")}
-        </motion.p>
       </div>
 
-      {/* Single scroll cue (replaces the duplicate "See creations / Learn more / Scroll" stack) */}
-      <div className="absolute bottom-6 inset-x-0 z-10 flex justify-center pointer-events-none">
+      <div className="absolute bottom-8 inset-x-0 z-10 flex justify-center pointer-events-none">
         <motion.div
           initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}

@@ -199,6 +199,7 @@ export default function MangaScenarioCard({
         emptyLabel={t("manga_upload_image")}
         emptyHint={t("upload_empty_hint")}
         enableRemotePersist={false}
+        prepareOnPick
         compressOptions={{ maxSize: 1400, maxBytes: 2 * 1024 * 1024 }}
       />
 

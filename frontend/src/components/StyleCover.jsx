@@ -1,3 +1,5 @@
+import { useState, useEffect } from "react";
+
 const CATEGORY_PALETTES = {
   men: ["#0B0B0C", "#334155", "#7C3AED"],
   women: ["#1F102A", "#EC4899", "#FBCFE8"],
@@ -70,15 +72,23 @@ export default function StyleCover({
   selected = false,
   className = "",
   compact = false,
+  /** Só imagem — título fica fora do card (estilo OpenArt). */
+  imageOnly = false,
   /** URL pública (ex.: /images/padrao-covers/men_underwater.jpg) — substitui o gradiente. */
   coverSrc = "",
   coverObjectPosition = "center center",
 }) {
   const visual = pickVisual(prompt, category, id || title);
+  const [photoFailed, setPhotoFailed] = useState(false);
+  const [coverAttempt, setCoverAttempt] = useState(0);
+  useEffect(() => {
+    setPhotoFailed(false);
+    setCoverAttempt(0);
+  }, [coverSrc]);
   const [a, b, c] = visual.colors;
   const words = (title || id || "Style").replace(/[^\p{L}\p{N}\s]/gu, "").split(/\s+/).filter(Boolean);
   const initials = words.slice(0, 2).map((w) => w[0]).join("").toUpperCase() || visual.symbol;
-  const hasPhoto = Boolean(coverSrc);
+  const hasPhoto = Boolean(coverSrc) && !photoFailed;
 
   return (
     <div
@@ -92,14 +102,22 @@ export default function StyleCover({
           }
       }
     >
-      {hasPhoto && (
+      {coverSrc && (
         <img
-          src={coverSrc}
+          key={`${coverSrc}-${coverAttempt}`}
+          src={coverAttempt > 0 ? `${coverSrc}${coverSrc.includes("?") ? "&" : "?"}retry=${coverAttempt}` : coverSrc}
           alt=""
           decoding="async"
           loading="lazy"
-          className="absolute inset-0 h-full w-full object-cover"
+          className={`absolute inset-0 h-full w-full object-cover transition-opacity duration-300 ${hasPhoto ? "opacity-100" : "opacity-0"}`}
           style={{ objectPosition: coverObjectPosition }}
+          onError={() => {
+            if (coverAttempt < 1) {
+              setCoverAttempt((n) => n + 1);
+              return;
+            }
+            setPhotoFailed(true);
+          }}
         />
       )}
 
@@ -121,6 +139,7 @@ export default function StyleCover({
           />
         </>
       )}
+      {!(imageOnly && hasPhoto) && (
       <div
         className={
           hasPhoto
@@ -128,6 +147,7 @@ export default function StyleCover({
             : "absolute inset-0 bg-gradient-to-t from-[#0B0B0C]/92 via-[#0B0B0C]/30 to-transparent"
         }
       />
+      )}
 
       {!hasPhoto && (
         <>
@@ -138,29 +158,37 @@ export default function StyleCover({
         </>
       )}
 
-      <div
-        className={`absolute right-3 top-3 font-['JetBrains_Mono'] text-[28px] ${hasPhoto ? "text-white/40 drop-shadow-[0_2px_12px_rgba(0,0,0,0.7)]" : "text-white/30 drop-shadow-[0_0_18px_rgba(255,255,255,0.25)]"}`}
-      >
-        {visual.symbol}
-      </div>
+      {!imageOnly && (
+        <>
+          <div
+            className={`absolute right-3 top-3 font-mono text-[28px] ${hasPhoto ? "text-white/40 drop-shadow-[0_2px_12px_rgba(0,0,0,0.7)]" : "text-white/30 drop-shadow-[0_0_18px_rgba(255,255,255,0.25)]"}`}
+          >
+            {visual.symbol}
+          </div>
 
-      <div className={`absolute left-3 top-3 flex h-10 w-10 items-center justify-center rounded-full border font-['JetBrains_Mono'] text-[11px] font-semibold tracking-[0.08em] backdrop-blur-sm ${hasPhoto ? "border-white/20 bg-black/45 text-white/90" : "border-white/25 bg-black/20 text-white/80"}`}>
-        {initials}
-      </div>
+          <div className={`absolute left-3 top-3 flex h-10 w-10 items-center justify-center rounded-full border font-mono text-[11px] font-semibold tracking-[0.08em] backdrop-blur-sm ${hasPhoto ? "border-white/20 bg-black/45 text-white/90" : "border-white/25 bg-black/20 text-white/80"}`}>
+            {initials}
+          </div>
 
-      <div className="absolute inset-x-0 bottom-0 p-3">
-        {eyebrow && (
-          <p className="mb-1 font-['JetBrains_Mono'] text-[8px] uppercase tracking-[0.18em] text-white/55">
-            {eyebrow}
-          </p>
-        )}
-        <p className={`${compact ? "text-[12px]" : "text-[13px]"} line-clamp-2 font-['Inter_Tight'] font-medium leading-tight text-[#F4F1EA] drop-shadow-md`}>
-          {title || id}
-        </p>
-        {premium && <p className="mt-1 font-['JetBrains_Mono'] text-[8px] uppercase tracking-[0.16em] text-[#FDE68A]">Premium</p>}
-      </div>
+          <div className="absolute inset-x-0 bottom-0 p-3">
+            {eyebrow && (
+              <p className="mb-1 font-mono text-[8px] uppercase tracking-[0.18em] text-white/55">
+                {eyebrow}
+              </p>
+            )}
+            <p className={`${compact ? "text-[12px]" : "text-[13px]"} line-clamp-2 font-display font-medium leading-tight text-[#F4F1EA] drop-shadow-md`}>
+              {title || id}
+            </p>
+            {premium && <p className="mt-1 font-mono text-[8px] uppercase tracking-[0.16em] text-[#FDE68A]">Premium</p>}
+          </div>
+        </>
+      )}
 
-      {selected && (
+      {imageOnly && hasPhoto && (
+        <div className="absolute inset-0 bg-gradient-to-t from-black/30 via-transparent to-transparent pointer-events-none" />
+      )}
+
+      {!imageOnly && selected && (
         <div className="absolute right-2 top-2 flex h-6 w-6 items-center justify-center rounded-full bg-[#7C3AED] text-[11px] font-bold text-white shadow-lg shadow-[#7C3AED]/50">
           ✓
         </div>

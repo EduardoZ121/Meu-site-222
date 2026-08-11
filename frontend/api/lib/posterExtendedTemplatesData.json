@@ -1,0 +1,216 @@
+[
+  {
+    "id": "barber_luxury",
+    "source_id": "barber_luxury",
+    "familyId": "barber_luxury",
+    "styleVariants": true,
+    "category": "barber",
+    "label": "BARBEARIA",
+    "subtag": "5 estilos · Grooming",
+    "placeholders": [
+      "FIRST_NAME",
+      "SURNAME",
+      "HEADLINE_1",
+      "HEADLINE_2",
+      "HEADLINE_3",
+      "SVC_1",
+      "SVC_2",
+      "SVC_3",
+      "GOLD_1",
+      "GOLD_2",
+      "GOLD_3"
+    ],
+    "optional": [],
+    "replacements": {
+      "FIRST_NAME": "CARLOS",
+      "SURNAME": "SILVA",
+      "HEADLINE_1": "MASTERS OF PRECISION",
+      "HEADLINE_2": "KING OF FADE",
+      "HEADLINE_3": "STYLE DEFINES CHARACTER",
+      "SVC_1": "PREMIUM CUTS",
+      "SVC_2": "SKIN FADES",
+      "SVC_3": "BEARD SCULPTING",
+      "GOLD_1": "DISCIPLINA",
+      "GOLD_2": "ESTILO",
+      "GOLD_3": "PRECISÃO"
+    },
+    "prompt": "REFERENCE PHOTO (mandatory): Use the uploaded photo as the exact same person — preserve 100% of their face, facial features, skin tone, ethnicity, hair texture and likeness. Seamlessly composite them into this poster like professional photo retouching: unified lighting on face and body, natural skin blend, no floating cutout, no pasted sticker look, no disjointed face layer. Place the subject in the pose/position described below while keeping their real identity. Typography and graphic elements must sit in clear layout zones — never let text overlap, cut through or hide behind the face; place headlines in negative space or on background layers behind the subject when needed.\n\nHighly detailed vertical luxury barber editorial poster, premium street-fashion magazine aesthetic, cinematic urban barbershop photography.\n\nCentral composition:\nDominant barber sitting confidently on a premium vintage barber chair. Low-angle perspective creating authority and iconic presence. One arm resting casually while holding professional hair clippers. Relaxed yet powerful posture. Wearing modern luxury streetwear consisting of oversized jacket, fitted t-shirt, chains, rings and premium sneakers.\n\nTypography layout:\nMassive distressed uppercase typography dominating the upper section.\n\nMain Title:\nLarge textured gold \"{{FIRST_NAME}}\".\n\nSecondary Title:\nLarge white uppercase \"{{SURNAME}}\".\n\nEditorial Headlines:\n\"{{HEADLINE_1}}\"\n\"{{HEADLINE_2}}\"\n\"{{HEADLINE_3}}\"\n\nInformation blocks:\n• {{SVC_1}}\n• {{SVC_2}}\n• {{SVC_3}}\n\nHighlight box:\n{{GOLD_1}}\n{{GOLD_2}}\n{{GOLD_3}}\n\nBackground:\nLuxury barbershop interior filled with vintage barber equipment, mirrors, leather chairs, styling products and urban editorial elements. Torn newspaper textures, stickers, magazine cutouts and paint splashes integrated into the composition.\n\nLighting:\nCinematic dramatic lighting with deep shadows and premium editorial contrast.\n\nColor palette:\nBlack, gold, white, warm brown accents.\n\nStyle:\nGQ magazine meets luxury barber campaign meets urban street editorial.",
+    "aspect": "4:5"
+  },
+  {
+    "id": "carousel_psychology",
+    "source_id": "carousel_psychology",
+    "familyId": "carousel_psychology",
+    "styleVariants": true,
+    "category": "carousel",
+    "label": "PSICOLOGIA",
+    "subtag": "4 carrosséis · Saúde mental",
+    "placeholders": [
+      "MAIN_TITLE",
+      "PANEL2",
+      "PANEL3",
+      "PANEL4",
+      "CLOSING"
+    ],
+    "optional": [],
+    "replacements": {
+      "MAIN_TITLE": "3 SIGNS ANXIETY MAY BE CONTROLLING YOUR LIFE",
+      "PANEL2": "Excessive worrying can become exhausting.",
+      "PANEL3": "Sleep problems are common symptoms.",
+      "PANEL4": "Anxiety can impact relationships and confidence.",
+      "CLOSING": "Seeking support is a sign of strength, not weakness."
+    },
+    "prompt": "REFERENCE PHOTO (mandatory): Use the uploaded photo as the exact same person — preserve 100% of their face, facial features, skin tone, ethnicity, hair texture and likeness. Seamlessly composite them into this poster like professional photo retouching: unified lighting on face and body, natural skin blend, no floating cutout, no pasted sticker look, no disjointed face layer. Place the subject in the pose/position described below while keeping their real identity. Typography and graphic elements must sit in clear layout zones — never let text overlap, cut through or hide behind the face; place headlines in negative space or on background layers behind the subject when needed.\n\nHighly detailed educational Instagram carousel designed as a premium psychology awareness campaign using realistic photography and modern infographic elements.\n\nLayout:\n5-panel Instagram carousel infographic as one cohesive educational poster with rounded borders, clean professional spacing and distinct labeled sections for each panel.\n\nMain Character:\nProfessional female psychologist with a warm and empathetic appearance, wearing smart-casual office attire.\n\nPanel 1 (Hero):\nPsychologist seated inside a modern therapy office pointing toward a presentation board.\nTitle: \"{{MAIN_TITLE}}\"\n\nPanel 2:\nRealistic scene of a person constantly overthinking while working.\nWarning Box: \"{{PANEL2}}\"\n\nPanel 3:\nPerson struggling with sleep while checking the clock at night.\nWarning Box: \"{{PANEL3}}\"\n\nPanel 4:\nIndividual avoiding social situations and appearing emotionally overwhelmed.\nWarning Box: \"{{PANEL4}}\"\n\nPanel 5:\nPsychologist smiling and presenting coping strategies.\nClosing Message: \"{{CLOSING}}\"\n\nStyle:\nRealistic psychology awareness campaign.\n\nColor Palette:\nSoft blue, white, sage green.",
+    "aspect": "4:5"
+  },
+  {
+    "id": "carousel_marketing",
+    "source_id": "carousel_marketing",
+    "familyId": "carousel_marketing",
+    "styleVariants": true,
+    "category": "carousel",
+    "label": "MARKETING DIGITAL",
+    "subtag": "4 carrosséis · Growth",
+    "placeholders": [
+      "MAIN_TITLE",
+      "PANEL2",
+      "PANEL3",
+      "CLOSING"
+    ],
+    "optional": [],
+    "replacements": {
+      "MAIN_TITLE": "3 REASONS YOUR CONTENT ISN'T CONVERTING",
+      "PANEL2": "Posting consistently isn't enough if your message isn't clear.",
+      "PANEL3": "Clear CTA · Strong Hooks · Audience Understanding",
+      "CLOSING": "Small changes in strategy can dramatically improve results."
+    },
+    "prompt": "REFERENCE PHOTO (mandatory): Use the uploaded photo as the exact same person — preserve 100% of their face, facial features, skin tone, ethnicity, hair texture and likeness. Seamlessly composite them into this poster like professional photo retouching: unified lighting on face and body, natural skin blend, no floating cutout, no pasted sticker look, no disjointed face layer. Place the subject in the pose/position described below while keeping their real identity. Typography and graphic elements must sit in clear layout zones — never let text overlap, cut through or hide behind the face; place headlines in negative space or on background layers behind the subject when needed.\n\nHighly detailed educational Instagram carousel designed as a premium digital marketing awareness campaign using realistic photography and modern infographic elements.\n\nLayout:\n4-panel Instagram carousel with clean spacing, rounded borders and modern marketing aesthetics.\n\nMain Character:\nProfessional digital marketing specialist with modern business-casual attire.\n\nPanel 1 (Hook):\nMarketing expert standing in front of a digital presentation screen inside a modern office.\nLarge Title: \"{{MAIN_TITLE}}\"\n\nPanel 2 (Problem):\nDigital marketer reviewing social media analytics showing high views but low engagement.\nWarning Box: \"{{PANEL2}}\"\n\nPanel 3 (Solution):\nMarketing specialist explaining effective strategies on a presentation board.\nHighlight Box: \"{{PANEL3}}\"\n\nPanel 4 (Result):\nMarketing expert confidently presenting improved analytics on a smartphone and laptop.\nClosing Message: \"{{CLOSING}}\"\n\nStyle:\nPremium digital marketing educational campaign using realistic photography.\n\nColor Palette:\nWhite, dark blue, orange accents.",
+    "aspect": "4:5"
+  },
+  {
+    "id": "carousel_wellness",
+    "source_id": "carousel_wellness",
+    "familyId": "carousel_wellness",
+    "styleVariants": true,
+    "category": "carousel",
+    "label": "BEM-ESTAR",
+    "subtag": "5 carrosséis · Self-care",
+    "placeholders": [
+      "MAIN_TITLE",
+      "PANEL2",
+      "PANEL3",
+      "CLOSING"
+    ],
+    "optional": [],
+    "replacements": {
+      "MAIN_TITLE": "4 SELF-CARE HABITS EVERY WOMAN SHOULD PRIORITIZE",
+      "PANEL2": "Take time to rest and reconnect with yourself.",
+      "PANEL3": "Movement supports both physical and mental well-being.",
+      "CLOSING": "Small daily habits create lasting wellness."
+    },
+    "prompt": "REFERENCE PHOTO (mandatory): Use the uploaded photo as the exact same person — preserve 100% of their face, facial features, skin tone, ethnicity, hair texture and likeness. Seamlessly composite them into this poster like professional photo retouching: unified lighting on face and body, natural skin blend, no floating cutout, no pasted sticker look, no disjointed face layer. Place the subject in the pose/position described below while keeping their real identity. Typography and graphic elements must sit in clear layout zones — never let text overlap, cut through or hide behind the face; place headlines in negative space or on background layers behind the subject when needed.\n\nHighly detailed educational Instagram carousel designed as a premium women's wellness campaign using realistic photography and elegant infographic elements.\n\nLayout:\n4-panel Instagram carousel with soft rounded borders and clean feminine design.\n\nMain Character:\nProfessional woman in her late 20s to early 30s with a warm and approachable appearance, wearing stylish casual clothing.\n\nPanel 1 (Hook):\nWoman smiling confidently in a bright, cozy home environment.\nLarge Title: \"{{MAIN_TITLE}}\"\n\nPanel 2:\nWoman practicing mindfulness with a cup of tea and journal.\nHighlight Box: \"{{PANEL2}}\"\n\nPanel 3:\nWoman exercising lightly or doing yoga in a peaceful setting.\nHighlight Box: \"{{PANEL3}}\"\n\nPanel 4:\nWoman smiling confidently while enjoying a balanced lifestyle.\nClosing Message: \"{{CLOSING}}\"\n\nStyle:\nPremium women's wellness campaign using realistic photography.\n\nColor Palette:\nSoft pink, beige, white, sage green.",
+    "aspect": "4:5"
+  },
+  {
+    "id": "editorial_street",
+    "source_id": "editorial_street",
+    "familyId": "editorial_street",
+    "styleVariants": true,
+    "category": "editorial",
+    "label": "STREETWEAR",
+    "subtag": "5 estilos · Unisex",
+    "placeholders": [
+      "MAIN_TITLE",
+      "QUOTE",
+      "LABEL_1",
+      "LABEL_2",
+      "LABEL_3"
+    ],
+    "optional": [],
+    "replacements": {
+      "MAIN_TITLE": "STREET ICON",
+      "QUOTE": "Style is the armor to survive everyday life.",
+      "LABEL_1": "EDITORIAL",
+      "LABEL_2": "HYPE",
+      "LABEL_3": "2026"
+    },
+    "prompt": "REFERENCE PHOTO (mandatory): Use the uploaded photo as the exact same person — preserve 100% of their face, facial features, skin tone, ethnicity, hair texture and likeness. Seamlessly composite them into this poster like professional photo retouching: unified lighting on face and body, natural skin blend, no floating cutout, no pasted sticker look, no disjointed face layer. Place the subject in the pose/position described below while keeping their real identity. Typography and graphic elements must sit in clear layout zones — never let text overlap, cut through or hide behind the face; place headlines in negative space or on background layers behind the subject when needed.\n\nMain subject adapted naturally from the uploaded photo while preserving identity, body type and profession if relevant.\n\nTransform the subject into a premium streetwear editorial magazine cover using:\n• low-angle perspective,\n• oversized distressed brush typography dominating the upper background with \"{{MAIN_TITLE}}\",\n• Japanese-inspired vertical typography elements,\n• premium urban magazine layout,\n• fashion editorial information panels,\n• grunge textures and paint splashes,\n• luxury streetwear campaign aesthetics,\n• Hypebeast × Vogue × GQ inspired composition.\n\nInclude:\n• inspirational quote box: \"{{QUOTE}}\",\n• small editorial labels: \"{{LABEL_1}}\", \"{{LABEL_2}}\", \"{{LABEL_3}}\",\n• subtle branding elements,\n• modern street culture details.\n\nAdapt clothing styling, accessories and overall atmosphere organically to fit the uploaded person rather than forcing a specific appearance.\n\nColor palette:\nBlack, white and deep red accents.\n\nUltra-detailed, premium editorial quality, realistic photography.",
+    "aspect": "4:5"
+  },
+  {
+    "id": "editorial_fighter",
+    "source_id": "editorial_fighter",
+    "familyId": "editorial_fighter",
+    "styleVariants": true,
+    "category": "editorial",
+    "label": "FIGHTER",
+    "subtag": "5 estilos · Feminino",
+    "placeholders": [
+      "MAIN_TITLE",
+      "QUOTE",
+      "SIDE_1",
+      "SIDE_2",
+      "SIDE_3"
+    ],
+    "optional": [],
+    "replacements": {
+      "MAIN_TITLE": "FIGHT CLUB",
+      "QUOTE": "Strength is built in silence.",
+      "SIDE_1": "DISCIPLINE",
+      "SIDE_2": "POWER",
+      "SIDE_3": "FOCUS"
+    },
+    "prompt": "REFERENCE PHOTO (mandatory): Use the uploaded photo as the exact same person — preserve 100% of their face, facial features, skin tone, ethnicity, hair texture and likeness. Seamlessly composite them into this poster like professional photo retouching: unified lighting on face and body, natural skin blend, no floating cutout, no pasted sticker look, no disjointed face layer. Place the subject in the pose/position described below while keeping their real identity. Typography and graphic elements must sit in clear layout zones — never let text overlap, cut through or hide behind the face; place headlines in negative space or on background layers behind the subject when needed.\n\nMain female subject adapted naturally from the uploaded photo while preserving identity and facial features.\n\nTransform her into a powerful cinematic fighter editorial poster using:\n• dramatic low-angle perspective,\n• dominant female fighter presence occupying 80% of the composition,\n• premium action movie poster aesthetics,\n• oversized distressed typography \"{{MAIN_TITLE}}\" integrated into the background,\n• Japanese-inspired vertical typography elements,\n• luxury fitness editorial layout,\n• intense combat atmosphere,\n• subtle sweat and battle-ready appearance,\n• premium sports fashion styling adapted naturally from the uploaded person.\n\nInclude:\n• motivational quote panels: \"{{QUOTE}}\",\n• fight club editorial elements,\n• magazine-inspired information blocks: \"{{SIDE_1}}\", \"{{SIDE_2}}\", \"{{SIDE_3}}\",\n• cinematic lighting effects,\n• grunge textures and smoke overlays.\n\nColor palette:\nBlack, dark gray, neon magenta highlights.\n\nUltra-realistic photography, premium cinematic editorial quality.",
+    "aspect": "4:5"
+  },
+  {
+    "id": "editorial_basketball",
+    "source_id": "editorial_basketball",
+    "familyId": "editorial_basketball",
+    "styleVariants": true,
+    "category": "editorial",
+    "label": "BASKETBALL",
+    "subtag": "4 estilos · Feminino",
+    "placeholders": [
+      "MAIN_TITLE",
+      "QUOTE",
+      "SIDE_1",
+      "SIDE_2"
+    ],
+    "optional": [],
+    "replacements": {
+      "MAIN_TITLE": "COURT QUEEN",
+      "QUOTE": "Excellence is a daily decision.",
+      "SIDE_1": "MVP",
+      "SIDE_2": "ALL-STAR"
+    },
+    "prompt": "REFERENCE PHOTO (mandatory): Use the uploaded photo as the exact same person — preserve 100% of their face, facial features, skin tone, ethnicity, hair texture and likeness. Seamlessly composite them into this poster like professional photo retouching: unified lighting on face and body, natural skin blend, no floating cutout, no pasted sticker look, no disjointed face layer. Place the subject in the pose/position described below while keeping their real identity. Typography and graphic elements must sit in clear layout zones — never let text overlap, cut through or hide behind the face; place headlines in negative space or on background layers behind the subject when needed.\n\nMain female subject adapted naturally from the uploaded photo while preserving identity and facial features.\n\nTransform her into a premium basketball superstar editorial poster using:\n• luxury sports magazine aesthetics,\n• glamorous female athlete presence,\n• professional basketball arena atmosphere,\n• dramatic stadium lighting,\n• premium Sports Illustrated editorial composition,\n• subtle sweat effects enhancing realism,\n• elegant feminine athletic energy,\n• crowd-filled arena background with cinematic depth,\n• luxury sports campaign visuals.\n\nInclude:\n• scoreboard elements,\n• premium team branding panels,\n• athlete information boxes: \"{{SIDE_1}}\", \"{{SIDE_2}}\",\n• championship-inspired details,\n• subtle magazine editorial overlays with title \"{{MAIN_TITLE}}\",\n• quote panel: \"{{QUOTE}}\".\n\nAdapt the basketball uniform naturally to suit the uploaded person.\n\nColor palette:\nNeon pink, deep purple, black highlights.\n\nHyper-realistic premium sports editorial photography.",
+    "aspect": "4:5"
+  },
+  {
+    "id": "editorial_shadow",
+    "source_id": "editorial_shadow",
+    "familyId": "editorial_shadow",
+    "styleVariants": true,
+    "category": "editorial",
+    "label": "DARK FANTASY",
+    "subtag": "5 estilos · Masculino",
+    "placeholders": [
+      "MAIN_TITLE",
+      "QUOTE",
+      "SIDE_1",
+      "SIDE_2",
+      "SIDE_3"
+    ],
+    "optional": [],
+    "replacements": {
+      "MAIN_TITLE": "SHADOW MONARCH",
+      "QUOTE": "Power respects no shortcuts.",
+      "SIDE_1": "AUTHORITY",
+      "SIDE_2": "MYSTERY",
+      "SIDE_3": "LEGEND"
+    },
+    "prompt": "REFERENCE PHOTO (mandatory): Use the uploaded photo as the exact same person — preserve 100% of their face, facial features, skin tone, ethnicity, hair texture and likeness. Seamlessly composite them into this poster like professional photo retouching: unified lighting on face and body, natural skin blend, no floating cutout, no pasted sticker look, no disjointed face layer. Place the subject in the pose/position described below while keeping their real identity. Typography and graphic elements must sit in clear layout zones — never let text overlap, cut through or hide behind the face; place headlines in negative space or on background layers behind the subject when needed.\n\nMain male subject adapted naturally from the uploaded photo while preserving identity and facial features.\n\nTransform him into a premium dark fantasy editorial poster using:\n• dominant low-angle perspective,\n• massive distressed typography \"{{MAIN_TITLE}}\" integrated behind the subject,\n• shadow monarch aesthetics,\n• cinematic dark atmosphere,\n• glowing purple energy aura surrounding the body,\n• dramatic chain elements framing the composition,\n• luxury streetwear editorial style,\n• premium action movie poster composition,\n• subtle supernatural energy effects.\n\nInclude:\n• vertical Korean-inspired typography elements,\n• motivational quote panels: \"{{QUOTE}}\",\n• editorial information boxes: \"{{SIDE_1}}\", \"{{SIDE_2}}\", \"{{SIDE_3}}\",\n• premium branding details,\n• dramatic smoke and grunge overlays.\n\nAllow clothing and physique enhancements to adapt naturally from the uploaded subject while preserving authenticity.\n\nColor palette:\nDeep black, electric purple, subtle white accents.\n\nHyper-realistic cinematic editorial photography, ultra-detailed premium quality.",
+    "aspect": "4:5"
+  }
+]

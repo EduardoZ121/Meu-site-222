@@ -1,47 +1,42 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Sparkles, Camera, Sliders } from "lucide-react";
-import { api, formatApiError, uploadPost } from "../../lib/api";
+import { Ratio, Sliders, Sparkles, Check, MessageSquare, Gauge } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { api, uploadPost } from "../../lib/api";
 import { normalizeCreation, primaryResultUrl } from "../../lib/creationUrls";
 import { useAuth } from "../../lib/auth";
 import { usePricing } from "../../lib/PricingContext";
 import { toast } from "sonner";
-import ResultPanel from "../../components/ResultPanel";
-import StudioResultAnchor from "../../components/StudioResultAnchor";
 import AspectPicker from "../../components/AspectPicker";
 import { apiAspectRatio } from "../../lib/apiAspectRatio";
+import { usePhotoAspectDefault, ASPECT_MATCH } from "../../lib/usePhotoAspectDefault";
 import StyleCover from "../../components/StyleCover";
-import ImageUploadZone from "../../components/ImageUploadZone";
+import CompactImagePicker from "../../components/studio/CompactImagePicker";
+import GenerationBubble from "../../components/studio/GenerationBubble";
+import SettingCard from "../../components/studio/SettingCard";
+import SettingModal from "../../components/studio/SettingModal";
 import { FALLBACK_PRO_PRESETS } from "../../lib/publicFallbacks";
 import { proPresetCoverSrc } from "../../lib/proPresetCovers";
 import useTitle from "../../lib/useTitle";
 import { useI18n } from "../../lib/i18n";
 import StudioGenerateBar from "../../components/StudioGenerateBar";
 import StudioGenerateCostMeta from "../../components/StudioGenerateCostMeta";
-import StudioPhotoUploadNotice, { isPhotoUploadBusy } from "../../components/studio/StudioPhotoUploadNotice";
+import StudioCompactShell from "../../components/studio/StudioCompactShell";
+import StudioInlineHeader from "../../components/studio/StudioInlineHeader";
 import { useStudioGenerateGate } from "../../lib/useStudioGenerateGate";
+import { appendStudioPhotos, primaryStudioPhoto } from "../../lib/studioFormData";
 import { useStudioI18n } from "../../lib/useStudioI18n";
-
-function ProStep({ step, title, hint, children }) {
-  return (
-    <section className="border-b border-white/[0.05] pb-7 last:border-0 last:pb-0">
-      <div className="flex gap-3.5 mb-4">
-        <span className="pro-step-num" aria-hidden>{step}</span>
-        <div className="min-w-0 pt-0.5">
-          <h2 className="pro-step-title">{title}</h2>
-          {hint ? <p className="pro-step-hint">{hint}</p> : null}
-        </div>
-      </div>
-      <div className="pl-[calc(2.25rem+0.875rem)] sm:pl-[calc(2.25rem+1rem)]">{children}</div>
-    </section>
-  );
-}
+import StudioHelpTip from "../../components/studio/StudioHelpTip";
+import { applyGenerationSurcharges, getSurcharges } from "../../lib/creditPricing";
+import { useStudioSessionBack } from "../../lib/useStudioSessionBack";
 
 export default function Pro() {
   const { t } = useI18n();
   const { errToast, clearUploadToast } = useStudioI18n();
   useTitle(t("pro_page_title"));
+  const navigate = useNavigate();
   const { refresh, user } = useAuth();
-  const { costs } = usePricing();
+  const { costs, region } = usePricing();
+
   const CAT_LABELS = {
     realism: t("pro_cat_realism"),
     mood: t("pro_cat_mood"),
@@ -52,24 +47,28 @@ export default function Pro() {
     mood: t("pro_cat_mood_desc"),
     enhance: t("pro_cat_enhance_desc"),
   };
+
   const [presets, setPresets] = useState([]);
   const [category, setCategory] = useState("realism");
   const [preset, setPreset] = useState("ultra_real");
-  const [aspect, setAspect] = useState("match");
-  const [photo, setPhoto] = useState(null);
-  const [intensity, setIntensity] = useState(70);
+  const [photos, setPhotos] = useState([]);
+  const photo = primaryStudioPhoto(photos);
+  const [aspect, setAspect] = usePhotoAspectDefault(photos, "4:5", "4:5");
+  const [intensity, setIntensity] = useState(55);
+  const [hdQuality, setHdQuality] = useState(false);
   const [customPrompt, setCustomPrompt] = useState("");
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState(null);
-  const [photoUploadStatus, setPhotoUploadStatus] = useState("idle");
-  const cost = costs.pro;
-  const photoUploading = isPhotoUploadBusy(photoUploadStatus);
+  const [openKey, setOpenKey] = useState(null);
+  const openModal = (key) => setOpenKey(key);
+  const closeModal = () => setOpenKey(null);
+  const surcharges = useMemo(() => getSurcharges(region), [region]);
+  const cost = useMemo(
+    () => applyGenerationSurcharges(costs.pro, surcharges, { hdQuality, hdMode: "image" }),
+    [costs.pro, surcharges, hdQuality],
+  );
 
-  useEffect(() => {
-    if (photo) setAspect("match");
-    else if (aspect === "match") setAspect("4:5");
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [photo]);
+  useStudioSessionBack("/app/tools");
 
   useEffect(() => {
     api.get("/public/pro-presets")
@@ -95,30 +94,26 @@ export default function Pro() {
     photo,
     requirePreset: true,
     preset,
-    uploading: photoUploading,
   });
 
   const generate = useCallback(async () => {
-    if (photoUploading) {
-      toast.message(t("upload_wait_generate"), { duration: 6000 });
-      return;
-    }
     if (!photo) { toast.error(t("pro_upload_photo")); return; }
     if (!preset) { toast.error(t("pro_pick_preset")); return; }
     clearUploadToast();
-    setBusy(true); setResult(null);
+    setBusy(true);
+    setResult(null);
     try {
       const fd = new FormData();
-      fd.append("photo", photo);
+      appendStudioPhotos(fd, photos);
       fd.append("preset_id", preset);
-      fd.append("aspect_ratio", apiAspectRatio(aspect, { model: "pro", hasPhoto: !!photo }));
+      fd.append("aspect_ratio", apiAspectRatio(aspect, {
+        model: "pro",
+        hasPhoto: aspect === "match" || aspect === ASPECT_MATCH,
+      }));
       fd.append("extra_prompt", customPrompt.trim());
       fd.append("intensity", String(intensity));
+      if (hdQuality) fd.append("hd_quality", "1");
       const { data } = await uploadPost("/generate/pro", fd, { timeout: 180000 });
-      if (data?.deferred) {
-        await refresh().catch(() => {});
-        return;
-      }
       const creation = normalizeCreation(data?.creation);
       if (!primaryResultUrl(creation)) throw new Error(t("pro_no_result"));
       setResult(creation);
@@ -126,195 +121,278 @@ export default function Pro() {
       await refresh();
     } catch (err) {
       errToast(err);
-    } finally { setBusy(false); }
+    } finally {
+      setBusy(false);
+    }
   }, [
-    photoUploading,
     photo,
+    photos,
     preset,
     clearUploadToast,
     aspect,
     customPrompt,
     intensity,
+    hdQuality,
     cost,
     refresh,
     t,
     errToast,
   ]);
 
+  const aspectLabel = (aspect === "match" || aspect === ASPECT_MATCH)
+    ? (t("aspect_original") || t("aspect_match") || t("pro_match_photo"))
+    : String(aspect || "4:5").toUpperCase();
+  const presetLabel = pickedPreset?.nome || t("pro_pick_preset");
+  const intensityValue = `${intensityLabel} · ${intensity}%`;
+  const qualityLabel = hdQuality ? "HD" : (t("quality_standard"));
+  const extraLabel = customPrompt.trim()
+    ? customPrompt.trim().slice(0, 42) + (customPrompt.trim().length > 42 ? "…" : "")
+    : (t("studio_styles_optional"));
+
+  const modalTitle = {
+    format: t("pro_step_format"),
+    preset: t("pro_presets"),
+    intensity: t("pro_intensity"),
+    quality: t("studio_hd_quality"),
+    extra: t("pro_step_extra"),
+  }[openKey] || "";
+
+  const selectPreset = (id) => {
+    setPreset(id);
+    closeModal();
+  };
+
   return (
-    <div className="rp-studio-shell max-w-[1400px] mx-auto pb-28" data-testid="pro-page">
-      <header className="mb-6 pb-5 border-b border-[rgba(244,241,234,0.06)]">
-        <div className="flex items-center gap-3 mb-2">
-          <div className="w-9 h-9 rounded-xl bg-[rgba(124,58,237,0.14)] border border-[rgba(124,58,237,0.28)] flex items-center justify-center">
-            <Camera className="w-4 h-4 text-[#C4B5FD]" strokeWidth={1.5} />
-          </div>
-          <p className="rp-editor-section-cap !text-[#a89bc9] !mb-0">{t("pro_cap")}</p>
-        </div>
-        <h1 className="rp-studio-page-title mb-2 text-[2rem] sm:text-[2.75rem] font-['Inter_Tight']">
-          {t("pro_title_a")} <span className="italic text-[#d4c4f7]">{t("pro_title_b")}</span>{t("pro_title_dot")}
-        </h1>
-        <p className="rp-studio-page-desc text-[14px] max-w-[640px]">{t("pro_empty")}</p>
-      </header>
+    <StudioCompactShell testId="pro-page" maxWidth="720px" className="pb-8">
+      <StudioInlineHeader
+        eyebrow={t("pro_cap")}
+        title={`${t("pro_title_a")} ${t("pro_title_b")}${t("pro_title_dot")}`}
+        description={t("pro_empty")}
+        testId="pro-header"
+        helpKey="help_page_pro"
+      />
 
-      <div className="grid grid-cols-1 xl:grid-cols-[1fr_380px] gap-6 xl:gap-8">
-        <div className="rp-editor-panel overflow-hidden">
-          <div className="rp-editor-panel-accent" />
-          <div className="p-5 sm:p-7 space-y-7">
-            <ProStep step="1" title={t("pro_step_photo")} hint={t("pro_upload_hint")}>
-              <div className="max-w-[560px]">
-                <ImageUploadZone
-                  value={photo}
-                  onChange={setPhoto}
-                  onStatusChange={setPhotoUploadStatus}
-                  layout="wide"
-                  testId="pro-photo"
-                  compressOptions={{ maxSize: 2048 }}
-                  emptyLabel={t("upload_drop")}
-                  emptyHint={t("pro_upload_hint")}
-                />
-              </div>
-            </ProStep>
-
-            <ProStep step="2" title={t("pro_step_family")}>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5" data-testid="pro-cats">
-                {cats.map((c) => (
-                  <button
-                    type="button"
-                    key={c}
-                    onClick={() => setCategory(c)}
-                    className={`rp-select-card text-left p-3.5 ${category === c ? "rp-select-card-active" : ""}`}
-                    data-testid={`procat-${c}`}
-                  >
-                    <p className={`text-[13px] font-semibold font-['Inter_Tight'] mb-0.5 ${category === c ? "text-[#C4B5FD]" : "text-[#F4F1EA]"}`}>
-                      {CAT_LABELS[c]}
-                    </p>
-                    <p className="text-[#8A8A8E] text-[11px] leading-snug">{CAT_DESC[c]}</p>
-                    <p className="text-[#5A5A5E] text-[10px] font-mono uppercase tracking-wider mt-1.5">
-                      {t("pro_presets_count", { n: presets.filter((p) => p.category === c).length })}
-                    </p>
-                  </button>
-                ))}
-              </div>
-            </ProStep>
-
-            <ProStep
-              step="3"
-              title={t("pro_step_preset")}
-              hint={pickedPreset ? pickedPreset.nome : undefined}
-            >
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2" data-testid="pro-presets">
-                {filtered.map((p) => {
-                  const active = preset === p.id;
-                  return (
-                    <button
-                      type="button"
-                      key={p.id}
-                      onClick={() => setPreset(p.id)}
-                      className={`pro-preset-card ${active ? "pro-preset-card--active" : ""}`}
-                      data-testid={`preset-${p.id}`}
-                    >
-                      <StyleCover
-                        id={p.id}
-                        title={p.nome}
-                        prompt={p.prompt}
-                        category={p.category}
-                        eyebrow={CAT_LABELS[p.category] || p.category}
-                        selected={active}
-                        compact
-                        coverSrc={proPresetCoverSrc(p.id)}
-                        className="pro-preset-card__cover"
-                      />
-                    </button>
-                  );
-                })}
-              </div>
-            </ProStep>
-
-            <ProStep step="4" title={t("pro_step_intensity")}>
-              <div
-                className="pro-intensity-track max-w-[520px]"
-                style={{ "--pro-intensity-pct": `${intensity}%` }}
-              >
-                <div className="flex items-center justify-between gap-3 mb-3">
-                  <div className="flex items-center gap-2 text-[#8A8A8E]">
-                    <Sliders className="w-4 h-4 text-purple-400/80" strokeWidth={1.75} />
-                    <span className="text-[11px] font-mono uppercase tracking-[0.12em]">{t("pro_step_intensity")}</span>
-                  </div>
-                  <span className="text-[#E9D5FF] text-sm font-semibold font-['Inter_Tight'] tabular-nums">
-                    {intensityLabel} · {intensity}%
-                  </span>
-                </div>
-                <input
-                  type="range"
-                  min="0"
-                  max="100"
-                  value={intensity}
-                  onChange={(e) => setIntensity(+e.target.value)}
-                  className="pro-intensity-range"
-                  data-testid="pro-intensity"
-                  aria-valuemin={0}
-                  aria-valuemax={100}
-                  aria-valuenow={intensity}
-                />
-                <div className="flex justify-between text-[10px] text-zinc-600 mt-2.5 px-0.5 font-mono uppercase tracking-[0.1em]">
-                  <span>{t("pro_intensity_subtle")}</span>
-                  <span>{t("pro_intensity_balanced")}</span>
-                  <span>{t("pro_intensity_intense")}</span>
-                </div>
-              </div>
-            </ProStep>
-
-            <ProStep
-              step="5"
-              title={`${t("pro_step_extra")} (${t("studio_styles_optional")})`}
-            >
-              <textarea
-                value={customPrompt}
-                onChange={(e) => setCustomPrompt(e.target.value)}
-                rows={3}
-                maxLength={300}
-                placeholder={t("pro_extra_ph")}
-                className="rp-editor-textarea min-h-[88px] text-[14px] max-w-[560px]"
-                data-testid="pro-custom"
-              />
-            </ProStep>
-
-            <ProStep step="6" title={t("pro_step_format")}>
-              <div className="max-w-[560px]">
-                <AspectPicker
-                  value={aspect}
-                  onChange={setAspect}
-                  hasPhoto={!!photo}
-                  testIdPrefix="pro-aspect"
-                  premium
-                />
-              </div>
-            </ProStep>
-          </div>
+      <div className="space-y-2.5">
+        <div className="rounded-2xl border border-white/[0.08] bg-[#141418]/80 p-3 md:p-4">
+          <p className="text-[#9CA3AF] text-[12px] leading-relaxed mb-3">
+            {t("pro_upload_hint")}
+          </p>
+          <CompactImagePicker value={photos} onChange={setPhotos} maxFiles={5} testId="pro-photo" />
         </div>
 
-        <StudioResultAnchor busy={busy} ready={Boolean(primaryResultUrl(result))} className="xl:sticky xl:top-[80px] self-start space-y-2">
-          <p className="rp-editor-section-cap !text-[#6b6b70] !mb-2">{t("last_result")}</p>
-          <div className="rp-editor-panel overflow-hidden p-4">
-            <ResultPanel creation={result} loading={busy} onChange={setResult} emptyLabel={t("pro_empty_result")} />
+        <div className="mv-setting-grid">
+          <SettingCard
+            icon={Ratio}
+            label={t("pro_step_format")}
+            value={aspectLabel}
+            onOpen={() => openModal("format")}
+            testId="pro-card-format"
+            helpKey="help_sec_format"
+          />
+          <SettingCard
+            icon={Sparkles}
+            label={t("pro_presets")}
+            value={presetLabel}
+            onOpen={() => openModal("preset")}
+            testId="pro-card-preset"
+            helpKey="help_sec_presets"
+          />
+        </div>
+
+        <div className="mv-setting-grid">
+          <SettingCard
+            icon={Sliders}
+            label={t("pro_intensity")}
+            value={intensityValue}
+            onOpen={() => openModal("intensity")}
+            testId="pro-card-intensity"
+            helpKey="help_sec_intensity"
+          />
+          <SettingCard
+            icon={Gauge}
+            label={t("studio_hd_quality")}
+            value={qualityLabel}
+            onOpen={() => openModal("quality")}
+            testId="pro-card-quality"
+            helpKey="help_ctrl_hd_quality"
+          />
+        </div>
+        <SettingCard
+          icon={MessageSquare}
+          label={t("pro_step_extra")}
+          value={extraLabel}
+          onOpen={() => openModal("extra")}
+          testId="pro-card-extra"
+          helpKey="help_sec_custom_prompt"
+        />
+
+        <div className="mv-setting-card mv-setting-card--static">
+          <div className="flex flex-col gap-2.5 sm:flex-row sm:items-center sm:justify-end">
+            <StudioGenerateBar
+              layout="inline"
+              ready={ready}
+              busy={busy}
+              onClick={generate}
+              label={`${t("pro_button")} · ${cost} ${t("label_credits")}`}
+              busyLabel={t("pro_loading")}
+              hint={hint}
+              cost={cost}
+              showCostPill
+              testId="pro-create"
+              buttonClassName="rp-gen-btn-inline w-full sm:w-auto"
+            />
           </div>
-        </StudioResultAnchor>
+          <div className="mt-2 pt-2 border-t border-white/[0.06]">
+            <StudioGenerateCostMeta cost={cost} user={user} />
+          </div>
+        </div>
       </div>
 
-      <StudioPhotoUploadNotice status={photoUploadStatus} className="mb-3" />
+      <SettingModal open={openKey === "format"} title={modalTitle} onClose={closeModal}>
+        <AspectPicker
+          value={aspect}
+          onChange={setAspect}
+          hasPhoto={!!photo}
+          testIdPrefix="pro-aspect"
+          premium
+        />
+        <button type="button" onClick={closeModal} className="rp-modal-confirm mt-3" data-testid="pro-format-confirm">
+          <Check className="w-4 h-4" /> {t("confirm")}
+        </button>
+      </SettingModal>
 
-      <StudioGenerateBar
-        variant="pro"
-        ready={ready}
-        busy={busy}
-        onClick={generate}
-        label={`${t("pro_button")} · ${cost} ${t("label_credits")}`}
-        busyLabel={t("pro_loading")}
-        hint={hint}
-        blockedNotify={photoUploading ? "message" : "error"}
-        testId="pro-create"
-        costMeta={<StudioGenerateCostMeta cost={cost} user={user} />}
-      />
-    </div>
+      <SettingModal open={openKey === "preset"} title={modalTitle} onClose={closeModal}>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 mb-4" data-testid="pro-cats">
+          {cats.map((c) => (
+            <button
+              type="button"
+              key={c}
+              onClick={() => setCategory(c)}
+              className={`rp-select-card text-left p-3 ${category === c ? "rp-select-card-active" : ""}`}
+              data-testid={`procat-${c}`}
+            >
+              <p className={`text-[12px] font-semibold font-display mb-0.5 ${category === c ? "text-[#C4B5FD]" : "text-[#F4F1EA]"}`}>
+                {CAT_LABELS[c]}
+              </p>
+              <p className="text-[#8A8A8E] text-[10px] leading-snug line-clamp-2">{CAT_DESC[c]}</p>
+            </button>
+          ))}
+        </div>
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 max-h-[46vh] overflow-y-auto overscroll-contain pr-0.5" data-testid="pro-presets">
+          {filtered.map((p) => {
+            const active = preset === p.id;
+            return (
+              <button
+                type="button"
+                key={p.id}
+                onClick={() => selectPreset(p.id)}
+                className={`pro-preset-card ${active ? "pro-preset-card--active" : ""}`}
+                data-testid={`preset-${p.id}`}
+              >
+                <StyleCover
+                  id={p.id}
+                  title={p.nome}
+                  prompt={p.prompt}
+                  category={p.category}
+                  eyebrow={CAT_LABELS[p.category] || p.category}
+                  selected={active}
+                  compact
+                  coverSrc={proPresetCoverSrc(p.id)}
+                  className="pro-preset-card__cover"
+                />
+              </button>
+            );
+          })}
+        </div>
+        <button type="button" onClick={closeModal} className="rp-modal-confirm mt-3" data-testid="pro-preset-confirm">
+          <Check className="w-4 h-4" /> {t("confirm")}
+        </button>
+      </SettingModal>
+
+      <SettingModal open={openKey === "intensity"} title={modalTitle} onClose={closeModal}>
+        <div
+          className="pro-intensity-track"
+          style={{ "--pro-intensity-pct": `${intensity}%` }}
+        >
+          <div className="flex items-center justify-between gap-3 mb-3">
+            <span className="text-[11px] font-mono uppercase tracking-[0.12em] text-[#8A8A8E]">
+              {t("pro_step_intensity")}
+            </span>
+            <span className="text-[#E9D5FF] text-sm font-semibold font-display tabular-nums">
+              {intensityLabel} · {intensity}%
+            </span>
+          </div>
+          <input
+            type="range"
+            min="0"
+            max="100"
+            step="1"
+            value={intensity}
+            onChange={(e) => setIntensity(Number(e.target.value))}
+            onInput={(e) => setIntensity(Number(e.target.value))}
+            className="pro-intensity-range"
+            data-testid="pro-intensity"
+            aria-valuemin={0}
+            aria-valuemax={100}
+            aria-valuenow={intensity}
+          />
+          <div className="flex flex-wrap gap-2 mt-3">
+            {[25, 55, 85].map((n) => (
+              <button
+                type="button"
+                key={n}
+                onClick={() => setIntensity(n)}
+                className={`mktvid-chip text-[11px] ${intensity === n ? "mktvid-chip-active" : ""}`}
+                data-testid={`pro-intensity-preset-${n}`}
+              >
+                {n}%
+              </button>
+            ))}
+          </div>
+          <div className="flex justify-between text-[10px] text-zinc-600 mt-2.5 px-0.5 font-mono uppercase tracking-[0.1em]">
+            <span>{t("pro_intensity_subtle")}</span>
+            <span>{t("pro_intensity_balanced")}</span>
+            <span>{t("pro_intensity_intense")}</span>
+          </div>
+        </div>
+        <button type="button" onClick={closeModal} className="rp-modal-confirm mt-3" data-testid="pro-intensity-confirm">
+          <Check className="w-4 h-4" /> {t("confirm")}
+        </button>
+      </SettingModal>
+
+      <SettingModal open={openKey === "quality"} title={modalTitle} onClose={closeModal}>
+        <div className="mv-picker__chips">
+          <button type="button" onClick={() => setHdQuality(false)} className={`mktvid-chip ${!hdQuality ? "mktvid-chip-active" : ""}`} data-testid="pro-quality-standard">
+            {t("quality_standard")}
+          </button>
+          <button type="button" onClick={() => setHdQuality(true)} className={`mktvid-chip ${hdQuality ? "mktvid-chip-active" : ""}`} data-testid="pro-quality-hd">
+            HD <span className="text-[#A855F7] font-mono text-[10px] ml-1">+{surcharges.hdImage ?? 8}</span>
+          </button>
+        </div>
+        <div className="mt-2"><StudioHelpTip helpKey="help_ctrl_hd_quality" testId="pro-hd-quality-help" size="lg" /></div>
+        <button type="button" onClick={closeModal} className="rp-modal-confirm mt-3" data-testid="pro-quality-confirm">
+          <Check className="w-4 h-4" /> {t("confirm")}
+        </button>
+      </SettingModal>
+
+      <SettingModal open={openKey === "extra"} title={modalTitle} onClose={closeModal}>
+        <p className="text-[#8A8A8E] text-[12px] mb-3 leading-relaxed">
+          {t("studio_styles_optional")} — {t("pro_extra_ph")}
+        </p>
+        <textarea
+          value={customPrompt}
+          onChange={(e) => setCustomPrompt(e.target.value)}
+          rows={4}
+                    placeholder={t("pro_extra_ph")}
+          className="rp-editor-textarea rp-editor-textarea--compact min-h-[100px] w-full"
+          data-testid="pro-custom"
+        />
+        <button type="button" onClick={closeModal} className="rp-modal-confirm mt-3" data-testid="pro-extra-confirm">
+          <Check className="w-4 h-4" /> {t("confirm")}
+        </button>
+      </SettingModal>
+
+      <GenerationBubble busy={busy} result={result} onChange={setResult} />
+    </StudioCompactShell>
   );
 }

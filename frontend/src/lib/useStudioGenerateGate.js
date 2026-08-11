@@ -1,10 +1,13 @@
 import { useMemo } from "react";
 import { useI18n } from "./i18n";
+import { isAdminUser } from "./isAdmin";
 
 export function hasStudioCredits(user, cost = 0) {
+  if (!user) return false;
   if (!cost) return true;
-  if (user?.is_unlimited) return true;
-  return (user?.credits ?? 0) >= cost;
+  if (user?.is_unlimited || isAdminUser(user)) return true;
+  const balance = user?.total_standard_credits ?? user?.credits ?? 0;
+  return balance >= cost;
 }
 
 /**
@@ -12,8 +15,8 @@ export function hasStudioCredits(user, cost = 0) {
  */
 export function useStudioGenerateGate({
   busy = false,
-  user,
-  cost = 0,
+  user: _user,
+  cost: _cost = 0,
   requirePhoto = false,
   photo = null,
   requireVideo = false,
@@ -46,9 +49,6 @@ export function useStudioGenerateGate({
     if (hint == null && requirePrompt && String(prompt || "").trim().length < promptMin) {
       hint = t("studio_gen_hint_prompt");
     }
-    if (hint == null && cost > 0 && !hasStudioCredits(user, cost)) {
-      hint = t("studio_gen_hint_credits", { need: cost, have: user?.credits ?? 0 });
-    }
 
     const prerequisitesOk = readyOverride !== undefined
       ? Boolean(readyOverride)
@@ -60,7 +60,6 @@ export function useStudioGenerateGate({
   }, [
     busy,
     blocked,
-    cost,
     hintOverride,
     missingCount,
     photo,
@@ -74,7 +73,6 @@ export function useStudioGenerateGate({
     requireVideo,
     t,
     uploading,
-    user,
     video,
   ]);
 }

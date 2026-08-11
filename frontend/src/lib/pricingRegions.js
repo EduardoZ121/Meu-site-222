@@ -30,6 +30,36 @@ export function getPackagesForRegion(regionId) {
   }));
 }
 
+export function getSubscriptionPlansForRegion(regionId) {
+  const cfg = getRegionConfig(regionId);
+  const plans = cfg.subscription || {};
+  return Object.entries(plans).map(([id, plan]) => ({
+    id,
+    ...plan,
+    currency: cfg.currency,
+    region: cfg.id,
+    amount_display: plan.amount_cents / 100,
+  }));
+}
+
+export function getPremiumPackagesForRegion(regionId) {
+  const cfg = getRegionConfig(regionId);
+  const pkgs = cfg.premium_packages || {};
+  return Object.entries(pkgs).map(([id, pkg]) => ({
+    id,
+    ...pkg,
+    currency: cfg.currency,
+    region: cfg.id,
+    amount_display: pkg.amount_cents / 100,
+    amount_eur: cfg.currency === "eur" ? pkg.amount_cents / 100 : undefined,
+  }));
+}
+
+export function getPosterHqPremiumCost() {
+  const n = Number(pricingData?.meta?.posterHqPremiumCostPerOutput);
+  return Number.isFinite(n) && n > 0 ? Math.round(n) : 50;
+}
+
 export function getCreditCostsForRegion(regionId) {
   return { ...getRegionConfig(regionId).costs };
 }
@@ -76,10 +106,11 @@ export function resolvePricingRegion({ countryCode, clientRegion } = {}) {
 
 export function posterModelCosts(regionId) {
   const c = getCreditCostsForRegion(regionId);
+  const hq = getPosterHqPremiumCost();
   return {
     grok: c.posterFast,
     flux2: c.posterPro,
-    gpt_image: c.posterPremium,
+    gpt_image: hq,
   };
 }
 
@@ -98,6 +129,7 @@ export function toolCatalogueCost(toolId, regionId) {
     studio: c.image,
     clothes: c.clothes,
     art: c.artistic,
+    artistic: c.artistic,
     pro: c.pro,
     bg_remove: c.bgRemove,
     upscale: c.upscale,
@@ -105,13 +137,35 @@ export function toolCatalogueCost(toolId, regionId) {
     colorize: c.colorize,
     inpaint: c.inpaint,
     posters: c.posterFast,
+    gpt_hq_studio: getPosterHqPremiumCost(),
     carousel: c.carouselFastPerSlide,
     manga: c.mangaPanel,
     manga_studio: c.mangaPanel,
     video: c.video,
     wizard: 0,
+    motion_flyer: c.motionFlyerByDuration?.[10] ?? 200,
+    marketing_video: c.marketingVideoByDuration?.[15] ?? 240,
+    brand_campaign: c.brandCampaignPerImage ?? getPosterHqPremiumCost(),
   };
   return map[toolId] ?? c.image;
+}
+
+/** Custo mostrado nos cartões do hub Vídeo (suporta duração em pricing.json). */
+export function videoCatalogueCost(costs, category) {
+  if (!category) return costs?.video ?? 50;
+  if (category.id === "motion-flyer-ai" || category.flow === "motion-flyer") {
+    return costs?.motionFlyerByDuration?.[10] ?? 200;
+  }
+  if (category.id === "marketing-video-ai" || category.flow === "marketing-video") {
+    return costs?.marketingVideoByDuration?.[15] ?? 240;
+  }
+  if (category.costKey === "motionFlyerByDuration") {
+    return costs?.motionFlyerByDuration?.[category.costDuration || 10] ?? 200;
+  }
+  if (category.costKey === "marketingVideoByDuration") {
+    return costs?.marketingVideoByDuration?.[category.costDuration || 15] ?? 240;
+  }
+  return costs?.[category.costKey] ?? costs?.video ?? 50;
 }
 
 export { pricingData };

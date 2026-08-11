@@ -14,13 +14,13 @@ function computeVideoEditCost(baseCost, { resolution = "original", duration = 6,
   const surcharges = getSurchargesForRegion(regionId);
   const fromConfig = computeVideoEditCostFromConfig(CREDIT, surcharges, { resolution, duration });
   if (baseCost && baseCost !== CREDIT.videoEdit) {
-    const delta = fromConfig - (CREDIT.videoEdit ?? 120);
-    return Math.max(1, Number(baseCost) || 120) + delta;
+    const delta = fromConfig - (CREDIT.videoEdit ?? 100);
+    return Math.max(1, Number(baseCost) || 100) + delta;
   }
   return fromConfig;
 }
 
-function validateVideoEditOptions({ resolution, duration }) {
+function validateVideoEditOptions({ resolution, duration } = {}) {
   const res = String(resolution || "original").trim().toLowerCase();
   const dur = Math.round(Number(duration));
 
@@ -39,21 +39,26 @@ function validateVideoEditOptions({ resolution, duration }) {
 
 function mapResolutionForModel(resolution) {
   const res = String(resolution || "original").trim().toLowerCase();
-  if (res === "720p") return "720p";
-  return "1080p";
+  if (res === "1080p") return "1080p";
+  return "720p";
 }
 
 function buildSurchargeDisplay(regionId = "intl") {
   const s = getSurchargesForRegion(regionId);
   return {
-    duration: { 8: s.videoEditDuration8 ?? 25, 10: s.videoEditDuration10 ?? 50 },
+    duration: { 8: s.videoEditDuration8 ?? 18, 10: s.videoEditDuration10 ?? 32 },
     resolution: { "720p": s.videoEditResolutionHd ?? 15, "1080p": s.videoEditResolutionHd ?? 15 },
   };
+}
+
+function computeVideoEditCostForEngine(CREDIT, surcharges, _editTool, resOpts) {
+  return computeVideoEditCostFromConfig(CREDIT, surcharges, resOpts);
 }
 
 module.exports = {
   SURCHARGE: buildSurchargeDisplay(),
   computeVideoEditCost,
+  computeVideoEditCostForEngine,
   validateVideoEditOptions,
   mapResolutionForModel,
   PREMIUM_RESOLUTIONS,

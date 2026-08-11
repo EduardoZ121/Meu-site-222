@@ -38,7 +38,8 @@ export default function ShowcasePanel({ item, index }) {
   return (
     <article
       ref={ref}
-      className={`py-14 md:py-24 border-t border-[#2E2E30] ${animClass(item.anim)} ${isInView ? "is-inview" : ""}`}
+      id={item.id}
+      className={`py-14 md:py-24 border-t border-[#2E2E30] scroll-mt-24 ${animClass(item.anim)} ${isInView ? "is-inview" : ""}`}
       data-testid={`showcase-${item.id}`}
     >
       <div className="max-w-[1200px] mx-auto px-6 lg:px-10">

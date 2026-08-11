@@ -1,5 +1,21 @@
 const { getDb, storageEnabled, ensureIndexes } = require("./mongo.cjs");
-const { sanitizeCreation, trustedProxyTarget, loadCreationMedia } = require("./creationMedia.cjs");
+const { sanitizeCreation, trustedProxyTarget, loadCreationMedia, normalizeResultUrls, repairCreationMedia } = require("./creationMedia.cjs");
+const { refreshUserPendingJobs, repairMissingCreationsForUser, repairMissedNotifyEmailsForUser } = require("./pendingPredictions.cjs");
+
+function dedupeCreations(docs) {
+  const seenIds = new Set();
+  const seenUrls = new Set();
+  const out = [];
+  for (const doc of docs) {
+    if (!doc?.id || seenIds.has(doc.id)) continue;
+    const url = normalizeResultUrls(doc.result_urls)[0] || "";
+    if (url && seenUrls.has(url)) continue;
+    seenIds.add(doc.id);
+    if (url) seenUrls.add(url);
+    out.push(doc);
+  }
+  return out;
+}
 
 function sessionFromReq(req, verifySessionToken) {
   const auth = req.headers.authorization || "";
@@ -36,6 +52,10 @@ async function handleCreationsRoute(path, req, res, { verifySessionToken, json }
         json(res, 200, { creations: [] });
         return true;
       }
+      if (req.method === "GET" && path === "generations/pending") {
+        json(res, 200, { pending: [] });
+        return true;
+      }
       if (req.method === "DELETE" && /^generations\/[^/]+$/.test(path)) {
         json(res, 503, { detail: "Biblioteca requer conta no servidor (Mongo/KV)." });
         return true;
@@ -49,7 +69,7 @@ async function handleCreationsRoute(path, req, res, { verifySessionToken, json }
         return true;
       }
       if (req.method === "GET" && path === "me/referrals/stats") {
-        json(res, 200, { code: "", referred_count: 0, credits_earned: 0, reward_per_referral: 30 });
+        json(res, 200, { code: "", referred_count: 0, credits_earned: 0, reward_per_referral: 0 });
         return true;
       }
     }
@@ -78,6 +98,13 @@ async function handleCreationsRoute(path, req, res, { verifySessionToken, json }
       json(res, sess.error.status, { detail: sess.error.detail });
       return true;
     }
+    try {
+      await refreshUserPendingJobs(sess.user.id, 12);
+      await repairMissingCreationsForUser(sess.user.id, 32);
+      await repairMissedNotifyEmailsForUser(sess.user.id, 12);
+    } catch (e) {
+      console.warn("[creations] history pending refresh failed", e?.message);
+    }
     const url = new URL(req.url, `https://${req.headers.host || "localhost"}`);
     const limit = Math.min(80, Math.max(1, Number(url.searchParams.get("limit") || 30)));
     const onlyFavorites = url.searchParams.get("only_favorites") === "true";
@@ -89,7 +116,66 @@ async function handleCreationsRoute(path, req, res, { verifySessionToken, json }
       .sort({ created_at: -1 })
       .limit(limit)
       .toArray();
-    json(res, 200, { creations: docs.map(sanitizeCreation) });
+    const deduped = dedupeCreations(docs);
+    for (const doc of deduped.slice(0, 12)) {
+      const urls = normalizeResultUrls(doc.result_urls);
+      if (urls.length && !urls[0].includes("blob.vercel-storage.com")) {
+        try {
+          // eslint-disable-next-line no-await-in-loop
+          await repairCreationMedia(db, doc);
+        } catch {
+          /* best effort */
+        }
+      }
+    }
+    const refreshed = await db
+      .collection("creations")
+      .find(
+        { id: { $in: deduped.map((d) => d.id) }, user_id: sess.user.id },
+        { projection: { _id: 0 } },
+      )
+      .toArray();
+    const byId = Object.fromEntries(refreshed.map((d) => [d.id, d]));
+    json(res, 200, {
+      creations: deduped.map((d) => sanitizeCreation(byId[d.id] || d)),
+    });
+    return true;
+  }
+
+  if (req.method === "GET" && path === "generations/pending") {
+    const sess = sessionFromReq(req, verifySessionToken);
+    if (sess.error) {
+      json(res, sess.error.status, { detail: sess.error.detail });
+      return true;
+    }
+    const rows = await refreshUserPendingJobs(sess.user.id, 8);
+    json(res, 200, {
+      pending: rows.map((p) => ({
+        prediction_id: p.id,
+        type: p.type || "image",
+        status: p.status,
+        prompt: p.prompt || "",
+        credits_spent: p.credits_spent || 0,
+        created_at: p.created_at,
+      })),
+    });
+    return true;
+  }
+
+  if (req.method === "POST" && path === "generations/repair") {
+    const sess = sessionFromReq(req, verifySessionToken);
+    if (sess.error) {
+      json(res, sess.error.status, { detail: sess.error.detail });
+      return true;
+    }
+    try {
+      await refreshUserPendingJobs(sess.user.id, 16);
+      const repaired = await repairMissingCreationsForUser(sess.user.id, 48);
+      await repairMissedNotifyEmailsForUser(sess.user.id, 16);
+      json(res, 200, { ok: true, repaired });
+    } catch (e) {
+      json(res, 500, { detail: e?.message || "Não foi possível recuperar criações." });
+    }
     return true;
   }
 
@@ -197,7 +283,7 @@ async function handleCreationsRoute(path, req, res, { verifySessionToken, json }
       code: user.referral_code || "",
       referred_count,
       credits_earned,
-      reward_per_referral: 30,
+      reward_per_referral: 0,
     });
     return true;
   }

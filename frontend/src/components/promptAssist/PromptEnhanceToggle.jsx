@@ -1,5 +1,6 @@
 import { Sparkles, Lock } from "lucide-react";
 import { useI18n } from "../../lib/i18n";
+import StudioHelpTip from "../studio/StudioHelpTip";
 
 export default function PromptEnhanceToggle({
   checked,
@@ -7,38 +8,56 @@ export default function PromptEnhanceToggle({
   locked = false,
   onLockedClick,
   testId = "prompt-enhance",
-  cost = 3,
+  cost = 5,
+  helpKey = "help_ctrl_improve_prompt",
+  compact = false,
 }) {
   const { t } = useI18n();
+  const hint = t("studio_improve_hint");
+
   return (
-    <label
-      className={`inline-flex items-center gap-2.5 cursor-pointer group ${locked ? "opacity-80" : ""}`}
-      data-testid={testId}
-    >
-      <input
-        type="checkbox"
-        checked={checked}
-        disabled={locked}
-        onChange={(e) => {
-          if (locked) {
-            onLockedClick?.();
-            return;
-          }
-          onChange(e.target.checked);
-        }}
-        className="accent-[#7C3AED] w-3.5 h-3.5 rounded border-[#2E2E30]"
-      />
-      <span className="text-[#8A8A8E] text-[12px] font-['Inter_Tight'] group-hover:text-[#b5b5ba] transition-colors inline-flex items-center gap-1.5">
-        <Sparkles className="w-3.5 h-3.5 text-[#A855F7]" strokeWidth={1.75} />
-        {t("studio_improve")}
-        {locked ? (
-          <span className="text-[#FACC15] text-[10px] font-mono uppercase tracking-wider inline-flex items-center gap-0.5">
-            <Lock className="w-3 h-3" /> Studio Plus
+    <div className={`rp-gen-refine${compact ? " rp-gen-refine--compact" : ""}`}>
+      <label
+        className={`rp-gen-refine__label${locked ? " rp-gen-refine__label--locked" : ""}`}
+        data-testid={testId}
+      >
+        <input
+          type="checkbox"
+          checked={checked}
+          disabled={locked}
+          onChange={(e) => {
+            if (locked) {
+              onLockedClick?.();
+              return;
+            }
+            onChange(e.target.checked);
+          }}
+          className="rp-gen-refine__check"
+        />
+        <span className="rp-gen-refine__ico" aria-hidden>
+          <Sparkles className="w-3.5 h-3.5" strokeWidth={1.75} />
+        </span>
+        <span className="rp-gen-refine__copy">
+          <span className="rp-gen-refine__title">
+            {t("studio_improve")}
+            {locked ? (
+              <span className="rp-gen-refine__lock">
+                <Lock className="w-3 h-3" /> Studio Plus
+              </span>
+            ) : (
+              <span className="rp-gen-refine__cost">
+                +{cost} {t("credits")}
+              </span>
+            )}
           </span>
-        ) : (
-          <span className="text-[#5A5A5E]">+{cost} {t("credits")}</span>
-        )}
-      </span>
-    </label>
+          {hint && hint !== "studio_improve_hint" ? (
+            <span className="rp-gen-refine__hint">{hint}</span>
+          ) : null}
+        </span>
+      </label>
+      {helpKey ? (
+        <StudioHelpTip helpKey={helpKey} testId={`${testId}-help`} className="rp-gen-refine__help" />
+      ) : null}
+    </div>
   );
 }

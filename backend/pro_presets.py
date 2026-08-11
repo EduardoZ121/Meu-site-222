@@ -60,7 +60,7 @@ PRO_PRESETS = { 'original': { 'nome': '📷 Original',
                            'dramatic cinematic lighting with strong key light and soft fill, deep shadows, anamorphic '
                            'lens flares, shallow depth of field, teal-and-orange color grading, film grain, 35mm '
                            'cinematic look, ultra-sharp focus on the subject. Render the skin with realistic '
-                           'micro-texture, lifelike pores, natural subsurface scattering, accurate eye reflections and '
+                           'soft natural finish — no added pores, wrinkles, or aged micro-texture; gentle subsurface scattering, accurate eye reflections and '
                            'catchlights. Preserve the exact identity, facial structure, expression, pose, hairstyle, '
                            'body proportions, framing, composition and camera angle of the original. Do not invent new '
                            'features. The final result must look like a still frame from a high-budget Hollywood film, '
@@ -69,8 +69,7 @@ PRO_PRESETS = { 'original': { 'nome': '📷 Original',
   'ultra_real': { 'nome': '🌟 Ultra Realista (Fotografia Profissional)',
                   'prompt': 'Convert this image into ultra-photorealistic professional photography. Use a full-frame '
                             'DSLR aesthetic, 85mm f/1.4 lens, perfect natural lighting, true-to-life colors, accurate '
-                            'white balance, razor-sharp focus on the eyes, ultra-detailed skin texture with realistic '
-                            'pores, fine hair strands, natural skin tones, lifelike eye reflections. Avoid plastic or '
+                            'white balance, razor-sharp focus on the eyes, natural skin with soft beauty retouch (no added pores or age lines), fine hair strands, natural skin tones, lifelike eye reflections. Avoid plastic or '
                             'AI-looking skin. Preserve identity, facial features, expression, age, pose, hairstyle, '
                             'outfit, body proportions, framing and composition exactly as the reference. The result '
                             'must look like a real photograph taken by a professional photographer, high resolution, '
@@ -80,7 +79,7 @@ PRO_PRESETS = { 'original': { 'nome': '📷 Original',
               'prompt': 'Transform this photo to look like a natural high-quality smartphone selfie shot on a modern '
                         'iPhone. Apply soft natural daylight, realistic skin tones, slight HDR, mild lens distortion '
                         'typical of a front camera, natural ambient lighting, true-to-life colors, candid casual feel. '
-                        'Keep skin texture realistic with subtle pores and natural softness — never plastic or '
+                        'Keep skin texture natural with soft youthful softness — never add pores or age lines — never plastic or '
                         'over-smoothed. Preserve identity, expression, pose, hairstyle, age and composition exactly. '
                         'The result must look like a real, casual, authentic selfie/phone photo, photorealistic and '
                         'believable, sharp but not over-processed.',
@@ -89,7 +88,7 @@ PRO_PRESETS = { 'original': { 'nome': '📷 Original',
               'prompt': 'Transform this image into a professional studio portrait. Apply soft three-point studio '
                         'lighting with a large key softbox, gentle fill, subtle rim/hair light, clean seamless '
                         'backdrop, perfectly balanced exposure, gentle catchlights in the eyes, beautifully sharp '
-                        'focus on the face. Render skin with high-end retouching realism: natural pores, smooth but '
+                        'focus on the face. Render skin with high-end beauty retouch: smooth natural texture, even tone — no added pores or wrinkles, smooth but '
                         'not plastic texture, perfect color grading, magazine-quality finish. Preserve identity, '
                         'facial structure, expression, age, pose, hairstyle, outfit, framing and composition exactly '
                         'as the reference. The result must look like a high-end editorial studio portrait shot by a '
@@ -117,7 +116,7 @@ PRO_PRESETS = { 'original': { 'nome': '📷 Original',
                        'strong jawline emphasis, sharp cheekbones lighting, fashion magazine attitude, aloof and '
                        'powerful expression, clean styling. Use high-end fashion photography lighting (Vogue / '
                        "Harper's Bazaar style), professional color grading, ultra-sharp details, perfect skin texture, "
-                       'lifelike pores. Preserve identity, facial features, age, hairstyle, outfit, body proportions, '
+                       'flawless editorial skin without adding age or pore detail. Preserve identity, facial features, age, hairstyle, outfit, body proportions, '
                        'framing and composition exactly. Photorealistic, 8k, masterpiece editorial quality.',
              'category': 'mood'},
   'intense': { 'nome': '🔥 Expressão Intensa / Dramática',
@@ -125,14 +124,14 @@ PRO_PRESETS = { 'original': { 'nome': '📷 Original',
                          'focused piercing gaze, lips closed or slightly tense, strong emotional presence, brooding '
                          'cinematic energy. Apply dramatic chiaroscuro lighting with deep shadows and strong '
                          'highlights, moody atmosphere, cinematic color grading. Keep skin photorealistic with natural '
-                         'texture and pores, sharp eyes with catchlights. Preserve identity, facial structure, age, '
+                         'soft natural texture — no added pores or age lines — sharp eyes with catchlights. Preserve identity, facial structure, age, '
                          'hairstyle, pose, framing and composition exactly. 8k, ultra-detailed, masterpiece cinematic '
                          'photography.',
                'category': 'mood'},
   'romantic': { 'nome': '❤️ Vibe Romântica / Suave',
                 'prompt': 'Restyle this photo with a soft, romantic and dreamy vibe. Apply warm golden-hour lighting, '
                           'soft diffused glow, gentle bokeh, pastel romantic color grading, soft skin glow while '
-                          'keeping realistic pores and texture. The expression should be calm, soft, slightly smiling, '
+                          'smooth natural texture — do not add pores or aged detail. The expression should be calm, soft, slightly smiling, '
                           'eyes warm and tender. Preserve identity, facial structure, age, hairstyle, pose, outfit, '
                           'framing and composition exactly. Photorealistic, lifelike, ultra-detailed, 8k, fine-art '
                           'portrait quality.',
@@ -166,7 +165,7 @@ PRO_PRESETS = { 'original': { 'nome': '📷 Original',
                 'category': 'enhance'},
   'skin_hair': { 'nome': '💇 Melhorar Cabelo, Pele e Textura',
                  'prompt': 'Enhance the skin, hair and natural textures with photorealistic quality. Render skin with '
-                           'realistic pores, subtle micro-texture, natural subsurface scattering, healthy glow, even '
+                           'gentle beauty retouch only — even tone, healthy glow, soft finish; do NOT add pores, wrinkles, or age lines; even '
                            'tone, no plastic/AI look. Render hair with individually defined strands, natural shine, '
                            'realistic flow, accurate roots and ends, true-to-life color depth. Preserve identity, '
                            'facial structure, age, expression, pose, hairstyle shape, outfit, lighting and composition '
@@ -203,7 +202,7 @@ PRO_PRESETS = { 'original': { 'nome': '📷 Original',
             'category': 'enhance'},
   'max': { 'nome': '✨ Geral + Detalhes Máximos',
            'prompt': 'Apply a complete top-tier professional enhancement to this image. Maximize realism and detail '
-                     'across the entire photo: ultra-sharp focus, photorealistic skin with natural pores, lifelike '
+                     'across the entire photo: ultra-sharp focus, refined photorealistic skin without adding wrinkles or aged pore detail, lifelike '
                      'hair with individual strands, expressive eyes with perfect catchlights, realistic fabric and '
                      'outfit textures, professional cinematic lighting, accurate balanced color grading, deep tonal '
                      'range, perfect exposure, fine micro-details everywhere, high dynamic range, magazine-cover '

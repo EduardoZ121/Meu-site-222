@@ -8,7 +8,7 @@ const features = [
     eyebrow: "Gerar",
     title: "De uma frase para uma imagem pronta a publicar.",
     body: "Escreve o que imaginas, escolhe o estilo e recebe uma imagem com estética cinematográfica, editorial, artística ou hiper-realista em segundos.",
-    tags: ["Motor Rápido", "Motor Pro", "Motor Premium"],
+    tags: ["Baixa qualidade", "Média qualidade", "Alta qualidade"],
     image: "/images/generate.jpg",
     imageRight: true,
   },

@@ -36,6 +36,18 @@ const en = {
   bill_custom_buy: "Buy {n} credits",
   bill_custom_invalid: "Enter at least {n} credits.",
 
+  bill_hq_eyebrow: "Poster HQ credits",
+  bill_hq_title: "High-quality posters",
+  bill_hq_subtitle: "Separate wallet for the poster High quality engine only. If you choose High quality in Posters, this is the balance it uses.",
+  bill_hq_balance_label: "HQ credits",
+  bill_hq_balance_hint: "For poster High quality",
+  bill_hq_credits_count: "{n} HQ credits",
+  bill_hq_credits_unlimited: "∞ HQ credits",
+  bill_hq_per_gen: "50 créditos HQ = 1 poster alta qualidade",
+  bill_hq_credits_added: "+{n} HQ credits added",
+  bill_hq_purchase_desc: "HQ purchase {pkg}",
+  label_hq_credits: "HQ credits",
+
   bill_pkg_starter_tag: "Launch promo",
   bill_pkg_starter_blurb: "Limited-time offer for new creators: more credits to start without worry.",
   bill_pkg_starter_b1: "150 credits",
@@ -66,7 +78,7 @@ const en = {
   bill_faq1_a:
     "Each tool shows the cost before you generate. Text-to-image starts at 18 credits; HD, prompt enhance, and premium effects add surcharges. Video and Pro tools cost more to reflect API usage.",
   bill_faq2_q: "Do credits expire?",
-  bill_faq2_a: "No. Purchased credits stay in your account until you use them.",
+  bill_faq2_a: "One-time pack credits never expire. On Creator Monthly, 400 credits renew each cycle and do not roll over.",
   bill_faq3_q: "Purchases & refunds",
   bill_faq3_a:
     "Paid credit packages are not refundable in cash after purchase (except where the law requires). Credits spent on a successful generation are not returned. If a generation fails due to a technical error, timeout, or model block, credits for that attempt are refunded automatically.",
@@ -114,6 +126,18 @@ const pt = {
   bill_custom_buy: "Comprar {n} créditos",
   bill_custom_invalid: "Indica pelo menos {n} créditos.",
 
+  bill_hq_eyebrow: "Créditos HQ posters",
+  bill_hq_title: "Posters alta qualidade",
+  bill_hq_subtitle: "Carteira separada só para o motor Alta qualidade dos Posters. Se escolheres Alta qualidade, é este saldo que será usado.",
+  bill_hq_balance_label: "Créditos HQ",
+  bill_hq_balance_hint: "Para Alta qualidade dos Posters",
+  bill_hq_credits_count: "{n} créditos HQ",
+  bill_hq_credits_unlimited: "∞ créditos HQ",
+  bill_hq_per_gen: "50 créditos HQ = 1 poster alta qualidade",
+  bill_hq_credits_added: "+{n} créditos HQ adicionados",
+  bill_hq_purchase_desc: "Compra HQ {pkg}",
+  label_hq_credits: "Créditos HQ",
+
   bill_pkg_starter_tag: "Promo lançamento",
   bill_pkg_starter_blurb: "Oferta temporária para novos criadores: mais créditos para começares sem medo.",
   bill_pkg_starter_b1: "150 créditos",
@@ -144,7 +168,7 @@ const pt = {
   bill_faq1_a:
     "Cada ferramenta mostra o custo antes de gerar. Imagem por texto desde 18 créditos; HD, melhorar prompt e efeitos premium acrescentam custo. Vídeo e Pro reflectem o uso real das APIs.",
   bill_faq2_q: "Os créditos expiram?",
-  bill_faq2_a: "Não. Os créditos comprados ficam contigo até os usares.",
+  bill_faq2_a: "Os créditos dos packs avulsos nunca expiram. No Creator Mensal, 400 créditos renovam a cada ciclo e não acumulam.",
   bill_faq3_q: "Compras e reembolsos",
   bill_faq3_a:
     "Os pacotes de créditos pagos não são reembolsáveis em dinheiro após a compra (salvo obrigação legal). Créditos já gastos numa geração concluída também não são devolvidos. Se uma geração falhar por erro técnico, timeout ou bloqueio do modelo, os créditos dessa tentativa são devolvidos automaticamente à tua conta.",

@@ -43,6 +43,13 @@ const POSTER_INPUT = {
   food_burgers_artesanais: "dish:ref_food_burger.jpg",
   food_oriental: "dish:ref_food_sushi.jpg",
   food_experiencia_unica: "dish:ref_food_fine.jpg",
+  food_healthy_food_promotion: "dish:ref_food_bowl.jpg",
+  food_menu_promotion: "dish:ref_food_rustic.jpg",
+  food_special_menu_promotion: "dish:ref_food_bowl.jpg",
+  food_healthy_lifestyle_promotion: "dish:ref_food_bowl.jpg",
+  food_healthy_eating_campaign: "dish:ref_food_bowl.jpg",
+  food_comfort_food_promotion: "dish:ref_food_burger.jpg",
+  food_featured_food_promotion: "dish:ref_food_burger.jpg",
   fitness_beast_mode: "man",
   fitness_train_hard: "man",
   fitness_strong_life: "man",
@@ -105,15 +112,58 @@ function loadEnv() {
 }
 
 function loadPosterTemplates() {
-  const modPath = path.join(ROOT, "frontend/src/lib/posterFallbacks.js");
-  const src = require("fs").readFileSync(modPath, "utf8");
-  const start = src.indexOf("export const FALLBACK_POSTER_TEMPLATES = ");
-  if (start < 0) throw new Error("FALLBACK_POSTER_TEMPLATES não encontrado");
-  const slice = src.slice(start);
-  const arrStart = slice.indexOf("[");
-  const arrEnd = slice.indexOf("];\n\nexport const FALLBACK_POSTER_MODELS");
-  const jsonish = slice.slice(arrStart, arrEnd + 1);
-  return new Function(`return ${jsonish}`)();
+  const jsonPath = path.join(ROOT, "frontend/api/lib/posterTemplatesData.json");
+  return JSON.parse(require("fs").readFileSync(jsonPath, "utf8"));
+}
+
+/** aspect do template → ratio aceite pelo Grok Imagine */
+function mapAspect(aspect) {
+  const a = String(aspect || "3:4").trim();
+  if (["9:16", "2:3", "3:4", "4:5", "1:1", "16:9"].includes(a)) return a;
+  return "3:4";
+}
+
+/** Substitui {{KEY}} por texto de exemplo para a capa da grelha */
+function sampleCoverPrompt(raw) {
+  const samples = {
+    BUSINESS_NAME: "Green Bowl",
+    BUSINESS_TAGLINE: "Fresh every day",
+    DISCOUNT_PERCENTAGE: "30% OFF",
+    POLICY_TEXT: "Organic ingredients, seasonal menu.",
+    FOOD_DESCRIPTION: "Balanced bowls and smoothies.",
+    MAIN_TITLE: "Eat Well",
+    MAIN_HEADLINE: "Healthy Living",
+    ITEM_NAME_1: "Bowl Classic",
+    PRICE_1: "$12",
+    ITEM_NAME_2: "Green Salad",
+    PRICE_2: "$10",
+    ITEM_NAME_3: "Smoothie",
+    PRICE_3: "$8",
+    PHONE_NUMBER: "(11) 98765-4321",
+    EMAIL_ADDRESS: "hello@greenbowl.com",
+    WEBSITE: "greenbowl.com",
+    ADDRESS: "123 Main St",
+    PHONE: "(11) 98765-4321",
+    EMAIL: "hello@greenbowl.com",
+    SUBTITLE: "Fresh flavors",
+    DISCOUNT: "25% OFF",
+    CTA_TEXT: "ORDER NOW",
+    DELIVERY_TEXT: "Free delivery today",
+    BACKGROUND_WORD: "WELLNESS",
+    BADGE_TEXT: "NEW",
+    ESTABLISHED_TEXT: "Since 2010",
+    PROMOTIONAL_TEXT: "Limited time offer",
+    SPECIAL_OFFER: "2 FOR 1",
+    DELIVERY_INFO: "Fast delivery",
+    line_1: "Your headline",
+  };
+  return String(raw).replace(/\{\{([A-Z0-9_]+)\}\}/g, (_, key) => samples[key] || key.replace(/_/g, " "));
+}
+
+function parseOnlyArg() {
+  const flag = process.argv.find((a) => a.startsWith("--only="));
+  if (!flag) return null;
+  return new Set(flag.slice(7).split(",").map((s) => s.trim()).filter(Boolean));
 }
 
 async function fileToDataUri(filePath) {
@@ -225,12 +275,20 @@ function resolveInputUri(kind) {
 
 async function main() {
   loadEnv();
-  const templates = loadPosterTemplates();
+  const onlyIds = parseOnlyArg();
+  let templates = loadPosterTemplates();
+  if (onlyIds?.size) {
+    templates = templates.filter((t) => onlyIds.has(t.id));
+    console.log(`Modo --only: ${templates.length} template(s)\n`);
+  }
   await fs.mkdir(OUT_DIR, { recursive: true });
 
-  console.log("A garantir refs de comida…");
-  await ensureFoodRefs();
-  console.log("");
+  const needsFoodRef = templates.some((t) => String(POSTER_INPUT[t.id] || "").startsWith("dish:"));
+  if (needsFoodRef) {
+    console.log("A garantir refs de comida…");
+    await ensureFoodRefs();
+    console.log("");
+  }
 
   for (const tpl of templates) {
     const outFile = path.join(OUT_DIR, `${tpl.id}.jpg`);
@@ -248,11 +306,11 @@ async function main() {
       continue;
     }
 
-    const aspect = tpl.aspect === "9:16" ? "9:16" : "3:4";
+    const aspect = mapAspect(tpl.aspect);
     console.log(`→ ${tpl.id} [${kind}] [${aspect}] …`);
 
     const input = {
-      prompt: tpl.prompt,
+      prompt: sampleCoverPrompt(tpl.prompt),
       aspect_ratio: aspect,
       num_outputs: 1,
     };

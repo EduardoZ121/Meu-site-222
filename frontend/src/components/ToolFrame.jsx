@@ -1,8 +1,13 @@
 import { useMemo, useState } from "react";
 import { RefreshCw } from "lucide-react";
+import { toast } from "sonner";
 import { useAuth } from "../lib/auth";
 import { useI18n } from "../lib/i18n";
+import { usePricing } from "../lib/PricingContext";
+import { getSurcharges } from "../lib/creditPricing";
+import { improvePromptClient } from "../lib/promptEnhance";
 import StudioGenerateBar from "./StudioGenerateBar";
+import PromptEnhanceToggle from "./promptAssist/PromptEnhanceToggle";
 import StudioGenerateCostMeta from "./StudioGenerateCostMeta";
 import StudioPhotoUploadNotice, { isPhotoUploadBusy } from "./studio/StudioPhotoUploadNotice";
 import { useStudioGenerateGate } from "../lib/useStudioGenerateGate";
@@ -11,6 +16,8 @@ import ImageUploadZone from "./ImageUploadZone";
 import ResultPanel from "./ResultPanel";
 import CollapsibleSection from "./CollapsibleSection";
 import StudioResultAnchor from "./StudioResultAnchor";
+import StudioCompactShell from "./studio/StudioCompactShell";
+import StudioInlineHeader from "./studio/StudioInlineHeader";
 import { primaryResultUrl } from "../lib/creationUrls";
 /**
  * Unified studio frame — Pollo-style.
@@ -48,7 +55,7 @@ export default function ToolFrame({
   promptLabel = "Prompt",
   prompt,
   onPromptChange,
-  promptMax = 600,
+  promptMax = 0,
   ideas,
   onShuffleIdeas,
   aspectRatios = ["1:1", "3:4", "4:5", "9:16", "16:9", "21:9"],
@@ -59,12 +66,19 @@ export default function ToolFrame({
   busy,
   result,
   onResultChange,
+  pageHelpKey,
   testId = "tool",
   generateReady,
   generateHint,
+  improveTool = "",
+  showEnhanceToggle = true,
 }) {
   const { user } = useAuth();
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
+  const { region } = usePricing();
+  const surcharges = useMemo(() => getSurcharges(region), [region]);
+  const [improve, setImprove] = useState(false);
+  const enhanceCost = surcharges.enhancePrompt ?? 5;
   const formatsLabel = acceptedFormats ?? t("tool_accept_formats");
   const [viewAllModels, setViewAllModels] = useState(false);
   const [photoUploadStatus, setPhotoUploadStatus] = useState("idle");
@@ -75,10 +89,11 @@ export default function ToolFrame({
 
   const needsPhoto = showPhoto;
   const needsPrompt = Boolean(promptLabel);
+  const billedCost = needsPrompt && improve && showEnhanceToggle ? cost + enhanceCost : cost;
   const gate = useStudioGenerateGate({
     busy,
     user,
-    cost,
+    cost: billedCost,
     requirePhoto: needsPhoto,
     photo,
     requirePrompt: needsPrompt,
@@ -90,25 +105,42 @@ export default function ToolFrame({
   const ready = gate.ready;
   const hint = generateHint ?? gate.hint;
 
-  return (
-    <div className="rp-studio-shell max-w-[1400px] mx-auto pb-32" data-testid={`${testId}-frame`}>
-      <header className="mb-8 md:mb-10 pb-6 md:pb-8 border-b border-[rgba(244,241,234,0.06)]">
-        <p className="rp-editor-section-cap mb-2">{t("tool_cap")}</p>
-        <h1 className="rp-studio-page-title mb-3 font-['Inter_Tight']">{title}</h1>
-        {subtitle && <p className="rp-studio-page-desc">{subtitle}</p>}
-      </header>
+  const handleCreate = async () => {
+    if (!ready || busy) return;
+    let ctx = {};
+    if (showEnhanceToggle && improve && needsPrompt && prompt.trim().length >= 3) {
+      try {
+        const improved = await improvePromptClient(prompt, { tool: improveTool, lang });
+        ctx.improvedPrompt = improved;
+        onPromptChange(improved);
+      } catch (err) {
+        toast.error(err?.message || t("studio_improve_fail"));
+        return;
+      }
+    }
+    await onCreate(ctx);
+  };
 
-      <div className="grid grid-cols-1 xl:grid-cols-[1fr_400px] gap-8 xl:gap-10">
-        <div className="rp-editor-panel overflow-hidden">
-          <div className="rp-editor-panel-accent" />
-          <div className="p-6 sm:p-8 space-y-0">
+  return (
+    <StudioCompactShell testId={`${testId}-frame`} maxWidth="1400px" className="pb-4 md:pb-8">
+      <StudioInlineHeader
+        eyebrow={t("tool_cap")}
+        title={title}
+        description={subtitle}
+        testId={`${testId}-header`}
+        helpKey={pageHelpKey}
+      />
+
+      <div className="grid grid-cols-1 xl:grid-cols-[1fr_360px] gap-3 xl:gap-8">
+        <div className="rp-studio-card-stack">
           {showPhoto && (
             <CollapsibleSection
               title={t("tool_ref_image")}
               hint={formatsLabel}
               defaultOpen
-              variant="inset"
+              variant="boxed"
               testId={`${testId}-section-photo`}
+              helpKey="help_sec_upload"
             >
               <ImageUploadZone
                 value={photo}
@@ -124,7 +156,7 @@ export default function ToolFrame({
           )}
 
           {models && models.length > 0 && (
-            <CollapsibleSection title={t("tool_model")} variant="inset" testId={`${testId}-section-models`}>
+            <CollapsibleSection title={t("tool_model")} variant="boxed" testId={`${testId}-section-models`} helpKey="help_sec_presets">
               {models.length > 8 && (
                 <div className="flex justify-end mb-3">
                   <button
@@ -168,18 +200,30 @@ export default function ToolFrame({
 
           {/* Prompt */}
           {promptLabel && (
-            <CollapsibleSection title={promptLabel} variant="inset" testId={`${testId}-section-prompt`}>
+            <CollapsibleSection title={promptLabel} variant="boxed" testId={`${testId}-section-prompt`} helpKey="help_sec_prompt">
+              {showEnhanceToggle && (
+                <div className="mb-3">
+                  <PromptEnhanceToggle
+                    checked={improve}
+                    onChange={setImprove}
+                    testId={`${testId}-enhance`}
+                    cost={enhanceCost}
+                  />
+                </div>
+              )}
               <div className="relative">
                 <textarea
                   value={prompt}
                   onChange={(e) => onPromptChange(e.target.value)}
-                  rows={5}
-                  maxLength={promptMax}
+                  rows={3}
+                  {...(promptMax > 0 ? { maxLength: promptMax } : {})}
                   placeholder={ideas?.[0] ? t("tool_example", { text: ideas[0] }) : t("tool_prompt_ph")}
-                  className="rp-editor-textarea min-h-[140px] pr-16"
+                  className="rp-editor-textarea rp-editor-textarea--compact min-h-[88px] pr-14"
                   data-testid={`${testId}-prompt`}
                 />
-                <span className="absolute bottom-3 right-3 text-[#5A5A5E] text-[10px] font-mono tracking-wide">{prompt.length} / {promptMax}</span>
+                <span className="absolute bottom-3 right-3 text-[#5A5A5E] text-[10px] font-mono tracking-wide">
+                  {promptMax > 0 ? `${prompt.length} / ${promptMax}` : prompt.length}
+                </span>
               </div>
               {ideas && ideas.length > 0 && (
                 <div className="flex items-start gap-2 mt-3 flex-wrap">
@@ -206,27 +250,26 @@ export default function ToolFrame({
           )}
 
           {aspectRatios && aspectRatios.length > 0 && onAspectChange && (
-            <CollapsibleSection title={t("tool_output_format")} variant="inset" testId={`${testId}-section-aspect`}>
+            <CollapsibleSection title={t("tool_output_format")} variant="boxed" testId={`${testId}-section-aspect`} helpKey="help_sec_format">
               <AspectPicker
                 value={aspect || aspectRatios[0]}
                 onChange={onAspectChange}
                 hasPhoto={needsPhoto && Boolean(photo)}
                 options={aspectRatios}
-                columns="grid grid-cols-3 sm:grid-cols-6 gap-2.5"
+                columns="grid grid-cols-3 sm:grid-cols-6 gap-2"
                 testIdPrefix={`${testId}-aspect`}
               />
             </CollapsibleSection>
           )}
-          </div>
         </div>
 
         <StudioResultAnchor
           busy={busy}
           ready={resultReady}
-          className="xl:sticky xl:top-[80px] self-start space-y-3"
+          className="xl:sticky xl:top-[72px] self-start space-y-2"
         >
-          <p className="rp-editor-section-cap !text-[#6b6b70]">{t("tool_preview")}</p>
-          <div className="rp-editor-panel overflow-hidden p-4 sm:p-5" data-testid={`${testId}-result-panel`}>
+          <p className="hidden md:block text-[11px] text-[#6b6b70] uppercase tracking-wide">{t("tool_preview")}</p>
+          <div className="rounded-2xl border border-white/[0.08] bg-[#141418]/90 overflow-hidden p-3" data-testid={`${testId}-result-panel`}>
             <ResultPanel creation={result} loading={busy} onChange={onResultChange} emptyLabel={t("tool_result_empty")} />
           </div>
         </StudioResultAnchor>
@@ -239,15 +282,17 @@ export default function ToolFrame({
       <StudioGenerateBar
         ready={ready}
         busy={busy}
-        onClick={onCreate}
-        label={t("tool_generate_credits", { n: cost })}
+        onClick={handleCreate}
+        label={t("tool_generate_credits", { n: billedCost })}
         busyLabel={t("tool_generating")}
         hint={hint}
         blockedNotify={photoUploading ? "message" : "error"}
+        cost={billedCost}
+        showCostPill
         testId={`${testId}-create-btn`}
-        costMeta={<StudioGenerateCostMeta cost={cost} user={user} />}
+        costMeta={<StudioGenerateCostMeta cost={billedCost} user={user} />}
       />
-    </div>
+    </StudioCompactShell>
   );
 }
 

@@ -20,7 +20,9 @@ export function useI18n() {
   const t = (key, vars) => {
     const raw = i18nT(key, { ...vars, defaultValue: "" });
     if (raw && raw !== key) return format(raw, vars);
-    // Try flat key in English fallback
+    // Flat keys merged at runtime (extendedPageLocales, sharedStudioLocales)
+    const langFlat = i18n.getResource(lang, "translation", key);
+    if (langFlat && typeof langFlat === "string") return format(langFlat, vars);
     const enFallback = i18n.getResource("en", "translation", key);
     if (enFallback && typeof enFallback === "string") return format(enFallback, vars);
     // Try nested paths for known prefixes

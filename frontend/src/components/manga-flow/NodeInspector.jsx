@@ -1,8 +1,10 @@
-import { useRef, useState } from "react";
+import { useState } from "react";
+import MangaFlowRefUpload from "./MangaFlowRefUpload";
 import {
-  X, Trash2, ImagePlus, Link2, User, MapPin, Box, MessageCircle,
+  X, Trash2, Link2, User, MapPin, Box, MessageCircle,
   Sparkles, Camera, Square, ChevronDown, Plus, Eye, EyeOff, Variable, Wand2,
 } from "lucide-react";
+import { NARRATIVE_ROLES } from "../../lib/mangaFlowOrchestrator";
 import {
   PERSON_POSES, PERSON_EMOTIONS, PERSON_CAMERA,
   SCENARIO_TIME, SCENARIO_WEATHER, SCENARIO_MOOD, SCENARIO_LIGHTING,
@@ -34,35 +36,6 @@ function Section({ title, icon, defaultOpen = true, children, badge }) {
         <ChevronDown className={`w-3.5 h-3.5 text-[#5A5A5E] transition-transform ${open ? "rotate-180" : ""}`} />
       </button>
       {open && <div className="mfi-section__body">{children}</div>}
-    </div>
-  );
-}
-
-function ImageUpload({ value, onChange }) {
-  const inputRef = useRef(null);
-  const handleFile = (e) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    onChange({ refImage: file, refImageUrl: URL.createObjectURL(file) });
-  };
-  return (
-    <div className="mfi-field">
-      <label className="mfi-label">Reference image</label>
-      <input ref={inputRef} type="file" accept="image/*" className="hidden" onChange={handleFile} />
-      {value ? (
-        <div className="mfi-ref-preview">
-          <img src={value} alt="" className="mfi-ref-preview__img" />
-          <div className="mfi-ref-preview__actions">
-            <button onClick={() => inputRef.current?.click()} className="mfi-ref-preview__btn" type="button">Change</button>
-            <button onClick={() => onChange({ refImage: null, refImageUrl: null })} className="mfi-ref-preview__btn mfi-ref-preview__btn--danger" type="button">Remove</button>
-          </div>
-          <p className="mfi-ref-preview__hint">AI will use this as identity/style reference</p>
-        </div>
-      ) : (
-        <button onClick={() => inputRef.current?.click()} className="mfi-upload-btn" data-testid="inspector-upload-ref">
-          <ImagePlus className="w-5 h-5" /><span>Upload reference</span>
-        </button>
-      )}
     </div>
   );
 }
@@ -214,7 +187,7 @@ function PersonInspector({ data, onUpdate }) {
   return (<>
     <Section title="Identity" icon={<User className="w-3.5 h-3.5 text-[#C4B5FD]" />}>
       <Field label="Name" value={data.name} onChange={(v) => onUpdate({ name: v })} placeholder="Hiro, Sakura, Kai..." />
-      <ImageUpload value={data.refImageUrl} onChange={onUpdate} />
+      <MangaFlowRefUpload data={data} onUpdate={onUpdate} testId="inspector-person-ref" layout="square" />
       {data.refImageUrl && (
         <Field label="Reference instructions" value={data.refInstructions} onChange={(v) => onUpdate({ refInstructions: v })}
           placeholder="e.g. keep pink hair, scar on left cheek, torn sleeve on left arm..." multiline
@@ -264,7 +237,7 @@ function ScenarioInspector({ data, onUpdate }) {
   return (<>
     <Section title="Place" icon={<MapPin className="w-3.5 h-3.5 text-[#5EEAD4]" />}>
       <Field label="Place name" value={data.name} onChange={(v) => onUpdate({ name: v })} placeholder="Tokyo street, dark forest..." />
-      <ImageUpload value={data.refImageUrl} onChange={onUpdate} />
+      <MangaFlowRefUpload data={data} onUpdate={onUpdate} testId="inspector-scenario-ref" layout="wide" />
       {data.refImageUrl && (
         <Field label="Reference instructions" value={data.refInstructions} onChange={(v) => onUpdate({ refInstructions: v })}
           placeholder="e.g. same color palette, keep the broken bridge, maintain fog density..." multiline
@@ -299,7 +272,7 @@ function ObjectInspector({ data, onUpdate }) {
   return (<>
     <Section title="Object" icon={<Box className="w-3.5 h-3.5 text-[#FDE68A]" />}>
       <Field label="Name" value={data.name} onChange={(v) => onUpdate({ name: v })} placeholder="Katana, letter, phone..." />
-      <ImageUpload value={data.refImageUrl} onChange={onUpdate} />
+      <MangaFlowRefUpload data={data} onUpdate={onUpdate} testId="inspector-object-ref" layout="square" />
       <Chips label="Size" options={OBJECT_SIZES} value={data.size} onChange={(v) => onUpdate({ size: v })} />
       <Chips label="State" options={OBJECT_STATES} value={data.state} onChange={(v) => onUpdate({ state: v })} />
       <Field label="Description" value={data.description} onChange={(v) => onUpdate({ description: v })} placeholder="Describe..." multiline
@@ -336,7 +309,7 @@ function EffectInspector({ data, onUpdate }) {
       <Chips label="Type" options={EFFECT_TYPES} value={data.effectType} onChange={(v) => onUpdate({ effectType: v })} />
       <Chips label="Intensity" options={EFFECT_INTENSITY} value={data.intensity} onChange={(v) => onUpdate({ intensity: v })} />
       <ColorPick label="Color" value={data.color} onChange={(v) => onUpdate({ color: v })} />
-      <ImageUpload value={data.refImageUrl} onChange={onUpdate} />
+      <MangaFlowRefUpload data={data} onUpdate={onUpdate} testId="inspector-effect-ref" layout="square" />
     </Section>
     <Section title="Advanced" icon={<Variable className="w-3.5 h-3.5 text-[#5A5A5E]" />} defaultOpen={false}>
       <NumberField label="Z-Index" value={data.zIndex ?? 15} onChange={(v) => onUpdate({ zIndex: v })} min={0} max={100} />
@@ -352,18 +325,22 @@ function CameraInspector({ data, onUpdate }) {
       <Chips label="Shot type" options={CAMERA_SHOTS} value={data.shotType} onChange={(v) => onUpdate({ shotType: v })} />
       <Chips label="Angle" options={CAMERA_ANGLES} value={data.angle} onChange={(v) => onUpdate({ angle: v })} />
       <Field label="Focus target" value={data.focusTarget} onChange={(v) => onUpdate({ focusTarget: v })} placeholder="Character or element..." />
-      <ImageUpload value={data.refImageUrl} onChange={onUpdate} />
+      <MangaFlowRefUpload data={data} onUpdate={onUpdate} testId="inspector-camera-ref" layout="square" />
     </Section>
   </>);
 }
 
 function PanelInspector({ data, onUpdate }) {
   return (<>
+    <Section title="Narrative" icon={<Sparkles className="w-3.5 h-3.5 text-[#A855F7]" />}>
+      <Chips label="Story role" options={["auto", ...NARRATIVE_ROLES]} value={data.narrativeRole || "auto"} onChange={(v) => onUpdate({ narrativeRole: v })} />
+      <Field label="Moment / beat" value={data.momentDesc} onChange={(v) => onUpdate({ momentDesc: v })} placeholder="What happens in this panel..." multiline />
+    </Section>
     <Section title="Frame" icon={<Square className="w-3.5 h-3.5 text-[#D4D4D4]" />}>
       <Chips label="Size" options={PANEL_SIZES} value={data.panelSize} onChange={(v) => onUpdate({ panelSize: v })} />
       <Chips label="Format" options={PANEL_FORMATS} value={data.format} onChange={(v) => onUpdate({ format: v })} />
       <Chips label="Borders" options={PANEL_BORDERS} value={data.borderStyle} onChange={(v) => onUpdate({ borderStyle: v })} />
-      <ImageUpload value={data.refImageUrl} onChange={onUpdate} />
+      <MangaFlowRefUpload data={data} onUpdate={onUpdate} testId="inspector-panel-ref" layout="wide" />
     </Section>
     <Section title="Advanced" icon={<Variable className="w-3.5 h-3.5 text-[#5A5A5E]" />} defaultOpen={false}>
       <NumberField label="Z-Index" value={data.zIndex ?? 0} onChange={(v) => onUpdate({ zIndex: v })} min={0} max={100} />
@@ -376,6 +353,7 @@ function PanelInspector({ data, onUpdate }) {
 
 const TYPE_META = {
   person:   { icon: User, label: "Character", color: "#C4B5FD" },
+  support:  { icon: User, label: "Support (suporte)", color: "#F0ABFC" },
   scenario: { icon: MapPin, label: "Scenario", color: "#5EEAD4" },
   object:   { icon: Box, label: "Object", color: "#FDE68A" },
   speech:   { icon: MessageCircle, label: "Speech", color: "#93C5FD" },
@@ -385,7 +363,7 @@ const TYPE_META = {
 };
 
 const INSPECTORS = {
-  person: PersonInspector, scenario: ScenarioInspector, object: ObjectInspector,
+  person: PersonInspector, support: PersonInspector, scenario: ScenarioInspector, object: ObjectInspector,
   speech: SpeechInspector, effect: EffectInspector, camera: CameraInspector, panel: PanelInspector,
 };
 
@@ -416,10 +394,21 @@ export default function NodeInspector({ node, edges, allNodes, onUpdate, onDelet
                 const otherId = e.source === node.id ? e.target : e.source;
                 const other = allNodes.find((n) => n.id === otherId);
                 const otherMeta = TYPE_META[other?.type] || {};
+                const connType = e.data?.connectionType;
+                const userNote = e.data?.prompt?.trim();
+                const semantic = e.data?.semanticPrompt?.trim();
                 return (
                   <div key={e.id} className="manga-flow-inspector__conn">
-                    <span className="manga-flow-inspector__conn-name" style={{ color: otherMeta.color }}>{other?.data?.name || other?.data?.text || other?.type || otherId}</span>
-                    {e.data?.prompt && <span className="manga-flow-inspector__conn-prompt">{e.data.prompt}</span>}
+                    <div className="manga-flow-inspector__conn-head">
+                      <span className="manga-flow-inspector__conn-name" style={{ color: otherMeta.color }}>{other?.data?.name || other?.data?.text || other?.type || otherId}</span>
+                      {connType && <span className="manga-flow-inspector__conn-type">{connType}</span>}
+                    </div>
+                    {userNote && <span className="manga-flow-inspector__conn-prompt">Your note: {userNote}</span>}
+                    {semantic && (
+                      <span className="manga-flow-inspector__conn-semantic" title={semantic}>
+                        AI: {semantic.length > 140 ? `${semantic.slice(0, 137)}…` : semantic}
+                      </span>
+                    )}
                   </div>
                 );
               })}

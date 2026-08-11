@@ -12,6 +12,6 @@ export async function checkRegisteredEmail(email) {
     const { data } = await api.get("/auth/check-email", { params: { email: normalized } });
     return data || { exists: false, provider: null, can_register: true };
   } catch {
-    return { exists: false, provider: null, can_register: true, offline: true };
+    return { exists: false, provider: null, can_register: false, offline: true };
   }
 }

@@ -1,5 +1,7 @@
 /** Cálculos admin/finanças em memória (Upstash KV ou datasets pequenos). */
 
+const { isSubscriptionActive } = require("./creatorSubscription.cjs");
+
 async function loadAll(db, names) {
   const out = {};
   for (const n of names) {
@@ -39,6 +41,7 @@ async function computeAdminStats(db) {
     signups_today: users.filter((u) => u.created_at >= dayStart.toISOString()).length,
     signups_week: users.filter((u) => u.created_at >= weekStart).length,
     risky_ips,
+    subscribers_active: users.filter(isSubscriptionActive).length,
   };
 }
 
@@ -149,7 +152,7 @@ async function computeFinance(db, opts = {}) {
     top_up_recommended_usd,
     balance_ok,
     auto_reload_note:
-      "O Stripe não envia dinheiro ao Replicate. Ativa recarga automática no cartão em replicate.com/account/billing para não carregar manualmente.",
+      "Quando um cliente compra créditos, o site calcula a reserva Replicate e envia alerta automático. Activa Auto reload em replicate.com/account/billing (uma vez) — o Replicate cobra o cartão quando o saldo desce, sem carregamento manual.",
   };
 }
 

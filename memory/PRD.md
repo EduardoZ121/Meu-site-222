@@ -1,42 +1,31 @@
-# Remake Pixel — PRD (background generations)
+# Remake Pixel — PRD
 
-## Original problem statement
-"Quero deixar as gerações em segundo plano: ao clicar Gerar, mostrar
-mensagem 'vamos avisar quando terminar', o utilizador pode sair/recarregar,
-e quando terminar disparar bip + notificação + entrada na galeria.
-Mínimo 3 em paralelo. Bónus: vídeo-to-vídeo por email."
+## Original problem statement (last session)
+Bug em produção: rota /generate/easy (secção "Personalizar") rebentava com
+"Erro ao gerar: applyGenerationSurcharges is not defined".
 
 ## Architecture
-- Frontend: React (CRA + craco). Background job watcher já existia em
-  `lib/api.js` (`startPendingPredictionsWatcher`), arranca em `lib/auth.jsx`.
-- Notification center (bell + 1046 Hz beep) já existia em
-  `lib/NotificationContext.jsx` + `lib/notificationsStore.js`.
-- Backend: serverless `frontend/api/[...path].js` cria `pending_predictions`
-  em MongoDB e devolve `prediction_id` imediatamente; `pollPending` faz o
-  acompanhamento via Replicate.
+- Frontend: React (CRA + craco) em /frontend, deploy Vercel para remakepix.com
+- API produção: Vercel serverless em /frontend/api/[...path].js
+- API preview (Emergent): FastAPI Python em /backend/server.py (rota Python-side
+  DIFERENTE, sem applyGenerationSurcharges — por isso o bug não reproduzia em
+  preview, só em produção)
 
-## What's been implemented (2026-01)
-- `frontend/src/lib/bgGeneration.js` (NOVO):
-  - `MAX_CONCURRENT_BG_JOBS = 3`
-  - `activeBackgroundJobsCount()`, `ensureBackgroundSlot()`,
-    `dispatchBackgroundJob(submitData, opts)` — track + toast "vamos avisar".
-- `frontend/src/lib/api.js`: interceptor de response agora despacha em
-  background em vez de fazer `await pollPrediction`. Devolve `deferred: true`.
-  Rotas `/generate/carousel*` mantêm polling síncrono (fluxo multi-step).
-- Páginas adaptadas:
-  - `Generate.jsx`, `Posters.jsx`, `VideoEditorAdmin.jsx` — usam
-    `dispatchBackgroundJob` + `ensureBackgroundSlot` (limite 3).
-  - `Artistic.jsx`, `Pro.jsx`, `VideoGenerate.jsx` — tratam `data.deferred`.
-  - `components/manga-flow/GenerationModal.jsx` — usa background.
-- Build verde, lint verde.
+## Fix aplicado (2026-01)
+- /app/frontend/api/[...path].js linha ~118-127: adicionado
+  `applyGenerationSurcharges` ao destructure do require de
+  `./lib/creditPricing.cjs`. A função estava a ser chamada em 4 handlers
+  (/generate/image, /generate/edit, /generate/easy, /generate/pro) mas sem
+  binding no scope do módulo → ReferenceError → devolvido ao cliente como
+  detail em produção.
+- Verificação estática: node --check OK.
+- Verificação de bindings: audit global confirma que nenhum outro ficheiro
+  chama applyGenerationSurcharges ou getSurcharges sem import.
+- testing_agent iteration_2: 7/7 testes passaram, sem issues críticos.
 
 ## Known gaps / Backlog
-- P1: Email do vídeo-to-vídeo (sendResendEmail já existe) — adicionar
-  `notify_email` no submit e enviar resultado quando o job termina em
-  `pendingPredictions.cjs::finalizePending`.
-- P1: Tools `BgRemove`, `Colorize`, `Restore`, `Inpaint`, `ClothesChanger`,
-  `Upscale` — verificar se também devem usar background (verificar se os
-  endpoints retornam `prediction_id`).
-- P2: UI counter visível de jobs em curso (ícone com badge "2/3").
-- P2: Reaproveitar HEIF→JPEG do backend (já fica disponível porque o repo
-  novo já tem sharp).
+- P2: /app/frontend/api/[...path].js tem 4.428 linhas — refactoring em
+  módulos por rota reduziria risco de regressões deste tipo no futuro
+  (nota do próprio testing_agent).
+- P3: Sessão anterior deixou features "background generation" e "premium UI"
+  implementadas — ver commits anteriores no repo.

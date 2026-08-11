@@ -5,16 +5,23 @@ import { useAuth } from "../lib/auth";
 import { useI18n } from "../lib/i18n";
 import { useAuthEmailStatus } from "../lib/useAuthEmailStatus";
 import { toast } from "sonner";
-import useTitle from "../lib/useTitle";
+import { usePageSeo } from "../lib/usePageSeo";
+import { SEO_REGISTER } from "../lib/seoEn";
 import GoogleAuthButton from "../components/GoogleAuthButton";
 import Logo from "../components/Logo";
 import PasswordField from "../components/PasswordField";
 import AuthModeTabs from "../components/AuthModeTabs";
 import PublicLanguageBar from "../components/PublicLanguageBar";
+import { SUPPORT_EMAIL, SUPPORT_MAILTO } from "../lib/supportEmail";
 
 export default function Register() {
   const { t } = useI18n();
-  useTitle(t("auth_register_title"));
+  usePageSeo({
+    title: SEO_REGISTER.title,
+    documentTitle: SEO_REGISTER.documentTitle,
+    description: SEO_REGISTER.description,
+    path: SEO_REGISTER.path,
+  });
   const [params] = useSearchParams();
   const [form, setForm] = useState({
     name: "",
@@ -24,9 +31,15 @@ export default function Register() {
     referral_code: params.get("ref") || "",
   });
   const [loading, setLoading] = useState(false);
-  const { register, loginWithGoogle } = useAuth();
+  const { register, loginWithGoogle, user, loading: authLoading } = useAuth();
   const navigate = useNavigate();
   const { status: emailStatus, info: emailInfo } = useAuthEmailStatus(form.email);
+
+  const nextPath = params.get("next") || "/app/tools";
+
+  useEffect(() => {
+    if (!authLoading && user) navigate(nextPath, { replace: true });
+  }, [authLoading, user, navigate, nextPath]);
 
   useEffect(() => {
     const q = params.get("email");
@@ -208,6 +221,10 @@ export default function Register() {
           <p className="text-rp-mute text-sm mt-10">
             {t("auth_have_account")}{" "}
             <Link to="/login" className="text-rp-lavender hover:underline" data-testid="register-go-login">{t("auth_go_login")}</Link>
+          </p>
+          <p className="text-rp-mute2 text-[13px] mt-6 text-center" data-testid="register-support-email">
+            {t("auth_support_hint")}{" "}
+            <a href={SUPPORT_MAILTO} className="text-rp-lavender hover:underline">{SUPPORT_EMAIL}</a>
           </p>
         </motion.div>
       </div>

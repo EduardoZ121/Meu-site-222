@@ -1,11 +1,11 @@
 import { createContext, useContext, useEffect, useState } from "react";
-import { api, startPendingPredictionsWatcher } from "./api";
+import { api, startPendingPredictionsWatcher, syncServerPendingPredictions } from "./api";
 import { ADMIN_EMAILS } from "./isAdmin";
 
 const AuthCtx = createContext(null);
 const LOCAL_USERS_KEY = "rp_local_users";
 const LOCAL_TX_KEY = "rp_local_transactions";
-const STARTER_CREDITS = 50;
+const STARTER_CREDITS = 15;
 
 function readLocalUsers() {
   try { return JSON.parse(localStorage.getItem(LOCAL_USERS_KEY) || "{}"); } catch { return {}; }
@@ -31,6 +31,26 @@ export { isAdminUser } from "./isAdmin";
 
 function updateStoredUser(user) {
   localStorage.setItem("rp_user", JSON.stringify(user));
+}
+
+function normalizeServerUser(data) {
+  if (!data) return data;
+  const email = String(data.email || "").trim().toLowerCase();
+  const unlimited = isUnlimitedEmail(email) || data.role === "admin" || data.is_unlimited;
+  if (unlimited) {
+    return {
+      ...data,
+      role: "admin",
+      is_unlimited: true,
+      credits: 999999999,
+      premium_credits: 999999999,
+      total_standard_credits: 999999999,
+    };
+  }
+  return {
+    ...data,
+    total_standard_credits: data.total_standard_credits ?? data.credits ?? 0,
+  };
 }
 
 function decodeJwtPayload(token) {
@@ -59,6 +79,10 @@ function publicLocalUser(user) {
     role: user.role || "user",
     lang: "en",
     credits: unlimited ? 999999999 : (user.credits ?? STARTER_CREDITS),
+    premium_credits: unlimited ? 999999999 : (user.premium_credits ?? 0),
+    subscription_credits: unlimited ? 0 : (user.subscription_credits ?? 0),
+    total_standard_credits: unlimited ? 999999999 : (user.total_standard_credits ?? user.credits ?? STARTER_CREDITS),
+    subscription: user.subscription || { active: false, status: "none" },
     is_unlimited: unlimited,
     referral_code: user.referral_code || "",
     email_verified: !!user.email_verified,
@@ -90,12 +114,37 @@ function resolveLocalUserFromToken(token) {
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(() => {
-    try { return JSON.parse(localStorage.getItem("rp_user") || "null"); } catch { return null; }
+    try { return normalizeServerUser(JSON.parse(localStorage.getItem("rp_user") || "null")); } catch { return null; }
   });
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     startPendingPredictionsWatcher();
+  }, []);
+
+  useEffect(() => {
+    const hash = window.location.hash || "";
+    if (!hash.startsWith("#google_token=")) return;
+    const token = decodeURIComponent(hash.slice("#google_token=".length));
+    window.history.replaceState(null, "", `${window.location.pathname}${window.location.search}`);
+    if (!token) return;
+    localStorage.setItem("rp_token", token);
+    setLoading(true);
+    api.get("/auth/me", { timeout: 15000 })
+      .then((r) => {
+        const u = normalizeServerUser(r.data);
+        setUser(u);
+        updateStoredUser(u);
+        void syncServerPendingPredictions();
+        window.location.replace("/app/tools");
+      })
+      .catch(() => {
+        localStorage.removeItem("rp_token");
+        localStorage.removeItem("rp_user");
+        setUser(null);
+        window.location.replace("/login?google=failed");
+      })
+      .finally(() => setLoading(false));
   }, []);
 
   useEffect(() => {
@@ -109,10 +158,12 @@ export function AuthProvider({ children }) {
       setLoading(false);
       return;
     }
-    api.get("/auth/me")
+    api.get("/auth/me", { timeout: 15000 })
       .then((r) => {
-        setUser(r.data);
-        updateStoredUser(r.data);
+        const u = normalizeServerUser(r.data);
+        setUser(u);
+        updateStoredUser(u);
+        void syncServerPendingPredictions();
       })
       .catch((err) => {
         if (err?.response?.status === 401) {
@@ -134,10 +185,21 @@ export function AuthProvider({ children }) {
     });
   };
 
+  const syncPremiumCredits = (premiumCredits) => {
+    if (premiumCredits == null) return;
+    setUser((prev) => {
+      if (!prev) return prev;
+      const next = { ...prev, premium_credits: Number(premiumCredits) };
+      updateStoredUser(next);
+      return next;
+    });
+  };
+
   useEffect(() => {
     const onCreation = (event) => {
       if (event.detail?.server_billing) {
         if (event.detail?.new_balance != null) syncCredits(event.detail.new_balance);
+        if (event.detail?.new_premium_balance != null) syncPremiumCredits(event.detail.new_premium_balance);
         return;
       }
       const spent = Number(event.detail?.credits_spent || 0);
@@ -145,6 +207,7 @@ export function AuthProvider({ children }) {
     };
     const onCreditsSync = (event) => {
       if (event.detail?.credits != null) syncCredits(event.detail.credits);
+      if (event.detail?.premium_credits != null) syncPremiumCredits(event.detail.premium_credits);
     };
     window.addEventListener("rp:creation-succeeded", onCreation);
     window.addEventListener("rp:credits-sync", onCreditsSync);
@@ -166,9 +229,10 @@ export function AuthProvider({ children }) {
     try {
       const { data } = await api.post("/auth/login", { email: normalizedEmail, password });
       localStorage.setItem("rp_token", data.token);
-      updateStoredUser(data.user);
-      setUser(data.user);
-      return data.user;
+      const u = normalizeServerUser(data.user);
+      updateStoredUser(u);
+      setUser(u);
+      return u;
     } catch (err) {
       if (!isBackendUnavailable(err)) throw err;
       const local = readLocalUsers()[normalizedEmail];
@@ -309,6 +373,20 @@ export function AuthProvider({ children }) {
   const addCredits = (amount, description = "Compra de créditos") =>
     mutateLocalCredits(Math.abs(Number(amount || 0)), description, "purchase");
 
+  const addPremiumCredits = (amount, description = "Compra créditos HQ") => {
+    if (!user) return null;
+    if (user.is_unlimited) {
+      recordTransaction(Math.abs(Number(amount || 0)), description, "purchase");
+      return user;
+    }
+    const nextPremium = Math.max(0, Number(user.premium_credits || 0) + Math.abs(Number(amount || 0)));
+    const nextPublic = { ...user, premium_credits: nextPremium };
+    setUser(nextPublic);
+    updateStoredUser(nextPublic);
+    recordTransaction(Math.abs(Number(amount || 0)), description, "purchase");
+    return nextPublic;
+  };
+
   const spendCredits = (amount, description = "Geração") =>
     mutateLocalCredits(-Math.abs(Number(amount || 0)), description, "spend");
 
@@ -324,9 +402,10 @@ export function AuthProvider({ children }) {
     }
     try {
       const { data } = await api.get("/auth/me");
-      setUser(data);
-      updateStoredUser(data);
-      return data;
+      const u = normalizeServerUser(data);
+      setUser(u);
+      updateStoredUser(u);
+      return u;
     } catch (e) {
       if (e?.response?.status === 401) {
         localStorage.removeItem("rp_token");
@@ -369,21 +448,37 @@ export function AuthProvider({ children }) {
 
   const requestPasswordReset = async (email) => {
     const normalizedEmail = email.trim().toLowerCase();
-    const local = readLocalUsers()[normalizedEmail];
-    if (!local) return { mode: "sent" };
-    const token = `reset_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 10)}`;
-    localStorage.setItem(`rp_reset_${token}`, normalizedEmail);
-    return { mode: "local", token, email: normalizedEmail };
+    try {
+      const { data } = await api.post("/auth/forgot-password", {
+        email: normalizedEmail,
+        origin: typeof window !== "undefined" ? window.location.origin : undefined,
+      });
+      return { mode: data?.email_sent ? "email" : "sent", ...data };
+    } catch (err) {
+      if (err?.response?.data?.code === "USE_GOOGLE") throw err;
+      if (!isBackendUnavailable(err)) throw err;
+      const local = readLocalUsers()[normalizedEmail];
+      if (!local) return { mode: "sent" };
+      const token = `reset_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 10)}`;
+      localStorage.setItem(`rp_reset_${token}`, normalizedEmail);
+      return { mode: "local", token, email: normalizedEmail };
+    }
   };
 
   const resetPassword = async (token, newPassword) => {
-    const email = localStorage.getItem(`rp_reset_${token}`);
-    if (!email) throw new Error("Link de recuperação inválido ou expirado.");
-    const users = readLocalUsers();
-    if (!users[email]) throw new Error("Conta não encontrada.");
-    users[email] = { ...users[email], password_hash: await hashPassword(newPassword) };
-    writeLocalUsers(users);
-    localStorage.removeItem(`rp_reset_${token}`);
+    try {
+      await api.post("/auth/reset-password", { token, password: newPassword });
+      return;
+    } catch (err) {
+      if (!isBackendUnavailable(err)) throw err;
+      const email = localStorage.getItem(`rp_reset_${token}`);
+      if (!email) throw new Error("Link de recuperação inválido ou expirado.");
+      const users = readLocalUsers();
+      if (!users[email]) throw new Error("Conta não encontrada.");
+      users[email] = { ...users[email], password_hash: await hashPassword(newPassword) };
+      writeLocalUsers(users);
+      localStorage.removeItem(`rp_reset_${token}`);
+    }
   };
 
   const verifyEmail = async () => {
@@ -409,9 +504,11 @@ export function AuthProvider({ children }) {
       setUser,
       updateProfile,
       addCredits,
+      addPremiumCredits,
       spendCredits,
       refundCredits,
       syncCredits,
+      syncPremiumCredits,
       getLocalTransactions,
       changePassword,
       requestPasswordReset,

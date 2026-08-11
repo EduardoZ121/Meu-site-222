@@ -1,6 +1,13 @@
 import { Loader2, Sparkles } from "lucide-react";
 import { motion } from "framer-motion";
+import { useLocation, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
+import { useAuth } from "../lib/auth";
+import { useI18n } from "../lib/i18n";
+import { redirectForGenerateAccess, resolveGenerateAccess } from "../lib/studioGenerateAccess";
+
+import { formatApiError } from "../lib/api";
+import { humanizeGenerationError } from "../lib/friendlyGenerationError";
 
 /**
  * Botão Gerar unificado — todas as sessões do estúdio.
@@ -23,7 +30,18 @@ export default function StudioGenerateBar({
   icon: Icon = Sparkles,
   /** Quando o botão está bloqueado (ex.: upload), usar toast.message em vez de error. */
   blockedNotify = "error",
+  /** Créditos desta geração — usado para login/comprar créditos ao clicar Gerar. */
+  cost = 0,
+  /** Mostra o custo num pill sempre visível (evita corte do número no botão). */
+  showCostPill = true,
+  gateOnGenerate = true,
+  canAffordCheck = null,
 }) {
+  const { user } = useAuth();
+  const navigate = useNavigate();
+  const location = useLocation();
+  const { t } = useI18n();
+
   const handleClick = async () => {
     if (busy) return;
     if (!ready) {
@@ -33,11 +51,22 @@ export default function StudioGenerateBar({
       }
       return;
     }
+    if (gateOnGenerate) {
+      const access = resolveGenerateAccess(user, cost, { canAfford: canAffordCheck });
+      if (access !== "proceed") {
+        redirectForGenerateAccess(navigate, location, access, { t, toast });
+        return;
+      }
+    }
     try {
       await Promise.resolve(onClick?.());
     } catch (err) {
       console.error("[StudioGenerateBar]", err);
-      toast.error(err?.message || "Não foi possível iniciar a geração.", { duration: 8000 });
+      toast.error(
+        formatApiError(err, t("studio_gen_start_fail"), { t })
+          || humanizeGenerationError(err?.message, t),
+        { duration: 9000 },
+      );
     }
   };
 
@@ -74,13 +103,20 @@ export default function StudioGenerateBar({
       >
         {busy ? (
           <>
-            <Loader2 className="w-4 h-4 animate-spin" strokeWidth={2} />
-            {busyLabel || label}
+            <span className="rp-gen-spinner" aria-hidden>
+              <Loader2 className="w-4 h-4 animate-spin" strokeWidth={2} />
+            </span>
+            <span className="rp-gen-btn-text">{busyLabel || label}</span>
           </>
         ) : (
           <>
-            <Icon className="w-4 h-4" strokeWidth={1.5} />
-            {label}
+            <Icon className="w-4 h-4 shrink-0" strokeWidth={1.5} />
+            <span className="rp-gen-btn-text">{label}</span>
+            {showCostPill && Number(cost) > 0 ? (
+              <span className="rp-gen-cost-pill" data-testid={`${testId}-cost-pill`}>
+                {cost}
+              </span>
+            ) : null}
           </>
         )}
       </button>
@@ -108,7 +144,7 @@ export default function StudioGenerateBar({
       className={`rp-sticky-cta rp-sticky-cta--sidebar ${className}`.trim()}
       data-testid={`${testId}-bar`}
     >
-      <div className="rp-studio-shell max-w-[1400px] mx-auto flex items-center justify-between gap-4 px-2 sm:px-4">
+      <div className="rp-studio-compact-page max-w-[520px] md:max-w-[1400px] mx-auto flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2 sm:gap-4 px-0.5">
         {costMeta}
         {action}
       </div>

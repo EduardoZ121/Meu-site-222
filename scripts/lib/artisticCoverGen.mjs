@@ -47,8 +47,11 @@ export function loadStylesByCat(cat, promptById) {
   const modPath = path.join(ROOT, "frontend/src/lib/artisticStudioData.js");
   const src = require("fs").readFileSync(modPath, "utf8");
   const slice = src.slice(src.indexOf("export const ARTISTIC_STUDIO_STYLES = "));
-  const arrEnd = slice.indexOf("];\n\nexport const ARTISTIC_EFFECT_SECTIONS");
-  return new Function(`return ${slice.slice(slice.indexOf("["), arrEnd + 1)}`)().filter(
+  const arrStart = slice.indexOf("[");
+  const arrEndMatch = slice.match(/\];\r?\n\r?\nexport const ARTISTIC_EFFECT_SECTIONS/);
+  if (arrStart < 0 || !arrEndMatch) throw new Error("ARTISTIC_STUDIO_STYLES não encontrado");
+  const arrEnd = slice.indexOf(arrEndMatch[0]) + 1;
+  return new Function(`return ${slice.slice(arrStart, arrEnd)}`)().filter(
     (s) => s.cat === cat && promptById[s.id],
   );
 }

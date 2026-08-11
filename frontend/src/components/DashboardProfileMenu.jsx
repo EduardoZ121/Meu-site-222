@@ -3,7 +3,6 @@ import { Link, useNavigate } from "react-router-dom";
 import {
   Sparkles,
   Settings,
-  HelpCircle,
   CreditCard,
   User,
   Images,
@@ -23,6 +22,7 @@ import {
 import { useAuth } from "../lib/auth";
 import { useI18n } from "../lib/i18n";
 import { useNotifications } from "../lib/NotificationContext";
+import { useBackClose } from "../lib/useBackClose";
 import { LANG_LABELS, LANG_ORDER } from "../lib/localeStrings";
 import { setLanguageAndReload } from "../lib/remakepixLanguage";
 import SupportChat from "./SupportChat";
@@ -87,18 +87,21 @@ function LanguageSection({ lang, onPick }) {
   );
 }
 
-export default function DashboardProfileMenu() {
+export default function DashboardProfileMenu({ compact = false }) {
   const { user, logout } = useAuth();
   const { t, lang } = useI18n();
   const { unreadCount } = useNotifications();
   const navigate = useNavigate();
   const [chatOpen, setChatOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+  useBackClose(menuOpen, () => setMenuOpen(false));
+  useBackClose(chatOpen, () => setChatOpen(false));
 
   if (!user) return null;
 
   const initial = (user.name || user.email || "?").slice(0, 1).toUpperCase();
   const displayName = user.name || user.email?.split("@")[0] || t("profile_menu_guest");
+  const avatarUrl = user.avatar_url || null;
 
   const closeMenu = () => setMenuOpen(false);
 
@@ -114,7 +117,6 @@ export default function DashboardProfileMenu() {
     { to: "/app/billing", icon: CreditCard, label: t("sidebar.billing"), testId: "profile-menu-billing" },
     { to: "/app/referrals", icon: Users, label: t("sidebar.referrals"), testId: "profile-menu-referrals" },
     { to: "/app/settings", icon: Settings, label: t("sidebar.settings"), testId: "profile-menu-settings" },
-    { to: "/app/wizard", icon: HelpCircle, label: t("sidebar.wizard"), testId: "profile-menu-wizard" },
   ];
 
   if (user.role === "admin") {
@@ -132,11 +134,22 @@ export default function DashboardProfileMenu() {
         <DropdownMenuTrigger asChild>
           <button
             type="button"
-            className="relative w-10 h-10 rounded-full bg-gradient-to-br from-[#1a1a24] to-[#0B0B0C] border border-[#9333EA]/35 hover:border-[#A855F7]/70 flex items-center justify-center text-white text-sm font-semibold transition-all duration-300 hover:scale-105 hover:shadow-[0_0_24px_-6px_rgba(168,85,247,0.55)]"
+            className={`relative rounded-full bg-gradient-to-br from-[#1a1a24] to-[#0B0B0C] border border-[#9333EA]/35 hover:border-[#A855F7]/70 flex items-center justify-center text-white font-semibold transition-all duration-300 hover:scale-105 hover:shadow-[0_0_24px_-6px_rgba(168,85,247,0.55)] ${
+              compact ? "w-9 h-9 text-xs" : "w-10 h-10 text-sm"
+            }`}
             data-testid="header-avatar"
             aria-label={t("profile_menu_open")}
           >
-            {initial}
+            {avatarUrl ? (
+              <img
+                src={avatarUrl}
+                alt=""
+                className="w-full h-full rounded-full object-cover"
+                referrerPolicy="no-referrer"
+              />
+            ) : (
+              initial
+            )}
             {(unreadCount > 0) && (
               <span
                 className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] px-1 flex items-center justify-center rounded-full bg-[#7C3AED] text-[10px] font-bold text-white shadow-[0_0_10px_rgba(168,85,247,0.6)] ring-2 ring-[#0B0B0C]"
@@ -151,28 +164,21 @@ export default function DashboardProfileMenu() {
         <DropdownMenuContent
           align="end"
           sideOffset={10}
-          className="w-[min(100vw-1.5rem,380px)] p-0 bg-[#13131A] border border-[#9333EA]/25 text-[#F4F1EA] shadow-[0_20px_56px_-12px_rgba(0,0,0,0.9)] z-[55] max-h-[min(85vh,640px)] overflow-hidden flex flex-col"
+          className="rp-profile-menu w-[min(100vw-1.5rem,380px)] p-0 bg-[#13131A] border border-[#9333EA]/25 text-[#F4F1EA] shadow-[0_20px_56px_-12px_rgba(0,0,0,0.9)] z-[55] max-h-[min(85vh,640px)] overflow-hidden flex flex-col"
         >
           {/* Conta */}
           <div className="px-4 py-4 border-b border-white/[0.08] bg-gradient-to-br from-[#7C3AED]/10 to-transparent">
             <div className="flex items-center gap-3">
-              <span className="w-12 h-12 rounded-full bg-gradient-to-br from-[#7C3AED]/40 to-[#9333EA]/20 border border-[#A855F7]/40 flex items-center justify-center text-lg font-semibold shrink-0">
-                {initial}
+              <span className="w-12 h-12 rounded-full bg-gradient-to-br from-[#7C3AED]/40 to-[#9333EA]/20 border border-[#A855F7]/40 flex items-center justify-center text-lg font-semibold shrink-0 overflow-hidden">
+                {avatarUrl ? (
+                  <img src={avatarUrl} alt="" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                ) : (
+                  initial
+                )}
               </span>
               <div className="min-w-0 flex-1">
                 <p className="text-[15px] font-semibold truncate">{displayName}</p>
                 <p className="text-[11px] text-[#8A8A8E] truncate">{user.email}</p>
-                <Link
-                  to="/app/billing"
-                  onClick={closeMenu}
-                  className="inline-flex items-center gap-1.5 mt-2 px-2.5 py-1 rounded-full border border-[#9333EA]/30 bg-black/30 text-[11px] font-mono hover:border-[#A855F7]/50 transition-colors"
-                  data-testid="profile-menu-credits"
-                >
-                  <span className="text-[#8A8A8E] uppercase tracking-wider">{t("header.credits")}</span>
-                  <span className="text-[#A855F7] font-semibold tabular-nums">
-                    {user.is_unlimited ? "∞" : user.credits}
-                  </span>
-                </Link>
               </div>
             </div>
           </div>
@@ -201,12 +207,12 @@ export default function DashboardProfileMenu() {
 
             {/* Notificações */}
             <div className="px-3 pb-3">
-              <NotificationListPanel compact />
+              <NotificationListPanel compact onClose={closeMenu} />
             </div>
 
             {/* Atalhos */}
             <div className="px-2 pb-2">
-              <p className="px-3 py-1.5 text-[10px] font-mono uppercase tracking-[0.14em] text-[#6b6b70]">
+              <p className="px-3 py-1.5 rp-type-eyebrow text-[#6b6b70]">
                 {t("profile_menu_account")}
               </p>
               <nav className="flex flex-col">

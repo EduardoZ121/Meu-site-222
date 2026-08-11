@@ -111,6 +111,7 @@ export default function MangaCharacterCard({
         emptyLabel={t("manga_upload_png")}
         emptyHint={t("upload_empty_hint")}
         enableRemotePersist={false}
+        prepareOnPick
         compressOptions={{ maxSize: 1280, maxBytes: 2 * 1024 * 1024 }}
       />
 

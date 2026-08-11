@@ -9,10 +9,13 @@ export const IMAGE_ACCEPT =
 
 export function looksLikeImageFile(file) {
   if (!file) return false;
+  if (looksLikeVideoFile(file)) return false;
   const t = file.type || "";
   if (t.startsWith("image/")) return true;
-  if (/^application\/octet-stream$/i.test(t) && IMAGE_EXTENSIONS.test(file.name || "")) return true;
-  return IMAGE_EXTENSIONS.test(file.name || "");
+  if (IMAGE_EXTENSIONS.test(file.name || "")) return true;
+  if (/^application\/octet-stream$/i.test(t) && file.size > 0) return true;
+  if (!t && file.size > 0) return true;
+  return false;
 }
 
 export const VIDEO_ACCEPT = "video/mp4,video/quicktime,.mp4,.mov";

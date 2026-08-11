@@ -3,20 +3,22 @@ import { Check, ChevronDown, Palette, Sparkles, Wand2 } from "lucide-react";
 import { useI18n } from "../../lib/i18n";
 
 const STEPS = [
+  { id: "generate", icon: Wand2, labelKey: "art_flow_step_generate", hintKey: "art_flow_step_generate_hint" },
   { id: "style", icon: Palette, labelKey: "art_flow_step_style", hintKey: "art_flow_step_style_hint" },
   { id: "effects", icon: Sparkles, labelKey: "art_flow_step_effects", hintKey: "art_flow_step_effects_hint" },
-  { id: "generate", icon: Wand2, labelKey: "art_flow_step_generate", hintKey: "art_flow_step_generate_hint" },
 ];
 
-export default function ArtisticFlowSteps({ activeStep = "generate", styleSelected = false }) {
+export default function ArtisticFlowSteps({
+  activeStep = "generate",
+  promptReady = false,
+  styleSelected = false,
+  onStepSelect,
+}) {
   const { t } = useI18n();
-  // Collapsed by default — the steps are nice to have but consume too much
-  // vertical real estate on mobile. Users can expand on demand.
   const [open, setOpen] = useState(false);
   const activeIndex = STEPS.findIndex((s) => s.id === activeStep);
-  const progressText = styleSelected
-    ? `${Math.max(1, activeIndex)}/${STEPS.length}`
-    : `0/${STEPS.length}`;
+  const completedSteps = (promptReady ? 1 : 0) + (styleSelected ? 1 : 0);
+  const progressText = `${completedSteps}/${STEPS.length}`;
 
   return (
     <nav
@@ -48,23 +50,29 @@ export default function ArtisticFlowSteps({ activeStep = "generate", styleSelect
         <ol className="grid grid-cols-1 sm:grid-cols-3 gap-2 md:gap-3 px-3 md:px-4 pb-3 md:pb-4">
           {STEPS.map((step, index) => {
             const Icon = step.icon;
-            const done = step.id === "style" ? styleSelected : index < activeIndex;
+            const done =
+              (step.id === "generate" && promptReady)
+              || (step.id === "style" && styleSelected);
             const active = step.id === activeStep;
             return (
-              <li
-                key={step.id}
-                className={`art-studio-flow__step ${active ? "art-studio-flow__step--active" : ""} ${done ? "art-studio-flow__step--done" : ""}`}
-              >
-                <span className="art-studio-flow__num">
-                  {done ? <Check className="w-3 h-3" strokeWidth={2.5} /> : index + 1}
-                </span>
-                <div className="min-w-0">
-                  <p className="art-studio-flow__label flex items-center gap-1.5">
-                    <Icon className="w-3.5 h-3.5 shrink-0 opacity-80" strokeWidth={1.75} />
-                    {t(step.labelKey)}
-                  </p>
-                  <p className="art-studio-flow__hint">{t(step.hintKey)}</p>
-                </div>
+              <li key={step.id}>
+                <button
+                  type="button"
+                  onClick={() => onStepSelect?.(step.id)}
+                  className={`art-studio-flow__step w-full text-left ${active ? "art-studio-flow__step--active" : ""} ${done ? "art-studio-flow__step--done" : ""}`}
+                  data-testid={`artistic-flow-step-${step.id}`}
+                >
+                  <span className="art-studio-flow__num">
+                    {done ? <Check className="w-3 h-3" strokeWidth={2.5} /> : index + 1}
+                  </span>
+                  <div className="min-w-0">
+                    <p className="art-studio-flow__label flex items-center gap-1.5">
+                      <Icon className="w-3.5 h-3.5 shrink-0 opacity-80" strokeWidth={1.75} />
+                      {t(step.labelKey)}
+                    </p>
+                    <p className="art-studio-flow__hint">{t(step.hintKey)}</p>
+                  </div>
+                </button>
               </li>
             );
           })}

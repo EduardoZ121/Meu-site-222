@@ -11,6 +11,7 @@
  * Fantasia: `node scripts/generate-artistic-covers-fantasy.mjs`
  * Vintage & Retro: `node scripts/generate-artistic-covers-vintage.mjs`
  * Capas 4:5 (640×800) — alinhadas ao aspect-[4/5] dos cards
+ * Regenerar tudo (Nano Banana + ref mulher/homem): `node scripts/generate-artistic-covers-nano-banana.mjs --force`
  * Outros: `node scripts/generate-artistic-covers.mjs`
  */
 export const ARTISTIC_STYLE_COVER_BY_ID = {

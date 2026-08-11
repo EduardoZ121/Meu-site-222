@@ -1,27 +1,17 @@
-import ImageUploadZone from "./ImageUploadZone";
-import { IMAGE_ACCEPT } from "../lib/imageCompress";
+import InstantPhotoUpload from "./studio/InstantPhotoUpload";
+import MultiImageUpload from "./studio/MultiImageUpload";
 
-/** Upload de foto no estúdio — caixa com brilho (visual original). */
-export default function PhotoUpload({
-  value,
-  onChange,
-  accept = IMAGE_ACCEPT,
-  testId = "photo-upload",
-  layout = "portrait",
-  className = "",
-  emptyLabel,
-  emptyHint,
-}) {
-  return (
-    <ImageUploadZone
-      value={value}
-      onChange={onChange}
-      accept={accept}
-      testId={testId}
-      layout={layout}
-      className={className}
-      emptyLabel={emptyLabel}
-      emptyHint={emptyHint}
-    />
-  );
+/** Gerar — preview instantâneo; envio da foto só ao carregar em Gerar. */
+export default function PhotoUpload({ multiple = false, maxFiles = 5, value, onChange, ...props }) {
+  if (multiple) {
+    return (
+      <MultiImageUpload
+        value={Array.isArray(value) ? value : value ? [value] : []}
+        onChange={onChange}
+        maxFiles={maxFiles}
+        {...props}
+      />
+    );
+  }
+  return <InstantPhotoUpload value={value} onChange={onChange} {...props} />;
 }

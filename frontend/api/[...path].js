@@ -5,6 +5,8 @@ const Stripe = require("stripe");
 const {
   countryFromRequest,
   getPackagesForRegion,
+  getPremiumPackagesForRegion,
+  getSubscriptionPlansForRegion,
   getCreditCostsForRegion,
   getRegionConfig,
   resolvePricingRegion,
@@ -14,6 +16,8 @@ const {
   checkEmailRegistration,
   registerEmailUser,
   loginEmailUser,
+  requestPasswordReset,
+  resetPasswordWithToken,
 } = require("./lib/emailAuth.cjs");
 const {
   ADMIN_EMAILS,
@@ -21,27 +25,75 @@ const {
   touchUser,
   getUserById,
   repairUserAccountIfNeeded,
+  ensureUserFromSession,
+  publicUser,
   isAdminEmail,
   addCredits,
-  recordPurchase,
+  addPremiumCredits,
+  fulfillStripeCheckoutSession,
+  recordCreation,
   storageEnabled,
 } = require("./lib/usersDb.cjs");
-const { spendCredits } = require("./lib/creditsDb.cjs");
+const { spendCredits, spendPremiumCredits, spendableStandardCredits } = require("./lib/creditsDb.cjs");
+const {
+  getSubscriptionPlan,
+  isSubscriptionActive,
+  activateSubscriptionFromCheckout,
+  PLAN_ID: CREATOR_PLAN_ID,
+} = require("./lib/creatorSubscription.cjs");
+const { posterHqPremiumCost, getPosterHqPremiumCostPerOutput } = require("./lib/premiumCredits.cjs");
 const {
   createPending,
   getPending,
   pollPending,
+  finalizePending,
   newPendingId,
+  completePendingWithUrls,
+  updatePending,
+  isOpenAIPosterJob,
+  registerFluxFallbackHandler,
 } = require("./lib/pendingPredictions.cjs");
+const {
+  resolvePosterModel,
+  buildNanoBananaPosterInput,
+  buildPosterTextManifest,
+  buildPosterLogoInstruction,
+  aspectToOpenAISize,
+  openAISizeToAspectRatio,
+  POSTER_FULL_BLEED_GUARD,
+} = require("./lib/posterEngine.cjs");
+const { preparePosterReference, preparePosterReferenceForOpenAI } = require("./lib/posterImagePrep.cjs");
+const { isIgRefPosterTemplate } = require("./lib/posterLayoutCover.cjs");
+const { buildIgRefPosterGeneration, getIgRefTemplate } = require("./lib/posterIgRefGenerate.cjs");
+const { generateOpenAIPosterImageDetailed, generateOpenAIImageEditDetailed } = require("./lib/openaiPoster.cjs");
+const { generateFashionClothesImage } = require("./lib/clothesFashionOpenAI.cjs");
 const { formatGenerationError } = require("./lib/generationErrors.cjs");
+const { appendAspectOutputInstruction, MATCH_ASPECT } = require("./lib/aspectOutputPrompt.cjs");
+const { fitImageRefToAspect, detectNearestGrokAspect } = require("./lib/fitImageToAspect.cjs");
 const { handleCreationsRoute } = require("./lib/creationsRoutes.cjs");
 const { handlePromptAssistRoute } = require("./lib/promptAssist.cjs");
-const PADRAO_STYLES_LIST = require("./lib/padraoStylesData.cjs");
-const { finalizeImagePrompt } = require("./lib/imageQualityPrompts.cjs");
+const PADRAO_STYLES_BASE = require("./lib/padraoStylesData.cjs");
+const PADRAO_STYLE_EXTENSIONS = require("./lib/padraoStyleExtensions.cjs");
+const PADRAO_STYLES_LIST = [...PADRAO_STYLES_BASE, ...PADRAO_STYLE_EXTENSIONS];
+const { finalizeImagePrompt, appendHdQualityPrompt, buildProIntensitySuffix } = require("./lib/imageQualityPrompts.cjs");
+const {
+  PHOTO_EDIT_IDENTITY_BLOCK,
+  appendPhotoEditIdentity,
+  appendProRetouchIdentity,
+  upgradePadraoPrompt,
+  looksLikeStudioJoinIntent,
+  buildStudioMultiRefFlexibleBlock,
+  buildStudioMultiCombineBlock,
+  buildStudioDualPersonBlock,
+  buildMangaDualCharacterBlock,
+  buildMangaComicSheetBlock,
+} = require("./lib/identityPrompts.cjs");
 const { getProPreset, listProPresets } = require("./lib/proPresetsData.cjs");
+const { getGptHqStyle, listGptHqStylesPublic } = require("./lib/gptHqStylesData.cjs");
 const {
   isS3Configured,
   isTrustedS3MediaUrl,
+  uploadBufferToS3,
   createVideoPresignedUpload,
   createImagePresignedUpload,
   getS3Config,
@@ -59,10 +111,11 @@ function blobDisabledResponse(res) {
     blob_disabled: true,
   });
 }
-const { listPosterTemplates } = require("./lib/posterTemplatesData.cjs");
+const { listPosterTemplates, getPosterTemplateById } = require("./lib/posterTemplatesData.cjs");
 const { improvePrompt } = require("./lib/promptAssist.cjs");
+const { signSession, verifySessionToken } = require("./lib/sessionToken.cjs");
+const { loginWithGoogleCredential, handleGoogleRedirectCallback } = require("./lib/googleAuth.cjs");
 const {
-  applyGenerationSurcharges,
   computeVideoGenerateCost,
   computeVideoEditCostFromConfig,
   computeArtisticEffectSurcharge,
@@ -70,57 +123,18 @@ const {
   customPurchaseAmountCents,
   getPricingMeta,
   getSurcharges,
+  applyGenerationSurcharges,
 } = require("./lib/creditPricing.cjs");
+
+const TIA_ANY_EXTRA_EMAILS = new Set(["gemimazola28@gmail.com", "carlazola@hotmail.com"]);
+
+function canAccessTiaAnyPostersByEmail(email) {
+  const normalized = String(email || "").trim().toLowerCase();
+  return Boolean(normalized && (isAdminEmail(normalized) || TIA_ANY_EXTRA_EMAILS.has(normalized)));
+}
 
 function getPadraoStyle(styleId) {
   return PADRAO_STYLES_LIST.find((s) => s.id === String(styleId || "").trim()) || null;
-}
-
-function sessionSecret() {
-  return (
-    process.env.RP_SESSION_SECRET
-    || crypto.createHash("sha256").update(`${process.env.REPLICATE_API_TOKEN || ""}|${process.env.VERCEL_URL || "local"}`).digest("hex")
-  );
-}
-
-/** Signed session JWT substitute (HMAC over base64url JSON). */
-function signSession(user) {
-  const exp = Math.floor(Date.now() / 1000) + 60 * 60 * 24 * 45; // 45d
-  const body = Buffer.from(JSON.stringify({ ...user, exp }), "utf8").toString("base64url");
-  const sig = crypto.createHmac("sha256", sessionSecret()).update(body).digest("base64url");
-  return `${body}.${sig}`;
-}
-
-function verifySessionToken(token) {
-  try {
-    const i = token.lastIndexOf(".");
-    if (i <= 0) return null;
-    const str = token.slice(0, i);
-    const sig = token.slice(i + 1);
-    const expect = crypto.createHmac("sha256", sessionSecret()).update(str).digest("base64url");
-    if (sig.length !== expect.length || !crypto.timingSafeEqual(Buffer.from(sig), Buffer.from(expect))) return null;
-    const payload = JSON.parse(Buffer.from(str, "base64url").toString("utf8"));
-    if (payload.exp && Date.now() / 1000 > payload.exp) return null;
-    const { exp, ...user } = payload;
-    return user;
-  } catch {
-    return null;
-  }
-}
-
-async function verifyGoogleCredential(credential) {
-  const r = await fetch(`https://oauth2.googleapis.com/tokeninfo?id_token=${encodeURIComponent(credential)}`);
-  if (!r.ok) return null;
-  const d = await r.json();
-  const email = String(d.email || "").trim().toLowerCase();
-  if (!email) return null;
-  return {
-    sub: d.sub,
-    email,
-    name: d.name || email.split("@")[0],
-    picture: d.picture || null,
-    email_verified: d.email_verified === "true" || d.email_verified === true,
-  };
 }
 
 async function routeAuth(path, fields, req) {
@@ -145,41 +159,7 @@ async function routeAuth(path, fields, req) {
   }
 
   if (path === "auth/google") {
-    const credential = fields.credential || fields.id_token;
-    if (!credential) {
-      const err = new Error("credential em falta.");
-      err.status = 400;
-      throw err;
-    }
-    const g = await verifyGoogleCredential(credential);
-    if (!g) {
-      const err = new Error("Credencial Google inválida ou expirada.");
-      err.status = 401;
-      throw err;
-    }
-    const region = regionFromRequest(req, fields);
-    const dbUser = await upsertGoogleUser(g, req, { pricing_region: region });
-    const unlimited = isAdminEmail(g.email);
-    const user = dbUser || {
-      id: `google_${g.sub}`,
-      email: g.email,
-      name: g.name,
-      avatar_url: g.picture || null,
-      role: unlimited ? "admin" : "user",
-      lang: "en",
-      credits: unlimited ? 999999999 : 50,
-      is_unlimited: unlimited,
-      referral_code: "",
-      email_verified: !!g.email_verified,
-      created_at: new Date().toISOString(),
-      pricing_region: region,
-    };
-    if (dbUser) {
-      user.role = unlimited ? "admin" : dbUser.role;
-      user.is_unlimited = unlimited;
-      if (unlimited) user.credits = 999999999;
-    }
-    return { token: signSession(user), user };
+    return loginWithGoogleCredential(fields.credential || fields.id_token, req, fields);
   }
 
   const err = new Error("Pedido de autenticação inválido.");
@@ -194,37 +174,23 @@ const functionConfig = {
 };
 
 const {
-  QWEN_EDIT_MODEL,
+  QWEN_EDIT_MODEL: ARTISTIC_QWEN_MODEL,
   isNsfwStyleId,
-  isPhotographyStyleId,
-  isPhotographyRequest,
-  resolveArtisticLabModel,
-  resolvePhotographyModel,
+  resolveArtisticStudioModel: pickArtisticStudioModel,
 } = require("./lib/artisticStudioEngines.cjs");
 
 function isArtisticExperimentalStyleId(styleId) {
   return isNsfwStyleId(styleId);
 }
 
-function resolveArtisticStudioModel({ styleId, hasPhoto, userDoc, styleCat }) {
-  const experimental = isArtisticExperimentalStyleId(styleId);
-  if (experimental) {
-    if (!hasPhoto) {
-      const err = new Error("AI Lab exige uma foto (Qwen Image Edit edita a referência).");
-      err.status = 400;
-      throw err;
-    }
-    return resolveArtisticLabModel();
-  }
-  if (isPhotographyRequest(styleId, styleCat)) {
-    return resolvePhotographyModel(hasPhoto);
-  }
-  // Grok devolve imagens brancas "NSFW" em edições com foto — usar Qwen em vez disso.
-  if (hasPhoto) {
-    return resolvePhotographyModel(true);
-  }
+function resolveArtisticStudioModel({ styleId, hasPhoto, styleCat }) {
+  const picked = pickArtisticStudioModel({ styleId, hasPhoto, styleCat });
+  if (picked) return picked;
   return { modelKey: "standard", modelId: MODELS.standard, label: MODELS.standard };
 }
+
+const QWEN_EDIT_MODEL =
+  String(process.env.ARTISTIC_LAB_QWEN_MODEL || "").trim() || "qwen/qwen-image-edit-2511";
 
 const MODELS = {
   standard: "xai/grok-imagine-image",
@@ -238,6 +204,71 @@ const MODELS = {
   upscale: "philz1337x/clarity-upscaler",
   inpaint: "black-forest-labs/flux-fill-pro",
 };
+
+// Modelos de imagem — catálogo partilhado (frontend/src/config/imageModels.json)
+const {
+  resolveImageModelChoice: resolveCatalogModel,
+  imageModelCredits,
+} = require("./lib/imageModelCatalog.cjs");
+
+function resolveImageModelChoice(fields) {
+  return resolveCatalogModel(fields, text);
+}
+
+function nearestFluxAspect(ratio) {
+  const r = String(ratio || "1:1").trim();
+  if (FLUX_SUPPORTED.has(r)) return r;
+  if (r === "4:5" || r === "3:4") return "3:4";
+  if (r === "5:4") return "4:3";
+  return "1:1";
+}
+
+function buildFluxFallbackInputFromPending(pending) {
+  const imageUrl = pending.fallback_image_url;
+  if (!imageUrl) return null;
+  const basePrompt = pending.fallback_prompt || pending.prompt || "";
+  const aspectRatio = nearestFluxAspect(pending.aspect_ratio);
+  let fluxPrompt = finalizeImagePrompt(appendPhotoEditIdentity(basePrompt), {
+    modelKey: "pro",
+    hasPersonPhoto: true,
+    photoEdit: true,
+  });
+  fluxPrompt = appendAspectOutputInstruction(fluxPrompt, aspectRatio);
+  return {
+    prompt: fluxPrompt,
+    aspect_ratio: aspectRatio,
+    images: [imageUrl],
+    disable_safety_checker: true,
+  };
+}
+
+async function buildFluxEasyFallbackInput(grokInput, basePrompt) {
+  const mainImage = grokInput?.image || grokInput?.images?.[0];
+  if (!mainImage) return null;
+  const aspectRatio = nearestFluxAspect(grokInput.aspect_ratio);
+  let fluxPrompt = finalizeImagePrompt(appendPhotoEditIdentity(basePrompt), {
+    modelKey: "pro",
+    hasPersonPhoto: true,
+    photoEdit: true,
+  });
+  fluxPrompt = appendAspectOutputInstruction(fluxPrompt, aspectRatio);
+  return {
+    prompt: fluxPrompt,
+    aspect_ratio: aspectRatio,
+    images: [mainImage],
+    disable_safety_checker: true,
+  };
+}
+
+registerFluxFallbackHandler(async (pending) => {
+  const fluxInput = buildFluxFallbackInputFromPending(pending);
+  if (!fluxInput) return null;
+  const prediction = await createPrediction(MODELS.pro, fluxInput);
+  return {
+    replicate_prediction_id: prediction.id,
+    model_used: MODELS.pro,
+  };
+});
 
 function regionFromRequest(req, fields = {}) {
   const client = text(fields, "pricing_region", req?.headers?.["x-pricing-region"] || "");
@@ -267,8 +298,15 @@ function normalizeRatio(ratio = "1:1", modelKey = "standard") {
     if (GROK_SUPPORTED.has(ratio) || ratio === "match_input_image") return ratio;
     return { "4:5": "3:4", "5:4": "4:3", "21:9": "16:9", "9:21": "9:16" }[ratio] || "3:4";
   }
+  if (["flux", "seedream", "imagen", "ideogram", "recraft", "nano"].includes(modelKey)) {
+    if (!ratio || ["match", "match_input_image", "original"].includes(ratio)) {
+      return "match_input_image";
+    }
+    if (FLUX_SUPPORTED.has(ratio)) return ratio;
+    return { "4:5": "3:4", "5:4": "4:3", "2:1": "21:9", "1:2": "9:21" }[ratio] || "1:1";
+  }
   if (!ratio || ["match", "match_input_image", "original"].includes(ratio)) {
-    return modelKey === "pro" || modelKey === "artistic" || modelKey === "kontext" ? "match_input_image" : "1:1";
+    return "match_input_image";
   }
   if (modelKey === "standard" || modelKey === "video") {
     if (GROK_SUPPORTED.has(ratio)) return ratio;
@@ -462,20 +500,9 @@ async function requireAdminSession(req) {
   return { user, dbUser };
 }
 
-function buildVideoEditPrompt(userPrompt) {
-  const base = String(userPrompt || "").trim();
-  if (base.length < 3) {
-    const err = new Error("Descreve a edição que queres (mín. 3 caracteres).");
-    err.status = 400;
-    throw err;
-  }
-  const guard = (
-    "Preserve the exact same person: identical face, facial features, eyes, skin tone, hair, "
-    + "body shape, body proportions, pose, and natural motion in every frame. "
-    + "Apply only the requested visual change. Photorealistic, temporally consistent, "
-    + "no identity drift, no morphing artifacts, no extra limbs or duplicated body parts."
-  );
-  return `${base}. ${guard}`;
+function buildVideoEditPrompt(userPrompt, options = {}) {
+  const { buildVideoEditPromptText } = require("./lib/videoEditPrompts.cjs");
+  return buildVideoEditPromptText(userPrompt, options);
 }
 
 async function resolveVideoRef(files, fields, fileKey = "video", urlKey = "video_url") {
@@ -514,15 +541,33 @@ async function resolveVideoRef(files, fields, fileKey = "video", urlKey = "video
   return `data:${mime};base64,${buffer.toString("base64")}`;
 }
 
-async function videoEditInput(fields, files) {
-  const video = await resolveVideoRef(files, fields, "video", "video_url");
-  if (!video) {
-    const err = new Error("Envia um vídeo (MP4/MOV, idealmente 2–10 segundos).");
-    err.status = 400;
-    throw err;
+async function resolveVideoEditMediaUrl(files, fields) {
+  let fromUrl = trustedMediaUrl(text(fields, "video_url", ""));
+  if (fromUrl) return fromUrl;
+  const file = fileOf(files, "video");
+  if (file) {
+    fromUrl = await uploadFormVideoToBlob(file);
+    if (fromUrl) return fromUrl;
   }
+  const hadUrl = Boolean(String(text(fields, "video_url", "")).trim());
+  let msg = "Envia um vídeo (MP4/MOV, idealmente 2–10 segundos).";
+  if (isBlobConfigured() || isS3Configured()) {
+    msg = hadUrl
+      ? "URL do vídeo na nuvem inválida ou inacessível. Recarrega a página (Ctrl+F5) e tenta Gerar outra vez."
+      : "O upload para a nuvem não concluiu. Aguarda «Pronto para gerar» ou recarrega (Ctrl+F5) e tenta outra vez.";
+  } else {
+    msg += " Configura Vercel Blob (BLOB_READ_WRITE_TOKEN) na Vercel.";
+  }
+  const err = new Error(msg);
+  err.status = file || hadUrl ? 413 : 400;
+  throw err;
+}
+
+async function videoEditInput(fields, files) {
+  const video = await resolveVideoEditMediaUrl(files, fields);
+  const preset = text(fields, "video_preset", "").trim();
   const userPrompt = text(fields, "prompt", "").trim();
-  const prompt = buildVideoEditPrompt(userPrompt);
+  const prompt = buildVideoEditPrompt(userPrompt, { preset });
   const resolution = text(fields, "resolution", "original");
   const aspectRatio = text(fields, "aspect_ratio", "auto");
   const audioSetting = text(fields, "audio_setting", "origin");
@@ -541,10 +586,101 @@ async function videoEditInput(fields, files) {
   return { input, prompt: userPrompt };
 }
 
+async function grokVideoEditInput(fields, files) {
+  const { buildGrokEditInput } = require("./lib/videoModels.cjs");
+  const GROK_MAX_SEC = 8;
+  const fromUrl = await resolveVideoEditMediaUrl(files, fields);
+  const dur = Math.round(Number(text(fields, "duration", String(GROK_MAX_SEC))) || GROK_MAX_SEC);
+  if (dur > GROK_MAX_SEC) {
+    const err = new Error(`Grok só edita clips até ${GROK_MAX_SEC} segundos — corta o vídeo e tenta outra vez.`);
+    err.status = 400;
+    throw err;
+  }
+  const userPrompt = text(fields, "prompt", "").trim();
+  if (userPrompt.length < 3) {
+    const err = new Error("Descreve a edição (mín. 3 caracteres).");
+    err.status = 400;
+    throw err;
+  }
+  const prompt = `${userPrompt.trim()}. Keep everything else in the scene unchanged unless explicitly requested.`;
+  const input = buildGrokEditInput({ video: fromUrl, prompt });
+  return { input, prompt: userPrompt };
+}
+
+async function klingVideoEditInput(fields, files) {
+  const { buildKlingEditInput } = require("./lib/videoModels.cjs");
+  const video = await resolveVideoEditMediaUrl(files, fields);
+  const preset = text(fields, "video_preset", "").trim();
+  const userPrompt = text(fields, "prompt", "").trim();
+  const prompt = buildVideoEditPrompt(userPrompt, { preset });
+  const resolution = text(fields, "resolution", "original");
+  const audioSetting = text(fields, "audio_setting", "origin");
+  const ref = await resolveImageRef(files, fields, "reference_image", "reference_image_url");
+  const input = buildKlingEditInput({
+    video,
+    prompt,
+    referenceImage: ref,
+    resolution,
+    keepOriginalSound: audioSetting !== "auto",
+  });
+  return { input, prompt: userPrompt };
+}
+
+async function videoExtendInput(fields, files) {
+  const video = await resolveVideoRef(files, fields, "video", "video_url");
+  if (!video) {
+    const err = new Error("Envia um vídeo (MP4/MOV, idealmente 2–10 segundos).");
+    err.status = 400;
+    throw err;
+  }
+  const userPrompt = text(fields, "prompt", "").trim();
+  if (userPrompt.length < 3) {
+    const err = new Error("Descreve o que acontece a seguir (mín. 3 caracteres).");
+    err.status = 400;
+    throw err;
+  }
+  const { buildVideoExtendPrompt, buildWanExtendInput } = require("./lib/videoModels.cjs");
+  const { validateVideoExtendOptions } = require("./lib/videoExtendPricing.cjs");
+  const prompt = buildVideoExtendPrompt(userPrompt);
+  const opts = validateVideoExtendOptions({
+    resolution: text(fields, "resolution", "1080p"),
+    duration: text(fields, "duration", "6"),
+  });
+  const input = buildWanExtendInput({
+    firstClip: video,
+    prompt,
+    duration: opts.duration,
+    resolution: opts.resolution,
+  });
+  return { input, prompt: userPrompt };
+}
+
 async function resolveImageRef(files, fields, fileKey, urlKey) {
   const fromUrl = trustedMediaUrl(text(fields, urlKey, ""));
   if (fromUrl) return fromUrl;
   return fileToDataUri(fileOf(files, fileKey));
+}
+
+/** 1–5 images: image_0 (main) … image_4 (references). Also accepts image_0_url … */
+async function resolveMarketingVideoImages(files, fields, max = 5) {
+  const urls = [];
+  for (let i = 0; i < max; i += 1) {
+    const fromUrl = trustedMediaUrl(text(fields, `image_${i}_url`, ""));
+    if (fromUrl) {
+      urls.push(fromUrl);
+      continue;
+    }
+    const file = fileOf(files, `image_${i}`);
+    if (!file) continue;
+    const blobUrl = await uploadFormImageToBlob(file);
+    if (blobUrl) {
+      urls.push(blobUrl);
+      continue;
+    }
+    const dataUri = await fileToDataUri(file);
+    if (dataUri) urls.push(dataUri);
+  }
+  return urls;
 }
 
 /** Upload de vídeo pelo servidor → Vercel Blob (fallback quando o browser não consegue PUT direto). */
@@ -641,6 +777,169 @@ async function routeUploadVideoBlob(req, res) {
   }
 }
 
+/** Vídeo multipart → URL pública Blob (Grok exige HTTPS, não data: URI). */
+async function uploadFormVideoToBlob(file) {
+  if (!file?.filepath || !isBlobConfigured()) return null;
+  const { MAX_VIDEO_BYTES, transcodeVideoToH264, shouldAttemptTranscode } = require("./lib/videoTranscode.cjs");
+  const st = await fs.stat(file.filepath).catch(() => null);
+  if (!st?.size || st.size > MAX_VIDEO_BYTES) return null;
+  let uploadPath = file.filepath;
+  let converted = false;
+  if (shouldAttemptTranscode(file.originalFilename, file.mimetype)) {
+    const out = await transcodeVideoToH264(file.filepath);
+    if (out?.outputPath) {
+      uploadPath = out.outputPath;
+      converted = true;
+    }
+  }
+  let fn = String(file.originalFilename || "video.mp4").replace(/[^\w.\-]+/g, "_");
+  if (converted) fn = fn.replace(/\.[^.]+$/, "") + ".mp4";
+  if (!/\.[a-z0-9]{2,5}$/i.test(fn)) fn += ".mp4";
+  const pathname = `rp/${Date.now()}-${crypto.randomBytes(6).toString("hex")}-${fn.slice(0, 80)}`;
+  const mime = converted ? "video/mp4" : (file.mimetype || "video/mp4");
+  const buf = await fs.readFile(uploadPath);
+  if (converted && uploadPath !== file.filepath) {
+    await fs.unlink(uploadPath).catch(() => {});
+  }
+  const { put } = require("@vercel/blob");
+  const blob = await put(pathname, buf, blobPutOptions({ contentType: mime }));
+  return blob.url;
+}
+
+/** Imagem multipart → URL pública (Seedance / Replicate precisam de HTTPS em reference_images). */
+async function uploadFormImageToBlob(file) {
+  if (!file?.filepath || (!isS3Configured() && !isBlobConfigured())) return null;
+  const maxBytes = 12 * 1024 * 1024;
+  let st = await fs.stat(file.filepath).catch(() => null);
+  if (!st?.size || st.size > maxBytes) return null;
+
+  let filepath = file.filepath;
+  let mime = file.mimetype || "image/jpeg";
+
+  if (st.size > 2 * 1024 * 1024) {
+    try {
+      const sharp = require("sharp");
+      const pathMod = require("path");
+      const os = require("os");
+      const outPath = pathMod.join(
+        os.tmpdir(),
+        `rp-mvimg-${Date.now()}-${Math.random().toString(36).slice(2, 8)}.jpg`,
+      );
+      await sharp(file.filepath, { failOn: "none" })
+        .rotate()
+        .resize({ width: 1536, height: 1536, fit: "inside", withoutEnlargement: true })
+        .jpeg({ quality: 85, mozjpeg: true })
+        .toFile(outPath);
+      const outSt = await fs.stat(outPath).catch(() => null);
+      if (outSt?.size) {
+        filepath = outPath;
+        mime = "image/jpeg";
+        st = outSt;
+      }
+    } catch {
+      /* keep original */
+    }
+  }
+
+  let fn = String(file.originalFilename || "photo.jpg").replace(/[^\w.\-]+/g, "_");
+  if (!/\.[a-z0-9]{2,5}$/i.test(fn)) fn += ".jpg";
+  const buf = await fs.readFile(filepath);
+
+  if (isS3Configured()) {
+    try {
+      const uploaded = await uploadBufferToS3({
+        buffer: buf,
+        contentType: mime,
+        userId: "marketing-video",
+        prefix: "marketing-video",
+      });
+      if (uploaded?.url) return uploaded.url;
+    } catch (err) {
+      // S3/OIDC pode falhar (token/credenciais); não deve rebentar a geração —
+      // seguimos para o Vercel Blob, que tem token próprio e é fiável.
+      console.error("[marketing-video] upload S3 falhou, a usar Blob:", err?.message || err);
+    }
+  }
+
+  if (!isBlobConfigured() || isBlobDisabled()) return null;
+  const pathname = `rp/mv/${Date.now()}-${crypto.randomBytes(6).toString("hex")}-${fn.slice(0, 80)}`;
+  const { put } = require("@vercel/blob");
+  const blob = await put(pathname, buf, blobPutOptions({ contentType: mime }));
+  return blob.url;
+}
+
+const VIDEO_BLOB_CONTENT_TYPES = [
+  "video/mp4",
+  "video/webm",
+  "video/quicktime",
+];
+const MAX_VIDEO_BLOB_BYTES = 500 * 1024 * 1024;
+
+function injectAuthFromClientPayload(req, clientPayload) {
+  if (req.headers.authorization) return;
+  if (!clientPayload) return;
+  try {
+    const parsed = JSON.parse(clientPayload);
+    const token = String(parsed.token || "").trim();
+    if (token) req.headers.authorization = `Bearer ${token}`;
+  } catch {
+    /* ignore */
+  }
+}
+
+async function routeVideoUpload(req, res) {
+  if (isBlobDisabled()) return blobDisabledResponse(res);
+  try {
+    const blobToken = getBlobReadWriteToken();
+    if (!blobToken) {
+      return json(res, 503, {
+        detail: "Armazenamento Blob não configurado. Liga remakepix-blob ao projeto na Vercel.",
+      });
+    }
+    const body = await readJsonRequestBody(req);
+    // eslint-disable-next-line global-require
+    const { handleUpload } = require("@vercel/blob/client");
+    const jsonResponse = await handleUpload({
+      body,
+      request: req,
+      token: blobToken,
+      onBeforeGenerateToken: async (pathname, clientPayload) => {
+        injectAuthFromClientPayload(req, clientPayload);
+        const auth = req.headers.authorization || "";
+        const m = auth.match(/^Bearer\s+(.+)$/i);
+        if (!m?.[1]?.trim()) {
+          const err = new Error("Não autenticado.");
+          err.status = 401;
+          throw err;
+        }
+        const bearer = m[1].trim();
+        if (!bearer.startsWith("local:") && !verifySessionToken(bearer)) {
+          const err = new Error("Sessão inválida ou expirada.");
+          err.status = 401;
+          throw err;
+        }
+        if (String(pathname || "").includes("..")) {
+          const err = new Error("Nome de ficheiro inválido.");
+          err.status = 400;
+          throw err;
+        }
+        return {
+          allowedContentTypes: VIDEO_BLOB_CONTENT_TYPES,
+          addRandomSuffix: true,
+          maximumSizeInBytes: MAX_VIDEO_BLOB_BYTES,
+          tokenPayload: clientPayload,
+        };
+      },
+      onUploadCompleted: async () => {
+        /* URL devolvida ao browser pelo SDK upload(); webhook opcional */
+      },
+    });
+    return json(res, 200, jsonResponse);
+  } catch (err) {
+    return json(res, err.status || 400, { detail: err.message || "Falha no upload de vídeo." });
+  }
+}
+
 async function routeBlobPrepare(req, res) {
   if (isBlobDisabled()) return blobDisabledResponse(res);
   try {
@@ -669,7 +968,7 @@ async function routeBlobPrepare(req, res) {
       token: blobToken,
       pathname,
       access: "public",
-      maximumSizeInBytes: isVideo ? 52 * 1024 * 1024 : 12 * 1024 * 1024,
+      maximumSizeInBytes: isVideo ? 200 * 1024 * 1024 : 12 * 1024 * 1024,
       allowedContentTypes: isVideo
         ? [
           "video/mp4",
@@ -780,53 +1079,129 @@ async function fileToDataUri(file) {
 }
 
 const { extractUrls } = require("./lib/creationMedia.cjs");
+const replicateProvider = require("./lib/providers/replicateProvider.cjs");
+const {
+  resolveProviderForGeneration,
+  submitProviderJob,
+} = require("./lib/providers/index.cjs");
 
 async function replicateFetch(url, options = {}) {
-  const token = process.env.REPLICATE_API_TOKEN;
-  if (!token) {
-    const err = new Error("REPLICATE_API_TOKEN not configured");
-    err.status = 500;
-    throw err;
-  }
-  const response = await fetch(url, {
-    ...options,
-    headers: {
-      Authorization: `Bearer ${token}`,
-      "Content-Type": "application/json",
-      ...(options.headers || {}),
-    },
-  });
-  const data = await response.json().catch(() => ({}));
-  if (!response.ok) {
-    const err = new Error(data.detail || data.error || `Replicate error ${response.status}`);
-    err.status = response.status;
-    err.data = data;
-    throw err;
-  }
-  return data;
+  return replicateProvider.replicateFetch(url, options);
 }
 
 async function createPrediction(modelId, input) {
-  const [owner, name] = modelId.split("/");
-  try {
-    return await replicateFetch(`https://api.replicate.com/v1/models/${owner}/${name}/predictions`, {
-      method: "POST",
-      body: JSON.stringify({ input }),
-    });
-  } catch (err) {
-    if (![404, 422].includes(err.status)) throw err;
-    const model = await replicateFetch(`https://api.replicate.com/v1/models/${owner}/${name}`);
-    const version = model?.latest_version?.id;
-    if (!version) throw err;
-    return await replicateFetch("https://api.replicate.com/v1/predictions", {
-      method: "POST",
-      body: JSON.stringify({ version, input }),
-    });
-  }
+  return replicateProvider.createPrediction(modelId, input);
 }
 
 async function getPrediction(id) {
-  return await replicateFetch(`https://api.replicate.com/v1/predictions/${id}`);
+  return replicateProvider.getPrediction(id);
+}
+
+/** Submit image job to Replicate or RunPod (admin dev mode). */
+async function createProviderJob({
+  userEmail,
+  type,
+  modelId,
+  input,
+  aspectRatio,
+  fluxFallbackInput,
+  modelUsed,
+}) {
+  const providerId = await resolveProviderForGeneration({ userEmail, type });
+  if (providerId === "runpod") {
+    const job = await submitProviderJob("runpod", { modelId, input, aspectRatio, type });
+    return {
+      jobId: job.id,
+      provider: "runpod",
+      modelUsed: modelUsed || modelId,
+      fluxAttempted: false,
+    };
+  }
+  let prediction;
+  let resolvedModelUsed = modelUsed || modelId;
+  let fluxAttempted = false;
+  try {
+    prediction = await createPrediction(modelId, input);
+  } catch (e) {
+    if (fluxFallbackInput && modelId === MODELS.standard) {
+      prediction = await createPrediction(MODELS.pro, fluxFallbackInput);
+      resolvedModelUsed = MODELS.pro;
+      fluxAttempted = true;
+    } else {
+      throw e;
+    }
+  }
+  return {
+    jobId: prediction.id,
+    provider: "replicate",
+    modelUsed: resolvedModelUsed,
+    fluxAttempted,
+  };
+}
+
+function pendingProviderFields(job) {
+  return {
+    replicate_prediction_id: job.jobId,
+    provider: job.provider,
+    provider_job_id: job.jobId,
+  };
+}
+
+function serverPollDeadlineMs(pending) {
+  if (pending?.type === "video" || pending?.type === "marketing_video" || pending?.type === "motion_flyer") return 1_800_000;
+  if (isOpenAIPosterJob(pending)) return 780_000;
+  if (pending?.type === "poster") return 600_000;
+  if (pending?.provider === "runpod") return 900_000;
+  return 105_000;
+}
+
+/** Best-effort server poll after submit (cron + Vercel Pro waitUntil cover long jobs). */
+function scheduleServerPendingPoll(pending) {
+  if (!pending?.id) return;
+  const run = async () => {
+    const deadline = Date.now() + serverPollDeadlineMs(pending);
+    while (Date.now() < deadline) {
+      const fresh = await getPending(pending.id);
+      if (!fresh || fresh.status === "completed" || fresh.status === "refunded") return;
+      // eslint-disable-next-line no-await-in-loop
+      const result = await pollPending(fresh, getPrediction);
+      if (result.status !== "processing") return;
+      // eslint-disable-next-line no-await-in-loop
+      await new Promise((r) => setTimeout(r, 2500));
+    }
+    // Deadline reached while still processing. For Grok-based "Personalizar"
+    // (easy/padrão) jobs that tend to hang/reject, finalize as failed so the
+    // Grok→Flux fallback can rescue them instead of the bubble spinning forever.
+    // Other job types (video/poster/…) are left for the cron to finalize.
+    try {
+      const stuck = await getPending(pending.id);
+      if (stuck && stuck.status !== "completed" && stuck.status !== "refunded") {
+        const model = String(stuck.model_used || stuck.primary_model || "").toLowerCase();
+        const grokish = model.includes("grok") || model.includes("xai/");
+        const fluxRescuable = Boolean(stuck.fallback_image_url)
+          && !stuck.flux_fallback_attempted
+          && (stuck.type === "easy" || (stuck.type === "image" && grokish));
+        if (fluxRescuable) {
+          await finalizePending(stuck, {
+            status: "failed",
+            error: "provider timeout (stuck processing)",
+          });
+        }
+      }
+    } catch (e) {
+      console.error("[pending] deadline finalize failed", pending.id, e?.message || e);
+    }
+  };
+  try {
+    const { waitUntil } = require("@vercel/functions");
+    if (typeof waitUntil === "function") {
+      waitUntil(run());
+      return;
+    }
+  } catch {
+    /* @vercel/functions optional */
+  }
+  run().catch(() => {});
 }
 
 function predictionResponse(result) {
@@ -837,6 +1212,8 @@ function predictionResponse(result) {
     type: result.type || "image",
   };
   if (result.new_balance != null) out.new_balance = result.new_balance;
+  if (result.new_premium_balance != null) out.new_premium_balance = result.new_premium_balance;
+  if (result.wallet) out.wallet = result.wallet;
   if (result.server_billing) out.server_billing = true;
   return out;
 }
@@ -852,7 +1229,15 @@ function resolveSessionUser(req) {
 }
 
 function userLang(req, fields) {
-  return text(fields, "lang", req?.headers?.["x-lang"] || "en").slice(0, 2).toLowerCase() || "en";
+  return text(fields, "lang", req?.headers?.["x-lang"] || "pt").slice(0, 2).toLowerCase() || "pt";
+}
+
+/** Seedance / marketing pipelines — sempre registam custo real (mesmo admin). */
+const FORCE_BILL_GENERATION_TYPES = new Set(["motion_flyer", "marketing_video"]);
+
+function mustForceBillGeneration(type, cost) {
+  if (FORCE_BILL_GENERATION_TYPES.has(String(type || ""))) return true;
+  return Number(cost) >= 120;
 }
 
 /**
@@ -868,53 +1253,115 @@ async function submitBillableGeneration(req, fields, {
   aspectRatio,
   modelUsed,
   spendDescription,
+  notifyEmail: notifyEmailOpt,
+  fallbackImageUrl,
+  fallbackPrompt,
+  fluxFallbackInput,
+  pendingMeta,
 }) {
   const { user, isLocal } = resolveSessionUser(req);
   const lang = userLang(req, fields);
 
+  let notifyEmail = notifyEmailOpt;
+  if (notifyEmail === undefined && storageEnabled() && user?.id && !isLocal) {
+    const preUser = await getUserById(user.id);
+    const { resolveGenerationNotifyEmail } = require("./lib/generationNotify.cjs");
+    notifyEmail = resolveGenerationNotifyEmail(fields, preUser, { type });
+  } else if (notifyEmail === undefined) {
+    notifyEmail = null;
+  }
+
+  const pendingFallbackFields = fallbackImageUrl
+    ? {
+      fallback_image_url: fallbackImageUrl,
+      fallback_prompt: fallbackPrompt || prompt || input?.prompt || "",
+      primary_model: modelId,
+    }
+    : {};
+
   if (storageEnabled() && user?.id && !isLocal) {
-    const dbUser = await getUserById(user.id);
+    let dbUser = await getUserById(user.id);
+    if (!dbUser) {
+      dbUser = await ensureUserFromSession({
+        id: user.id,
+        email: user.email,
+        name: user.name,
+        role: user.role,
+      });
+    }
     if (dbUser?.banned) {
       const err = new Error("Conta suspensa.");
       err.status = 403;
       throw err;
     }
-    if (isAdminEmail(dbUser?.email)) {
-      const prediction = await createPrediction(modelId, input);
+    const forceBill = mustForceBillGeneration(type, cost);
+    const userEmail = dbUser?.email || user?.email;
+    if (isAdminEmail(userEmail) && !forceBill) {
+      let job;
+      try {
+        job = await createProviderJob({
+          userEmail,
+          type,
+          modelId,
+          input,
+          aspectRatio,
+          fluxFallbackInput,
+          modelUsed,
+        });
+      } catch (e) {
+        const err = new Error(formatGenerationError(e.message || "submit failed", lang, { type }));
+        err.status = e.status && e.status >= 400 && e.status < 600 ? e.status : 502;
+        throw err;
+      }
       const pending = await createPending({
         id: newPendingId(),
         user_id: user.id,
-        replicate_prediction_id: prediction.id,
+        ...pendingProviderFields(job),
         type,
         prompt: prompt || input?.prompt || "",
-        model_used: modelUsed || modelId,
+        model_used: job.modelUsed,
         aspect_ratio: aspectRatio || input?.aspect_ratio || "1:1",
         credits_spent: 0,
-        balance_after_spend: dbUser.credits ?? 999999999,
+        balance_after_spend: dbUser?.credits ?? 999999999,
         lang,
+        notify_email: notifyEmail || null,
+        ...pendingFallbackFields,
+        ...(pendingMeta && typeof pendingMeta === "object" ? pendingMeta : {}),
+        flux_fallback_attempted: job.fluxAttempted,
       });
+      scheduleServerPendingPoll(pending);
       return {
         prediction_id: pending.id,
         credits_spent: 0,
         type,
-        new_balance: dbUser.credits ?? 999999999,
+        new_balance: dbUser?.credits ?? 999999999,
         server_billing: true,
       };
     }
-    const balance = dbUser?.credits ?? user.credits ?? 0;
-    if (balance < cost) {
+    const balance = spendableStandardCredits(dbUser) ?? dbUser?.total_standard_credits ?? dbUser?.credits ?? user.credits ?? 0;
+    if (!isAdminEmail(dbUser?.email || user?.email) && balance < cost) {
       const err = new Error("Créditos insuficientes.");
       err.status = 402;
       throw err;
     }
 
-    const newBalance = await spendCredits(user.id, cost, spendDescription || "Geração");
-    let prediction;
+    const newBalance = await spendCredits(user.id, cost, spendDescription || "Geração", { forceBill });
+    let job;
     try {
-      prediction = await createPrediction(modelId, input);
+      job = await createProviderJob({
+        userEmail,
+        type,
+        modelId,
+        input,
+        aspectRatio,
+        fluxFallbackInput,
+        modelUsed,
+      });
     } catch (e) {
-      await addCredits(user.id, cost, "refund", `Refund: submit failed (${String(e.message || e).slice(0, 80)})`);
-      const err = new Error(formatGenerationError(e.message || "submit failed", lang));
+      if (!forceBill || !isAdminEmail(userEmail)) {
+        await addCredits(user.id, cost, "refund", `Refund: submit failed (${String(e.message || e).slice(0, 80)})`);
+      }
+      const err = new Error(formatGenerationError(e.message || "submit failed", lang, { type }));
       err.status = e.status && e.status >= 400 && e.status < 600 ? e.status : 502;
       throw err;
     }
@@ -922,15 +1369,20 @@ async function submitBillableGeneration(req, fields, {
     const pending = await createPending({
       id: newPendingId(),
       user_id: user.id,
-      replicate_prediction_id: prediction.id,
+      ...pendingProviderFields(job),
       type,
       prompt: prompt || input?.prompt || "",
-      model_used: modelUsed || modelId,
+      model_used: job.modelUsed,
       aspect_ratio: aspectRatio || input?.aspect_ratio || "1:1",
       credits_spent: cost,
       balance_after_spend: newBalance,
       lang,
+      notify_email: notifyEmail || null,
+      ...pendingFallbackFields,
+      ...(pendingMeta && typeof pendingMeta === "object" ? pendingMeta : {}),
+      flux_fallback_attempted: job.fluxAttempted,
     });
+    scheduleServerPendingPoll(pending);
 
     return {
       prediction_id: pending.id,
@@ -948,6 +1400,150 @@ async function submitBillableGeneration(req, fields, {
 
 function withMeta(input, cost, type = "image") {
   return { input, credits_spent: cost, type };
+}
+
+function normalizeMangaModelKey(selected) {
+  const key = String(selected || "").trim().toLowerCase();
+  if (key === "gpt_image" || key === "flux2" || key === "flux" || key === "pro") return "pro";
+  return "standard";
+}
+
+function mangaImagesCount(fields, fallback = 1) {
+  const raw = text(fields, "image_count", "") || text(fields, "page_count", "") || text(fields, "num_outputs", "");
+  const n = Math.round(Number(raw) || fallback || 1);
+  return Math.max(1, Math.min(n, 50));
+}
+
+function mangaPerImageCost(CREDIT, modelKey) {
+  return Math.max(1, Number(modelKey === "pro" ? CREDIT.pro : CREDIT.image) || 15);
+}
+
+function qwenMangaPerImageCost(CREDIT) {
+  return Math.max(1, Number(CREDIT.edit ?? CREDIT.mangaPanel) || 15);
+}
+
+/** Pôster via OpenAI (síncrono) — debita créditos HQ (premium wallet). */
+async function submitInstantPosterGeneration(req, fields, {
+  cost,
+  prompt,
+  aspectRatio,
+  modelUsed,
+  urls,
+  type = "poster",
+  spendDescription = "Pôster HQ",
+  usePremiumWallet = true,
+}) {
+  const { user, isLocal } = resolveSessionUser(req);
+  const lang = userLang(req, fields);
+
+  if (!urls?.length) {
+    const err = new Error("Sem imagem gerada.");
+    err.status = 502;
+    throw err;
+  }
+
+  let notifyEmail = null;
+  if (storageEnabled() && user?.id && !isLocal) {
+    const preUser = await getUserById(user.id);
+    const { resolveGenerationNotifyEmail } = require("./lib/generationNotify.cjs");
+    const notifyType = usePremiumWallet ? "poster_hq" : type;
+    notifyEmail = resolveGenerationNotifyEmail(fields, preUser, { type: notifyType });
+    if (usePremiumWallet && !notifyEmail) {
+      const err = new Error("Precisas de email na conta para receber o poster HQ.");
+      err.status = 400;
+      throw err;
+    }
+  }
+
+  if (storageEnabled() && user?.id && !isLocal) {
+    const dbUser = await getUserById(user.id);
+    if (dbUser?.banned) {
+      const err = new Error("Conta suspensa.");
+      err.status = 403;
+      throw err;
+    }
+    const premiumBalance = dbUser?.premium_credits ?? 0;
+    const standardBalance = dbUser?.credits ?? user.credits ?? 0;
+    if (usePremiumWallet) {
+      if (!isAdminEmail(dbUser?.email) && premiumBalance < cost) {
+        const err = new Error("Créditos HQ insuficientes.");
+        err.status = 402;
+        err.detail = "Insufficient premium credits";
+        throw err;
+      }
+    } else if (!isAdminEmail(dbUser?.email) && standardBalance < cost) {
+      const err = new Error("Créditos insuficientes.");
+      err.status = 402;
+      throw err;
+    }
+
+    let newBalance = standardBalance;
+    let newPremiumBalance = premiumBalance;
+    if (!isAdminEmail(dbUser?.email)) {
+      if (usePremiumWallet) {
+        newPremiumBalance = await spendPremiumCredits(user.id, cost, spendDescription);
+      } else {
+        newBalance = await spendCredits(user.id, cost, spendDescription);
+      }
+    }
+
+    const pending = await createPending({
+      id: newPendingId(),
+      user_id: user.id,
+      replicate_prediction_id: "openai-poster-sync",
+      type,
+      prompt: prompt || "",
+      model_used: modelUsed || "openai/gpt-image-1",
+      aspect_ratio: aspectRatio || "4:5",
+      credits_spent: isAdminEmail(dbUser?.email) ? 0 : cost,
+      balance_after_spend: usePremiumWallet ? newPremiumBalance : newBalance,
+      wallet: usePremiumWallet ? "premium" : "standard",
+      lang,
+      notify_email: notifyEmail || null,
+    });
+
+    try {
+      await completePendingWithUrls(pending, urls);
+    } catch (e) {
+      if (!isAdminEmail(dbUser?.email)) {
+        if (usePremiumWallet) {
+          await addPremiumCredits(user.id, cost, "refund", `Refund: ${type} sync failed (${String(e.message || e).slice(0, 80)})`);
+        } else {
+          await addCredits(user.id, cost, "refund", `Refund: ${type} sync failed (${String(e.message || e).slice(0, 80)})`);
+        }
+      }
+      const err = new Error(formatGenerationError(e.message || "submit failed", lang));
+      err.status = 502;
+      throw err;
+    }
+
+    return {
+      prediction_id: pending.id,
+      credits_spent: isAdminEmail(dbUser?.email) ? 0 : cost,
+      wallet: usePremiumWallet ? "premium" : "standard",
+      type,
+      new_balance: usePremiumWallet ? undefined : newBalance,
+      new_premium_balance: usePremiumWallet ? newPremiumBalance : undefined,
+      server_billing: true,
+    };
+  }
+
+  const meta = withMeta({ prompt }, cost, type);
+  return {
+    prediction_id: newPendingId(),
+    credits_spent: cost,
+    wallet: usePremiumWallet ? "premium" : "standard",
+    type,
+    creation: {
+      type,
+      prompt: prompt || "",
+      model_used: modelUsed || "openai/gpt-image-1",
+      aspect_ratio: aspectRatio || "4:5",
+      result_urls: urls,
+      credits_spent: cost,
+    },
+    ...meta,
+  };
 }
 
 function truthyField(fields, key) {
@@ -1023,14 +1619,22 @@ function buildRestorePrompt(fields) {
 }
 
 function buildClothesPrompt(fields, hasGarment) {
+  const POSE_LOCK =
+    "Keep IDENTICAL pose, body proportions, body shape, limbs, hands, camera angle, framing, background and lighting from the person photo. "
+    + "Only clothing/outfit pixels may change — no body reshaping, no re-posing, no stance change, no face swap.";
+  const IDENTITY_LOCK =
+    `${PHOTO_EDIT_IDENTITY_BLOCK} `
+    + "CRITICAL OUTFIT SWAP RULES: keep the exact same person (face, identity, age, skin tone, hair, body). "
+    + "Change ONLY the clothes/garments. Do not invent a different person, do not alter anatomy, do not change the background.";
   const userPrompt = text(fields, "prompt", "").trim();
   const changeType = text(fields, "change_type", "full");
   if (hasGarment) {
     let p = (
-      "Two reference images: (1) the person, (2) the clothing/outfit to wear. "
+      "Two reference images: (1) the person whose identity must stay identical, (2) the clothing/outfit to wear. "
       + "Generate exactly ONE photorealistic photo of that same person now wearing the outfit from image 2. "
-      + "Preserve face, identity, hair, body proportions and pose from image 1. "
-      + "Copy style, color, fabric, cut, patterns and details from the garment reference. "
+      + `${IDENTITY_LOCK} `
+      + `${POSE_LOCK} `
+      + "Copy style, color, fabric, cut, patterns and details from the garment reference onto this same person. "
       + "Do NOT output a collage, split screen, diptych, or side-by-side comparison. "
       + "Do NOT show both source images in the result — only the dressed person."
     );
@@ -1038,17 +1642,19 @@ function buildClothesPrompt(fields, hasGarment) {
     return p;
   }
   if (!userPrompt) {
-    return "Change outfit while preserving face, body pose and identity. Photorealistic, natural lighting.";
+    return (
+      `Change outfit only. ${IDENTITY_LOCK} ${POSE_LOCK} Photorealistic, natural lighting.`
+    );
   }
   const prefix = {
-    full: "Change the outfit. Replace all clothing with: ",
-    piece: "Add/replace this specific clothing piece: ",
-    color: "Keep the same outfit but change the color/style to: ",
-    tryon: "Show the person wearing: ",
+    full: "Change the outfit only. Replace all clothing with: ",
+    piece: "Add/replace this specific clothing piece only — keep everything else: ",
+    color: "Keep the same outfit cut and pose but change the color/style to: ",
+    tryon: "Show the same person in the same pose wearing: ",
   };
   return (
     `${prefix[changeType] || prefix.full}${userPrompt}. `
-    + "Preserve identity, face, body proportions and pose. Photorealistic, natural lighting."
+    + `${IDENTITY_LOCK} ${POSE_LOCK} Photorealistic, natural lighting.`
   );
 }
 
@@ -1067,7 +1673,7 @@ function creationFromPrediction(prediction) {
   return {
     id: prediction.id,
     type: prediction.input?.__type || "image",
-    prompt: prediction.input?.prompt || "Remake Pixel generation",
+    prompt: prediction.input?.prompt || "Remake generation",
     model_used: "Motor IA",
     aspect_ratio: prediction.input?.aspect_ratio || "1:1",
     result_urls: urls,
@@ -1078,18 +1684,196 @@ function creationFromPrediction(prediction) {
   };
 }
 
-async function imageInput(fields, files, modelKey, prompt, opts = {}) {
-  const primary =
-    (await resolveImageRef(files, fields, "photo", "photo_url"))
+async function resolveStudioPhotoRefs(files, fields, maxRefs = 4) {
+  const primary = (await resolveImageRef(files, fields, "photo", "photo_url"))
     || (await resolveImageRef(files, fields, "image", "image_url"));
+  const refs = [];
+  for (let i = 1; i <= maxRefs; i += 1) {
+    const ref = await resolveImageRef(files, fields, `image_${i}`, `image_${i}_url`);
+    if (ref) refs.push(ref);
+  }
+  return { primary, refs };
+}
+
+function buildStudioMultiImageBundle(fields, urls, userPrompt) {
+  const all = (urls || []).filter(Boolean).slice(0, 5);
+  if (all.length < 2) {
+    const err = new Error("Combinação multi-imagem exige pelo menos 2 fotos.");
+    err.status = 400;
+    throw err;
+  }
+
+  let instruction = String(userPrompt || "").trim();
+  const joinIntent = looksLikeStudioJoinIntent(instruction);
+
+  // Sem prompt: edição flexível guiada pelas labels Image 1…N (não forçar join).
+  if (!instruction) {
+    instruction = (
+      "Use Image 1 as the main subject/frame unless a different role is implied by the references. "
+      + "Apply Image 2…N according to how they best complete a natural photorealistic edit — "
+      + "only place multiple people together if that is the clear purpose of the references."
+    );
+  } else if (joinIntent && all.length === 2 && instruction.length < 48) {
+    // Só expandir prompts curtos de join — NÃO expandir “muda a pose”, “posição”, etc.
+    instruction = (
+      `${instruction}. `
+      + "Both people together in one photo, full-size, same scale, side by side unless a different arrangement is specified, "
+      + "both faces sharp and clearly visible, photorealistic."
+    );
+  }
+
+  // Base sempre flexível (Image 1 / Image 2…); blocos de join só se o pedido for juntar.
+  let promptFinal = buildStudioMultiRefFlexibleBlock(all.length);
+  if (joinIntent) {
+    promptFinal = all.length === 2
+      ? `${promptFinal}\n\n${buildStudioDualPersonBlock()}\n\n${buildStudioMultiCombineBlock(2)}`
+      : `${promptFinal}\n\n${buildStudioMultiCombineBlock(all.length)}`;
+  }
+  promptFinal = `${promptFinal}\n\nScene / user request: ${instruction}`;
+  // Não usar PHOTO_EDIT_IDENTITY_BLOCK (single-photo): ele trava pose/enquadramento
+  // e impede pedidos como “posição da imagem 2” / outfit / fundo.
+  if (!promptFinal.includes("MULTI-REF IDENTITY (mandatory)")) {
+    promptFinal = `${promptFinal}\n\nMULTI-REF IDENTITY (mandatory): When a labeled image is used as a person, `
+      + "preserve that person's exact face, bone structure, eyes, nose, lips, skin tone, ethnicity and hair. "
+      + "Pose, framing, background, wardrobe and composition may change freely when the user request requires it. "
+      + "Do not invent a new person. Do not replace anyone with a random model. "
+      + "Do not face-swap identities between Image slots unless asked.";
+  }
+  promptFinal = finalizeImagePrompt(promptFinal, {
+    modelKey: "nano",
+    hasPersonPhoto: true,
+    photoEdit: true,
+  });
+
+  const aspectRaw = text(fields, "aspect_ratio", "1:1").trim().toLowerCase();
+  let aspectHint = "3:4";
+  if (aspectRaw && !["match", "match_input_image", "original"].includes(aspectRaw)) {
+    aspectHint = normalizeRatio(aspectRaw, "nano");
+    if (aspectHint === "match_input_image") aspectHint = "3:4";
+  }
+
+  // Nano Banana (image_input[]) — multi-ref estável tipo Grok Imagine / GPT.
+  // FLUX Klein com images[] inventava pessoas novas; não usar para 2+ fotos.
+  const input = buildNanoBananaPosterInput({
+    prompt: appendAspectOutputInstruction(promptFinal, aspectHint),
+    aspectRatio: aspectHint,
+    photoRef: all[0],
+    garmentRef: all[1],
+  });
+  input.image_input = all;
+
+  return {
+    input,
+    prompt: promptFinal,
+    aspectRatio: input.aspect_ratio || aspectHint,
+    modelId: "google/nano-banana",
+    modelUsed: "Nano Banana · multi-ref",
+    urls: all,
+  };
+}
+
+async function buildCatalogModelInput(fields, files, modelKey, prompt, opts = {}) {
+  let primary = opts.preparedImage
+    || (await resolveImageRef(files, fields, "photo", "photo_url"))
+    || (await resolveImageRef(files, fields, "image", "image_url"));
+  let aspectRatio = normalizeRatio(text(fields, "aspect_ratio", "1:1"), modelKey);
+  if (primary && MATCH_ASPECT.has(aspectRatio)) {
+    aspectRatio = await detectNearestGrokAspect(primary);
+  }
+  const finalPrompt = finalizeImagePrompt(prompt, {
+    modelKey: "pro",
+    hasPersonPhoto: Boolean(primary),
+    photoEdit: Boolean(opts.photoEdit && primary),
+  });
+  const withAspect = (p, ar) => (ar && !MATCH_ASPECT.has(ar) ? appendAspectOutputInstruction(p, ar) : p);
+
+  if (modelKey === "flux") {
+    const input = {
+      prompt: withAspect(finalPrompt, aspectRatio),
+      aspect_ratio: aspectRatio,
+      output_format: "webp",
+      output_quality: 90,
+      disable_safety_checker: true,
+    };
+    if (primary) input.image = primary;
+    return input;
+  }
+  if (modelKey === "nano") {
+    const input = {
+      prompt: withAspect(finalPrompt, aspectRatio),
+      aspect_ratio: aspectRatio,
+    };
+    if (primary) input.image_input = [primary];
+    return input;
+  }
+  if (modelKey === "seedream") {
+    const input = {
+      prompt: withAspect(finalPrompt, aspectRatio),
+      aspect_ratio: aspectRatio,
+      size: "2K",
+    };
+    if (primary) input.image = primary;
+    return input;
+  }
+  if (modelKey === "imagen") {
+    return {
+      prompt: withAspect(finalPrompt, aspectRatio),
+      aspect_ratio: aspectRatio,
+      safety_filter_level: "block_only_high",
+    };
+  }
+  if (modelKey === "ideogram") {
+    const input = {
+      prompt: withAspect(finalPrompt, aspectRatio),
+      aspect_ratio: aspectRatio,
+      style_type: "Auto",
+    };
+    if (primary) input.image = primary;
+    return input;
+  }
+  if (modelKey === "recraft") {
+    return {
+      prompt: withAspect(finalPrompt, aspectRatio),
+      style: "realistic_image",
+      size: "1024x1024",
+    };
+  }
+  return null;
+}
+
+async function imageInput(fields, files, modelKey, prompt, opts = {}) {
+  if (["flux", "nano", "seedream", "imagen", "ideogram", "recraft"].includes(modelKey)) {
+    const built = await buildCatalogModelInput(fields, files, modelKey, prompt, opts);
+    if (built) return built;
+  }
+  let primary = opts.preparedImage
+    || (await resolveImageRef(files, fields, "photo", "photo_url"))
+    || (await resolveImageRef(files, fields, "image", "image_url"));
+  let aspectRatio = normalizeRatio(text(fields, "aspect_ratio", "1:1"), modelKey);
+  if (primary && modelKey === "standard" && MATCH_ASPECT.has(aspectRatio)) {
+    aspectRatio = await detectNearestGrokAspect(primary);
+  }
+  if (
+    primary
+    && !opts.preparedImage
+    && modelKey === "standard"
+    && aspectRatio
+    && !MATCH_ASPECT.has(aspectRatio)
+  ) {
+    const position = opts.poster && !opts.posterFood ? "bottom" : (opts.subjectPosition || "centre");
+    primary = await fitImageRefToAspect(primary, aspectRatio, { position });
+  }
   const input = {
     prompt: finalizeImagePrompt(prompt, {
       modelKey,
       posterFood: opts.posterFood,
       poster: opts.poster,
       hasPersonPhoto: opts.hasPersonPhoto ?? Boolean(primary && !opts.posterFood),
+      photoEdit: Boolean(opts.photoEdit && primary),
+      artisticPhotoEdit: Boolean(opts.artisticPhotoEdit && primary),
+      artisticTextOnly: Boolean(opts.artisticTextOnly && !primary),
     }),
-    aspect_ratio: normalizeRatio(text(fields, "aspect_ratio", "1:1"), modelKey),
+    aspect_ratio: aspectRatio,
   };
   if (["standard", "pro", "artistic"].includes(modelKey)) {
     const n = Number(text(fields, "num_outputs", 1)) || 1;
@@ -1108,7 +1892,7 @@ async function imageInput(fields, files, modelKey, prompt, opts = {}) {
     }
   }
   if (modelKey === "kontext" || modelKey === "artistic" || modelKey === "pro") {
-    if (opts.photography || opts.photoEdit) {
+    if (opts.photography || opts.photoEdit || opts.artisticPhotoEdit) {
       input.disable_safety_checker = true;
     }
   }
@@ -1119,9 +1903,12 @@ async function imageInput(fields, files, modelKey, prompt, opts = {}) {
     else input.images = [primary];
   }
   if (opts.experimental && modelKey === "qwen" && !input.image) {
-    const err = new Error("AI Lab: envia uma foto de referência.");
+    const err = new Error("Envia uma foto válida (JPEG, PNG ou WEBP).");
     err.status = 400;
     throw err;
+  }
+  if (input.aspect_ratio) {
+    input.prompt = appendAspectOutputInstruction(input.prompt, input.aspect_ratio);
   }
   return input;
 }
@@ -1179,7 +1966,7 @@ function panoramicGenerationAspect(slideCount, panelAspect, modelKey) {
   const tw = Math.max(2, slideCount) * w;
   const th = h;
   const ratio = tw / th;
-  if (modelKey === "pro" || modelKey === "artistic") {
+  if (modelKey === "pro") {
     if (ratio >= 2.1) return "21:9";
     if (ratio >= 1.7) return "16:9";
     return "3:2";
@@ -1289,32 +2076,98 @@ async function routePost(path, fields, files, req) {
       prompt = await improvePrompt(prompt, lang, {});
     }
     if (wantsHd) {
-      prompt += "\n\nUltra high detail, sharp focus, professional photography quality, 8K clarity, refined textures.";
+      prompt = appendHdQualityPrompt(prompt, true);
     }
     const surcharges = getSurcharges(region);
-    let imgCost = applyGenerationSurcharges(CREDIT.image, surcharges, {
+    const choice = resolveImageModelChoice(fields);
+    const baseCost = imageModelCredits(choice.id, CREDIT);
+    const imgCost = applyGenerationSurcharges(baseCost, surcharges, {
       improvePrompt: wantsImprove,
       hdQuality: wantsHd,
       hdMode: "image",
     });
-    const input = await imageInput(fields, files, "standard", prompt);
+    const input = await imageInput(fields, files, choice.inputKey, prompt);
     return submitBillableGeneration(req, fields, {
       cost: imgCost,
       type: "image",
-      modelId: MODELS.standard,
+      modelId: choice.replicateId,
       input,
       prompt,
       aspectRatio: input.aspect_ratio,
-      modelUsed: MODELS.standard,
-      spendDescription: "Estúdio: imagem",
+      modelUsed: choice.replicateId,
+      spendDescription: `Estúdio: imagem (${choice.name || choice.id})`,
     });
   }
 
   if (path === "generate/edit") {
-    const prompt = text(fields, "prompt", "professional photo edit, preserve identity");
+    let prompt = text(fields, "prompt", "professional photo edit, preserve identity");
+    const lang = text(fields, "lang", "en").slice(0, 2);
+    const surcharges = getSurcharges(region);
+    const wantsHd = truthyField(fields, "hd_quality");
+    const wantsImprove = truthyField(fields, "improve_prompt");
+    const { primary, refs } = await resolveStudioPhotoRefs(files, fields);
+    const multiRef = refs.length > 0;
+    if (wantsImprove) {
+      prompt = await improvePrompt(prompt, lang, {
+        tool: "edit",
+        image_mode: true,
+        multi_ref: multiRef,
+        ref_count: (primary ? 1 : 0) + refs.length,
+      });
+    }
+    if (wantsHd) {
+      prompt = appendHdQualityPrompt(prompt, true);
+    }
+    const editCost = applyGenerationSurcharges(CREDIT.edit, surcharges, {
+      improvePrompt: wantsImprove,
+      hdQuality: wantsHd,
+      hdMode: "image",
+    });
+    if (multiRef) {
+      if (!primary) {
+        const err = new Error("Envia uma foto principal e pelo menos uma referência.");
+        err.status = 400;
+        throw err;
+      }
+      const bundle = buildStudioMultiImageBundle(fields, [primary, ...refs], prompt);
+      const { openaiConfigured } = require("./lib/openaiEnv.cjs");
+      // GPT Image multi-edit (alta fidelidade) = comportamento tipo Grok Imagine / ChatGPT.
+      if (openaiConfigured()) {
+        const size = aspectToOpenAISize(bundle.aspectRatio);
+        const outputAspect = openAISizeToAspectRatio(size);
+        const openaiPrompt = appendAspectOutputInstruction(bundle.prompt, outputAspect);
+        const result = await generateOpenAIImageEditDetailed({
+          prompt: openaiPrompt,
+          size,
+          imageRefs: bundle.urls || [primary, ...refs],
+          inputFidelity: "high",
+          preferMultipart: true,
+        });
+        return submitInstantPosterGeneration(req, fields, {
+          cost: editCost,
+          type: "image",
+          prompt: bundle.prompt,
+          aspectRatio: outputAspect,
+          modelUsed: `${result.modelUsed || "openai/gpt-image-1"} · multi-ref`,
+          urls: [result.url],
+          spendDescription: "Estúdio: editar foto (multi-ref)",
+          usePremiumWallet: false,
+        });
+      }
+      return submitBillableGeneration(req, fields, {
+        cost: editCost,
+        type: "image",
+        modelId: bundle.modelId,
+        input: bundle.input,
+        prompt: bundle.prompt,
+        aspectRatio: bundle.aspectRatio,
+        modelUsed: bundle.modelUsed,
+        spendDescription: "Estúdio: editar foto (multi-ref)",
+      });
+    }
     const input = await imageInput(fields, files, "standard", prompt);
     return submitBillableGeneration(req, fields, {
-      cost: CREDIT.edit,
+      cost: editCost,
       type: "image",
       modelId: MODELS.standard,
       input,
@@ -1330,22 +2183,45 @@ async function routePost(path, fields, files, req) {
     const padrao = getPadraoStyle(styleId);
     const subject = text(fields, "subject", "the person").trim() || padrao?.subject || "the person";
     const extra = text(fields, "extra_prompt", "").trim();
+    const surcharges = getSurcharges(region);
+    const wantsHd = truthyField(fields, "hd_quality");
+    const wantsImprove = truthyField(fields, "improve_prompt");
+    const lang = text(fields, "lang", "en").slice(0, 2);
     let prompt;
     if (padrao?.prompt) {
-      prompt = padrao.prompt.replace(/\[subject\]/gi, subject);
+      prompt = upgradePadraoPrompt(padrao.prompt.replace(/\[subject\]/gi, subject));
       if (extra) prompt = `${prompt}\n\n${extra}`;
     } else {
       prompt = `Apply the ${styleId || "editorial"} style to ${subject}. Preserve identity, face, pose and expression. ${extra}`;
     }
-    const input = await imageInput(fields, files, "standard", prompt);
+    if (wantsImprove) {
+      prompt = await improvePrompt(prompt, lang, { tool: "easy" });
+    }
+    if (wantsHd) {
+      prompt = appendHdQualityPrompt(prompt, true);
+    }
+    prompt = appendPhotoEditIdentity(prompt);
+    const easyCost = applyGenerationSurcharges(CREDIT.easy, surcharges, {
+      improvePrompt: wantsImprove,
+      hdQuality: wantsHd,
+      hdMode: "image",
+    });
+    // Reescrito: Personalizar (foto + estilo) agora usa EXACTAMENTE o mesmo
+    // motor/caminho da secção "Pro" (Flux, type "image"), que funciona. O Grok
+    // Imagine falhava/bloqueava estas gerações e deixava a bolha a girar sem
+    // resultado. Sem campos de fallback específicos do modo "easy".
+    const input = await imageInput(fields, files, "pro", prompt, {
+      photoEdit: true,
+      hasPersonPhoto: true,
+    });
     return submitBillableGeneration(req, fields, {
-      cost: CREDIT.easy,
+      cost: easyCost,
       type: "image",
-      modelId: MODELS.standard,
+      modelId: MODELS.pro,
       input,
       prompt,
       aspectRatio: input.aspect_ratio,
-      modelUsed: MODELS.standard,
+      modelUsed: MODELS.pro,
       spendDescription: "Estúdio: estilo pronto",
     });
   }
@@ -1354,17 +2230,24 @@ async function routePost(path, fields, files, req) {
     const presetId = text(fields, "preset_id", "ultra_real");
     const preset = getProPreset(presetId);
     const extra = text(fields, "extra_prompt", "").trim();
-    const intensity = Number(text(fields, "intensity", "70"));
+    const intensity = Number(text(fields, "intensity", "55"));
+    const surcharges = getSurcharges(region);
+    const wantsHd = truthyField(fields, "hd_quality");
     let prompt = preset?.prompt
       || "Professional portrait retouch. Preserve identity and natural facial features.";
     if (extra) prompt += `\n\nAdditional instructions: ${extra}`;
-    if (Number.isFinite(intensity)) {
-      if (intensity < 34) prompt += "\n\nApply a very subtle, gentle enhancement.";
-      else if (intensity > 66) prompt += "\n\nApply a stronger visible enhancement while strictly preserving identity.";
+    prompt += buildProIntensitySuffix(intensity);
+    if (wantsHd) {
+      prompt = appendHdQualityPrompt(prompt, true);
     }
+    prompt = appendProRetouchIdentity(prompt);
+    const proCost = applyGenerationSurcharges(CREDIT.pro, surcharges, {
+      hdQuality: wantsHd,
+      hdMode: "image",
+    });
     const input = await imageInput(fields, files, "pro", prompt);
     return submitBillableGeneration(req, fields, {
-      cost: CREDIT.pro,
+      cost: proCost,
       type: "image",
       modelId: MODELS.pro,
       input,
@@ -1375,20 +2258,66 @@ async function routePost(path, fields, files, req) {
     });
   }
 
-  if (path === "generate/artistic") {
-    const style = text(fields, "style_id", "artistic");
-    const extra = text(fields, "extra_prompt", "");
-    const prompt = `Transform this image into ${style} art style. Preserve identity and composition. ${extra}`;
-    const input = await imageInput(fields, files, "standard", prompt);
-    return submitBillableGeneration(req, fields, {
-      cost: CREDIT.artistic,
-      type: "artistic",
-      modelId: MODELS.standard,
-      input,
+  if (path === "generate/gpt-hq-style") {
+    const { openaiConfigured } = require("./lib/openaiEnv.cjs");
+    if (!openaiConfigured()) {
+      const err = new Error("OpenAI não está configurado para AURUM / GPT HQ.");
+      err.status = 503;
+      throw err;
+    }
+    const styleId = text(fields, "style_id", "").trim();
+    const style = getGptHqStyle(styleId);
+    if (!style?.prompt || style.comingSoon) {
+      const err = new Error("Estilo AURUM inválido ou indisponível.");
+      err.status = 400;
+      throw err;
+    }
+    const photoRef = await resolveImageRef(files, fields, "photo", "photo_url");
+    if (!photoRef) {
+      const err = new Error("Envia uma foto para o AURUM.");
+      err.status = 400;
+      throw err;
+    }
+    const quality = String(text(fields, "quality", "hq") || "hq").toLowerCase();
+    const ultra = quality === "ultra";
+    let prompt = String(style.prompt).trim();
+    prompt = appendProRetouchIdentity(prompt);
+    if (ultra) {
+      prompt = appendHdQualityPrompt(prompt, true);
+      prompt += "\n\nUltra HQ finish: maximum micro-detail, print-ready sharpness, natural skin without plastic look.";
+    }
+    const rawAspect = text(fields, "aspect_ratio", "3:4");
+    const aspectRatio = ["match", "match_input_image", "original"].includes(String(rawAspect || "").toLowerCase())
+      ? "3:4"
+      : normalizeRatio(rawAspect, "flux");
+    const size = aspectToOpenAISize(aspectRatio === "match_input_image" ? "3:4" : aspectRatio);
+    const outputAspect = openAISizeToAspectRatio(size);
+    const openaiPrompt = appendAspectOutputInstruction(
+      finalizeImagePrompt(prompt, {
+        photoEdit: true,
+        hasPersonPhoto: true,
+      }),
+      outputAspect,
+    );
+    const result = await generateOpenAIImageEditDetailed({
+      prompt: openaiPrompt,
+      size,
+      imageRefs: [photoRef],
+      inputFidelity: "high",
+      preferMultipart: true,
+    });
+    const cost = Number(style.cost) > 0
+      ? Math.round(Number(style.cost))
+      : posterHqPremiumCost(1);
+    return submitInstantPosterGeneration(req, fields, {
+      cost,
+      type: "image",
       prompt,
-      aspectRatio: input.aspect_ratio,
-      modelUsed: MODELS.standard,
-      spendDescription: "Estilos artísticos",
+      aspectRatio: outputAspect,
+      modelUsed: `${result.modelUsed || "openai/gpt-image-1"} · AURUM`,
+      urls: [result.url],
+      spendDescription: `AURUM · ${style.name || styleId}`,
+      usePremiumWallet: true,
     });
   }
 
@@ -1397,28 +2326,34 @@ async function routePost(path, fields, files, req) {
     const experimental = isArtisticExperimentalStyleId(styleId);
     let promptFinal = text(fields, "prompt_final", "").trim();
     if (!promptFinal) throw new Error("Prompt em falta.");
-    const hasPhoto = Boolean(files.photo || text(fields, "photo_url", "").trim());
-    const { user, isLocal } = resolveSessionUser(req);
-    let userDoc = null;
-    if (storageEnabled() && user?.id && !isLocal) {
-      userDoc = await getUserById(user.id);
-    } else if (user?.email && ADMIN_EMAILS.has(String(user.email).toLowerCase())) {
-      userDoc = { email: user.email, role: "admin", nsfw_allowed: true };
+    const photoRef = await resolveImageRef(files, fields, "photo", "photo_url");
+    const photoFieldPresent = Boolean(fileOf(files, "photo") || text(fields, "photo_url", "").trim());
+    if (photoFieldPresent && !photoRef) {
+      const err = new Error(
+        "Não foi possível ler a foto. Usa JPEG, PNG ou WEBP (máx. 12 MB).",
+      );
+      err.status = 400;
+      throw err;
     }
+    const hasPhoto = Boolean(photoRef);
     const styleCat = text(fields, "style_cat", "").trim();
-    const photography = isPhotographyRequest(styleId, styleCat);
     const { modelKey, modelId, label: modelLabel } = resolveArtisticStudioModel({
       styleId,
       hasPhoto,
-      userDoc,
       styleCat,
     });
     const useQwenPhoto = modelKey === "qwen";
     const input = await imageInput(fields, files, modelKey, promptFinal, {
       experimental: experimental || useQwenPhoto,
-      photography: photography || useQwenPhoto,
-      photoEdit: hasPhoto && !experimental,
+      photoEdit: hasPhoto,
+      artisticPhotoEdit: hasPhoto,
+      artisticTextOnly: !hasPhoto,
     });
+    if (modelKey === "kontext" && hasPhoto) {
+      input.aspect_ratio = "match_input_image";
+      input.output_format = "jpg";
+      input.safety_tolerance = 2;
+    }
     let effects = {};
     try {
       const rawFx = text(fields, "effects_json", "{}");
@@ -1437,9 +2372,7 @@ async function routePost(path, fields, files, req) {
       modelUsed: modelLabel,
       spendDescription: isArtisticExperimentalStyleId(styleId)
         ? "Estúdio artístico · AI Lab (Qwen)"
-        : photography
-          ? "Estúdio artístico · Fotografia"
-          : "Estúdio artístico",
+        : "Estúdio artístico",
     });
   }
 
@@ -1461,34 +2394,342 @@ async function routePost(path, fields, files, req) {
       }
       prompt += " Legible typography, strong hierarchy, print quality.";
     }
+
+    const textManifest = buildPosterTextManifest(placeholders);
+    if (textManifest) prompt = `${prompt}\n\n${textManifest}`;
+
     const selected = text(fields, "model_key", "grok");
-    const modelKey = selected === "flux2" || selected === "gpt_image" ? "pro" : "standard";
     const perImage = selected === "gpt_image" ? CREDIT.posterPremium : selected === "flux2" ? CREDIT.posterPro : CREDIT.posterFast;
-    const count = Number(text(fields, "num_outputs", 1)) || 1;
+    const count = Math.max(1, Math.min(Number(text(fields, "num_outputs", 1)) || 1, 4));
     const templateId = text(fields, "template_id", "");
+    const variantKey = text(fields, "variant_key", "classic");
     const templateCategory = text(fields, "template_category", "").trim().toLowerCase();
+    const { user: posterUser } = resolveSessionUser(req);
+    let posterSubscriber = false;
+    let posterDbUser = null;
+    if (posterUser?.id && storageEnabled()) {
+      posterDbUser = await getUserById(posterUser.id);
+      posterSubscriber = Boolean(posterDbUser?.subscription?.active);
+    }
+    const posterEmail = String(posterDbUser?.email || posterUser?.email || "").trim().toLowerCase();
+    const tiaAnyAllowed = canAccessTiaAnyPostersByEmail(posterEmail);
+    const tiaAnyTemplate = templateCategory === "tia_any" || String(templateId).startsWith("tia_any_");
+    const tplAccess = getPosterTemplateById(templateId, {
+      subscriberActive: posterSubscriber,
+      tiaAnyAllowed,
+    });
+    if (tiaAnyTemplate && !tiaAnyAllowed) {
+      const err = new Error("Este template é exclusivo da Tia Any Fast Food.");
+      err.status = 403;
+      throw err;
+    }
+    if (tplAccess?.subscriber_only && tplAccess?.locked) {
+      const err = new Error("Este template é exclusivo do plano Creator Mensal (€14/mês).");
+      err.status = 403;
+      throw err;
+    }
     const posterFood = templateCategory === "food" || String(templateId).startsWith("food_");
     const photoRef = await resolveImageRef(files, fields, "photo", "photo_url");
+    const logoRef = await resolveImageRef(files, fields, "logo", "logo_url");
+    const hasPhoto = Boolean(photoRef || logoRef);
+    const aspectRatio = normalizeRatio(text(fields, "aspect_ratio", "4:5"), "standard");
+
+    const logoInstr = buildPosterLogoInstruction(Boolean(logoRef), Boolean(photoRef));
+    if (logoInstr) prompt = `${prompt}\n\n${logoInstr}`;
+    prompt = `${prompt}\n\n${POSTER_FULL_BLEED_GUARD}`;
+
+    const requiresDualPhoto = truthyField(fields, "requires_dual_photo");
+    const secondPersonRef = await resolveImageRef(files, fields, "image_1", "image_1_url");
+
+    if (tiaAnyTemplate) {
+      const uniformRef = await resolveImageRef(files, fields, "uniform", "uniform_url");
+      if (!logoRef || !uniformRef) {
+        const err = new Error("Referências oficiais da Tia Any em falta. Recarrega a página e tenta novamente.");
+        err.status = 400;
+        throw err;
+      }
+      const refs = [logoRef, uniformRef, photoRef, secondPersonRef].filter(Boolean).slice(0, 4);
+      prompt = `${prompt}
+
+TIA ANY REFERENCE ROLE MAP (mandatory):
+- Image 1 = official logo. Use this logo only, preserve colors and shape.
+- Image 2 = official employee uniform. Any employee must wear this black polo with the logo embroidered on left chest.
+- Image 3, if present = user reference 1. Preserve exact person identity if it is a person; preserve exact food if it is food.
+- Image 4, if present = user reference 2 / food. Preserve exact food appearance.
+If user food reference is absent, generate a fitting premium fast-food item. If user person reference is absent, generate a natural employee/customer only when the selected style needs one.`;
+
+      if (selected === "gpt_image") {
+        const size = aspectToOpenAISize(aspectRatio);
+        const outputAspect = openAISizeToAspectRatio(size);
+        const openaiPrompt = appendAspectOutputInstruction(
+          finalizeImagePrompt(prompt, {
+            modelKey: "gpt_image",
+            poster: true,
+            posterFood: true,
+            hasPersonPhoto: false,
+            photoEdit: false,
+          }),
+          outputAspect,
+        );
+        const urls = [];
+        let modelUsed = "openai/gpt-image-1";
+        for (let i = 0; i < count; i += 1) {
+          // eslint-disable-next-line no-await-in-loop
+          const result = await generateOpenAIImageEditDetailed({
+            prompt: openaiPrompt,
+            size,
+            imageRefs: refs,
+            inputFidelity: "high",
+            preferMultipart: true,
+          });
+          urls.push(result.url);
+          modelUsed = result.modelUsed || modelUsed;
+        }
+        return submitInstantPosterGeneration(req, fields, {
+          cost: posterHqPremiumCost(count),
+          prompt,
+          aspectRatio: outputAspect,
+          modelUsed: `${modelUsed} · Tia Any`,
+          urls,
+        });
+      }
+
+      const tiaResolved = resolvePosterModel(selected === "flux2" ? "nano_banana" : selected);
+      const tiaPrompt = finalizeImagePrompt(prompt, {
+        modelKey: selected === "grok" ? "standard" : "pro",
+        poster: true,
+        posterFood: true,
+        hasPersonPhoto: false,
+        photoEdit: false,
+      });
+      const tiaCost = (selected === "grok" ? CREDIT.posterFast : CREDIT.posterPro) * count;
+      if (tiaResolved.engine === "nano_banana") {
+        const nbInput = buildNanoBananaPosterInput({
+          prompt: tiaPrompt,
+          aspectRatio,
+          photoRef: refs[0],
+          garmentRef: refs[1],
+        });
+        nbInput.image_input = refs;
+        nbInput.num_outputs = count;
+        return submitBillableGeneration(req, fields, {
+          cost: tiaCost,
+          type: "poster",
+          modelId: tiaResolved.modelId,
+          input: nbInput,
+          prompt,
+          aspectRatio: nbInput.aspect_ratio,
+          modelUsed: "google/nano-banana · Tia Any multi-ref",
+          spendDescription: "Pôster · Tia Any Fast Food",
+        });
+      }
+
+      const tiaInput = await imageInput(fields, files, "standard", tiaPrompt, {
+        posterFood: true,
+        poster: true,
+        hasPersonPhoto: false,
+      });
+      tiaInput.image = refs[0];
+      tiaInput.aspect_ratio = aspectRatio;
+      tiaInput.num_outputs = count;
+      return submitBillableGeneration(req, fields, {
+        cost: tiaCost,
+        type: "poster",
+        modelId: tiaResolved.modelId || MODELS.standard,
+        input: tiaInput,
+        prompt,
+        aspectRatio: tiaInput.aspect_ratio,
+        modelUsed: "Grok · Tia Any",
+        spendDescription: "Pôster · Tia Any Fast Food",
+      });
+    }
+
+    const igRefTpl = isIgRefPosterTemplate(templateId) ? getIgRefTemplate(templateId) : null;
+    const igRefDual = Boolean(igRefTpl && (requiresDualPhoto || igRefTpl.requiresDualPhoto));
+    const igRefPhotosReady = Boolean(
+      igRefTpl
+      && photoRef
+      && (!igRefDual || secondPersonRef),
+    );
+    const igRefUsePdfEngine = Boolean(
+      igRefPhotosReady
+      && (selected === "flux2" || selected === "grok"),
+    );
+    if (igRefUsePdfEngine) {
+      const igGen = buildIgRefPosterGeneration({
+        templateId,
+        variantKey,
+        placeholders,
+        promptFinal: prompt,
+        requiresDualPhoto: igRefDual,
+        photoRef,
+        secondPersonRef,
+        selected,
+      });
+      if (igGen) {
+        if (igGen.engine === "flux") {
+          igGen.input.prompt = finalizeImagePrompt(igGen.input.prompt, {
+            modelKey: "pro",
+            poster: true,
+            hasPersonPhoto: true,
+            photoEdit: true,
+          });
+          igGen.input.prompt = appendAspectOutputInstruction(
+            igGen.input.prompt,
+            igGen.input.aspect_ratio,
+          );
+        }
+        const igPerImage = igRefDual
+          ? (selected === "grok" ? CREDIT.posterFast : CREDIT.posterPro)
+          : (selected === "flux2" ? CREDIT.posterPro : CREDIT.posterFast);
+        const igCost = igPerImage * count;
+        return submitBillableGeneration(req, fields, {
+          cost: igCost,
+          type: "poster",
+          modelId: igGen.modelId,
+          input: igGen.input,
+          prompt: igGen.prompt,
+          aspectRatio: igGen.aspectRatio,
+          modelUsed: igGen.modelUsed,
+          spendDescription: igRefDual
+            ? (selected === "grok" ? "Pôster IG · 2 pessoas (económico)" : "Pôster IG · 2 pessoas")
+            : (selected === "flux2" ? "Pôster IG · identidade" : "Pôster IG · identidade (económico)"),
+        });
+      }
+    }
+
+    if (requiresDualPhoto) {
+      if (!photoRef || !secondPersonRef) {
+        const err = new Error("Este estilo exige 2 fotos — uma de cada pessoa (1.ª principal, 2.ª referência).");
+        err.status = 400;
+        throw err;
+      }
+      prompt = `${buildStudioDualPersonBlock()}\n\n${prompt}`;
+      prompt = appendPhotoEditIdentity(prompt);
+      const dualAspectRaw = normalizeRatio(text(fields, "aspect_ratio", "4:5"), "pro");
+      const dualRatio = FLUX_SUPPORTED.has(dualAspectRaw) ? dualAspectRaw : "3:4";
+      const dualInput = {
+        prompt: finalizeImagePrompt(prompt, {
+          modelKey: "pro",
+          poster: true,
+          hasPersonPhoto: true,
+          photoEdit: true,
+        }),
+        images: [photoRef, secondPersonRef],
+        aspect_ratio: dualRatio,
+        disable_safety_checker: true,
+        go_fast: false,
+        output_format: "jpg",
+        output_quality: 95,
+      };
+      dualInput.prompt = appendAspectOutputInstruction(dualInput.prompt, dualRatio);
+      const dualPerImage = selected === "gpt_image"
+        ? CREDIT.posterPremium
+        : (selected === "grok" ? CREDIT.posterFast : CREDIT.posterPro);
+      const dualCost = dualPerImage * count;
+      return submitBillableGeneration(req, fields, {
+        cost: dualCost,
+        type: "poster",
+        modelId: MODELS.pro,
+        input: dualInput,
+        prompt,
+        aspectRatio: dualRatio,
+        modelUsed: "FLUX Klein · pôster 2 pessoas",
+        spendDescription: "Pôster · 2 pessoas",
+      });
+    }
+
+    const resolved = resolvePosterModel(selected);
+    const cost = resolved.engine === "openai"
+      ? posterHqPremiumCost(count)
+      : perImage * count;
+
+    if (resolved.engine === "openai") {
+      const size = aspectToOpenAISize(aspectRatio);
+      prompt = appendAspectOutputInstruction(prompt, openAISizeToAspectRatio(size));
+      const preparedRef = await preparePosterReferenceForOpenAI(photoRef, logoRef, size, {
+        subjectPosition: posterFood ? "centre" : "bottom",
+      });
+      const imageRef = preparedRef || photoRef || logoRef || null;
+      const outputAspect = openAISizeToAspectRatio(size);
+      const urls = [];
+      let modelUsed = resolved.modelUsed;
+      for (let i = 0; i < count; i += 1) {
+        // eslint-disable-next-line no-await-in-loop
+        const result = await generateOpenAIPosterImageDetailed(prompt, size, imageRef);
+        urls.push(result.url);
+        modelUsed = result.modelUsed || modelUsed;
+      }
+      return submitInstantPosterGeneration(req, fields, {
+        cost,
+        prompt,
+        aspectRatio: outputAspect,
+        modelUsed,
+        urls,
+      });
+    }
+
+    if (resolved.engine === "nano_banana") {
+      const nbInput = buildNanoBananaPosterInput({
+        prompt,
+        aspectRatio,
+        photoRef: photoRef || logoRef,
+      });
+      return submitBillableGeneration(req, fields, {
+        cost,
+        type: "poster",
+        modelId: resolved.modelId,
+        input: nbInput,
+        prompt,
+        aspectRatio: nbInput.aspect_ratio,
+        modelUsed: resolved.modelUsed,
+        spendDescription: "Pôster · média qualidade",
+      });
+    }
+
+    const subjectPosition = posterFood ? "centre" : "bottom";
+    const preparedRef = await preparePosterReference(photoRef, logoRef, aspectRatio, {
+      subjectPosition,
+    });
     const hasPersonPhoto = Boolean(photoRef) && !posterFood;
-    const input = await imageInput(fields, files, modelKey, prompt, {
+    const input = await imageInput(fields, files, "standard", prompt, {
       posterFood,
       poster: true,
       hasPersonPhoto,
+      preparedImage: preparedRef || undefined,
+      subjectPosition,
     });
-    const cost = perImage * count;
+    if (preparedRef) {
+      input.image = preparedRef;
+      delete input.images;
+      delete input.input_image;
+    }
+    input.aspect_ratio = aspectRatio;
+
+    const fluxFallbackInput = await buildFluxEasyFallbackInput(input, prompt);
+
     return submitBillableGeneration(req, fields, {
       cost,
       type: "poster",
-      modelId: MODELS[modelKey],
+      modelId: resolved.modelId || MODELS.standard,
       input,
       prompt,
       aspectRatio: input.aspect_ratio,
-      modelUsed: MODELS[modelKey],
+      modelUsed: resolved.modelUsed,
       spendDescription: "Pôster",
+      fallbackImageUrl: input.image || photoRef || logoRef || null,
+      fallbackPrompt: input.prompt || prompt,
+      fluxFallbackInput,
     });
   }
 
   if (path === "generate/manga-interaction") {
+    const { user: mangaUser } = resolveSessionUser(req);
+    if (!isAdminEmail(mangaUser?.email)) {
+      const err = new Error("Manga Studio disponível apenas para administradores.");
+      err.status = 403;
+      throw err;
+    }
     let promptFinal = text(fields, "prompt_final", "").trim();
     if (!promptFinal) throw new Error("Prompt em falta.");
     const photoA = await resolveImageRef(files, fields, "photo", "photo_url");
@@ -1500,10 +2741,19 @@ async function routePost(path, fields, files, req) {
       err.status = 400;
       throw err;
     }
-    const cost = Math.max(1, Number(CREDIT.mangaPanel) || 15);
+    const nameA = text(fields, "ref_a_name", "Character 1");
+    const nameB = text(fields, "ref_b_name", "Character 2");
+    const descA = text(fields, "ref_a_desc", "");
+    const descB = text(fields, "ref_b_desc", "");
+    const roleA = text(fields, "ref_a_role", "primary");
+    const roleB = text(fields, "ref_b_role", "support");
+    const dualBlock = buildMangaDualCharacterBlock(nameA, nameB, descA, descB, roleA, roleB);
+    promptFinal = `${dualBlock}\n\n${promptFinal}`;
+    const imageCount = mangaImagesCount(fields, 1);
+    const cost = qwenMangaPerImageCost(CREDIT) * imageCount;
     const aspect = normalizeRatio(text(fields, "aspect_ratio", "4:5"), "qwen");
     const input = {
-      prompt: finalizeImagePrompt(promptFinal, { modelKey: "qwen" }),
+      prompt: finalizeImagePrompt(promptFinal, { modelKey: "qwen", hasPersonPhoto: true }),
       image: [photoA, photoB],
       aspect_ratio: aspect === "match_input_image" ? "3:4" : aspect,
       go_fast: false,
@@ -1519,29 +2769,80 @@ async function routePost(path, fields, files, req) {
       prompt: promptFinal,
       aspectRatio: input.aspect_ratio,
       modelUsed: "Qwen Image Edit 2511",
-      spendDescription: "MANGA STUDIO · interação (2 refs)",
+      spendDescription: `MANGA STUDIO · interação (2 refs) · ${imageCount} imagem${imageCount !== 1 ? "s" : ""}`,
     });
   }
 
   if (path === "generate/manga-panel" || path === "generate/manga-page" || path === "generate/manga-chapter") {
+    const { user: mangaUser } = resolveSessionUser(req);
+    if (!isAdminEmail(mangaUser?.email)) {
+      const err = new Error("Manga Studio disponível apenas para administradores.");
+      err.status = 403;
+      throw err;
+    }
     let promptFinal = text(fields, "prompt_final", "").trim();
     if (!promptFinal) throw new Error("Prompt em falta.");
+    const generationMode = text(fields, "generation_mode", "").trim();
+    const panelCountField = parseInt(text(fields, "panel_count", "0"), 10) || 0;
+    const isComicSheet = path === "generate/manga-page" || generationMode === "comic_sheet";
+    if (isComicSheet) {
+      const sheetBlock = buildMangaComicSheetBlock(panelCountField || 4);
+      promptFinal = `${sheetBlock}\n\n${promptFinal}`;
+    }
+    const photoAEarly = await resolveImageRef(files, fields, "photo", "photo_url");
+    const photoBEarly = await resolveImageRef(files, fields, "photo_b", "photo_b_url");
+    if (photoAEarly && photoBEarly) {
+      const nameA = text(fields, "ref_a_name", "Character 1");
+      const nameB = text(fields, "ref_b_name", "Character 2");
+      const descA = text(fields, "ref_a_desc", "");
+      const descB = text(fields, "ref_b_desc", "");
+      const roleA = text(fields, "ref_a_role", "primary");
+      const roleB = text(fields, "ref_b_role", "support");
+      const dualBlock = buildMangaDualCharacterBlock(nameA, nameB, descA, descB, roleA, roleB);
+      promptFinal = `${dualBlock}\n\n${promptFinal}`;
+      const imageCount = mangaImagesCount(fields, isComicSheet ? 1 : 1);
+      const cost = qwenMangaPerImageCost(CREDIT) * imageCount;
+      // Comic sheets force portrait 3:4 (standard manga page) so the AI lays out vertical panels.
+      const requestedAspect = text(fields, "aspect_ratio", isComicSheet ? "3:4" : "4:5");
+      const aspect = normalizeRatio(isComicSheet ? "3:4" : requestedAspect, "qwen");
+      const input = {
+        prompt: finalizeImagePrompt(promptFinal, { modelKey: "qwen", hasPersonPhoto: true }),
+        image: [photoAEarly, photoBEarly],
+        aspect_ratio: aspect === "match_input_image" ? "3:4" : aspect,
+        go_fast: false,
+        disable_safety_checker: true,
+        output_format: "webp",
+        output_quality: 95,
+      };
+      const mode = path.replace("generate/manga-", "");
+      const spendLabels = {
+        panel: "MANGA STUDIO · painel (2 refs)",
+        page: "MANGA STUDIO · página (2 refs)",
+        chapter: "MANGA STUDIO · capítulo (2 refs)",
+      };
+      return submitBillableGeneration(req, fields, {
+        cost,
+        type: "manga",
+        modelId: QWEN_EDIT_MODEL,
+        input,
+        prompt: promptFinal,
+        aspectRatio: input.aspect_ratio,
+        modelUsed: "Qwen Image Edit 2511",
+        spendDescription: `${spendLabels[mode] || "MANGA STUDIO · 2 refs"} · ${imageCount} imagem${imageCount !== 1 ? "s" : ""}`,
+      });
+    }
     const mode = path.replace("generate/manga-", "");
-    const costMap = {
-      panel: CREDIT.mangaPanel ?? 15,
-      page: CREDIT.mangaPage ?? 40,
-      chapter: CREDIT.mangaChapter ?? 150,
-    };
-    const cost = Math.max(1, Number(costMap[mode]) || 15);
     const selected = text(fields, "model_key", "grok");
     const hasPhoto = Boolean(files.photo || text(fields, "photo_url", "").trim());
-    let modelKey = "standard";
-    if (selected === "gpt_image" || selected === "flux2") modelKey = "pro";
+    const modelKey = normalizeMangaModelKey(selected);
+    const imageCount = mangaImagesCount(fields, mode === "chapter" ? 4 : 1);
+    const cost = mangaPerImageCost(CREDIT, modelKey) * imageCount;
 
     const aspectDefault = mode === "chapter" ? "9:16" : mode === "page" ? "3:4" : text(fields, "aspect_ratio", "4:5");
     const input = await imageInput(fields, files, modelKey, promptFinal);
+    // Comic sheets always force portrait 3:4 regardless of user choice (manga page format).
     input.aspect_ratio = normalizeRatio(
-      text(fields, "aspect_ratio", "").trim() || aspectDefault,
+      isComicSheet ? "3:4" : (text(fields, "aspect_ratio", "").trim() || aspectDefault),
       modelKey,
     );
     const spendLabels = {
@@ -1558,7 +2859,7 @@ async function routePost(path, fields, files, req) {
       prompt: promptFinal,
       aspectRatio: input.aspect_ratio,
       modelUsed: modelId,
-      spendDescription: spendLabels[mode] || "MANGA STUDIO",
+      spendDescription: `${spendLabels[mode] || "MANGA STUDIO"} · ${imageCount} imagem${imageCount !== 1 ? "s" : ""}`,
     });
   }
 
@@ -1622,65 +2923,488 @@ async function routePost(path, fields, files, req) {
   }
 
   if (path === "generate/video") {
-    const prompt = text(fields, "prompt", "").trim();
+    const {
+      MODELS: VIDEO_MODELS,
+      resolveToolId,
+      computeVideoToolCost,
+      buildWanFastInput,
+      buildKlingInput,
+      applyPresetPrefix,
+    } = require("./lib/videoModels.cjs");
+    const lang = text(fields, "lang", "en").slice(0, 2);
+    const testMode = truthyField(fields, "test_mode");
+    const preset = text(fields, "video_preset", "").trim();
+    const rawTool = text(fields, "video_tool", "").trim();
+    let prompt = text(fields, "prompt", "").trim();
     if (!prompt) throw new Error("Descreve o vídeo.");
+    const photoRef = await resolveImageRef(files, fields, "photo", "photo_url");
+    const refRef = await resolveImageRef(files, fields, "reference_image", "reference_image_url");
+    const toolId = resolveToolId(rawTool || (photoRef ? "grok" : "kling_turbo"), {
+      hasPhoto: Boolean(photoRef),
+      preset,
+    });
+    if (preset) prompt = applyPresetPrefix(preset, prompt);
     const surcharges = getSurcharges(region);
-    const duration = Number(text(fields, "duration", "6"));
-    const videoCost = computeVideoGenerateCost(CREDIT, surcharges, { duration });
-    const input = await imageInput(fields, files, "video", prompt);
+    const duration = testMode ? 4 : Number(text(fields, "duration", "6"));
+    const aspect = text(fields, "aspect_ratio", "16:9");
+    let videoCost = computeVideoToolCost(CREDIT, surcharges, toolId, {
+      duration,
+      testMode,
+      hasPhoto: Boolean(photoRef),
+    });
+    if (truthyField(fields, "improve_prompt") && !testMode) {
+      prompt = await improvePrompt(prompt, lang, { tool: "video" });
+      videoCost += surcharges.enhancePrompt ?? 5;
+    }
+
+    let modelId;
+    let input;
+    let aspectRatio = aspect;
+
+    if (toolId === "grok") {
+      modelId = VIDEO_MODELS.grok;
+      input = await imageInput(fields, files, "video", prompt);
+      aspectRatio = input.aspect_ratio;
+    } else if (toolId === "kling_turbo" || toolId === "kling_elements") {
+      if (toolId === "kling_elements" && !photoRef) {
+        throw new Error("Envia a imagem principal.");
+      }
+      modelId = VIDEO_MODELS.kling_turbo;
+      input = buildKlingInput({
+        prompt,
+        aspect,
+        photo: photoRef,
+        reference: refRef,
+        duration,
+        elements: toolId === "kling_elements",
+      });
+      aspectRatio = input.aspect_ratio || aspect;
+    } else if (toolId === "wan_t2v_fast") {
+      modelId = VIDEO_MODELS.wan_t2v_fast;
+      input = buildWanFastInput({ prompt, aspect, isI2v: false });
+    } else if (toolId === "wan_i2v_fast") {
+      if (!photoRef) throw new Error("Envia uma imagem.");
+      modelId = VIDEO_MODELS.wan_i2v_fast;
+      input = buildWanFastInput({ prompt, aspect, photo: photoRef, reference: refRef, isI2v: true });
+    } else {
+      modelId = VIDEO_MODELS.kling_turbo;
+      input = buildKlingInput({ prompt, aspect, photo: photoRef, reference: refRef, duration });
+      aspectRatio = input.aspect_ratio || aspect;
+    }
+
     return submitBillableGeneration(req, fields, {
       cost: videoCost,
       type: "video",
-      modelId: MODELS.video,
+      modelId,
       input,
       prompt,
-      aspectRatio: input.aspect_ratio,
-      modelUsed: MODELS.video,
+      aspectRatio,
+      modelUsed: modelId,
       spendDescription: "Vídeo IA",
     });
   }
 
   if (path === "generate/video-edit") {
-    const lang = text(fields, "lang", "en").slice(0, 2);
-    if (truthyField(fields, "improve_prompt")) {
-      const raw = text(fields, "prompt", "").trim();
-      if (raw.length >= 3) {
-        fields.prompt = await improvePrompt(raw, lang, { tool: "video_edit" });
-      }
+    const { user: veUser } = resolveSessionUser(req);
+    if (!isAdminEmail(veUser?.email)) {
+      const err = new Error("Editor de vídeo (vídeo-para-vídeo) disponível apenas para administradores.");
+      err.status = 403;
+      throw err;
     }
-    const { input, prompt } = await videoEditInput(fields, files);
+    const {
+      applyPresetPrefix,
+      MODELS: VIDEO_MODELS,
+      resolveVideoEditToolId,
+    } = require("./lib/videoModels.cjs");
+    const lang = text(fields, "lang", "en").slice(0, 2);
+    const preset = text(fields, "video_preset", "").trim();
+    const editTool = resolveVideoEditToolId(text(fields, "video_tool", "grok_edit"));
+    let rawPrompt = text(fields, "prompt", "").trim();
+    if (truthyField(fields, "improve_prompt") && rawPrompt.length >= 3) {
+      rawPrompt = await improvePrompt(rawPrompt, lang, {
+        tool: "video_edit",
+        video_preset: preset,
+      });
+    }
+    if (preset && rawPrompt.length >= 3) {
+      rawPrompt = applyPresetPrefix(preset, rawPrompt);
+    }
+    fields.prompt = rawPrompt;
     const surcharges = getSurcharges(region);
-    const { validateVideoEditOptions } = require("./lib/videoEditPricing.cjs");
-    const resOpts = validateVideoEditOptions({
-      resolution: text(fields, "resolution", "original"),
-      duration: text(fields, "duration", "6"),
-    });
-    let cost = computeVideoEditCostFromConfig(CREDIT, surcharges, resOpts);
+    const { validateVideoEditOptions, computeVideoEditCostForEngine } = require("./lib/videoEditPricing.cjs");
+
+    let built;
+    let modelId;
+    let aspectRatio;
+    let resOpts;
+
+    if (editTool === "grok_edit") {
+      // Grok Imagine: melhor caminho NSFW / edits adultos (Wan costuma recusar).
+      built = await grokVideoEditInput(fields, files);
+      modelId = VIDEO_MODELS.grok_edit;
+      aspectRatio = "auto";
+      resOpts = { resolution: "original", duration: 8 };
+    } else if (editTool === "kling_edit") {
+      built = await klingVideoEditInput(fields, files);
+      modelId = VIDEO_MODELS.kling_edit;
+      aspectRatio = "auto";
+      resOpts = validateVideoEditOptions({
+        resolution: text(fields, "resolution", "original"),
+        duration: text(fields, "duration", "6"),
+      });
+    } else {
+      built = await videoEditInput(fields, files);
+      modelId = VIDEO_MODELS.wan_edit;
+      aspectRatio = built.input.aspect_ratio;
+      resOpts = validateVideoEditOptions({
+        resolution: text(fields, "resolution", "original"),
+        duration: text(fields, "duration", "6"),
+      });
+    }
+
+    let cost = computeVideoEditCostForEngine(CREDIT, surcharges, editTool, resOpts);
     if (truthyField(fields, "improve_prompt")) {
-      cost += surcharges.enhancePrompt ?? 3;
+      cost += surcharges.enhancePrompt ?? 5;
     }
     return submitBillableGeneration(req, fields, {
       cost,
       type: "video",
-      modelId: MODELS.video_edit,
-      input,
-      prompt,
-      aspectRatio: input.aspect_ratio,
-      modelUsed: MODELS.video_edit,
+      modelId,
+      input: built.input,
+      prompt: built.prompt,
+      aspectRatio,
+      modelUsed: `${modelId} · ${editTool}`,
       spendDescription: "Editor vídeo",
     });
   }
 
-  if (path === "tools/bg-remove") {
-    const image = await resolveImageRef(files, fields, "photo", "photo_url");
-    const input = { image };
+  if (path === "generate/video-extend") {
+    const { MODELS: VIDEO_MODELS, buildVideoExtendPrompt } = require("./lib/videoModels.cjs");
+    const lang = text(fields, "lang", "en").slice(0, 2);
+    let rawPrompt = text(fields, "prompt", "").trim();
+    if (rawPrompt.length < 3) throw new Error("Descreve o que acontece a seguir (mín. 3 caracteres).");
+    if (truthyField(fields, "improve_prompt")) {
+      rawPrompt = await improvePrompt(rawPrompt, lang, { tool: "video_extend" });
+      fields.prompt = rawPrompt;
+    }
+    const { input, prompt } = await videoExtendInput(fields, files);
+    const surcharges = getSurcharges(region);
+    const { validateVideoExtendOptions, computeVideoExtendCost } = require("./lib/videoExtendPricing.cjs");
+    const resOpts = validateVideoExtendOptions({
+      resolution: text(fields, "resolution", "1080p"),
+      duration: text(fields, "duration", "6"),
+    });
+    let cost = computeVideoExtendCost({
+      resolution: resOpts.resolution,
+      duration: resOpts.duration,
+      regionId: region,
+    });
+    if (truthyField(fields, "improve_prompt")) {
+      cost += surcharges.enhancePrompt ?? 5;
+    }
     return submitBillableGeneration(req, fields, {
-      cost: CREDIT.bgRemove,
-      type: "image",
-      modelId: MODELS.bg_remove,
+      cost,
+      type: "video",
+      modelId: VIDEO_MODELS.wan_extend,
       input,
-      prompt: "Remover fundo",
-      spendDescription: "Remover fundo",
+      prompt,
+      aspectRatio: "auto",
+      modelUsed: VIDEO_MODELS.wan_extend,
+      spendDescription: "Estender vídeo",
+    });
+  }
+
+  if (path === "brand-campaign/analyze") {
+    await requireAdminSession(req);
+    const bc = require("./lib/brandCampaign/index.cjs");
+    const { mirrorUrlsToBlob } = require("./lib/creationMedia.cjs");
+    const lang = userLang(req, fields).slice(0, 2);
+    const websiteUrl = text(fields, "website_url", "").trim();
+    const imageUrls = await resolveMarketingVideoImages(files, fields, 5);
+
+    if (!websiteUrl && !imageUrls.length) {
+      const err = new Error("Cola o link do site ou envia pelo menos uma foto do produto.");
+      err.status = 400;
+      throw err;
+    }
+
+    let websiteSnapshot = null;
+    if (websiteUrl) {
+      websiteSnapshot = await bc.fetchWebsiteSnapshot(websiteUrl);
+    }
+
+    const brief = await bc.analyzeBrandCampaign({
+      websiteSnapshot,
+      imageUrls,
+      lang,
+    });
+
+    const refCandidates = [
+      ...imageUrls,
+      ...(websiteSnapshot?.product_images || []),
+      websiteSnapshot?.og_image,
+    ].filter(Boolean);
+    const mirrored = await mirrorUrlsToBlob([...new Set(refCandidates)].slice(0, 4));
+    brief.reference_image_urls = mirrored.filter((u) => String(u).startsWith("http"));
+
+    return {
+      brief,
+      concepts_count: brief.concepts?.length || bc.CONCEPT_COUNT,
+      per_image_cost: bc.getBrandCampaignPerImageCost(CREDIT),
+      model_used: "google/nano-banana + gpt-4o analysis",
+      site_read_method: websiteSnapshot?.read_method || "",
+      uploaded_photos_count: imageUrls.length,
+      vision_images_count: brief.vision_images_count || 0,
+    };
+  }
+
+  if (path === "generate/brand-campaign") {
+    await requireAdminSession(req);
+    const bcBatch = require("./lib/brandCampaign/brandCampaignBatch.cjs");
+    const brief = bcBatch.parseBriefField(text(fields, "brief", ""));
+    if (!brief?.concepts?.length) {
+      const err = new Error("Brief de marca inválido — analisa de novo.");
+      err.status = 400;
+      throw err;
+    }
+
+    const bc = require("./lib/brandCampaign/index.cjs");
+    const { resolveConceptForBatchSlot } = require("./lib/brandCampaign/brandCampaignConceptSlots.cjs");
+    const conceptIndex = Math.max(0, Math.min(
+      bc.CONCEPT_COUNT - 1,
+      Number(text(fields, "concept_index", 0)) || 0,
+    ));
+    const concept = resolveConceptForBatchSlot(brief, conceptIndex, 1);
+    const aspectRatio = normalizeRatio(text(fields, "aspect_ratio", "4:5"), "standard");
+    const uploadedUrls = await resolveMarketingVideoImages(files, fields, 5);
+    const imageUrls = uploadedUrls.length
+      ? uploadedUrls.slice(0, 4)
+      : (brief.reference_image_urls || []).filter((u) => String(u).startsWith("http")).slice(0, 4);
+
+    const { resolveCategoryId } = require("./lib/brandCampaign/brandCampaignCategories.cjs");
+    const styleCategory = resolveCategoryId(text(fields, "style_category", "general"));
+    const stylePresetId = String(text(fields, "style_preset", "auto") || "auto").trim() || "auto";
+    const bcLang = userLang(req, fields).slice(0, 2);
+    const stylePreset = bc.pickBrandCampaignPreset({
+      categoryId: styleCategory,
+      presetId: stylePresetId,
+      conceptIndex,
+      lang: bcLang,
+    });
+
+    const submission = bcBatch.buildBrandCampaignSubmission({
+      brief,
+      concept,
+      batchSlotIndex: conceptIndex,
+      aspectRatio,
+      imageUrls,
+      CREDIT,
+      finalizeImagePrompt,
+      appendAspectOutputInstruction,
+      stylePreset,
+      batchTotal: 1,
+    });
+
+    return submitBillableGeneration(req, fields, submission);
+  }
+
+  if (path === "generate/brand-campaign-batch") {
+    await requireAdminSession(req);
+    const bcBatch = require("./lib/brandCampaign/brandCampaignBatch.cjs");
+    return bcBatch.runBrandCampaignBatch({
+      req,
+      fields,
+      files,
+      CREDIT,
+      deps: {
+        text,
+        resolveMarketingVideoImages,
+        submitBillableGeneration,
+        getPrediction,
+        normalizeRatio,
+        finalizeImagePrompt,
+        appendAspectOutputInstruction,
+      },
+    });
+  }
+
+  if (path === "generate/motion-flyer") {
+    const {
+      runMotionFlyerPipeline,
+      validateMotionFlyerDuration,
+      computeMotionFlyerCost,
+    } = require("./lib/motionFlyer/index.cjs");
+    const { resolveMotionFlyerAspectRatio: detectAspect } = require("./lib/motionFlyer/motionFlyerAspect.cjs");
+    const lang = text(fields, "lang", "pt").slice(0, 2);
+    const duration = validateMotionFlyerDuration(text(fields, "duration", "10"));
+    const imageUrls = await resolveMarketingVideoImages(files, fields, 1);
+    if (!imageUrls.length) throw new Error("Envia o flyer (imagem).");
+
+    const aspectMeta = await detectAspect({
+      fields,
+      files,
+      imageUrls,
+      fileOf,
+      textFn: text,
+    });
+
+    const pipeline = await runMotionFlyerPipeline({
+      imageUrls,
+      duration,
+      lang,
+      aspectRatio: aspectMeta.aspectRatio,
+      imageWidth: aspectMeta.width,
+      imageHeight: aspectMeta.height,
+    });
+
+    const cost = computeMotionFlyerCost(region, duration);
+
+    return submitBillableGeneration(req, fields, {
+      cost,
+      type: "motion_flyer",
+      modelId: pipeline.modelId,
+      input: pipeline.input,
+      prompt: pipeline.prompt,
+      aspectRatio: pipeline.aspectRatio || "9:16",
+      modelUsed: pipeline.modelId,
+      spendDescription: `Motion Flyer IA · ${duration}s · ${pipeline.aspectRatio || "9:16"}`,
+      pendingMeta: {
+        motion_flyer_duration: duration,
+        motion_flyer_category: pipeline.analysis?.category || "",
+        motion_flyer_aspect_ratio: pipeline.aspectRatio || aspectMeta.aspectRatio || "",
+        motion_flyer_image_width: pipeline.imageWidth || aspectMeta.width || null,
+        motion_flyer_image_height: pipeline.imageHeight || aspectMeta.height || null,
+        motion_flyer_provider: pipeline.providerId,
+        motion_flyer_prompt_id: pipeline.promptId || "",
+      },
+    });
+  }
+
+  if (path === "generate/marketing-video") {
+    const {
+      runMarketingVideoPipeline,
+      validateMarketingVideoDuration,
+      computeMarketingVideoCost,
+    } = require("./lib/marketingVideo/index.cjs");
+    const lang = text(fields, "lang", "pt").slice(0, 2);
+    const mode = text(fields, "mode", "quick").trim();
+    const isCgiPreview = mode === "cgi_preview";
+    if (isCgiPreview) {
+      const { user: mvUser } = resolveSessionUser(req);
+      if (!isAdminEmail(mvUser?.email)) {
+        const err = new Error("Modo Prévia CGI disponível apenas para administradores.");
+        err.status = 403;
+        throw err;
+      }
+    }
+    const manualCategory = mode === "quick" || isCgiPreview ? "" : text(fields, "category", "").trim();
+    const visualStyle = mode === "quick" ? "random" : text(fields, "visual_style", "").trim();
+    const templateId = isCgiPreview ? text(fields, "template_id", "").trim() : "";
+    const formatId = text(fields, "format", "").trim();
+    const duration = validateMarketingVideoDuration(text(fields, "duration", "15"));
+    const imageUrls = await resolveMarketingVideoImages(files, fields, 5);
+    if (!imageUrls.length) throw new Error("Envia pelo menos uma imagem principal.");
+
+    const pipeline = await runMarketingVideoPipeline({
+      imageUrls,
+      duration,
+      manualCategory,
+      visualStyle,
+      lang,
+      formatId,
+      mode,
+      templateId,
+    });
+
+    const cost = computeMarketingVideoCost(region, duration);
+
+    return submitBillableGeneration(req, fields, {
+      cost,
+      type: "marketing_video",
+      modelId: pipeline.modelId,
+      input: pipeline.input,
+      prompt: pipeline.prompt,
+      aspectRatio: pipeline.aspectRatio || "9:16",
+      modelUsed: pipeline.modelId,
+      spendDescription: `Vídeo marketing IA · ${duration}s`,
+      pendingMeta: {
+        marketing_video_duration: duration,
+        marketing_video_category: pipeline.analysis?.category || manualCategory,
+        marketing_video_visual_style: pipeline.visualStyleId || visualStyle || "",
+        marketing_video_format: formatId || "",
+        marketing_video_provider: pipeline.providerId,
+        marketing_video_image_count: imageUrls.length,
+        marketing_video_mode: mode,
+        marketing_video_template_id: pipeline.cgiTemplateId || templateId || "",
+        marketing_video_prompt_id: pipeline.promptId || "",
+        marketing_video_admin_storyboard: pipeline.adminStoryboard || null,
+        marketing_video_image_urls: imageUrls,
+      },
+    });
+  }
+
+  if (path === "tools/bg-remove") {
+    const { buildBgScenePrompt, parseBgRemoveFields } = require("./lib/bgRemove.cjs");
+    const image = await resolveImageRef(files, fields, "photo", "photo_url");
+    if (!image) {
+      const err = new Error("Envia uma foto (JPEG, PNG ou WEBP).");
+      err.status = 400;
+      throw err;
+    }
+    const { bgMode, sceneKey, bgPrompt, keepShadow, refineHair, solidColor } = parseBgRemoveFields(
+      text,
+      fields,
+    );
+
+    if (bgMode === "transparent" || bgMode === "solid") {
+      const spend =
+        bgMode === "solid"
+          ? `Remover fundo (cor sólida ${solidColor})`
+          : "Remover fundo (transparente)";
+      return submitBillableGeneration(req, fields, {
+        cost: CREDIT.bgRemove,
+        type: "image",
+        modelId: MODELS.bg_remove,
+        input: { image },
+        prompt: spend,
+        spendDescription: "Remover fundo",
+      });
+    }
+
+    if (bgMode !== "scene" && bgMode !== "custom") {
+      const err = new Error("Modo de fundo inválido.");
+      err.status = 400;
+      throw err;
+    }
+    if (bgMode === "custom" && bgPrompt.length < 4) {
+      const err = new Error("Descreve o fundo (mín. 4 caracteres).");
+      err.status = 400;
+      throw err;
+    }
+
+    const prompt = buildBgScenePrompt({
+      bgMode,
+      sceneKey,
+      bgPrompt,
+      keepShadow,
+      refineHair,
+    });
+
+    return submitBillableGeneration(req, fields, {
+      cost: CREDIT.bgRemoveScene,
+      type: "image",
+      modelId: MODELS.kontext,
+      input: {
+        input_image: image,
+        prompt,
+        aspect_ratio: "match_input_image",
+        output_format: "jpg",
+        safety_tolerance: 2,
+      },
+      prompt,
+      aspectRatio: "match_input_image",
+      modelUsed: MODELS.kontext,
+      spendDescription: bgMode === "scene" ? "Remover fundo · cena" : "Remover fundo · personalizado",
     });
   }
 
@@ -1735,27 +3459,86 @@ async function routePost(path, fields, files, req) {
   if (path === "tools/clothes") {
     const person = await resolveImageRef(files, fields, "photo", "photo_url");
     const garment = await resolveImageRef(files, fields, "garment", "garment_url");
-    const hasGarment = Boolean(person && garment);
-    const prompt = buildClothesPrompt(fields, hasGarment);
-    const input = { prompt, aspect_ratio: "match_input_image" };
-    let modelId = MODELS.standard;
-    let modelUsed = MODELS.standard;
+    const mode = text(fields, "mode", "normal").trim().toLowerCase();
+    const engine = text(fields, "engine", "normal").trim().toLowerCase();
+    const wantsNsfw = engine === "nsfw" || engine === "grok" || engine === "grok_nsfw";
 
-    if (hasGarment) {
-      input.images = [person, garment];
-      modelId = MODELS.pro;
-      modelUsed = MODELS.pro;
-    } else if (person) {
-      input.image = person;
+    if (mode === "fashion") {
+      if (!person || !garment) {
+        const err = new Error("Modo Fashion: envia foto da pessoa e foto da roupa.");
+        err.status = 400;
+        throw err;
+      }
+      const result = await generateFashionClothesImage(person, garment);
+      return submitInstantPosterGeneration(req, fields, {
+        cost: CREDIT.clothes,
+        prompt: result.prompt,
+        aspectRatio: result.aspectRatio || "4:5",
+        modelUsed: result.modelUsed,
+        urls: [result.url],
+        type: "clothes",
+        spendDescription: "Trocar roupa · Modo Fashion",
+      });
     }
+
+    if (!person) {
+      const err = new Error("Envia uma foto da pessoa.");
+      err.status = 400;
+      throw err;
+    }
+    if (!garment) {
+      const err = new Error("Envia uma foto da roupa de referência.");
+      err.status = 400;
+      throw err;
+    }
+
+    // NSFW engine is admin-only (Grok Imagine — more permissive than Flux for adult).
+    if (wantsNsfw) {
+      await requireAdminSession(req);
+    }
+
+    const hasGarment = true;
+    let prompt = buildClothesPrompt(fields, hasGarment);
+
+    if (wantsNsfw) {
+      prompt += (
+        "\n\nADMIN NSFW MODE: Adult / nude / lingerie / explicit outfit content in the references is allowed. "
+        + "Do not refuse, censor, blur, or cover the body. Keep exact identity and pose; change only the clothes/outfit "
+        + "using Image 1 = person and Image 2 = garment/outfit reference."
+      );
+      const aspect = await detectNearestGrokAspect(person);
+      const input = {
+        prompt,
+        aspect_ratio: aspect || "3:4",
+        // Grok Imagine accepts image as array for multi-ref edits (person + garment).
+        image: [person, garment],
+      };
+      return submitBillableGeneration(req, fields, {
+        cost: CREDIT.clothes,
+        type: "image",
+        modelId: MODELS.standard,
+        input,
+        prompt,
+        aspectRatio: input.aspect_ratio,
+        modelUsed: `${MODELS.standard} · clothes NSFW`,
+        spendDescription: "Trocar roupa · NSFW (admin)",
+      });
+    }
+
+    const input = {
+      prompt,
+      aspect_ratio: "match_input_image",
+      images: [person, garment],
+      disable_safety_checker: true,
+    };
 
     return submitBillableGeneration(req, fields, {
       cost: CREDIT.clothes,
       type: "image",
-      modelId,
+      modelId: MODELS.pro,
       input,
       prompt,
-      modelUsed,
+      modelUsed: MODELS.pro,
       spendDescription: "Trocar roupa",
     });
   }
@@ -1763,7 +3546,14 @@ async function routePost(path, fields, files, req) {
   if (path === "tools/inpaint") {
     const image = await resolveImageRef(files, fields, "photo", "photo_url");
     const mask = await resolveImageRef(files, fields, "mask", "mask_url");
-    const prompt = text(fields, "prompt", "background");
+    let prompt = text(fields, "prompt", "background");
+    const lang = text(fields, "lang", "en").slice(0, 2);
+    const surcharges = getSurcharges(region);
+    let inpaintCost = CREDIT.inpaint;
+    if (truthyField(fields, "improve_prompt")) {
+      prompt = await improvePrompt(prompt, lang, { tool: "inpaint" });
+      inpaintCost += surcharges.enhancePrompt ?? 5;
+    }
     const input = {
       image,
       mask,
@@ -1771,7 +3561,7 @@ async function routePost(path, fields, files, req) {
       output_format: "jpg",
     };
     return submitBillableGeneration(req, fields, {
-      cost: CREDIT.inpaint,
+      cost: inpaintCost,
       type: "image",
       modelId: MODELS.inpaint,
       input,
@@ -1781,10 +3571,116 @@ async function routePost(path, fields, files, req) {
   }
 
   if (path === "stripe/checkout") {
-    const packageId = text(fields, "package", "starter");
+    const { user: checkoutUser, isLocal: checkoutLocal } = resolveSessionUser(req);
+    if (!checkoutUser || checkoutLocal) {
+      const err = new Error("Inicia sessão para comprar créditos.");
+      err.status = 401;
+      throw err;
+    }
+    const wallet = text(fields, "wallet", "standard");
+    const packageId = text(fields, "package", wallet === "premium" ? "hq_250" : wallet === "subscription" ? CREATOR_PLAN_ID : "starter");
     const customCreditsRaw = Number(text(fields, "custom_credits", 0));
     const region = regionFromRequest(req, fields);
     const cfg = getRegionConfig(region);
+
+    if (wallet === "subscription" || packageId === CREATOR_PLAN_ID) {
+      const subPlan = getSubscriptionPlan(region);
+      if (!subPlan) {
+        const err = new Error("Plano mensal indisponível nesta região.");
+        err.status = 400;
+        throw err;
+      }
+      let origin = String(fields.origin || process.env.SITE_URL || "https://www.remakepix.com").replace(/\/$/, "");
+      try {
+        const u = new URL(origin);
+        if (u.hostname.endsWith(".vercel.app") || u.hostname === "remakepix.com") {
+          origin = "https://www.remakepix.com";
+        }
+      } catch {
+        origin = "https://www.remakepix.com";
+      }
+      const stripe = stripeClient();
+      const session = await stripe.checkout.sessions.create({
+        mode: "subscription",
+        payment_method_types: ["card"],
+        customer_email: checkoutUser.email || undefined,
+        line_items: [{
+          price_data: {
+            currency: cfg.currency,
+            unit_amount: subPlan.amount_cents,
+            recurring: { interval: "month" },
+            product_data: {
+              name: `Remake — ${subPlan.name}`,
+              description: subPlan.tagline || `${subPlan.credits_per_month} créditos/mês`,
+            },
+          },
+          quantity: 1,
+        }],
+        metadata: {
+          user_id: checkoutUser.id,
+          package: CREATOR_PLAN_ID,
+          wallet: "subscription",
+          pricing_region: region,
+        },
+        subscription_data: {
+          metadata: {
+            user_id: checkoutUser.id,
+            package: CREATOR_PLAN_ID,
+            pricing_region: region,
+          },
+        },
+        success_url: `${origin}/app/billing?checkout=success&session_id={CHECKOUT_SESSION_ID}&wallet=subscription`,
+        cancel_url: `${origin}/app/billing?checkout=cancel`,
+      });
+      return { checkout_url: session.url, pricing_region: region, wallet: "subscription" };
+    }
+
+    if (wallet === "premium") {
+      const hqPkg = (cfg.premium_packages || {})[packageId];
+      if (!hqPkg) {
+        const err = new Error("Pacote HQ inválido.");
+        err.status = 400;
+        throw err;
+      }
+      const premiumCredits = Number(hqPkg.premium_credits) || 0;
+      let origin = String(fields.origin || process.env.SITE_URL || "https://www.remakepix.com").replace(/\/$/, "");
+      try {
+        const u = new URL(origin);
+        if (u.hostname.endsWith(".vercel.app") || u.hostname === "remakepix.com") {
+          origin = "https://www.remakepix.com";
+        }
+      } catch {
+        origin = "https://www.remakepix.com";
+      }
+      const stripe = stripeClient();
+      const session = await stripe.checkout.sessions.create({
+        mode: "payment",
+        payment_method_types: ["card"],
+        customer_email: checkoutUser.email || undefined,
+        line_items: [{
+          price_data: {
+            currency: cfg.currency,
+            unit_amount: hqPkg.amount_cents,
+            product_data: {
+              name: `Remake HQ — ${hqPkg.name} (${premiumCredits} créditos HQ)`,
+              description: hqPkg.tagline || "Créditos para posters alta qualidade",
+            },
+          },
+          quantity: 1,
+        }],
+        metadata: {
+          user_id: checkoutUser.id,
+          package: packageId,
+          wallet: "premium",
+          premium_credits: String(premiumCredits),
+          pricing_region: region,
+        },
+        success_url: `${origin}/app/billing?checkout=success&session_id={CHECKOUT_SESSION_ID}&wallet=premium`,
+        cancel_url: `${origin}/app/billing?checkout=cancel`,
+      });
+      return { checkout_url: session.url, pricing_region: region, wallet: "premium" };
+    }
+
     const pkg = cfg.packages[packageId];
     const hasCustom = Number.isFinite(customCreditsRaw) && customCreditsRaw > 0;
     if (!pkg && !hasCustom) {
@@ -1804,23 +3700,33 @@ async function routePost(path, fields, files, req) {
     const packageLabel = hasCustom ? "Custom" : pkg.name;
     const packageTagline = hasCustom ? `${credits} créditos personalizados` : pkg.tagline;
     const metadataPackage = hasCustom ? "custom" : packageId;
-    const origin = fields.origin || "https://remakepix.com";
+    let origin = String(fields.origin || process.env.SITE_URL || "https://www.remakepix.com").replace(/\/$/, "");
+    try {
+      const u = new URL(origin);
+      if (u.hostname.endsWith(".vercel.app") || u.hostname === "remakepix.com") {
+        origin = "https://www.remakepix.com";
+      }
+    } catch {
+      origin = "https://www.remakepix.com";
+    }
     const stripe = stripeClient();
     const session = await stripe.checkout.sessions.create({
       mode: "payment",
       payment_method_types: ["card"],
+      customer_email: checkoutUser.email || undefined,
       line_items: [{
         price_data: {
           currency: cfg.currency,
           unit_amount: amountCents,
           product_data: {
-            name: `Remake Pixel — ${packageLabel} (${credits} créditos)`,
+            name: `Remake — ${packageLabel} (${credits} créditos)`,
             description: packageTagline,
           },
         },
         quantity: 1,
       }],
       metadata: {
+        user_id: checkoutUser.id,
         package: metadataPackage,
         credits: String(credits),
         pricing_region: region,
@@ -1829,6 +3735,48 @@ async function routePost(path, fields, files, req) {
       cancel_url: `${origin}/app/billing?checkout=cancel`,
     });
     return { checkout_url: session.url, pricing_region: region };
+  }
+
+  if (path === "stripe/portal") {
+    const { user: portalUser, isLocal: portalLocal } = resolveSessionUser(req);
+    if (!portalUser || portalLocal) {
+      const err = new Error("Inicia sessão para gerir a subscrição.");
+      err.status = 401;
+      throw err;
+    }
+    const dbUser = await getUserById(portalUser.id);
+    if (!dbUser?.subscription?.can_manage) {
+      const err = new Error("Sem subscrição activa para gerir.");
+      err.status = 400;
+      throw err;
+    }
+    const { getDb } = require("./lib/mongo.cjs");
+    const db = await getDb();
+    const raw = await db.collection("users").findOne(
+      { id: portalUser.id },
+      { projection: { stripe_customer_id: 1 } },
+    );
+    const customerId = raw?.stripe_customer_id;
+    if (!customerId) {
+      const err = new Error("Cliente Stripe em falta.");
+      err.status = 400;
+      throw err;
+    }
+    let origin = String(fields.origin || process.env.SITE_URL || "https://www.remakepix.com").replace(/\/$/, "");
+    try {
+      const u = new URL(origin);
+      if (u.hostname.endsWith(".vercel.app") || u.hostname === "remakepix.com") {
+        origin = "https://www.remakepix.com";
+      }
+    } catch {
+      origin = "https://www.remakepix.com";
+    }
+    const stripe = stripeClient();
+    const portal = await stripe.billingPortal.sessions.create({
+      customer: customerId,
+      return_url: `${origin}/app/billing`,
+    });
+    return { portal_url: portal.url };
   }
 
   const err = new Error("Endpoint não encontrado.");
@@ -1841,7 +3789,7 @@ async function handlePath(path, req, res) {
   if (req.method === "OPTIONS") return res.status(204).end();
 
   try {
-    if (path.startsWith("admin/") && ["GET", "POST", "PATCH"].includes(req.method)) {
+    if (path.startsWith("admin/") && ["GET", "POST", "PATCH", "DELETE"].includes(req.method)) {
       return handleAdminRoute(path, req, res, { verifySessionToken, json, readJsonRequestBody });
     }
 
@@ -1855,8 +3803,22 @@ async function handlePath(path, req, res) {
       return json(res, 200, { presets: listProPresets() });
     }
 
+    if (req.method === "GET" && path === "public/gpt-hq-styles") {
+      return json(res, 200, { styles: listGptHqStylesPublic() });
+    }
+
     if (req.method === "GET" && path === "public/poster-templates") {
-      return json(res, 200, { templates: listPosterTemplates() });
+      const { user } = resolveSessionUser(req);
+      let subscriberActive = false;
+      let tiaAnyAllowed = false;
+      if (user?.id && storageEnabled()) {
+        const dbUser = await getUserById(user.id);
+        subscriberActive = Boolean(dbUser?.subscription?.active);
+        tiaAnyAllowed = canAccessTiaAnyPostersByEmail(dbUser?.email || user.email);
+      } else if (user?.email) {
+        tiaAnyAllowed = canAccessTiaAnyPostersByEmail(user.email);
+      }
+      return json(res, 200, { templates: listPosterTemplates({ subscriberActive, tiaAnyAllowed }) });
     }
 
     if (req.method === "GET" && path === "public/poster-models") {
@@ -1864,31 +3826,41 @@ async function handlePath(path, req, res) {
       const client = String(req.headers["x-pricing-region"] || "").trim();
       const region = resolvePricingRegion({ countryCode: country, clientRegion: client });
       const CREDIT = getCreditCostsForRegion(region);
+      const { openaiConfigured } = require("./lib/openaiEnv.cjs");
+      const openaiReady = openaiConfigured();
+      const hqCost = getPosterHqPremiumCostPerOutput();
       return json(res, 200, {
+        openai_ready: openaiReady,
         models: [
           {
             key: "grok",
-            label: "Motor Rápido",
+            label: "Baixa qualidade",
             cost: CREDIT.posterFast,
             tier: "fast",
+            wallet: "standard",
             supports_photo: true,
-            tag: "Padrão · rápido",
+            tag: "Rápido · económico",
+            available: true,
           },
           {
             key: "flux2",
-            label: "Motor Pro",
+            label: "Média qualidade",
             cost: CREDIT.posterPro,
             tier: "pro",
+            wallet: "standard",
             supports_photo: true,
             tag: "Foto-realista",
+            available: true,
           },
           {
             key: "gpt_image",
-            label: "Motor Premium",
-            cost: CREDIT.posterPremium,
+            label: "Alta qualidade",
+            cost: hqCost,
             tier: "premium",
+            wallet: "premium",
             supports_photo: true,
-            tag: "Qualidade Máxima",
+            tag: "Texto nítido · máximo detalhe",
+            available: openaiReady,
           },
         ],
       });
@@ -1925,7 +3897,86 @@ async function handlePath(path, req, res) {
         label: cfg.label,
         checkout_note: cfg.checkoutNote,
         packages: getPackagesForRegion(region),
+        premium_packages: getPremiumPackagesForRegion(region),
+        subscription_plans: getSubscriptionPlansForRegion(region),
+        poster_hq_cost: getPosterHqPremiumCostPerOutput(),
       });
+    }
+
+    if (req.method === "GET" && path === "brand-campaign/config") {
+      const country = countryFromRequest(req);
+      const client = String(req.headers["x-pricing-region"] || "").trim();
+      const region = resolvePricingRegion({ countryCode: country, clientRegion: client });
+      const CREDIT = getCreditCostsForRegion(region);
+      const bc = require("./lib/brandCampaign/index.cjs");
+      const { openaiConfigured } = require("./lib/openaiEnv.cjs");
+      const bcLang = String(req.headers["x-lang"] || req.headers["accept-language"] || "pt").slice(0, 2);
+      return json(res, 200, {
+        per_image_cost: bc.getBrandCampaignPerImageCost(CREDIT),
+        max_outputs: bc.MAX_OUTPUTS,
+        min_outputs: bc.MIN_OUTPUTS,
+        concept_pool: bc.CONCEPT_COUNT,
+        model: "google/nano-banana",
+        analysis_model: "gpt-4o",
+        openai_ready: openaiConfigured(),
+        aspect_ratios: ["1:1", "4:5", "9:16", "16:9", "3:4"],
+        max_photos: 5,
+        style_categories: bc.listBrandCampaignCategories(bcLang),
+        style_preset_count: bc.presetCount(),
+      });
+    }
+
+    if (req.method === "GET" && (path === "marketing-video/config" || path === "marketing-video/history")) {
+      const country = countryFromRequest(req);
+      const client = String(req.headers["x-pricing-region"] || "").trim();
+      const region = resolvePricingRegion({ countryCode: country, clientRegion: client });
+      const lang = String(req.headers["x-lang"] || req.headers["accept-language"] || "pt").slice(0, 2);
+      const mv = require("./lib/marketingVideo/index.cjs");
+      if (path === "marketing-video/config") {
+        const { user: sessionUser } = resolveSessionUser(req);
+        const adminOk = isAdminEmail(sessionUser?.email);
+        return json(res, 200, {
+          provider: mv.getMarketingVideoProvider(),
+          durations: mv.ALLOWED_DURATIONS,
+          duration: mv.MARKETING_VIDEO_DURATION,
+          pricing: mv.getMarketingVideoPricingMap(region),
+          max_images: 5,
+          aspect_ratio: "9:16",
+          default_format: mv.DEFAULT_FORMAT_ID,
+          formats: mv.listMarketingVideoFormats(lang),
+          categories: mv.listMarketingCategories(lang),
+          visual_styles: mv.listVisualStyles(lang),
+          cgi_templates: adminOk ? mv.listCgiTemplates(lang, { includeBeats: true }) : [],
+          cgi_storyboard_admin: adminOk,
+          cgi_preview_enabled: adminOk,
+          prompt_variants: mv.allPromptEntries().length,
+        });
+      }
+      const { user } = resolveSessionUser(req);
+      const jobs = await mv.listMarketingVideoHistory(user?.id, { limit: 30 });
+      return json(res, 200, { jobs });
+    }
+
+    if (req.method === "GET" && (path === "motion-flyer/config" || path === "motion-flyer/history")) {
+      const country = countryFromRequest(req);
+      const client = String(req.headers["x-pricing-region"] || "").trim();
+      const region = resolvePricingRegion({ countryCode: country, clientRegion: client });
+      const lang = String(req.headers["x-lang"] || req.headers["accept-language"] || "pt").slice(0, 2);
+      const mf = require("./lib/motionFlyer/index.cjs");
+      if (path === "motion-flyer/config") {
+        return json(res, 200, {
+          provider: mf.getMotionFlyerProvider(),
+          durations: mf.ALLOWED_DURATIONS,
+          duration: mf.MOTION_FLYER_DURATION,
+          pricing: mf.getMotionFlyerPricingMap(region),
+          aspect_from_image: true,
+          categories: mf.listMotionFlyerCategories(lang),
+          prompt_variants: mf.allPromptEntries().length,
+        });
+      }
+      const { user } = resolveSessionUser(req);
+      const jobs = await mf.listMotionFlyerHistory(user?.id, { limit: 30 });
+      return json(res, 200, { jobs });
     }
 
     if (req.method === "GET" && path === "blob/status") {
@@ -1976,7 +4027,7 @@ async function handlePath(path, req, res) {
       const id = path.split("/")[1];
       const { user } = resolveSessionUser(req);
       const url = new URL(req.url, `https://${req.headers.host}`);
-      const lang = (url.searchParams.get("lang") || req.headers["x-lang"] || "en").slice(0, 2);
+      const lang = (url.searchParams.get("lang") || req.headers["x-lang"] || "pt").slice(0, 2);
 
       if (id.startsWith("rp_") && storageEnabled()) {
         const pending = await getPending(id);
@@ -1998,7 +4049,9 @@ async function handlePath(path, req, res) {
       if (status === "failed" || status === "canceled") {
         return json(res, 200, {
           status: "failed",
-          error: formatGenerationError(prediction.error || "A geração falhou.", lang),
+          error: formatGenerationError(prediction.error || "A geração falhou.", lang, {
+            type: prediction?.type || "",
+          }),
         });
       }
       return json(res, 200, { status, elapsed_seconds: 0 });
@@ -2010,48 +4063,88 @@ async function handlePath(path, req, res) {
       if (!sessionId) return json(res, 400, { detail: "session_id em falta." });
       const stripe = stripeClient();
       const session = await stripe.checkout.sessions.retrieve(sessionId);
-      const paid = session.payment_status === "paid";
+      const wallet = session.metadata?.wallet || "standard";
       const packageId = session.metadata?.package;
-      const credits = Number(session.metadata?.credits || 0);
       const pricingRegion = session.metadata?.pricing_region || "intl";
-      if (paid && credits > 0) {
+
+      if (session.mode === "subscription" || wallet === "subscription") {
+        const auth = req.headers.authorization || "";
+        const tm = auth.match(/^Bearer\s+(.+)$/i);
+        const tokenUser = tm ? verifySessionToken(tm[1].trim()) : null;
+        if (tokenUser?.id) {
+          try {
+            await activateSubscriptionFromCheckout(session);
+            const u = await getUserById(tokenUser.id);
+            return json(res, 200, {
+              id: session.id,
+              paid: true,
+              wallet: "subscription",
+              package: packageId || CREATOR_PLAN_ID,
+              subscription: u?.subscription || null,
+              subscription_credits: u?.subscription_credits ?? 0,
+              total_standard_credits: u?.total_standard_credits ?? u?.credits ?? 0,
+              pricing_region: pricingRegion,
+            });
+          } catch (claimErr) {
+            return json(res, claimErr.status || 500, { detail: claimErr.message || "Erro ao activar subscrição." });
+          }
+        }
+        return json(res, 200, {
+          id: session.id,
+          paid: session.payment_status === "paid",
+          wallet: "subscription",
+          package: packageId,
+          pricing_region: pricingRegion,
+        });
+      }
+
+      const paid = session.payment_status === "paid";
+      const isPremium = wallet === "premium";
+      const units = isPremium ? premiumCredits : credits;
+      if (paid && units > 0) {
         const auth = req.headers.authorization || "";
         const tm = auth.match(/^Bearer\s+(.+)$/i);
         const tokenUser = tm ? verifySessionToken(tm[1].trim()) : null;
         if (tokenUser?.id) {
           const cfg = getRegionConfig(pricingRegion);
-          const pkg = packageId && packageId !== "custom" ? cfg.packages[packageId] : null;
+          const pkg = !isPremium && packageId && packageId !== "custom" ? cfg.packages[packageId] : null;
+          const hqPkg = isPremium && packageId ? (cfg.premium_packages || {})[packageId] : null;
           const amount = pkg
             ? pkg.amount_cents / 100
-            : typeof session.amount_total === "number"
-              ? session.amount_total / 100
-              : 0;
+            : hqPkg
+              ? hqPkg.amount_cents / 100
+              : typeof session.amount_total === "number"
+                ? session.amount_total / 100
+                : 0;
           const currency = cfg.currency || "eur";
-          await recordPurchase({
-            userId: tokenUser.id,
-            sessionId,
-            packageId,
-            credits,
-            amount,
-            currency,
-            pricingRegion,
-          });
-          const balance = await addCredits(
-            tokenUser.id,
-            credits,
-            "purchase",
-            `Stripe purchase (${packageId || "package"})`,
-            { stripe_session_id: sessionId },
-          );
-          if (balance != null) {
-            return json(res, 200, {
-              id: session.id,
-              paid,
-              package: packageId,
+          try {
+            const fulfilled = await fulfillStripeCheckoutSession({
+              userId: tokenUser.id,
+              sessionId,
+              packageId,
               credits,
-              pricing_region: pricingRegion,
-              new_balance: balance,
+              premiumCredits,
+              wallet,
+              amount,
+              currency,
+              pricingRegion,
             });
+            if (fulfilled?.new_balance != null || fulfilled?.new_premium_balance != null) {
+              return json(res, 200, {
+                id: session.id,
+                paid,
+                package: packageId,
+                wallet,
+                credits: isPremium ? 0 : credits,
+                premium_credits: isPremium ? premiumCredits : 0,
+                pricing_region: pricingRegion,
+                new_balance: fulfilled.new_balance,
+                new_premium_balance: fulfilled.new_premium_balance,
+                already_claimed: fulfilled.already_claimed,
+              });
+            }
+          } catch (claimErr) {
+            return json(res, claimErr.status || 500, { detail: claimErr.message || "Erro ao creditar compra." });
           }
         }
       }
@@ -2059,7 +4152,9 @@ async function handlePath(path, req, res) {
         id: session.id,
         paid,
         package: packageId,
-        credits,
+        wallet,
+        credits: isPremium ? 0 : credits,
+        premium_credits: isPremium ? premiumCredits : 0,
         pricing_region: pricingRegion,
       });
     }
@@ -2070,6 +4165,29 @@ async function handlePath(path, req, res) {
       try {
         const out = await checkEmailRegistration(email);
         return json(res, 200, out);
+      } catch (err) {
+        return json(res, err.status || 500, { detail: err.message || "Erro." });
+      }
+    }
+
+    if (req.method === "POST" && path === "auth/forgot-password") {
+      try {
+        const body = await readJsonRequestBody(req);
+        const out = await requestPasswordReset(body, req);
+        return json(res, 200, out);
+      } catch (err) {
+        return json(res, err.status || 500, {
+          detail: err.message || "Erro.",
+          code: err.code || undefined,
+        });
+      }
+    }
+
+    if (req.method === "POST" && path === "auth/reset-password") {
+      try {
+        const body = await readJsonRequestBody(req);
+        await resetPasswordWithToken(body);
+        return json(res, 200, { ok: true });
       } catch (err) {
         return json(res, err.status || 500, { detail: err.message || "Erro." });
       }
@@ -2087,13 +4205,57 @@ async function handlePath(path, req, res) {
       if (!sessionUser) return json(res, 401, { detail: "Sessão inválida ou expirada." });
       await touchUser(sessionUser.id, req, { action: "me" });
       await repairUserAccountIfNeeded(sessionUser.id);
+      let dbUser = await getUserById(sessionUser.id);
+      if (!dbUser) {
+        dbUser = await ensureUserFromSession(sessionUser);
+      }
+      if (!dbUser && sessionUser.email) {
+        dbUser = publicUser({
+          id: sessionUser.id,
+          email: sessionUser.email,
+          name: sessionUser.name || sessionUser.email.split("@")[0],
+          role: sessionUser.role || "user",
+        });
+      }
+      return json(res, 200, dbUser || sessionUser);
+    }
+
+    if (req.method === "PATCH" && path === "me/notifications") {
+      const auth = req.headers.authorization || "";
+      const m = auth.match(/^Bearer\s+(.+)$/i);
+      if (!m) return json(res, 401, { detail: "Não autenticado." });
+      const token = m[1].trim();
+      if (token.startsWith("local:")) {
+        return json(res, 503, { detail: "Preferências requerem conta no servidor." });
+      }
+      const sessionUser = verifySessionToken(token);
+      if (!sessionUser) return json(res, 401, { detail: "Sessão inválida ou expirada." });
+      const body = await readJsonRequestBody(req);
+      const patch = {};
+      if (body?.email_notify_generations != null) {
+        patch.email_notify_generations = Boolean(body.email_notify_generations);
+      }
+      if (!Object.keys(patch).length) {
+        return json(res, 400, { detail: "Nada para actualizar." });
+      }
+      const { getDb } = require("./lib/mongo.cjs");
+      const db = await getDb();
+      await db.collection("users").updateOne({ id: sessionUser.id }, { $set: patch });
+      await touchUser(sessionUser.id, req, { action: "notifications" });
       const dbUser = await getUserById(sessionUser.id);
-      const user = dbUser || sessionUser;
-      return json(res, 200, user);
+      return json(res, 200, dbUser || sessionUser);
+    }
+
+    if (req.method === "POST" && path === "auth/google-callback") {
+      return handleGoogleRedirectCallback(req, res);
     }
 
     if (req.method === "POST" && path === "blob/prepare") {
       return await routeBlobPrepare(req, res);
+    }
+
+    if (req.method === "POST" && path === "video/upload") {
+      return await routeVideoUpload(req, res);
     }
 
     if (req.method === "POST" && path === "upload/video-blob") {
@@ -2158,7 +4320,7 @@ async function handlePath(path, req, res) {
     }
 
     if (req.method === "POST") {
-      const maxFileSize = path === "generate/video-edit"
+      const maxFileSize = path === "generate/video-edit" || path === "generate/video-extend"
         ? 54 * 1024 * 1024
         : path.startsWith("upload/")
           ? 12 * 1024 * 1024
@@ -2177,7 +4339,7 @@ async function handlePath(path, req, res) {
       const prediction = await routePost(path, fields, files, req);
       if (prediction.checkout_url) return json(res, 200, prediction);
       if (prediction.prediction_id) return json(res, 200, predictionResponse(prediction));
-      return json(res, 200, predictionResponse(prediction));
+      return json(res, 200, prediction);
     }
 
     return json(res, 404, { detail: "Endpoint não encontrado." });
@@ -2187,21 +4349,55 @@ async function handlePath(path, req, res) {
       /FUNCTION_PAYLOAD_TOO_LARGE|Request Entity Too Large/i.test(msg)
       || /max file size|larger than|maxFields|maxFieldsSize|exceeded|MultipartParserError/i.test(msg)
     ) {
-      const isVideoEdit = String(pathFromRequest(req) || "").includes("video-edit");
+      const isVideoRoute = String(pathFromRequest(req) || "").includes("video-edit")
+        || String(pathFromRequest(req) || "").includes("video-extend");
       if (/FUNCTION_PAYLOAD_TOO_LARGE|Request Entity Too Large/i.test(msg)) {
         return json(res, 413, {
-          detail: isVideoEdit
+          detail: isVideoRoute
             ? "O vídeo ultrapassou o limite do servidor (Vercel). Aguarda o upload para a nuvem antes de Gerar, ou usa um clip mais curto."
             : "O pedido é demasiado grande para o servidor. Comprime a imagem ou ativa o upload em nuvem.",
         });
       }
       return json(res, 413, {
-        detail: isVideoEdit
+        detail: isVideoRoute
           ? "Vídeo muito grande. Máximo 50MB. Usa MP4 (H.264) ou MOV (ideal 2–10 s) ou recarrega para ativar o upload em nuvem."
           : "A imagem é demasiado grande para o servidor. Recarrega a página (Ctrl+F5) e tenta outra vez — o site comprime automaticamente antes de enviar.",
       });
     }
-    return json(res, err.status || 500, { detail: err.message || "Erro no servidor de geração." });
+    // Carteira Remake (créditos do utilizador) — nunca reescrever como "manutenção".
+    if (
+      err.status === 402
+      || /cr[eé]ditos (hq )?insuficientes|insufficient (premium )?credits/i.test(msg)
+    ) {
+      return json(res, 402, { detail: err.message || "Créditos insuficientes." });
+    }
+
+    // Nunca expor erros crus do provedor (Replicate/billing/model) ao utilizador.
+    // Só sanitiza rotas de geração e apenas quando o erro parece de provedor/infra;
+    // mensagens de validação amigáveis (ex.: "Escreve um prompt.") passam intactas.
+    const reqPath = String(pathFromRequest(req) || "");
+    if (reqPath.startsWith("generate/") || reqPath.startsWith("brand-campaign/")) {
+      const looksProvider = Boolean(err?.data)
+        || /replicate|spend(ing)? limit|payment method|modelerror|prediction failed|cuda|gpu|out of credit|quota exceeded|rate limit|E00[0-9]|nsfw|content policy|safety filter|flagged as sensitive/i.test(msg);
+      if (looksProvider) {
+        const lang = String(req?.headers?.["x-lang"] || req?.headers?.["accept-language"] || "pt").slice(0, 2).toLowerCase();
+        const typeHint = /marketing-video/.test(reqPath)
+          ? "marketing_video"
+          : /video/.test(reqPath)
+            ? "video"
+            : /poster|brand-campaign/.test(reqPath)
+              ? "poster"
+              : "image";
+        return json(res, err.status && err.status >= 400 && err.status < 500 ? err.status : 502, {
+          detail: formatGenerationError(msg, lang, { type: typeHint }),
+        });
+      }
+    }
+    return json(res, err.status || 500, {
+      detail: err.message || "Erro no servidor de geração.",
+      code: err.code || undefined,
+      ...(err.payload && typeof err.payload === "object" ? err.payload : {}),
+    });
   }
 }
 

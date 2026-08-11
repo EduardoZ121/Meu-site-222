@@ -1,5 +1,24 @@
 /** Espelha a lógica do backend (poster_templates.py) para o editor Vercel. */
 
+import {
+  LEGACY_POSTER_REFERENCE_FOOD,
+  LEGACY_POSTER_REFERENCE_PERSON,
+  POSTER_DUAL_PERSON_BLOCK,
+  POSTER_REFERENCE_FOOD,
+  POSTER_REFERENCE_PERSON,
+} from "./identityPrompts";
+
+function normalizeTemplateReferencePrompt(raw) {
+  let out = String(raw || "");
+  if (out.includes(LEGACY_POSTER_REFERENCE_PERSON)) {
+    out = out.split(LEGACY_POSTER_REFERENCE_PERSON).join(POSTER_REFERENCE_PERSON);
+  }
+  if (out.includes(LEGACY_POSTER_REFERENCE_FOOD)) {
+    out = out.split(LEGACY_POSTER_REFERENCE_FOOD).join(POSTER_REFERENCE_FOOD);
+  }
+  return out;
+}
+
 export const POSTER_DIRECTOR = (
   "Professional design poster, 8K resolution, magazine print quality, "
   + "perfectly legible typography rendered as crisp vector-like text with sharp edges, "
@@ -13,7 +32,21 @@ export const POSTER_DIRECTOR = (
 export const POSTER_TYPOGRAPHY_GUARD = (
   "TYPOGRAPHY (mandatory): render every headline, subhead, CTA, date and label razor-sharp, "
   + "perfectly spelled character-by-character as written in the brief, high contrast, "
-  + "no blurry, melted, warped, duplicated or invented letters; crisp vector-like type edges."
+  + "no blurry, melted, warped, duplicated or invented letters; crisp vector-like type edges. "
+  + "Layer text in dedicated zones — never overlap, cut through or sit behind the subject's face."
+);
+
+export const POSTER_COMPOSITE_GUARD = (
+  "COMPOSITING (mandatory): single unified poster artwork — subject, background, graphics and typography "
+  + "must share consistent lighting, color grading and depth. No floating cutout, sticker overlay, "
+  + "disconnected face layer or mismatched shadows. Professional photo-manipulation finish."
+);
+
+export const POSTER_FULL_BLEED_GUARD = (
+  "FULL BLEED (mandatory): fill the entire canvas edge-to-edge with poster artwork. "
+  + "NO black bars, NO letterboxing, NO empty strips at top or bottom. "
+  + "Upper third for headline typography; subject in middle-lower zone. "
+  + "All text from the brief must render fully inside the frame, never clipped at edges."
 );
 
 export const TEMPLATE_COLOR_GUARD = (
@@ -105,15 +138,43 @@ const STYLE_HINTS = {
 };
 
 export const POSTER_IDENTITY_GUARD = (
-  "CRITICAL — Preserve the reference person's exact face, facial structure, skin tone, "
-  + "body shape, proportions and pose fidelity. Do not change identity, age, or ethnicity. "
-  + "Only adapt outfit, lighting and poster styling as the template describes."
+  "CRITICAL — Preserve the reference person's exact face, facial structure, bone structure, skin tone, "
+  + "ethnicity, hair texture, body shape, proportions and likeness. Do not change identity, age, race "
+  + "or undertones. Only adapt outfit, lighting, pose within the template context and poster styling. "
+  + "Integrate seamlessly — not a pasted face."
+);
+
+export const POSTER_FASHION_IDENTITY_GUARD = (
+  "CRITICAL — Same person in every panel: exact face, bone structure, skin tone, ethnicity, "
+  + "hair, body proportions and outfit. Turnaround/detail views may change angle but NEVER change "
+  + "identity, skin undertones or clothing design. Seamless editorial composite — not a pasted face."
 );
 
 export const POSTER_FOOD_GUARD = (
   "Preserve the reference dish exactly — same food identity, textures, colors and plating. "
   + "Do not replace with a different meal."
 );
+
+export const POSTER_FASHION_SHEET_GUARD = (
+  "OUTPUT: One unified fashion editorial sheet. NOT a side-by-side of uploaded references. "
+  + "NOT the input photo layout. Clean panel grid with consistent studio background."
+);
+
+function buildFashionReferenceNote(hasPhoto, hasGarment) {
+  if (!hasPhoto) return "";
+  if (hasGarment) {
+    return (
+      "REFERENCE IMAGES: Photo 1 = person (lock face and body). Photo 2 / garment slot = clothing "
+      + "(copy fabric, cut, colors onto that person in all panels)."
+    );
+  }
+  return "REFERENCE PHOTO: Lock face, body proportions, skin tone, hair and visible outfit from the upload.";
+}
+
+function promptMentionsField(prompt, fieldKey) {
+  if (!fieldKey) return false;
+  return prompt.includes(fieldKey) || prompt.includes(`{{${fieldKey}}}`);
+}
 
 /** Campo satisfeito: valor do user, opcional, replacement ou texto já no prompt do template. */
 export function posterFieldSatisfied(template, values, fieldKey) {
@@ -122,7 +183,7 @@ export function posterFieldSatisfied(template, values, fieldKey) {
   const rep = (template?.replacements || {})[fieldKey];
   if (rep && String(rep).trim()) return true;
   const prompt = String(template?.prompt || "");
-  if (fieldKey && prompt.includes(fieldKey)) return true;
+  if (promptMentionsField(prompt, fieldKey)) return true;
   return false;
 }
 
@@ -147,10 +208,54 @@ export function isPosterFoodTemplate(template) {
   return id.startsWith("food_");
 }
 
-/** Com foto: todos os templates não-comida preservam rosto/corpo. */
+export function isTiaAnyPosterTemplate(template) {
+  const cat = String(template?.category || "").toLowerCase();
+  if (cat === "tia_any") return true;
+  const id = String(template?.id || "").toLowerCase();
+  return id.startsWith("tia_any_");
+}
+
+export function isPosterProductTemplate(template) {
+  if (template?.productTemplate) return true;
+  const cat = String(template?.category || "").toLowerCase();
+  if (["automotive", "retail"].includes(cat)) return true;
+  const id = String(template?.id || "").toLowerCase();
+  return id.startsWith("auto_") || id.startsWith("retail_");
+}
+
+export function isPosterFashionTemplate(template) {
+  const cat = String(template?.category || "").toLowerCase();
+  if (cat === "fashion") return true;
+  const id = String(template?.id || "").toLowerCase();
+  return id.startsWith("fashion_");
+}
+
+export { isPosterMenuTemplate, splitPosterPlaceholders } from "./posterRestaurantTemplates";
+
+const POSTER_OUTPUT_LANG_NAMES = {
+  pt: "Portuguese (Portugal/Brazil — use correct spelling for the user's market)",
+  en: "English",
+  es: "Spanish",
+  fr: "French",
+};
+
+function formatPosterOutputLanguage(langCode) {
+  const code = String(langCode || "").trim().toLowerCase().slice(0, 2);
+  const name = POSTER_OUTPUT_LANG_NAMES[code];
+  if (!name) return "";
+  return (
+    `OUTPUT LANGUAGE (mandatory): Every headline, subhead, CTA, menu item name, price label, `
+    + `contact line and badge on the poster must be written in ${name}. `
+    + `Do not mix languages unless the user's filled text is explicitly in another language.`
+  );
+}
+
+/** Com foto: templates comida/produto não usam guarda de identidade humana. */
 export function posterNeedsIdentityGuard(template, hasPhoto) {
   if (!hasPhoto) return false;
-  return !isPosterFoodTemplate(template);
+  if (isTiaAnyPosterTemplate(template)) return false;
+  if (isPosterFoodTemplate(template) || isPosterProductTemplate(template)) return false;
+  return true;
 }
 
 export function templateUsesPersonReference(template) {
@@ -191,7 +296,8 @@ export function formatCustomBlocks(blocks = []) {
   return (
     "Additional custom typography layers (mandatory — render all legibly in the final poster):\n"
     + `${lines.join("\n")}\n`
-    + "Integrate these layers into the hierarchy without overlapping faces; respect positions and colors."
+    + "Integrate these layers into the hierarchy without overlapping faces; respect positions and colors. "
+    + "Keep all type fully readable and in front of background layers, never cutting through the subject's face."
   );
 }
 
@@ -237,13 +343,44 @@ function formatMoodExtra(moodId, { hasCustomPalette = false } = {}) {
  * @param {string} [options.mood] — vazio = cores/mood do template
  * @param {string[]} [options.paletteColors] — vazio = paleta do template
  * @param {boolean} [options.hasPhoto]
+ * @param {boolean} [options.hasLogo]
+ * @param {string} [options.outputLang]
  */
+/** Lista explícita de texto para o modelo (evita copy inventada). */
+export function buildPosterTextManifest(values = {}, template = null) {
+  const keys = template?.placeholders?.length
+    ? template.placeholders
+    : Object.keys(values || {});
+  const lines = [];
+  for (const k of keys) {
+    const v = String(values[k] || "").trim();
+    if (!v) continue;
+    lines.push(`• "${v}" (field: ${k})`);
+  }
+  if (!lines.length) return "";
+  return [
+    "EXACT COPY BLOCK (mandatory — render every line below verbatim on the poster):",
+    "Spell each word exactly as written. No gibberish, no random letters, no placeholder Latin.",
+    ...lines,
+  ].join("\n");
+}
+
+export function isPosterDualPhotoTemplate(template) {
+  return Boolean(template?.requiresDualPhoto);
+}
+
 export function buildPosterPrompt(template, values = {}, options = {}) {
+  const isFashion = isPosterFashionTemplate(template);
+  const isFood = isPosterFoodTemplate(template);
+
   if (!template?.prompt) {
+    if (isFashion) {
+      return `${POSTER_FASHION_IDENTITY_GUARD}\n\n${POSTER_FASHION_SHEET_GUARD}`;
+    }
     return `${POSTER_DIRECTOR}Professional premium poster design.\n\n${POSTER_TYPOGRAPHY_GUARD}`;
   }
 
-  let raw = template.prompt;
+  let raw = normalizeTemplateReferencePrompt(template.prompt);
 
   for (const [field, original] of Object.entries(template.replacements || {})) {
     const userValue = String(values[field] || "").trim();
@@ -266,6 +403,10 @@ export function buildPosterPrompt(template, values = {}, options = {}) {
     raw = raw.replace(/\{([^}]+)\}/g, (_, key) => fmt[key.trim()] ?? "");
   }
 
+  if (raw.includes("{{")) {
+    raw = raw.replace(/\{\{([^}]+)\}\}/g, (_, key) => String(values[key.trim()] || "").trim());
+  }
+
   for (const key of template.placeholders || []) {
     const v = String(values[key] || "").trim();
     if (!v || template.replacements?.[key]) continue;
@@ -275,9 +416,35 @@ export function buildPosterPrompt(template, values = {}, options = {}) {
   const blocksPart = formatCustomBlocks(options.customBlocks);
   if (blocksPart) raw = `${raw}\n\n${blocksPart}`;
 
+  const langPart = formatPosterOutputLanguage(options.outputLang);
+  if (langPart) raw = `${raw}\n\n${langPart}`;
+
   const palettePart = formatPaletteOverride(options.paletteColors);
   const hasCustomPalette = Boolean(palettePart);
   const moodPart = formatMoodExtra(options.mood, { hasCustomPalette });
+
+  const hasPhoto = Boolean(options.hasPhoto);
+  const hasGarment = Boolean(options.hasLogo);
+  const dualPhoto = isPosterDualPhotoTemplate(template) && (options.photoCount ?? 0) >= 2;
+
+  if (isFashion) {
+    const extras = [];
+    if (!hasCustomPalette && !moodPart) extras.push(TEMPLATE_COLOR_GUARD);
+    if (moodPart) extras.push(moodPart);
+    if (palettePart) extras.push(palettePart);
+    extras.push(POSTER_FASHION_SHEET_GUARD);
+
+    let out = raw;
+    if (extras.length) out = `${out}\n\n${extras.join("\n\n")}`;
+
+    const refNote = buildFashionReferenceNote(hasPhoto, hasGarment);
+    if (refNote) out = `${out}\n\n${refNote}`;
+
+    if (hasPhoto) {
+      out = `${out}\n\n${POSTER_FASHION_IDENTITY_GUARD}\n\n${POSTER_COMPOSITE_GUARD}`;
+    }
+    return out;
+  }
 
   const extras = [];
 
@@ -289,15 +456,25 @@ export function buildPosterPrompt(template, values = {}, options = {}) {
   if (palettePart) extras.push(palettePart);
 
   extras.push(POSTER_TYPOGRAPHY_GUARD);
+  extras.push(POSTER_FULL_BLEED_GUARD);
 
   let out = `${POSTER_DIRECTOR}${raw}`;
+  if (dualPhoto) {
+    out = `${POSTER_DUAL_PERSON_BLOCK}\n\n${out}`;
+  }
   if (extras.length) out = `${out}\n\n${extras.join("\n\n")}`;
 
-  const hasPhoto = Boolean(options.hasPhoto);
-  if (hasPhoto && isPosterFoodTemplate(template)) {
-    out = `${out}\n\n${POSTER_FOOD_GUARD}`;
+  const manifest = buildPosterTextManifest(values, template);
+  if (manifest) out = `${out}\n\n${manifest}`;
+
+  if (options.hasLogo && isFood) {
+    out = `${out}\n\nLOGO: A brand logo is provided (composited on the reference or as upload). `
+      + "Place it in the template logo zone, sharp and readable — same colors and shape, modest size.";
+  }
+  if (hasPhoto && isFood) {
+    out = `${out}\n\n${POSTER_FOOD_GUARD}\n\n${POSTER_COMPOSITE_GUARD}`;
   } else if (posterNeedsIdentityGuard(template, hasPhoto)) {
-    out = `${out}\n\n${POSTER_IDENTITY_GUARD}`;
+    out = `${out}\n\n${POSTER_IDENTITY_GUARD}\n\n${POSTER_COMPOSITE_GUARD}`;
   }
 
   return out;

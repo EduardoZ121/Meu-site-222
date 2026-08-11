@@ -2,6 +2,7 @@
 
 export const NODE_COLORS = {
   person:   { bg: "rgba(147,51,234,0.15)", border: "#9333EA" },
+  support:  { bg: "rgba(217,70,239,0.12)", border: "#D946EF" },
   scenario: { bg: "rgba(20,184,166,0.15)", border: "#14B8A6" },
   object:   { bg: "rgba(250,204,21,0.15)", border: "#FACC15" },
   speech:   { bg: "rgba(96,165,250,0.15)", border: "#60A5FA" },
@@ -14,17 +15,24 @@ export const NODE_DEFAULTS = {
   person: {
     name: "", pose: "standing", emotion: "normal", cameraAngle: "medium",
     clothing: "", speech: "", speechType: "speech", actionDesc: "",
-    refImage: null, refImageUrl: null,
+    role: "primary",
+    refImage: null, refImageUrl: null, refPersistUrl: null, refUploading: false,
+  },
+  support: {
+    name: "", pose: "standing", emotion: "normal", cameraAngle: "medium",
+    clothing: "", speech: "", speechType: "speech", actionDesc: "",
+    role: "support",
+    refImage: null, refImageUrl: null, refPersistUrl: null, refUploading: false,
   },
   scenario: {
     name: "", timeOfDay: "day", weather: "clear", mood: "neutral",
     lighting: "bright", description: "",
-    refImage: null, refImageUrl: null,
+    refImage: null, refImageUrl: null, refPersistUrl: null, refUploading: false,
   },
   object: {
     name: "", description: "", size: "medium", state: "normal",
     interaction: "",
-    refImage: null, refImageUrl: null,
+    refImage: null, refImageUrl: null, refPersistUrl: null, refUploading: false,
   },
   speech: {
     text: "", bubbleType: "speech", style: "normal", tailDirection: "left",
@@ -40,13 +48,14 @@ export const NODE_DEFAULTS = {
   },
   panel: {
     panelSize: "medium", format: "rectangle", borderStyle: "thin",
+    narrativeRole: "auto", momentDesc: "",
     refImage: null, refImageUrl: null,
   },
 };
 
 export const PERSON_POSES = ["standing","running","sitting","jumping","fighting","hugging","looking_back","kneeling","leaning","crouching","walking","flying","falling","dancing","sleeping","pointing"];
 export const PERSON_EMOTIONS = ["normal","happy","angry","sad","surprised","serious","blushing","crying","laughing","scared","disgusted","confused","determined","smirking","embarrassed","exhausted"];
-export const PERSON_CAMERA = ["extreme_close_up","close_up","medium_close","medium","medium_full","full_body","wide","low_angle","high_angle","dutch_angle","over_shoulder","birds_eye"];
+export const PERSON_CAMERA = ["extreme_close_up","close_up","medium_close","medium","medium_full","full_body","wide","front_view","side_view","back_view","three_quarter_view","top_view","low_angle","high_angle","dutch_angle","over_shoulder","birds_eye","worms_eye","dynamic_perspective"];
 
 export const SCENARIO_TIME = ["day","sunset","night","dawn","midnight","noon","golden_hour","twilight"];
 export const SCENARIO_WEATHER = ["clear","rain","storm","snow","fog","windy","hail","cloudy"];
@@ -64,7 +73,7 @@ export const EFFECT_TYPES = ["motion_lines","impact","sparkle","explosion","spee
 export const EFFECT_INTENSITY = ["subtle","medium","strong","extreme"];
 
 export const CAMERA_SHOTS = ["extreme_close_up","close_up","medium","wide","establishing","panoramic"];
-export const CAMERA_ANGLES = ["eye_level","low_angle","high_angle","dutch_angle","birds_eye","worms_eye","over_shoulder"];
+export const CAMERA_ANGLES = ["eye_level","front_view","side_view","back_view","three_quarter_view","top_view","low_angle","high_angle","dutch_angle","birds_eye","worms_eye","over_shoulder","dynamic_perspective"];
 
 export const PANEL_SIZES = ["small","medium","large","full_page","double_spread"];
 export const PANEL_FORMATS = ["square","rectangle","tall","wide","dynamic","circle","diagonal"];

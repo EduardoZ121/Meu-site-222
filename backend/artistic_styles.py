@@ -1,152 +1,94 @@
-"""Artistic styles — generated verbatim from bot.py ESTILOS_ARTISTICOS.
+"""Artistic style catalog — categorized presets for the AI Artistic Studio.
 
-Do NOT hand-edit. Run scripts/extract_bot_dicts.py to regenerate.
+This module exposes:
+  ARTISTIC_STYLES : list[dict]  — items with {id, label, category, suffix}
+  CATEGORIES      : list[str]   — category ids in display order
+  get_artistic(slug) -> dict|None
+
+The catalog mirrors the curated artistic looks used in the frontend
+studio. It is intentionally compact so it can be extended without
+breaking the public schema.
 """
 
-CATEGORIES = { 'anime': 'Anime & Manga',
-  'cartoon': 'Cartoon & Disney',
-  'comic': 'Comic & Ilustração',
-  'fantasy': 'Fantasy & Sci-Fi',
-  'paint': 'Pintura Tradicional',
-  'vintage': 'Vintage & Retro',
-  'other': 'Outros'}
+CATEGORIES = [
+    "photography",
+    "anime_manga",
+    "cartoon_3d",
+    "painting",
+    "illustration",
+    "concept",
+]
 
-ARTISTIC_STYLES = [ { 'id': 'anime',
-    'label': 'Anime',
-    'cat': 'anime',
-    'suffix': 'transform into anime style, anime art, manga aesthetic, keep same pose'},
-  { 'id': 'ghibli',
-    'label': 'Ghibli',
-    'cat': 'anime',
-    'suffix': 'transform into Studio Ghibli anime style, soft colors, Miyazaki aesthetic'},
-  { 'id': 'disney_2d',
-    'label': 'Disney 2D',
-    'cat': 'cartoon',
-    'suffix': 'transform into Disney 2D animation style character'},
-  { 'id': 'disney_3d',
-    'label': 'Disney 3D',
-    'cat': 'cartoon',
-    'suffix': 'transform into Disney Pixar 3D character style, cute 3D render'},
-  { 'id': 'cartoon',
-    'label': 'Cartoon',
-    'cat': 'cartoon',
-    'suffix': 'transform into cartoon style, colorful, exaggerated features, fun cartoon'},
-  { 'id': 'comic',
-    'label': 'Comic',
-    'cat': 'comic',
-    'suffix': 'transform into comic book style, bold lines, vibrant colors'},
-  { 'id': 'manga',
-    'label': 'Manga',
-    'cat': 'anime',
-    'suffix': 'transform into black and white manga style, detailed ink drawing, manga panels'},
-  { 'id': 'pokemon_2d',
-    'label': 'Pokemon 2D',
-    'cat': 'cartoon',
-    'suffix': 'transform into Pokemon 2D art style, Nintendo Pokemon game aesthetic'},
-  { 'id': 'pokemon_3d',
-    'label': 'Pokemon 3D',
-    'cat': 'cartoon',
-    'suffix': 'transform into Pokemon 3D render style, Nintendo 3D Pokemon'},
-  { 'id': 'cyberpunk',
-    'label': 'Cyberpunk',
-    'cat': 'fantasy',
-    'suffix': 'transform into cyberpunk style, neon lights, futuristic, dark atmosphere'},
-  { 'id': 'retrowave',
-    'label': 'Retrowave',
-    'cat': 'fantasy',
-    'suffix': 'transform into retrowave synthwave style, neon pink purple, 80s aesthetic'},
-  { 'id': 'fantasy',
-    'label': 'Fantasy',
-    'cat': 'fantasy',
-    'suffix': 'transform into epic fantasy painting, magical atmosphere, fantasy art'},
-  { 'id': 'pixel_art',
-    'label': 'Pixel Art',
-    'cat': 'other',
-    'suffix': 'transform into pixel art style, retro game aesthetic, 16-bit style'},
-  { 'id': 'watercolor',
-    'label': 'Watercolor',
-    'cat': 'paint',
-    'suffix': 'transform into watercolor painting, soft colors, artistic watercolor'},
-  { 'id': 'oil_paint',
-    'label': 'Oil Paint',
-    'cat': 'paint',
-    'suffix': 'transform into oil painting, classical art style, rich textures'},
-  { 'id': 'digital_art',
-    'label': 'Digital Art',
-    'cat': 'paint',
-    'suffix': 'transform into digital painting, detailed digital art, artstation quality'},
-  { 'id': 'concept_art',
-    'label': 'Concept Art',
-    'cat': 'paint',
-    'suffix': 'transform into concept art, professional concept sketch, game art style'},
-  { 'id': 'sketch',
-    'label': 'Sketch',
-    'cat': 'paint',
-    'suffix': 'transform into pencil drawing sketch, black and white, detailed lines'},
-  { 'id': 'cute_3d',
-    'label': 'Cute 3D',
-    'cat': 'cartoon',
-    'suffix': 'transform into cute 3D chibi character, kawaii 3D render, adorable'},
-  { 'id': 'claymation',
-    'label': 'Claymation',
-    'cat': 'cartoon',
-    'suffix': 'transform into claymation stop motion style, clay figures, handmade look'},
-  { 'id': 'ukiyoe',
-    'label': 'Ukiyo-e',
-    'cat': 'paint',
-    'suffix': 'transform into Japanese ukiyo-e woodblock print style, traditional art'},
-  { 'id': 'art_nouveau',
-    'label': 'Art Nouveau',
-    'cat': 'paint',
-    'suffix': 'transform into Art Nouveau style, ornate decorative, flowing lines'},
-  { 'id': 'tattoo',
-    'label': 'Tattoo',
-    'cat': 'other',
-    'suffix': 'transform into tattoo design style, ink art, bold outlines, tattoo flash'},
-  { 'id': 'vintage',
-    'label': 'Vintage',
-    'cat': 'vintage',
-    'suffix': 'transform into vintage retro style, aged colors, nostalgic aesthetic'},
-  { 'id': 'splatter',
-    'label': 'Splatter',
-    'cat': 'paint',
-    'suffix': 'transform into paint splatter art, abstract colorful splashes, explosive'},
-  { 'id': 'grain',
-    'label': 'Film Grain',
-    'cat': 'vintage',
-    'suffix': 'transform with film grain effect, analog photography, cinematic grain'},
-  { 'id': 'woodcarving',
-    'label': 'Woodcarving',
-    'cat': 'other',
-    'suffix': 'transform into woodcarving art style, carved wood texture, relief sculpture'},
-  { 'id': 'furry',
-    'label': 'Furry',
-    'cat': 'other',
-    'suffix': 'transform into furry art style, anthropomorphic animal character, detailed fur'},
-  { 'id': 'pop_art',
-    'label': 'Pop Art',
-    'cat': 'comic',
-    'suffix': 'transform into pop art style, Andy Warhol inspired, bold colors, halftone dots'},
-  { 'id': 'steampunk',
-    'label': 'Steampunk',
-    'cat': 'fantasy',
-    'suffix': 'transform into steampunk style, Victorian mechanical, gears and brass'},
-  { 'id': 'anime_50s',
-    'label': 'Anime 50s',
-    'cat': 'anime',
-    'suffix': 'transform into 1950s anime infomercial style, retro anime housewife aesthetic, vintage anime'},
-  { 'id': 'neon_glow',
-    'label': 'Neon Glow',
-    'cat': 'fantasy',
-    'suffix': 'transform with neon glow effect, glowing edges, dark background, vibrant neon colors'},
-  { 'id': 'gothic',
-    'label': 'Gothic',
-    'cat': 'fantasy',
-    'suffix': 'transform into gothic dark art style, dark aesthetic, moody atmosphere, dark fantasy'}]
+_STYLES_RAW = [
+    # Photography — editorial / cinematic
+    ("ph_classic", "Classic Portrait",     "photography", "soft natural light, neutral background, shallow depth of field, magazine portrait"),
+    ("ph_editorial", "Editorial Portrait", "photography", "high contrast editorial fashion shot, dramatic poses, magazine editorial styling"),
+    ("ph_film_35", "35mm Film",            "photography", "grainy 35mm film photograph, warm vintage tones, analog imperfections"),
+    ("ph_cinematic", "Cinematic",          "photography", "cinematic still, anamorphic lens, teal-and-orange grade, film grain"),
+    ("ph_studio", "Studio Light",          "photography", "studio strobes, seamless backdrop, crisp commercial finish"),
+    ("ph_golden", "Golden Hour",           "photography", "warm golden hour light, soft sun flare, long shadows"),
+    ("ph_blue_hour", "Blue Hour",          "photography", "blue hour twilight, cool tones, neon city lights in background"),
+    ("ph_documentary", "Documentary",      "photography", "candid documentary photograph, available light, photojournalistic tone"),
+
+    # Anime & Manga
+    ("an_modern",  "Modern Anime",         "anime_manga", "modern anime illustration, crisp cel shading, vibrant colors, expressive eyes"),
+    ("an_ghibli",  "Studio Vibes",         "anime_manga", "soft watercolor anime, gentle lighting, dreamy pastoral mood"),
+    ("an_manga_bw","Manga B&W",            "anime_manga", "black and white manga panel, hatching shadows, dynamic linework"),
+    ("an_shounen", "Shounen Action",       "anime_manga", "high energy shounen anime, motion lines, dramatic sky"),
+    ("an_webtoon", "Webtoon",              "anime_manga", "modern webtoon vertical illustration, clean digital coloring"),
+
+    # Cartoon & 3D
+    ("c3_pixar",   "3D Animated",          "cartoon_3d",  "cute 3D animated character, soft global illumination, expressive features"),
+    ("c3_cgi",     "CGI Realistic",        "cartoon_3d",  "photoreal CGI render, ray-traced lighting, high subsurface detail"),
+    ("c3_lowpoly", "Low Poly",             "cartoon_3d",  "stylized low poly 3D render, flat shading, geometric facets"),
+    ("c3_toon",    "Toon Shaded",          "cartoon_3d",  "toon-shaded 3D, bold outlines, comic-book color blocks"),
+
+    # Painting
+    ("pa_oil",     "Oil Painting",         "painting",    "classical oil painting, thick brush strokes, museum-quality finish"),
+    ("pa_water",   "Watercolor",           "painting",    "loose watercolor painting, bleeding edges, pastel washes"),
+    ("pa_renaissance", "Renaissance",      "painting",    "Renaissance oil portrait, chiaroscuro lighting, ornate composition"),
+    ("pa_impression", "Impressionism",     "painting",    "impressionist brushwork, vibrant dappled light, painterly atmosphere"),
+    ("pa_gouache", "Gouache",              "painting",    "matte gouache illustration, flat textured strokes, mid-century palette"),
+    ("pa_ink",     "Ink Wash",             "painting",    "Asian ink wash painting, minimal sumi-e brushstrokes, white space"),
+
+    # Illustration / Graphic
+    ("il_comic",   "Comic Book",           "illustration","Western comic book panel, bold inks, halftone shading, vibrant flats"),
+    ("il_vector",  "Vector Flat",          "illustration","clean vector illustration, flat colors, minimal geometric shapes"),
+    ("il_riso",    "Risograph",            "illustration","risograph print, two-tone overprint, paper grain texture"),
+    ("il_pixel",   "Pixel Art",            "illustration","16-bit pixel art, limited palette, crisp pixel boundaries"),
+    ("il_storybook","Storybook",           "illustration","children's storybook illustration, soft textures, charming whimsy"),
+
+    # Concept / Mood
+    ("cn_cyberpunk", "Cyberpunk",          "concept",     "cyberpunk neon noir, rain-soaked streets, holographic signage"),
+    ("cn_fantasy", "Epic Fantasy",         "concept",     "epic fantasy concept art, mythic landscape, volumetric god-rays"),
+    ("cn_scifi",   "Sci-Fi Concept",       "concept",     "futuristic sci-fi concept art, sleek surfaces, atmospheric haze"),
+    ("cn_noir",    "Film Noir",            "concept",     "1940s film noir, hard shadows, smoky black-and-white atmosphere"),
+    ("cn_vaporwave","Vaporwave",           "concept",     "vaporwave aesthetic, pastel sunset gradients, retro 80s grid"),
+]
+
+CATEGORY_LABELS = {
+    "photography":  "Photography",
+    "anime_manga":  "Anime & Manga",
+    "cartoon_3d":   "Cartoon & 3D",
+    "painting":     "Painting",
+    "illustration": "Illustration",
+    "concept":      "Concept & Mood",
+}
+
+ARTISTIC_STYLES = [
+    {
+        "id":       sid,
+        "label":    label,
+        "category": cat,
+        "suffix":   suffix,
+    }
+    for sid, label, cat, suffix in _STYLES_RAW
+]
 
 
-def get_artistic(style_id: str):
+def get_artistic(slug: str):
+    """Return a single artistic style dict by id, or None."""
     for s in ARTISTIC_STYLES:
-        if s["id"] == style_id:
+        if s["id"] == slug:
             return s
     return None

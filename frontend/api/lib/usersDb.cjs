@@ -4,15 +4,19 @@ const { requestMeta } = require("./requestMeta.cjs");
 const { purchaseEconomics } = require("./financeModel.cjs");
 const { consumeAccountPreset, findAccountPreset } = require("./accountPresets.cjs");
 const { isStudioPremiumActive } = require("./studioPremium.cjs");
+const { publicSubscriptionFields } = require("./creatorSubscription.cjs");
 
 const ADMIN_EMAILS = new Set(
-  String(process.env.ADMIN_EMAILS || "eduardozola1998@gmail.com,eduardozola121998@gmail.com,eduardozola11998@gmail.com")
+  String(
+    process.env.ADMIN_EMAILS?.trim()
+    || "eduardozola1998@gmail.com,eduardozola121998@gmail.com,eduardozola11998@gmail.com",
+  )
     .split(",")
     .map((e) => e.trim().toLowerCase())
     .filter(Boolean),
 );
 
-const STARTER_CREDITS = 50;
+const STARTER_CREDITS = 15;
 const UNLIMITED_CREDITS = 999999999;
 const ABUSE_CREDITS_THRESHOLD = 500_000;
 
@@ -32,12 +36,19 @@ function abuseCredits(credits) {
 function resolveAccountAccess(doc) {
   const email = String(doc?.email || "").trim().toLowerCase();
   if (isAdminEmail(email)) {
-    return { role: "admin", is_unlimited: true, credits: UNLIMITED_CREDITS };
+    return {
+      role: "admin",
+      is_unlimited: true,
+      credits: UNLIMITED_CREDITS,
+      premium_credits: UNLIMITED_CREDITS,
+    };
   }
   let credits = Number(doc?.credits);
-  if (!Number.isFinite(credits) || credits < 0) credits = STARTER_CREDITS;
-  if (doc?.is_unlimited || abuseCredits(credits)) credits = STARTER_CREDITS;
-  return { role: "user", is_unlimited: false, credits };
+  if (!Number.isFinite(credits) || credits < 0) credits = 0;
+  if (doc?.is_unlimited || abuseCredits(credits)) credits = 0;
+  let premiumCredits = Number(doc?.premium_credits);
+  if (!Number.isFinite(premiumCredits) || premiumCredits < 0) premiumCredits = 0;
+  return { role: "user", is_unlimited: false, credits, premium_credits: premiumCredits };
 }
 
 function accountNeedsRepair(doc) {
@@ -65,6 +76,7 @@ function publicUser(doc) {
     role: access.role,
     lang: doc.lang || "en",
     credits: access.credits,
+    premium_credits: access.premium_credits ?? 0,
     is_unlimited: access.is_unlimited,
     referral_code: doc.referral_code || "",
     email_verified: Boolean(doc.email_verified),
@@ -79,6 +91,8 @@ function publicUser(doc) {
     nsfw_allowed: Boolean(doc.nsfw_allowed || isAdmin),
     studio_premium_until: doc.studio_premium_until || null,
     studio_premium: isStudioPremiumActive(doc) || isAdmin,
+    email_notify_generations: Boolean(doc.email_notify_generations),
+    ...publicSubscriptionFields(doc),
   };
 }
 
@@ -132,6 +146,7 @@ async function upsertGoogleUser(googleProfile, req, opts = {}) {
       ...base,
       lang: startLang,
       credits: startCredits,
+      premium_credits: 0,
       referral_code: genReferralCode(),
       referred_by: null,
       banned: false,
@@ -144,14 +159,16 @@ async function upsertGoogleUser(googleProfile, req, opts = {}) {
     };
     await db.collection("users").insertOne(doc);
     const bonus = isAdmin ? 0 : startCredits;
-    await db.collection("credit_transactions").insertOne({
-      id: `tx_${Date.now().toString(36)}`,
-      user_id: userId,
-      amount: bonus,
-      type: preset ? "admin" : "free",
-      description: preset ? "Conta pré-configurada (admin)" : "Signup bonus (Google)",
-      created_at: nowIso(),
-    });
+    if (bonus > 0) {
+      await db.collection("credit_transactions").insertOne({
+        id: `tx_${Date.now().toString(36)}`,
+        user_id: userId,
+        amount: bonus,
+        type: preset ? "admin" : "free",
+        description: preset ? "Conta pré-configurada (admin)" : "Signup bonus (Google)",
+        created_at: nowIso(),
+      });
+    }
     if (preset) await consumeAccountPreset(db, email);
     await logIpEvent(db, userId, meta, "signup");
     return publicUser(doc);
@@ -190,14 +207,60 @@ async function repairUserAccountIfNeeded(userId) {
   if (!storageEnabled() || !userId) return null;
   const db = await getDb();
   const doc = await db.collection("users").findOne({ id: userId }, { projection: { _id: 0, password_hash: 0 } });
-  if (!doc || !accountNeedsRepair(doc)) return publicUser(doc);
+  if (!doc) return null;
+  if (!accountNeedsRepair(doc)) return publicUser(doc);
   const access = resolveAccountAccess(doc);
   await db.collection("users").updateOne(
     { id: userId },
-    { $set: { role: access.role, is_unlimited: access.is_unlimited, credits: access.credits } },
+    { $set: { role: access.role, is_unlimited: access.is_unlimited, credits: access.credits, premium_credits: access.premium_credits ?? 0 } },
   );
   const updated = await db.collection("users").findOne({ id: userId }, { projection: { _id: 0, password_hash: 0 } });
   return publicUser(updated);
+}
+
+/** Repõe utilizador em Blob/KV quando a sessão existe mas o registo foi perdido na migração. */
+async function ensureUserFromSession(sessionUser) {
+  if (!storageEnabled() || !sessionUser?.id) return null;
+  const existing = await getUserById(sessionUser.id);
+  if (existing) return existing;
+
+  const email = String(sessionUser.email || "").trim().toLowerCase();
+  if (!email) return null;
+
+  const db = await getDb();
+  const byEmail = await db.collection("users").findOne({ email });
+  if (byEmail?.id) {
+    if (byEmail.id !== sessionUser.id) {
+      await db.collection("users").updateOne(
+        { email },
+        { $set: { id: sessionUser.id } },
+      );
+    }
+    return getUserById(sessionUser.id);
+  }
+
+  const access = resolveAccountAccess({ email });
+  const doc = {
+    id: sessionUser.id,
+    email,
+    name: sessionUser.name || email.split("@")[0],
+    avatar_url: sessionUser.avatar_url || null,
+    role: access.role,
+    is_unlimited: access.is_unlimited,
+    credits: access.credits,
+    premium_credits: access.premium_credits ?? 0,
+    referral_code: genReferralCode(),
+    referred_by: null,
+    banned: false,
+    shadowbanned: false,
+    email_verified: true,
+    created_at: nowIso(),
+    pricing_region: sessionUser.pricing_region || "intl",
+    lang: sessionUser.lang || "pt",
+    provider: sessionUser.provider || "session",
+  };
+  await db.collection("users").insertOne(doc);
+  return publicUser(doc);
 }
 
 async function getUserById(userId) {
@@ -245,15 +308,52 @@ async function setUserAccountByEmail(email, { credits, lang }) {
   return { user: publicUser(updated), before };
 }
 
+function unwrapFindOneAndUpdate(res) {
+  if (!res) return null;
+  if (res.value && typeof res.value === "object") return res.value;
+  return res;
+}
+
 async function addCredits(userId, amount, type, description, metadata = {}) {
   if (!storageEnabled()) return null;
+  const numeric = Number(amount);
+  if (!Number.isFinite(numeric) || numeric === 0) {
+    const err = new Error("Montante inválido.");
+    err.status = 400;
+    throw err;
+  }
   const db = await getDb();
-  const res = await db.collection("users").findOneAndUpdate(
+  const raw = await db.collection("users").findOneAndUpdate(
     { id: userId },
-    { $inc: { credits: amount } },
-    { returnDocument: "after", projection: { _id: 0 } },
+    { $inc: { credits: numeric } },
+    { returnDocument: "after", projection: { _id: 0, credits: 1 } },
   );
+  const res = unwrapFindOneAndUpdate(raw);
   if (!res) return null;
+  await db.collection("credit_transactions").insertOne({
+    id: `tx_${Date.now().toString(36)}_${crypto.randomBytes(3).toString("hex")}`,
+    user_id: userId,
+    amount: numeric,
+    type,
+    description,
+    metadata,
+    wallet: "standard",
+    created_at: nowIso(),
+  });
+  const credits = Number(res.credits);
+  return Number.isFinite(credits) ? credits : null;
+}
+
+async function addPremiumCredits(userId, amount, type, description, metadata = {}) {
+  if (!storageEnabled()) return null;
+  const db = await getDb();
+  const raw = await db.collection("users").findOneAndUpdate(
+    { id: userId },
+    { $inc: { premium_credits: amount } },
+    { returnDocument: "after", projection: { _id: 0, premium_credits: 1 } },
+  );
+  const res = unwrapFindOneAndUpdate(raw);
+  if (!raw) return null;
   await db.collection("credit_transactions").insertOne({
     id: `tx_${Date.now().toString(36)}_${crypto.randomBytes(3).toString("hex")}`,
     user_id: userId,
@@ -261,9 +361,19 @@ async function addCredits(userId, amount, type, description, metadata = {}) {
     type,
     description,
     metadata,
+    wallet: "premium",
     created_at: nowIso(),
   });
-  return res.credits;
+  return res.premium_credits ?? 0;
+}
+
+async function findPurchaseBySessionId(sessionId) {
+  if (!storageEnabled() || !sessionId) return null;
+  const db = await getDb();
+  return db.collection("purchases").findOne(
+    { stripe_session_id: sessionId },
+    { projection: { _id: 0 } },
+  );
 }
 
 async function recordPurchase({
@@ -271,26 +381,31 @@ async function recordPurchase({
   sessionId,
   packageId,
   credits,
+  premiumCredits = 0,
+  wallet = "standard",
   amount,
   currency,
   pricingRegion,
   status = "completed",
 }) {
-  if (!storageEnabled() || !sessionId) return;
+  if (!storageEnabled() || !sessionId) return false;
   const db = await getDb();
   const amountField = currency === "usd" ? "amount_usd" : "amount_eur";
-  const econ = purchaseEconomics({ amount, currency, credits });
+  const creditUnits = wallet === "premium" ? premiumCredits : credits;
+  const econ = purchaseEconomics({ amount, currency, credits: creditUnits });
   const doc = {
     id: `pur_${Date.now().toString(36)}`,
     user_id: userId,
     package: packageId,
-    credits,
+    credits: wallet === "standard" ? credits : 0,
+    premium_credits: wallet === "premium" ? premiumCredits : 0,
+    wallet,
     currency,
     pricing_region: pricingRegion || "intl",
     [amountField]: amount,
     stripe_session_id: sessionId,
     status,
-    replicate_reserve_usd: econ.replicate_reserve_usd,
+    replicate_reserve_usd: wallet === "standard" ? econ.replicate_reserve_usd : 0,
     stripe_fee: econ.stripe_fee,
     margin_usd: econ.margin_usd,
     revenue_usd: econ.revenue_usd,
@@ -298,19 +413,148 @@ async function recordPurchase({
   };
   try {
     await db.collection("purchases").insertOne(doc);
+    return true;
   } catch (e) {
-    if (e?.code !== 11000) throw e;
+    if (e?.code === 11000) return false;
+    throw e;
   }
 }
 
-async function recordCreation(userId, creation) {
-  if (!storageEnabled() || !userId) return;
-  const db = await getDb();
-  await db.collection("creations").insertOne({
-    ...creation,
-    user_id: userId,
-    created_at: creation.created_at || nowIso(),
+/** Credita uma sessão Stripe paga uma única vez (idempotente por stripe_session_id). */
+async function fulfillStripeCheckoutSession({
+  userId,
+  sessionId,
+  packageId,
+  credits,
+  premiumCredits = 0,
+  wallet = "standard",
+  amount,
+  currency,
+  pricingRegion,
+}) {
+  const isPremium = wallet === "premium";
+  const units = isPremium ? Number(premiumCredits) : Number(credits);
+  if (!storageEnabled() || !userId || !sessionId || !units) return null;
+  const existing = await findPurchaseBySessionId(sessionId);
+  if (existing) {
+    if (existing.user_id && existing.user_id !== userId) {
+      const err = new Error("Esta compra já foi associada a outra conta.");
+      err.status = 403;
+      throw err;
+    }
+    const u = await getUserById(userId);
+    return {
+      new_balance: isPremium ? undefined : (u?.credits ?? null),
+      new_premium_balance: isPremium ? (u?.premium_credits ?? null) : undefined,
+      already_claimed: true,
+      credits: isPremium ? 0 : credits,
+      premium_credits: isPremium ? premiumCredits : 0,
+      wallet,
+    };
+  }
+  const inserted = await recordPurchase({
+    userId,
+    sessionId,
+    packageId,
+    credits,
+    premiumCredits,
+    wallet,
+    amount,
+    currency,
+    pricingRegion,
   });
+  if (!inserted) {
+    const again = await findPurchaseBySessionId(sessionId);
+    if (again?.user_id && again.user_id !== userId) {
+      const err = new Error("Esta compra já foi associada a outra conta.");
+      err.status = 403;
+      throw err;
+    }
+    const u = await getUserById(userId);
+    return {
+      new_balance: isPremium ? undefined : (u?.credits ?? null),
+      new_premium_balance: isPremium ? (u?.premium_credits ?? null) : undefined,
+      already_claimed: true,
+      credits: isPremium ? 0 : credits,
+      premium_credits: isPremium ? premiumCredits : 0,
+      wallet,
+    };
+  }
+  let balance;
+  let premiumBalance;
+  if (isPremium) {
+    premiumBalance = await addPremiumCredits(
+      userId,
+      premiumCredits,
+      "purchase",
+      `Stripe HQ purchase (${packageId || "package"})`,
+      { stripe_session_id: sessionId },
+    );
+  } else {
+    balance = await addCredits(
+      userId,
+      credits,
+      "purchase",
+      `Stripe purchase (${packageId || "package"})`,
+      { stripe_session_id: sessionId },
+    );
+    try {
+      const { scheduleCreditPurchaseSync } = require("./replicateAutoReserve.cjs");
+      scheduleCreditPurchaseSync({
+        sessionId,
+        userId,
+        credits,
+        amount,
+        currency,
+        packageId,
+        pricingRegion,
+      });
+    } catch {
+      /* non-blocking */
+    }
+  }
+  return {
+    new_balance: balance,
+    new_premium_balance: premiumBalance,
+    already_claimed: false,
+    credits: isPremium ? 0 : credits,
+    premium_credits: isPremium ? premiumCredits : 0,
+    wallet,
+  };
+}
+
+async function recordCreation(userId, creation) {
+  if (!storageEnabled() || !userId || !creation?.id) return;
+  const db = await getDb();
+  const urls = Array.isArray(creation.result_urls)
+    ? creation.result_urls.filter((u) => typeof u === "string" && u.trim())
+    : [];
+  const setFields = {};
+  if (urls.length) setFields.result_urls = urls;
+  if (creation.prompt) setFields.prompt = creation.prompt;
+  if (creation.model_used) setFields.model_used = creation.model_used;
+  if (creation.aspect_ratio) setFields.aspect_ratio = creation.aspect_ratio;
+  if (creation.type) setFields.type = creation.type;
+  if (creation.credits_spent != null) setFields.credits_spent = creation.credits_spent;
+  if (creation.created_at) setFields.created_at = creation.created_at;
+
+  const update = {
+    $setOnInsert: {
+      id: creation.id,
+      user_id: userId,
+      is_favorite: creation.is_favorite ?? false,
+      is_public: creation.is_public ?? false,
+      created_at: creation.created_at || nowIso(),
+      server_billing: creation.server_billing ?? true,
+    },
+  };
+  if (Object.keys(setFields).length) update.$set = setFields;
+
+  await db.collection("creations").updateOne(
+    { id: creation.id, user_id: userId },
+    update,
+    { upsert: true },
+  );
 }
 
 module.exports = {
@@ -325,10 +569,14 @@ module.exports = {
   upsertGoogleUser,
   touchUser,
   repairUserAccountIfNeeded,
+  ensureUserFromSession,
   getUserById,
   getUserByEmail,
   setUserAccountByEmail,
   addCredits,
+  addPremiumCredits,
   recordPurchase,
+  findPurchaseBySessionId,
+  fulfillStripeCheckoutSession,
   recordCreation,
 };

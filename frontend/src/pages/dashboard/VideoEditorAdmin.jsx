@@ -1,30 +1,41 @@
-import { useEffect, useMemo, useState } from "react";
-import { Clapperboard, Sparkles } from "lucide-react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "react-router-dom";
+import { Check, Clock, Clapperboard, Film, ImageIcon, MessageSquare, Monitor, Sliders, Volume2 } from "lucide-react";
 import {
   formatApiError,
-  pollPrediction,
-  trackPendingPrediction,
   uploadPost,
 } from "../../lib/api";
 import { dispatchBackgroundJob, ensureBackgroundSlot } from "../../lib/bgGeneration";
-import { normalizeCreation, primaryResultUrl } from "../../lib/creationUrls";
 import { readVideoDurationSeconds } from "../../lib/videoMedia";
 import { useAuth } from "../../lib/auth";
 import { usePricing } from "../../lib/PricingContext";
 import { useI18n } from "../../lib/i18n";
 import { computeVideoEditCost, buildVideoEditSurcharge } from "../../lib/videoEditPricing";
+import {
+  VIDEO_EDIT_ENGINES,
+  GROK_VIDEO_EDIT,
+  getVideoEditEngine,
+  defaultVideoEditEngineId,
+} from "../../lib/videoEditEngines";
+import { VIDEO_TOOL_IDS } from "../../lib/videoModels";
+import { pickBlobOffloadTimeoutMs } from "../../lib/uploadConstants";
 import { getSurcharges } from "../../lib/creditPricing";
 import { toast } from "sonner";
-import ResultPanel from "../../components/ResultPanel";
-import StudioResultAnchor from "../../components/StudioResultAnchor";
-import StudioAccordionSection from "../../components/StudioAccordionSection";
 import ImageUploadZone from "../../components/ImageUploadZone";
 import StudioVideoUpload from "../../components/StudioVideoUpload";
+import SettingCard from "../../components/studio/SettingCard";
+import SettingModal from "../../components/studio/SettingModal";
 import StudioGenerateBar from "../../components/StudioGenerateBar";
+import StudioGenerateCostMeta from "../../components/StudioGenerateCostMeta";
+import StudioVideoUploadNotice from "../../components/studio/StudioVideoUploadNotice";
+import { isPhotoUploadBusy } from "../../components/studio/StudioPhotoUploadNotice";
 import PromptEnhanceToggle from "../../components/promptAssist/PromptEnhanceToggle";
+import { clampPrompt } from "../../lib/promptLimits";
 import { useStudioGenerateGate } from "../../lib/useStudioGenerateGate";
+import VideoEditModeTabs from "../../components/video/VideoEditModeTabs";
+import VideoEditTemplatePanel from "../../components/video/VideoEditTemplatePanel";
+import { findVideoEditMode, resolveEditMode } from "../../lib/videoEditCatalog";
 
-const EDIT_IDEAS = ["vid_edit_idea_1", "vid_edit_idea_2", "vid_edit_idea_3"];
 const DURATIONS = [4, 6, 8, 10];
 const RESOLUTIONS = [
   { v: "original", labelKey: "vid_res_original", premium: false },
@@ -38,42 +49,91 @@ const ASPECTS = [
   { v: "1:1", label: "1:1" },
 ];
 
-function selectCard(active) {
-  return `text-left px-4 py-3 rounded-xl border transition-all ${
+function chipClass(active) {
+  return [
+    "px-3 py-2 rounded-lg border text-[12px] font-medium transition-all",
     active
-      ? "border-[#7C3AED] bg-gradient-to-br from-[#7C3AED]/15 to-[#7C3AED]/5 shadow-[0_0_28px_-10px_rgba(124,58,237,0.6)]"
-      : "border-[#2E2E30] bg-[#0F0F12] hover:border-[#5A5A5E]"
-  }`;
+      ? "border-[#7C3AED] bg-[#7C3AED]/15 text-[#F4F1EA]"
+      : "border-[#2E2E30] bg-[#0A0A0C] text-[#8A8A8E] hover:border-[#5A5A5E]",
+  ].join(" ");
 }
 
-export default function VideoEditorAdmin() {
+export default function VideoEditorAdmin({ category }) {
   const { t, lang } = useI18n();
-  const ideas = useMemo(() => EDIT_IDEAS.map((k) => t(k)), [t]);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const initialMode = resolveEditMode(
+    searchParams.get("mode") || category?.preset || "vfx",
+  );
+  const [editModeId, setEditModeId] = useState(initialMode);
+  const editMode = useMemo(() => findVideoEditMode(editModeId), [editModeId]);
+  const preset = editMode.preset;
+  const [engineId, setEngineId] = useState(defaultVideoEditEngineId());
+  const engine = useMemo(() => getVideoEditEngine(engineId), [engineId]);
+  const isGrok = engine.id === VIDEO_TOOL_IDS.grok_edit;
+
   const { refresh, user } = useAuth();
   const { costs, region } = usePricing();
   const surcharges = useMemo(() => getSurcharges(region), [region]);
   const videoSurcharge = useMemo(() => buildVideoEditSurcharge(region), [region]);
-  const baseCost = costs.videoEdit ?? costs.video ?? 120;
+  const baseCost = costs.videoEdit ?? costs.video ?? 100;
 
   const [video, setVideo] = useState(null);
+  const [videoCloudUrl, setVideoCloudUrl] = useState(null);
   const [sourceDurationSec, setSourceDurationSec] = useState(0);
   const [reference, setReference] = useState(null);
   const [prompt, setPrompt] = useState("");
   const [resolution, setResolution] = useState("original");
-  const [duration, setDuration] = useState(6);
+  const [duration, setDuration] = useState(8);
   const [improve, setImprove] = useState(false);
   const [aspect, setAspect] = useState("auto");
   const [audioSetting, setAudioSetting] = useState("origin");
   const [busy, setBusy] = useState(false);
+  const [videoUploadStatus, setVideoUploadStatus] = useState("idle");
+  const [videoCloudProgress, setVideoCloudProgress] = useState(null);
   const [uploadPhase, setUploadPhase] = useState("");
-  const [progress, setProgress] = useState(0);
-  const [result, setResult] = useState(null);
+  const [selectedTplId, setSelectedTplId] = useState(null);
+  const [openKey, setOpenKey] = useState(null);
+  const openModal = (key) => setOpenKey(key);
+  const closeModal = () => setOpenKey(null);
+
+  const setMode = useCallback((modeId) => {
+    setEditModeId(modeId);
+    setSelectedTplId(null);
+    setPrompt("");
+    setSearchParams({ mode: modeId }, { replace: true });
+  }, [setSearchParams]);
+
+  const handleTemplateSelect = useCallback((tpl) => {
+    setSelectedTplId(tpl.id);
+    setPrompt(clampPrompt(tpl.prompt));
+  }, []);
+
+  useEffect(() => {
+    const fromUrl = resolveEditMode(searchParams.get("mode") || "");
+    if (fromUrl !== editModeId) setEditModeId(fromUrl);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]);
+
+  useEffect(() => {
+    if (isGrok) {
+      setDuration(8);
+      setResolution("original");
+      setAspect("auto");
+    }
+  }, [isGrok]);
 
   const cost = useMemo(() => {
-    let total = computeVideoEditCost(baseCost, { resolution, duration, regionId: region });
-    if (improve) total += surcharges.enhancePrompt ?? 3;
+    let total = computeVideoEditCost(baseCost, {
+      resolution: isGrok ? "original" : resolution,
+      duration: isGrok ? 8 : duration,
+      regionId: region,
+    });
+    if (improve) total += surcharges.enhancePrompt ?? 5;
     return total;
-  }, [baseCost, resolution, duration, improve, surcharges.enhancePrompt, region]);
+  }, [baseCost, resolution, duration, improve, surcharges.enhancePrompt, region, isGrok]);
+
+  const videoUploading = isPhotoUploadBusy(videoUploadStatus);
+  const cloudReady = Boolean(videoCloudUrl);
 
   const { ready, hint } = useStudioGenerateGate({
     busy,
@@ -83,14 +143,16 @@ export default function VideoEditorAdmin() {
     video,
     requirePrompt: true,
     prompt,
-    readyOverride: Boolean(video) && prompt.trim().length >= 3,
+    uploading: videoUploading,
+    readyOverride: cloudReady ? undefined : false,
+    hintOverride: !cloudReady && video ? t("vid_edit_cloud_required") : undefined,
   });
 
   const eta = useMemo(() => {
     if (!sourceDurationSec) return { min: 3, max: 8 };
-    if (sourceDurationSec <= 5) return { min: 2, max: 6 };
-    if (sourceDurationSec <= 10) return { min: 4, max: 9 };
-    return { min: 6, max: 12 };
+    if (sourceDurationSec <= 5) return { min: 3, max: 7 };
+    if (sourceDurationSec <= 10) return { min: 4, max: 8 };
+    return { min: 5, max: 10 };
   }, [sourceDurationSec]);
 
   useEffect(() => {
@@ -101,25 +163,39 @@ export default function VideoEditorAdmin() {
     }
     readVideoDurationSeconds(video)
       .then((s) => {
-        if (mounted) setSourceDurationSec(Math.max(0, Math.round(s)));
+        if (!mounted) return;
+        const sec = Math.max(0, Math.round(s));
+        setSourceDurationSec(sec);
+        if (sec > 0) {
+          if (isGrok) {
+            setDuration(8);
+          } else {
+            const cap = Math.min(10, sec);
+            setDuration((prev) => {
+              if (prev <= cap) return prev;
+              const allowed = DURATIONS.filter((d) => d <= cap);
+              return allowed.length ? allowed[allowed.length - 1] : 4;
+            });
+          }
+        }
       })
       .catch(() => {
         if (mounted) setSourceDurationSec(0);
       });
     return () => { mounted = false; };
-  }, [video]);
-
-  const pickResolution = (r) => {
-    setResolution(r.v);
-  };
-
-  const pickDuration = (d) => {
-    setDuration(d);
-  };
+  }, [video, isGrok]);
 
   const run = async () => {
+    if (videoUploading) {
+      toast.message(t("upload_wait_generate"), { duration: 6000 });
+      return;
+    }
     if (!video) {
       toast.error(t("vid_edit_err_video"));
+      return;
+    }
+    if (!videoCloudUrl) {
+      toast.error(t("vid_edit_cloud_required"));
       return;
     }
     if (prompt.trim().length < 3) {
@@ -130,11 +206,13 @@ export default function VideoEditorAdmin() {
       toast.error(t("vid_err_credits", { need: cost, have: user?.credits ?? 0 }));
       return;
     }
+    if (!user?.email) {
+      toast.error(t("vid_edit_notify_no_email"));
+      return;
+    }
 
     setBusy(true);
-    setProgress(0);
     setUploadPhase("send");
-    setResult(null);
     try { ensureBackgroundSlot(); } catch { setBusy(false); setUploadPhase(""); return; }
     let submitData;
     try {
@@ -145,29 +223,35 @@ export default function VideoEditorAdmin() {
       fd.append("aspect_ratio", aspect);
       fd.append("audio_setting", audioSetting);
       fd.append("lang", lang || "pt");
+      if (preset) fd.append("video_preset", preset);
+      fd.append("video_tool", engine.id || VIDEO_TOOL_IDS.grok_edit);
       if (improve) fd.append("improve_prompt", "1");
-      fd.append("video", video);
-      if (reference) fd.append("reference_image", reference);
+      fd.append("video_url", videoCloudUrl);
+      if (reference && engine.showReference) fd.append("reference_image", reference);
+      fd.append("notify_by_email", "1");
+      fd.append("notify_email", user.email);
 
       ({ data: submitData } = await uploadPost("/generate/video-edit", fd, {
         timeout: 600_000,
+        blobOffloadTimeoutMs: video?.size ? pickBlobOffloadTimeoutMs(video.size, true) : undefined,
+        skipBlobOffload: true,
         headers: { "X-Skip-Auto-Poll": "1" },
       }));
 
-      trackPendingPrediction(submitData.prediction_id, {
-        credits_spent: submitData.credits_spent || cost,
-        type: "video",
-      });
-      setUploadPhase("processing");
       dispatchBackgroundJob(submitData, {
         type: "video",
         creditsSpent: submitData.credits_spent || cost,
-        label: t("vid_edit_title") || "Vídeo",
+        label: t("vid_v2v_title") || "Vídeo",
       });
+      toast.info(
+        t("vid_edit_queued_email", {
+          email: user.email,
+          min: eta.min,
+          max: eta.max,
+        }),
+        { duration: 12000 },
+      );
       await refresh();
-      // Result lands in gallery + notifications when ready (also via email
-      // for video edits, if the backend so chooses — opt-in via `notify_email`
-      // field which we forward when present).
     } catch (err) {
       toast.error(formatApiError(err, t("vid_edit_fail"), { context: "video_upload", t }), { duration: 12000 });
       if (err?.refunded && submitData?.credits_spent) {
@@ -176,210 +260,329 @@ export default function VideoEditorAdmin() {
     } finally {
       setBusy(false);
       setUploadPhase("");
-      setProgress(0);
     }
   };
 
-  const controls = (
-    <div className="space-y-4 min-w-0">
-      <StudioAccordionSection title={t("vid_acc_my_video")} defaultOpen testId="video-edit-acc-source">
-        <p className="text-[#6f6f76] text-[11px] mb-3">
-          {t("vid_edit_eta_hint", { min: eta.min, max: eta.max })}
-        </p>
-        <StudioVideoUpload
-          value={video}
-          onChange={setVideo}
-          disabled={busy}
-          maxDurationSec={10}
-          testId="video-edit-source"
-        />
-      </StudioAccordionSection>
+  const modeNotice = preset === "outfit"
+    ? t("vid_outfit_pose_notice")
+    : preset === "vfx"
+      ? t("vid_vfx_notice")
+      : null;
 
-      <StudioAccordionSection title={t("vid_edit_prompt_label")} defaultOpen testId="video-edit-acc-prompt">
-          <div className="flex items-baseline justify-end mb-3 -mt-1">
-            <span className="text-[#5A5A5E] text-[11px] font-mono">{prompt.length}/800</span>
-          </div>
-          <textarea
-            value={prompt}
-            onChange={(e) => setPrompt(e.target.value.slice(0, 800))}
-            rows={5}
-            placeholder={t("vid_edit_prompt_placeholder")}
-            className="rp-editor-textarea min-h-[140px]"
-            data-testid="video-edit-prompt"
-          />
-          <div className="mt-3">
-            <PromptEnhanceToggle
-              checked={improve}
-              onChange={setImprove}
-              locked={false}
-              onLockedClick={undefined}
-              testId="video-edit-improve"
-              cost={surcharges.enhancePrompt ?? 3}
-            />
-          </div>
-          <div className="flex flex-wrap gap-2 mt-3">
-            {ideas.map((idea) => (
-              <button
-                key={idea}
-                type="button"
-                onClick={() => setPrompt(idea)}
-                className="rp-pill max-w-full !justify-start !normal-case !tracking-normal !font-['Inter_Tight'] !text-[12px] !font-normal"
-              >
-                <Sparkles className="w-3 h-3 shrink-0" /> {idea}
-              </button>
-            ))}
-          </div>
-      </StudioAccordionSection>
+  const resolutionLabel = RESOLUTIONS.find((r) => r.v === resolution)?.labelKey
+    ? t(RESOLUTIONS.find((r) => r.v === resolution).labelKey)
+    : resolution;
+  const durationLabel = `${duration}s`;
+  const aspectLabel = ASPECTS.find((a) => a.v === aspect)?.labelKey
+    ? t(ASPECTS.find((a) => a.v === aspect).labelKey)
+    : aspect;
+  const audioLabel = audioSetting === "origin" ? t("vid_edit_audio_origin") : t("vid_edit_audio_auto");
+  const templateLabel = selectedTplId
+    ? selectedTplId.replace(/_/g, " ")
+    : t("studio_optional");
+  const referenceLabel = reference ? reference.name?.slice(0, 20) || t("vid_v2v_step_reference") : t("studio_optional");
+  const promptPreview = prompt.trim().length > 28 ? `${prompt.trim().slice(0, 28)}…` : prompt.trim() || t("vid_edit_prompt_placeholder");
 
-      <StudioAccordionSection title={t("vid_edit_ref_label")} defaultOpen={false} testId="video-edit-acc-ref">
-          <p className="text-[#8A8A8E] text-[13px] mb-4">{t("vid_edit_ref_hint")}</p>
-          <div className="max-w-[280px]">
-            <ImageUploadZone
-              value={reference}
-              onChange={setReference}
-              layout="square"
-              enableRemotePersist={false}
-              testId="video-edit-reference"
-              emptyLabel={t("upload_drop")}
-              emptyHint={t("upload_empty_hint")}
-            />
-          </div>
-      </StudioAccordionSection>
-
-      <StudioAccordionSection title={t("vid_edit_resolution")} defaultOpen testId="video-edit-acc-resolution">
-        <div className="grid grid-cols-1 gap-2">
-            {RESOLUTIONS.map((r) => {
-              const extra = videoSurcharge.resolution[r.v];
-              return (
-                <button
-                  key={r.v}
-                  type="button"
-                  onClick={() => pickResolution(r)}
-                  className={selectCard(resolution === r.v)}
-                  data-testid={`video-edit-res-${r.v}`}
-                >
-                  <p className="text-[#F4F1EA] text-[14px] font-medium flex items-center gap-1.5">
-                    {r.labelKey ? t(r.labelKey) : r.label}
-                  </p>
-                  {r.labelKey && (
-                    <p className="text-[#8A8A8E] text-[10px] mt-1">{t("vid_res_original_hint")}</p>
-                  )}
-                  {extra > 0 && (
-                    <p className="text-[#A855F7] text-[10px] font-mono mt-1">+{extra} {t("credits")}</p>
-                  )}
-                </button>
-              );
-            })}
-          </div>
-      </StudioAccordionSection>
-
-      <StudioAccordionSection title={t("vid_edit_duration")} defaultOpen testId="video-edit-acc-duration">
-        <div className="grid grid-cols-2 gap-2">
-            {DURATIONS.map((d) => {
-              const extra = videoSurcharge.duration[d];
-              return (
-                <button
-                  key={d}
-                  type="button"
-                  onClick={() => pickDuration(d)}
-                  className={selectCard(duration === d)}
-                  data-testid={`video-edit-dur-${d}`}
-                >
-                  <p className="text-[#F4F1EA] text-[16px] font-light flex items-center gap-1">
-                    {d}s
-                  </p>
-                  {extra > 0 && (
-                    <p className="text-[#A855F7] text-[10px] font-mono mt-1">+{extra}</p>
-                  )}
-                </button>
-              );
-            })}
-          </div>
-      </StudioAccordionSection>
-
-      <StudioAccordionSection title={t("vid_edit_aspect")} defaultOpen={false} testId="video-edit-acc-aspect">
-        <div className="grid grid-cols-2 gap-2">
-            {ASPECTS.map((a) => (
-              <button
-                key={a.v}
-                type="button"
-                onClick={() => setAspect(a.v)}
-                className={selectCard(aspect === a.v)}
-                data-testid={`video-edit-ar-${a.v}`}
-              >
-                <p className="text-[#F4F1EA] text-[13px] font-medium">
-                  {a.labelKey ? t(a.labelKey) : a.label}
-                </p>
-              </button>
-            ))}
-          </div>
-      </StudioAccordionSection>
-
-      <StudioAccordionSection title={t("vid_edit_audio")} defaultOpen={false} testId="video-edit-acc-audio">
-        <div className="grid grid-cols-1 gap-2">
-            <button
-              type="button"
-              onClick={() => setAudioSetting("origin")}
-              className={selectCard(audioSetting === "origin")}
-              data-testid="video-edit-audio-origin"
-            >
-              <p className="text-[#F4F1EA] text-[13px] font-medium">{t("vid_edit_audio_origin")}</p>
-            </button>
-            <button
-              type="button"
-              onClick={() => setAudioSetting("auto")}
-              className={selectCard(audioSetting === "auto")}
-              data-testid="video-edit-audio-auto"
-            >
-              <p className="text-[#F4F1EA] text-[13px] font-medium">{t("vid_edit_audio_auto")}</p>
-            </button>
-          </div>
-      </StudioAccordionSection>
-
-      <StudioAccordionSection title={t("vid_acc_generate")} defaultOpen testId="video-edit-acc-generate">
-          <StudioGenerateBar
-            layout="inline"
-            ready={ready}
-            busy={busy}
-            onClick={run}
-            label={t("vid_edit_btn", { n: cost })}
-            busyLabel={
-              uploadPhase === "processing" && progress > 0
-                ? `${t("vid_edit_processing")} (${progress}s)`
-                : uploadPhase === "processing"
-                  ? t("vid_edit_processing_eta", { min: eta.min, max: eta.max })
-                  : t("vid_edit_processing")
-            }
-            hint={hint}
-            testId="video-edit-submit"
-            icon={Clapperboard}
-          />
-          <p className="text-[#5A5A5E] text-[11px] mt-3 text-center font-mono uppercase tracking-[0.14em]">
-            {t("vid_balance", { n: user?.is_unlimited ? "∞" : (user?.credits ?? 0) })}
-          </p>
-      </StudioAccordionSection>
-    </div>
-  );
-
-  const resultBlock = (
-    <StudioResultAnchor
-      busy={busy}
-      ready={Boolean(primaryResultUrl(result))}
-      className="lg:sticky lg:top-[88px] self-start space-y-3"
-    >
-      <p className="text-[10px] font-mono uppercase tracking-[0.22em] text-[#7C3AED]">
-        {t("vid_edit_result_label")}
-      </p>
-      <div className="rp-editor-panel overflow-hidden p-3 sm:p-4">
-        <ResultPanel creation={result} loading={busy} onChange={setResult} emptyLabel={t("vid_edit_result_empty")} />
-      </div>
-    </StudioResultAnchor>
-  );
+  const modalTitle = {
+    templates: t("vid_v2v_templates") || "Templates",
+    reference: t("vid_v2v_step_reference"),
+    prompt: t("vid_v2v_step_prompt"),
+    advanced: t("vid_v2v_advanced"),
+  }[openKey] || "";
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-[1fr_380px] gap-8 lg:gap-10" data-testid="video-editor-admin">
-      {controls}
-      {resultBlock}
-    </div>
+    <>
+      <div className="space-y-2.5 min-w-0" data-testid="video-editor-v2v">
+        <VideoEditModeTabs modeId={editModeId} onChange={setMode} disabled={busy} />
+
+        <div className="rounded-2xl border border-white/[0.08] bg-[#141418]/80 p-3 md:p-4" data-testid="video-edit-engine">
+          <p className="text-[11px] font-mono uppercase tracking-[0.14em] text-[#8A8A8E] mb-2">
+            {t("vid_edit_engine_title")}
+          </p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            {VIDEO_EDIT_ENGINES.map((eng) => {
+              const active = engineId === eng.id;
+              return (
+                <button
+                  key={eng.id}
+                  type="button"
+                  disabled={busy}
+                  onClick={() => setEngineId(eng.id)}
+                  className={[
+                    "text-left rounded-xl border px-3 py-2.5 transition-colors",
+                    active
+                      ? "border-[#7C3AED] bg-[#7C3AED]/15"
+                      : "border-white/[0.08] bg-[#0A0A0C] hover:border-[#5A5A5E]",
+                  ].join(" ")}
+                  data-testid={`video-edit-engine-${eng.id}`}
+                >
+                  <span className="flex items-center justify-between gap-2">
+                    <span className="text-[13px] font-medium text-[#F4F1EA]">{t(eng.labelKey)}</span>
+                    <span className="text-[10px] font-mono uppercase tracking-[0.1em] text-[#C4B5FD]">
+                      {t(eng.badgeKey)}
+                    </span>
+                  </span>
+                  <span className="block mt-1 text-[11px] text-[#9CA3AF] leading-snug">{t(eng.descKey)}</span>
+                </button>
+              );
+            })}
+          </div>
+          <p className="mt-2 text-[11px] text-[#C4B5FD]/90 leading-relaxed">
+            {t("vid_edit_engine_nsfw_hint")}
+          </p>
+          {isGrok ? (
+            <p className="mt-1.5 text-[11px] text-[#8A8A8E] leading-relaxed">{t("vid_edit_grok_limits")}</p>
+          ) : null}
+        </div>
+
+        <div className="rounded-2xl border border-white/[0.08] bg-[#141418]/80 p-3 md:p-4">
+          <p className="text-[#9CA3AF] text-[12px] leading-relaxed mb-3">{t("vid_v2v_video_hint")}</p>
+          <StudioVideoUpload
+            value={video}
+            onChange={(f) => { setVideo(f); if (!f) setVideoCloudUrl(null); }}
+            onCloudUrlChange={setVideoCloudUrl}
+            onCloudProgressChange={setVideoCloudProgress}
+            onStatusChange={setVideoUploadStatus}
+            disabled={busy}
+            maxDurationSec={engine.maxDurationSec}
+            requireCloudUrl={engine.requiresCloudUrl}
+            testId="video-edit-source"
+          />
+          <StudioVideoUploadNotice
+            status={videoUploadStatus}
+            progress={videoCloudProgress}
+            className="mt-3"
+          />
+          <p className="text-[#5A5A5E] text-[10px] mt-2">
+            {t("vid_edit_eta_hint", { min: eta.min, max: eta.max })}
+          </p>
+        </div>
+
+        <div className="mv-setting-grid">
+          <SettingCard
+            icon={Film}
+            label={t("vid_v2v_templates") || "Templates"}
+            value={templateLabel}
+            onOpen={() => openModal("templates")}
+            testId="video-edit-card-templates"
+          />
+          {engine.showReference ? (
+            <SettingCard
+              icon={ImageIcon}
+              label={t("vid_v2v_step_reference")}
+              value={referenceLabel}
+              onOpen={() => openModal("reference")}
+              testId="video-edit-card-reference"
+            />
+          ) : null}
+        </div>
+
+        <SettingCard
+          icon={MessageSquare}
+          label={t("vid_v2v_step_prompt")}
+          value={promptPreview}
+          onOpen={() => openModal("prompt")}
+          testId="video-edit-card-prompt"
+        />
+
+        {!isGrok ? (
+          <SettingCard
+            icon={Sliders}
+            label={t("vid_v2v_advanced")}
+            value={`${resolutionLabel} · ${durationLabel} · ${aspectLabel}`}
+            onOpen={() => openModal("advanced")}
+            testId="video-edit-card-advanced"
+          />
+        ) : (
+          <div className="rounded-xl border border-white/[0.06] bg-[#141418]/60 px-3 py-2.5 text-[11px] text-[#8A8A8E]">
+            {t("vid_edit_grok_duration_default")} · 8s
+          </div>
+        )}
+
+        <div className="mv-setting-card mv-setting-card--static">
+          <div className="flex flex-col gap-2.5 sm:flex-row sm:items-center sm:justify-end">
+            <StudioGenerateBar
+              layout="inline"
+              ready={ready}
+              busy={busy}
+              onClick={run}
+              label={t("vid_edit_btn", { n: cost })}
+              busyLabel={
+                uploadPhase === "send"
+                  ? t("vid_edit_uploading")
+                  : t("vid_edit_processing")
+              }
+              hint={!user?.email && user ? t("vid_edit_notify_no_email") : hint}
+              blockedNotify="message"
+              cost={cost}
+              testId="video-edit-submit"
+              icon={Clapperboard}
+              buttonClassName="rp-gen-btn-inline w-full sm:w-auto"
+            />
+          </div>
+          <div className="mt-2 pt-2 border-t border-white/[0.06]">
+            <StudioGenerateCostMeta cost={cost} user={user} />
+          </div>
+        </div>
+      </div>
+
+      <SettingModal open={openKey === "templates"} title={modalTitle} onClose={closeModal}>
+        <VideoEditTemplatePanel
+          modeId={editModeId}
+          selectedId={selectedTplId}
+          onSelect={(tpl) => {
+            handleTemplateSelect(tpl);
+            closeModal();
+          }}
+          disabled={busy}
+        />
+        <button type="button" onClick={closeModal} className="rp-modal-confirm mt-3" data-testid="video-edit-templates-confirm">
+          <Check className="w-4 h-4" /> {t("confirm")}
+        </button>
+      </SettingModal>
+
+      <SettingModal open={openKey === "reference"} title={modalTitle} onClose={closeModal}>
+        <p className="text-[#8A8A8E] text-[12px] mb-3">{t("vid_v2v_reference_hint")}</p>
+        <div className="max-w-[240px]">
+          <ImageUploadZone
+            value={reference}
+            onChange={setReference}
+            layout="square"
+            enableRemotePersist={false}
+            testId="video-edit-reference"
+            emptyLabel={t("vid_v2v_ref_empty")}
+            emptyHint={t("upload_empty_hint")}
+          />
+        </div>
+        <button type="button" onClick={closeModal} className="rp-modal-confirm mt-3" data-testid="video-edit-reference-confirm">
+          <Check className="w-4 h-4" /> {t("confirm")}
+        </button>
+      </SettingModal>
+
+      <SettingModal open={openKey === "prompt"} title={modalTitle} onClose={closeModal}>
+        {modeNotice && (
+          <p className="mb-3 rounded-lg border border-violet-500/25 bg-violet-500/10 px-3 py-2 text-[11px] text-[#C4B5FD] leading-relaxed">
+            {modeNotice}
+          </p>
+        )}
+        <div className="flex justify-end mb-2">
+          <span className="text-[#5A5A5E] text-[11px] font-mono">{prompt.length}</span>
+        </div>
+        <textarea
+          value={prompt}
+          onChange={(e) => {
+            setPrompt(clampPrompt(e.target.value));
+            setSelectedTplId(null);
+          }}
+          rows={4}
+          placeholder={t("vid_edit_prompt_placeholder")}
+          className="rp-editor-textarea rp-editor-textarea--compact min-h-[100px] w-full"
+          data-testid="video-edit-prompt"
+        />
+        <div className="mt-3">
+          <PromptEnhanceToggle
+            checked={improve}
+            onChange={setImprove}
+            locked={false}
+            onLockedClick={undefined}
+            testId="video-edit-improve"
+            cost={surcharges.enhancePrompt ?? 5}
+          />
+        </div>
+        <button type="button" onClick={closeModal} className="rp-modal-confirm mt-3" data-testid="video-edit-prompt-confirm">
+          <Check className="w-4 h-4" /> {t("confirm")}
+        </button>
+      </SettingModal>
+
+      <SettingModal open={openKey === "advanced"} title={modalTitle} onClose={closeModal}>
+        <div className="space-y-4">
+          <div>
+            <p className="text-[#8A8A8E] text-[11px] mb-2 uppercase tracking-wider flex items-center gap-1.5">
+              <Monitor className="w-3 h-3" /> {t("vid_edit_resolution")}
+            </p>
+            <div className="flex flex-wrap gap-2">
+              {RESOLUTIONS.map((r) => {
+                const extra = videoSurcharge.resolution[r.v];
+                return (
+                  <button
+                    key={r.v}
+                    type="button"
+                    onClick={() => setResolution(r.v)}
+                    className={chipClass(resolution === r.v)}
+                    data-testid={`video-edit-res-${r.v}`}
+                  >
+                    {r.labelKey ? t(r.labelKey) : r.label}
+                    {extra > 0 ? ` +${extra}` : ""}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+          <div>
+            <p className="text-[#8A8A8E] text-[11px] mb-2 uppercase tracking-wider flex items-center gap-1.5">
+              <Clock className="w-3 h-3" /> {t("vid_edit_duration")}
+            </p>
+            <div className="flex flex-wrap gap-2">
+              {DURATIONS.map((d) => {
+                const extra = videoSurcharge.duration[d];
+                return (
+                  <button
+                    key={d}
+                    type="button"
+                    onClick={() => setDuration(d)}
+                    className={chipClass(duration === d)}
+                    data-testid={`video-edit-dur-${d}`}
+                  >
+                    {d}s{extra > 0 ? ` +${extra}` : ""}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+          <div>
+            <p className="text-[#8A8A8E] text-[11px] mb-2 uppercase tracking-wider">{t("vid_edit_aspect")}</p>
+            <div className="flex flex-wrap gap-2">
+              {ASPECTS.map((a) => (
+                <button
+                  key={a.v}
+                  type="button"
+                  onClick={() => setAspect(a.v)}
+                  className={chipClass(aspect === a.v)}
+                  data-testid={`video-edit-ar-${a.v}`}
+                >
+                  {a.labelKey ? t(a.labelKey) : a.label}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div>
+            <p className="text-[#8A8A8E] text-[11px] mb-2 uppercase tracking-wider flex items-center gap-1.5">
+              <Volume2 className="w-3 h-3" /> {t("vid_edit_audio")}
+            </p>
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={() => setAudioSetting("origin")}
+                className={chipClass(audioSetting === "origin")}
+                data-testid="video-edit-audio-origin"
+              >
+                {t("vid_edit_audio_origin")}
+              </button>
+              <button
+                type="button"
+                onClick={() => setAudioSetting("auto")}
+                className={chipClass(audioSetting === "auto")}
+                data-testid="video-edit-audio-auto"
+              >
+                {t("vid_edit_audio_auto")}
+              </button>
+            </div>
+          </div>
+        </div>
+        <button type="button" onClick={closeModal} className="rp-modal-confirm mt-3" data-testid="video-edit-advanced-confirm">
+          <Check className="w-4 h-4" /> {t("confirm")}
+        </button>
+      </SettingModal>
+    </>
   );
 }

@@ -10,31 +10,39 @@ import {
   Image as ImageIcon,
   Mail,
   MessageCircle,
+  Moon,
+  Sun,
 } from "lucide-react";
+import { api, formatApiError } from "../../lib/api";
 import { useAuth } from "../../lib/auth";
 import { useI18n } from "../../lib/i18n";
 import { LANG_LABELS, LANG_ORDER } from "../../lib/localeStrings";
 import { readUserSettings, writeUserSettings } from "../../lib/userSettings";
 import { normalizeWhatsAppPhone } from "../../lib/whatsappNotify";
 import { setLanguageAndReload } from "../../lib/remakepixLanguage";
+import { getTheme, setTheme } from "../../lib/theme";
 import useTitle from "../../lib/useTitle";
 import { toast } from "sonner";
 import AspectPicker from "../../components/AspectPicker";
+import StudioHelpTip from "../../components/studio/StudioHelpTip";
 
 const ASPECTS = ["1:1", "4:5", "9:16", "16:9", "3:2"];
 
 export default function Settings() {
-  const { user, changePassword } = useAuth();
+  const { user, changePassword, refresh } = useAuth();
   const { t, lang } = useI18n();
   useTitle(t("sidebar_settings"));
 
   const [aspect, setAspect] = useState(() => readUserSettings().aspect_ratio_default || "match");
+  const [theme, setThemeState] = useState(() => getTheme());
   const [pwCurrent, setPwCurrent] = useState("");
   const [pwNew, setPwNew] = useState("");
   const [pwConfirm, setPwConfirm] = useState("");
   const [pwSaving, setPwSaving] = useState(false);
   const [waPhone, setWaPhone] = useState("");
   const [waNotify, setWaNotify] = useState(false);
+  const [emailGenNotify, setEmailGenNotify] = useState(false);
+  const [emailSaving, setEmailSaving] = useState(false);
   const isGoogle = String(user?.id || "").startsWith("google_");
 
   useEffect(() => {
@@ -42,7 +50,12 @@ export default function Settings() {
     if (s.aspect_ratio_default) setAspect(s.aspect_ratio_default);
     setWaPhone(s.whatsapp_phone || "");
     setWaNotify(Boolean(s.whatsapp_notify));
+    setThemeState(getTheme());
   }, []);
+
+  useEffect(() => {
+    setEmailGenNotify(Boolean(user?.email_notify_generations));
+  }, [user?.email_notify_generations]);
 
   const saveWhatsApp = (patch) => {
     const next = writeUserSettings(patch);
@@ -51,11 +64,32 @@ export default function Settings() {
     toast.success(t("wa_saved"));
   };
 
+  const saveEmailNotify = async (checked) => {
+    setEmailSaving(true);
+    try {
+      await api.patch("/me/notifications", { email_notify_generations: checked });
+      setEmailGenNotify(checked);
+      await refresh();
+      toast.success(t("email_notify_saved"));
+    } catch (err) {
+      toast.error(formatApiError(err, t("email_notify_fail")));
+    } finally {
+      setEmailSaving(false);
+    }
+  };
+
   const pickLang = (code) => {
     if (code === lang) return;
     writeUserSettings({ lang: code });
     toast.success(t("set_lang_reload"));
     setLanguageAndReload(code);
+  };
+
+  const pickTheme = (value) => {
+    const next = setTheme(value);
+    writeUserSettings({ theme: next });
+    setThemeState(next);
+    toast.success(t("set_theme_saved"));
   };
 
   const pickAspect = (value) => {
@@ -91,13 +125,18 @@ export default function Settings() {
   return (
     <div className="max-w-[640px] mx-auto pb-16" data-testid="settings-page">
       <header className="mb-8">
-        <p className="text-[10px] font-mono uppercase tracking-[0.22em] text-[#7C3AED] mb-2">
-          {t("set_page_cap")}
-        </p>
-        <h1 className="text-[#F4F1EA] text-3xl font-light tracking-tight font-['Inter_Tight'] mb-2">
-          {t("set_page_title")}
-        </h1>
-        <p className="text-[#8A8A8E] text-sm leading-relaxed">{t("set_page_desc")}</p>
+        <div className="flex items-start gap-3">
+          <div className="flex-1 min-w-0">
+            <p className="text-[10px] font-mono uppercase tracking-[0.22em] text-[#7C3AED] mb-2">
+              {t("set_page_cap")}
+            </p>
+            <h1 className="text-[#F4F1EA] text-3xl font-light tracking-tight font-display mb-2">
+              {t("set_page_title")}
+            </h1>
+            <p className="text-[#8A8A8E] text-sm leading-relaxed">{t("set_page_desc")}</p>
+          </div>
+          <StudioHelpTip helpKey="help_page_settings" size="lg" testId="settings-page-help" className="shrink-0 mt-1" />
+        </div>
       </header>
 
       <div className="space-y-4">
@@ -111,7 +150,22 @@ export default function Settings() {
           <LinkRow to="/app/profile" label={t("set_edit_profile")} testId="settings-link-profile" />
         </Section>
 
-        <Section title={t("set_section_language")} icon={Globe}>
+        <Section title={t("email_notify_title")} icon={Mail} helpKey="help_sec_set_email_notify">
+          <p className="text-xs text-[#8A8A8E] mb-4 leading-relaxed">{t("email_notify_desc")}</p>
+          <label className="flex items-start gap-3 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={emailGenNotify}
+              disabled={emailSaving || !user?.email}
+              onChange={(e) => saveEmailNotify(e.target.checked)}
+              className="mt-1 accent-[#7C3AED] w-4 h-4 rounded"
+              data-testid="settings-email-notify"
+            />
+            <span className="text-sm text-[#F4F1EA] leading-relaxed">{t("email_notify_label")}</span>
+          </label>
+        </Section>
+
+        <Section title={t("set_section_language")} icon={Globe} helpKey="help_sec_set_language">
           <p className="text-xs text-[#8A8A8E] mb-3 leading-relaxed">{t("set_lang_hint")}</p>
           <div className="grid grid-cols-2 gap-2">
             {LANG_ORDER.map((code) => (
@@ -135,7 +189,49 @@ export default function Settings() {
           </div>
         </Section>
 
-        <Section title={t("set_section_security")} icon={Lock}>
+        <Section title={t("set_section_theme")} icon={Moon} helpKey="help_sec_set_theme">
+          <p className="text-xs text-[#8A8A8E] mb-3 leading-relaxed">{t("set_theme_hint")}</p>
+          <div className="grid grid-cols-2 gap-2">
+            <button
+              type="button"
+              onClick={() => pickTheme("dark")}
+              data-testid="theme-dark"
+              className={`rounded-xl border px-4 py-3 text-left transition-all flex items-start gap-3 ${
+                theme === "dark"
+                  ? "border-[#A855F7] bg-[#7C3AED]/15 text-white shadow-[0_0_20px_-8px_rgba(168,85,247,0.45)]"
+                  : "border-[#2E2E30] bg-[#13131A] text-[#8A8A8E] hover:border-[#7C3AED]/40 hover:text-white"
+              }`}
+            >
+              <Moon className="w-4 h-4 mt-0.5 shrink-0 text-[#A855F7]" strokeWidth={1.75} />
+              <span>
+                <span className="block text-sm font-medium">{t("set_theme_dark")}</span>
+                <span className="block text-[10px] font-mono uppercase tracking-wider mt-0.5 opacity-70">
+                  {t("set_theme_dark_hint")}
+                </span>
+              </span>
+            </button>
+            <button
+              type="button"
+              onClick={() => pickTheme("light")}
+              data-testid="theme-light"
+              className={`rounded-xl border px-4 py-3 text-left transition-all flex items-start gap-3 ${
+                theme === "light"
+                  ? "border-[#A855F7] bg-[#7C3AED]/15 text-white shadow-[0_0_20px_-8px_rgba(168,85,247,0.45)]"
+                  : "border-[#2E2E30] bg-[#13131A] text-[#8A8A8E] hover:border-[#7C3AED]/40 hover:text-white"
+              }`}
+            >
+              <Sun className="w-4 h-4 mt-0.5 shrink-0 text-[#A855F7]" strokeWidth={1.75} />
+              <span>
+                <span className="block text-sm font-medium">{t("set_theme_light")}</span>
+                <span className="block text-[10px] font-mono uppercase tracking-wider mt-0.5 opacity-70">
+                  {t("set_theme_light_hint")}
+                </span>
+              </span>
+            </button>
+          </div>
+        </Section>
+
+        <Section title={t("set_section_security")} icon={Lock} helpKey="help_sec_set_password">
           {isGoogle ? (
             <p className="text-sm text-[#8A8A8E] leading-relaxed" data-testid="settings-google-hint">
               {t("set_pw_google")}
@@ -186,7 +282,7 @@ export default function Settings() {
           )}
         </Section>
 
-        <Section title={t("wa_settings_title")} icon={MessageCircle}>
+        <Section title={t("wa_settings_title")} icon={MessageCircle} helpKey="help_sec_set_whatsapp">
           <p className="text-xs text-[#8A8A8E] mb-4 leading-relaxed">{t("wa_settings_desc")}</p>
           <Field
             label={t("wa_phone_label")}
@@ -232,7 +328,7 @@ export default function Settings() {
           </button>
         </Section>
 
-        <Section title={t("set_section_studio")} icon={ImageIcon}>
+        <Section title={t("set_section_studio")} icon={ImageIcon} helpKey="help_sec_set_aspect">
           <p className="text-xs text-[#8A8A8E] mb-3">{t("set_aspect_hint")}</p>
           <AspectPicker
             value={aspect}
@@ -257,12 +353,13 @@ export default function Settings() {
   );
 }
 
-function Section({ title, icon: Icon, children }) {
+function Section({ title, icon: Icon, children, helpKey }) {
   return (
     <section className="rounded-2xl border border-[rgba(147,51,234,0.15)] bg-[#13131A]/80 backdrop-blur-sm overflow-hidden">
       <div className="flex items-center gap-2 px-4 py-3 border-b border-white/[0.06] bg-white/[0.02]">
         <Icon className="w-4 h-4 text-[#A855F7]" strokeWidth={1.75} />
-        <h2 className="text-sm font-semibold text-white">{title}</h2>
+        <h2 className="text-sm font-semibold text-white flex-1 min-w-0">{title}</h2>
+        {helpKey ? <StudioHelpTip helpKey={helpKey} testId={`settings-${helpKey}-help`} /> : null}
       </div>
       <div className="p-4">{children}</div>
     </section>

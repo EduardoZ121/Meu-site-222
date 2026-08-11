@@ -24,14 +24,16 @@ function upsertLink(rel, href) {
 }
 
 /**
- * Atualiza meta tags de partilha (útil em rotas SPA; crawlers usam sobretudo o HTML inicial).
+ * Updates share + SEO meta tags (SPA routes; crawlers also read index.html defaults).
  */
 export function useSocialMeta({
   title = DEFAULT_OG.title,
   description = DEFAULT_OG.description,
   image = DEFAULT_OG.image,
+  keywords = DEFAULT_OG.keywords,
   path = "/",
   type = "website",
+  noindex = false,
 } = {}) {
   useEffect(() => {
     const url = absoluteUrl(path);
@@ -54,6 +56,17 @@ export function useSocialMeta({
     upsertMeta("name", "twitter:image:alt", title);
 
     upsertMeta("name", "description", description);
+    if (keywords) upsertMeta("name", "keywords", keywords);
+
     upsertLink("canonical", url);
-  }, [title, description, image, path, type]);
+
+    if (noindex) {
+      upsertMeta("name", "robots", "noindex, nofollow");
+    } else {
+      const robots = document.querySelector('meta[name="robots"]');
+      if (robots && robots.getAttribute("content")?.includes("noindex")) {
+        robots.remove();
+      }
+    }
+  }, [title, description, image, keywords, path, type, noindex]);
 }

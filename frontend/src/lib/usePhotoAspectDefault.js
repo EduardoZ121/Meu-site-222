@@ -1,33 +1,53 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 const MATCH = "match";
 
+function photoFingerprint(photos) {
+  const list = Array.isArray(photos) ? photos.filter(Boolean) : photos ? [photos] : [];
+  if (!list.length) return "";
+  return list.map((f) => `${f.name}:${f.size}:${f.lastModified}`).join("|");
+}
+
 /**
- * Proporção de saída: "match" (original da foto) enquanto houver foto;
- * volta ao fallback quando a foto é removida.
- *
- * @param {File|null|undefined} photo
- * @param {string} [fallbackWhenNoPhoto="4:5"]
- * @param {string} [initialAspect] — estado inicial sem foto (ex. definições do utilizador)
+ * Proporção de saída: sugere "match" quando há foto; não sobrescreve se o utilizador
+ * escolheu outro formato depois de carregar a foto.
  */
 export function usePhotoAspectDefault(
-  photo,
+  photos,
   fallbackWhenNoPhoto = "4:5",
   initialAspect,
 ) {
   const safeFallback =
     fallbackWhenNoPhoto === MATCH ? "4:5" : fallbackWhenNoPhoto;
-  const initial = initialAspect === MATCH ? MATCH : (initialAspect || safeFallback);
-  const [aspect, setAspect] = useState(initial);
+  const initial = initialAspect === MATCH ? safeFallback : (initialAspect || safeFallback);
+  const [aspect, setAspectState] = useState(initial);
+  const userLockedRef = useRef(false);
+  const prevFingerprintRef = useRef("");
+
+  const fingerprint = useMemo(() => photoFingerprint(photos), [photos]);
 
   useEffect(() => {
-    if (photo) {
-      setAspect(MATCH);
-    } else if (aspect === MATCH) {
-      setAspect(safeFallback);
+    if (fingerprint) {
+      if (fingerprint !== prevFingerprintRef.current) {
+        prevFingerprintRef.current = fingerprint;
+        userLockedRef.current = false;
+        setAspectState(MATCH);
+        return;
+      }
+      if (!userLockedRef.current) {
+        setAspectState(MATCH);
+      }
+    } else {
+      prevFingerprintRef.current = "";
+      userLockedRef.current = false;
+      setAspectState((prev) => (prev === MATCH ? safeFallback : prev));
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [photo]);
+  }, [fingerprint, safeFallback]);
+
+  const setAspect = useCallback((next) => {
+    if (next && next !== MATCH) userLockedRef.current = true;
+    setAspectState(next);
+  }, []);
 
   return [aspect, setAspect];
 }

@@ -1,0 +1,122 @@
+[
+  {
+    "id": "music_artist",
+    "source_id": "music_artist",
+    "familyId": "music_artist",
+    "styleVariants": true,
+    "category": "music",
+    "label": "ARTIST PROMO",
+    "subtag": "6 estilos · Streaming & álbum",
+    "placeholders": [
+      "line_1",
+      "line_2"
+    ],
+    "optional": [
+      "line_2"
+    ],
+    "replacements": {
+      "line_1": "STREET ENERGY",
+      "line_2": "OUT NOW"
+    },
+    "prompt": "REFERENCE PHOTO (mandatory): Use the uploaded photo as the exact same person — preserve 100% of their face, facial features, skin tone, ethnicity, hair texture and likeness. Seamlessly composite them into this poster like professional photo retouching: unified lighting on face and body, natural skin blend, no floating cutout, no pasted sticker look, no disjointed face layer. Place the subject in the pose/position described below while keeping their real identity. Typography and graphic elements must sit in clear layout zones — never let text overlap, cut through or hide behind the face; place headlines in negative space or on background layers behind the subject when needed.\n\nVertical urban music poster, red black white graffiti, paint splashes, rough textures.\nThree-quarter back pose, head turned, street attitude.\nLarge brush typography \"{{line_1}}\" with \"{{line_2}}\" badge.\nGrunge overlays, barcode, parental advisory. Aggressive street-art album aesthetic.",
+    "aspect": "4:5"
+  },
+  {
+    "id": "music_nightlife",
+    "source_id": "music_nightlife",
+    "familyId": "music_nightlife",
+    "styleVariants": true,
+    "category": "music",
+    "label": "CLUB & DJ",
+    "subtag": "5 estilos · Neon & EDM",
+    "placeholders": [
+      "line_1"
+    ],
+    "optional": [],
+    "replacements": {
+      "line_1": "NIGHT VIBES"
+    },
+    "prompt": "REFERENCE PHOTO (mandatory): Use the uploaded photo as the exact same person — preserve 100% of their face, facial features, skin tone, ethnicity, hair texture and likeness. Seamlessly composite them into this poster like professional photo retouching: unified lighting on face and body, natural skin blend, no floating cutout, no pasted sticker look, no disjointed face layer. Place the subject in the pose/position described below while keeping their real identity. Typography and graphic elements must sit in clear layout zones — never let text overlap, cut through or hide behind the face; place headlines in negative space or on background layers behind the subject when needed.\n\nVertical nightclub poster, neon purple pink lighting, dark background, glow effects.\nDJ performance pose, dynamic lighting, smoke and crowd silhouettes.\nNeon typography \"{{line_1}}\", light beams, electronic nightlife aesthetic.",
+    "aspect": "4:5"
+  },
+  {
+    "id": "motivational_impact",
+    "source_id": "motivational_impact",
+    "familyId": "motivational_impact",
+    "styleVariants": true,
+    "category": "motivational",
+    "label": "MOTIVAÇÃO",
+    "subtag": "6 estilos · Mindset premium",
+    "placeholders": [
+      "line_1",
+      "line_2",
+      "line_3"
+    ],
+    "optional": [],
+    "replacements": {
+      "line_1": "DISCIPLINE",
+      "line_2": "STARTS TODAY",
+      "line_3": "NOT TOMORROW"
+    },
+    "prompt": "REFERENCE PHOTO (mandatory): Use the uploaded photo as the exact same person — preserve 100% of their face, facial features, skin tone, ethnicity, hair texture and likeness. Seamlessly composite them into this poster like professional photo retouching: unified lighting on face and body, natural skin blend, no floating cutout, no pasted sticker look, no disjointed face layer. Place the subject in the pose/position described below while keeping their real identity. Typography and graphic elements must sit in clear layout zones — never let text overlap, cut through or hide behind the face; place headlines in negative space or on background layers behind the subject when needed.\n\nVertical motivational poster, dark charcoal with gold accents, cinematic portrait.\nSubject powerful forward gaze, low-angle hero framing.\nMassive stacked typography \"{{line_1}}\", \"{{line_2}}\", quote strip \"{{line_3}}\".\nDust particles, dramatic contrast, premium mindset campaign.",
+    "aspect": "4:5"
+  },
+  {
+    "id": "food_signature",
+    "source_id": "food_signature",
+    "familyId": "food_signature",
+    "styleVariants": true,
+    "category": "food",
+    "label": "PRATO ASSINATURA",
+    "subtag": "5 estilos · Promo gastronómica",
+    "placeholders": [
+      "line_1",
+      "line_2",
+      "line_3"
+    ],
+    "optional": [],
+    "replacements": {
+      "line_1": "SABORES QUE CONECTAM",
+      "line_2": "RESTAURANTE",
+      "line_3": "RESERVE JÁ"
+    },
+    "prompt": "REFERENCE PHOTO (mandatory): Use the uploaded photo as the exact same dish — preserve plating, textures, colors and food identity. Composite it naturally into the poster with matching lighting, perspective and shadows; no floating cutout look.\n\nElegant vertical fine-dining promo, dark background, gold geometric frame.\nFeatured dish center, wine glass subtle background, warm dramatic lighting.\nGold white typography \"{{line_1}}\", subtitle \"{{line_2}}\", CTA banner \"{{line_3}}\".",
+    "aspect": "4:5"
+  },
+  {
+    "id": "fashion_editorial",
+    "source_id": "fashion_editorial",
+    "familyId": "fashion_editorial",
+    "styleVariants": true,
+    "category": "fashion",
+    "label": "FASHION EDITORIAL",
+    "subtag": "6 estilos · Lookbook premium",
+    "placeholders": [],
+    "optional": [],
+    "replacements": {},
+    "prompt": "REFERENCE PHOTO (mandatory): Use the uploaded photo as the exact same person — preserve 100% of their face, facial features, skin tone, ethnicity, hair texture and likeness. Seamlessly composite them into this poster like professional photo retouching: unified lighting on face and body, natural skin blend, no floating cutout, no pasted sticker look, no disjointed face layer. Place the subject in the pose/position described below while keeping their real identity. Typography and graphic elements must sit in clear layout zones — never let text overlap, cut through or hide behind the face; place headlines in negative space or on background layers behind the subject when needed.\n\nUse the uploaded photo for the person reference. If a second reference image (logo slot) is provided, use it as the clothing/garment reference.\nCompletely replace the original background and environment.\n\nhyper-realistic person, warm cinematic lighting, high-end fashion editorial photography.\nProfessional fashion character showcase sheet: hero image, turnaround front/side/back, facial close-up, hair and outfit detail panels, minimalist elegant layout, warm beige seamless backdrop, color palette swatches matching clothing.",
+    "aspect": "4:5"
+  },
+  {
+    "id": "fitness_gym",
+    "source_id": "fitness_gym",
+    "familyId": "fitness_gym",
+    "styleVariants": true,
+    "category": "fitness",
+    "label": "GYM INTENSO",
+    "subtag": "5 estilos · Campanha fitness",
+    "placeholders": [
+      "line_1",
+      "line_2",
+      "line_3"
+    ],
+    "optional": [],
+    "replacements": {
+      "line_1": "BEAST MODE",
+      "line_2": "NO PAIN NO GAIN",
+      "line_3": "JOIN TODAY"
+    },
+    "prompt": "REFERENCE PHOTO (mandatory): Use the uploaded photo as the exact same person — preserve 100% of their face, facial features, skin tone, ethnicity, hair texture and likeness. Seamlessly composite them into this poster like professional photo retouching: unified lighting on face and body, natural skin blend, no floating cutout, no pasted sticker look, no disjointed face layer. Place the subject in the pose/position described below while keeping their real identity. Typography and graphic elements must sit in clear layout zones — never let text overlap, cut through or hide behind the face; place headlines in negative space or on background layers behind the subject when needed.\n\nVertical gym poster, black background neon green paint splash.\nSubject muscular upper body with dumbbell right side. Stacked \"{{line_1}}\" white and green.\nBadge \"{{line_2}}\", bullet list BUILD MUSCLE BURN FAT, CTA \"{{line_3}}\", hard gym lighting.",
+    "aspect": "4:5"
+  }
+]

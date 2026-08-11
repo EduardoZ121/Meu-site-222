@@ -2,11 +2,17 @@ import { useEffect, useState } from "react";
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
 import { api } from "../lib/api";
-import useTitle from "../lib/useTitle";
 import GalleryMedia from "../components/GalleryMedia";
+import { usePageSeo } from "../lib/usePageSeo";
+import { SEO_EXPLORE } from "../lib/seoEn";
 
 export default function Explore() {
-  useTitle("Explore");
+  usePageSeo({
+    title: SEO_EXPLORE.title,
+    documentTitle: SEO_EXPLORE.documentTitle,
+    description: SEO_EXPLORE.description,
+    path: SEO_EXPLORE.path,
+  });
   const [items, setItems] = useState([]);
   const [active, setActive] = useState(null);
 

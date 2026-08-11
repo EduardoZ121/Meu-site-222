@@ -13,11 +13,13 @@ import { toast } from "sonner";
 import useTitle from "../../lib/useTitle";
 import ImageUploadZone from "../../components/ImageUploadZone";
 import StudioAccordionSection from "../../components/StudioAccordionSection";
+import StudioHelpTip from "../../components/studio/StudioHelpTip";
 import StudioResultAnchor from "../../components/StudioResultAnchor";
 import { emptySlide, slideText, normalizeSlides } from "../../lib/carouselSlides";
 import { getCarouselExample, getCarouselSlideRoles } from "../../lib/carouselLocales";
 import { revokePanoramaBlobUrls, splitPanoramaToSlides } from "../../lib/carouselPanorama";
 import { validateImageUpload } from "../../lib/videoMedia";
+import { appendStudioPhotos, primaryStudioPhoto } from "../../lib/studioFormData";
 import { useI18n } from "../../lib/i18n";
 import { useStudioI18n } from "../../lib/useStudioI18n";
 import AspectPicker from "../../components/AspectPicker";
@@ -96,7 +98,8 @@ export default function CarouselPage() {
     setSlides([...ex.slides]);
   }, [lang]);
   const [styleSuffix, setStyleSuffix] = useState(STYLE_PRESETS[0]);
-  const [photo, setPhoto] = useState(null);
+  const [photos, setPhotos] = useState([]);
+  const photo = primaryStudioPhoto(photos);
   const [aspect, setAspect] = usePhotoAspectDefault(photo, "4:5", "match");
 
   const [keepCharacter, setKeepCharacter] = useState(true);
@@ -194,12 +197,15 @@ export default function CarouselPage() {
     }))));
     fd.append("campaign_brief", campaignBrief.trim());
     fd.append("style_suffix", styleSuffix);
-    fd.append("aspect_ratio", apiAspectRatio(aspect, { model: "standard", hasPhoto: Boolean(photo) }));
+    fd.append("aspect_ratio", apiAspectRatio(aspect, {
+      model: "standard",
+      hasPhoto: aspect === "match",
+    }));
     fd.append("keep_character", keepCharacter ? "true" : "false");
     fd.append("keep_lighting", keepLighting ? "true" : "false");
     fd.append("keep_palette", keepPalette ? "true" : "false");
     fd.append("model_key", effectiveModel);
-    if (photo) fd.append("photo", photo);
+    if (photo) appendStudioPhotos(fd, photos);
 
     const { data } = await uploadPost("/generate/carousel-panoramic", fd, {
       timeout: 300000,
@@ -291,7 +297,10 @@ export default function CarouselPage() {
         fd.append("slide_role", slide.role || "content");
         fd.append("campaign_brief", campaignBrief.trim());
         fd.append("style_suffix", styleSuffix);
-        fd.append("aspect_ratio", apiAspectRatio(aspect, { model: "standard", hasPhoto: Boolean(photo) }));
+        fd.append("aspect_ratio", apiAspectRatio(aspect, {
+      model: "standard",
+      hasPhoto: aspect === "match",
+    }));
         fd.append("keep_character", keepCharacter ? "true" : "false");
         fd.append("keep_lighting", keepLighting ? "true" : "false");
         fd.append("keep_palette", keepPalette ? "true" : "false");
@@ -303,7 +312,7 @@ export default function CarouselPage() {
         } else if (i > 0 && smoothTransitions && lastUrl) {
           fd.append("previous_slide_url", lastUrl);
         } else if (photo) {
-          fd.append("photo", photo);
+          appendStudioPhotos(fd, photos);
         }
 
         // eslint-disable-next-line no-await-in-loop
@@ -335,7 +344,7 @@ export default function CarouselPage() {
     } catch (err) {
       if (allUrls.length > 0) {
         setResult({ result_urls: allUrls, credits_spent: creditsSpent, type: "carousel" });
-        toast.error(`${allUrls.length} slide(s) gerada(s). ${errMsg(err)}`, { duration: 9000 });
+        toast.error(t("car_partial_ok", { n: allUrls.length, err: errMsg(err) }), { duration: 9000 });
       } else if (lastPanoramaRef.current) {
         setResult({
           result_urls: [],
@@ -365,15 +374,20 @@ export default function CarouselPage() {
       </button>
 
       <header className="mb-10 pb-8 border-b border-[rgba(244,241,234,0.06)]">
-        <p className="rp-editor-section-cap mb-2">{t("car_page_title")}</p>
-        <h1 className="rp-studio-page-title mb-3 font-['Inter_Tight']">
-          {t("car_title")}
-        </h1>
-        <p className="rp-studio-page-desc">
-          {isPanoramic
-            ? t("car_desc_panoramic", { n: slides.length })
-            : t("car_desc_per_slide", { per: perSlide })}
-        </p>
+        <div className="flex items-start gap-3">
+          <div className="flex-1 min-w-0">
+            <p className="rp-editor-section-cap mb-2">{t("car_page_title")}</p>
+            <h1 className="rp-studio-page-title mb-3 font-['Inter_Tight']">
+              {t("car_title")}
+            </h1>
+            <p className="rp-studio-page-desc">
+              {isPanoramic
+                ? t("car_desc_panoramic", { n: slides.length })
+                : t("car_desc_per_slide", { per: perSlide })}
+            </p>
+          </div>
+          <StudioHelpTip helpKey="help_page_carousel" size="lg" testId="carousel-page-help" className="mt-1 shrink-0" />
+        </div>
         <div className="mt-4 flex flex-wrap gap-2">
           <button
             type="button"
@@ -386,7 +400,12 @@ export default function CarouselPage() {
         </div>
       </header>
 
-      <div className="mb-6 grid grid-cols-1 sm:grid-cols-2 gap-2.5" data-testid="carousel-generation-mode">
+      <div className="mb-6">
+        <div className="flex items-center gap-2 mb-2">
+          <span className="text-[#8A8A8E] text-[11px] font-mono uppercase tracking-wider">{t("car_mode_label")}</span>
+          <StudioHelpTip helpKey="help_sec_car_mode" testId="carousel-mode-help" />
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5" data-testid="carousel-generation-mode">
         {generationModes.map((mode) => (
           <button
             key={mode.key}
@@ -403,6 +422,7 @@ export default function CarouselPage() {
             <p className="text-[#8A8A8E] text-[11px] leading-snug">{mode.hint}</p>
           </button>
         ))}
+        </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-[1fr_380px] gap-8 lg:gap-10">
@@ -411,13 +431,16 @@ export default function CarouselPage() {
             title={t("car_sec_ref")}
             defaultOpen
             testId="carousel-section-photo"
+            helpKey="help_sec_car_ref"
           >
             <p className="text-[#8A8A8E] text-[12px] mb-4 font-['Inter_Tight'] leading-relaxed">
               {t("car_sec_ref_hint")}
             </p>
             <ImageUploadZone
-              value={photo}
-              onChange={setPhoto}
+              multiple
+              maxFiles={5}
+              value={photos}
+              onChange={setPhotos}
               layout="carousel"
               testId="carousel-photo"
               emptyLabel={t("car_upload_label")}
@@ -429,13 +452,13 @@ export default function CarouselPage() {
             title={t("car_sec_brief")}
             defaultOpen
             testId="carousel-section-brief"
+            helpKey="help_sec_car_brief"
           >
             <textarea
               value={campaignBrief}
               onChange={(e) => setCampaignBrief(e.target.value)}
               rows={3}
-              maxLength={600}
-              placeholder={t("car_brief_ph")}
+                            placeholder={t("car_brief_ph")}
               className="rp-editor-textarea min-h-[88px]"
               data-testid="carousel-brief"
             />
@@ -448,6 +471,7 @@ export default function CarouselPage() {
             title={t("car_sec_style")}
             defaultOpen={false}
             testId="carousel-section-style"
+            helpKey="help_sec_car_style"
           >
             <input
               value={styleSuffix}
@@ -479,6 +503,7 @@ export default function CarouselPage() {
             title={t("car_sec_continuity")}
             defaultOpen={false}
             testId="carousel-section-continuity"
+            helpKey="help_sec_car_continuity"
           >
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
               <Toggle active={keepCharacter} onClick={() => setKeepCharacter(!keepCharacter)} label={t("car_toggle_character")} hint={t("car_toggle_character_hint")} testId="carousel-toggle-character" />
@@ -499,6 +524,7 @@ export default function CarouselPage() {
             title={t("car_sec_panels", { n: slides.length, max: MAX_SLIDES })}
             defaultOpen
             testId="carousel-section-slides"
+            helpKey="help_sec_car_slides"
           >
             {slides.length < MAX_SLIDES && (
               <div className="flex justify-end mb-4">
@@ -577,7 +603,7 @@ export default function CarouselPage() {
             </div>
           </StudioAccordionSection>
 
-          <StudioAccordionSection title={t("car_sec_model")} defaultOpen={false} testId="carousel-section-model">
+          <StudioAccordionSection title={t("car_sec_model")} defaultOpen={false} testId="carousel-section-model" helpKey="help_sec_car_model">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3" data-testid="carousel-model-toggle">
               {MODELS.map((m) => {
                 const active = modelKey === m.key;
@@ -602,7 +628,7 @@ export default function CarouselPage() {
             </div>
           </StudioAccordionSection>
 
-          <StudioAccordionSection title={t("car_sec_format")} defaultOpen testId="carousel-section-format">
+          <StudioAccordionSection title={t("car_sec_format")} defaultOpen testId="carousel-section-format" helpKey="help_sec_car_format">
             <AspectPicker
               value={aspect}
               onChange={setAspect}
@@ -638,6 +664,7 @@ export default function CarouselPage() {
         label={`${isPanoramic ? t("car_gen_panoramic") : t("car_gen_slides")} · ${totalCost} ${t("credits")}`}
         busyLabel={slideProgress.label || t("car_generating")}
         hint={carHint}
+        cost={totalCost}
         testId="carousel-generate"
         costMeta={(
           <StudioGenerateCostMeta

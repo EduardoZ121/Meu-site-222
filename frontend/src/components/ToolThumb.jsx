@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { getImageToolCover } from "../lib/toolsCoverCatalogue";
 import {
   Wand2, Image as ImageIcon, Scissors, Maximize2, Palette,
   Eraser, FileText, Camera, Film, Layers, Lightbulb, Brush, RefreshCw, Shirt,
@@ -24,19 +25,19 @@ const ICONS = {
 const HAS_PHOTO = new Set([
   "studio", "clothes", "art", "pro",
   "bg_remove", "upscale", "restore", "colorize",
-  "inpaint", "posters", "carousel", "wizard", "video",
+  "inpaint", "posters", "carousel", "wizard", "video", "manga_studio",
 ]);
 
 function CssThumb({ id, premium }) {
   const Icon = ICONS[id] || ICONS.default;
   const code = (id || "x").charCodeAt(0) % 6;
   const gradients = [
-    "from-violet-600/40 via-[#12121a] to-[#08080c]",
-    "from-violet-500/35 via-indigo-950/50 to-[#08080c]",
-    "from-blue-600/20 via-violet-950/40 to-[#08080c]",
-    "from-violet-700/30 via-[#14141c] to-[#08080c]",
-    "from-purple-600/35 via-[#101018] to-[#08080c]",
-    "from-violet-500/25 via-blue-950/30 to-[#08080c]",
+    "from-violet-500/50 via-violet-950/25 to-transparent",
+    "from-violet-400/45 via-indigo-900/20 to-transparent",
+    "from-blue-500/30 via-violet-900/15 to-transparent",
+    "from-violet-600/40 via-purple-950/20 to-transparent",
+    "from-purple-500/40 via-violet-950/18 to-transparent",
+    "from-violet-400/35 via-blue-900/15 to-transparent",
   ];
   const minH = premium ? "min-h-[120px]" : "min-h-[88px]";
 
@@ -83,13 +84,13 @@ export default function ToolThumb({ id, name, variant = "default" }) {
   const minH = premium ? "min-h-[120px]" : "min-h-[88px]";
 
   return (
-    <div className={`relative w-full h-full ${minH} overflow-hidden bg-[#0a0a0f]`}>
+    <div className={`relative w-full h-full ${minH} overflow-hidden bg-violet-950/20`}>
       {!loaded && (
         <div className="rp-tool-thumb-shimmer absolute inset-0 z-10 pointer-events-none" aria-hidden />
       )}
       <img
         ref={imgRef}
-        src={`/images/tools/${id}.jpg`}
+        src={getImageToolCover(id)}
         alt={name || id}
         className={`absolute inset-0 w-full h-full object-cover object-center transition-opacity duration-300 ${
           loaded ? "opacity-100" : "opacity-0"

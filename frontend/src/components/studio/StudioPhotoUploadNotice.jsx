@@ -28,7 +28,7 @@ export default function StudioPhotoUploadNotice({ status, className = "" }) {
     >
       <Loader2 className="w-4 h-4 shrink-0 animate-spin text-amber-300 mt-0.5" aria-hidden />
       <div className="min-w-0">
-        <p className="text-[13px] font-semibold text-amber-50 font-['Inter_Tight']">
+        <p className="text-[13px] font-semibold text-amber-50 font-display">
           {t("upload_image_loading_title")}
         </p>
         <p className="text-[11px] text-amber-200/85 mt-0.5 leading-snug">

@@ -1,0 +1,156 @@
+[
+  {
+    "id": "fashion_sale_identity",
+    "source_id": "fashion_sale_identity",
+    "familyId": "fashion_sale_identity",
+    "styleVariants": true,
+    "category": "fashion",
+    "label": "FASHION SALE",
+    "subtag": "2 estilos · Identidade",
+    "placeholders": [
+      "MAIN_TITLE",
+      "DISCOUNT",
+      "SUBTITLE",
+      "FEATURE_1",
+      "FEATURE_2",
+      "FEATURE_3",
+      "CTA_TEXT",
+      "WEBSITE",
+      "PHONE",
+      "BRAND_NAME"
+    ],
+    "optional": [
+      "SUBTITLE",
+      "FEATURE_1",
+      "FEATURE_2",
+      "FEATURE_3",
+      "WEBSITE",
+      "PHONE",
+      "BRAND_NAME"
+    ],
+    "replacements": {
+      "MAIN_TITLE": "SALE",
+      "DISCOUNT": "50%",
+      "SUBTITLE": "Luxury handwritten subtitle",
+      "FEATURE_1": "Premium Collection",
+      "FEATURE_2": "Best Quality",
+      "FEATURE_3": "Fast Delivery",
+      "CTA_TEXT": "SHOP NOW",
+      "WEBSITE": "www.brand.com",
+      "PHONE": "+244 900 000 000",
+      "BRAND_NAME": "BRAND"
+    },
+    "prompt": "REFERENCE PHOTO (mandatory): Use the uploaded photo as the exact same person — preserve 100% of their face, facial features, skin tone, ethnicity, hair texture and likeness. Seamlessly composite them into this poster like professional photo retouching: unified lighting on face and body, natural skin blend, no floating cutout, no pasted sticker look, no disjointed face layer. Place the subject in the pose/position described below while keeping their real identity. Typography and graphic elements must sit in clear layout zones — never let text overlap, cut through or hide behind the face; place headlines in negative space or on background layers behind the subject when needed.\n\nHighly detailed premium fashion advertising poster, modern editorial branding design, luxury clothing campaign, minimalist commercial layout, clean high-end retail advertisement.\nTypography: large headline \"{{MAIN_TITLE}}\"; subtitle \"{{SUBTITLE}}\"; promotional block \"UP TO {{DISCOUNT}} OFF\"; feature blocks \"{{FEATURE_1}}\", \"{{FEATURE_2}}\", \"{{FEATURE_3}}\"; CTA \"{{CTA_TEXT}}\"; website \"{{WEBSITE}}\"; phone \"{{PHONE}}\"; brand logo text \"{{BRAND_NAME}}\".",
+    "aspect": "4:5"
+  },
+  {
+    "id": "editorial_art_exhibition",
+    "source_id": "editorial_art_exhibition",
+    "familyId": "editorial_art_exhibition",
+    "styleVariants": true,
+    "category": "editorial",
+    "label": "ART EXHIBITION",
+    "subtag": "2 estilos · Galeria",
+    "placeholders": [
+      "EVENT_TITLE",
+      "EVENT_SUBTITLE",
+      "EVENT_DATE",
+      "SCHEDULE",
+      "VENUE",
+      "FOOTER_TEXT",
+      "LOGO_TEXT"
+    ],
+    "optional": [
+      "EVENT_SUBTITLE",
+      "SCHEDULE",
+      "VENUE",
+      "FOOTER_TEXT",
+      "LOGO_TEXT"
+    ],
+    "replacements": {
+      "EVENT_TITLE": "MODERN ART",
+      "EVENT_SUBTITLE": "EXHIBITION",
+      "EVENT_DATE": "JUNE 2026",
+      "SCHEDULE": "10AM - 8PM",
+      "VENUE": "Gallery Hall",
+      "FOOTER_TEXT": "Museum-quality exhibition",
+      "LOGO_TEXT": "GALLERY"
+    },
+    "prompt": "REFERENCE PHOTO (mandatory): Use the uploaded photo as the exact same person — preserve 100% of their face, facial features, skin tone, ethnicity, hair texture and likeness. Seamlessly composite them into this poster like professional photo retouching: unified lighting on face and body, natural skin blend, no floating cutout, no pasted sticker look, no disjointed face layer. Place the subject in the pose/position described below while keeping their real identity. Typography and graphic elements must sit in clear layout zones — never let text overlap, cut through or hide behind the face; place headlines in negative space or on background layers behind the subject when needed.\n\nModern editorial exhibition poster, premium minimalist Swiss graphic design, museum-quality advertising layout. Typography with title \"{{EVENT_TITLE}}\", subtitle \"{{EVENT_SUBTITLE}}\", date \"{{EVENT_DATE}}\", schedule \"{{SCHEDULE}}\", venue \"{{VENUE}}\", footer \"{{FOOTER_TEXT}}\" and logo \"{{LOGO_TEXT}}\".",
+    "aspect": "4:5"
+  },
+  {
+    "id": "dj_3d_experience",
+    "source_id": "dj_3d_experience",
+    "familyId": "dj_3d_experience",
+    "styleVariants": true,
+    "category": "dj",
+    "label": "DJ 3D EXPERIENCE",
+    "subtag": "3 estilos · Festival",
+    "placeholders": [
+      "MAIN_TITLE",
+      "DJ_NAME",
+      "EVENT_DATE",
+      "VENUE",
+      "CTA_TEXT"
+    ],
+    "optional": [
+      "DJ_NAME",
+      "EVENT_DATE",
+      "VENUE",
+      "CTA_TEXT"
+    ],
+    "replacements": {
+      "MAIN_TITLE": "FESTIVAL NIGHT",
+      "DJ_NAME": "DJ NAME",
+      "EVENT_DATE": "SATURDAY",
+      "VENUE": "CLUB ARENA",
+      "CTA_TEXT": "GET TICKETS"
+    },
+    "prompt": "REFERENCE PHOTO (mandatory): Use the uploaded photo as the exact same person — preserve 100% of their face, facial features, skin tone, ethnicity, hair texture and likeness. Seamlessly composite them into this poster like professional photo retouching: unified lighting on face and body, natural skin blend, no floating cutout, no pasted sticker look, no disjointed face layer. Place the subject in the pose/position described below while keeping their real identity. Typography and graphic elements must sit in clear layout zones — never let text overlap, cut through or hide behind the face; place headlines in negative space or on background layers behind the subject when needed.\n\nExplosive 3D DJ festival poster with deep perspective. Text \"{{MAIN_TITLE}}\", DJ \"{{DJ_NAME}}\", date \"{{EVENT_DATE}}\", venue \"{{VENUE}}\", CTA \"{{CTA_TEXT}}\".",
+    "aspect": "4:5"
+  },
+  {
+    "id": "restaurant_food_campaign",
+    "source_id": "restaurant_food_campaign",
+    "familyId": "restaurant_food_campaign",
+    "styleVariants": true,
+    "category": "food",
+    "label": "FOOD CAMPAIGN",
+    "subtag": "3 estilos · Menu",
+    "menuTemplate": true,
+    "placeholders": [
+      "MAIN_TITLE",
+      "SUBTITLE",
+      "BADGE_TEXT",
+      "PRICE",
+      "CTA_TEXT",
+      "PHONE",
+      "WEBSITE",
+      "SOCIAL",
+      "DELIVERY_TEXT"
+    ],
+    "optional": [
+      "SUBTITLE",
+      "BADGE_TEXT",
+      "PRICE",
+      "PHONE",
+      "WEBSITE",
+      "SOCIAL",
+      "DELIVERY_TEXT"
+    ],
+    "replacements": {
+      "MAIN_TITLE": "ULTIMATE BURGER",
+      "SUBTITLE": "Fresh everyday",
+      "BADGE_TEXT": "LIMITED OFFER",
+      "PRICE": "Preço",
+      "CTA_TEXT": "ORDER NOW",
+      "PHONE": "Telefone",
+      "WEBSITE": "Website",
+      "SOCIAL": "@restaurant",
+      "DELIVERY_TEXT": "Fast Delivery"
+    },
+    "prompt": "REFERENCE FOOD PHOTO (mandatory): Use the uploaded photo as the exact same dish or product. Preserve the food identity, plating, colors, ingredients, textures and proportions. Composite it naturally into the design with matching lighting, perspective, shadows and reflections. Do not replace it with a different food.\n\nEnergetic fast-food promotional poster with bold commercial branding. Text \"{{MAIN_TITLE}}\"; subtitle \"{{SUBTITLE}}\"; badge \"{{BADGE_TEXT}}\"; price \"{{PRICE}}\"; CTA \"{{CTA_TEXT}}\"; phone \"{{PHONE}}\"; website \"{{WEBSITE}}\"; social \"{{SOCIAL}}\"; delivery \"{{DELIVERY_TEXT}}\".",
+    "aspect": "4:5"
+  }
+]

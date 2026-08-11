@@ -15,10 +15,11 @@ const studioLocalesByLang = createMergedDict();
 /** Garante chaves do estúdio (vid_*, etc.) mesmo se o JSON estiver desatualizado. */
 function withStudioLocales(bundle, lang) {
   const flat = studioLocalesByLang[lang] || studioLocalesByLang.en;
+  const base = bundle.translation || bundle;
   return {
     translation: {
-      ...(bundle.translation || bundle),
       ...flat,
+      ...base,
     },
   };
 }

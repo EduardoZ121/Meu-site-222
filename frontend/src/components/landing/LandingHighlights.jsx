@@ -20,11 +20,13 @@ export default function LandingHighlights() {
   return (
     <section
       ref={ref}
-      className="relative py-20 md:py-28 border-t border-[#2E2E30] bg-[#0B0B0C]"
+      className="relative py-20 md:py-28 border-t border-[#2E2E30] bg-[#0B0B0C] overflow-hidden"
       data-testid="landing-highlights"
     >
-      <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[320px] h-[320px] pointer-events-none">
-        <div className="landing-pulse-ring w-full h-full" />
+      <div className="absolute inset-0 pointer-events-none overflow-hidden" aria-hidden>
+        <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[min(280px,70vw)] h-[min(280px,70vw)] overflow-hidden">
+          <div className="landing-pulse-ring w-full h-full" />
+        </div>
       </div>
 
       <div className="relative z-10 max-w-[1100px] mx-auto px-6 lg:px-10 text-center">

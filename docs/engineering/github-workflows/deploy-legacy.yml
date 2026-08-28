@@ -1,0 +1,52 @@
+name: Deploy Kuteka
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: deploy-kuteka
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+
+      - name: Install and build
+        run: npm install && npm run build
+        env:
+          VITE_GOOGLE_CLIENT_ID: 17788689781-3laohdt607lr8jnh30fatvqtji6htt3l.apps.googleusercontent.com
+          VITE_API_URL: https://kuteka-api.vercel.app/api
+
+      - name: Deploy to GitHub Pages (gh-pages)
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./dist
+          cname: kutekalink.com
+          force_orphan: true
+
+      - name: Trigger Render deploy hook
+        env:
+          RENDER_DEPLOY_HOOK_URL: ${{ secrets.RENDER_DEPLOY_HOOK_URL }}
+        run: |
+          if [ -n "$RENDER_DEPLOY_HOOK_URL" ]; then
+            echo "A disparar deploy no Render..."
+            curl -fsS -X POST "$RENDER_DEPLOY_HOOK_URL"
+            echo "Render deploy solicitado."
+          else
+            echo "RENDER_DEPLOY_HOOK_URL nao configurado — deploy Render manual no dashboard."
+          fi

@@ -1,9 +1,3 @@
-# Kuteka — Fase 0 — Pacote de Leitura (v1.1 — roster corrigido)
-
-
----
-
-
 # Kuteka — Registo institucional dos fundadores
 
 | Campo | Valor |
@@ -69,28 +63,3 @@ Documentos Fase 0 que **incorrectamente** listavam Eduardo como Founder no hando
 | Versão | Data | Alteração |
 |--------|------|-----------|
 | 1.0 | 2026-08-29 | Registo canónico Founder = Makiese Vicente |
-
-
----
-
-
-
-
----
-
-
-
-
----
-
-
-
-
----
-
-
-
-
----
-
-

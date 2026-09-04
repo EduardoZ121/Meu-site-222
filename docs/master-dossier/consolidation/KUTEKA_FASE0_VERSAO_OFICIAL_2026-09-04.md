@@ -37,7 +37,7 @@
 
 ## Hash
 
-Ver commit no topo desta branch após push desta versão.
+**Commit:** `b07067083eb9f58853e7b9b2d20a4b932e37099c`
 
 ## Nota
 

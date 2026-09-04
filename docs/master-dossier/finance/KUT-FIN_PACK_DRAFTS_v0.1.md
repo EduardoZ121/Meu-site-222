@@ -38,7 +38,8 @@
 | Fluxo | Pagador | Receptor | Documento | Estado código |
 |-------|---------|----------|-----------|---------------|
 | Serviço marketplace | Cliente | Prestador + Kuteka comissão | Invoice | Sandbox 🟢 |
-| Activacao arrendamento | Cliente/Parceiro | Kuteka comissão 35% | TBD | Param 🟡 |
+| Activacao arrendamento | Cliente | Kuteka comissão 35% + saldo PP | TBD | Param 🟡 |
+| **Renda PP (cobrança + liquidação)** | Cliente | PP (saldo) + Kuteka (comissão) | [KUT-BIZ-RENT-001](./KUTEKA_RENT_SETTLEMENT_BUSINESS_MODEL_FASE0.md) | Requisito 🟡 — D-LEG/D-FIN |
 | Kuteka Pay intent | Cliente | Gateway stub | Ledger entry | Sandbox 🟢 |
 | Reembolso | Kuteka/PSP | Cliente | Credit note | RPC 🟢 |
 

@@ -3,8 +3,9 @@
 | Campo | Valor |
 |-------|-------|
 | **ID** | KUTEKA-FASE0-MANIFEST |
-| **Versão** | 1.0 |
+| **Versão** | 1.1 |
 | **Data entrega** | 2026-08-28 |
+| **Auditoria final** | 2026-08-28 — ver [`KUTEKA_FASE0_FINAL_AUDIT_REPORT_2026-08-28.md`](./KUTEKA_FASE0_FINAL_AUDIT_REPORT_2026-08-28.md) |
 | **Autorização** | `AUTORIZO: FASE 0 — documentação [C1–C10]` |
 | **Código alterado** | **NENHUM** |
 | **Migrations** | **NENHUMA** |
@@ -71,4 +72,15 @@ Confirmado: **zero** alterações a RBAC, RLS, menus, Pay, comissões (SQL/RPC/U
 
 ## Paragem
 
-Fase 0 concluída. Aguardar autorização para Fase 1+.
+Fase 0 documental **concluída** (auditoria final 2026-08-28).
+
+| Artefacto | Ficheiro |
+|-----------|----------|
+| Auditoria final | [`KUTEKA_FASE0_FINAL_AUDIT_REPORT_2026-08-28.md`](./KUTEKA_FASE0_FINAL_AUDIT_REPORT_2026-08-28.md) |
+| Handover | [`KUTEKA_FASE0_HANDOVER_2026-08-28.md`](./KUTEKA_FASE0_HANDOVER_2026-08-28.md) |
+| Checklist | [`KUTEKA_FASE0_DELIVERY_CHECKLIST_2026-08-28.md`](./KUTEKA_FASE0_DELIVERY_CHECKLIST_2026-08-28.md) |
+| Decisões pendentes | [`KUTEKA_FASE0_PENDING_DECISIONS_2026-08-28.md`](./KUTEKA_FASE0_PENDING_DECISIONS_2026-08-28.md) |
+
+Publicação GitHub: **pendente** (fora desta execução).
+
+Aguardar `AUTORIZO: FASE 1 — [escopo]` após Founder validar + publicar.

@@ -1,25 +1,19 @@
 # Status autónomo — write Site_Angola ainda bloqueado
 
-Actualizado: 2026-09-06 (harden labels/sec/headers)
+Actualizado: 2026-09-06T18:56Z (re-probe timer)
 
-## Oficial
-- SoT: `EduardoZ121/Site_Angola`
-- Baseline main: `ce203d4`
-- Write: push=false / auth fail (re-probe periódico activo)
+## Re-probe
+- `permissions.push=false`
+- `git push` → Invalid username or token
+- Tokens SITE_ANGOLA_* / GH_TOKEN unset no ambiente do agente
+- `gh` autenticado como `cursor` sem grant no Site_Angola
 
-## Tip local `/tmp/site-angola-publish` `cursor/sprint-a-beta-experience-f96b`
-`1f5433a7` — metrics empty≠error; kind=Sugestão; `?sec=` allowlist; C0 strip; complaint i18n; render.yaml header lock
+## Tip local pronto
+`/tmp/site-angola-publish` @ `1f5433a7` (branch `cursor/sprint-a-beta-experience-f96b`)
+Vitest 141 · tsc OK · AB src patch apply-check OK
 
-Stack: A `bf98a700` → B `8faa18b6` → inbox≠metrics `400b473e` → submit harden `59d0516b` → GOV doc `630ef805` → tip `1f5433a7`
+## Publish
+`PUBLISH-WHEN-WRITE-OPENS.sh` — aplica `kuteka-sprint-ab-combined-src.patch`, push branch, tenta PR.
 
-## Validação
-- Vitest **141/141**
-- tsc OK
-- `git apply --check` AB src @ ce203d4 OK
-
-## Isolado (não aplicar)
-- GOV-BF-01…05 / propostas 0043, 0044
-- Workflow tickets (status/assignee/resolução)
-
-## Quando write abrir
-A → PR → smoke → B+harden → smoke Inbox/KOCC (auto)
+## Isolado
+GOV-BF-01…05 · 0043 · 0044 · tickets · Vicente · Meu-site-222 ≠ SoT

@@ -1,8 +1,8 @@
 From bf98a7003c847dcd945b17825792ed325738929d Mon Sep 17 00:00:00 2001
 From: Cursor Agent <cursoragent@cursor.com>
 Date: Sun, 6 Sep 2026 01:10:59 +0000
-Subject: [PATCH 1/9] feat(web): sprint a p0 beta messaging, inventory clarity
- and hardening
+Subject: [PATCH 01/10] feat(web): sprint a p0 beta messaging, inventory
+ clarity and hardening
 
 Add public beta notice and authenticated welcome, documentation feedback
 CTA, unpublished inventory labels, security headers, and refresh prebuilt.
@@ -728,8 +728,8 @@ index 0e0a2123..b2cf217b 100644
 From 8faa18b601b6d1ea7b87772cdabd6f058b428b0c Mon Sep 17 00:00:00 2001
 From: Cursor Agent <cursoragent@cursor.com>
 Date: Sun, 6 Sep 2026 06:13:15 +0000
-Subject: [PATCH 2/9] feat(web): sprint b p0 kocc feedback inbox and complaint
- bridge
+Subject: [PATCH 02/10] feat(web): sprint b p0 kocc feedback inbox and
+ complaint bridge
 
 Reuse beta_feedback + RLS for an ops triage inbox in KOCC, wire home
 telemetry via existing track RPC, and route operational complaints away
@@ -1041,7 +1041,7 @@ index f429a0e1..ba9e82e2 100644
 From 400b473e2a79cf3fe2c06cb4dce27fb6aa11a821 Mon Sep 17 00:00:00 2001
 From: Cursor Agent <cursoragent@cursor.com>
 Date: Sun, 6 Sep 2026 18:11:15 +0000
-Subject: [PATCH 3/9] fix(web): sprint b inbox independent of metrics plus
+Subject: [PATCH 03/10] fix(web): sprint b inbox independent of metrics plus
  audit
 
 Show recent beta_feedback even when kocc_beta_metrics fails. Add help-center
@@ -1433,7 +1433,8 @@ index 00000000..1fb9aec2
 From 59d0516befaf3d1a22ecb167310c2d399b5ae189 Mon Sep 17 00:00:00 2001
 From: Cursor Agent <cursoragent@cursor.com>
 Date: Sun, 6 Sep 2026 18:25:02 +0000
-Subject: [PATCH 4/9] fix(web): harden beta feedback submit and inbox triage UX
+Subject: [PATCH 04/10] fix(web): harden beta feedback submit and inbox triage
+ UX
 
 Add client path/body/kind guards, keep inbox empty-state from masking
 SELECT errors, and add local kind filters. Document full feedback-cycle
@@ -1845,7 +1846,7 @@ index 00000000..3bb81bdd
 From 630ef80523593038a393a5264a8843dfae87b331 Mon Sep 17 00:00:00 2001
 From: Cursor Agent <cursoragent@cursor.com>
 Date: Sun, 6 Sep 2026 18:39:23 +0000
-Subject: [PATCH 5/9] docs(web): isolate beta feedback workflow requirements;
+Subject: [PATCH 05/10] docs(web): isolate beta feedback workflow requirements;
  harden inbox filter
 
 Map Doc3 BETA-15/19/22/23/24 against schema 0035 and existing ops patterns
@@ -2051,8 +2052,8 @@ index 00000000..7d9f6e8c
 From 1f5433a7b3311b861e0afce2ee6a7cb93b52b69f Mon Sep 17 00:00:00 2001
 From: Cursor Agent <cursoragent@cursor.com>
 Date: Sun, 6 Sep 2026 18:54:13 +0000
-Subject: [PATCH 6/9] fix(web): harden beta feedback context, labels and header
- lock
+Subject: [PATCH 06/10] fix(web): harden beta feedback context, labels and
+ header lock
 MIME-Version: 1.0
 Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: 8bit
@@ -2357,7 +2358,7 @@ index 7a328e7a..504eacd9 100644
 From 37c8bf91ff9bc6056df87c932a90991c9c938083 Mon Sep 17 00:00:00 2001
 From: Cursor Agent <cursoragent@cursor.com>
 Date: Sun, 6 Sep 2026 19:08:30 +0000
-Subject: [PATCH 7/9] fix(web): lock soft-empty gates and help-sec allowlist
+Subject: [PATCH 07/10] fix(web): lock soft-empty gates and help-sec allowlist
  parity
 MIME-Version: 1.0
 Content-Type: text/plain; charset=UTF-8
@@ -2613,7 +2614,7 @@ index 504eacd9..3aa390c2 100644
 From de1fa086b8d041d45f589c944d4e6b61acb78bba Mon Sep 17 00:00:00 2001
 From: Cursor Agent <cursoragent@cursor.com>
 Date: Sun, 6 Sep 2026 19:41:49 +0000
-Subject: [PATCH 8/9] fix(web): repair complaint bridge CTAs and show inbox
+Subject: [PATCH 08/10] fix(web): repair complaint bridge CTAs and show inbox
  actor hint
 
 Prefer /contacto for operational complaints; point ops to
@@ -2783,7 +2784,7 @@ index 00000000..7768ce7a
 From 1eb3ffe3680e065be6e1db9c3fe7e282766f7c76 Mon Sep 17 00:00:00 2001
 From: Cursor Agent <cursoragent@cursor.com>
 Date: Sun, 6 Sep 2026 19:58:40 +0000
-Subject: [PATCH 9/9] chore(web): refresh prebuilt after A/B harden; note
+Subject: [PATCH 09/10] chore(web): refresh prebuilt after A/B harden; note
  RPC-only insert proposal
 MIME-Version: 1.0
 Content-Type: text/plain; charset=UTF-8
@@ -2829,6 +2830,117 @@ index 00000000..38b126f6
 +-- keep: grant select on public.beta_feedback to authenticated;
 +-- keep: grant execute on function public.kocc_submit_beta_feedback(text, text, text) to authenticated;
 +*/
+-- 
+2.43.0
+
+
+From c5da1e6d20a6aa945c5726df7be88b177f2577d4 Mon Sep 17 00:00:00 2001
+From: Cursor Agent <cursoragent@cursor.com>
+Date: Sun, 6 Sep 2026 21:00:40 +0000
+Subject: [PATCH 10/10] fix(web): share beta inbox actor hint helper with tests
+
+Extract formatBetaActorHint for KOCC inbox/triage UI and add unit coverage.
+No schema, GOV, or 0043/0044/0045 application.
+---
+ .../kocc/components/BetaPanelSection.tsx        | 17 ++++++++++++-----
+ .../kocc/components/KoccCenterClient.tsx        |  5 ++++-
+ .../kocc/lib/beta-feedback-actor.test.ts        | 14 ++++++++++++++
+ .../web/modules/kocc/lib/beta-feedback-actor.ts |  7 +++++++
+ 4 files changed, 37 insertions(+), 6 deletions(-)
+ create mode 100644 apps/web/modules/kocc/lib/beta-feedback-actor.test.ts
+ create mode 100644 apps/web/modules/kocc/lib/beta-feedback-actor.ts
+
+diff --git a/apps/web/modules/kocc/components/BetaPanelSection.tsx b/apps/web/modules/kocc/components/BetaPanelSection.tsx
+index 6e0a7b0e..25132719 100644
+--- a/apps/web/modules/kocc/components/BetaPanelSection.tsx
++++ b/apps/web/modules/kocc/components/BetaPanelSection.tsx
+@@ -5,6 +5,7 @@ import { Badge } from '@kuteka/ui';
+ import { PanelSection } from '@/modules/finance/components/super/shared';
+ import { SoftListSlot } from '@/modules/shell/components/SoftListSlot';
+ import { filterBetaInboxRows, type BetaInboxFilter } from '../lib/beta-feedback-inbox';
++import { formatBetaActorHint } from '../lib/beta-feedback-actor';
+ import { betaFeedbackKindLabel } from '../lib/beta-feedback-labels';
+ import { shouldShowSoftEmpty } from '../lib/soft-empty-gate';
+ import { publicStatusLabel } from '../lib/status-labels';
+@@ -244,11 +245,17 @@ export function BetaPanelSection({
+                           {row.page_path}
+                         </span>
+                       ) : null}
+-                      {row.actor_id ? (
+-                        <span className="font-mono text-xs text-slate-500" title={row.actor_id}>
+-                          actor:{row.actor_id.slice(0, 8)}
+-                        </span>
+-                      ) : null}
++                      {(() => {
++                        const hint = formatBetaActorHint(row.actor_id);
++                        return hint ? (
++                          <span
++                            className="font-mono text-xs text-slate-500"
++                            title={row.actor_id ?? undefined}
++                          >
++                            {hint}
++                          </span>
++                        ) : null;
++                      })()}
+                     </div>
+                     <p className="whitespace-pre-wrap text-sm text-slate-800">{row.body}</p>
+                   </li>
+diff --git a/apps/web/modules/kocc/components/KoccCenterClient.tsx b/apps/web/modules/kocc/components/KoccCenterClient.tsx
+index c342c99d..0a4aa76c 100644
+--- a/apps/web/modules/kocc/components/KoccCenterClient.tsx
++++ b/apps/web/modules/kocc/components/KoccCenterClient.tsx
+@@ -11,6 +11,7 @@ import {
+ } from '@/modules/finance/components/super/shared';
+ import { SoftListSlot } from '@/modules/shell/components/SoftListSlot';
+ import { GO_LIVE_READINESS, goLiveReadinessSummary } from '../lib/go-live-readiness';
++import { formatBetaActorHint } from '../lib/beta-feedback-actor';
+ import { KOCC_STATUS_OPTIONS, adminStatusLabel, publicStatusLabel } from '../lib/status-labels';
+ import {
+   listAudit,
+@@ -339,7 +340,9 @@ export function KoccCenterClient({ canManage }: PanelProps) {
+                 </p>
+                 <p className="text-xs text-slate-500">
+                   {new Date(entry.created_at).toLocaleString('pt-PT')}
+-                  {entry.actor_id ? ` · ${entry.actor_id.slice(0, 8)}` : ''}
++                  {(formatBetaActorHint(entry.actor_id) &&
++                    ` · ${formatBetaActorHint(entry.actor_id)}`) ||
++                    ''}
+                 </p>
+               </div>
+               {entry.after_state && typeof entry.after_state.operational_status === 'string' ? (
+diff --git a/apps/web/modules/kocc/lib/beta-feedback-actor.test.ts b/apps/web/modules/kocc/lib/beta-feedback-actor.test.ts
+new file mode 100644
+index 00000000..21d34d96
+--- /dev/null
++++ b/apps/web/modules/kocc/lib/beta-feedback-actor.test.ts
+@@ -0,0 +1,14 @@
++import { describe, expect, it } from 'vitest';
++import { formatBetaActorHint } from './beta-feedback-actor';
++
++describe('formatBetaActorHint', () => {
++  it('returns null for empty', () => {
++    expect(formatBetaActorHint(null)).toBeNull();
++    expect(formatBetaActorHint('')).toBeNull();
++    expect(formatBetaActorHint('   ')).toBeNull();
++  });
++
++  it('prefixes truncated uuid', () => {
++    expect(formatBetaActorHint('abcdef12-3456-7890-abcd-ef1234567890')).toBe('actor:abcdef12');
++  });
++});
+diff --git a/apps/web/modules/kocc/lib/beta-feedback-actor.ts b/apps/web/modules/kocc/lib/beta-feedback-actor.ts
+new file mode 100644
+index 00000000..83d8cd9e
+--- /dev/null
++++ b/apps/web/modules/kocc/lib/beta-feedback-actor.ts
+@@ -0,0 +1,7 @@
++/** Ops triage: short actor hint from beta_feedback.actor_id (already SELECT-visible via RLS). */
++export function formatBetaActorHint(actorId: string | null | undefined): string | null {
++  if (!actorId) return null;
++  const id = actorId.trim();
++  if (!id) return null;
++  return `actor:${id.slice(0, 8)}`;
++}
 -- 
 2.43.0
 

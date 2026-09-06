@@ -1,21 +1,16 @@
-# Status autónomo — write Site_Angola bloqueado
+# Status autónomo — write bloqueado
 
-Actualizado: 2026-09-06T19:41Z
+Actualizado: 2026-09-06T19:58Z (re-probe timer)
 
 ## Re-probe
-push=false · auth fail · sem tokens SITE_ANGOLA_*
+push=false · auth fail · sem SITE_ANGOLA_* tokens
 
 ## Tip local
-`/tmp/site-angola-publish` @ `de1fa086`
-Vitest **147/147** · tsc OK
+`1eb3ffe3` — prebuilt refreshed; complaint bridge + actor inbox shipped in static
+Vitest 147 · tsc OK · static export OK
 
-### Este bloco
-- Complaint bridge: contacto primário + admin#escalacoes
-- Inbox mostra actor truncado
-- Audit doc RLS/telemetria (sem aplicar 0043/0044)
+## Propostas NÃO aplicadas
+0043 · 0044 · **0045** (RPC-only insert, proposal only) · GOV-BF tickets
 
-## Isolado
-GOV-BF · 0043 · 0044 · tickets · Vicente
-
-## Quando write abrir
-PUBLISH-WHEN-WRITE-OPENS.sh → A→PR→smoke→B→Inbox/KOCC
+## Publish when write opens
+`PUBLISH-WHEN-WRITE-OPENS.sh` + prefer full combined patch for Render prebuilt

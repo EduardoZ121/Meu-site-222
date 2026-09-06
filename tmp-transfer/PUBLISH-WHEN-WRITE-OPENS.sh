@@ -7,9 +7,9 @@ ROOT="${1:-.}"
 TOKEN="${SITE_ANGOLA_PUSH_TOKEN:-${GH_TOKEN:-}}"
 BASE_REF="${BASE_REF:-main}"
 EXPECTED_BASE="${EXPECTED_BASE:-ce203d4f}"
-TIP_NOTE="1f5433a7"
+TIP_NOTE="1eb3ffe3"
 BRANCH="cursor/sprint-ab-beta-inbox-f96b"
-PATCH="${ROOT}/tmp-transfer/kuteka-sprint-ab-combined-src.patch"
+PATCH="${ROOT}/tmp-transfer/kuteka-sprint-ab-combined.patch  # includes prebuilt; use -src for review-only"
 
 if [[ -z "$TOKEN" ]]; then
   echo "Missing SITE_ANGOLA_PUSH_TOKEN or GH_TOKEN" >&2

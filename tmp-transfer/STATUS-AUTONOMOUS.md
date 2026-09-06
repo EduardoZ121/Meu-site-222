@@ -1,19 +1,16 @@
-# Status autónomo — write Site_Angola ainda bloqueado
+# Status autónomo — write Site_Angola bloqueado
 
-Actualizado: 2026-09-06T18:56Z (re-probe timer)
+Actualizado: 2026-09-06T19:08Z
 
 ## Re-probe
-- `permissions.push=false`
-- `git push` → Invalid username or token
-- Tokens SITE_ANGOLA_* / GH_TOKEN unset no ambiente do agente
-- `gh` autenticado como `cursor` sem grant no Site_Angola
+push=false · auth fail · sem SITE_ANGOLA_PUSH_TOKEN
 
-## Tip local pronto
-`/tmp/site-angola-publish` @ `1f5433a7` (branch `cursor/sprint-a-beta-experience-f96b`)
-Vitest 141 · tsc OK · AB src patch apply-check OK
-
-## Publish
-`PUBLISH-WHEN-WRITE-OPENS.sh` — aplica `kuteka-sprint-ab-combined-src.patch`, push branch, tenta PR.
+## Tip local
+`/tmp/site-angola-publish` @ HEAD pós soft-empty/help-sec/Demo hygiene
+Vitest **147/147** · tsc OK
 
 ## Isolado
-GOV-BF-01…05 · 0043 · 0044 · tickets · Vicente · Meu-site-222 ≠ SoT
+GOV-BF-01…05 · 0043 · 0044 · tickets · Vicente
+
+## Quando write abrir
+`PUBLISH-WHEN-WRITE-OPENS.sh` → A→PR→smoke→B→smoke Inbox/KOCC

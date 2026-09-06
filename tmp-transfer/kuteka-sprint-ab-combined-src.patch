@@ -1,7 +1,7 @@
 From bf98a7003c847dcd945b17825792ed325738929d Mon Sep 17 00:00:00 2001
 From: Cursor Agent <cursoragent@cursor.com>
 Date: Sun, 6 Sep 2026 01:10:59 +0000
-Subject: [PATCH 1/6] feat(web): sprint a p0 beta messaging, inventory clarity
+Subject: [PATCH 1/7] feat(web): sprint a p0 beta messaging, inventory clarity
  and hardening
 
 Add public beta notice and authenticated welcome, documentation feedback
@@ -728,7 +728,7 @@ index 0e0a2123..b2cf217b 100644
 From 8faa18b601b6d1ea7b87772cdabd6f058b428b0c Mon Sep 17 00:00:00 2001
 From: Cursor Agent <cursoragent@cursor.com>
 Date: Sun, 6 Sep 2026 06:13:15 +0000
-Subject: [PATCH 2/6] feat(web): sprint b p0 kocc feedback inbox and complaint
+Subject: [PATCH 2/7] feat(web): sprint b p0 kocc feedback inbox and complaint
  bridge
 
 Reuse beta_feedback + RLS for an ops triage inbox in KOCC, wire home
@@ -1041,7 +1041,7 @@ index f429a0e1..ba9e82e2 100644
 From 400b473e2a79cf3fe2c06cb4dce27fb6aa11a821 Mon Sep 17 00:00:00 2001
 From: Cursor Agent <cursoragent@cursor.com>
 Date: Sun, 6 Sep 2026 18:11:15 +0000
-Subject: [PATCH 3/6] fix(web): sprint b inbox independent of metrics plus
+Subject: [PATCH 3/7] fix(web): sprint b inbox independent of metrics plus
  audit
 
 Show recent beta_feedback even when kocc_beta_metrics fails. Add help-center
@@ -1433,7 +1433,7 @@ index 00000000..1fb9aec2
 From 59d0516befaf3d1a22ecb167310c2d399b5ae189 Mon Sep 17 00:00:00 2001
 From: Cursor Agent <cursoragent@cursor.com>
 Date: Sun, 6 Sep 2026 18:25:02 +0000
-Subject: [PATCH 4/6] fix(web): harden beta feedback submit and inbox triage UX
+Subject: [PATCH 4/7] fix(web): harden beta feedback submit and inbox triage UX
 
 Add client path/body/kind guards, keep inbox empty-state from masking
 SELECT errors, and add local kind filters. Document full feedback-cycle
@@ -1845,7 +1845,7 @@ index 00000000..3bb81bdd
 From 630ef80523593038a393a5264a8843dfae87b331 Mon Sep 17 00:00:00 2001
 From: Cursor Agent <cursoragent@cursor.com>
 Date: Sun, 6 Sep 2026 18:39:23 +0000
-Subject: [PATCH 5/6] docs(web): isolate beta feedback workflow requirements;
+Subject: [PATCH 5/7] docs(web): isolate beta feedback workflow requirements;
  harden inbox filter
 
 Map Doc3 BETA-15/19/22/23/24 against schema 0035 and existing ops patterns
@@ -2051,7 +2051,7 @@ index 00000000..7d9f6e8c
 From 1f5433a7b3311b861e0afce2ee6a7cb93b52b69f Mon Sep 17 00:00:00 2001
 From: Cursor Agent <cursoragent@cursor.com>
 Date: Sun, 6 Sep 2026 18:54:13 +0000
-Subject: [PATCH 6/6] fix(web): harden beta feedback context, labels and header
+Subject: [PATCH 6/7] fix(web): harden beta feedback context, labels and header
  lock
 MIME-Version: 1.0
 Content-Type: text/plain; charset=UTF-8
@@ -2350,6 +2350,262 @@ index 7a328e7a..504eacd9 100644
 +- Body strips C0 controls; complaint bridge i18n; render.yaml header lock test.
 +- Telemetry: RPC `beta.feedback` + client `beta.feedback.bug|suggestion` are **distinct codes** (not double-count of same key).
 +- GOV-BF-01…05 / 0043 / 0044 unchanged — not applied.
+-- 
+2.43.0
+
+
+From 37c8bf91ff9bc6056df87c932a90991c9c938083 Mon Sep 17 00:00:00 2001
+From: Cursor Agent <cursoragent@cursor.com>
+Date: Sun, 6 Sep 2026 19:08:30 +0000
+Subject: [PATCH 7/7] fix(web): lock soft-empty gates and help-sec allowlist
+ parity
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Extract SoftListSlot empty≠error helper with tests; share Help section
+ids with beta page_path sanitize; rename system badge away from Demo;
+refresh smoke counts. No 0043/0044 or ticket workflow.
+---
+ .../modules/kocc/components/BetaPanelSection.tsx | 13 +++++++++++--
+ .../web/modules/kocc/lib/beta-feedback-submit.ts |  4 +++-
+ .../web/modules/kocc/lib/soft-empty-gate.test.ts | 14 ++++++++++++++
+ apps/web/modules/kocc/lib/soft-empty-gate.ts     | 11 +++++++++++
+ .../shell/components/HelpCenterClient.tsx        |  9 +++++----
+ apps/web/modules/shell/lib/help-sections.test.ts | 16 ++++++++++++++++
+ apps/web/modules/shell/lib/help-sections.ts      |  8 ++++++++
+ .../shell/lib/institutional-badge.test.ts        | 14 ++++++++++++++
+ .../web/modules/shell/lib/institutional-badge.ts |  3 ++-
+ docs/engineering/SMOKE_SPRINT_AB.md              |  2 +-
+ docs/engineering/SPRINT_B_FEEDBACK_CYCLE_FULL.md |  4 ++++
+ 11 files changed, 89 insertions(+), 9 deletions(-)
+ create mode 100644 apps/web/modules/kocc/lib/soft-empty-gate.test.ts
+ create mode 100644 apps/web/modules/kocc/lib/soft-empty-gate.ts
+ create mode 100644 apps/web/modules/shell/lib/help-sections.test.ts
+ create mode 100644 apps/web/modules/shell/lib/help-sections.ts
+ create mode 100644 apps/web/modules/shell/lib/institutional-badge.test.ts
+
+diff --git a/apps/web/modules/kocc/components/BetaPanelSection.tsx b/apps/web/modules/kocc/components/BetaPanelSection.tsx
+index 97084546..42a8f2bd 100644
+--- a/apps/web/modules/kocc/components/BetaPanelSection.tsx
++++ b/apps/web/modules/kocc/components/BetaPanelSection.tsx
+@@ -6,6 +6,7 @@ import { PanelSection } from '@/modules/finance/components/super/shared';
+ import { SoftListSlot } from '@/modules/shell/components/SoftListSlot';
+ import { filterBetaInboxRows, type BetaInboxFilter } from '../lib/beta-feedback-inbox';
+ import { betaFeedbackKindLabel } from '../lib/beta-feedback-labels';
++import { shouldShowSoftEmpty } from '../lib/soft-empty-gate';
+ import { publicStatusLabel } from '../lib/status-labels';
+ import type {
+   KoccBetaFeedbackRow,
+@@ -169,7 +170,11 @@ export function BetaPanelSection({
+                 </div>
+               ) : null}
+             </div>
+-          ) : !loading && !loadError ? (
++          ) : shouldShowSoftEmpty({
++              pending: loading,
++              hasItems: Boolean(metrics),
++              hasError: Boolean(loadError),
++            }) ? (
+             <p className="text-sm text-slate-500">
+               Sem métricas. Confirme que a migration <code>0035_kocc_beta_panel.sql</code> foi
+               aplicada no Supabase remoto e que a conta tem <code>finance.manage</code>.
+@@ -210,7 +215,11 @@ export function BetaPanelSection({
+             </div>
+           ) : null}
+           <SoftListSlot pending={inboxLoading && inbox.length === 0}>
+-            {inbox.length === 0 && !inboxLoading && !inboxError ? (
++            {shouldShowSoftEmpty({
++              pending: inboxLoading,
++              hasItems: inbox.length > 0,
++              hasError: Boolean(inboxError),
++            }) ? (
+               <p className="mt-2 text-sm text-slate-500">Ainda sem relatos na inbox.</p>
+             ) : null}
+             {inbox.length > 0 && filteredInbox.length === 0 ? (
+diff --git a/apps/web/modules/kocc/lib/beta-feedback-submit.ts b/apps/web/modules/kocc/lib/beta-feedback-submit.ts
+index fd98262a..ce86d265 100644
+--- a/apps/web/modules/kocc/lib/beta-feedback-submit.ts
++++ b/apps/web/modules/kocc/lib/beta-feedback-submit.ts
+@@ -1,11 +1,13 @@
+ /** Client-side guards for beta_feedback submit — mirrors migration 0035 checks. */
+ 
++import { HELP_SECTION_IDS } from '@/modules/shell/lib/help-sections';
++
+ const MAX_BODY = 4000;
+ const MIN_BODY = 3;
+ const MAX_PAGE_PATH = 500;
+ 
+ /** Help Center sections — only these query values are preserved on page_path. */
+-const ALLOWED_SEC = new Set(['manual', 'faq', 'glossario', 'novidades', 'estado']);
++const ALLOWED_SEC = new Set<string>(HELP_SECTION_IDS);
+ 
+ /**
+  * Sanitize page_path for submit.
+diff --git a/apps/web/modules/kocc/lib/soft-empty-gate.test.ts b/apps/web/modules/kocc/lib/soft-empty-gate.test.ts
+new file mode 100644
+index 00000000..527920f8
+--- /dev/null
++++ b/apps/web/modules/kocc/lib/soft-empty-gate.test.ts
+@@ -0,0 +1,14 @@
++import { describe, expect, it } from 'vitest';
++import { shouldShowSoftEmpty } from './soft-empty-gate';
++
++describe('shouldShowSoftEmpty', () => {
++  it('shows empty only when idle with no items and no error', () => {
++    expect(shouldShowSoftEmpty({ pending: false, hasItems: false, hasError: false })).toBe(true);
++  });
++
++  it('hides empty while pending, when items exist, or when errored', () => {
++    expect(shouldShowSoftEmpty({ pending: true, hasItems: false, hasError: false })).toBe(false);
++    expect(shouldShowSoftEmpty({ pending: false, hasItems: true, hasError: false })).toBe(false);
++    expect(shouldShowSoftEmpty({ pending: false, hasItems: false, hasError: true })).toBe(false);
++  });
++});
+diff --git a/apps/web/modules/kocc/lib/soft-empty-gate.ts b/apps/web/modules/kocc/lib/soft-empty-gate.ts
+new file mode 100644
+index 00000000..16b8d067
+--- /dev/null
++++ b/apps/web/modules/kocc/lib/soft-empty-gate.ts
+@@ -0,0 +1,11 @@
++/**
++ * Soft empty-state gate: show "empty" copy only when idle, no rows, and no error.
++ * Prevents SoftListSlot empty messaging from masking load failures (metrics/inbox parity).
++ */
++export function shouldShowSoftEmpty(options: {
++  pending: boolean;
++  hasItems: boolean;
++  hasError: boolean;
++}): boolean {
++  return !options.pending && !options.hasItems && !options.hasError;
++}
+diff --git a/apps/web/modules/shell/components/HelpCenterClient.tsx b/apps/web/modules/shell/components/HelpCenterClient.tsx
+index daa9d4e8..6add9c8f 100644
+--- a/apps/web/modules/shell/components/HelpCenterClient.tsx
++++ b/apps/web/modules/shell/components/HelpCenterClient.tsx
+@@ -8,9 +8,10 @@ import { cn } from '@kuteka/shared';
+ import { useLocale } from '@/modules/i18n/LocaleProvider';
+ import { BetaFeedbackForm } from '@/modules/kocc/components/BetaFeedbackForm';
+ import { trackBetaFeature } from '@/modules/kocc/services/kocc-client';
+-import { getShellCopy } from '../content';
+ import { parseMarkdownDocument, type MdBlock } from '@/modules/institutional/lib/parse-markdown';
+ import type { HelpDocs } from '@/modules/institutional/lib/help-docs';
++import { getShellCopy } from '../content';
++import { HELP_SECTION_IDS, isHelpSectionId, type HelpSectionId } from '../lib/help-sections';
+ 
+ export type HelpCenterProps = {
+   /** Markdown sources for every section of the Documentation Center. */
+@@ -24,11 +25,11 @@ export type HelpCenterProps = {
+   publicMode?: boolean;
+ };
+ 
+-const SECTION_IDS = ['manual', 'faq', 'glossario', 'novidades', 'estado'] as const;
+-type SectionId = (typeof SECTION_IDS)[number];
++type SectionId = HelpSectionId;
++const SECTION_IDS = HELP_SECTION_IDS;
+ 
+ function isSectionId(value: string | null | undefined): value is SectionId {
+-  return !!value && (SECTION_IDS as readonly string[]).includes(value);
++  return isHelpSectionId(value);
+ }
+ 
+ /** ASCII slug used for in-page heading anchors (e.g. `#roteiro-publico`). */
+diff --git a/apps/web/modules/shell/lib/help-sections.test.ts b/apps/web/modules/shell/lib/help-sections.test.ts
+new file mode 100644
+index 00000000..50d9c0bf
+--- /dev/null
++++ b/apps/web/modules/shell/lib/help-sections.test.ts
+@@ -0,0 +1,16 @@
++import { describe, expect, it } from 'vitest';
++import { HELP_SECTION_IDS, isHelpSectionId } from './help-sections';
++import { sanitizeBetaPagePath } from '@/modules/kocc/lib/beta-feedback-submit';
++
++describe('HELP_SECTION_IDS parity with beta page_path allowlist', () => {
++  it('preserves every Help section via sanitizeBetaPagePath', () => {
++    for (const sec of HELP_SECTION_IDS) {
++      expect(isHelpSectionId(sec)).toBe(true);
++      expect(sanitizeBetaPagePath(`/app/ajuda?sec=${sec}`)).toBe(`/app/ajuda?sec=${sec}`);
++    }
++  });
++
++  it('drops unknown sec values', () => {
++    expect(sanitizeBetaPagePath('/app/ajuda?sec=tickets')).toBe('/app/ajuda');
++  });
++});
+diff --git a/apps/web/modules/shell/lib/help-sections.ts b/apps/web/modules/shell/lib/help-sections.ts
+new file mode 100644
+index 00000000..c0ed1fec
+--- /dev/null
++++ b/apps/web/modules/shell/lib/help-sections.ts
+@@ -0,0 +1,8 @@
++/** Canonical Help Center section ids — shared by Help UI + beta page_path allowlist. */
++export const HELP_SECTION_IDS = ['manual', 'faq', 'glossario', 'novidades', 'estado'] as const;
++
++export type HelpSectionId = (typeof HELP_SECTION_IDS)[number];
++
++export function isHelpSectionId(value: string | null | undefined): value is HelpSectionId {
++  return !!value && (HELP_SECTION_IDS as readonly string[]).includes(value);
++}
+diff --git a/apps/web/modules/shell/lib/institutional-badge.test.ts b/apps/web/modules/shell/lib/institutional-badge.test.ts
+new file mode 100644
+index 00000000..980938a2
+--- /dev/null
++++ b/apps/web/modules/shell/lib/institutional-badge.test.ts
+@@ -0,0 +1,14 @@
++import { describe, expect, it } from 'vitest';
++import { institutionalBadge } from './institutional-badge';
++
++describe('institutionalBadge', () => {
++  it('never surfaces the word Demo for system accounts', () => {
++    const badge = institutionalBadge({ isSystemDemo: true });
++    expect(badge?.label).toBeTruthy();
++    expect(badge?.label.toLowerCase()).not.toContain('demo');
++  });
++
++  it('labels founders without Demo jargon', () => {
++    expect(institutionalBadge({ isFounder: true })?.label.toLowerCase()).not.toContain('demo');
++  });
++});
+diff --git a/apps/web/modules/shell/lib/institutional-badge.ts b/apps/web/modules/shell/lib/institutional-badge.ts
+index c1746175..8793d9a4 100644
+--- a/apps/web/modules/shell/lib/institutional-badge.ts
++++ b/apps/web/modules/shell/lib/institutional-badge.ts
+@@ -22,8 +22,9 @@ export function institutionalBadge(
+   );
+ 
+   if (roleOrFlags.isSystemDemo || roles.includes('system_demo')) {
++    // Sprint A hygiene: never surface the internal word "Demo" to end users.
+     return {
+-      label: 'System Demo',
++      label: 'Conta de sistema',
+       className: 'bg-slate-200 text-slate-800 ring-1 ring-slate-400',
+     };
+   }
+diff --git a/docs/engineering/SMOKE_SPRINT_AB.md b/docs/engineering/SMOKE_SPRINT_AB.md
+index e08b5508..a74da0f6 100644
+--- a/docs/engineering/SMOKE_SPRINT_AB.md
++++ b/docs/engineering/SMOKE_SPRINT_AB.md
+@@ -4,7 +4,7 @@ Usar após push/PR/merge/deploy em `EduardoZ121/Site_Angola`. Não requer novas
+ 
+ ## Pré-voo local (já corrido no agente)
+ 
+-- [x] `npm test` — 137 testes
++- [x] `npm test` — 147 testes
+ - [x] `tsc --noEmit`
+ - [ ] `npm run build` (export estático) — validar neste ciclo
+ - [x] Patches A/B + harden regeneráveis
+diff --git a/docs/engineering/SPRINT_B_FEEDBACK_CYCLE_FULL.md b/docs/engineering/SPRINT_B_FEEDBACK_CYCLE_FULL.md
+index 504eacd9..3aa390c2 100644
+--- a/docs/engineering/SPRINT_B_FEEDBACK_CYCLE_FULL.md
++++ b/docs/engineering/SPRINT_B_FEEDBACK_CYCLE_FULL.md
+@@ -53,3 +53,7 @@
+ - Body strips C0 controls; complaint bridge i18n; render.yaml header lock test.
+ - Telemetry: RPC `beta.feedback` + client `beta.feedback.bug|suggestion` are **distinct codes** (not double-count of same key).
+ - GOV-BF-01…05 / 0043 / 0044 unchanged — not applied.
++
++## Tip local (bloqueio write)
++
++`1f5433a7`+ soft-empty gate / help-sec parity / Conta de sistema badge. GOV-BF/0043/0044 intactos.
 -- 
 2.43.0
 

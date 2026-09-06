@@ -1,16 +1,25 @@
 # Status autónomo — write Site_Angola bloqueado
 
-Actualizado: 2026-09-06T21:00Z (re-probe timer)
+Actualizado: 2026-09-06T23:00Z (re-probe timer)
 
 ## Re-probe
-push=false · auth fail · sem SITE_ANGOLA_* tokens
+- permissions.push=false
+- git push auth fail
+- gh create-ref 403
+- sem SITE_ANGOLA_PUSH_TOKEN
 
-## Tip local
-`c5da1e6d` — actor hint helper + tests; prebuilt base `1eb3ffe3` (+ src delta)
-Vitest **149/149** · tsc OK · src patch apply-check previously OK
+## Tip local pronto
+`/tmp/site-angola-publish` @ `c5da1e6d`
+Vitest 149 · tsc OK · src patch apply-check OK
 
-## Isolado
+### Publish kit
+- `kuteka-sprint-ab-combined.patch` — até prebuilt `1eb3ffe3`
+- `kuteka-sprint-b-actor-hint.patch` — delta tip `c5da1e6d` (aplicar após combined)
+- `kuteka-sprint-ab-combined-src.patch` — A+B completo sem prebuilt até tip
+- `PUBLISH-WHEN-WRITE-OPENS.sh` aplica combined + actor delta
+
+## Isolado (não aplicar)
 GOV-BF · 0043 · 0044 · 0045 proposal · tickets · Vicente
 
 ## Quando write abrir
-`PUBLISH-WHEN-WRITE-OPENS.sh` (combined patch @ 1eb3ffe3) + cherry-pick tip, ou reformat full patch then push A→PR→smoke→B
+Executar script / push tip → PR → smoke A → smoke B Inbox/KOCC

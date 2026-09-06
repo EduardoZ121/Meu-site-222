@@ -7,7 +7,7 @@ ROOT="${1:-.}"
 TOKEN="${SITE_ANGOLA_PUSH_TOKEN:-${GH_TOKEN:-}}"
 BASE_REF="${BASE_REF:-main}"
 EXPECTED_BASE="${EXPECTED_BASE:-ce203d4f}"
-TIP_NOTE="1eb3ffe3"
+TIP_NOTE="c5da1e6d"
 BRANCH="cursor/sprint-ab-beta-inbox-f96b"
 # Full patch includes refreshed prebuilt (Render USE_PREBUILT_STATIC). Use *-src.patch for review-only.
 PATCH="${ROOT}/tmp-transfer/kuteka-sprint-ab-combined.patch"
@@ -34,6 +34,11 @@ fi
 
 git checkout -b "$BRANCH"
 git apply --index "$PATCH"
+# Tip delta after last prebuilt refresh (actor hint helper)
+ACTOR_PATCH="${ROOT}/tmp-transfer/kuteka-sprint-b-actor-hint.patch"
+if [[ -f "$ACTOR_PATCH" ]]; then
+  git apply --index "$ACTOR_PATCH" || true
+fi
 git commit -m "$(cat <<'MSG'
 feat(web): sprint a+b beta messaging, kocc inbox and harden
 

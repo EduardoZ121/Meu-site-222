@@ -1,0 +1,13 @@
+Sprint B P0 (apply AFTER Sprint A is on main)
+===========================================
+Canonical: EduardoZ121/Site_Angola
+
+Patch: kuteka-sprint-b-p0.patch
+Reuses beta_feedback + RLS. Adds KOCC triage inbox, app.home telemetry,
+and Help Center bridge distinguishing product Beta feedback vs operational complaints.
+No new tables.
+
+  git checkout -b cursor/sprint-b-feedback-inbox-f96b
+  curl -fsSL .../kuteka-sprint-b-p0.patch | git am --3way
+  git push -u origin HEAD
+  gh pr create --base main ...

@@ -31,7 +31,7 @@
       "includeFiles": "{frontend/api/lib/**,node_modules/sharp/**,node_modules/@img/**}"
     }
   },
-  "installCommand": "ln -sfn frontend/api api; yarn install --ignore-engines || yarn install; cd frontend && yarn install --ignore-engines || yarn install; cd .. && npm install --legacy-peer-deps",
+  "installCommand": "rm -rf api && ln -s frontend/api api; yarn install --ignore-engines || yarn install; cd frontend && yarn install --ignore-engines || yarn install; cd .. && npm install --legacy-peer-deps",
   "buildCommand": "cd frontend && REACT_APP_BUILD_ID=rp-s3-recovery-v1 REACT_APP_DISABLE_VERCEL_BLOB=1 yarn build",
   "redirects": [
     {

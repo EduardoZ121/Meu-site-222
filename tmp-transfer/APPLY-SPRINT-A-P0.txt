@@ -1,0 +1,35 @@
+APPLY — Sprint A P0 (Beta messaging + inventory + security headers)
+================================================================
+Canonical repo: EduardoZ121/Site_Angola (branch main @ ce203d4+)
+This Meu-site-222 folder is ONLY a transfer bridge. Do not treat it as Kuteka home.
+
+Commit on local Site_Angola clone: f9225d7
+  feat(web): sprint a p0 beta messaging, inventory clarity and hardening
+
+What this delivers (Sprint A / P0):
+- Public Beta notice on landing topbar + hero eyebrow/subtitle (pt/en/es/fr)
+- Authenticated /app Beta welcome + link to /app/ajuda feedback
+- Public documentation CTA to sign in and send Beta feedback
+- Inventory labels: draft = unpublished inventory (≠ public market)
+- Security headers (middleware + next.config + render.yaml) + unit tests
+- Regenerated prebuilt/web-out (full patch includes prebuilt)
+
+Apply on a Site_Angola checkout with write access:
+
+  git clone https://github.com/EduardoZ121/Site_Angola.git
+  cd Site_Angola
+  git checkout -b cursor/sprint-a-beta-experience-f96b
+  # Prefer full patch (includes prebuilt):
+  git am --3way < path/to/kuteka-sprint-a-p0.patch
+  # Or source-only, then rebuild static:
+  # git am --3way < path/to/kuteka-sprint-a-p0-src.patch
+  # export NEXT_PUBLIC_SUPABASE_URL=... ANON_KEY=...
+  # bash scripts/build-static-web.sh && rm -rf prebuilt/web-out && cp -a apps/web/out prebuilt/web-out
+  git push -u origin cursor/sprint-a-beta-experience-f96b
+  # Open PR into main, merge, Manual Deploy on Render if needed
+
+Raw (after this transfer branch is pushed):
+  https://raw.githubusercontent.com/EduardoZ121/Meu-site-222/cursor/transfer-kuteka-sprint-a-p0-f96b/tmp-transfer/kuteka-sprint-a-p0.patch
+  https://raw.githubusercontent.com/EduardoZ121/Meu-site-222/cursor/transfer-kuteka-sprint-a-p0-f96b/tmp-transfer/kuteka-sprint-a-p0-src.patch
+
+Do NOT merge this Meu-site-222 PR into Remake Pixel / Meu-site-222 as product code.

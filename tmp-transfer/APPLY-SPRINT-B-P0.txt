@@ -1,0 +1,20 @@
+Sprint B P0 (+ harden) — apply AFTER Sprint A on Site_Angola
+
+Preferred:
+  git checkout -b cursor/sprint-b-feedback-inbox-f96b
+  git apply kuteka-sprint-b-p0-src.patch   # source only, after A
+  # or full with prebuilt: kuteka-sprint-b-p0.patch
+
+All-in-one from main@ce203d4:
+  git apply kuteka-sprint-ab-combined-src.patch
+
+Validate:
+  cd apps/web && npm test && npx tsc --noEmit
+  # static: bash scripts/build-static-web.sh
+
+Do NOT apply:
+  docs-snippets/0043_*.sql (Founder GOV)
+  workflow ticket schema (see GOV-BETA-FEEDBACK-WORKFLOW.md)
+
+Optional later (tech, not GOV):
+  docs-snippets/0044_* path guard server-side

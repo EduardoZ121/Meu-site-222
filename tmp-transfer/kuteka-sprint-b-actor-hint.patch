@@ -1,0 +1,110 @@
+From c5da1e6d20a6aa945c5726df7be88b177f2577d4 Mon Sep 17 00:00:00 2001
+From: Cursor Agent <cursoragent@cursor.com>
+Date: Sun, 6 Sep 2026 21:00:40 +0000
+Subject: [PATCH] fix(web): share beta inbox actor hint helper with tests
+
+Extract formatBetaActorHint for KOCC inbox/triage UI and add unit coverage.
+No schema, GOV, or 0043/0044/0045 application.
+---
+ .../kocc/components/BetaPanelSection.tsx        | 17 ++++++++++++-----
+ .../kocc/components/KoccCenterClient.tsx        |  5 ++++-
+ .../kocc/lib/beta-feedback-actor.test.ts        | 14 ++++++++++++++
+ .../web/modules/kocc/lib/beta-feedback-actor.ts |  7 +++++++
+ 4 files changed, 37 insertions(+), 6 deletions(-)
+ create mode 100644 apps/web/modules/kocc/lib/beta-feedback-actor.test.ts
+ create mode 100644 apps/web/modules/kocc/lib/beta-feedback-actor.ts
+
+diff --git a/apps/web/modules/kocc/components/BetaPanelSection.tsx b/apps/web/modules/kocc/components/BetaPanelSection.tsx
+index 6e0a7b0e..25132719 100644
+--- a/apps/web/modules/kocc/components/BetaPanelSection.tsx
++++ b/apps/web/modules/kocc/components/BetaPanelSection.tsx
+@@ -5,6 +5,7 @@ import { Badge } from '@kuteka/ui';
+ import { PanelSection } from '@/modules/finance/components/super/shared';
+ import { SoftListSlot } from '@/modules/shell/components/SoftListSlot';
+ import { filterBetaInboxRows, type BetaInboxFilter } from '../lib/beta-feedback-inbox';
++import { formatBetaActorHint } from '../lib/beta-feedback-actor';
+ import { betaFeedbackKindLabel } from '../lib/beta-feedback-labels';
+ import { shouldShowSoftEmpty } from '../lib/soft-empty-gate';
+ import { publicStatusLabel } from '../lib/status-labels';
+@@ -244,11 +245,17 @@ export function BetaPanelSection({
+                           {row.page_path}
+                         </span>
+                       ) : null}
+-                      {row.actor_id ? (
+-                        <span className="font-mono text-xs text-slate-500" title={row.actor_id}>
+-                          actor:{row.actor_id.slice(0, 8)}
+-                        </span>
+-                      ) : null}
++                      {(() => {
++                        const hint = formatBetaActorHint(row.actor_id);
++                        return hint ? (
++                          <span
++                            className="font-mono text-xs text-slate-500"
++                            title={row.actor_id ?? undefined}
++                          >
++                            {hint}
++                          </span>
++                        ) : null;
++                      })()}
+                     </div>
+                     <p className="whitespace-pre-wrap text-sm text-slate-800">{row.body}</p>
+                   </li>
+diff --git a/apps/web/modules/kocc/components/KoccCenterClient.tsx b/apps/web/modules/kocc/components/KoccCenterClient.tsx
+index c342c99d..0a4aa76c 100644
+--- a/apps/web/modules/kocc/components/KoccCenterClient.tsx
++++ b/apps/web/modules/kocc/components/KoccCenterClient.tsx
+@@ -11,6 +11,7 @@ import {
+ } from '@/modules/finance/components/super/shared';
+ import { SoftListSlot } from '@/modules/shell/components/SoftListSlot';
+ import { GO_LIVE_READINESS, goLiveReadinessSummary } from '../lib/go-live-readiness';
++import { formatBetaActorHint } from '../lib/beta-feedback-actor';
+ import { KOCC_STATUS_OPTIONS, adminStatusLabel, publicStatusLabel } from '../lib/status-labels';
+ import {
+   listAudit,
+@@ -339,7 +340,9 @@ export function KoccCenterClient({ canManage }: PanelProps) {
+                 </p>
+                 <p className="text-xs text-slate-500">
+                   {new Date(entry.created_at).toLocaleString('pt-PT')}
+-                  {entry.actor_id ? ` · ${entry.actor_id.slice(0, 8)}` : ''}
++                  {(formatBetaActorHint(entry.actor_id) &&
++                    ` · ${formatBetaActorHint(entry.actor_id)}`) ||
++                    ''}
+                 </p>
+               </div>
+               {entry.after_state && typeof entry.after_state.operational_status === 'string' ? (
+diff --git a/apps/web/modules/kocc/lib/beta-feedback-actor.test.ts b/apps/web/modules/kocc/lib/beta-feedback-actor.test.ts
+new file mode 100644
+index 00000000..21d34d96
+--- /dev/null
++++ b/apps/web/modules/kocc/lib/beta-feedback-actor.test.ts
+@@ -0,0 +1,14 @@
++import { describe, expect, it } from 'vitest';
++import { formatBetaActorHint } from './beta-feedback-actor';
++
++describe('formatBetaActorHint', () => {
++  it('returns null for empty', () => {
++    expect(formatBetaActorHint(null)).toBeNull();
++    expect(formatBetaActorHint('')).toBeNull();
++    expect(formatBetaActorHint('   ')).toBeNull();
++  });
++
++  it('prefixes truncated uuid', () => {
++    expect(formatBetaActorHint('abcdef12-3456-7890-abcd-ef1234567890')).toBe('actor:abcdef12');
++  });
++});
+diff --git a/apps/web/modules/kocc/lib/beta-feedback-actor.ts b/apps/web/modules/kocc/lib/beta-feedback-actor.ts
+new file mode 100644
+index 00000000..83d8cd9e
+--- /dev/null
++++ b/apps/web/modules/kocc/lib/beta-feedback-actor.ts
+@@ -0,0 +1,7 @@
++/** Ops triage: short actor hint from beta_feedback.actor_id (already SELECT-visible via RLS). */
++export function formatBetaActorHint(actorId: string | null | undefined): string | null {
++  if (!actorId) return null;
++  const id = actorId.trim();
++  if (!id) return null;
++  return `actor:${id.slice(0, 8)}`;
++}
+-- 
+2.43.0
+

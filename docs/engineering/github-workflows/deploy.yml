@@ -1,0 +1,65 @@
+name: Deploy Kuteka
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: deploy-kuteka
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: '.nvmrc'
+          cache: 'pnpm'
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      - name: Build static web (Landing / KEOS)
+        run: bash scripts/build-static-web.sh
+        env:
+          NEXT_PUBLIC_APP_URL: https://kutekalink.com
+          NEXT_PUBLIC_ENABLE_DEV_TOOLS: 'false'
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+
+      - name: Deploy to GitHub Pages (gh-pages)
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./apps/web/out
+          cname: kutekalink.com
+          force_orphan: true
+
+      # Production DNS (kutekalink.com) still points at Render static.
+      # Root `npm run build` now produces KEOS static export in ./dist.
+      - name: Trigger Render deploy hook
+        env:
+          RENDER_DEPLOY_HOOK_URL: ${{ secrets.RENDER_DEPLOY_HOOK_URL }}
+        run: |
+          if [ -n "$RENDER_DEPLOY_HOOK_URL" ]; then
+            echo "A disparar deploy no Render..."
+            curl -fsS -X POST "$RENDER_DEPLOY_HOOK_URL"
+            echo "Render deploy solicitado."
+          else
+            echo "RENDER_DEPLOY_HOOK_URL nao configurado — deploy Render manual no dashboard."
+          fi

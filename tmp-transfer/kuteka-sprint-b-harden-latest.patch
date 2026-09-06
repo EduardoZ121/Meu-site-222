@@ -1,0 +1,425 @@
+From 37c8bf91ff9bc6056df87c932a90991c9c938083 Mon Sep 17 00:00:00 2001
+From: Cursor Agent <cursoragent@cursor.com>
+Date: Sun, 6 Sep 2026 19:08:30 +0000
+Subject: [PATCH 1/2] fix(web): lock soft-empty gates and help-sec allowlist
+ parity
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Extract SoftListSlot empty≠error helper with tests; share Help section
+ids with beta page_path sanitize; rename system badge away from Demo;
+refresh smoke counts. No 0043/0044 or ticket workflow.
+---
+ .../modules/kocc/components/BetaPanelSection.tsx | 13 +++++++++++--
+ .../web/modules/kocc/lib/beta-feedback-submit.ts |  4 +++-
+ .../web/modules/kocc/lib/soft-empty-gate.test.ts | 14 ++++++++++++++
+ apps/web/modules/kocc/lib/soft-empty-gate.ts     | 11 +++++++++++
+ .../shell/components/HelpCenterClient.tsx        |  9 +++++----
+ apps/web/modules/shell/lib/help-sections.test.ts | 16 ++++++++++++++++
+ apps/web/modules/shell/lib/help-sections.ts      |  8 ++++++++
+ .../shell/lib/institutional-badge.test.ts        | 14 ++++++++++++++
+ .../web/modules/shell/lib/institutional-badge.ts |  3 ++-
+ docs/engineering/SMOKE_SPRINT_AB.md              |  2 +-
+ docs/engineering/SPRINT_B_FEEDBACK_CYCLE_FULL.md |  4 ++++
+ 11 files changed, 89 insertions(+), 9 deletions(-)
+ create mode 100644 apps/web/modules/kocc/lib/soft-empty-gate.test.ts
+ create mode 100644 apps/web/modules/kocc/lib/soft-empty-gate.ts
+ create mode 100644 apps/web/modules/shell/lib/help-sections.test.ts
+ create mode 100644 apps/web/modules/shell/lib/help-sections.ts
+ create mode 100644 apps/web/modules/shell/lib/institutional-badge.test.ts
+
+diff --git a/apps/web/modules/kocc/components/BetaPanelSection.tsx b/apps/web/modules/kocc/components/BetaPanelSection.tsx
+index 97084546..42a8f2bd 100644
+--- a/apps/web/modules/kocc/components/BetaPanelSection.tsx
++++ b/apps/web/modules/kocc/components/BetaPanelSection.tsx
+@@ -6,6 +6,7 @@ import { PanelSection } from '@/modules/finance/components/super/shared';
+ import { SoftListSlot } from '@/modules/shell/components/SoftListSlot';
+ import { filterBetaInboxRows, type BetaInboxFilter } from '../lib/beta-feedback-inbox';
+ import { betaFeedbackKindLabel } from '../lib/beta-feedback-labels';
++import { shouldShowSoftEmpty } from '../lib/soft-empty-gate';
+ import { publicStatusLabel } from '../lib/status-labels';
+ import type {
+   KoccBetaFeedbackRow,
+@@ -169,7 +170,11 @@ export function BetaPanelSection({
+                 </div>
+               ) : null}
+             </div>
+-          ) : !loading && !loadError ? (
++          ) : shouldShowSoftEmpty({
++              pending: loading,
++              hasItems: Boolean(metrics),
++              hasError: Boolean(loadError),
++            }) ? (
+             <p className="text-sm text-slate-500">
+               Sem métricas. Confirme que a migration <code>0035_kocc_beta_panel.sql</code> foi
+               aplicada no Supabase remoto e que a conta tem <code>finance.manage</code>.
+@@ -210,7 +215,11 @@ export function BetaPanelSection({
+             </div>
+           ) : null}
+           <SoftListSlot pending={inboxLoading && inbox.length === 0}>
+-            {inbox.length === 0 && !inboxLoading && !inboxError ? (
++            {shouldShowSoftEmpty({
++              pending: inboxLoading,
++              hasItems: inbox.length > 0,
++              hasError: Boolean(inboxError),
++            }) ? (
+               <p className="mt-2 text-sm text-slate-500">Ainda sem relatos na inbox.</p>
+             ) : null}
+             {inbox.length > 0 && filteredInbox.length === 0 ? (
+diff --git a/apps/web/modules/kocc/lib/beta-feedback-submit.ts b/apps/web/modules/kocc/lib/beta-feedback-submit.ts
+index fd98262a..ce86d265 100644
+--- a/apps/web/modules/kocc/lib/beta-feedback-submit.ts
++++ b/apps/web/modules/kocc/lib/beta-feedback-submit.ts
+@@ -1,11 +1,13 @@
+ /** Client-side guards for beta_feedback submit — mirrors migration 0035 checks. */
+ 
++import { HELP_SECTION_IDS } from '@/modules/shell/lib/help-sections';
++
+ const MAX_BODY = 4000;
+ const MIN_BODY = 3;
+ const MAX_PAGE_PATH = 500;
+ 
+ /** Help Center sections — only these query values are preserved on page_path. */
+-const ALLOWED_SEC = new Set(['manual', 'faq', 'glossario', 'novidades', 'estado']);
++const ALLOWED_SEC = new Set<string>(HELP_SECTION_IDS);
+ 
+ /**
+  * Sanitize page_path for submit.
+diff --git a/apps/web/modules/kocc/lib/soft-empty-gate.test.ts b/apps/web/modules/kocc/lib/soft-empty-gate.test.ts
+new file mode 100644
+index 00000000..527920f8
+--- /dev/null
++++ b/apps/web/modules/kocc/lib/soft-empty-gate.test.ts
+@@ -0,0 +1,14 @@
++import { describe, expect, it } from 'vitest';
++import { shouldShowSoftEmpty } from './soft-empty-gate';
++
++describe('shouldShowSoftEmpty', () => {
++  it('shows empty only when idle with no items and no error', () => {
++    expect(shouldShowSoftEmpty({ pending: false, hasItems: false, hasError: false })).toBe(true);
++  });
++
++  it('hides empty while pending, when items exist, or when errored', () => {
++    expect(shouldShowSoftEmpty({ pending: true, hasItems: false, hasError: false })).toBe(false);
++    expect(shouldShowSoftEmpty({ pending: false, hasItems: true, hasError: false })).toBe(false);
++    expect(shouldShowSoftEmpty({ pending: false, hasItems: false, hasError: true })).toBe(false);
++  });
++});
+diff --git a/apps/web/modules/kocc/lib/soft-empty-gate.ts b/apps/web/modules/kocc/lib/soft-empty-gate.ts
+new file mode 100644
+index 00000000..16b8d067
+--- /dev/null
++++ b/apps/web/modules/kocc/lib/soft-empty-gate.ts
+@@ -0,0 +1,11 @@
++/**
++ * Soft empty-state gate: show "empty" copy only when idle, no rows, and no error.
++ * Prevents SoftListSlot empty messaging from masking load failures (metrics/inbox parity).
++ */
++export function shouldShowSoftEmpty(options: {
++  pending: boolean;
++  hasItems: boolean;
++  hasError: boolean;
++}): boolean {
++  return !options.pending && !options.hasItems && !options.hasError;
++}
+diff --git a/apps/web/modules/shell/components/HelpCenterClient.tsx b/apps/web/modules/shell/components/HelpCenterClient.tsx
+index daa9d4e8..6add9c8f 100644
+--- a/apps/web/modules/shell/components/HelpCenterClient.tsx
++++ b/apps/web/modules/shell/components/HelpCenterClient.tsx
+@@ -8,9 +8,10 @@ import { cn } from '@kuteka/shared';
+ import { useLocale } from '@/modules/i18n/LocaleProvider';
+ import { BetaFeedbackForm } from '@/modules/kocc/components/BetaFeedbackForm';
+ import { trackBetaFeature } from '@/modules/kocc/services/kocc-client';
+-import { getShellCopy } from '../content';
+ import { parseMarkdownDocument, type MdBlock } from '@/modules/institutional/lib/parse-markdown';
+ import type { HelpDocs } from '@/modules/institutional/lib/help-docs';
++import { getShellCopy } from '../content';
++import { HELP_SECTION_IDS, isHelpSectionId, type HelpSectionId } from '../lib/help-sections';
+ 
+ export type HelpCenterProps = {
+   /** Markdown sources for every section of the Documentation Center. */
+@@ -24,11 +25,11 @@ export type HelpCenterProps = {
+   publicMode?: boolean;
+ };
+ 
+-const SECTION_IDS = ['manual', 'faq', 'glossario', 'novidades', 'estado'] as const;
+-type SectionId = (typeof SECTION_IDS)[number];
++type SectionId = HelpSectionId;
++const SECTION_IDS = HELP_SECTION_IDS;
+ 
+ function isSectionId(value: string | null | undefined): value is SectionId {
+-  return !!value && (SECTION_IDS as readonly string[]).includes(value);
++  return isHelpSectionId(value);
+ }
+ 
+ /** ASCII slug used for in-page heading anchors (e.g. `#roteiro-publico`). */
+diff --git a/apps/web/modules/shell/lib/help-sections.test.ts b/apps/web/modules/shell/lib/help-sections.test.ts
+new file mode 100644
+index 00000000..50d9c0bf
+--- /dev/null
++++ b/apps/web/modules/shell/lib/help-sections.test.ts
+@@ -0,0 +1,16 @@
++import { describe, expect, it } from 'vitest';
++import { HELP_SECTION_IDS, isHelpSectionId } from './help-sections';
++import { sanitizeBetaPagePath } from '@/modules/kocc/lib/beta-feedback-submit';
++
++describe('HELP_SECTION_IDS parity with beta page_path allowlist', () => {
++  it('preserves every Help section via sanitizeBetaPagePath', () => {
++    for (const sec of HELP_SECTION_IDS) {
++      expect(isHelpSectionId(sec)).toBe(true);
++      expect(sanitizeBetaPagePath(`/app/ajuda?sec=${sec}`)).toBe(`/app/ajuda?sec=${sec}`);
++    }
++  });
++
++  it('drops unknown sec values', () => {
++    expect(sanitizeBetaPagePath('/app/ajuda?sec=tickets')).toBe('/app/ajuda');
++  });
++});
+diff --git a/apps/web/modules/shell/lib/help-sections.ts b/apps/web/modules/shell/lib/help-sections.ts
+new file mode 100644
+index 00000000..c0ed1fec
+--- /dev/null
++++ b/apps/web/modules/shell/lib/help-sections.ts
+@@ -0,0 +1,8 @@
++/** Canonical Help Center section ids — shared by Help UI + beta page_path allowlist. */
++export const HELP_SECTION_IDS = ['manual', 'faq', 'glossario', 'novidades', 'estado'] as const;
++
++export type HelpSectionId = (typeof HELP_SECTION_IDS)[number];
++
++export function isHelpSectionId(value: string | null | undefined): value is HelpSectionId {
++  return !!value && (HELP_SECTION_IDS as readonly string[]).includes(value);
++}
+diff --git a/apps/web/modules/shell/lib/institutional-badge.test.ts b/apps/web/modules/shell/lib/institutional-badge.test.ts
+new file mode 100644
+index 00000000..980938a2
+--- /dev/null
++++ b/apps/web/modules/shell/lib/institutional-badge.test.ts
+@@ -0,0 +1,14 @@
++import { describe, expect, it } from 'vitest';
++import { institutionalBadge } from './institutional-badge';
++
++describe('institutionalBadge', () => {
++  it('never surfaces the word Demo for system accounts', () => {
++    const badge = institutionalBadge({ isSystemDemo: true });
++    expect(badge?.label).toBeTruthy();
++    expect(badge?.label.toLowerCase()).not.toContain('demo');
++  });
++
++  it('labels founders without Demo jargon', () => {
++    expect(institutionalBadge({ isFounder: true })?.label.toLowerCase()).not.toContain('demo');
++  });
++});
+diff --git a/apps/web/modules/shell/lib/institutional-badge.ts b/apps/web/modules/shell/lib/institutional-badge.ts
+index c1746175..8793d9a4 100644
+--- a/apps/web/modules/shell/lib/institutional-badge.ts
++++ b/apps/web/modules/shell/lib/institutional-badge.ts
+@@ -22,8 +22,9 @@ export function institutionalBadge(
+   );
+ 
+   if (roleOrFlags.isSystemDemo || roles.includes('system_demo')) {
++    // Sprint A hygiene: never surface the internal word "Demo" to end users.
+     return {
+-      label: 'System Demo',
++      label: 'Conta de sistema',
+       className: 'bg-slate-200 text-slate-800 ring-1 ring-slate-400',
+     };
+   }
+diff --git a/docs/engineering/SMOKE_SPRINT_AB.md b/docs/engineering/SMOKE_SPRINT_AB.md
+index e08b5508..a74da0f6 100644
+--- a/docs/engineering/SMOKE_SPRINT_AB.md
++++ b/docs/engineering/SMOKE_SPRINT_AB.md
+@@ -4,7 +4,7 @@ Usar após push/PR/merge/deploy em `EduardoZ121/Site_Angola`. Não requer novas
+ 
+ ## Pré-voo local (já corrido no agente)
+ 
+-- [x] `npm test` — 137 testes
++- [x] `npm test` — 147 testes
+ - [x] `tsc --noEmit`
+ - [ ] `npm run build` (export estático) — validar neste ciclo
+ - [x] Patches A/B + harden regeneráveis
+diff --git a/docs/engineering/SPRINT_B_FEEDBACK_CYCLE_FULL.md b/docs/engineering/SPRINT_B_FEEDBACK_CYCLE_FULL.md
+index 504eacd9..3aa390c2 100644
+--- a/docs/engineering/SPRINT_B_FEEDBACK_CYCLE_FULL.md
++++ b/docs/engineering/SPRINT_B_FEEDBACK_CYCLE_FULL.md
+@@ -53,3 +53,7 @@
+ - Body strips C0 controls; complaint bridge i18n; render.yaml header lock test.
+ - Telemetry: RPC `beta.feedback` + client `beta.feedback.bug|suggestion` are **distinct codes** (not double-count of same key).
+ - GOV-BF-01…05 / 0043 / 0044 unchanged — not applied.
++
++## Tip local (bloqueio write)
++
++`1f5433a7`+ soft-empty gate / help-sec parity / Conta de sistema badge. GOV-BF/0043/0044 intactos.
+-- 
+2.43.0
+
+
+From de1fa086b8d041d45f589c944d4e6b61acb78bba Mon Sep 17 00:00:00 2001
+From: Cursor Agent <cursoragent@cursor.com>
+Date: Sun, 6 Sep 2026 19:41:49 +0000
+Subject: [PATCH 2/2] fix(web): repair complaint bridge CTAs and show inbox
+ actor hint
+
+Prefer /contacto for operational complaints; point ops to
+/app/admin#escalacoes. Render truncated actor_id in Beta inbox for triage.
+Document RLS/telemetry notes without applying 0043/0044 or ticket workflow.
+---
+ .../kocc/components/BetaPanelSection.tsx      |  5 +++
+ .../shell/components/HelpCenterClient.tsx     | 10 ++---
+ apps/web/modules/shell/content/en.ts          |  4 +-
+ apps/web/modules/shell/content/es.ts          |  4 +-
+ apps/web/modules/shell/content/fr.ts          |  4 +-
+ apps/web/modules/shell/content/pt.ts          |  4 +-
+ .../AUDIT_BETA_FEEDBACK_LOOP_BLOCKED_WRITE.md | 38 +++++++++++++++++++
+ 7 files changed, 56 insertions(+), 13 deletions(-)
+ create mode 100644 docs/engineering/AUDIT_BETA_FEEDBACK_LOOP_BLOCKED_WRITE.md
+
+diff --git a/apps/web/modules/kocc/components/BetaPanelSection.tsx b/apps/web/modules/kocc/components/BetaPanelSection.tsx
+index 42a8f2bd..6e0a7b0e 100644
+--- a/apps/web/modules/kocc/components/BetaPanelSection.tsx
++++ b/apps/web/modules/kocc/components/BetaPanelSection.tsx
+@@ -244,6 +244,11 @@ export function BetaPanelSection({
+                           {row.page_path}
+                         </span>
+                       ) : null}
++                      {row.actor_id ? (
++                        <span className="font-mono text-xs text-slate-500" title={row.actor_id}>
++                          actor:{row.actor_id.slice(0, 8)}
++                        </span>
++                      ) : null}
+                     </div>
+                     <p className="whitespace-pre-wrap text-sm text-slate-800">{row.body}</p>
+                   </li>
+diff --git a/apps/web/modules/shell/components/HelpCenterClient.tsx b/apps/web/modules/shell/components/HelpCenterClient.tsx
+index 6add9c8f..6c69be4a 100644
+--- a/apps/web/modules/shell/components/HelpCenterClient.tsx
++++ b/apps/web/modules/shell/components/HelpCenterClient.tsx
+@@ -293,16 +293,16 @@ function HelpCenterInner({ docs, basePath = '/app/ajuda', publicMode = false }:
+             <p className="kuteka-detail-body">{shell.betaFeedback.complaintBody}</p>
+             <div className="flex flex-wrap gap-3">
+               <Link
+-                href="/app/admin"
+-                className={cn(buttonVariants({ variant: 'secondary', size: 'sm' }), 'w-fit')}
++                href="/contacto"
++                className={cn(buttonVariants({ variant: 'primary', size: 'sm' }), 'w-fit')}
+               >
+-                {shell.betaFeedback.complaintAdminCta}
++                {h.contactCta}
+               </Link>
+               <Link
+-                href="/contacto"
++                href="/app/admin#escalacoes"
+                 className={cn(buttonVariants({ variant: 'secondary', size: 'sm' }), 'w-fit')}
+               >
+-                {h.contactCta}
++                {shell.betaFeedback.complaintAdminCta}
+               </Link>
+             </div>
+           </section>
+diff --git a/apps/web/modules/shell/content/en.ts b/apps/web/modules/shell/content/en.ts
+index 03534710..101e6ab1 100644
+--- a/apps/web/modules/shell/content/en.ts
++++ b/apps/web/modules/shell/content/en.ts
+@@ -298,8 +298,8 @@ export const shellCopyEn: ShellCopy = {
+     publicCtaButton: 'Sign in and send feedback',
+     complaintTitle: 'Operational complaint',
+     complaintBody:
+-      'Product feedback and bugs use the Beta form above. For an operational complaint (service, conduct, breach), open an escalation in the admin area or contact Kuteka — do not mix it with the Beta channel.',
+-    complaintAdminCta: 'Administration area',
++      'Product feedback and bugs use the Beta form above. For an operational complaint (service, conduct, breach), contact Kuteka. Ops staff with admin access can open the escalations queue — do not mix it with the Beta channel.',
++    complaintAdminCta: 'Escalations queue (ops)',
+   },
+   firstActions: {
+     title: 'Your first useful action',
+diff --git a/apps/web/modules/shell/content/es.ts b/apps/web/modules/shell/content/es.ts
+index 9188a36b..f0939d02 100644
+--- a/apps/web/modules/shell/content/es.ts
++++ b/apps/web/modules/shell/content/es.ts
+@@ -298,8 +298,8 @@ export const shellCopyEs: ShellCopy = {
+     publicCtaButton: 'Entrar y enviar feedback',
+     complaintTitle: 'Reclamación operacional',
+     complaintBody:
+-      'El feedback de producto y los errores usan el formulario Beta de arriba. Para una reclamación operacional (servicio, conducta, incumplimiento), abra una escalación en administración o contacte a Kuteka — no lo mezcle con el canal Beta.',
+-    complaintAdminCta: 'Área de administración',
++      'El feedback de producto y los errores usan el formulario Beta de arriba. Para una reclamación operacional (servicio, conducta, incumplimiento), contacte a Kuteka. El equipo ops con acceso de administración puede abrir la cola de escalaciones — no lo mezcle con el canal Beta.',
++    complaintAdminCta: 'Cola de escalaciones (ops)',
+   },
+   firstActions: {
+     title: 'Su primera acción útil',
+diff --git a/apps/web/modules/shell/content/fr.ts b/apps/web/modules/shell/content/fr.ts
+index e8346a79..e5bf55b5 100644
+--- a/apps/web/modules/shell/content/fr.ts
++++ b/apps/web/modules/shell/content/fr.ts
+@@ -302,8 +302,8 @@ export const shellCopyFr: ShellCopy = {
+     publicCtaButton: 'Se connecter et envoyer un retour',
+     complaintTitle: 'Réclamation opérationnelle',
+     complaintBody:
+-      'Les retours produit et bugs utilisent le formulaire Beta ci-dessus. Pour une réclamation opérationnelle (service, conduite, manquement), ouvrez une escalation dans l’administration ou contactez Kuteka — ne mélangez pas avec le canal Beta.',
+-    complaintAdminCta: 'Espace d’administration',
++      'Les retours produit et bugs utilisent le formulaire Beta ci-dessus. Pour une réclamation opérationnelle (service, conduite, manquement), contactez Kuteka. L’équipe ops avec accès admin peut ouvrir la file d’escalations — ne mélangez pas avec le canal Beta.',
++    complaintAdminCta: 'File d’escalations (ops)',
+   },
+   firstActions: {
+     title: 'Votre première action utile',
+diff --git a/apps/web/modules/shell/content/pt.ts b/apps/web/modules/shell/content/pt.ts
+index 11b0c33b..21b61af4 100644
+--- a/apps/web/modules/shell/content/pt.ts
++++ b/apps/web/modules/shell/content/pt.ts
+@@ -298,8 +298,8 @@ export const shellCopyPt = {
+     publicCtaButton: 'Entrar e enviar feedback',
+     complaintTitle: 'Reclamação operacional',
+     complaintBody:
+-      'Feedback de produto e bugs usam o formulário Beta acima. Para uma reclamação operacional (serviço, conduta, incumprimento), abra uma escalação na área de administração ou contacte a Kuteka — não misture com o canal Beta.',
+-    complaintAdminCta: 'Área de administração',
++      'Feedback de produto e bugs usam o formulário Beta acima. Para uma reclamação operacional (serviço, conduta, incumprimento), contacte a Kuteka. A equipa operacional com acesso de administração pode abrir a fila de escalações — não misture com o canal Beta.',
++    complaintAdminCta: 'Fila de escalações (ops)',
+   },
+   firstActions: {
+     title: 'A sua primeira acção útil',
+diff --git a/docs/engineering/AUDIT_BETA_FEEDBACK_LOOP_BLOCKED_WRITE.md b/docs/engineering/AUDIT_BETA_FEEDBACK_LOOP_BLOCKED_WRITE.md
+new file mode 100644
+index 00000000..7768ce7a
+--- /dev/null
++++ b/docs/engineering/AUDIT_BETA_FEEDBACK_LOOP_BLOCKED_WRITE.md
+@@ -0,0 +1,38 @@
++# Auditoria local — fluxo Beta Feedback → Inbox → KOCC (write bloqueado)
++
++**Tip:** `37c8bf91`+ (este ciclo). SoT: `EduardoZ121/Site_Angola`.  
++**Não aplicado:** GOV-BF-01…05, propostas `0043`/`0044`, workflow de tickets.
++
++## Fluxo actual (reutilizado)
++
++1. Utilizador autenticado → `/app/ajuda` → `BetaFeedbackForm`
++2. Cliente: sanitize `page_path` / body / kind → RPC `kocc_submit_beta_feedback`
++3. INSERT `public.beta_feedback` (`feedback`|`bug`) + track servidor `beta.feedback`
++4. Cliente track diferenciado `beta.feedback.bug` | `beta.feedback.suggestion`
++5. KOCC: `kocc_beta_metrics` (exige `finance.manage`) + SELECT inbox (`finance.manage` **ou** `admin.panel`)
++6. UI: métricas e inbox **independentes**; empty ≠ error (`shouldShowSoftEmpty`)
++
++## RLS / permissões (só leitura)
++
++| Superfície          | Regra                            |
++| ------------------- | -------------------------------- |
++| INSERT own / RPC    | `actor_id = auth.uid()`          |
++| SELECT inbox        | `finance.manage` ∨ `admin.panel` |
++| UPDATE/DELETE       | revogados a `authenticated`      |
++| `kocc_beta_metrics` | só `finance.manage`              |
++
++### Notas técnicas (não são decisões GOV a executar aqui)
++
++- **Telemetria RPC:** `0035` conta sempre `beta.feedback` independentemente de `p_kind`; o cliente acrescenta códigos por kind. Contadores de tabela (feedback/bugs) vêm de `beta_feedback.kind`, não do label genérico do track.
++- **GRANT INSERT directo** em `beta_feedback` existe além do RPC — UI oficial usa RPC; um insert directo ignora sanitize cliente. Mitigação futura = migration dedicada (não `0043`/`0044`) — **proposta apenas**, não aplicada.
++- **Founder read:** gap isolado em `0043` — sem alteração.
++
++## Correcções deste bloco (seguro)
++
++- Bridge reclamação: CTA principal `/contacto`; ops → `/app/admin#escalacoes` (evita dead-end Forbidden para utilizadores comuns)
++- Copy i18n alinhada (pt/en/es/fr)
++- Inbox KOCC mostra `actor:` + 8 chars do `actor_id` (já seleccionado; antes não renderizado no painel Beta)
++
++## Resolução / feedback ao autor
++
++BETA-22/23 e estados permanecem **GOV-BF** — sem schema novo neste período.
+-- 
+2.43.0
+

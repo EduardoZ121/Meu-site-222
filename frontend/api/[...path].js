@@ -563,6 +563,27 @@ async function resolveVideoEditMediaUrl(files, fields) {
   throw err;
 }
 
+function requireUploadSession(req) {
+  const auth = req.headers.authorization || "";
+  const m = auth.match(/^Bearer\s+(.+)$/i);
+  if (!m?.[1]?.trim()) {
+    const err = new Error("Não autenticado.");
+    err.status = 401;
+    throw err;
+  }
+  const bearer = m[1].trim();
+  if (bearer.startsWith("local:")) {
+    return { id: bearer.slice("local:".length) || "local", local: true };
+  }
+  const sessionUser = verifySessionToken(bearer);
+  if (!sessionUser) {
+    const err = new Error("Sessão inválida ou expirada.");
+    err.status = 401;
+    throw err;
+  }
+  return sessionUser;
+}
+
 async function videoEditInput(fields, files) {
   const video = await resolveVideoEditMediaUrl(files, fields);
   const preset = text(fields, "video_preset", "").trim();
@@ -683,21 +704,13 @@ async function resolveMarketingVideoImages(files, fields, max = 5) {
   return urls;
 }
 
-/** Upload de vídeo pelo servidor → Vercel Blob (fallback quando o browser não consegue PUT direto). */
-/** Upload de imagem pelo servidor → Vercel Blob (fallback quando o browser não consegue PUT directo). */
+/** Upload de imagem pelo servidor → S3 preferido, Blob como fallback. */
 async function routeUploadImageBlob(req, res) {
-  if (isBlobDisabled()) return blobDisabledResponse(res);
   try {
-    if (!isBlobConfigured()) {
-      return json(res, 503, { detail: "Armazenamento Blob não configurado." });
+    if (!isS3Configured() && (isBlobDisabled() || !isBlobConfigured())) {
+      return json(res, 503, { detail: "Armazenamento em nuvem não configurado." });
     }
-    const auth = req.headers.authorization || "";
-    const m = auth.match(/^Bearer\s+(.+)$/i);
-    if (!m?.[1]?.trim()) return json(res, 401, { detail: "Não autenticado." });
-    const bearer = m[1].trim();
-    if (!bearer.startsWith("local:") && !verifySessionToken(bearer)) {
-      return json(res, 401, { detail: "Sessão inválida ou expirada." });
-    }
+    const sessionUser = requireUploadSession(req);
     const maxBytes = 12 * 1024 * 1024;
     const { files } = await parseBody(req, { maxFileSize: maxBytes + 512 * 1024 });
     await normalizeUploadedImages(files);
@@ -712,12 +725,30 @@ async function routeUploadImageBlob(req, res) {
     }
     let fn = String(file.originalFilename || "photo.jpg").replace(/[^\w.\-]+/g, "_");
     if (!/\.[a-z0-9]{2,5}$/i.test(fn)) fn += ".jpg";
-    const pathname = `rp/${Date.now()}-${crypto.randomBytes(6).toString("hex")}-${fn.slice(0, 80)}`;
     const mime = file.mimetype || "image/jpeg";
     const buf = await fs.readFile(file.filepath);
+    if (isS3Configured()) {
+      try {
+        const uploaded = await uploadBufferToS3({
+          buffer: buf,
+          contentType: mime,
+          userId: sessionUser?.id || "upload",
+          prefix: "uploads/images",
+        });
+        if (uploaded?.url) return json(res, 200, { url: uploaded.url, storage: "s3" });
+      } catch (err) {
+        if (isBlobDisabled() || !isBlobConfigured()) throw err;
+        console.error("[upload/image] S3 falhou, a usar Blob:", err?.message || err);
+      }
+    }
+    if (isBlobDisabled()) return blobDisabledResponse(res);
+    if (!isBlobConfigured()) {
+      return json(res, 503, { detail: "Armazenamento Blob não configurado." });
+    }
+    const pathname = `rp/${Date.now()}-${crypto.randomBytes(6).toString("hex")}-${fn.slice(0, 80)}`;
     const { put } = require("@vercel/blob");
     const blob = await put(pathname, buf, blobPutOptions({ contentType: mime }));
-    return json(res, 200, { url: blob.url });
+    return json(res, 200, { url: blob.url, storage: "blob" });
   } catch (err) {
     return json(res, err.status || 500, {
       detail: err.message || "Falha ao guardar imagem na nuvem.",
@@ -725,19 +756,13 @@ async function routeUploadImageBlob(req, res) {
   }
 }
 
+/** Upload de vídeo pelo servidor → S3 preferido, Blob como fallback. */
 async function routeUploadVideoBlob(req, res) {
-  if (isBlobDisabled()) return blobDisabledResponse(res);
   try {
-    if (!isBlobConfigured()) {
-      return json(res, 503, { detail: "Armazenamento Blob não configurado." });
+    if (!isS3Configured() && (isBlobDisabled() || !isBlobConfigured())) {
+      return json(res, 503, { detail: "Armazenamento em nuvem não configurado." });
     }
-    const auth = req.headers.authorization || "";
-    const m = auth.match(/^Bearer\s+(.+)$/i);
-    if (!m?.[1]?.trim()) return json(res, 401, { detail: "Não autenticado." });
-    const bearer = m[1].trim();
-    if (!bearer.startsWith("local:") && !verifySessionToken(bearer)) {
-      return json(res, 401, { detail: "Sessão inválida ou expirada." });
-    }
+    const sessionUser = requireUploadSession(req);
     const { MAX_VIDEO_BYTES, transcodeVideoToH264, shouldAttemptTranscode } = require("./lib/videoTranscode.cjs");
     const { files } = await parseBody(req, { maxFileSize: MAX_VIDEO_BYTES + 4 * 1024 * 1024 });
     const file = fileOf(files, "video");
@@ -767,9 +792,27 @@ async function routeUploadVideoBlob(req, res) {
     if (converted && uploadPath !== file.filepath) {
       await fs.unlink(uploadPath).catch(() => {});
     }
+    if (isS3Configured()) {
+      try {
+        const uploaded = await uploadBufferToS3({
+          buffer: buf,
+          contentType: mime,
+          userId: sessionUser?.id || "upload",
+          prefix: "uploads/videos",
+        });
+        if (uploaded?.url) return json(res, 200, { url: uploaded.url, storage: "s3" });
+      } catch (err) {
+        if (isBlobDisabled() || !isBlobConfigured()) throw err;
+        console.error("[upload/video] S3 falhou, a usar Blob:", err?.message || err);
+      }
+    }
+    if (isBlobDisabled()) return blobDisabledResponse(res);
+    if (!isBlobConfigured()) {
+      return json(res, 503, { detail: "Armazenamento Blob não configurado." });
+    }
     const { put } = require("@vercel/blob");
     const blob = await put(pathname, buf, blobPutOptions({ contentType: mime }));
-    return json(res, 200, { url: blob.url });
+    return json(res, 200, { url: blob.url, storage: "blob" });
   } catch (err) {
     return json(res, err.status || 500, {
       detail: err.message || "Falha ao guardar vídeo na nuvem.",
@@ -779,7 +822,7 @@ async function routeUploadVideoBlob(req, res) {
 
 /** Vídeo multipart → URL pública Blob (Grok exige HTTPS, não data: URI). */
 async function uploadFormVideoToBlob(file) {
-  if (!file?.filepath || !isBlobConfigured()) return null;
+  if (!file?.filepath || (!isS3Configured() && !isBlobConfigured())) return null;
   const { MAX_VIDEO_BYTES, transcodeVideoToH264, shouldAttemptTranscode } = require("./lib/videoTranscode.cjs");
   const st = await fs.stat(file.filepath).catch(() => null);
   if (!st?.size || st.size > MAX_VIDEO_BYTES) return null;
@@ -801,6 +844,21 @@ async function uploadFormVideoToBlob(file) {
   if (converted && uploadPath !== file.filepath) {
     await fs.unlink(uploadPath).catch(() => {});
   }
+  if (isS3Configured()) {
+    try {
+      const uploaded = await uploadBufferToS3({
+        buffer: buf,
+        contentType: mime,
+        userId: "video-edit",
+        prefix: "video-edit",
+      });
+      if (uploaded?.url) return uploaded.url;
+    } catch (err) {
+      if (!isBlobConfigured() || isBlobDisabled()) return null;
+      console.error("[video-edit] upload S3 falhou, a usar Blob:", err?.message || err);
+    }
+  }
+  if (isBlobDisabled() || !isBlobConfigured()) return null;
   const { put } = require("@vercel/blob");
   const blob = await put(pathname, buf, blobPutOptions({ contentType: mime }));
   return blob.url;
@@ -3987,23 +4045,55 @@ async function handlePath(path, req, res) {
     }
 
     if (req.method === "GET" && path === "upload/s3/status") {
-      return json(res, 410, {
-        s3: false,
-        disabled: true,
-        detail: "Upload AWS S3 desligado. Usa fotos comprimidas e vídeos até ~3 MB.",
+      const cfg = getS3Config();
+      return json(res, 200, {
+        s3: Boolean(cfg),
+        disabled: !cfg,
+        auth_mode: cfg?.authMode || null,
+        bucket: Boolean(cfg?.bucket),
+        cloudfront: Boolean(cfg?.cloudFront),
+        max_video_bytes: cfg ? 200 * 1024 * 1024 : 0,
+        max_image_bytes: cfg ? 12 * 1024 * 1024 : 0,
+        detail: cfg
+          ? "Upload AWS S3 ativo."
+          : "Upload AWS S3 não configurado neste ambiente.",
       });
     }
 
     if (req.method === "POST" && path === "upload/s3/presign-video") {
-      return json(res, 410, {
-        detail: "Upload AWS S3 desligado. Usa um vídeo mais curto (~3 MB).",
-      });
+      try {
+        const sessionUser = requireUploadSession(req);
+        const body = await readJsonRequestBody(req);
+        const upload = await createVideoPresignedUpload({
+          filename: body?.filename,
+          contentType: body?.contentType,
+          contentLength: body?.contentLength,
+          userId: sessionUser?.id || "upload",
+        });
+        return json(res, 200, upload);
+      } catch (err) {
+        return json(res, err.status || 503, {
+          detail: err.message || "Upload AWS S3 indisponível.",
+        });
+      }
     }
 
     if (req.method === "POST" && path === "upload/s3/presign-image") {
-      return json(res, 410, {
-        detail: "Upload AWS S3 desligado. Comprime a foto no browser.",
-      });
+      try {
+        const sessionUser = requireUploadSession(req);
+        const body = await readJsonRequestBody(req);
+        const upload = await createImagePresignedUpload({
+          filename: body?.filename,
+          contentType: body?.contentType,
+          contentLength: body?.contentLength,
+          userId: sessionUser?.id || "upload",
+        });
+        return json(res, 200, upload);
+      } catch (err) {
+        return json(res, err.status || 503, {
+          detail: err.message || "Upload AWS S3 indisponível.",
+        });
+      }
     }
 
     if (req.method === "GET" && path === "carousel/panorama-image") {

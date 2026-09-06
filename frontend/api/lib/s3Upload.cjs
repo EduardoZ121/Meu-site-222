@@ -2,7 +2,7 @@ const crypto = require("crypto");
 const { S3Client, PutObjectCommand } = require("@aws-sdk/client-s3");
 const { getSignedUrl } = require("@aws-sdk/s3-request-presigner");
 
-const MAX_VIDEO_BYTES = 50 * 1024 * 1024;
+const MAX_VIDEO_BYTES = 200 * 1024 * 1024;
 const MAX_IMAGE_BYTES = 12 * 1024 * 1024;
 
 /** Bucket explícito ou extraído do ARN da integração Vercel (arn:aws:s3:::nome). */
@@ -168,7 +168,7 @@ async function createVideoPresignedUpload({ filename, contentType, contentLength
   }
   const size = Number(contentLength) || 0;
   if (size > MAX_VIDEO_BYTES) {
-    const err = new Error("Vídeo demasiado grande (máx. 80 MB).");
+    const err = new Error("Vídeo demasiado grande (máx. 200 MB).");
     err.status = 413;
     throw err;
   }

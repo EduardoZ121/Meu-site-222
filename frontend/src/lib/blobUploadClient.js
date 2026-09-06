@@ -884,19 +884,212 @@ async function uploadVideoViaS3Presign(file, opts = {}) {
 
 
 
-/** Imagem grande → URL pública no Blob (browser ou proxy servidor). */
+/** Imagem → S3 via URL presignada (browser PUT directo). */
+async function uploadImageViaS3Presign(file, opts = {}) {
+
+  const timeoutMs = scaleUploadTimeoutMs(opts.timeoutMs ?? 120_000);
+
+  const token = typeof localStorage !== "undefined" ? localStorage.getItem("rp_token") : null;
+
+  const contentType = file.type || "image/jpeg";
+
+  const controller = new AbortController();
+
+  const tid = setTimeout(() => controller.abort(), Math.min(timeoutMs, 60_000));
+
+  let presign;
+
+  try {
+
+    const res = await fetch(joinApiPath("/upload/s3/presign-image"), {
+
+      method: "POST",
+
+      credentials: "same-origin",
+
+      signal: controller.signal,
+
+      headers: {
+
+        "Content-Type": "application/json",
+
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+
+      },
+
+      body: JSON.stringify({
+
+        filename: file.name || "photo.jpg",
+
+        contentType,
+
+        contentLength: file.size,
+
+      }),
+
+    });
+
+    presign = await res.json().catch(() => ({}));
+
+    if (!res.ok) {
+
+      const err = new Error(typeof presign.detail === "string" ? presign.detail : "Upload S3 indisponível.");
+
+      err.response = { status: res.status, data: presign };
+
+      throw err;
+
+    }
+
+  } finally {
+
+    clearTimeout(tid);
+
+  }
+
+  const uploadUrl = presign.uploadUrl;
+
+  const publicUrl = presign.publicUrl;
+
+  if (!uploadUrl || !publicUrl) {
+
+    throw new Error("Resposta inválida do servidor (S3).");
+
+  }
+
+  return new Promise((resolve, reject) => {
+
+    const xhr = new XMLHttpRequest();
+
+    xhr.open(presign.method || "PUT", uploadUrl);
+
+    xhr.timeout = timeoutMs;
+
+    const headers = presign.headers && typeof presign.headers === "object" ? presign.headers : {};
+
+    Object.entries(headers).forEach(([k, v]) => {
+
+      if (v != null) xhr.setRequestHeader(k, String(v));
+
+    });
+
+    if (opts.onProgress) opts.onProgress(0);
+
+    xhr.upload.onprogress = (e) => {
+
+      if (e.lengthComputable && opts.onProgress) {
+
+        opts.onProgress(Math.round((e.loaded / e.total) * 100));
+
+      }
+
+    };
+
+    xhr.onload = () => {
+
+      if (xhr.status >= 200 && xhr.status < 300) {
+
+        if (opts.onProgress) opts.onProgress(100);
+
+        resolve(String(publicUrl));
+
+        return;
+
+      }
+
+      const err = new Error(xhr.status === 403
+
+        ? "Upload rejeitado pela nuvem (CORS ou tipo de ficheiro). Tenta outra vez ou comprime a foto."
+
+        : `Upload S3 falhou (HTTP ${xhr.status}).`);
+
+      err.response = { status: xhr.status };
+
+      reject(err);
+
+    };
+
+    xhr.onerror = () => {
+
+      const err = new Error(isBrowserOnlineFlag()
+
+        ? "Falhou o envio da imagem para a nuvem. Tenta outra vez."
+
+        : "Sem ligação à rede.");
+
+      err.code = "ERR_NETWORK";
+
+      reject(err);
+
+    };
+
+    xhr.ontimeout = () => {
+
+      const err = new Error("Timeout ao enviar a imagem para a nuvem.");
+
+      err.code = "ECONNABORTED";
+
+      reject(err);
+
+    };
+
+    xhr.send(file);
+
+  });
+
+}
+
+
+
+/** Imagem grande → URL pública no S3/Blob (browser ou proxy servidor). */
 
 export async function uploadImageToCloud(file, opts = {}) {
 
   if (!file) throw new Error("Imagem em falta.");
 
-  if (VERCEL_BLOB_DISABLED) {
+  const needRefresh = !cacheFresh(blobUploadEnabledCache, blobUploadEnabledCacheAt)
 
-    throw new Error("Blob desligado. Comprime a foto ou ativa BLOB_READ_WRITE_TOKEN na Vercel.");
+    || !cacheFresh(s3UploadEnabledCache, s3UploadEnabledCacheAt);
+
+  const [blobOn, s3On] = await Promise.all([
+
+    VERCEL_BLOB_DISABLED ? Promise.resolve(false) : isBlobUploadEnabled({ refresh: needRefresh }),
+
+    isS3UploadEnabled({ refresh: needRefresh }),
+
+  ]);
+
+  const tryS3 = s3On === true || s3UploadEnabledCache === true;
+
+  const tryBlob = !VERCEL_BLOB_DISABLED && (
+
+    blobOn === true
+
+    || blobUploadEnabledCache === true
+
+    || blobUploadEnabledCache !== false
+
+  );
+
+  if (tryS3) {
+
+    try {
+
+      return await withRetries(
+
+        () => uploadImageViaS3Presign(file, opts),
+
+        { attempts: 2, label: "S3 imagem" },
+
+      );
+
+    } catch {
+
+      /* fallback abaixo */
+
+    }
 
   }
-
-  const blobOn = await isBlobUploadEnabled({ refresh: !cacheFresh(blobUploadEnabledCache, blobUploadEnabledCacheAt) });
 
   if (!blobOn && blobUploadEnabledCache === false) {
 
@@ -904,25 +1097,29 @@ export async function uploadImageToCloud(file, opts = {}) {
 
   }
 
-  try {
+  if (tryBlob) {
 
-    const result = await uploadFileToVercelBlob("photo", file, opts.timeoutMs ?? 120_000, opts.onProgress);
+    try {
 
-    return result.url;
+      const result = await uploadFileToVercelBlob("photo", file, opts.timeoutMs ?? 120_000, opts.onProgress);
 
-  } catch (directErr) {
+      return result.url;
 
-    const msg = String(directErr?.message || directErr);
+    } catch (directErr) {
 
-    const tryServer = /fetch|network|failed|nuvem|blob|abort|timeout/i.test(msg)
+      const msg = String(directErr?.message || directErr);
 
-      || directErr?.code === "ERR_NETWORK";
+      const tryServer = /fetch|network|failed|nuvem|blob|abort|timeout/i.test(msg)
 
-    if (!tryServer) throw directErr;
+        || directErr?.code === "ERR_NETWORK";
 
-    return uploadImageViaServerProxy(file, { timeoutMs: opts.timeoutMs ?? 120_000 });
+      if (!tryServer) throw directErr;
+
+    }
 
   }
+
+  return uploadImageViaServerProxy(file, { timeoutMs: opts.timeoutMs ?? 120_000 });
 
 }
 

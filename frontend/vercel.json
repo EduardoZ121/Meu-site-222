@@ -1,5 +1,11 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
+  "env": {
+    "DISABLE_VERCEL_BLOB": "1",
+    "REACT_APP_DISABLE_VERCEL_BLOB": "1",
+    "SITE_URL": "https://www.remakepix.com",
+    "VERCEL_PRO_MAX_DURATION_SEC": "800"
+  },
   "framework": "create-react-app",
   "buildCommand": "yarn build",
   "outputDirectory": "build",

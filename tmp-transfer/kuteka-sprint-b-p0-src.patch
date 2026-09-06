@@ -1,0 +1,1116 @@
+From 8faa18b601b6d1ea7b87772cdabd6f058b428b0c Mon Sep 17 00:00:00 2001
+From: Cursor Agent <cursoragent@cursor.com>
+Date: Sun, 6 Sep 2026 06:13:15 +0000
+Subject: [PATCH 1/3] feat(web): sprint b p0 kocc feedback inbox and complaint
+ bridge
+
+Reuse beta_feedback + RLS for an ops triage inbox in KOCC, wire home
+telemetry via existing track RPC, and route operational complaints away
+from the Beta product channel without new tables.
+---
+ .../components/AppHomeClient.tsx              |  7 +++
+ .../kocc/components/BetaPanelSection.tsx      | 57 ++++++++++++++++++-
+ .../kocc/components/KoccCenterClient.tsx      | 25 +++++++-
+ .../kocc/lib/beta-feedback-labels.test.ts     | 13 +++++
+ .../modules/kocc/lib/beta-feedback-labels.ts  |  6 ++
+ apps/web/modules/kocc/services/kocc-client.ts | 30 ++++++++++
+ .../shell/components/HelpCenterClient.tsx     | 25 ++++++++
+ 7 files changed, 159 insertions(+), 4 deletions(-)
+ create mode 100644 apps/web/modules/kocc/lib/beta-feedback-labels.test.ts
+ create mode 100644 apps/web/modules/kocc/lib/beta-feedback-labels.ts
+
+diff --git a/apps/web/modules/authentication/components/AppHomeClient.tsx b/apps/web/modules/authentication/components/AppHomeClient.tsx
+index 31584aca..71575268 100644
+--- a/apps/web/modules/authentication/components/AppHomeClient.tsx
++++ b/apps/web/modules/authentication/components/AppHomeClient.tsx
+@@ -1,6 +1,7 @@
+ 'use client';
+ 
+ import Link from 'next/link';
++import { useEffect } from 'react';
+ import { Heading, Text, buttonVariants } from '@kuteka/ui';
+ import { cn } from '@kuteka/shared';
+ import { PlatformFeed } from '@/modules/shell/components/PlatformFeed';
+@@ -15,6 +16,7 @@ import {
+   ROLE_HOME_CTA_LABELS_PT,
+ } from '@/modules/shell/role-operating-matrix';
+ import { getAuthCopy } from '../content';
++import { trackBetaFeature } from '@/modules/kocc/services/kocc-client';
+ import { useAppSession } from './app-session';
+ 
+ /**
+@@ -27,6 +29,11 @@ export function AppHomeClient() {
+   const { session, status, error } = useAppSession();
+   const { mode, effectivePermissions } = useRoleExperience();
+ 
++  useEffect(() => {
++    if (status !== 'ready' || !session) return;
++    void trackBetaFeature('app.home', 'App home');
++  }, [status, session]);
++
+   if (status === 'error' || (status === 'ready' && !session)) {
+     return (
+       <div className="flex flex-col gap-4">
+diff --git a/apps/web/modules/kocc/components/BetaPanelSection.tsx b/apps/web/modules/kocc/components/BetaPanelSection.tsx
+index f8ed376d..312be697 100644
+--- a/apps/web/modules/kocc/components/BetaPanelSection.tsx
++++ b/apps/web/modules/kocc/components/BetaPanelSection.tsx
+@@ -3,8 +3,13 @@
+ import { Badge } from '@kuteka/ui';
+ import { PanelSection } from '@/modules/finance/components/super/shared';
+ import { SoftListSlot } from '@/modules/shell/components/SoftListSlot';
++import { betaFeedbackKindLabel } from '../lib/beta-feedback-labels';
+ import { publicStatusLabel } from '../lib/status-labels';
+-import type { KoccBetaMetrics, KoccFeatureUsage } from '../services/kocc-client';
++import type {
++  KoccBetaFeedbackRow,
++  KoccBetaMetrics,
++  KoccFeatureUsage,
++} from '../services/kocc-client';
+ 
+ function MetricCard({ label, value, hint }: { label: string; value: string; hint?: string }) {
+   return (
+@@ -68,9 +73,19 @@ type BetaPanelSectionProps = {
+   metrics: KoccBetaMetrics | null;
+   loading: boolean;
+   loadError: string | null;
++  inbox?: KoccBetaFeedbackRow[];
++  inboxLoading?: boolean;
++  inboxError?: string | null;
+ };
+ 
+-export function BetaPanelSection({ metrics, loading, loadError }: BetaPanelSectionProps) {
++export function BetaPanelSection({
++  metrics,
++  loading,
++  loadError,
++  inbox = [],
++  inboxLoading = false,
++  inboxError = null,
++}: BetaPanelSectionProps) {
+   const merged = mergeUsage(metrics?.featuresMostUsed, metrics?.featureUsageProxy);
+   const most = [...merged].sort((a, b) => b.count - a.count).slice(0, 6);
+   const least = [...merged].sort((a, b) => a.count - b.count).slice(0, 6);
+@@ -145,6 +160,44 @@ export function BetaPanelSection({ metrics, loading, loadError }: BetaPanelSecti
+                 </ul>
+               </div>
+             ) : null}
++
++            <div>
++              <p className="text-sm font-semibold text-slate-900">Inbox de triagem Beta</p>
++              <p className="mt-1 text-xs text-slate-500">
++                Relatos recentes de <code>/app/ajuda</code> (tabela <code>beta_feedback</code>, RLS
++                operacional). Não substitui reclamações operacionais nem avaliações de contrato.
++              </p>
++              {inboxError ? <p className="mt-2 text-sm text-amber-800">{inboxError}</p> : null}
++              <SoftListSlot pending={inboxLoading && inbox.length === 0}>
++                {inbox.length === 0 && !inboxLoading ? (
++                  <p className="mt-2 text-sm text-slate-500">Ainda sem relatos na inbox.</p>
++                ) : (
++                  <ul className="mt-2 divide-y divide-slate-100">
++                    {inbox.map((row) => (
++                      <li key={row.id} className="flex flex-col gap-1 py-2.5">
++                        <div className="flex flex-wrap items-center gap-2">
++                          <Badge variant={row.kind === 'bug' ? 'default' : 'brand'}>
++                            {betaFeedbackKindLabel(row.kind)}
++                          </Badge>
++                          <span className="font-mono text-xs text-slate-500">
++                            {new Date(row.created_at).toLocaleString('pt-AO', {
++                              dateStyle: 'short',
++                              timeStyle: 'short',
++                            })}
++                          </span>
++                          {row.page_path ? (
++                            <span className="truncate font-mono text-xs text-slate-500">
++                              {row.page_path}
++                            </span>
++                          ) : null}
++                        </div>
++                        <p className="whitespace-pre-wrap text-sm text-slate-800">{row.body}</p>
++                      </li>
++                    ))}
++                  </ul>
++                )}
++              </SoftListSlot>
++            </div>
+           </div>
+         ) : !loading ? (
+           <p className="text-sm text-slate-500">
+diff --git a/apps/web/modules/kocc/components/KoccCenterClient.tsx b/apps/web/modules/kocc/components/KoccCenterClient.tsx
+index a39065e4..c342c99d 100644
+--- a/apps/web/modules/kocc/components/KoccCenterClient.tsx
++++ b/apps/web/modules/kocc/components/KoccCenterClient.tsx
+@@ -16,9 +16,11 @@ import {
+   listAudit,
+   listBetaMetrics,
+   listFlags,
++  listRecentBetaFeedback,
+   parseCsvList,
+   upsertFlag,
+   type KoccAuditRow,
++  type KoccBetaFeedbackRow,
+   type KoccBetaMetrics,
+   type KoccFlagRow,
+   type KoccUpsertFlagInput,
+@@ -80,12 +82,16 @@ export function KoccCenterClient({ canManage }: PanelProps) {
+   const [betaMetrics, setBetaMetrics] = useState<KoccBetaMetrics | null>(null);
+   const [betaLoading, setBetaLoading] = useState(true);
+   const [betaError, setBetaError] = useState<string | null>(null);
++  const [betaInbox, setBetaInbox] = useState<KoccBetaFeedbackRow[]>([]);
++  const [betaInboxLoading, setBetaInboxLoading] = useState(true);
++  const [betaInboxError, setBetaInboxError] = useState<string | null>(null);
+ 
+   const load = useCallback(async () => {
+-    const [flagsRes, auditRes, metricsRes] = await Promise.all([
++    const [flagsRes, auditRes, metricsRes, inboxRes] = await Promise.all([
+       listFlags(),
+       listAudit(30),
+       listBetaMetrics(),
++      listRecentBetaFeedback(40),
+     ]);
+     if (flagsRes.ok) {
+       setFlags(flagsRes.data);
+@@ -107,7 +113,15 @@ export function KoccCenterClient({ canManage }: PanelProps) {
+       setBetaMetrics(null);
+       setBetaError(metricsRes.message);
+     }
++    if (inboxRes.ok) {
++      setBetaInbox(inboxRes.data);
++      setBetaInboxError(null);
++    } else {
++      setBetaInbox([]);
++      setBetaInboxError(inboxRes.message);
++    }
+     setBetaLoading(false);
++    setBetaInboxLoading(false);
+     setLoading(false);
+   }, [setError]);
+ 
+@@ -159,7 +173,14 @@ export function KoccCenterClient({ canManage }: PanelProps) {
+     <div className="flex flex-col gap-4">
+       <Feedback error={error} message={message} />
+ 
+-      <BetaPanelSection metrics={betaMetrics} loading={betaLoading} loadError={betaError} />
++      <BetaPanelSection
++        metrics={betaMetrics}
++        loading={betaLoading}
++        loadError={betaError}
++        inbox={betaInbox}
++        inboxLoading={betaInboxLoading}
++        inboxError={betaInboxError}
++      />
+ 
+       <PanelSection
+         title="Controlo Operacional (KOCC)"
+diff --git a/apps/web/modules/kocc/lib/beta-feedback-labels.test.ts b/apps/web/modules/kocc/lib/beta-feedback-labels.test.ts
+new file mode 100644
+index 00000000..56ee8283
+--- /dev/null
++++ b/apps/web/modules/kocc/lib/beta-feedback-labels.test.ts
+@@ -0,0 +1,13 @@
++import { describe, expect, it } from 'vitest';
++import { betaFeedbackKindLabel } from './beta-feedback-labels';
++
++describe('betaFeedbackKindLabel', () => {
++  it('labels known kinds', () => {
++    expect(betaFeedbackKindLabel('bug')).toBe('Bug');
++    expect(betaFeedbackKindLabel('feedback')).toBe('Feedback');
++  });
++
++  it('passes through unknown kinds', () => {
++    expect(betaFeedbackKindLabel('other')).toBe('other');
++  });
++});
+diff --git a/apps/web/modules/kocc/lib/beta-feedback-labels.ts b/apps/web/modules/kocc/lib/beta-feedback-labels.ts
+new file mode 100644
+index 00000000..00b17c3a
+--- /dev/null
++++ b/apps/web/modules/kocc/lib/beta-feedback-labels.ts
+@@ -0,0 +1,6 @@
++/** Pure labels for beta_feedback.kind — shared by KOCC inbox UI + tests. */
++export function betaFeedbackKindLabel(kind: string): string {
++  if (kind === 'bug') return 'Bug';
++  if (kind === 'feedback') return 'Feedback';
++  return kind;
++}
+diff --git a/apps/web/modules/kocc/services/kocc-client.ts b/apps/web/modules/kocc/services/kocc-client.ts
+index e21172da..81688e3c 100644
+--- a/apps/web/modules/kocc/services/kocc-client.ts
++++ b/apps/web/modules/kocc/services/kocc-client.ts
+@@ -179,3 +179,33 @@ export async function trackBetaFeature(code: string, label?: string): Promise<vo
+     /* non-blocking telemetry */
+   }
+ }
++
++/** Ops triage row — SELECT allowed only via existing RLS (finance.manage | admin.panel). */
++export type KoccBetaFeedbackRow = {
++  id: string;
++  kind: 'feedback' | 'bug' | string;
++  body: string;
++  page_path: string | null;
++  actor_id: string | null;
++  created_at: string;
++};
++
++/**
++ * Recent beta_feedback for KOCC triage inbox.
++ * Reuses table + RLS from migration 0035 — no new schema.
++ */
++export async function listRecentBetaFeedback(limit = 40): Promise<Result<KoccBetaFeedbackRow[]>> {
++  const copy = errors();
++  try {
++    const client = createBrowserClient();
++    const { data, error } = await client
++      .from('beta_feedback')
++      .select('id, kind, body, page_path, actor_id, created_at')
++      .order('created_at', { ascending: false })
++      .limit(Math.min(Math.max(limit, 1), 100));
++    if (error) return { ok: false, message: error.message || copy.loadError };
++    return { ok: true, data: (data ?? []) as KoccBetaFeedbackRow[] };
++  } catch {
++    return { ok: false, message: copy.loadError };
++  }
++}
+diff --git a/apps/web/modules/shell/components/HelpCenterClient.tsx b/apps/web/modules/shell/components/HelpCenterClient.tsx
+index f429a0e1..ba9e82e2 100644
+--- a/apps/web/modules/shell/components/HelpCenterClient.tsx
++++ b/apps/web/modules/shell/components/HelpCenterClient.tsx
+@@ -279,6 +279,31 @@ function HelpCenterInner({ docs, basePath = '/app/ajuda', publicMode = false }:
+       {!publicMode ? (
+         <>
+           <BetaFeedbackForm pagePath={basePath} />
++          <section
++            className="kuteka-detail-panel flex flex-col gap-3 p-5"
++            id="reclamacao-operacional"
++          >
++            <h2 className="kuteka-detail-title">Reclamação operacional</h2>
++            <p className="kuteka-detail-body">
++              Feedback de produto e bugs usam o formulário Beta acima. Para uma reclamação
++              operacional (serviço, conduta, incumprimento), abra uma escalação na área de
++              administração ou contacte a Kuteka — não misture com o canal Beta.
++            </p>
++            <div className="flex flex-wrap gap-3">
++              <Link
++                href="/app/admin"
++                className={cn(buttonVariants({ variant: 'secondary', size: 'sm' }), 'w-fit')}
++              >
++                Área de administração
++              </Link>
++              <Link
++                href="/contacto"
++                className={cn(buttonVariants({ variant: 'secondary', size: 'sm' }), 'w-fit')}
++              >
++                {h.contactCta}
++              </Link>
++            </div>
++          </section>
+           <section className="kuteka-detail-panel flex flex-col gap-3 p-5" id="videos">
+             <h2 className="kuteka-detail-title">{h.videos}</h2>
+             <p className="kuteka-detail-body">{shell.helpExtra.videosPending}</p>
+-- 
+2.43.0
+
+
+From 400b473e2a79cf3fe2c06cb4dce27fb6aa11a821 Mon Sep 17 00:00:00 2001
+From: Cursor Agent <cursoragent@cursor.com>
+Date: Sun, 6 Sep 2026 18:11:15 +0000
+Subject: [PATCH 2/3] fix(web): sprint b inbox independent of metrics plus
+ audit
+
+Show recent beta_feedback even when kocc_beta_metrics fails. Add help-center
+telemetry, bug vs suggestion events, loop/RLS audit doc, and proposal-only
+SQL for founder read access (no apply without approval).
+---
+ .../kocc/components/BetaFeedbackForm.tsx      |   6 +-
+ .../kocc/components/BetaPanelSection.tsx      | 207 +++++++++---------
+ .../shell/components/HelpCenterClient.tsx     |   7 +-
+ .../SPRINT_B_FEEDBACK_LOOP_AUDIT.md           |  61 ++++++
+ ...0043_beta_feedback_founder_read_access.sql |  16 ++
+ 5 files changed, 193 insertions(+), 104 deletions(-)
+ create mode 100644 docs/engineering/SPRINT_B_FEEDBACK_LOOP_AUDIT.md
+ create mode 100644 docs/engineering/proposals/0043_beta_feedback_founder_read_access.sql
+
+diff --git a/apps/web/modules/kocc/components/BetaFeedbackForm.tsx b/apps/web/modules/kocc/components/BetaFeedbackForm.tsx
+index 0755810b..62b19d2a 100644
+--- a/apps/web/modules/kocc/components/BetaFeedbackForm.tsx
++++ b/apps/web/modules/kocc/components/BetaFeedbackForm.tsx
+@@ -4,7 +4,7 @@ import { useState } from 'react';
+ import { Button } from '@kuteka/ui';
+ import { useLocale } from '@/modules/i18n/LocaleProvider';
+ import { getShellCopy } from '@/modules/shell/content';
+-import { submitBetaFeedback } from '../services/kocc-client';
++import { submitBetaFeedback, trackBetaFeature } from '../services/kocc-client';
+ 
+ type BetaFeedbackFormProps = {
+   pagePath?: string;
+@@ -39,6 +39,10 @@ export function BetaFeedbackForm({ pagePath }: BetaFeedbackFormProps) {
+     }
+     setBody('');
+     setMessage(copy.success);
++    void trackBetaFeature(
++      kind === 'bug' ? 'beta.feedback.bug' : 'beta.feedback.suggestion',
++      kind === 'bug' ? 'Bug Beta' : 'Sugestão Beta',
++    );
+   }
+ 
+   return (
+diff --git a/apps/web/modules/kocc/components/BetaPanelSection.tsx b/apps/web/modules/kocc/components/BetaPanelSection.tsx
+index 312be697..f7c08dc4 100644
+--- a/apps/web/modules/kocc/components/BetaPanelSection.tsx
++++ b/apps/web/modules/kocc/components/BetaPanelSection.tsx
+@@ -96,116 +96,119 @@ export function BetaPanelSection({
+       description="Indicadores em tempo real para decidir quando a Kuteka sai da fase Beta. Inventário de demonstração aparece como Inventário Beta — nunca como «Demo» para o utilizador final."
+     >
+       {loadError ? <p className="mb-3 text-sm text-amber-800">{loadError}</p> : null}
+-      <SoftListSlot pending={loading && !metrics}>
+-        {metrics ? (
+-          <div className="flex flex-col gap-4">
+-            <p className="text-xs text-slate-500">
+-              Actualizado:{' '}
+-              {new Date(metrics.generatedAt).toLocaleString('pt-AO', {
+-                dateStyle: 'short',
+-                timeStyle: 'medium',
+-              })}
+-            </p>
+-            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+-              <MetricCard label="Utilizadores Beta" value={String(metrics.betaUsers)} />
+-              <MetricCard
+-                label="Patrimónios reais"
+-                value={String(metrics.propertiesReal)}
+-                hint={`Inventário Beta: ${metrics.propertiesBetaInventory}`}
+-              />
+-              <MetricCard
+-                label="Visitas em acompanhamento"
+-                value={String(metrics.visitsScheduled)}
+-                hint="Interesses activos (proxy de visitas)"
+-              />
+-              <MetricCard
+-                label="Contratos iniciados"
+-                value={String(metrics.contractsStarted)}
+-                hint="Reais · rascunho / pendente / activo"
+-              />
+-              <MetricCard label="Feedback recebido" value={String(metrics.feedbackReceived)} />
+-              <MetricCard label="Bugs reportados" value={String(metrics.bugsReported)} />
+-              <MetricCard
+-                label="Onboarding concluído"
+-                value={`${metrics.onboardingCompletionRate}%`}
+-                hint="Contas com pelo menos um papel"
+-              />
+-              <MetricCard label="KIS / KYC (≥ nível 2)" value={`${metrics.kisCompletionRate}%`} />
+-            </div>
+-
+-            <div className="grid gap-4 md:grid-cols-2">
+-              <FeatureList
+-                title="Funcionalidades mais utilizadas"
+-                rows={most}
+-                empty="Ainda sem eventos de utilização."
+-              />
+-              <FeatureList
+-                title="Funcionalidades menos utilizadas"
+-                rows={least}
+-                empty="Ainda sem eventos de utilização."
+-              />
+-            </div>
++      <div className="flex flex-col gap-4">
++        <SoftListSlot pending={loading && !metrics}>
++          {metrics ? (
++            <div className="flex flex-col gap-4">
++              <p className="text-xs text-slate-500">
++                Actualizado:{' '}
++                {new Date(metrics.generatedAt).toLocaleString('pt-AO', {
++                  dateStyle: 'short',
++                  timeStyle: 'medium',
++                })}
++              </p>
++              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
++                <MetricCard label="Utilizadores Beta" value={String(metrics.betaUsers)} />
++                <MetricCard
++                  label="Patrimónios reais"
++                  value={String(metrics.propertiesReal)}
++                  hint={`Inventário Beta: ${metrics.propertiesBetaInventory}`}
++                />
++                <MetricCard
++                  label="Visitas em acompanhamento"
++                  value={String(metrics.visitsScheduled)}
++                  hint="Interesses activos (proxy de visitas)"
++                />
++                <MetricCard
++                  label="Contratos iniciados"
++                  value={String(metrics.contractsStarted)}
++                  hint="Reais · rascunho / pendente / activo"
++                />
++                <MetricCard label="Feedback recebido" value={String(metrics.feedbackReceived)} />
++                <MetricCard label="Bugs reportados" value={String(metrics.bugsReported)} />
++                <MetricCard
++                  label="Onboarding concluído"
++                  value={`${metrics.onboardingCompletionRate}%`}
++                  hint="Contas com pelo menos um papel"
++                />
++                <MetricCard label="KIS / KYC (≥ nível 2)" value={`${metrics.kisCompletionRate}%`} />
++              </div>
+ 
+-            {(metrics.modulesOperational?.length ?? 0) > 0 ? (
+-              <div>
+-                <p className="text-sm font-semibold text-slate-900">Estado dos módulos</p>
+-                <ul className="mt-2 flex flex-wrap gap-2">
+-                  {metrics.modulesOperational.map((mod) => (
+-                    <li key={mod.code}>
+-                      <Badge variant={mod.enabled ? 'brand' : 'default'}>
+-                        {mod.label}: {publicStatusLabel(mod.status)}
+-                      </Badge>
+-                    </li>
+-                  ))}
+-                </ul>
++              <div className="grid gap-4 md:grid-cols-2">
++                <FeatureList
++                  title="Funcionalidades mais utilizadas"
++                  rows={most}
++                  empty="Ainda sem eventos de utilização."
++                />
++                <FeatureList
++                  title="Funcionalidades menos utilizadas"
++                  rows={least}
++                  empty="Ainda sem eventos de utilização."
++                />
+               </div>
+-            ) : null}
+ 
+-            <div>
+-              <p className="text-sm font-semibold text-slate-900">Inbox de triagem Beta</p>
+-              <p className="mt-1 text-xs text-slate-500">
+-                Relatos recentes de <code>/app/ajuda</code> (tabela <code>beta_feedback</code>, RLS
+-                operacional). Não substitui reclamações operacionais nem avaliações de contrato.
+-              </p>
+-              {inboxError ? <p className="mt-2 text-sm text-amber-800">{inboxError}</p> : null}
+-              <SoftListSlot pending={inboxLoading && inbox.length === 0}>
+-                {inbox.length === 0 && !inboxLoading ? (
+-                  <p className="mt-2 text-sm text-slate-500">Ainda sem relatos na inbox.</p>
+-                ) : (
+-                  <ul className="mt-2 divide-y divide-slate-100">
+-                    {inbox.map((row) => (
+-                      <li key={row.id} className="flex flex-col gap-1 py-2.5">
+-                        <div className="flex flex-wrap items-center gap-2">
+-                          <Badge variant={row.kind === 'bug' ? 'default' : 'brand'}>
+-                            {betaFeedbackKindLabel(row.kind)}
+-                          </Badge>
+-                          <span className="font-mono text-xs text-slate-500">
+-                            {new Date(row.created_at).toLocaleString('pt-AO', {
+-                              dateStyle: 'short',
+-                              timeStyle: 'short',
+-                            })}
+-                          </span>
+-                          {row.page_path ? (
+-                            <span className="truncate font-mono text-xs text-slate-500">
+-                              {row.page_path}
+-                            </span>
+-                          ) : null}
+-                        </div>
+-                        <p className="whitespace-pre-wrap text-sm text-slate-800">{row.body}</p>
++              {(metrics.modulesOperational?.length ?? 0) > 0 ? (
++                <div>
++                  <p className="text-sm font-semibold text-slate-900">Estado dos módulos</p>
++                  <ul className="mt-2 flex flex-wrap gap-2">
++                    {metrics.modulesOperational.map((mod) => (
++                      <li key={mod.code}>
++                        <Badge variant={mod.enabled ? 'brand' : 'default'}>
++                          {mod.label}: {publicStatusLabel(mod.status)}
++                        </Badge>
+                       </li>
+                     ))}
+                   </ul>
+-                )}
+-              </SoftListSlot>
++                </div>
++              ) : null}
+             </div>
+-          </div>
+-        ) : !loading ? (
+-          <p className="text-sm text-slate-500">
+-            Sem métricas. Confirme que a migration <code>0035_kocc_beta_panel.sql</code> foi
+-            aplicada no Supabase remoto.
++          ) : !loading ? (
++            <p className="text-sm text-slate-500">
++              Sem métricas. Confirme que a migration <code>0035_kocc_beta_panel.sql</code> foi
++              aplicada no Supabase remoto e que a conta tem <code>finance.manage</code>.
++            </p>
++          ) : null}
++        </SoftListSlot>
++
++        <div>
++          <p className="text-sm font-semibold text-slate-900">Inbox de triagem Beta</p>
++          <p className="mt-1 text-xs text-slate-500">
++            Relatos recentes de <code>/app/ajuda</code> (tabela <code>beta_feedback</code>, RLS
++            operacional: <code>finance.manage</code> ou <code>admin.panel</code>). Independente das
++            métricas agregadas. Não substitui reclamações operacionais nem avaliações de contrato.
+           </p>
+-        ) : null}
+-      </SoftListSlot>
++          {inboxError ? <p className="mt-2 text-sm text-amber-800">{inboxError}</p> : null}
++          <SoftListSlot pending={inboxLoading && inbox.length === 0}>
++            {inbox.length === 0 && !inboxLoading ? (
++              <p className="mt-2 text-sm text-slate-500">Ainda sem relatos na inbox.</p>
++            ) : (
++              <ul className="mt-2 divide-y divide-slate-100">
++                {inbox.map((row) => (
++                  <li key={row.id} className="flex flex-col gap-1 py-2.5">
++                    <div className="flex flex-wrap items-center gap-2">
++                      <Badge variant={row.kind === 'bug' ? 'default' : 'brand'}>
++                        {betaFeedbackKindLabel(row.kind)}
++                      </Badge>
++                      <span className="font-mono text-xs text-slate-500">
++                        {new Date(row.created_at).toLocaleString('pt-AO', {
++                          dateStyle: 'short',
++                          timeStyle: 'short',
++                        })}
++                      </span>
++                      {row.page_path ? (
++                        <span className="truncate font-mono text-xs text-slate-500">
++                          {row.page_path}
++                        </span>
++                      ) : null}
++                    </div>
++                    <p className="whitespace-pre-wrap text-sm text-slate-800">{row.body}</p>
++                  </li>
++                ))}
++              </ul>
++            )}
++          </SoftListSlot>
++        </div>
++      </div>
+     </PanelSection>
+   );
+ }
+diff --git a/apps/web/modules/shell/components/HelpCenterClient.tsx b/apps/web/modules/shell/components/HelpCenterClient.tsx
+index ba9e82e2..37d562a3 100644
+--- a/apps/web/modules/shell/components/HelpCenterClient.tsx
++++ b/apps/web/modules/shell/components/HelpCenterClient.tsx
+@@ -1,12 +1,13 @@
+ 'use client';
+ 
+-import { Suspense } from 'react';
++import { Suspense, useEffect } from 'react';
+ import Link from 'next/link';
+ import { useSearchParams } from 'next/navigation';
+ import { Heading, Text, buttonVariants } from '@kuteka/ui';
+ import { cn } from '@kuteka/shared';
+ import { useLocale } from '@/modules/i18n/LocaleProvider';
+ import { BetaFeedbackForm } from '@/modules/kocc/components/BetaFeedbackForm';
++import { trackBetaFeature } from '@/modules/kocc/services/kocc-client';
+ import { getShellCopy } from '../content';
+ import { parseMarkdownDocument, type MdBlock } from '@/modules/institutional/lib/parse-markdown';
+ import type { HelpDocs } from '@/modules/institutional/lib/help-docs';
+@@ -148,6 +149,10 @@ function HelpCenterInner({ docs, basePath = '/app/ajuda', publicMode = false }:
+   const { locale } = useLocale();
+   const shell = getShellCopy(locale);
+   const h = shell.helpPage;
++
++  useEffect(() => {
++    void trackBetaFeature('help.center', 'Centro de ajuda');
++  }, []);
+   const searchParams = useSearchParams();
+   const requestedSection = searchParams?.get('sec');
+   const section: SectionId = isSectionId(requestedSection) ? requestedSection : 'manual';
+diff --git a/docs/engineering/SPRINT_B_FEEDBACK_LOOP_AUDIT.md b/docs/engineering/SPRINT_B_FEEDBACK_LOOP_AUDIT.md
+new file mode 100644
+index 00000000..8dd07e9a
+--- /dev/null
++++ b/docs/engineering/SPRINT_B_FEEDBACK_LOOP_AUDIT.md
+@@ -0,0 +1,61 @@
++# Sprint B — Auditoria do ciclo Inbox → beta_feedback → KOCC
++
++**Âmbito:** leitura + correcções locais (sem publish). Fonte oficial continua `EduardoZ121/Site_Angola`.
++
++## Fluxo actual (reutilizado)
++
++```
++Utilizador autenticado
++  → /app/ajuda (BetaFeedbackForm)
++  → RPC kocc_submit_beta_feedback (security definer)
++  → INSERT public.beta_feedback (kind: feedback|bug, body, page_path, actor_id)
++  → kocc_track_feature('beta.feedback', …)  [servidor]
++  → Painel KOCC (Super/Founder tab kocc)
++       ├─ kocc_beta_metrics() → contadores feedbackReceived / bugsReported
++       └─ SELECT beta_feedback (listRecentBetaFeedback) → Inbox de triagem
++```
++
++## RLS / permissões
++
++| Operação            | Regra                                                                        |
++| ------------------- | ---------------------------------------------------------------------------- |
++| INSERT directo      | `actor_id = auth.uid()`                                                      |
++| INSERT via RPC      | security definer; actor forçado a `auth.uid()`                               |
++| SELECT              | `finance.manage` **ou** `admin.panel`                                        |
++| UPDATE/DELETE       | revogados a `authenticated`                                                  |
++| `kocc_beta_metrics` | exige **apenas** `finance.manage` (não usa `user_has_founder_or_permission`) |
++
++### Privacidade
++
++- Utilizador A **não** lê feedback de B (nem o próprio via SELECT directo).
++- Ops com `finance.manage` / `admin.panel` lêem todos os corpos (triagem).
++
++### Gap registado (exige decisão Founder — RBAC)
++
++Founder “puro” (`is_founder` sem `finance.manage`/`admin.panel`) pode abrir Founder Center (`canManage` inclui `isFounder`) mas:
++
++- métricas falham (`finance.manage required`);
++- inbox SELECT falha se também não tiver `admin.panel`.
++
++**Proposta técnica (não aplicada):** alinhar policy SELECT + `kocc_beta_metrics` a `user_has_founder_or_permission(..., 'finance.manage')` — padrão já usado noutros módulos pós-0036. **Pendente validação Founder** (alteração de superfície de permissões).
++
++## Bugs / inconsistências corrigidos localmente
++
++1. Inbox estava **dentro** do ramo `metrics ? …` + SoftListSlot de métricas → se métricas falhassem, a inbox nunca aparecia. **Corrigido:** inbox irmã independente.
++2. Telemetria de submit não distinguia bug vs sugestão no cliente (RPC só conta `beta.feedback`). **Corrigido:** `trackBetaFeature('beta.feedback.bug'|'.suggestion')` após sucesso.
++3. Centro de ajuda sem evento de utilização. **Corrigido:** `help.center` no mount.
++
++## O que NÃO foi recriado
++
++- Tabelas/RPCs de feedback
++- Sistema paralelo de tickets
++- Widget contextual in-page (P2 / OPEN-06)
++- Screenshots (P2)
++- Workflow de estados NOVO→FECHADO (P1+)
++
++## Dependências para fechar Sprint B P0 em produção
++
++1. Publish Sprint A + B patches → `main`
++2. Confirmar migrations 0035 (+0042) no Supabase remoto
++3. Smoke: submit em `/app/ajuda` → contadores KOCC → linha na inbox
++4. Decisão Founder sobre gap RLS Founder vs `finance.manage`
+diff --git a/docs/engineering/proposals/0043_beta_feedback_founder_read_access.sql b/docs/engineering/proposals/0043_beta_feedback_founder_read_access.sql
+new file mode 100644
+index 00000000..1fb9aec2
+--- /dev/null
++++ b/docs/engineering/proposals/0043_beta_feedback_founder_read_access.sql
+@@ -0,0 +1,16 @@
++-- PROPOSAL ONLY — do not apply without Founder approval (RBAC surface change).
++-- Align beta_feedback SELECT + kocc_beta_metrics with user_has_founder_or_permission.
++-- Pattern already used since 0036_trust_governance_gate.sql.
++
++-- drop policy if exists beta_feedback_select_ops on public.beta_feedback;
++-- create policy beta_feedback_select_ops
++--   on public.beta_feedback for select to authenticated
++--   using (
++--     public.user_has_founder_or_permission(auth.uid(), 'finance.manage')
++--     or public.user_has_permission(auth.uid(), 'admin.panel')
++--   );
++--
++-- Then recreate kocc_beta_metrics() replacing:
++--   not public.user_has_permission(v_actor, 'finance.manage')
++-- with:
++--   not public.user_has_founder_or_permission(v_actor, 'finance.manage')
+-- 
+2.43.0
+
+
+From 59d0516befaf3d1a22ecb167310c2d399b5ae189 Mon Sep 17 00:00:00 2001
+From: Cursor Agent <cursoragent@cursor.com>
+Date: Sun, 6 Sep 2026 18:25:02 +0000
+Subject: [PATCH 3/3] fix(web): harden beta feedback submit and inbox triage UX
+
+Add client path/body/kind guards, keep inbox empty-state from masking
+SELECT errors, and add local kind filters. Document full feedback-cycle
+gaps (no status workflow) and prepare path-guard SQL proposal only.
+Refresh static prebuilt after validated export build.
+---
+ .../kocc/components/BetaPanelSection.tsx      | 44 ++++++++++++--
+ .../kocc/lib/beta-feedback-submit.test.ts     | 44 ++++++++++++++
+ .../modules/kocc/lib/beta-feedback-submit.ts  | 38 +++++++++++++
+ apps/web/modules/kocc/services/kocc-client.ts | 17 +++++-
+ docs/engineering/SMOKE_SPRINT_AB.md           | 42 ++++++++++++++
+ .../SPRINT_B_FEEDBACK_CYCLE_FULL.md           | 47 +++++++++++++++
+ .../0044_beta_feedback_submit_path_guard.sql  | 57 +++++++++++++++++++
+ 7 files changed, 283 insertions(+), 6 deletions(-)
+ create mode 100644 apps/web/modules/kocc/lib/beta-feedback-submit.test.ts
+ create mode 100644 apps/web/modules/kocc/lib/beta-feedback-submit.ts
+ create mode 100644 docs/engineering/SMOKE_SPRINT_AB.md
+ create mode 100644 docs/engineering/SPRINT_B_FEEDBACK_CYCLE_FULL.md
+ create mode 100644 docs/engineering/proposals/0044_beta_feedback_submit_path_guard.sql
+
+diff --git a/apps/web/modules/kocc/components/BetaPanelSection.tsx b/apps/web/modules/kocc/components/BetaPanelSection.tsx
+index f7c08dc4..adcf32c6 100644
+--- a/apps/web/modules/kocc/components/BetaPanelSection.tsx
++++ b/apps/web/modules/kocc/components/BetaPanelSection.tsx
+@@ -1,5 +1,6 @@
+ 'use client';
+ 
++import { useMemo, useState } from 'react';
+ import { Badge } from '@kuteka/ui';
+ import { PanelSection } from '@/modules/finance/components/super/shared';
+ import { SoftListSlot } from '@/modules/shell/components/SoftListSlot';
+@@ -11,6 +12,8 @@ import type {
+   KoccFeatureUsage,
+ } from '../services/kocc-client';
+ 
++type InboxFilter = 'all' | 'feedback' | 'bug';
++
+ function MetricCard({ label, value, hint }: { label: string; value: string; hint?: string }) {
+   return (
+     <div className="kuteka-detail-fact p-3">
+@@ -86,9 +89,14 @@ export function BetaPanelSection({
+   inboxLoading = false,
+   inboxError = null,
+ }: BetaPanelSectionProps) {
++  const [inboxFilter, setInboxFilter] = useState<InboxFilter>('all');
+   const merged = mergeUsage(metrics?.featuresMostUsed, metrics?.featureUsageProxy);
+   const most = [...merged].sort((a, b) => b.count - a.count).slice(0, 6);
+   const least = [...merged].sort((a, b) => a.count - b.count).slice(0, 6);
++  const filteredInbox = useMemo(() => {
++    if (inboxFilter === 'all') return inbox;
++    return inbox.filter((row) => row.kind === inboxFilter);
++  }, [inbox, inboxFilter]);
+ 
+   return (
+     <PanelSection
+@@ -178,12 +186,40 @@ export function BetaPanelSection({
+             métricas agregadas. Não substitui reclamações operacionais nem avaliações de contrato.
+           </p>
+           {inboxError ? <p className="mt-2 text-sm text-amber-800">{inboxError}</p> : null}
++          {inbox.length > 0 ? (
++            <div className="mt-2 flex flex-wrap gap-2 text-xs">
++              {(
++                [
++                  ['all', 'Todos'],
++                  ['bug', 'Bugs'],
++                  ['feedback', 'Sugestões'],
++                ] as const
++              ).map(([value, label]) => (
++                <button
++                  key={value}
++                  type="button"
++                  className={
++                    inboxFilter === value
++                      ? 'rounded border border-slate-800 bg-slate-900 px-2 py-1 text-white'
++                      : 'rounded border border-slate-200 bg-white px-2 py-1 text-slate-700'
++                  }
++                  onClick={() => setInboxFilter(value)}
++                >
++                  {label}
++                </button>
++              ))}
++            </div>
++          ) : null}
+           <SoftListSlot pending={inboxLoading && inbox.length === 0}>
+-            {inbox.length === 0 && !inboxLoading ? (
++            {inbox.length === 0 && !inboxLoading && !inboxError ? (
+               <p className="mt-2 text-sm text-slate-500">Ainda sem relatos na inbox.</p>
+-            ) : (
++            ) : null}
++            {inbox.length > 0 && filteredInbox.length === 0 ? (
++              <p className="mt-2 text-sm text-slate-500">Nenhum relato neste filtro.</p>
++            ) : null}
++            {filteredInbox.length > 0 ? (
+               <ul className="mt-2 divide-y divide-slate-100">
+-                {inbox.map((row) => (
++                {filteredInbox.map((row) => (
+                   <li key={row.id} className="flex flex-col gap-1 py-2.5">
+                     <div className="flex flex-wrap items-center gap-2">
+                       <Badge variant={row.kind === 'bug' ? 'default' : 'brand'}>
+@@ -205,7 +241,7 @@ export function BetaPanelSection({
+                   </li>
+                 ))}
+               </ul>
+-            )}
++            ) : null}
+           </SoftListSlot>
+         </div>
+       </div>
+diff --git a/apps/web/modules/kocc/lib/beta-feedback-submit.test.ts b/apps/web/modules/kocc/lib/beta-feedback-submit.test.ts
+new file mode 100644
+index 00000000..68ea7da7
+--- /dev/null
++++ b/apps/web/modules/kocc/lib/beta-feedback-submit.test.ts
+@@ -0,0 +1,44 @@
++import { describe, expect, it } from 'vitest';
++import {
++  isValidBetaFeedbackBody,
++  isValidBetaFeedbackKind,
++  normalizeBetaFeedbackBody,
++  sanitizeBetaPagePath,
++} from './beta-feedback-submit';
++
++describe('sanitizeBetaPagePath', () => {
++  it('returns null for empty', () => {
++    expect(sanitizeBetaPagePath(null)).toBeNull();
++    expect(sanitizeBetaPagePath('')).toBeNull();
++    expect(sanitizeBetaPagePath('   ')).toBeNull();
++  });
++
++  it('strips query and hash', () => {
++    expect(sanitizeBetaPagePath('/app/ajuda?x=1#y')).toBe('/app/ajuda');
++  });
++
++  it('extracts pathname from absolute URL', () => {
++    expect(sanitizeBetaPagePath('https://kuteka.app/app/patrimonios?id=1')).toBe(
++      '/app/patrimonios',
++    );
++  });
++
++  it('truncates long paths', () => {
++    const long = `/${'a'.repeat(600)}`;
++    expect(sanitizeBetaPagePath(long)?.length).toBe(500);
++  });
++});
++
++describe('beta feedback body/kind', () => {
++  it('normalizes and validates body length', () => {
++    expect(normalizeBetaFeedbackBody('  hi  ')).toBe('hi');
++    expect(isValidBetaFeedbackBody('ab')).toBe(false);
++    expect(isValidBetaFeedbackBody('abc')).toBe(true);
++  });
++
++  it('accepts only feedback|bug', () => {
++    expect(isValidBetaFeedbackKind('feedback')).toBe(true);
++    expect(isValidBetaFeedbackKind('bug')).toBe(true);
++    expect(isValidBetaFeedbackKind('ticket')).toBe(false);
++  });
++});
+diff --git a/apps/web/modules/kocc/lib/beta-feedback-submit.ts b/apps/web/modules/kocc/lib/beta-feedback-submit.ts
+new file mode 100644
+index 00000000..165ce0df
+--- /dev/null
++++ b/apps/web/modules/kocc/lib/beta-feedback-submit.ts
+@@ -0,0 +1,38 @@
++/** Client-side guards for beta_feedback submit — mirrors migration 0035 checks. */
++
++const MAX_BODY = 4000;
++const MIN_BODY = 3;
++const MAX_PAGE_PATH = 500;
++
++export function sanitizeBetaPagePath(path: string | null | undefined): string | null {
++  if (path == null) return null;
++  const trimmed = path.trim();
++  if (!trimmed) return null;
++  // Prefer path-only; strip origin if a full URL was passed.
++  let value = trimmed;
++  try {
++    if (/^https?:\/\//i.test(trimmed)) {
++      value = new URL(trimmed).pathname || '/';
++    }
++  } catch {
++    value = trimmed.split('?')[0] ?? trimmed;
++  }
++  value = value.split('?')[0]?.split('#')[0] ?? value;
++  if (value.length > MAX_PAGE_PATH) {
++    value = value.slice(0, MAX_PAGE_PATH);
++  }
++  return value || null;
++}
++
++export function normalizeBetaFeedbackBody(body: string): string {
++  return body.trim();
++}
++
++export function isValidBetaFeedbackBody(body: string): boolean {
++  const len = normalizeBetaFeedbackBody(body).length;
++  return len >= MIN_BODY && len <= MAX_BODY;
++}
++
++export function isValidBetaFeedbackKind(kind: string): kind is 'feedback' | 'bug' {
++  return kind === 'feedback' || kind === 'bug';
++}
+diff --git a/apps/web/modules/kocc/services/kocc-client.ts b/apps/web/modules/kocc/services/kocc-client.ts
+index 81688e3c..50ccb18d 100644
+--- a/apps/web/modules/kocc/services/kocc-client.ts
++++ b/apps/web/modules/kocc/services/kocc-client.ts
+@@ -3,6 +3,12 @@
+ import { createBrowserClient } from '@/lib/supabase/client';
+ import { resolveUiLocale } from '@/modules/i18n/resolve-locale';
+ import { getFinanceCopy } from '@/modules/finance/content';
++import {
++  isValidBetaFeedbackBody,
++  isValidBetaFeedbackKind,
++  normalizeBetaFeedbackBody,
++  sanitizeBetaPagePath,
++} from '../lib/beta-feedback-submit';
+ import type { KoccOperationalStatus } from '../lib/status-labels';
+ 
+ export type KoccFlagRow = {
+@@ -154,11 +160,18 @@ export async function submitBetaFeedback(input: {
+ }): Promise<Result<{ id: string }>> {
+   const copy = errors();
+   try {
++    if (!isValidBetaFeedbackKind(input.kind)) {
++      return { ok: false, message: copy.saveError };
++    }
++    const body = normalizeBetaFeedbackBody(input.body);
++    if (!isValidBetaFeedbackBody(body)) {
++      return { ok: false, message: copy.saveError };
++    }
+     const client = createBrowserClient();
+     const { data, error } = await client.rpc('kocc_submit_beta_feedback', {
+       p_kind: input.kind,
+-      p_body: input.body,
+-      p_page_path: input.pagePath ?? null,
++      p_body: body,
++      p_page_path: sanitizeBetaPagePath(input.pagePath),
+     });
+     if (error) return { ok: false, message: error.message || copy.saveError };
+     const row = data as { id?: string } | null;
+diff --git a/docs/engineering/SMOKE_SPRINT_AB.md b/docs/engineering/SMOKE_SPRINT_AB.md
+new file mode 100644
+index 00000000..e08b5508
+--- /dev/null
++++ b/docs/engineering/SMOKE_SPRINT_AB.md
+@@ -0,0 +1,42 @@
++# Smoke checklist — Sprint A + B (pós-publish)
++
++Usar após push/PR/merge/deploy em `EduardoZ121/Site_Angola`. Não requer novas features.
++
++## Pré-voo local (já corrido no agente)
++
++- [x] `npm test` — 137 testes
++- [x] `tsc --noEmit`
++- [ ] `npm run build` (export estático) — validar neste ciclo
++- [x] Patches A/B + harden regeneráveis
++
++## Sprint A — produção
++
++1. Landing: aviso Beta visível; copy hero coerente (pt/en/es/fr)
++2. `/documentacao` (ou equivalente): CTA → sign-in → ajuda/feedback
++3. App home autenticado: welcome Beta
++4. Inventário: rascunho ≠ listagem pública (copy)
++5. Headers: `X-Content-Type-Options`, `CSP`, `HSTS` (amostra curl -I)
++
++## Sprint B — ciclo feedback
++
++Pré: conta com `finance.manage` **ou** `admin.panel` para ler inbox; metrics precisam `finance.manage`.
++
++1. `/app/ajuda`: submit sugestão → sucesso
++2. Submit bug → sucesso
++3. KOCC Painel Beta: contadores sobem (se `finance.manage`)
++4. Inbox lista linhas recentes **mesmo se** metrics falharem (só `admin.panel`)
++5. Filtro Todos / Bugs / Sugestões funciona
++6. Erro de SELECT não mostra «Ainda sem relatos»
++7. Reclamação operacional permanece canal separado (sem segundo inbox)
++8. Confirmar que **não** há UI de estados FECHADO (ainda não existe no schema — esperado)
++
++## Governança (não smoke de código)
++
++- [ ] Decisão Founder sobre proposta `0043` (read Founder)
++- [ ] Decisão se P1 terá estados/triagem com UPDATE (hoje UPDATE revogado)
++
++## Sequência de publish (quando write abrir)
++
++1. Branch desde `main` → aplicar patch A → PR → CI → merge conforme política → deploy → smoke A
++2. Branch → aplicar patch B (+ harden) → PR → merge → deploy → smoke B
++3. Continuar itens técnicos autorizados restantes
+diff --git a/docs/engineering/SPRINT_B_FEEDBACK_CYCLE_FULL.md b/docs/engineering/SPRINT_B_FEEDBACK_CYCLE_FULL.md
+new file mode 100644
+index 00000000..7a328e7a
+--- /dev/null
++++ b/docs/engineering/SPRINT_B_FEEDBACK_CYCLE_FULL.md
+@@ -0,0 +1,47 @@
++# Sprint B — ciclo completo (auditoria aprofundada)
++
++**Estado código local:** `400b473e` + harden submit/inbox filter (este ciclo).  
++**Fonte:** `EduardoZ121/Site_Angola` · migrations `0035`, `0042`.
++
++## Mapa do ciclo pedido vs. o que existe
++
++| Etapa            | Pedido conceptual    | Estrutura existente                                              | Estado                                             |
++| ---------------- | -------------------- | ---------------------------------------------------------------- | -------------------------------------------------- |
++| 1. Feedback      | Utilizador submete   | `BetaFeedbackForm` → `kocc_submit_beta_feedback`                 | ✅                                                 |
++| 2. Contexto      | página / origem      | `page_path`; coluna `metadata` existe mas RPC **não a preenche** | 🟡 path só; metadata ociosa                        |
++| 3. Inbox         | lista ops            | `listRecentBetaFeedback` + `BetaPanelSection`                    | ✅ (bug SoftListSlot corrigido; filtro kind local) |
++| 4. KOCC          | painel               | `kocc_beta_metrics` + secção Beta no KOCC/Founder                | ✅ (métricas ≠ inbox)                              |
++| 5. Classificação | bug vs sugestão      | `kind` check (`feedback`\|`bug`) + filtro UI                     | ✅ suficiente P0                                   |
++| 6. Triagem       | atribuir / priorizar | **sem colunas**; UPDATE revogado                                 | 🔴 GOV — não inventar tickets                      |
++| 7. Estado        | NOVO→…→FECHADO       | **não existe**                                                   | 🔴 GOV                                             |
++| 8. Auditoria     | quem mudou o quê     | `kocc_flag_audit` é de **flags**, não de feedback                | 🔴 GOV se quiserem audit de feedback               |
++| 9. Resolução     | fechar com nota      | **não existe**                                                   | 🔴 GOV                                             |
++
++## RLS (resumo)
++
++- INSERT own / RPC definer com `actor_id = auth.uid()`
++- SELECT: `finance.manage` **ou** `admin.panel`
++- UPDATE/DELETE: revogados a `authenticated`
++- `kocc_beta_metrics`: só `finance.manage`
++- Gap Founder vs permissions: **isolado** — proposta `0043` **não aplicada**
++
++## Decisões isoladas (não executar sem Founder)
++
++1. **0043** — Founder read em métricas/inbox via `user_has_founder_or_permission`
++2. **Workflow de estados** em `beta_feedback` (colunas + UPDATE policy + audit) — seria extensão de produto/governação, não bugfix
++3. **Preencher `metadata`** com UA/locale — útil, mas política de retenção/privacidade; proposta path-guard `0044` é só truncate de `page_path`
++
++## Hardening técnico feito / a embalar no patch
++
++- Inbox independente de métricas
++- Empty-state não mascara erro de SELECT
++- Filtro local Todos/Bugs/Sugestões (reutiliza `kind`)
++- Sanitize `page_path` + validação body/kind no cliente
++- Telemetria help + bug vs suggestion
++- Proposta `0044` path guard servidor (comentada)
++
++## Duplicações evitadas
++
++- Uma só Inbox (KOCC), um só form (`BetaFeedbackForm`), um só submit RPC
++- Reclamação operacional = bridge textual para admin/contacto — **não** segundo inbox
++- Feature-tracking alargado / Product Insights → **não** expandido neste período (lista deps apenas)
+diff --git a/docs/engineering/proposals/0044_beta_feedback_submit_path_guard.sql b/docs/engineering/proposals/0044_beta_feedback_submit_path_guard.sql
+new file mode 100644
+index 00000000..3bb81bdd
+--- /dev/null
++++ b/docs/engineering/proposals/0044_beta_feedback_submit_path_guard.sql
+@@ -0,0 +1,57 @@
++-- PROPOSAL ONLY — do not apply without review.
++-- Additive hardening for kocc_submit_beta_feedback (migration 0035).
++--
++-- Scope:
++--   - Truncate page_path server-side (defense in depth; client already sanitizes).
++-- Out of scope:
++--   - Founder RLS (see 0043 — blocked on Founder approval)
++--   - Ticket status / UPDATE policies / resolution workflow
++--   - Writing arbitrary metadata (privacy/retention decision)
++
++/*
++create or replace function public.kocc_submit_beta_feedback(
++  p_kind text,
++  p_body text,
++  p_page_path text default null
++)
++returns public.beta_feedback
++language plpgsql
++security definer
++set search_path = public
++as $$
++declare
++  v_actor uuid := auth.uid();
++  v_row public.beta_feedback;
++  v_path text;
++begin
++  if v_actor is null then
++    raise exception 'authentication required';
++  end if;
++  if p_kind is null or p_kind not in ('feedback', 'bug') then
++    raise exception 'kind must be feedback or bug';
++  end if;
++  if p_body is null or char_length(trim(p_body)) < 3 then
++    raise exception 'body too short';
++  end if;
++  if char_length(trim(p_body)) > 4000 then
++    raise exception 'body too long';
++  end if;
++
++  v_path := nullif(trim(p_page_path), '');
++  if v_path is not null and char_length(v_path) > 500 then
++    v_path := left(v_path, 500);
++  end if;
++
++  insert into public.beta_feedback (kind, body, page_path, actor_id)
++  values (p_kind, trim(p_body), v_path, v_actor)
++  returning * into v_row;
++
++  perform public.kocc_track_feature('beta.feedback', 'Feedback Beta');
++
++  return v_row;
++end;
++$$;
++
++revoke all on function public.kocc_submit_beta_feedback(text, text, text) from public;
++grant execute on function public.kocc_submit_beta_feedback(text, text, text) to authenticated;
++*/
+-- 
+2.43.0
+

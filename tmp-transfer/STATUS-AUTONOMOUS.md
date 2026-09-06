@@ -1,41 +1,35 @@
-# Kuteka — estado autónomo (Git write bloqueado em Site_Angola)
+# Status autónomo — write Site_Angola ainda bloqueado
 
-Actualizado: 2026-09-06. Fonte oficial: **EduardoZ121/Site_Angola** apenas.  
-Meu-site-222 = ponte temporária de artefactos (`tmp-transfer/`). Não é fonte de verdade.
+Actualizado: 2026-09-06 (pós-harden B)
 
-## Baseline oficial
-- `main` HEAD auditado: `ce203d4` (stabilize #71)
+## Oficial
+- Repo: `EduardoZ121/Site_Angola`
+- Baseline main auditado: `ce203d4`
+- Write probe: permissions push=false; `git push` → auth fail / sem token válido
 
-## Commits locais prontos (`/tmp/site-angola-publish`, branch `cursor/sprint-a-beta-experience-f96b`)
-| Commit     | Conteúdo |
-|------------|----------|
-| `bf98a700` | Sprint A P0 — beta messaging, inventory clarity, security headers + prebuilt |
-| `8faa18b6` | Sprint B P0 — KOCC inbox + complaint bridge + labels/tests |
-| `400b473e` | Sprint B harden — inbox independente de métricas + audit RLS + proposta 0043 |
+## Commits locais prontos (`/tmp/site-angola-publish`)
+| Hash | Conteúdo |
+|------|----------|
+| `bf98a700` | Sprint A P0 |
+| `8faa18b6` | Sprint B P0 inbox + complaint bridge |
+| `400b473e` | Inbox independente de metrics + audit RLS |
+| `59d0516b` | Harden submit/path + filtro kind + empty≠error + prebuilt + docs ciclo |
 
-## Validação local (última corrida)
-- Vitest: **131/131**
+## Validação local (59d0516b)
+- Vitest: **137/137**
 - `tsc --noEmit`: OK
-- Patches: `git apply --check` sobre `ce203d4` (combinado AB)
+- Static export: **OK** via `scripts/build-static-web.sh` (stash middleware/api)
+- `git apply --check` combined-src sobre `ce203d4`: OK
 
-## Bloqueio
-- Cloud Agent GitHub App: write só em Meu-site-222 → **403** em Site_Angola
-- **Não** feito neste período: push/PR/merge Site_Angola; alteração de permissões; fork Vicente; declarar A/B em produção
+## Isolado (GOV — não executar)
+- Proposta `0043` Founder read
+- Workflow estados/UPDATE/UPDATE em `beta_feedback` (UPDATE UPDATE)
+- Product Insights / Sprint C feature productization
 
-## Artefactos nesta pasta
-| Ficheiro | Uso |
-|----------|-----|
-| `kuteka-sprint-a-p0.patch` | Sprint A completa (com prebuilt se incluído) |
-| `kuteka-sprint-a-p0-src.patch` | Sprint A sem `prebuilt/` |
-| `kuteka-sprint-b-p0.patch` | Sprint B P0 + harden (em cima de A: `bf98a700..400b473e`) |
-| `kuteka-sprint-b-p0-harden.patch` | Só o harden (`8faa18b6..400b473e`) se B base já aplicado |
-| `kuteka-sprint-ab-combined.patch` | A+B num único patch desde `ce203d4` |
-| `PUBLISH-SPRINT-A-P0.sh` | One-shot publish (requer credenciais write) |
-| `APPLY-*.txt` | Instruções manuais |
-| `REGRESSION-LOCAL.md` | Smoke/regressão pós-publish |
-| `BLOCKED-PERIOD-REPORT.md` | Relatório A–E deste período |
+## Ponte Meu-site-222
+Pasta `tmp-transfer/` — patches A/B/combined + smoke + docs. Não é SoT Kuteka.
 
-## Próximo passo após write
-1. Publicar Sprint A → PR `main` → smoke produção  
-2. Publicar Sprint B → smoke ajuda → KOCC inbox  
-3. Decisão Founder sobre proposta RLS `0043` (não aplicar sem aprovação)
+## Quando write abrir (auto)
+1. Push branch Sprint A → PR → CI → merge conforme política → deploy → smoke A
+2. Push/PR Sprint B (incl. harden) → merge → deploy → smoke inbox/KOCC
+3. Continuar itens técnicos restantes autorizados

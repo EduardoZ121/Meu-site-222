@@ -1,13 +1,30 @@
-Sprint B P0 (apply AFTER Sprint A is on main)
-===========================================
-Canonical: EduardoZ121/Site_Angola
+# Aplicar Sprint B P0 (+ harden) em Site_Angola
 
-Patch: kuteka-sprint-b-p0.patch
-Reuses beta_feedback + RLS. Adds KOCC triage inbox, app.home telemetry,
-and Help Center bridge distinguishing product Beta feedback vs operational complaints.
-No new tables.
+Pré-requisito: Sprint A (`bf98a700` / `kuteka-sprint-a-p0.patch`) já aplicado na branch de destino.
 
-  git checkout -b cursor/sprint-b-feedback-inbox-f96b
-  curl -fsSL .../kuteka-sprint-b-p0.patch | git am --3way
-  git push -u origin HEAD
-  gh pr create --base main ...
+## Opção 1 — patch B completo (inbox + complaint bridge + harden)
+```bash
+cd /path/to/Site_Angola
+git checkout -b cursor/sprint-b-feedback-inbox-f96b
+git apply tmp-transfer/kuteka-sprint-b-p0.patch   # ou path do ficheiro copiado
+# revisar, testar, commit se apply --index não criou commits
+```
+
+O ficheiro `kuteka-sprint-b-p0.patch` contém os commits desde `bf98a700` até `400b473e` (format-patch).
+
+## Opção 2 — já tinhas B base (`8faa18b6`) e só falta harden
+```bash
+git apply kuteka-sprint-b-p0-harden.patch
+```
+
+## Opção 3 — A+B de uma vez desde main `ce203d4`
+```bash
+git apply kuteka-sprint-ab-combined.patch
+```
+Preferível só se A ainda não estiver em review separado.
+
+## Validação
+Ver `REGRESSION-LOCAL.md`.
+
+## Não aplicar sem Founder
+`docs/engineering/proposals/0043_beta_feedback_founder_read_access.sql`

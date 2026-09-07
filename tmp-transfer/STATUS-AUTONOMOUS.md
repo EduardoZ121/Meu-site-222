@@ -1,12 +1,12 @@
 # Status autónomo — write Site_Angola bloqueado (Opção A)
 
-Actualizado: 2026-09-07T14:05Z (timer re-probe)
+Actualizado: 2026-09-07T17:47Z (timer re-probe Option A)
 
 ## Re-probe
 - `permissions.push=false`
 - Push: **Permission denied to cursor[bot]** (403)
 - `SITE_ANGOLA_PUSH_TOKEN`: não definido (Opção B não usada)
-- Ambiente Cursor: só `meu-site-222`
+- Ambiente Cursor: só `meu-site-222` (`environment: null`)
 - `main` remoto: **`ce203d4f`** — sem branch A/B
 - Tip local: `/tmp/site-angola-publish` @ **`c5da1e6d`**
 

@@ -25,7 +25,7 @@ const ICONS = {
 const HAS_PHOTO = new Set([
   "studio", "clothes", "art", "pro",
   "bg_remove", "upscale", "restore", "colorize",
-  "inpaint", "posters", "carousel", "wizard", "video", "manga_studio",
+  "inpaint", "posters", "carousel", "wizard", "video", "manga_studio", "brand_campaign",
 ]);
 
 function CssThumb({ id, premium }) {

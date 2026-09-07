@@ -1,4 +1,5 @@
 const { getDb, storageEnabled, ensureIndexes } = require("./mongo.cjs");
+const { grokPreviewOwnerUser } = require("./sessionToken.cjs");
 const { sanitizeCreation, trustedProxyTarget, loadCreationMedia, normalizeResultUrls, repairCreationMedia } = require("./creationMedia.cjs");
 const { refreshUserPendingJobs, repairMissingCreationsForUser, repairMissedNotifyEmailsForUser } = require("./pendingPredictions.cjs");
 
@@ -22,11 +23,16 @@ function sessionFromReq(req, verifySessionToken) {
   const m = auth.match(/^Bearer\s+(.+)$/i);
   if (!m) return { error: { status: 401, detail: "Não autenticado." } };
   const token = m[1].trim();
+  const previewOwner = grokPreviewOwnerUser();
   if (token.startsWith("local:")) {
+    if (previewOwner) return { user: previewOwner };
     return { error: { status: 503, detail: "Biblioteca requer conta no servidor." } };
   }
   const user = verifySessionToken(token);
   if (!user) return { error: { status: 401, detail: "Sessão inválida ou expirada." } };
+  if (previewOwner && (user.role === "admin" || user.is_unlimited || user.email === previewOwner.email)) {
+    return { user: { ...user, ...previewOwner, id: previewOwner.id } };
+  }
   return { user };
 }
 

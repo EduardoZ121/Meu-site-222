@@ -3,6 +3,7 @@ const { Redis } = require("@upstash/redis");
 const COL_PREFIX = "rp:col:";
 
 function kvEnabled() {
+  if (String(process.env.GROK_FILE_KV || "").trim() === "1") return true;
   return Boolean(
     process.env.KV_REST_API_URL
     && process.env.KV_REST_API_TOKEN,
@@ -12,12 +13,40 @@ function kvEnabled() {
 let redis;
 function getRedis() {
   if (!redis) {
-    redis = new Redis({
-      url: process.env.KV_REST_API_URL,
-      token: process.env.KV_REST_API_TOKEN,
-    });
+    if (String(process.env.GROK_FILE_KV || "").trim() === "1") {
+      redis = createFileRedis();
+    } else {
+      redis = new Redis({
+        url: process.env.KV_REST_API_URL,
+        token: process.env.KV_REST_API_TOKEN,
+      });
+    }
   }
   return redis;
+}
+
+function createFileRedis() {
+  const fs = require("fs");
+  const path = require("path");
+  const dir = process.env.GROK_FILE_KV_DIR || "/tmp/remakepix-kv";
+  fs.mkdirSync(dir, { recursive: true });
+  const fileFor = (key) => path.join(dir, `${encodeURIComponent(String(key))}.json`);
+  return {
+    async ping() {
+      return "PONG";
+    },
+    async get(key) {
+      try {
+        return JSON.parse(fs.readFileSync(fileFor(key), "utf8"));
+      } catch {
+        return null;
+      }
+    },
+    async set(key, val) {
+      fs.writeFileSync(fileFor(key), JSON.stringify(val));
+      return "OK";
+    },
+  };
 }
 
 async function loadCol(name) {
@@ -33,8 +62,13 @@ async function saveCol(name, rows) {
 function matchValue(docVal, cond) {
   if (cond == null) return docVal == null;
   if (typeof cond !== "object" || Array.isArray(cond)) return docVal === cond;
+  if (cond.$type != null) {
+    const t = cond.$type;
+    if (t === "string" && typeof docVal !== "string") return false;
+    if (t === "number" && typeof docVal !== "number") return false;
+  }
   if (cond.$gte != null) return docVal >= cond.$gte;
-  if (cond.$lt != null) return docVal < cond.$lt;
+  if (cond.$lt != null) return Number(docVal) < cond.$lt;
   if (cond.$ne != null) return docVal !== cond.$ne;
   if (cond.$exists != null) {
     const has = docVal != null && docVal !== "";
@@ -46,14 +80,24 @@ function matchValue(docVal, cond) {
     const re = new RegExp(cond.$regex, cond.$options || "");
     return re.test(String(docVal || ""));
   }
+  if (cond.$type != null) return true;
   return docVal === cond;
 }
 
 function matchDoc(doc, filter) {
   if (!filter || !Object.keys(filter).length) return true;
-  if (filter.$or) return filter.$or.some((f) => matchDoc(doc, f));
-  if (filter.$and) return filter.$and.every((f) => matchDoc(doc, f));
-  return Object.entries(filter).every(([k, v]) => {
+  const rest = { ...filter };
+  let ok = true;
+  if (rest.$or) {
+    ok = rest.$or.some((f) => matchDoc(doc, f));
+    delete rest.$or;
+  }
+  if (rest.$and) {
+    ok = ok && rest.$and.every((f) => matchDoc(doc, f));
+    delete rest.$and;
+  }
+  if (!ok) return false;
+  return Object.entries(rest).every(([k, v]) => {
     if (k.startsWith("$")) return true;
     return matchValue(doc[k], v);
   });

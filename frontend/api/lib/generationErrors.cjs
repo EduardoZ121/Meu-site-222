@@ -32,8 +32,14 @@ function formatGenerationError(raw, lang = "pt", opts = {}) {
     /insufficient credit.*(replicate|account|balance)?|replicate.*(insufficient|out of credit|billing)|spend(ing)? limit|payment required|add (a )?payment method|past due|quota exceeded|monthly limit|account.*(suspend|disabled|deactivat)|out of credit|ran out of credit|run out of credit|insufficient funds|no credits? (left|remaining) on (your )?replicate/i.test(lower)
   );
 
+  const isTooLong =
+    /video is too long|maximum duration is|too long\. maximum|clips até/i.test(lower);
+
+  const isIp =
+    /ipinfringement|ip infringement|copyright|infringe/i.test(lower);
+
   const isSeedanceSensitive =
-    /e005|flagged as sensitive|input or output was flagged/i.test(lower);
+    /e005|flagged as sensitive|input or output was flagged|datainspectionfailed|green net check|contain inappropr/i.test(lower);
 
   const isNsfw =
     /\bnsfw\b|not\s*safe\s*for\s*work|explicit\s*content|adult\s*content|sexual\s*content|pornograph|nude\s*content|\bnudity\b|\berotic\b/i.test(lower);
@@ -61,6 +67,10 @@ function formatGenerationError(raw, lang = "pt", opts = {}) {
         "Este pedido foi bloqueado por conteúdo sensível ou adulto (NSFW). Créditos devolvidos — tenta outro prompt, imagem ou motor mais permissivo (ex.: Grok no vídeo).",
       invalidInput:
         "O modelo recusou este pedido (entrada inválida: formato, duração ou parâmetros). Créditos devolvidos — verifica o ficheiro e as definições.",
+      tooLong:
+        "O vídeo de origem é demasiado longo. O Grok aceita no máximo ~8 s — o site corta automaticamente. Créditos devolvidos.",
+      ipBlocked:
+        "O modelo recusou este vídeo por direitos de autor (clip de série, filme ou anime). Usa um vídeo original teu e o motor Grok. Créditos devolvidos.",
       invalidInputMv:
         "O modelo recusou este pedido (entrada inválida). Pode ser duração, formato ou parâmetros — não significa necessariamente que a foto seja inadequada. Créditos devolvidos — tenta modo Rápido ou outro template.",
       contentPolicy:
@@ -70,7 +80,7 @@ function formatGenerationError(raw, lang = "pt", opts = {}) {
       maintenance:
         "O serviço de geração está temporariamente indisponível. Os teus créditos foram devolvidos. Tenta novamente mais tarde ou contacta o suporte.",
       generic:
-        "A geração falhou. Os teus créditos foram devolvidos automaticamente. Se for conteúdo adulto, tenta outro prompt ou motor.",
+        "A geração falhou. Os teus créditos foram devolvidos automaticamente. Tenta outra vez com o motor Grok e um vídeo original teu.",
     },
     en: {
       timeout:
@@ -87,6 +97,8 @@ function formatGenerationError(raw, lang = "pt", opts = {}) {
         "This request was blocked for sensitive or adult content (NSFW). Credits refunded — try another prompt, image, or a more permissive engine (e.g. Grok for video).",
       invalidInput:
         "The model rejected this request (invalid input: format, duration, or settings). Credits refunded — check the file and options.",
+      ipBlocked:
+        "The model refused this clip for copyright (TV/film/anime footage). Use your own original video and the Grok engine. Credits refunded.",
       invalidInputMv:
         "The model rejected this request (invalid input). It may be duration, format, or unsupported settings — not necessarily your photo. Credits refunded — try Quick mode or another template.",
       contentPolicy:
@@ -96,7 +108,7 @@ function formatGenerationError(raw, lang = "pt", opts = {}) {
       maintenance:
         "The generation service is temporarily unavailable. Your credits were refunded. Please try again later or contact support.",
       generic:
-        "Generation failed. Your credits were refunded automatically. For adult content, try another prompt or engine.",
+        "Generation failed. Your credits were refunded automatically. Try again with the Grok engine and your own original video.",
     },
     es: {
       timeout:
@@ -157,6 +169,8 @@ function formatGenerationError(raw, lang = "pt", opts = {}) {
   if (isUserWallet) return msg;
   if (isBilling) return L.maintenance;
   if (isTimeout) return L.timeout;
+  if (isTooLong) return L.tooLong || L.invalidInput;
+  if (isIp) return L.ipBlocked || L.invalidInput;
   if (isEmpty) return L.empty;
   if (isCapacity) return L.capacity;
   if (isSeedanceSensitive) {

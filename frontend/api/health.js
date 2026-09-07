@@ -10,6 +10,9 @@ const { pingBlobColDb } = require("./lib/blobColDb.cjs");
 const { isS3Configured, resolveBucketName } = require("./lib/s3Upload.cjs");
 
 async function pingKvStorage() {
+  if (String(process.env.GROK_FILE_KV || "").trim() === "1") {
+    return { ok: true, reason: "file" };
+  }
   if (!process.env.KV_REST_API_URL || !process.env.KV_REST_API_TOKEN) {
     return { ok: false, reason: "kv_not_configured" };
   }

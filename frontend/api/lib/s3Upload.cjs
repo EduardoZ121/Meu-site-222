@@ -1,5 +1,5 @@
 const crypto = require("crypto");
-const { S3Client, PutObjectCommand } = require("@aws-sdk/client-s3");
+const { S3Client, PutObjectCommand, GetObjectCommand } = require("@aws-sdk/client-s3");
 const { getSignedUrl } = require("@aws-sdk/s3-request-presigner");
 
 const MAX_VIDEO_BYTES = 200 * 1024 * 1024;
@@ -86,6 +86,18 @@ function publicUrlForKey(key) {
   return `https://${cfg.bucket}.s3.${cfg.region}.amazonaws.com/${safeKey}`;
 }
 
+async function readableUrlForKey(key) {
+  const cfg = getS3Config();
+  if (!cfg) return null;
+  if (cfg.cloudFront) return publicUrlForKey(key);
+  const client = createS3Client(cfg);
+  return getSignedUrl(
+    client,
+    new GetObjectCommand({ Bucket: cfg.bucket, Key: String(key).replace(/^\/+/, "") }),
+    { expiresIn: 60 * 60 * 24 * 6 },
+  );
+}
+
 /** URLs públicas do bucket ou CloudFront (para Replicate). */
 function isTrustedS3MediaUrl(raw) {
   const u = String(raw || "").trim();
@@ -153,7 +165,7 @@ async function uploadBufferToS3({ buffer, contentType, userId = "system", prefix
   }));
   return {
     key,
-    url: publicUrlForKey(key),
+    url: await readableUrlForKey(key),
     contentType: ct,
     size: buf.length,
   };
@@ -196,7 +208,7 @@ async function createVideoPresignedUpload({ filename, contentType, contentLength
   return {
     method: "PUT",
     uploadUrl,
-    publicUrl: publicUrlForKey(key),
+    publicUrl: await readableUrlForKey(key),
     key,
     headers: {
       "Content-Type": ct === "application/octet-stream" ? "video/mp4" : ct,
@@ -243,7 +255,7 @@ async function createImagePresignedUpload({ filename, contentType, contentLength
   return {
     method: "PUT",
     uploadUrl,
-    publicUrl: publicUrlForKey(key),
+    publicUrl: await readableUrlForKey(key),
     key,
     headers: { "Content-Type": resolvedCt },
     maxBytes: MAX_IMAGE_BYTES,

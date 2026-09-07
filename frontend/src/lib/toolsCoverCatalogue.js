@@ -72,7 +72,7 @@ const OBJECT_POSITION = {
 };
 
 /** Bump quando substituir capas — evita cache antigo no browser */
-const COVER_VERSION = "24";
+const COVER_VERSION = "26";
 
 function withVersion(path) {
   return `${path}?v=${COVER_VERSION}`;

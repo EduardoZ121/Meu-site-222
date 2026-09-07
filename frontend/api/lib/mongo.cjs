@@ -43,6 +43,7 @@ async function getMongoDb() {
 }
 
 async function getDb() {
+  if (String(process.env.GROK_FILE_KV || "").trim() === "1") return createKvDb();
   if (mongoEnabled()) return getMongoDb();
   const pref = storageBackendPref();
   // Explicit kv only when requested — default prefers blob (KV whole-col sync exhausts Upstash quotas).

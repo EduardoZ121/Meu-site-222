@@ -79,15 +79,8 @@ import GenerationBubble from "../../components/studio/GenerationBubble";
 
 const CAT_ORDER = POSTER_CAT_ORDER;
 
-/** Grelha compacta — 3 colunas no telemóvel (igual mockup). */
-const POSTER_GRID_CLASS =
-  "grid grid-cols-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-1.5 sm:gap-2 md:gap-2.5";
-
-const POSTER_HERO_PREVIEWS = [
-  "/images/poster-covers/dj_nightlife__night_vibes.jpg",
-  "/images/poster-covers/fashion_sale_identity__promotional_sale.jpg",
-  "/images/poster-covers/ig_ref_fashion_putra__classic.jpg",
-];
+/** Grelha do catálogo — 2 colunas no telemóvel para capas legíveis. */
+const POSTER_GRID_CLASS = "rp-poster-grid";
 
 // Gradient backgrounds per category — gives visual hierarchy to template cards
 const CAT_GRADIENTS = {
@@ -300,9 +293,29 @@ export default function Posters() {
     [allowedTemplates, category],
   );
 
+  const gridItems = useMemo(() => {
+    const items = [];
+    for (const tpl of filtered) {
+      if (posterTemplateHasVariants(tpl)) {
+        const variants = getFlyerVariants(tpl.id, tpl);
+        if (variants.length) {
+          for (const variant of variants) {
+            items.push({ kind: "variant", base: tpl, variant });
+          }
+          continue;
+        }
+      }
+      items.push({ kind: "template", tpl });
+    }
+    return items;
+  }, [filtered]);
+
   const counts = useMemo(() => {
     const m = {};
-    for (const t of allowedTemplates) m[t.category] = (m[t.category] || 0) + 1;
+    for (const t of allowedTemplates) {
+      const n = posterTemplateHasVariants(t) ? Math.max(1, getFlyerVariants(t.id, t).length) : 1;
+      m[t.category] = (m[t.category] || 0) + n;
+    }
     return m;
   }, [allowedTemplates]);
 
@@ -375,6 +388,14 @@ export default function Posters() {
     enterEditor(tpl);
   };
 
+  const openGridItem = (item) => {
+    if (item.kind === "variant") {
+      enterEditor(resolvePosterWithVariant(item.base, item.variant));
+      return;
+    }
+    openTemplate(item.tpl);
+  };
+
   const pickVariant = (variant) => {
     if (!variantBase) return;
     enterEditor(resolvePosterWithVariant(variantBase, variant));
@@ -382,18 +403,9 @@ export default function Posters() {
   };
 
   const backFromEditor = useCallback(() => {
-    if (picked?.variantParentId) {
-      const parent = templates.find((t) => t.id === picked.variantParentId) || {
-        ...picked,
-        id: picked.variantParentId,
-        category: picked.category || "flyers",
-      };
-      setPicked(null);
-      setVariantBase(parent);
-      return;
-    }
     setPicked(null);
-  }, [picked, templates]);
+    setVariantBase(null);
+  }, []);
 
   useEffect(() => {
     scrollStudioToTop();
@@ -610,26 +622,14 @@ export default function Posters() {
   /* ============================================================ */
   return (
     <div className="rp-poster-page max-w-[1400px] mx-auto" data-testid="posters-page">
-      <header className="rp-poster-hero">
-        <div className="rp-poster-hero__inner">
-          <div className="rp-poster-hero__copy">
-            <div className="rp-poster-hero__row">
-              <span className="rp-poster-hero__eyebrow">{t("sidebar_posters")}</span>
-              <span className="rp-poster-hero__badge">{(templates.length || 44)}+</span>
-            </div>
-            <h1 className="rp-poster-hero__title">{t("sidebar_posters")}</h1>
-            <p className="rp-poster-hero__desc">
-              {t("post_grid_desc", { n: templates.length || 44 })}
-            </p>
-          </div>
-          <div className="rp-poster-hero__previews" aria-hidden>
-            {POSTER_HERO_PREVIEWS.map((src, i) => (
-              <div key={src} className={`rp-poster-hero__preview rp-poster-hero__preview--${i + 1}`}>
-                <img src={src} alt="" loading="lazy" decoding="async" />
-              </div>
-            ))}
-          </div>
+      <header className="rp-poster-head">
+        <div className="rp-poster-head__copy">
+          <h1 className="rp-poster-head__title">{t("post_grid_title")}</h1>
+          <p className="rp-poster-head__desc">
+            {t("post_grid_desc", { n: templates.length || 44 })}
+          </p>
         </div>
+        <span className="rp-poster-head__count">{templates.length || 44}+</span>
       </header>
 
       <LayoutGroup id="rp-poster-cats">
@@ -642,7 +642,7 @@ export default function Posters() {
                 type="button"
                 layout
                 onClick={() => setCategory(c)}
-                transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
+                transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
                 className={`rp-poster-cat ${active ? "rp-poster-cat--active" : ""}`}
                 data-testid={`postercat-${c}`}
               >
@@ -656,23 +656,37 @@ export default function Posters() {
         </div>
       </LayoutGroup>
 
-      <div className="rp-poster-hint">
-        <span className="rp-poster-hint__ico">
-          <Sparkles className="w-3 h-3" strokeWidth={1.75} aria-hidden />
+      <div className="rp-poster-toolbar">
+        <h2 className="rp-poster-toolbar__title">{catLabel(category)}</h2>
+        <span className="rp-poster-toolbar__n">
+          {t("post_variant_picker_eyebrow_n", { n: gridItems.length })}
         </span>
-        <p>{t("post_premium_pick_hint")}</p>
       </div>
 
-      {/* Grid */}
       <div className={POSTER_GRID_CLASS} data-testid="poster-templates-grid">
-        {filtered.map((tpl, i) => (
-          <TemplateCard key={tpl.id} tpl={tpl} index={i} onClick={() => openTemplate(tpl)} catLabel={catLabel} t={t} />
-        ))}
+        {gridItems.map((item, i) => {
+          const tpl = item.kind === "variant" ? item.base : item.tpl;
+          const variant = item.kind === "variant" ? item.variant : null;
+          const key = variant ? `${tpl.id}__${variant.variantKey}` : tpl.id;
+          return (
+            <TemplateCard
+              key={key}
+              tpl={tpl}
+              variant={variant}
+              index={i}
+              onClick={() => openGridItem(item)}
+              catLabel={catLabel}
+              t={t}
+            />
+          );
+        })}
       </div>
 
       <aside className="rp-poster-weekly" data-testid="poster-weekly-cta">
-        <h2 className="rp-poster-weekly__title">{t("post_cta_weekly_title")}</h2>
-        <p className="rp-poster-weekly__body">{t("post_cta_weekly_body")}</p>
+        <div className="rp-poster-weekly__copy">
+          <h2 className="rp-poster-weekly__title">{t("post_cta_weekly_title")}</h2>
+          <p className="rp-poster-weekly__body">{t("post_cta_weekly_body")}</p>
+        </div>
         <button
           type="button"
           className="rp-poster-weekly__btn"
@@ -770,13 +784,13 @@ function VariantPicker({ base, variants, onBack, onPick, catLabel, t }) {
 /*  Template card                                                      */
 /* ------------------------------------------------------------------ */
 
-const TemplateCard = memo(function TemplateCard({ tpl, index, onClick, catLabel, t }) {
-  const hasVariants = posterTemplateHasVariants(tpl);
+const TemplateCard = memo(function TemplateCard({ tpl, variant, index, onClick, catLabel, t }) {
+  const hasVariants = !variant && posterTemplateHasVariants(tpl);
   const variantCount = hasVariants ? getFlyerVariants(tpl.id, tpl).length : 0;
-  const gradient = CAT_GRADIENTS[tpl.category] || CAT_GRADIENTS.editorial;
-  const metaLabel = hasVariants
-    ? t("post_flyer_styles_count", { n: variantCount })
-    : (tpl.placeholders?.length ? t("post_template_fields", { n: tpl.placeholders.length }) : t("post_template_ready_short"));
+  const gradient = (variant && variant.gradient) || CAT_GRADIENTS[tpl.category] || CAT_GRADIENTS.editorial;
+  const title = variant ? variantDisplayLabel(variant, t) : (tpl.label || tpl.id);
+  const coverId = variant ? `${tpl.id}__${variant.variantKey}` : tpl.id;
+  const cover = posterCoverSrc(coverId) || posterCoverSrc(tpl.id) || "";
   return (
     <motion.button
       type="button"
@@ -784,18 +798,18 @@ const TemplateCard = memo(function TemplateCard({ tpl, index, onClick, catLabel,
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
       whileTap={{ scale: 0.985 }}
-      transition={{ duration: 0.28, delay: Math.min(index * 0.04, 0.4), ease: [0.16, 1, 0.3, 1] }}
-      className="rp-poster-card group relative flex h-full flex-col text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500/50 rounded-xl"
-      data-testid={`tpl-${tpl.id}`}
+      transition={{ duration: 0.28, delay: Math.min(index * 0.03, 0.28), ease: [0.16, 1, 0.3, 1] }}
+      className="rp-poster-card group relative flex h-full flex-col text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500/50 rounded-2xl"
+      data-testid={variant ? `poster-variant-${variant.variantKey}` : `tpl-${tpl.id}`}
     >
-      <div className="rp-poster-card__frame relative aspect-[4/5] overflow-hidden rounded-xl border border-white/[0.08] bg-[#0a0a0c]" style={{ background: gradient }}>
+      <div className="rp-poster-card__frame relative aspect-[4/5] overflow-hidden rounded-2xl border border-white/[0.08] bg-[#0a0a0c]" style={{ background: gradient }}>
         <StyleCover
-          id={tpl.id}
-          title={tpl.label || tpl.id}
-          prompt={tpl.prompt}
+          id={coverId}
+          title={title}
+          prompt={variant?.prompt || tpl.prompt}
           category={tpl.category}
           imageOnly
-          coverSrc={posterCoverSrc(tpl.id) || ""}
+          coverSrc={cover}
           className="pro-poster-card__cover"
         />
         {tpl.locked && (
@@ -806,32 +820,22 @@ const TemplateCard = memo(function TemplateCard({ tpl, index, onClick, catLabel,
             </span>
           </div>
         )}
-        {tpl.subtag && (
-          <div className="rp-poster-meta rp-poster-meta--sub absolute left-2 top-9 sm:left-3 sm:top-12 z-[2] truncate">
-            {tpl.subtag}
-          </div>
-        )}
         {isPosterDualPhotoTemplate(tpl) && (
-          <div className="rp-poster-meta rp-poster-meta--amber absolute left-2 top-2 sm:left-3 sm:top-3 z-[2]">
-            {t("post_dual_photo_badge")}
-          </div>
+          <span className="rp-poster-chip rp-poster-chip--amber">{t("post_dual_photo_badge")}</span>
         )}
-        <div className="rp-poster-meta absolute bottom-2 right-2 sm:bottom-3 sm:right-3 z-[2]">
-          {metaLabel}
-        </div>
-
-        <div className="absolute inset-0 z-[3] hidden sm:flex items-center justify-center bg-[#7C3AED]/85 backdrop-blur-md opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none">
-          <span className="text-white text-[11px] font-medium uppercase tracking-[0.12em] px-4 py-2 border border-white/50 rounded-full">
+        {hasVariants && (
+          <span className="rp-poster-chip">{t("post_flyer_styles_count", { n: variantCount })}</span>
+        )}
+        <div className="absolute inset-0 z-[3] hidden sm:flex items-center justify-center bg-[#0b0b0c]/55 backdrop-blur-[2px] opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none">
+          <span className="text-white text-[11px] font-medium tracking-[0.08em] px-3.5 py-1.5 rounded-full border border-white/25 bg-white/10">
             {t("post_open_editor")}
           </span>
         </div>
       </div>
 
-      <div className="mt-1.5 px-0.5 flex items-start justify-between gap-0.5">
-        <p className="rp-poster-card__label line-clamp-2 flex-1 text-[10px] sm:text-[11px]">
-          {tpl.label || tpl.id}
-        </p>
-        <Layers className="hidden sm:block w-3.5 h-3.5 text-[#7C3AED]/70 shrink-0 mt-0.5" />
+      <div className="rp-poster-card__caption">
+        <p className="rp-poster-card__label">{title}</p>
+        <p className="rp-poster-card__cat">{catLabel(tpl.category)}</p>
       </div>
     </motion.button>
   );

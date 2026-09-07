@@ -20,7 +20,7 @@ const FALLBACK = {
   upload_err_file_large: "Ficheiro demasiado grande. Tenta um mais pequeno.",
   upload_err_cloud: "Falhou o envio para a nuvem. Tenta outra vez ou usa um ficheiro mais pequeno.",
   upload_err_server:
-    "A geração falhou no servidor. Tenta outra vez; se continuar, fala com a Sofia no suporte.",
+    "O servidor não respondeu ao envio. Recarrega a página e tenta outra vez.",
   upload_err_maintenance:
     "Servidor temporariamente indisponível. Tenta em breve ou contacta o suporte (Sofia / suporte@remakepix.com).",
   upload_err_video_type: "Formato de vídeo não aceite. Usa MP4, MOV, WEBM ou 3GP.",

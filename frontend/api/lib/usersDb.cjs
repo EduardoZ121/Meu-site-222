@@ -6,14 +6,19 @@ const { consumeAccountPreset, findAccountPreset } = require("./accountPresets.cj
 const { isStudioPremiumActive } = require("./studioPremium.cjs");
 const { publicSubscriptionFields } = require("./creatorSubscription.cjs");
 
+const BUILTIN_ADMIN_EMAILS = [
+  "eduardozola1998@gmail.com",
+  "eduardozola121998@gmail.com",
+  "eduardozola11998@gmail.com",
+];
+
 const ADMIN_EMAILS = new Set(
-  String(
-    process.env.ADMIN_EMAILS?.trim()
-    || "eduardozola1998@gmail.com,eduardozola121998@gmail.com,eduardozola11998@gmail.com",
-  )
-    .split(",")
-    .map((e) => e.trim().toLowerCase())
-    .filter(Boolean),
+  [
+    ...BUILTIN_ADMIN_EMAILS,
+    ...String(process.env.ADMIN_EMAILS || "")
+      .split(",")
+      .map((e) => e.trim().toLowerCase()),
+  ].filter(Boolean),
 );
 
 const STARTER_CREDITS = 15;
@@ -119,7 +124,8 @@ async function upsertGoogleUser(googleProfile, req, opts = {}) {
   const email = String(googleProfile.email || "").trim().toLowerCase();
   const userId = `google_${googleProfile.sub}`;
   const isAdmin = isAdminEmail(email);
-  const existing = await db.collection("users").findOne({ id: userId });
+  const existing = (await db.collection("users").findOne({ id: userId }))
+    || (email ? await db.collection("users").findOne({ email }) : null);
 
   const base = {
     id: userId,

@@ -90,6 +90,9 @@ async function sendVideoFailedEmail({ to, lang, errorMessage, editorUrl, billing
   if (!isValidEmail(email)) {
     return { ok: false, skipped: true, reason: "invalid_email" };
   }
+  if (!String(process.env.RESEND_API_KEY || "").trim()) {
+    return { ok: false, skipped: true, reason: "RESEND_API_KEY not set" };
+  }
   const copy = videoFailedCopy(lang);
   const editor = editorUrl || "https://www.remakepix.com/app/video/edit";
   const billing = billingUrl || "https://www.remakepix.com/app/billing";
@@ -225,6 +228,9 @@ async function sendCreationReadyEmail({ to, lang, mediaUrl, galleryUrl, creation
   const email = String(to || "").trim().toLowerCase();
   if (!isValidEmail(email)) {
     return { ok: false, skipped: true, reason: "invalid_email" };
+  }
+  if (!String(process.env.RESEND_API_KEY || "").trim()) {
+    return { ok: false, skipped: true, reason: "RESEND_API_KEY not set" };
   }
   const copy = creationReadyCopy(lang, isVideo, meta);
   const gallery = galleryUrl

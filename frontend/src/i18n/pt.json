@@ -2076,7 +2076,7 @@
     "post_editor_error_title": "Não foi possível abrir este template",
     "post_editor_error_desc": "Ocorreu um erro ao carregar o editor. Volta aos templates e tenta outra vez, ou atualiza a página.",
     "vid_edit_large_hint": "Clip acima de ~3 MB: o envio para a nuvem começa automaticamente antes de Gerar.",
-    "vid_edit_cloud_required": "Vídeos grandes precisam de armazenamento em nuvem. Na Vercel adiciona BLOB_READ_WRITE_TOKEN ou as variáveis AWS S3.",
+    "vid_edit_cloud_required": "Aguarda que o upload na nuvem termine — o botão Gerar desbloqueia quando o clip estiver pronto.",
     "vid_preview_codec_hint": "A pré-visualização pode não reproduzir no browser (ex. MOV/HEVC do iPhone) — o ficheiro serve na mesma para gerar. Preferível MP4 (H.264).",
     "vid_edit_cloud_uploading": "A enviar vídeo para a nuvem…",
     "vid_upload_title": "Vídeo de origem",

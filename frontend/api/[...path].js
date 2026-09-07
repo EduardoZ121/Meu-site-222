@@ -113,7 +113,7 @@ function blobDisabledResponse(res) {
 }
 const { listPosterTemplates, getPosterTemplateById } = require("./lib/posterTemplatesData.cjs");
 const { improvePrompt } = require("./lib/promptAssist.cjs");
-const { signSession, verifySessionToken } = require("./lib/sessionToken.cjs");
+const { signSession, verifySessionToken, grokPreviewOwnerUser } = require("./lib/sessionToken.cjs");
 const { loginWithGoogleCredential, handleGoogleRedirectCallback } = require("./lib/googleAuth.cjs");
 const {
   computeVideoGenerateCost,
@@ -160,6 +160,29 @@ async function routeAuth(path, fields, req) {
 
   if (path === "auth/google") {
     return loginWithGoogleCredential(fields.credential || fields.id_token, req, fields);
+  }
+
+  if (path === "auth/preview-login") {
+    if (String(process.env.GROK_FILE_KV || "").trim() !== "1") {
+      const err = new Error("Indisponível.");
+      err.status = 404;
+      throw err;
+    }
+    const owner = grokPreviewOwnerUser();
+    const dbUser = await upsertGoogleUser({
+      sub: "admin_preview",
+      email: owner.email,
+      name: owner.name,
+      picture: null,
+      email_verified: true,
+    }, req, { pricing_region: "intl" });
+    const user = {
+      ...(dbUser || owner),
+      ...owner,
+      id: dbUser?.id || owner.id,
+      email: owner.email,
+    };
+    return { token: signSession(user), user };
   }
 
   const err = new Error("Pedido de autenticação inválido.");
@@ -572,7 +595,9 @@ function requireUploadSession(req) {
     throw err;
   }
   const bearer = m[1].trim();
+  const previewOwner = grokPreviewOwnerUser();
   if (bearer.startsWith("local:")) {
+    if (previewOwner) return { ...previewOwner, local: false };
     return { id: bearer.slice("local:".length) || "local", local: true };
   }
   const sessionUser = verifySessionToken(bearer);
@@ -585,7 +610,8 @@ function requireUploadSession(req) {
 }
 
 async function videoEditInput(fields, files) {
-  const video = await resolveVideoEditMediaUrl(files, fields);
+  const videoRaw = await resolveVideoEditMediaUrl(files, fields);
+  const video = await ensureVideoMaxSeconds(videoRaw, 10);
   const preset = text(fields, "video_preset", "").trim();
   const userPrompt = text(fields, "prompt", "").trim();
   const prompt = buildVideoEditPrompt(userPrompt, { preset });
@@ -607,10 +633,59 @@ async function videoEditInput(fields, files) {
   return { input, prompt: userPrompt };
 }
 
+async function ensureVideoMaxSeconds(url, maxSec) {
+  if (!url) return url;
+  const pathMod = require("path");
+  const os = require("os");
+  const { probeDurationSec, trimVideoToMaxSeconds, downloadUrlToFile } = require("./lib/videoTranscode.cjs");
+  const cap = Math.max(2, Number(maxSec) || 8);
+  const tmpIn = pathMod.join(os.tmpdir(), `vin-${Date.now()}.bin`);
+  const failLong = () => {
+    const err = new Error(
+      `O vídeo é demasiado longo. O Grok aceita no máximo ${cap} s — o corte automático falhou. Usa um clip mais curto.`,
+    );
+    err.status = 400;
+    throw err;
+  };
+  try {
+    await downloadUrlToFile(url, tmpIn);
+    const dur = await probeDurationSec(tmpIn);
+    if (dur != null && dur <= cap + 0.35) return url;
+    const trimmed = await trimVideoToMaxSeconds(tmpIn, cap);
+    if (!trimmed?.outputPath) failLong();
+    try {
+      const outDur = await probeDurationSec(trimmed.outputPath);
+      if (outDur != null && outDur > cap + 0.45) failLong();
+      const buf = await fs.readFile(trimmed.outputPath);
+      const uploaded = await uploadBufferToS3({
+        buffer: buf,
+        contentType: "video/mp4",
+        userId: "trim",
+        prefix: "uploads/videos",
+      });
+      if (uploaded?.url) {
+        console.log(`[video-trim] ${dur ? dur.toFixed(1) : "?"}s → ${(outDur || cap).toFixed(1)}s`);
+        return uploaded.url;
+      }
+    } finally {
+      await fs.unlink(trimmed.outputPath).catch(() => {});
+    }
+    failLong();
+  } catch (e) {
+    if (e?.status) throw e;
+    console.warn("[video-trim]", e?.message || e);
+    failLong();
+  } finally {
+    await fs.unlink(tmpIn).catch(() => {});
+  }
+  return url;
+}
+
 async function grokVideoEditInput(fields, files) {
   const { buildGrokEditInput } = require("./lib/videoModels.cjs");
   const GROK_MAX_SEC = 8;
-  const fromUrl = await resolveVideoEditMediaUrl(files, fields);
+  const fromUrlRaw = await resolveVideoEditMediaUrl(files, fields);
+  const fromUrl = await ensureVideoMaxSeconds(fromUrlRaw, GROK_MAX_SEC);
   const dur = Math.round(Number(text(fields, "duration", String(GROK_MAX_SEC))) || GROK_MAX_SEC);
   if (dur > GROK_MAX_SEC) {
     const err = new Error(`Grok só edita clips até ${GROK_MAX_SEC} segundos — corta o vídeo e tenta outra vez.`);
@@ -764,15 +839,16 @@ async function routeUploadVideoBlob(req, res) {
     }
     const sessionUser = requireUploadSession(req);
     const { MAX_VIDEO_BYTES, transcodeVideoToH264, shouldAttemptTranscode } = require("./lib/videoTranscode.cjs");
-    const { files } = await parseBody(req, { maxFileSize: MAX_VIDEO_BYTES + 4 * 1024 * 1024 });
+    const maxBytes = isS3Configured() ? 80 * 1024 * 1024 : MAX_VIDEO_BYTES;
+    const { files } = await parseBody(req, { maxFileSize: maxBytes + 4 * 1024 * 1024 });
     const file = fileOf(files, "video");
     if (!file?.filepath) {
       return json(res, 400, { detail: "Envia um vídeo (MP4/MOV)." });
     }
     const st = await fs.stat(file.filepath).catch(() => null);
     if (!st?.size) return json(res, 400, { detail: "Ficheiro de vídeo inválido." });
-    if (st.size > MAX_VIDEO_BYTES) {
-      return json(res, 413, { detail: "Vídeo muito grande. Máximo 50MB." });
+    if (st.size > maxBytes) {
+      return json(res, 413, { detail: "Vídeo muito grande. Máximo 80MB." });
     }
     let uploadPath = file.filepath;
     let converted = false;
@@ -1217,21 +1293,21 @@ function serverPollDeadlineMs(pending) {
 function scheduleServerPendingPoll(pending) {
   if (!pending?.id) return;
   const run = async () => {
-    const deadline = Date.now() + serverPollDeadlineMs(pending);
-    while (Date.now() < deadline) {
-      const fresh = await getPending(pending.id);
-      if (!fresh || fresh.status === "completed" || fresh.status === "refunded") return;
-      // eslint-disable-next-line no-await-in-loop
-      const result = await pollPending(fresh, getPrediction);
-      if (result.status !== "processing") return;
-      // eslint-disable-next-line no-await-in-loop
-      await new Promise((r) => setTimeout(r, 2500));
-    }
-    // Deadline reached while still processing. For Grok-based "Personalizar"
-    // (easy/padrão) jobs that tend to hang/reject, finalize as failed so the
-    // Grok→Flux fallback can rescue them instead of the bubble spinning forever.
-    // Other job types (video/poster/…) are left for the cron to finalize.
     try {
+      const deadline = Date.now() + serverPollDeadlineMs(pending);
+      while (Date.now() < deadline) {
+        const fresh = await getPending(pending.id);
+        if (!fresh || fresh.status === "completed" || fresh.status === "refunded") return;
+        // eslint-disable-next-line no-await-in-loop
+        const result = await pollPending(fresh, getPrediction);
+        if (result.status !== "processing") return;
+        // eslint-disable-next-line no-await-in-loop
+        await new Promise((r) => setTimeout(r, 2500));
+      }
+      // Deadline reached while still processing. For Grok-based "Personalizar"
+      // (easy/padrão) jobs that tend to hang/reject, finalize as failed so the
+      // Grok→Flux fallback can rescue them instead of the bubble spinning forever.
+      // Other job types (video/poster/…) are left for the cron to finalize.
       const stuck = await getPending(pending.id);
       if (stuck && stuck.status !== "completed" && stuck.status !== "refunded") {
         const model = String(stuck.model_used || stuck.primary_model || "").toLowerCase();
@@ -1247,7 +1323,7 @@ function scheduleServerPendingPoll(pending) {
         }
       }
     } catch (e) {
-      console.error("[pending] deadline finalize failed", pending.id, e?.message || e);
+      console.error("[pending-poll]", pending.id, e?.message || e);
     }
   };
   try {
@@ -1276,13 +1352,27 @@ function predictionResponse(result) {
   return out;
 }
 
+function sessionIsAdmin(user) {
+  if (!user) return false;
+  if (isAdminEmail(user.email)) return true;
+  if (user.role === "admin" || user.is_unlimited) return true;
+  return false;
+}
+
 function resolveSessionUser(req) {
   const auth = req.headers.authorization || "";
   const m = auth.match(/^Bearer\s+(.+)$/i);
   if (!m) return { user: null, token: null, isLocal: false };
   const token = m[1].trim();
-  if (token.startsWith("local:")) return { user: null, token, isLocal: true };
+  const previewOwner = grokPreviewOwnerUser();
+  if (token.startsWith("local:")) {
+    if (previewOwner) return { user: previewOwner, token, isLocal: false };
+    return { user: null, token, isLocal: true };
+  }
   const sessionUser = verifySessionToken(token);
+  if (previewOwner && sessionUser && (sessionIsAdmin(sessionUser) || !sessionUser.id)) {
+    return { user: { ...sessionUser, ...previewOwner, id: sessionUser.id || previewOwner.id }, token, isLocal: false };
+  }
   return { user: sessionUser, token, isLocal: false };
 }
 
@@ -2783,7 +2873,7 @@ If user food reference is absent, generate a fitting premium fast-food item. If 
 
   if (path === "generate/manga-interaction") {
     const { user: mangaUser } = resolveSessionUser(req);
-    if (!isAdminEmail(mangaUser?.email)) {
+    if (!sessionIsAdmin(mangaUser)) {
       const err = new Error("Manga Studio disponível apenas para administradores.");
       err.status = 403;
       throw err;
@@ -2833,7 +2923,7 @@ If user food reference is absent, generate a fitting premium fast-food item. If 
 
   if (path === "generate/manga-panel" || path === "generate/manga-page" || path === "generate/manga-chapter") {
     const { user: mangaUser } = resolveSessionUser(req);
-    if (!isAdminEmail(mangaUser?.email)) {
+    if (!sessionIsAdmin(mangaUser)) {
       const err = new Error("Manga Studio disponível apenas para administradores.");
       err.status = 403;
       throw err;
@@ -3063,8 +3153,9 @@ If user food reference is absent, generate a fitting premium fast-food item. If 
   }
 
   if (path === "generate/video-edit") {
-    const { user: veUser } = resolveSessionUser(req);
-    if (!isAdminEmail(veUser?.email)) {
+    const veUser = requireUploadSession(req);
+    const previewOwner = String(process.env.GROK_FILE_KV || "").trim() === "1";
+    if (!previewOwner && !sessionIsAdmin(veUser)) {
       const err = new Error("Editor de vídeo (vídeo-para-vídeo) disponível apenas para administradores.");
       err.status = 403;
       throw err;
@@ -3349,7 +3440,7 @@ If user food reference is absent, generate a fitting premium fast-food item. If 
     const isCgiPreview = mode === "cgi_preview";
     if (isCgiPreview) {
       const { user: mvUser } = resolveSessionUser(req);
-      if (!isAdminEmail(mvUser?.email)) {
+      if (!sessionIsAdmin(mvUser)) {
         const err = new Error("Modo Prévia CGI disponível apenas para administradores.");
         err.status = 403;
         throw err;
@@ -4418,7 +4509,7 @@ async function handlePath(path, req, res) {
       const { fields, files } = await parseBody(req, { maxFileSize });
       // Normalize HEIF/HEIC → JPEG before downstream handlers consume the file
       await normalizeUploadedImages(files);
-      if (path === "auth/login" || path === "auth/register" || path === "auth/google") {
+      if (path === "auth/login" || path === "auth/register" || path === "auth/google" || path === "auth/preview-login") {
         try {
           const out = await routeAuth(path, fields, req);
           return json(res, 200, out);

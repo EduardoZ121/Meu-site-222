@@ -30,7 +30,10 @@ function isPremiumWalletPending(pending) {
 
 async function refundPendingCost(pending, description) {
   const userId = pending.user_id;
-  const cost = pending.credits_spent;
+  const cost = Number(pending.credits_spent);
+  if (!userId || !Number.isFinite(cost) || cost <= 0) {
+    return pending.balance_after_spend ?? null;
+  }
   if (isPremiumWalletPending(pending)) {
     return addPremiumCredits(userId, cost, "refund", description);
   }
@@ -392,7 +395,11 @@ async function deliverVideoNotifyEmail(pending, creation, urls) {
       return lastResult;
     }
     if (lastResult.skipped) {
-      await updatePending(pending.id, { notify_email_sending_at: null });
+      await updatePending(pending.id, {
+        notify_email_sent_at: nowIso(),
+        notify_email_sending_at: null,
+        notify_email_error: String(lastResult.reason || "skipped").slice(0, 200),
+      });
       return lastResult;
     }
   }

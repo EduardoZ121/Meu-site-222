@@ -708,9 +708,8 @@ function uploadVideoViaServerProxy(file, opts = {}) {
 
 
 
-/** Só clips pequenos cabem no proxy Vercel (~4.5 MB body). */
-
-const VIDEO_SERVER_PROXY_MAX = VIDEO_VERCEL_SAFE_BYTES;
+/** No Grok preview o PUT directo ao S3 falha (CORS); o proxy do servidor aguenta clips grandes. */
+const VIDEO_SERVER_PROXY_MAX = 80 * 1024 * 1024;
 
 
 
@@ -1204,16 +1203,14 @@ export async function uploadVideoToCloud(file, opts = {}) {
 
 
 
-  /* Blob primeiro quando S3 está explicitamente off — evita 1–3 idas inúteis ao presign. */
-
-  const order = tryS3 && s3UploadEnabledCache !== false && s3On
-
+  /* No preview Grok o PUT S3 falha CORS — proxy primeiro. */
+  const grokPreview = typeof window !== "undefined" && /grok-sandbox\.com$/i.test(window.location.hostname);
+  const order = grokPreview && canProxy
+    ? ["proxy", "s3"]
+    : tryS3 && s3UploadEnabledCache !== false && s3On
     ? ["s3", "blob", "proxy"]
-
     : tryS3
-
       ? ["blob", "s3", "proxy"]
-
       : ["blob", "proxy"];
 
 

@@ -1,6 +1,6 @@
 # Status autónomo — write Site_Angola bloqueado (Opção A)
 
-Actualizado: 2026-09-08T11:48Z (timer re-probe Option A)
+Actualizado: 2026-09-09T11:48Z (timer re-probe Option A)
 
 ## Re-probe
 - `permissions.push=false`

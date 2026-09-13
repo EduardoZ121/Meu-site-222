@@ -1,80 +1,35 @@
-# Login Google bloqueado — o que fazer
+> **Legado Vite — não usar para produto KEOS.** Auth oficial: `docs/proposals/PRD_001_AUTHENTICATION_SPEC.md`.
 
-O erro **“Google bloqueou” / “Access blocked”** aparece **no ecrã da Google**, antes do teu site receber qualquer pedido. **Não tem relação com Blob, AWS ou upload.**
+# Google Login (Kuteka)
 
-## Causas mais comuns (99%)
+## 1. Google Cloud Console
 
-### 1. App OAuth em modo **Teste**
+1. Abra [Google Cloud Console](https://console.cloud.google.com/apis/credentials)
+2. Crie um projeto (ex.: `kutekalink`)
+3. **APIs e serviços → Credenciais → Criar credenciais → ID cliente OAuth**
+4. Tipo: **Aplicação Web**
+5. **Origens JavaScript autorizadas:**
+   - `https://kutekalink.com`
+   - `https://www.kutekalink.com` ← **obrigatório se usar www**
+   - `http://localhost:5173` (desenvolvimento)
+6. Copie o **Client ID**
 
-[Google Cloud Console](https://console.cloud.google.com/) → **APIs e serviços** → **Ecrã de consentimento OAuth**
+## 2. Render (produção)
 
-- Se o estado for **Em teste**, só os emails em **Utilizadores de teste** conseguem entrar.
-- **Outras contas** veem “Acesso bloqueado” ou “app não concluiu a verificação”.
-
-**Solução A (rápida):** Em **Utilizadores de teste**, adiciona o teu Gmail (e o de quem for testar).
-
-**Solução B (site público):** Publicar a app → **Publicar app** (para poucos scopes básicos email/perfil muitas vezes basta; a Google pode pedir verificação se pedires scopes sensíveis).
-
-### 2. **Origens JavaScript** em falta
-
-**APIs e serviços** → **Credenciais** → o teu **ID de cliente OAuth 2.0** (tipo “Aplicação Web”)
-
-Em **Origens JavaScript autorizadas**, tens de ter **as duas** (com `https://`):
+No serviço **kutekalink** → **Environment**:
 
 ```
-https://remakepix.com
-https://www.remakepix.com
+VITE_GOOGLE_CLIENT_ID=xxxx.apps.googleusercontent.com
 ```
 
-Opcional para pré-visualizações Vercel:
+Faça **Manual Deploy** após guardar (a variável entra no build Vite).
 
-```
-https://remakepix-eduardozola1998-1779s-projects.vercel.app
-```
+## 3. Testar
 
-**Sem barra no fim.** Se só tiveres `www` e abrires `remakepix.com`, a Google bloqueia.
+- `/entrar` — botão **Continuar com Google**
+- Após login → `/conta` com email e foto
+- Notificações e emails demo ligados ao email Google
 
-### 3. Client ID errado no projeto Vercel
+## Nota
 
-O site usa `REACT_APP_GOOGLE_CLIENT_ID` no build.
-
-- Variável tem de estar no projeto **remakepix** (não no clone `meu-site-222`).
-- Depois de alterar → **Redeploy** em Production.
-
-Client ID actual no site (público no JS): termina em `...apps.googleusercontent.com` — confirma que é o mesmo no Google Cloud.
-
-### 4. Não é o mesmo problema que upload
-
-| Sintoma | Causa |
-|---------|--------|
-| Popup Google “bloqueado” | Google Cloud (consentimento / origens) |
-| Foto / upload failed | Vercel 4,5 MB / compressão / S3 |
-| Site em branco | Bug de código / projeto Vercel errado |
-
----
-
-## Ordem recomendada (5 minutos)
-
-1. Abre o site em **https://www.remakepix.com/login** (usa sempre `www` enquanto o domínio raiz não estiver igual).
-2. Google Cloud → Credenciais → confirma **origens** (lista acima).
-3. Ecrã de consentimento → adiciona o teu email em **Utilizadores de teste** OU publica a app.
-4. Guarda → espera 1–2 min → janela anónima → tenta login outra vez.
-
----
-
-## Se a mensagem for “This app isn’t verified”
-
-- Para ti e testers: **Avançadas** → **Ir para Remake Pixel (não seguro)** — só enquanto estiver em teste.
-- Para clientes em massa: completar verificação OAuth na Google (processo separado, demorado).
-
----
-
-## Testar se o backend está OK
-
-```bash
-curl -X POST https://www.remakepix.com/api/auth/google \
-  -H "Content-Type: application/json" \
-  -d '{"credential":"x"}'
-```
-
-Resposta esperada: `Credencial Google inválida` (401) — significa que a **API funciona**; o bloqueio é só no popup Google.
+Emails reais (SMTP) exigem backend numa fase seguinte. Por agora, o site regista a conta Google e simula envio na área **Minha conta**.

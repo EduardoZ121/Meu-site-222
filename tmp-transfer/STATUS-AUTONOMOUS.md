@@ -1,24 +1,22 @@
-# Status — Beta closeout local pronto; publish Option A bloqueado
+# Status — publish bloqueado por permissão GitHub
 
-Actualizado: 2026-09-13T15:48Z
+Actualizado: 2026-09-13T15:55Z
 
-## Feito localmente (Site_Angola)
-- Branch `cursor/beta-final-closeout-f96b` tip local commitado
-- Admin Beta inbox, health.json, CSP meta, CF headers script+docs, audit/smoke/resilience docs, prebuilt refresh
-- Testes unitários alvo: 16/16 pass; tsc ok; static build ok
-- GOV-BF / 0043–45 não aplicados
+## Diagnóstico exacto
+- Identidade activa: `cursor[bot]`
+- Repo: `EduardoZ121/Site_Angola`
+- `permissions.push=false` · push HTTP **403**
+- Permissão em falta: **Contents: write** (+ **Pull requests: write** para abrir PR)
+- `SITE_ANGOLA_PUSH_TOKEN`: **ausente** no ambiente
+- Vicente: não usado
 
-## Produção actual (já em main desde PR #72)
-- https://kutekalink.com hero Beta pública OK
-- Headers edge incompletos (só nosniff) — requer Cloudflare admin
+## Pronto a publicar (local)
+- Tip: `349d83db` em `/tmp/site-angola-publish`
+- Branch alvo: `cursor/beta-final-closeout-f96b`
+- Helper: `tmp-transfer/PUBLISH-CLOSEOUT.sh` (usa só env `SITE_ANGOLA_PUSH_TOKEN`, nunca imprime o valor)
 
-## Bloqueios C
-1. `cursor[bot]` 403 em push (Option A) — instalar Cursor GitHub App em Site_Angola
-2. Cloudflare Transform Rules / secrets CI
-3. Smoke autenticado Inbox (credencial teste)
-4. Revogar PAT exposto no chat
+## Acção Founder (uma destas)
+1. **Option A:** Cursor GitHub App → acesso a `EduardoZ121/Site_Angola` (Contents + PRs write) e ligar o repo ao ambiente Cloud.
+2. **Secret:** configurar `SITE_ANGOLA_PUSH_TOKEN` (PAT fine-scoped, Contents+PRs write só neste repo). **Não colar o token no chat.**
 
-## Não usar
-- PAT partilhado em chat
-- Vicente fork
-- Promover Meu-site-222 a SoT
+Pedido já registado no ambiente Cursor (`add_secrets` + `external_action`). Re-probe automático em ~10 min.

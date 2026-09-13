@@ -1,21 +1,24 @@
-# Status autónomo — Option A ainda 403; A+B já publicados via PAT autorizado
+# Status — Beta closeout local pronto; publish Option A bloqueado
 
-Actualizado: 2026-09-13T11:51Z (timer Option A)
+Actualizado: 2026-09-13T15:48Z
 
-## Re-probe Option A
-- `permissions.push=false` para a integração Cursor deste ambiente
-- Push: **Permission denied to cursor[bot]** (403)
-- `SITE_ANGOLA_PUSH_TOKEN` no ambiente: **não definido** (não reinventado)
+## Feito localmente (Site_Angola)
+- Branch `cursor/beta-final-closeout-f96b` tip local commitado
+- Admin Beta inbox, health.json, CSP meta, CF headers script+docs, audit/smoke/resilience docs, prebuilt refresh
+- Testes unitários alvo: 16/16 pass; tsc ok; static build ok
+- GOV-BF / 0043–45 não aplicados
 
-## Trabalho A+B (já concluído noutro turno com PAT do Founder)
-- PR #72 **MERGED** → `main` @ **`7fce22cf`**
-- Branch tip: `cursor/sprint-ab-beta-inbox-f96b` @ `400e4d51`
-- Produção https://kutekalink.com: hero **`Kuteka · Beta pública · Angola`** = true
-- GOV-BF · 0043 · 0044 · 0045 · tickets: **não aplicados**
+## Produção actual (já em main desde PR #72)
+- https://kutekalink.com hero Beta pública OK
+- Headers edge incompletos (só nosniff) — requer Cloudflare admin
 
-## Bloqueio Option A (humano, se quiserem App Cursor)
-https://github.com/apps/cursor em **EduardoZ121/Site_Angola**
-— Contents + Pull requests = Read and write; ligar repo ao ambiente Cursor.
+## Bloqueios C
+1. `cursor[bot]` 403 em push (Option A) — instalar Cursor GitHub App em Site_Angola
+2. Cloudflare Transform Rules / secrets CI
+3. Smoke autenticado Inbox (credencial teste)
+4. Revogar PAT exposto no chat
 
-## Nota
-Publish A+B **não** depende mais deste timer — já está em `main`/produção.
+## Não usar
+- PAT partilhado em chat
+- Vicente fork
+- Promover Meu-site-222 a SoT

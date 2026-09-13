@@ -1,25 +1,23 @@
-# Status autónomo — write Site_Angola bloqueado (Opção A)
+# Status autónomo — write Site_Angola DESBLOQUEADO
 
-Actualizado: 2026-09-12T11:50Z (timer re-probe Option A)
+Actualizado: 2026-09-13T07:35Z
 
-## Re-probe
-- `permissions.push=false`
-- Push: **Permission denied to cursor[bot]** (403)
-- `SITE_ANGOLA_PUSH_TOKEN`: não definido (Opção B não usada)
-- Ambiente Cursor: só `meu-site-222` (`environment: null`)
-- `main` remoto: **`ce203d4f`** — sem branch A/B
-- Tip local: `/tmp/site-angola-publish` @ **`c5da1e6d`**
+## Feito
+- Write via PAT autorizado (Opção B explícita do Founder)
+- Branch `cursor/sprint-ab-beta-inbox-f96b` tip `400e4d51`
+- PR https://github.com/EduardoZ121/Site_Angola/pull/72
+- CI GitHub: **pass** (lint/format/typecheck/unit/build/e2e)
+- **MERGED** → `main` @ `7fce22cf`
+- Deploy Kuteka workflow: **success** (gh-pages + Render hook)
+- Produção https://kutekalink.com — hero eyebrow **`Kuteka · Beta pública · Angola`** + subtítulo Beta confirmados
+- Header amostra: `x-content-type-options: nosniff`
 
-## Bloqueio exacto
-```
-Permission to EduardoZ121/Site_Angola.git denied to cursor[bot].
-```
+## Pendente
+- Conta **Vercel** blocked (check de PR; não impediu merge/deploy GitHub+Render)
+- Smoke B autenticado (submit → KOCC inbox) — precisa sessão com `finance.manage` / `admin.panel`
+- CSP/HSTS completos — validar no edge Render/Cloudflare além do nosniff
+- GOV-BF · 0043 · 0044 · 0045 · tickets: **não aplicados**
 
-Founder (Opção A): https://github.com/apps/cursor em **EduardoZ121/Site_Angola**
-— Contents + Pull requests = Read and write; ligar repo ao ambiente Cursor.
-
-## Isolado
-GOV-BF · 0043 · 0044 · 0045 · tickets · Vicente · Opção B/C
-
-## Após desbloqueio
-`PUBLISH-WHEN-WRITE-OPENS.sh` → PR → smoke A → B Inbox/KOCC → auditoria
+## Segurança
+- PAT foi usado só em memória/remoto; **não** commitado
+- **Revogar/rodar o token no GitHub agora** (foi partilhado em chat)

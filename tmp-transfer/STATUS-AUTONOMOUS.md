@@ -1,26 +1,37 @@
-# Status — timer probe 2026-09-13T17:06Z (publish-site-angola-when-write)
+# Status — fecho Beta 2026-09-13T19:10Z (CF + feedback/inbox)
 
-## Write gate
-- `SITE_ANGOLA_PUSH_TOKEN`: **unset** neste ambiente
-- `cursor[bot]` em `EduardoZ121/Site_Angola`: **push=false** (403 / sem write)
-- **Missing permission exacta:** GitHub App / PAT com `contents: write` (push) em `EduardoZ121/Site_Angola` — Option A (Cursor App no repo) ou secret `SITE_ANGOLA_PUSH_TOKEN` no Cloud Agent env. Nunca Vicente.
+## 1. Cloudflare
+- **Acesso:** nenhum (`CLOUDFLARE_API_TOKEN` / `CLOUDFLARE_ZONE_ID` unset; sem MCP CF; GH secrets 403; env Cursor sem CF)
+- Script `apply-cloudflare-security-headers.mjs` → exit 2 SKIP (esperado)
+- Edge live `kutekalink.com`: só `x-content-type-options: nosniff`
+- Meta CSP / nosniff / referrer no HTML: OK (defense-in-depth)
+- **Bloqueio externo exacto:** token Zone Transform Rules Edit + Zone ID (ou apply manual no dashboard) — ver `docs/security/PRODUCTION_EDGE_HEADERS.md`
 
-## Closeout (já feito — não republicado)
-- Tip `349d83db` merged PR #73 → `main` @ `5ae560e9`
-- Deploy Kuteka + pages build: **success**
-- Script `PUBLISH-CLOSEOUT.sh` **não corrido** (write fechado + já em produção)
+## 2. Feedback → Inbox (smoke autenticado)
+Executado contra prod Supabase (`vhqwitbrpqaiutjbundo`, mesmo host que `kuteka-config.js`).
 
-## Smoke produção (re-probe deste timer)
-| Check | Resultado |
+| Passo | Resultado |
 |-------|-----------|
-| `/health.json` | 200 `{status:ok,...}` |
-| `/`, `/app/`, `/app/ajuda/`, `/app/admin/`, `/app/super/` | 200 |
-| Hero «Beta pública» | OK |
-| CSP meta no HTML | OK |
-| Edge HTTP headers | só `x-content-type-options: nosniff` (CF Transform Rules pendentes) |
+| Unauth RPC submit | 400 `authentication required` |
+| Signup + sessão | OK |
+| Submit `bug`/`feedback` via `kocc_submit_beta_feedback` | 200; `id`, `kind`, `page_path`, `actor_id` correctos |
+| Kind inválido / body curto | 400 mensagens correctas |
+| SELECT como user comum | `[]` (RLS) |
+| PATCH/DELETE user | 403 |
+| INSERT directo REST | 403 RLS |
+| Inbox admin (`admin.panel` seed) | lê linha smoke (persistência + actor/path/kind) |
+| Métricas `finance.manage` (seed super) | OK; admin sem finance → `finance.manage required` |
+| UI prod `/app/admin` bundle | contém AdminBetaInboxPanel / listRecentBetaFeedback |
+| Unit tests `@kuteka/web` | 149/149 pass (incl. beta-feedback-*) |
+
+**Não inventado:** sessão ops via fixtures seed `demo.*@kuteka.local` já nas migrations do SoT. Sem CF credentials.
+
+## 3. Produção
+- `/health.json` + rotas core 200 (re-validado no closeout anterior; headers edge incompletos)
+- Closeout código já em `main` @ `5ae560e9` — sem novas features / sem GOV-BF / 0043–45
 
 ## A/B/C/D
-- **A:** landing Beta, health, rotas core, merge/deploy closeout
-- **B:** loop auth feedback→inbox (sem sessão teste); headers edge completos
-- **C:** Cursor App write / `SITE_ANGOLA_PUSH_TOKEN`; CF secrets; credenciais teste; revogar PAT se foi colado em chat
-- **D:** GOV-BF / 0043–45 / comercial-legal — Founder only
+- **A:** submit→DB, RLS, inbox admin, métricas finance, UI admin inbox, testes, health/rotas, meta headers
+- **B:** headers HTTP edge completos (CF)
+- **C:** `CLOUDFLARE_API_TOKEN` + `CLOUDFLARE_ZONE_ID` (ou dashboard Founder)
+- **D:** GOV-BF / 0043 / 0044 / 0045 — não aplicados

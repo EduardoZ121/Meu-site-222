@@ -1,0 +1,726 @@
+From bf98a7003c847dcd945b17825792ed325738929d Mon Sep 17 00:00:00 2001
+From: Cursor Agent <cursoragent@cursor.com>
+Date: Sun, 6 Sep 2026 01:10:59 +0000
+Subject: [PATCH] feat(web): sprint a p0 beta messaging, inventory clarity and
+ hardening
+
+Add public beta notice and authenticated welcome, documentation feedback
+CTA, unpublished inventory labels, security headers, and refresh prebuilt.
+---
+ apps/web/lib/security-headers.test.ts         | 26 ++++++++++++
+ apps/web/lib/security-headers.ts              | 40 +++++++++++++++++++
+ apps/web/middleware.ts                        | 11 ++++-
+ .../components/AppHomeClient.tsx              | 13 ++++++
+ apps/web/modules/authentication/content/en.ts |  6 ++-
+ apps/web/modules/authentication/content/es.ts |  6 ++-
+ apps/web/modules/authentication/content/fr.ts |  7 +++-
+ apps/web/modules/authentication/content/pt.ts |  6 ++-
+ .../landing/components/LandingHero.tsx        |  2 +-
+ .../landing/components/LandingTopbar.tsx      | 37 +++++++++++++++++
+ apps/web/modules/landing/content/en.ts        | 11 ++++-
+ apps/web/modules/landing/content/es.ts        | 11 ++++-
+ apps/web/modules/landing/content/fr.ts        | 11 ++++-
+ apps/web/modules/landing/content/pt.ts        | 18 ++++++++-
+ apps/web/modules/patrimonios/content/en.ts    |  6 +--
+ apps/web/modules/patrimonios/content/es.ts    |  6 +--
+ apps/web/modules/patrimonios/content/fr.ts    |  6 +--
+ apps/web/modules/patrimonios/content/pt.ts    |  9 +++--
+ .../shell/components/HelpCenterClient.tsx     | 19 ++++++++-
+ apps/web/modules/shell/content/en.ts          |  4 ++
+ apps/web/modules/shell/content/es.ts          |  4 ++
+ apps/web/modules/shell/content/fr.ts          |  4 ++
+ apps/web/modules/shell/content/pt.ts          |  4 ++
+ apps/web/next.config.ts                       |  9 +++++
+ render.yaml                                   | 18 +++++++++
+ 25 files changed, 265 insertions(+), 29 deletions(-)
+ create mode 100644 apps/web/lib/security-headers.test.ts
+ create mode 100644 apps/web/lib/security-headers.ts
+
+diff --git a/apps/web/lib/security-headers.test.ts b/apps/web/lib/security-headers.test.ts
+new file mode 100644
+index 00000000..f49fc03a
+--- /dev/null
++++ b/apps/web/lib/security-headers.test.ts
+@@ -0,0 +1,26 @@
++import { describe, expect, it } from 'vitest';
++import { SECURITY_HEADERS, applySecurityHeaders } from './security-headers';
++
++describe('security headers (P0 baseline)', () => {
++  it('includes the mandatory browser hardening headers', () => {
++    const keys = SECURITY_HEADERS.map((h) => h.key);
++    expect(keys).toEqual(
++      expect.arrayContaining([
++        'X-Content-Type-Options',
++        'X-Frame-Options',
++        'Referrer-Policy',
++        'Permissions-Policy',
++        'Strict-Transport-Security',
++        'Content-Security-Policy',
++      ]),
++    );
++  });
++
++  it('applies headers onto a Headers object', () => {
++    const headers = new Headers();
++    applySecurityHeaders(headers);
++    expect(headers.get('X-Frame-Options')).toBe('DENY');
++    expect(headers.get('X-Content-Type-Options')).toBe('nosniff');
++    expect(headers.get('Content-Security-Policy')).toContain("frame-ancestors 'none'");
++  });
++});
+diff --git a/apps/web/lib/security-headers.ts b/apps/web/lib/security-headers.ts
+new file mode 100644
+index 00000000..be236964
+--- /dev/null
++++ b/apps/web/lib/security-headers.ts
+@@ -0,0 +1,40 @@
++/**
++ * Baseline security headers (P0 — trust / platform hardening).
++ * Applied via middleware (dynamic), next.config headers, and Render static headers.
++ */
++export const SECURITY_HEADERS: ReadonlyArray<{ key: string; value: string }> = [
++  { key: 'X-Content-Type-Options', value: 'nosniff' },
++  { key: 'X-Frame-Options', value: 'DENY' },
++  { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
++  {
++    key: 'Permissions-Policy',
++    value: 'camera=(), microphone=(), geolocation=(), payment=(), usb=()',
++  },
++  {
++    key: 'Strict-Transport-Security',
++    value: 'max-age=63072000; includeSubDomains; preload',
++  },
++  // Conservative CSP: allow self + inline Next/runtime needs. Tighten later with nonces if SSR returns.
++  {
++    key: 'Content-Security-Policy',
++    value: [
++      "default-src 'self'",
++      "base-uri 'self'",
++      "form-action 'self'",
++      "frame-ancestors 'none'",
++      "object-src 'none'",
++      "img-src 'self' data: blob: https:",
++      "font-src 'self' data:",
++      "style-src 'self' 'unsafe-inline'",
++      "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
++      "connect-src 'self' https: wss:",
++      'upgrade-insecure-requests',
++    ].join('; '),
++  },
++];
++
++export function applySecurityHeaders(headers: Headers): void {
++  for (const { key, value } of SECURITY_HEADERS) {
++    headers.set(key, value);
++  }
++}
+diff --git a/apps/web/middleware.ts b/apps/web/middleware.ts
+index 89de992c..b4905ab9 100644
+--- a/apps/web/middleware.ts
++++ b/apps/web/middleware.ts
+@@ -1,8 +1,9 @@
+ import { NextResponse, type NextRequest } from 'next/server';
+ import { createServerClient } from '@kuteka/database';
++import { applySecurityHeaders } from '@/lib/security-headers';
+ 
+ /**
+- * Correlation id + optional Supabase session refresh + light /app guards.
++ * Correlation id + security headers + optional Supabase session refresh + light /app guards.
+  */
+ export async function middleware(request: NextRequest) {
+   let response = NextResponse.next({
+@@ -11,13 +12,17 @@ export async function middleware(request: NextRequest) {
+ 
+   const correlationId = request.headers.get('x-correlation-id') ?? crypto.randomUUID();
+   response.headers.set('x-correlation-id', correlationId);
++  applySecurityHeaders(response.headers);
+ 
+   if (
+     request.nextUrl.pathname.startsWith('/dev') &&
+     process.env.NODE_ENV === 'production' &&
+     process.env.NEXT_PUBLIC_ENABLE_DEV_TOOLS !== 'true'
+   ) {
+-    return NextResponse.redirect(new URL('/', request.url));
++    const redirect = NextResponse.redirect(new URL('/', request.url));
++    redirect.headers.set('x-correlation-id', correlationId);
++    applySecurityHeaders(redirect.headers);
++    return redirect;
+   }
+ 
+   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+@@ -44,6 +49,7 @@ export async function middleware(request: NextRequest) {
+             request: { headers: request.headers },
+           });
+           response.headers.set('x-correlation-id', correlationId);
++          applySecurityHeaders(response.headers);
+           for (const { name, value, options } of cookiesToSet) {
+             response.cookies.set(name, value, options);
+           }
+@@ -60,6 +66,7 @@ export async function middleware(request: NextRequest) {
+       login.searchParams.set('next', `${path}${request.nextUrl.search}`);
+       const redirect = NextResponse.redirect(login);
+       redirect.headers.set('x-correlation-id', correlationId);
++      applySecurityHeaders(redirect.headers);
+       return redirect;
+     }
+   }
+diff --git a/apps/web/modules/authentication/components/AppHomeClient.tsx b/apps/web/modules/authentication/components/AppHomeClient.tsx
+index 73046f20..31584aca 100644
+--- a/apps/web/modules/authentication/components/AppHomeClient.tsx
++++ b/apps/web/modules/authentication/components/AppHomeClient.tsx
+@@ -109,6 +109,19 @@ export function AppHomeClient() {
+         </div>
+       </header>
+ 
++      <aside className="kuteka-detail-panel flex flex-col gap-2 border border-brand-200/70 bg-brand-50/50 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
++        <div>
++          <p className="text-sm font-semibold text-slate-900">{copy.app.betaWelcomeTitle}</p>
++          <p className="text-sm text-stone-700">{copy.app.betaWelcomeBody}</p>
++        </div>
++        <Link
++          href="/app/ajuda"
++          className={cn(buttonVariants({ variant: 'secondary', size: 'sm' }), 'w-fit shrink-0')}
++        >
++          {copy.app.betaWelcomeCta}
++        </Link>
++      </aside>
++
+       <RoleMissionPanel mode={mode} />
+ 
+       <RoleHomeDashboard session={session} />
+diff --git a/apps/web/modules/authentication/content/en.ts b/apps/web/modules/authentication/content/en.ts
+index c0e2c838..583f4d98 100644
+--- a/apps/web/modules/authentication/content/en.ts
++++ b/apps/web/modules/authentication/content/en.ts
+@@ -34,7 +34,7 @@ export const authCopyEn: AuthCopy = {
+   },
+   register: {
+     title: 'Create account',
+-    subtitle: 'Start in minutes. One account, your roles, your Kuteka space.',
++    subtitle: 'Public Beta: start in minutes. One account, your roles, your Kuteka space.',
+     email: {
+       label: 'Email',
+       hint: 'We use email to protect and recover your account.',
+@@ -192,6 +192,10 @@ export const authCopyEn: AuthCopy = {
+     title: 'Kuteka dashboard',
+     welcome: 'Welcome',
+     welcomeAnonymous: 'Welcome to the platform',
++    betaWelcomeTitle: 'Welcome to the public Beta',
++    betaWelcomeBody:
++      'Explore, report issues, and help improve Kuteka. Authenticated feedback reaches the Beta Panel (KOCC).',
++    betaWelcomeCta: 'Send feedback',
+     emailLabel: 'Email',
+     userFallback: 'Kuteka user',
+     active: 'Active account',
+diff --git a/apps/web/modules/authentication/content/es.ts b/apps/web/modules/authentication/content/es.ts
+index 0d3a4190..8d81d2d8 100644
+--- a/apps/web/modules/authentication/content/es.ts
++++ b/apps/web/modules/authentication/content/es.ts
+@@ -35,7 +35,7 @@ export const authCopyEs: AuthCopy = {
+   },
+   register: {
+     title: 'Crear cuenta',
+-    subtitle: 'Empiece en minutos. Una cuenta, sus roles, su espacio Kuteka.',
++    subtitle: 'Beta pública: empiece en minutos. Una cuenta, sus roles, su espacio Kuteka.',
+     email: {
+       label: 'Email',
+       hint: 'Usamos el email para proteger y recuperar la cuenta.',
+@@ -194,6 +194,10 @@ export const authCopyEs: AuthCopy = {
+     title: 'Panel Kuteka',
+     welcome: 'Bienvenido',
+     welcomeAnonymous: 'Bienvenido a la plataforma',
++    betaWelcomeTitle: 'Bienvenido a la Beta pública',
++    betaWelcomeBody:
++      'Explore, reporte problemas y ayude a mejorar Kuteka. El feedback autenticado llega al Panel Beta (KOCC).',
++    betaWelcomeCta: 'Enviar feedback',
+     emailLabel: 'Email',
+     userFallback: 'Usuario Kuteka',
+     active: 'Cuenta activa',
+diff --git a/apps/web/modules/authentication/content/fr.ts b/apps/web/modules/authentication/content/fr.ts
+index 1b06f90c..fa4b440a 100644
+--- a/apps/web/modules/authentication/content/fr.ts
++++ b/apps/web/modules/authentication/content/fr.ts
+@@ -35,7 +35,8 @@ export const authCopyFr: AuthCopy = {
+   },
+   register: {
+     title: 'Créer un compte',
+-    subtitle: 'Commencez en quelques minutes. Un compte, vos rôles, votre espace Kuteka.',
++    subtitle:
++      'Bêta publique : commencez en quelques minutes. Un compte, vos rôles, votre espace Kuteka.',
+     email: {
+       label: 'E-mail',
+       hint: 'Nous utilisons l’e-mail pour protéger et récupérer le compte.',
+@@ -194,6 +195,10 @@ export const authCopyFr: AuthCopy = {
+     title: 'Tableau de bord Kuteka',
+     welcome: 'Bienvenue',
+     welcomeAnonymous: 'Bienvenue sur la plateforme',
++    betaWelcomeTitle: 'Bienvenue sur la Bêta publique',
++    betaWelcomeBody:
++      'Explorez, signalez des problèmes et aidez à améliorer Kuteka. Les retours authentifiés arrivent au Panneau Bêta (KOCC).',
++    betaWelcomeCta: 'Envoyer un retour',
+     emailLabel: 'E-mail',
+     userFallback: 'Utilisateur Kuteka',
+     active: 'Compte actif',
+diff --git a/apps/web/modules/authentication/content/pt.ts b/apps/web/modules/authentication/content/pt.ts
+index fc5cf091..333ffc4c 100644
+--- a/apps/web/modules/authentication/content/pt.ts
++++ b/apps/web/modules/authentication/content/pt.ts
+@@ -35,7 +35,7 @@ export const authCopyPt = {
+   },
+   register: {
+     title: 'Criar conta',
+-    subtitle: 'Comece em minutos. Uma conta, os seus papéis, o seu espaço Kuteka.',
++    subtitle: 'Beta pública: comece em minutos. Uma conta, os seus papéis, o seu espaço Kuteka.',
+     email: {
+       label: 'Email',
+       hint: 'Usamos o email para proteger e recuperar a conta.',
+@@ -173,6 +173,10 @@ export const authCopyPt = {
+     title: 'Painel Kuteka',
+     welcome: 'Bem-vindo',
+     welcomeAnonymous: 'Bem-vindo à plataforma',
++    betaWelcomeTitle: 'Bem-vindo à Beta pública',
++    betaWelcomeBody:
++      'Explore, reporte problemas e ajude a melhorar a Kuteka. O feedback autenticado chega ao Painel Beta (KOCC).',
++    betaWelcomeCta: 'Enviar feedback',
+     emailLabel: 'Email',
+     userFallback: 'Utilizador Kuteka',
+     active: 'Conta activa',
+diff --git a/apps/web/modules/landing/components/LandingHero.tsx b/apps/web/modules/landing/components/LandingHero.tsx
+index d353c8a2..7e61ae84 100644
+--- a/apps/web/modules/landing/components/LandingHero.tsx
++++ b/apps/web/modules/landing/components/LandingHero.tsx
+@@ -13,7 +13,7 @@ export function LandingHero() {
+   return (
+     <section
+       aria-labelledby="landing-hero-title"
+-      className="relative flex min-h-[100svh] items-end overflow-hidden pb-16 pt-28 sm:items-center sm:pb-24 sm:pt-32"
++      className="relative flex min-h-[100svh] items-end overflow-hidden pb-16 pt-36 sm:items-center sm:pb-24 sm:pt-40"
+     >
+       <Image
+         src="/images/hero.jpg"
+diff --git a/apps/web/modules/landing/components/LandingTopbar.tsx b/apps/web/modules/landing/components/LandingTopbar.tsx
+index 5eae0daa..1ea46703 100644
+--- a/apps/web/modules/landing/components/LandingTopbar.tsx
++++ b/apps/web/modules/landing/components/LandingTopbar.tsx
+@@ -11,6 +11,7 @@ import { getLandingCopy } from '../content';
+ /**
+  * Topbar: transparent over hero → glass on scroll.
+  * Past the hero, switches to a light glass so it stays discreet on white sections (PASSO 1 §A).
++ * Includes a slim public Beta notice row (Sprint A P0) — not a hero overlay.
+  */
+ export function LandingTopbar() {
+   const { locale } = useLocale();
+@@ -68,6 +69,42 @@ export function LandingTopbar() {
+           </Link>
+         </nav>
+       </div>
++
++      {c.betaNotice ? (
++        <div
++          role="status"
++          className={cn(
++            'border-t',
++            light
++              ? 'border-slate-200/80 bg-slate-50/90 text-slate-800'
++              : 'border-white/10 bg-slate-950/55 text-slate-100',
++          )}
++        >
++          <div className="mx-auto flex max-w-6xl flex-col gap-1.5 px-4 py-2 sm:flex-row sm:items-center sm:justify-between sm:gap-4 sm:px-6">
++            <p className="text-xs leading-snug sm:text-sm">
++              <span className="font-semibold">{c.betaNotice.label}</span>
++              <span className="mx-1.5 opacity-60" aria-hidden>
++                ·
++              </span>
++              {c.betaNotice.text}
++            </p>
++            <div className="flex flex-wrap items-center gap-3 text-xs sm:text-sm">
++              <Link
++                href={c.routes.start}
++                className="font-medium underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
++              >
++                {c.betaNotice.primaryCta}
++              </Link>
++              <Link
++                href={c.betaNotice.docsHref}
++                className="opacity-90 underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
++              >
++                {c.betaNotice.secondaryCta}
++              </Link>
++            </div>
++          </div>
++        </div>
++      ) : null}
+     </header>
+   );
+ }
+diff --git a/apps/web/modules/landing/content/en.ts b/apps/web/modules/landing/content/en.ts
+index 0e03c165..2ee5f5f6 100644
+--- a/apps/web/modules/landing/content/en.ts
++++ b/apps/web/modules/landing/content/en.ts
+@@ -12,10 +12,10 @@ export const landingCopyEn: LandingCopy = {
+     start: 'Get started',
+   },
+   hero: {
+-    eyebrow: 'Kuteka · Angola',
++    eyebrow: 'Kuteka · Public Beta · Angola',
+     title: 'Property. Trust. Housing.',
+     subtitle:
+-      'The platform that protects, grows and tracks your real estate assets — with transparency and professionalism.',
++      'The platform that protects, grows and tracks your real estate assets — with transparency and professionalism. This public Beta is learning with you.',
+     primaryCta: 'Get started',
+     secondaryCta: 'Explore',
+     imageAlt:
+@@ -85,5 +85,12 @@ export const landingCopyEn: LandingCopy = {
+     enter: '/auth/entrar',
+     exploreHash: '#diferenca',
+   },
++  betaNotice: {
++    label: 'Public Beta',
++    text: 'Create an account in minutes, explore safely, and tell us what to improve.',
++    primaryCta: 'Create account',
++    secondaryCta: 'Docs and feedback',
++    docsHref: '/documentacao',
++  },
+   skipToContent: 'Skip to content',
+ };
+diff --git a/apps/web/modules/landing/content/es.ts b/apps/web/modules/landing/content/es.ts
+index 3c78b8ea..2509e8da 100644
+--- a/apps/web/modules/landing/content/es.ts
++++ b/apps/web/modules/landing/content/es.ts
+@@ -12,10 +12,10 @@ export const landingCopyEs: LandingCopy = {
+     start: 'Empezar',
+   },
+   hero: {
+-    eyebrow: 'Kuteka · Angola',
++    eyebrow: 'Kuteka · Beta pública · Angola',
+     title: 'Patrimonio. Confianza. Vivienda.',
+     subtitle:
+-      'La plataforma que protege, valoriza y sigue su patrimonio inmobiliario — con transparencia y profesionalismo.',
++      'La plataforma que protege, valoriza y sigue su patrimonio inmobiliario — con transparencia y profesionalismo. Esta Beta pública está aprendiendo con usted.',
+     primaryCta: 'Empezar',
+     secondaryCta: 'Explorar',
+     imageAlt: 'Ambiente residencial contemporáneo — una atmósfera de patrimonio y vivienda digna',
+@@ -84,5 +84,12 @@ export const landingCopyEs: LandingCopy = {
+     enter: '/auth/entrar',
+     exploreHash: '#diferenca',
+   },
++  betaNotice: {
++    label: 'Beta pública',
++    text: 'Regístrese en minutos, explore con seguridad y díganos qué mejorar.',
++    primaryCta: 'Crear cuenta',
++    secondaryCta: 'Documentación y feedback',
++    docsHref: '/documentacao',
++  },
+   skipToContent: 'Ir al contenido',
+ };
+diff --git a/apps/web/modules/landing/content/fr.ts b/apps/web/modules/landing/content/fr.ts
+index 1f3b53e8..e084a109 100644
+--- a/apps/web/modules/landing/content/fr.ts
++++ b/apps/web/modules/landing/content/fr.ts
+@@ -12,10 +12,10 @@ export const landingCopyFr: LandingCopy = {
+     start: 'Commencer',
+   },
+   hero: {
+-    eyebrow: 'Kuteka · Angola',
++    eyebrow: 'Kuteka · Bêta publique · Angola',
+     title: 'Patrimoine. Confiance. Logement.',
+     subtitle:
+-      'La plateforme qui protège, valorise et suit votre patrimoine immobilier — avec transparence et professionnalisme.',
++      'La plateforme qui protège, valorise et suit votre patrimoine immobilier — avec transparence et professionnalisme. Cette Bêta publique apprend avec vous.',
+     primaryCta: 'Commencer',
+     secondaryCta: 'Explorer',
+     imageAlt:
+@@ -86,5 +86,12 @@ export const landingCopyFr: LandingCopy = {
+     enter: '/auth/entrar',
+     exploreHash: '#diferenca',
+   },
++  betaNotice: {
++    label: 'Bêta publique',
++    text: 'Créez un compte en quelques minutes, explorez en toute sécurité et dites-nous quoi améliorer.',
++    primaryCta: 'Créer un compte',
++    secondaryCta: 'Documentation et retours',
++    docsHref: '/documentacao',
++  },
+   skipToContent: 'Aller au contenu',
+ };
+diff --git a/apps/web/modules/landing/content/pt.ts b/apps/web/modules/landing/content/pt.ts
+index e4b87835..69ed01eb 100644
+--- a/apps/web/modules/landing/content/pt.ts
++++ b/apps/web/modules/landing/content/pt.ts
+@@ -52,6 +52,13 @@ export type LandingCopy = {
+     enter: string;
+     exploreHash: string;
+   };
++  betaNotice: {
++    label: string;
++    text: string;
++    primaryCta: string;
++    secondaryCta: string;
++    docsHref: string;
++  };
+   skipToContent: string;
+ };
+ 
+@@ -71,10 +78,10 @@ export const landingCopyPt: LandingCopy = {
+     start: 'Começar',
+   },
+   hero: {
+-    eyebrow: 'Kuteka · Angola',
++    eyebrow: 'Kuteka · Beta pública · Angola',
+     title: 'Património. Confiança. Habitação.',
+     subtitle:
+-      'A plataforma que protege, valoriza e acompanha o seu património imobiliário — com transparência e profissionalismo.',
++      'A plataforma que protege, valoriza e acompanha o seu património imobiliário — com transparência e profissionalismo. Esta Beta pública está a aprender consigo.',
+     primaryCta: 'Começar',
+     secondaryCta: 'Explorar',
+     imageAlt: 'Ambiente residencial contemporâneo — atmosfera de património e habitação digna',
+@@ -143,5 +150,12 @@ export const landingCopyPt: LandingCopy = {
+     enter: '/auth/entrar',
+     exploreHash: '#diferenca',
+   },
++  betaNotice: {
++    label: 'Beta pública',
++    text: 'Registe-se em minutos, explore com segurança e diga-nos o que melhorar.',
++    primaryCta: 'Criar conta',
++    secondaryCta: 'Documentação e feedback',
++    docsHref: '/documentacao',
++  },
+   skipToContent: 'Ir para o conteúdo',
+ };
+diff --git a/apps/web/modules/patrimonios/content/en.ts b/apps/web/modules/patrimonios/content/en.ts
+index adaa8042..b512260c 100644
+--- a/apps/web/modules/patrimonios/content/en.ts
++++ b/apps/web/modules/patrimonios/content/en.ts
+@@ -152,13 +152,13 @@ export const patrimoniosCopyEn: PatrimoniosCopy = {
+     both: 'Sale and rent',
+   },
+   statuses: {
+-    draft: 'Under review / draft',
+-    active: 'Active (published)',
++    draft: 'Inventory (unpublished)',
++    active: 'On market (published)',
+     archived: 'Archived',
+   },
+   listHeading: 'Your properties',
+   listHint:
+-    'Listings and properties under management — the Client finds published ones under Housing.',
++    'Kuteka inventory ≠ public market. Only «On market» properties appear in Housing; others stay private until approval.',
+   mvpNote:
+     'After the commercial purpose, indicate the Kuteka services and the management level. Management/evaluation services require a technical assessment before full publication.',
+   detailNote:
+diff --git a/apps/web/modules/patrimonios/content/es.ts b/apps/web/modules/patrimonios/content/es.ts
+index adfb5df2..b9231586 100644
+--- a/apps/web/modules/patrimonios/content/es.ts
++++ b/apps/web/modules/patrimonios/content/es.ts
+@@ -153,13 +153,13 @@ export const patrimoniosCopyEs: PatrimoniosCopy = {
+     both: 'Venta y alquiler',
+   },
+   statuses: {
+-    draft: 'En evaluación / borrador',
+-    active: 'Activo (publicado)',
++    draft: 'Inventario (no publicado)',
++    active: 'En el mercado (publicado)',
+     archived: 'Archivado',
+   },
+   listHeading: 'Sus patrimonios',
+   listHint:
+-    'Anuncios y patrimonios bajo gestión — el Cliente encuentra los publicados en Vivienda.',
++    'Inventario Kuteka ≠ mercado público. Solo los patrimonios «En el mercado» aparecen en Vivienda; el resto permanece en el inventario privado hasta aprobación.',
+   mvpNote:
+     'Después de la finalidad comercial, indique los servicios de Kuteka y el nivel de gestión. Los servicios de gestión/evaluación requieren una evaluación técnica antes de la publicación completa.',
+   detailNote:
+diff --git a/apps/web/modules/patrimonios/content/fr.ts b/apps/web/modules/patrimonios/content/fr.ts
+index d1286f33..0659df57 100644
+--- a/apps/web/modules/patrimonios/content/fr.ts
++++ b/apps/web/modules/patrimonios/content/fr.ts
+@@ -156,13 +156,13 @@ export const patrimoniosCopyFr: PatrimoniosCopy = {
+     both: 'Vente et location',
+   },
+   statuses: {
+-    draft: 'En évaluation / brouillon',
+-    active: 'Actif (publié)',
++    draft: 'Inventaire (non publié)',
++    active: 'Sur le marché (publié)',
+     archived: 'Archivé',
+   },
+   listHeading: 'Vos patrimoines',
+   listHint:
+-    'Annonces et patrimoines sous gestion — le Client trouve les biens publiés dans Habitat.',
++    'Inventaire Kuteka ≠ marché public. Seuls les biens « Sur le marché » apparaissent dans Logement ; le reste reste dans l’inventaire privé jusqu’à approbation.',
+   mvpNote:
+     'Après la vocation commerciale, indiquez les services Kuteka et le niveau de gestion. Les services de gestion/évaluation nécessitent une évaluation technique avant la publication complète.',
+   detailNote:
+diff --git a/apps/web/modules/patrimonios/content/pt.ts b/apps/web/modules/patrimonios/content/pt.ts
+index c34296eb..7179dc8b 100644
+--- a/apps/web/modules/patrimonios/content/pt.ts
++++ b/apps/web/modules/patrimonios/content/pt.ts
+@@ -10,7 +10,7 @@ export const patrimoniosCopyPt = {
+   activating: 'A activar…',
+   activated: 'Património activado.',
+   submittedForReview:
+-    'Património submetido. Está Em análise pela Administração e só será publicado após aprovação.',
++    'Património no inventário Kuteka (não publicado). Em análise pela Administração — só entra no mercado após aprovação.',
+   backToList: 'Voltar aos patrimónios',
+   needPartner: 'Para activar património precisa do papel Parceiro Patrimonial na sua conta.',
+   activateRole: 'Activar papel Parceiro',
+@@ -151,12 +151,13 @@ export const patrimoniosCopyPt = {
+     both: 'Venda e arrendamento',
+   },
+   statuses: {
+-    draft: 'Em avaliação / rascunho',
+-    active: 'Activo (publicado)',
++    draft: 'Inventário (não publicado)',
++    active: 'No mercado (publicado)',
+     archived: 'Arquivado',
+   },
+   listHeading: 'Os seus patrimónios',
+-  listHint: 'Anúncios e patrimónios sob gestão — o Cliente encontra os publicados em Habitação.',
++  listHint:
++    'Inventário Kuteka ≠ mercado público. Só patrimónios «No mercado» aparecem em Habitação; o resto fica no inventário privado até aprovação.',
+   mvpNote:
+     'Após a finalidade comercial, indique os serviços Kuteka e o nível de gestão. Serviços de gestão/avaliação exigem avaliação técnica antes da publicação plena.',
+   detailNote:
+diff --git a/apps/web/modules/shell/components/HelpCenterClient.tsx b/apps/web/modules/shell/components/HelpCenterClient.tsx
+index 89eaee3d..f429a0e1 100644
+--- a/apps/web/modules/shell/components/HelpCenterClient.tsx
++++ b/apps/web/modules/shell/components/HelpCenterClient.tsx
+@@ -290,7 +290,24 @@ function HelpCenterInner({ docs, basePath = '/app/ajuda', publicMode = false }:
+             </Link>
+           </section>
+         </>
+-      ) : null}
++      ) : (
++        <section className="kuteka-detail-panel flex flex-col gap-3 p-5" id="feedback-beta">
++          <h2 className="kuteka-detail-title">{shell.betaFeedback.publicCtaTitle}</h2>
++          <p className="kuteka-detail-body">{shell.betaFeedback.publicCtaBody}</p>
++          <Link
++            href="/auth/entrar?next=%2Fapp%2Fajuda"
++            className={cn(buttonVariants({ variant: 'primary', size: 'sm' }), 'w-fit')}
++          >
++            {shell.betaFeedback.publicCtaButton}
++          </Link>
++          <Link
++            href="/contacto"
++            className={cn(buttonVariants({ variant: 'secondary', size: 'sm' }), 'w-fit')}
++          >
++            {h.contactCta}
++          </Link>
++        </section>
++      )}
+     </div>
+   );
+ }
+diff --git a/apps/web/modules/shell/content/en.ts b/apps/web/modules/shell/content/en.ts
+index c00371d0..fb45e983 100644
+--- a/apps/web/modules/shell/content/en.ts
++++ b/apps/web/modules/shell/content/en.ts
+@@ -292,6 +292,10 @@ export const shellCopyEn: ShellCopy = {
+     sending: 'Sending…',
+     success: 'Thank you — your contribution was recorded.',
+     error: 'We could not send it. Please try again.',
++    publicCtaTitle: 'Beta feedback',
++    publicCtaBody:
++      'To report a bug or send a suggestion, sign in. Your contribution is recorded in the Beta Panel.',
++    publicCtaButton: 'Sign in and send feedback',
+   },
+   firstActions: {
+     title: 'Your first useful action',
+diff --git a/apps/web/modules/shell/content/es.ts b/apps/web/modules/shell/content/es.ts
+index 4ca82493..21ae78dd 100644
+--- a/apps/web/modules/shell/content/es.ts
++++ b/apps/web/modules/shell/content/es.ts
+@@ -292,6 +292,10 @@ export const shellCopyEs: ShellCopy = {
+     sending: 'Enviando…',
+     success: 'Gracias — su aporte quedó registrado.',
+     error: 'No pudimos enviar. Inténtelo de nuevo.',
++    publicCtaTitle: 'Feedback Beta',
++    publicCtaBody:
++      'Para reportar un error o enviar una sugerencia, inicie sesión. Su aporte queda registrado en el Panel Beta.',
++    publicCtaButton: 'Entrar y enviar feedback',
+   },
+   firstActions: {
+     title: 'Su primera acción útil',
+diff --git a/apps/web/modules/shell/content/fr.ts b/apps/web/modules/shell/content/fr.ts
+index dd8f5faf..2ae74ec9 100644
+--- a/apps/web/modules/shell/content/fr.ts
++++ b/apps/web/modules/shell/content/fr.ts
+@@ -296,6 +296,10 @@ export const shellCopyFr: ShellCopy = {
+     sending: 'Envoi…',
+     success: 'Merci — votre contribution a été enregistrée.',
+     error: 'Envoi impossible. Réessayez.',
++    publicCtaTitle: 'Retour Beta',
++    publicCtaBody:
++      'Pour signaler un bug ou envoyer une suggestion, connectez-vous. Votre contribution est enregistrée dans le Panneau Beta.',
++    publicCtaButton: 'Se connecter et envoyer un retour',
+   },
+   firstActions: {
+     title: 'Votre première action utile',
+diff --git a/apps/web/modules/shell/content/pt.ts b/apps/web/modules/shell/content/pt.ts
+index 64e9c0cc..ac81b3b7 100644
+--- a/apps/web/modules/shell/content/pt.ts
++++ b/apps/web/modules/shell/content/pt.ts
+@@ -292,6 +292,10 @@ export const shellCopyPt = {
+     sending: 'A enviar…',
+     success: 'Obrigado — o seu contributo foi registado.',
+     error: 'Não conseguimos enviar. Tente novamente.',
++    publicCtaTitle: 'Feedback Beta',
++    publicCtaBody:
++      'Para reportar um bug ou enviar uma sugestão, inicie sessão. O contributo fica registado no Painel Beta.',
++    publicCtaButton: 'Entrar e enviar feedback',
+   },
+   firstActions: {
+     title: 'A sua primeira acção útil',
+diff --git a/apps/web/next.config.ts b/apps/web/next.config.ts
+index 5b41bd2b..cf473672 100644
+--- a/apps/web/next.config.ts
++++ b/apps/web/next.config.ts
+@@ -1,4 +1,5 @@
+ import type { NextConfig } from 'next';
++import { SECURITY_HEADERS } from './lib/security-headers';
+ 
+ const isStaticExport = process.env.STATIC_EXPORT === '1';
+ 
+@@ -18,6 +19,14 @@ const nextConfig: NextConfig = {
+     unoptimized: isStaticExport,
+   },
+   poweredByHeader: false,
++  async headers() {
++    return [
++      {
++        source: '/:path*',
++        headers: SECURITY_HEADERS.map(({ key, value }) => ({ key, value })),
++      },
++    ];
++  },
+   ...(isStaticExport
+     ? {
+         output: 'export' as const,
+diff --git a/render.yaml b/render.yaml
+index 0e0a2123..b2cf217b 100644
+--- a/render.yaml
++++ b/render.yaml
+@@ -27,3 +27,21 @@ services:
+       - path: /*
+         name: Cache-Control
+         value: public, max-age=0, must-revalidate
++      - path: /*
++        name: X-Content-Type-Options
++        value: nosniff
++      - path: /*
++        name: X-Frame-Options
++        value: DENY
++      - path: /*
++        name: Referrer-Policy
++        value: strict-origin-when-cross-origin
++      - path: /*
++        name: Permissions-Policy
++        value: camera=(), microphone=(), geolocation=(), payment=(), usb=()
++      - path: /*
++        name: Strict-Transport-Security
++        value: max-age=63072000; includeSubDomains; preload
++      - path: /*
++        name: Content-Security-Policy
++        value: "default-src 'self'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; object-src 'none'; img-src 'self' data: blob: https:; font-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; connect-src 'self' https: wss:; upgrade-insecure-requests"
+-- 
+2.43.0
+

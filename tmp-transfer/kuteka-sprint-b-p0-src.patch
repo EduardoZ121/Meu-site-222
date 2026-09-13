@@ -1,0 +1,923 @@
+From 59d0516befaf3d1a22ecb167310c2d399b5ae189 Mon Sep 17 00:00:00 2001
+From: Cursor Agent <cursoragent@cursor.com>
+Date: Sun, 6 Sep 2026 18:25:02 +0000
+Subject: [PATCH 1/3] fix(web): harden beta feedback submit and inbox triage UX
+
+Add client path/body/kind guards, keep inbox empty-state from masking
+SELECT errors, and add local kind filters. Document full feedback-cycle
+gaps (no status workflow) and prepare path-guard SQL proposal only.
+Refresh static prebuilt after validated export build.
+---
+ .../kocc/components/BetaPanelSection.tsx      | 44 ++++++++++++--
+ .../kocc/lib/beta-feedback-submit.test.ts     | 44 ++++++++++++++
+ .../modules/kocc/lib/beta-feedback-submit.ts  | 38 +++++++++++++
+ apps/web/modules/kocc/services/kocc-client.ts | 17 +++++-
+ docs/engineering/SMOKE_SPRINT_AB.md           | 42 ++++++++++++++
+ .../SPRINT_B_FEEDBACK_CYCLE_FULL.md           | 47 +++++++++++++++
+ .../0044_beta_feedback_submit_path_guard.sql  | 57 +++++++++++++++++++
+ 7 files changed, 283 insertions(+), 6 deletions(-)
+ create mode 100644 apps/web/modules/kocc/lib/beta-feedback-submit.test.ts
+ create mode 100644 apps/web/modules/kocc/lib/beta-feedback-submit.ts
+ create mode 100644 docs/engineering/SMOKE_SPRINT_AB.md
+ create mode 100644 docs/engineering/SPRINT_B_FEEDBACK_CYCLE_FULL.md
+ create mode 100644 docs/engineering/proposals/0044_beta_feedback_submit_path_guard.sql
+
+diff --git a/apps/web/modules/kocc/components/BetaPanelSection.tsx b/apps/web/modules/kocc/components/BetaPanelSection.tsx
+index f7c08dc4..adcf32c6 100644
+--- a/apps/web/modules/kocc/components/BetaPanelSection.tsx
++++ b/apps/web/modules/kocc/components/BetaPanelSection.tsx
+@@ -1,5 +1,6 @@
+ 'use client';
+ 
++import { useMemo, useState } from 'react';
+ import { Badge } from '@kuteka/ui';
+ import { PanelSection } from '@/modules/finance/components/super/shared';
+ import { SoftListSlot } from '@/modules/shell/components/SoftListSlot';
+@@ -11,6 +12,8 @@ import type {
+   KoccFeatureUsage,
+ } from '../services/kocc-client';
+ 
++type InboxFilter = 'all' | 'feedback' | 'bug';
++
+ function MetricCard({ label, value, hint }: { label: string; value: string; hint?: string }) {
+   return (
+     <div className="kuteka-detail-fact p-3">
+@@ -86,9 +89,14 @@ export function BetaPanelSection({
+   inboxLoading = false,
+   inboxError = null,
+ }: BetaPanelSectionProps) {
++  const [inboxFilter, setInboxFilter] = useState<InboxFilter>('all');
+   const merged = mergeUsage(metrics?.featuresMostUsed, metrics?.featureUsageProxy);
+   const most = [...merged].sort((a, b) => b.count - a.count).slice(0, 6);
+   const least = [...merged].sort((a, b) => a.count - b.count).slice(0, 6);
++  const filteredInbox = useMemo(() => {
++    if (inboxFilter === 'all') return inbox;
++    return inbox.filter((row) => row.kind === inboxFilter);
++  }, [inbox, inboxFilter]);
+ 
+   return (
+     <PanelSection
+@@ -178,12 +186,40 @@ export function BetaPanelSection({
+             métricas agregadas. Não substitui reclamações operacionais nem avaliações de contrato.
+           </p>
+           {inboxError ? <p className="mt-2 text-sm text-amber-800">{inboxError}</p> : null}
++          {inbox.length > 0 ? (
++            <div className="mt-2 flex flex-wrap gap-2 text-xs">
++              {(
++                [
++                  ['all', 'Todos'],
++                  ['bug', 'Bugs'],
++                  ['feedback', 'Sugestões'],
++                ] as const
++              ).map(([value, label]) => (
++                <button
++                  key={value}
++                  type="button"
++                  className={
++                    inboxFilter === value
++                      ? 'rounded border border-slate-800 bg-slate-900 px-2 py-1 text-white'
++                      : 'rounded border border-slate-200 bg-white px-2 py-1 text-slate-700'
++                  }
++                  onClick={() => setInboxFilter(value)}
++                >
++                  {label}
++                </button>
++              ))}
++            </div>
++          ) : null}
+           <SoftListSlot pending={inboxLoading && inbox.length === 0}>
+-            {inbox.length === 0 && !inboxLoading ? (
++            {inbox.length === 0 && !inboxLoading && !inboxError ? (
+               <p className="mt-2 text-sm text-slate-500">Ainda sem relatos na inbox.</p>
+-            ) : (
++            ) : null}
++            {inbox.length > 0 && filteredInbox.length === 0 ? (
++              <p className="mt-2 text-sm text-slate-500">Nenhum relato neste filtro.</p>
++            ) : null}
++            {filteredInbox.length > 0 ? (
+               <ul className="mt-2 divide-y divide-slate-100">
+-                {inbox.map((row) => (
++                {filteredInbox.map((row) => (
+                   <li key={row.id} className="flex flex-col gap-1 py-2.5">
+                     <div className="flex flex-wrap items-center gap-2">
+                       <Badge variant={row.kind === 'bug' ? 'default' : 'brand'}>
+@@ -205,7 +241,7 @@ export function BetaPanelSection({
+                   </li>
+                 ))}
+               </ul>
+-            )}
++            ) : null}
+           </SoftListSlot>
+         </div>
+       </div>
+diff --git a/apps/web/modules/kocc/lib/beta-feedback-submit.test.ts b/apps/web/modules/kocc/lib/beta-feedback-submit.test.ts
+new file mode 100644
+index 00000000..68ea7da7
+--- /dev/null
++++ b/apps/web/modules/kocc/lib/beta-feedback-submit.test.ts
+@@ -0,0 +1,44 @@
++import { describe, expect, it } from 'vitest';
++import {
++  isValidBetaFeedbackBody,
++  isValidBetaFeedbackKind,
++  normalizeBetaFeedbackBody,
++  sanitizeBetaPagePath,
++} from './beta-feedback-submit';
++
++describe('sanitizeBetaPagePath', () => {
++  it('returns null for empty', () => {
++    expect(sanitizeBetaPagePath(null)).toBeNull();
++    expect(sanitizeBetaPagePath('')).toBeNull();
++    expect(sanitizeBetaPagePath('   ')).toBeNull();
++  });
++
++  it('strips query and hash', () => {
++    expect(sanitizeBetaPagePath('/app/ajuda?x=1#y')).toBe('/app/ajuda');
++  });
++
++  it('extracts pathname from absolute URL', () => {
++    expect(sanitizeBetaPagePath('https://kuteka.app/app/patrimonios?id=1')).toBe(
++      '/app/patrimonios',
++    );
++  });
++
++  it('truncates long paths', () => {
++    const long = `/${'a'.repeat(600)}`;
++    expect(sanitizeBetaPagePath(long)?.length).toBe(500);
++  });
++});
++
++describe('beta feedback body/kind', () => {
++  it('normalizes and validates body length', () => {
++    expect(normalizeBetaFeedbackBody('  hi  ')).toBe('hi');
++    expect(isValidBetaFeedbackBody('ab')).toBe(false);
++    expect(isValidBetaFeedbackBody('abc')).toBe(true);
++  });
++
++  it('accepts only feedback|bug', () => {
++    expect(isValidBetaFeedbackKind('feedback')).toBe(true);
++    expect(isValidBetaFeedbackKind('bug')).toBe(true);
++    expect(isValidBetaFeedbackKind('ticket')).toBe(false);
++  });
++});
+diff --git a/apps/web/modules/kocc/lib/beta-feedback-submit.ts b/apps/web/modules/kocc/lib/beta-feedback-submit.ts
+new file mode 100644
+index 00000000..165ce0df
+--- /dev/null
++++ b/apps/web/modules/kocc/lib/beta-feedback-submit.ts
+@@ -0,0 +1,38 @@
++/** Client-side guards for beta_feedback submit — mirrors migration 0035 checks. */
++
++const MAX_BODY = 4000;
++const MIN_BODY = 3;
++const MAX_PAGE_PATH = 500;
++
++export function sanitizeBetaPagePath(path: string | null | undefined): string | null {
++  if (path == null) return null;
++  const trimmed = path.trim();
++  if (!trimmed) return null;
++  // Prefer path-only; strip origin if a full URL was passed.
++  let value = trimmed;
++  try {
++    if (/^https?:\/\//i.test(trimmed)) {
++      value = new URL(trimmed).pathname || '/';
++    }
++  } catch {
++    value = trimmed.split('?')[0] ?? trimmed;
++  }
++  value = value.split('?')[0]?.split('#')[0] ?? value;
++  if (value.length > MAX_PAGE_PATH) {
++    value = value.slice(0, MAX_PAGE_PATH);
++  }
++  return value || null;
++}
++
++export function normalizeBetaFeedbackBody(body: string): string {
++  return body.trim();
++}
++
++export function isValidBetaFeedbackBody(body: string): boolean {
++  const len = normalizeBetaFeedbackBody(body).length;
++  return len >= MIN_BODY && len <= MAX_BODY;
++}
++
++export function isValidBetaFeedbackKind(kind: string): kind is 'feedback' | 'bug' {
++  return kind === 'feedback' || kind === 'bug';
++}
+diff --git a/apps/web/modules/kocc/services/kocc-client.ts b/apps/web/modules/kocc/services/kocc-client.ts
+index 81688e3c..50ccb18d 100644
+--- a/apps/web/modules/kocc/services/kocc-client.ts
++++ b/apps/web/modules/kocc/services/kocc-client.ts
+@@ -3,6 +3,12 @@
+ import { createBrowserClient } from '@/lib/supabase/client';
+ import { resolveUiLocale } from '@/modules/i18n/resolve-locale';
+ import { getFinanceCopy } from '@/modules/finance/content';
++import {
++  isValidBetaFeedbackBody,
++  isValidBetaFeedbackKind,
++  normalizeBetaFeedbackBody,
++  sanitizeBetaPagePath,
++} from '../lib/beta-feedback-submit';
+ import type { KoccOperationalStatus } from '../lib/status-labels';
+ 
+ export type KoccFlagRow = {
+@@ -154,11 +160,18 @@ export async function submitBetaFeedback(input: {
+ }): Promise<Result<{ id: string }>> {
+   const copy = errors();
+   try {
++    if (!isValidBetaFeedbackKind(input.kind)) {
++      return { ok: false, message: copy.saveError };
++    }
++    const body = normalizeBetaFeedbackBody(input.body);
++    if (!isValidBetaFeedbackBody(body)) {
++      return { ok: false, message: copy.saveError };
++    }
+     const client = createBrowserClient();
+     const { data, error } = await client.rpc('kocc_submit_beta_feedback', {
+       p_kind: input.kind,
+-      p_body: input.body,
+-      p_page_path: input.pagePath ?? null,
++      p_body: body,
++      p_page_path: sanitizeBetaPagePath(input.pagePath),
+     });
+     if (error) return { ok: false, message: error.message || copy.saveError };
+     const row = data as { id?: string } | null;
+diff --git a/docs/engineering/SMOKE_SPRINT_AB.md b/docs/engineering/SMOKE_SPRINT_AB.md
+new file mode 100644
+index 00000000..e08b5508
+--- /dev/null
++++ b/docs/engineering/SMOKE_SPRINT_AB.md
+@@ -0,0 +1,42 @@
++# Smoke checklist — Sprint A + B (pós-publish)
++
++Usar após push/PR/merge/deploy em `EduardoZ121/Site_Angola`. Não requer novas features.
++
++## Pré-voo local (já corrido no agente)
++
++- [x] `npm test` — 137 testes
++- [x] `tsc --noEmit`
++- [ ] `npm run build` (export estático) — validar neste ciclo
++- [x] Patches A/B + harden regeneráveis
++
++## Sprint A — produção
++
++1. Landing: aviso Beta visível; copy hero coerente (pt/en/es/fr)
++2. `/documentacao` (ou equivalente): CTA → sign-in → ajuda/feedback
++3. App home autenticado: welcome Beta
++4. Inventário: rascunho ≠ listagem pública (copy)
++5. Headers: `X-Content-Type-Options`, `CSP`, `HSTS` (amostra curl -I)
++
++## Sprint B — ciclo feedback
++
++Pré: conta com `finance.manage` **ou** `admin.panel` para ler inbox; metrics precisam `finance.manage`.
++
++1. `/app/ajuda`: submit sugestão → sucesso
++2. Submit bug → sucesso
++3. KOCC Painel Beta: contadores sobem (se `finance.manage`)
++4. Inbox lista linhas recentes **mesmo se** metrics falharem (só `admin.panel`)
++5. Filtro Todos / Bugs / Sugestões funciona
++6. Erro de SELECT não mostra «Ainda sem relatos»
++7. Reclamação operacional permanece canal separado (sem segundo inbox)
++8. Confirmar que **não** há UI de estados FECHADO (ainda não existe no schema — esperado)
++
++## Governança (não smoke de código)
++
++- [ ] Decisão Founder sobre proposta `0043` (read Founder)
++- [ ] Decisão se P1 terá estados/triagem com UPDATE (hoje UPDATE revogado)
++
++## Sequência de publish (quando write abrir)
++
++1. Branch desde `main` → aplicar patch A → PR → CI → merge conforme política → deploy → smoke A
++2. Branch → aplicar patch B (+ harden) → PR → merge → deploy → smoke B
++3. Continuar itens técnicos autorizados restantes
+diff --git a/docs/engineering/SPRINT_B_FEEDBACK_CYCLE_FULL.md b/docs/engineering/SPRINT_B_FEEDBACK_CYCLE_FULL.md
+new file mode 100644
+index 00000000..7a328e7a
+--- /dev/null
++++ b/docs/engineering/SPRINT_B_FEEDBACK_CYCLE_FULL.md
+@@ -0,0 +1,47 @@
++# Sprint B — ciclo completo (auditoria aprofundada)
++
++**Estado código local:** `400b473e` + harden submit/inbox filter (este ciclo).  
++**Fonte:** `EduardoZ121/Site_Angola` · migrations `0035`, `0042`.
++
++## Mapa do ciclo pedido vs. o que existe
++
++| Etapa            | Pedido conceptual    | Estrutura existente                                              | Estado                                             |
++| ---------------- | -------------------- | ---------------------------------------------------------------- | -------------------------------------------------- |
++| 1. Feedback      | Utilizador submete   | `BetaFeedbackForm` → `kocc_submit_beta_feedback`                 | ✅                                                 |
++| 2. Contexto      | página / origem      | `page_path`; coluna `metadata` existe mas RPC **não a preenche** | 🟡 path só; metadata ociosa                        |
++| 3. Inbox         | lista ops            | `listRecentBetaFeedback` + `BetaPanelSection`                    | ✅ (bug SoftListSlot corrigido; filtro kind local) |
++| 4. KOCC          | painel               | `kocc_beta_metrics` + secção Beta no KOCC/Founder                | ✅ (métricas ≠ inbox)                              |
++| 5. Classificação | bug vs sugestão      | `kind` check (`feedback`\|`bug`) + filtro UI                     | ✅ suficiente P0                                   |
++| 6. Triagem       | atribuir / priorizar | **sem colunas**; UPDATE revogado                                 | 🔴 GOV — não inventar tickets                      |
++| 7. Estado        | NOVO→…→FECHADO       | **não existe**                                                   | 🔴 GOV                                             |
++| 8. Auditoria     | quem mudou o quê     | `kocc_flag_audit` é de **flags**, não de feedback                | 🔴 GOV se quiserem audit de feedback               |
++| 9. Resolução     | fechar com nota      | **não existe**                                                   | 🔴 GOV                                             |
++
++## RLS (resumo)
++
++- INSERT own / RPC definer com `actor_id = auth.uid()`
++- SELECT: `finance.manage` **ou** `admin.panel`
++- UPDATE/DELETE: revogados a `authenticated`
++- `kocc_beta_metrics`: só `finance.manage`
++- Gap Founder vs permissions: **isolado** — proposta `0043` **não aplicada**
++
++## Decisões isoladas (não executar sem Founder)
++
++1. **0043** — Founder read em métricas/inbox via `user_has_founder_or_permission`
++2. **Workflow de estados** em `beta_feedback` (colunas + UPDATE policy + audit) — seria extensão de produto/governação, não bugfix
++3. **Preencher `metadata`** com UA/locale — útil, mas política de retenção/privacidade; proposta path-guard `0044` é só truncate de `page_path`
++
++## Hardening técnico feito / a embalar no patch
++
++- Inbox independente de métricas
++- Empty-state não mascara erro de SELECT
++- Filtro local Todos/Bugs/Sugestões (reutiliza `kind`)
++- Sanitize `page_path` + validação body/kind no cliente
++- Telemetria help + bug vs suggestion
++- Proposta `0044` path guard servidor (comentada)
++
++## Duplicações evitadas
++
++- Uma só Inbox (KOCC), um só form (`BetaFeedbackForm`), um só submit RPC
++- Reclamação operacional = bridge textual para admin/contacto — **não** segundo inbox
++- Feature-tracking alargado / Product Insights → **não** expandido neste período (lista deps apenas)
+diff --git a/docs/engineering/proposals/0044_beta_feedback_submit_path_guard.sql b/docs/engineering/proposals/0044_beta_feedback_submit_path_guard.sql
+new file mode 100644
+index 00000000..3bb81bdd
+--- /dev/null
++++ b/docs/engineering/proposals/0044_beta_feedback_submit_path_guard.sql
+@@ -0,0 +1,57 @@
++-- PROPOSAL ONLY — do not apply without review.
++-- Additive hardening for kocc_submit_beta_feedback (migration 0035).
++--
++-- Scope:
++--   - Truncate page_path server-side (defense in depth; client already sanitizes).
++-- Out of scope:
++--   - Founder RLS (see 0043 — blocked on Founder approval)
++--   - Ticket status / UPDATE policies / resolution workflow
++--   - Writing arbitrary metadata (privacy/retention decision)
++
++/*
++create or replace function public.kocc_submit_beta_feedback(
++  p_kind text,
++  p_body text,
++  p_page_path text default null
++)
++returns public.beta_feedback
++language plpgsql
++security definer
++set search_path = public
++as $$
++declare
++  v_actor uuid := auth.uid();
++  v_row public.beta_feedback;
++  v_path text;
++begin
++  if v_actor is null then
++    raise exception 'authentication required';
++  end if;
++  if p_kind is null or p_kind not in ('feedback', 'bug') then
++    raise exception 'kind must be feedback or bug';
++  end if;
++  if p_body is null or char_length(trim(p_body)) < 3 then
++    raise exception 'body too short';
++  end if;
++  if char_length(trim(p_body)) > 4000 then
++    raise exception 'body too long';
++  end if;
++
++  v_path := nullif(trim(p_page_path), '');
++  if v_path is not null and char_length(v_path) > 500 then
++    v_path := left(v_path, 500);
++  end if;
++
++  insert into public.beta_feedback (kind, body, page_path, actor_id)
++  values (p_kind, trim(p_body), v_path, v_actor)
++  returning * into v_row;
++
++  perform public.kocc_track_feature('beta.feedback', 'Feedback Beta');
++
++  return v_row;
++end;
++$$;
++
++revoke all on function public.kocc_submit_beta_feedback(text, text, text) from public;
++grant execute on function public.kocc_submit_beta_feedback(text, text, text) to authenticated;
++*/
+-- 
+2.43.0
+
+
+From 630ef80523593038a393a5264a8843dfae87b331 Mon Sep 17 00:00:00 2001
+From: Cursor Agent <cursoragent@cursor.com>
+Date: Sun, 6 Sep 2026 18:39:23 +0000
+Subject: [PATCH 2/3] docs(web): isolate beta feedback workflow requirements;
+ harden inbox filter
+
+Map Doc3 BETA-15/19/22/23/24 against schema 0035 and existing ops patterns
+without inventing tickets. Extract inbox kind filter for regression tests.
+---
+ .../kocc/components/BetaPanelSection.tsx      | 13 ++-
+ .../kocc/lib/beta-feedback-inbox.test.ts      | 19 ++++
+ .../modules/kocc/lib/beta-feedback-inbox.ts   | 11 +++
+ ...GOV_BETA_FEEDBACK_WORKFLOW_REQUIREMENTS.md | 95 +++++++++++++++++++
+ 4 files changed, 131 insertions(+), 7 deletions(-)
+ create mode 100644 apps/web/modules/kocc/lib/beta-feedback-inbox.test.ts
+ create mode 100644 apps/web/modules/kocc/lib/beta-feedback-inbox.ts
+ create mode 100644 docs/engineering/GOV_BETA_FEEDBACK_WORKFLOW_REQUIREMENTS.md
+
+diff --git a/apps/web/modules/kocc/components/BetaPanelSection.tsx b/apps/web/modules/kocc/components/BetaPanelSection.tsx
+index adcf32c6..8146b451 100644
+--- a/apps/web/modules/kocc/components/BetaPanelSection.tsx
++++ b/apps/web/modules/kocc/components/BetaPanelSection.tsx
+@@ -4,6 +4,7 @@ import { useMemo, useState } from 'react';
+ import { Badge } from '@kuteka/ui';
+ import { PanelSection } from '@/modules/finance/components/super/shared';
+ import { SoftListSlot } from '@/modules/shell/components/SoftListSlot';
++import { filterBetaInboxRows, type BetaInboxFilter } from '../lib/beta-feedback-inbox';
+ import { betaFeedbackKindLabel } from '../lib/beta-feedback-labels';
+ import { publicStatusLabel } from '../lib/status-labels';
+ import type {
+@@ -12,8 +13,6 @@ import type {
+   KoccFeatureUsage,
+ } from '../services/kocc-client';
+ 
+-type InboxFilter = 'all' | 'feedback' | 'bug';
+-
+ function MetricCard({ label, value, hint }: { label: string; value: string; hint?: string }) {
+   return (
+     <div className="kuteka-detail-fact p-3">
+@@ -89,14 +88,14 @@ export function BetaPanelSection({
+   inboxLoading = false,
+   inboxError = null,
+ }: BetaPanelSectionProps) {
+-  const [inboxFilter, setInboxFilter] = useState<InboxFilter>('all');
++  const [inboxFilter, setInboxFilter] = useState<BetaInboxFilter>('all');
+   const merged = mergeUsage(metrics?.featuresMostUsed, metrics?.featureUsageProxy);
+   const most = [...merged].sort((a, b) => b.count - a.count).slice(0, 6);
+   const least = [...merged].sort((a, b) => a.count - b.count).slice(0, 6);
+-  const filteredInbox = useMemo(() => {
+-    if (inboxFilter === 'all') return inbox;
+-    return inbox.filter((row) => row.kind === inboxFilter);
+-  }, [inbox, inboxFilter]);
++  const filteredInbox = useMemo(
++    () => filterBetaInboxRows(inbox, inboxFilter),
++    [inbox, inboxFilter],
++  );
+ 
+   return (
+     <PanelSection
+diff --git a/apps/web/modules/kocc/lib/beta-feedback-inbox.test.ts b/apps/web/modules/kocc/lib/beta-feedback-inbox.test.ts
+new file mode 100644
+index 00000000..fb03c7ad
+--- /dev/null
++++ b/apps/web/modules/kocc/lib/beta-feedback-inbox.test.ts
+@@ -0,0 +1,19 @@
++import { describe, expect, it } from 'vitest';
++import { filterBetaInboxRows } from './beta-feedback-inbox';
++
++describe('filterBetaInboxRows', () => {
++  const rows = [
++    { id: '1', kind: 'bug' },
++    { id: '2', kind: 'feedback' },
++    { id: '3', kind: 'bug' },
++  ];
++
++  it('returns all for filter=all', () => {
++    expect(filterBetaInboxRows(rows, 'all')).toHaveLength(3);
++  });
++
++  it('filters bugs and feedback', () => {
++    expect(filterBetaInboxRows(rows, 'bug').map((r) => r.id)).toEqual(['1', '3']);
++    expect(filterBetaInboxRows(rows, 'feedback').map((r) => r.id)).toEqual(['2']);
++  });
++});
+diff --git a/apps/web/modules/kocc/lib/beta-feedback-inbox.ts b/apps/web/modules/kocc/lib/beta-feedback-inbox.ts
+new file mode 100644
+index 00000000..cc602c6f
+--- /dev/null
++++ b/apps/web/modules/kocc/lib/beta-feedback-inbox.ts
+@@ -0,0 +1,11 @@
++/** Pure inbox filter for beta_feedback.kind — regression-safe, no new schema. */
++
++export type BetaInboxFilter = 'all' | 'feedback' | 'bug';
++
++export function filterBetaInboxRows<T extends { kind: string }>(
++  rows: T[],
++  filter: BetaInboxFilter,
++): T[] {
++  if (filter === 'all') return rows;
++  return rows.filter((row) => row.kind === filter);
++}
+diff --git a/docs/engineering/GOV_BETA_FEEDBACK_WORKFLOW_REQUIREMENTS.md b/docs/engineering/GOV_BETA_FEEDBACK_WORKFLOW_REQUIREMENTS.md
+new file mode 100644
+index 00000000..7d9f6e8c
+--- /dev/null
++++ b/docs/engineering/GOV_BETA_FEEDBACK_WORKFLOW_REQUIREMENTS.md
+@@ -0,0 +1,95 @@
++# GOV — Requisitos para ciclo de estados / responsável / resolução (Beta feedback)
++
++**Estado:** isolado — **não implementar** sem decisão Founder.  
++**Objectivo:** mapear o que os documentos e a arquitectura **já exigem ou já oferecem**, sem inventar um segundo sistema de tickets.
++
++Fonte documental: Doc 3 tabela BETA (`docs/master-dossier/consolidation/KUTEKA_DOC3_VALIDATION_TABLE_2026-08-28.md`).  
++Fonte schema: `supabase/migrations/0035_kocc_beta_panel.sql` (+ métricas em `0042_beta_sandbox_visibility_guards.sql`).  
++Padrões adjacentes existentes (referência de reutilização, **não** adopção automática): `operational_escalations` (`0040_ops_matrix_experiences.sql`), `platform_feature_flag_audit` (`0032_kocc_operating_control.sql`).
++
++---
++
++## 1. O que o Doc 3 pede (requisitos declarados)
++
++| ID      | Requisito                                   | Prioridade Doc3 | Estado actual no código/schema                               |
++| ------- | ------------------------------------------- | --------------- | ------------------------------------------------------------ |
++| BETA-13 | Feedback não escondido                      | P0              | ✅ `/app/ajuda` + CTAs Sprint A                              |
++| BETA-14 | Widget contextual in-page                   | P0 / Spec C     | 🔴 fora do P0 A/B (OPEN) — não construir agora               |
++| BETA-15 | Tipos: BUG/UX/Sugestão/Reclamação/Avaliação | P1              | 🟡 schema só `feedback` \| `bug`                             |
++| BETA-16 | Contexto rico (device/version/…)            | P1              | 🟡 só `page_path`; `metadata` existe mas RPC não preenche    |
++| BETA-19 | Dashboard triagem KOCC                      | P1              | 🟡 métricas + inbox read-only (P0 B)                         |
++| BETA-21 | KAI não decide                              | P0              | ✅ N/A no canal actual                                       |
++| BETA-22 | Ciclo estados NOVO→FECHADO                  | P1              | 🔴 **inexistente**                                           |
++| BETA-23 | Ack + resolução ao user                     | P2              | 🔴 **inexistente**                                           |
++| BETA-24 | Reclamação ≠ feedback produto               | P1              | 🟡 bridge textual Help → admin/contacto (sem 2.ª inbox)      |
++| BETA-30 | Privacidade / isolamento                    | P1              | 🟡 RLS ops-only SELECT; user não lê o próprio SELECT directo |
++
++**Conclusão documental:** estados, responsável, resolução e notificação ao autor são **P1/P2 no Doc 3**, não bloqueiam o fecho técnico do canal P0 (captura + inbox + métricas). BETA-40 (loop aprendizagem fechado) depende explicitamente de 14–23 — é critério de **ciclo produto**, não de publish A/B.
++
++---
++
++## 2. O que o schema `beta_feedback` já define
++
++Colunas: `id`, `kind`, `body`, `page_path`, `actor_id`, `metadata`, `created_at`.
++
++Permissões:
++
++| Operação            | Regra actual                          |
++| ------------------- | ------------------------------------- |
++| INSERT              | próprio `actor_id` ou RPC definer     |
++| SELECT              | `finance.manage` **ou** `admin.panel` |
++| UPDATE / DELETE     | **revogados** a `authenticated`       |
++| `kocc_beta_metrics` | só `finance.manage`                   |
++
++**Implicação técnica:** qualquer “estado / assignee / resolved_at” **exige** alteração de superfície (colunas e/ou RPC security definer + política). Não é bugfix.
++
++---
++
++## 3. Padrões já existentes que _poderiam_ ser reutilizados (se GOV autorizar)
++
++Não são propostas activas — só inventário de compatibilidade arquitectónica:
++
++1. **`operational_escalations` (0040)** — já tem `status` (`open|acknowledged|resolved|cancelled`), `assignee_id`, `resolved_by`, `resolved_at`, `resolution_notes`, RLS select, mutação via RPC (INSERT/UPDATE direct revogados a `authenticated`). É o paralelo mais próximo de “fila ops com dono e fecho”.
++2. **`platform_feature_flag_audit` (0032)** — trilha before/after para flags KOCC; **não** cobre `beta_feedback`.
++3. **`user_has_founder_or_permission`** — padrão pós-0036 usado noutros módulos; gap Founder em feedback está isolado na proposta **0043** (não aplicada).
++
++**Regra:** reutilizar um destes padrões **só após** decisão; não copiar escalations para feedback “por ocupação”.
++
++---
++
++## 4. Requisitos mínimos _se_ Founder autorizar ciclo de estados (checklist de decisão)
++
++Para cumprir BETA-22/23 sem segundo produto, a decisão tem de fechar:
++
++1. **Âmbito:** estados só internos (ops) vs visíveis ao autor (BETA-23)?
++2. **Modelo:** estender `beta_feedback` vs encaminhar reclamações graves para `operational_escalations` (BETA-24) e manter feedback produto read-only?
++3. **Máquina de estados:** aceitar o set de escalations (`open→acknowledged→resolved|cancelled`) ou outro conjunto Doc3 “NOVO→…→FECHADO”?
++4. **Responsável:** campo `assignee_id`? quem pode atribuir (`finance.manage`, `admin.panel`, Founder)?
++5. **Mutação:** RPC security definer (padrão 0040) vs policy UPDATE directa?
++6. **Auditoria:** tabela dedicada vs reutilizar `audit_logs` / padrão flag audit?
++7. **Notificação ao user (BETA-23):** canal mensagens existente vs email vs só badge in-app — e retenção/privacidade (BETA-29/30)?
++8. **Tipos (BETA-15):** expandir `kind` check constraint ou mapear UX→`feedback`, Reclamação→escalation?
++
++Sem respostas a 1–2 (e preferencialmente 3–5), **não há implementação segura**.
++
++---
++
++## 5. Decisões pendentes (para o Founder) — isoladas
++
++| ID        | Pergunta                                                                                             | Bloqueia A/B P0?                                |
++| --------- | ---------------------------------------------------------------------------------------------------- | ----------------------------------------------- |
++| GOV-BF-01 | Autorizar **0043** (Founder read métricas/inbox)?                                                    | Não (ops com permissões actuais bastam)         |
++| GOV-BF-02 | Autorizar ciclo de estados em `beta_feedback` **ou** rotear resolução via `operational_escalations`? | Não para P0                                     |
++| GOV-BF-03 | BETA-15: manter 2 kinds ou expandir para 5 tipos?                                                    | Não para P0                                     |
++| GOV-BF-04 | BETA-23: obrigatório ainda em Beta público controlado?                                               | Não (P2 Doc3)                                   |
++| GOV-BF-05 | Aplicar **0044** (truncate `page_path` no servidor)?                                                 | Não — hardening opcional, sem GOV de autoridade |
++
++---
++
++## 6. Posição técnica recomendada (sem executar)
++
++- **Fechar A+B** com captura + inbox + métricas + bridge reclamação (já preparado).
++- **Não** inventar workflow de tickets enquanto GOV-BF-02 estiver aberto.
++- Preferir, _quando_ houver decisão: **reutilizar** RPC+revoke UPDATE (padrão 0040) em vez de policy UPDATE aberta; e **separar** reclamação operacional (BETA-24) do canal produto.
++
++0043 e 0044 permanecem **propostas não aplicadas**.
+-- 
+2.43.0
+
+
+From 1f5433a7b3311b861e0afce2ee6a7cb93b52b69f Mon Sep 17 00:00:00 2001
+From: Cursor Agent <cursoragent@cursor.com>
+Date: Sun, 6 Sep 2026 18:54:13 +0000
+Subject: [PATCH 3/3] fix(web): harden beta feedback context, labels and header
+ lock
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Keep metrics empty-state from masking load errors; align kind label to
+Sugestão; preserve allowlisted Help ?sec= on page_path; strip C0 controls
+from body; i18n operational complaint bridge; lock render.yaml security
+headers to SECURITY_HEADERS in tests. No 0043/0044 or ticket workflow.
+---
+ apps/web/lib/security-headers.test.ts         | 12 +++++
+ .../kocc/components/BetaPanelSection.tsx      |  2 +-
+ .../kocc/lib/beta-feedback-labels.test.ts     |  2 +-
+ .../modules/kocc/lib/beta-feedback-labels.ts  |  3 +-
+ .../kocc/lib/beta-feedback-submit.test.ts     |  8 +++-
+ .../modules/kocc/lib/beta-feedback-submit.ts  | 46 ++++++++++++++++---
+ .../shell/components/HelpCenterClient.tsx     | 12 ++---
+ apps/web/modules/shell/content/en.ts          |  4 ++
+ apps/web/modules/shell/content/es.ts          |  4 ++
+ apps/web/modules/shell/content/fr.ts          |  4 ++
+ apps/web/modules/shell/content/pt.ts          |  4 ++
+ .../SPRINT_B_FEEDBACK_CYCLE_FULL.md           |  8 ++++
+ 12 files changed, 91 insertions(+), 18 deletions(-)
+
+diff --git a/apps/web/lib/security-headers.test.ts b/apps/web/lib/security-headers.test.ts
+index f49fc03a..864669c9 100644
+--- a/apps/web/lib/security-headers.test.ts
++++ b/apps/web/lib/security-headers.test.ts
+@@ -1,3 +1,5 @@
++import { readFileSync } from 'node:fs';
++import { resolve } from 'node:path';
+ import { describe, expect, it } from 'vitest';
+ import { SECURITY_HEADERS, applySecurityHeaders } from './security-headers';
+ 
+@@ -23,4 +25,14 @@ describe('security headers (P0 baseline)', () => {
+     expect(headers.get('X-Content-Type-Options')).toBe('nosniff');
+     expect(headers.get('Content-Security-Policy')).toContain("frame-ancestors 'none'");
+   });
++
++  it('keeps render.yaml static headers in sync with SECURITY_HEADERS', () => {
++    // Static export on Render does not run middleware — YAML is the production path.
++    const yamlPath = resolve(__dirname, '../../../render.yaml');
++    const yaml = readFileSync(yamlPath, 'utf8');
++    for (const { key, value } of SECURITY_HEADERS) {
++      expect(yaml).toContain(`name: ${key}`);
++      expect(yaml).toContain(value);
++    }
++  });
+ });
+diff --git a/apps/web/modules/kocc/components/BetaPanelSection.tsx b/apps/web/modules/kocc/components/BetaPanelSection.tsx
+index 8146b451..97084546 100644
+--- a/apps/web/modules/kocc/components/BetaPanelSection.tsx
++++ b/apps/web/modules/kocc/components/BetaPanelSection.tsx
+@@ -169,7 +169,7 @@ export function BetaPanelSection({
+                 </div>
+               ) : null}
+             </div>
+-          ) : !loading ? (
++          ) : !loading && !loadError ? (
+             <p className="text-sm text-slate-500">
+               Sem métricas. Confirme que a migration <code>0035_kocc_beta_panel.sql</code> foi
+               aplicada no Supabase remoto e que a conta tem <code>finance.manage</code>.
+diff --git a/apps/web/modules/kocc/lib/beta-feedback-labels.test.ts b/apps/web/modules/kocc/lib/beta-feedback-labels.test.ts
+index 56ee8283..1e13175f 100644
+--- a/apps/web/modules/kocc/lib/beta-feedback-labels.test.ts
++++ b/apps/web/modules/kocc/lib/beta-feedback-labels.test.ts
+@@ -4,7 +4,7 @@ import { betaFeedbackKindLabel } from './beta-feedback-labels';
+ describe('betaFeedbackKindLabel', () => {
+   it('labels known kinds', () => {
+     expect(betaFeedbackKindLabel('bug')).toBe('Bug');
+-    expect(betaFeedbackKindLabel('feedback')).toBe('Feedback');
++    expect(betaFeedbackKindLabel('feedback')).toBe('Sugestão');
+   });
+ 
+   it('passes through unknown kinds', () => {
+diff --git a/apps/web/modules/kocc/lib/beta-feedback-labels.ts b/apps/web/modules/kocc/lib/beta-feedback-labels.ts
+index 00b17c3a..fec53965 100644
+--- a/apps/web/modules/kocc/lib/beta-feedback-labels.ts
++++ b/apps/web/modules/kocc/lib/beta-feedback-labels.ts
+@@ -1,6 +1,7 @@
+ /** Pure labels for beta_feedback.kind — shared by KOCC inbox UI + tests. */
+ export function betaFeedbackKindLabel(kind: string): string {
+   if (kind === 'bug') return 'Bug';
+-  if (kind === 'feedback') return 'Feedback';
++  // Align with Help form + inbox filter ("Sugestões") — schema value remains `feedback`.
++  if (kind === 'feedback') return 'Sugestão';
+   return kind;
+ }
+diff --git a/apps/web/modules/kocc/lib/beta-feedback-submit.test.ts b/apps/web/modules/kocc/lib/beta-feedback-submit.test.ts
+index 68ea7da7..361d386d 100644
+--- a/apps/web/modules/kocc/lib/beta-feedback-submit.test.ts
++++ b/apps/web/modules/kocc/lib/beta-feedback-submit.test.ts
+@@ -13,10 +13,15 @@ describe('sanitizeBetaPagePath', () => {
+     expect(sanitizeBetaPagePath('   ')).toBeNull();
+   });
+ 
+-  it('strips query and hash', () => {
++  it('strips unknown query and hash', () => {
+     expect(sanitizeBetaPagePath('/app/ajuda?x=1#y')).toBe('/app/ajuda');
+   });
+ 
++  it('keeps allowlisted Help Center sec', () => {
++    expect(sanitizeBetaPagePath('/app/ajuda?sec=faq')).toBe('/app/ajuda?sec=faq');
++    expect(sanitizeBetaPagePath('/app/ajuda?sec=evil')).toBe('/app/ajuda');
++  });
++
+   it('extracts pathname from absolute URL', () => {
+     expect(sanitizeBetaPagePath('https://kuteka.app/app/patrimonios?id=1')).toBe(
+       '/app/patrimonios',
+@@ -32,6 +37,7 @@ describe('sanitizeBetaPagePath', () => {
+ describe('beta feedback body/kind', () => {
+   it('normalizes and validates body length', () => {
+     expect(normalizeBetaFeedbackBody('  hi  ')).toBe('hi');
++    expect(normalizeBetaFeedbackBody('a\u0000bc')).toBe('abc');
+     expect(isValidBetaFeedbackBody('ab')).toBe(false);
+     expect(isValidBetaFeedbackBody('abc')).toBe(true);
+   });
+diff --git a/apps/web/modules/kocc/lib/beta-feedback-submit.ts b/apps/web/modules/kocc/lib/beta-feedback-submit.ts
+index 165ce0df..fd98262a 100644
+--- a/apps/web/modules/kocc/lib/beta-feedback-submit.ts
++++ b/apps/web/modules/kocc/lib/beta-feedback-submit.ts
+@@ -4,28 +4,62 @@ const MAX_BODY = 4000;
+ const MIN_BODY = 3;
+ const MAX_PAGE_PATH = 500;
+ 
++/** Help Center sections — only these query values are preserved on page_path. */
++const ALLOWED_SEC = new Set(['manual', 'faq', 'glossario', 'novidades', 'estado']);
++
++/**
++ * Sanitize page_path for submit.
++ * Strips origin/hash/unknown query; optionally keeps allowlisted `?sec=`.
++ */
+ export function sanitizeBetaPagePath(path: string | null | undefined): string | null {
+   if (path == null) return null;
+   const trimmed = path.trim();
+   if (!trimmed) return null;
+-  // Prefer path-only; strip origin if a full URL was passed.
+-  let value = trimmed;
++
++  let pathname = trimmed;
++  let search = '';
+   try {
+     if (/^https?:\/\//i.test(trimmed)) {
+-      value = new URL(trimmed).pathname || '/';
++      const url = new URL(trimmed);
++      pathname = url.pathname || '/';
++      search = url.search;
++    } else {
++      const q = trimmed.indexOf('?');
++      const h = trimmed.indexOf('#');
++      const end = q === -1 ? (h === -1 ? trimmed.length : h) : h === -1 ? q : Math.min(q, h);
++      pathname = trimmed.slice(0, end) || '/';
++      if (q !== -1) {
++        search = trimmed.slice(q, h === -1 ? undefined : h);
++      }
+     }
+   } catch {
+-    value = trimmed.split('?')[0] ?? trimmed;
++    pathname = trimmed.split('?')[0]?.split('#')[0] ?? trimmed;
++    search = '';
+   }
+-  value = value.split('?')[0]?.split('#')[0] ?? value;
++
++  pathname = pathname.split('#')[0] || '/';
++
++  let sec: string | null = null;
++  if (search) {
++    try {
++      const params = new URLSearchParams(search.startsWith('?') ? search : `?${search}`);
++      const raw = params.get('sec');
++      if (raw && ALLOWED_SEC.has(raw)) sec = raw;
++    } catch {
++      /* ignore malformed query */
++    }
++  }
++
++  let value = sec ? `${pathname}?sec=${sec}` : pathname;
+   if (value.length > MAX_PAGE_PATH) {
+     value = value.slice(0, MAX_PAGE_PATH);
+   }
+   return value || null;
+ }
+ 
++/** Trim + strip C0 controls except tab/newline (keep readable multiline). */
+ export function normalizeBetaFeedbackBody(body: string): string {
+-  return body.trim();
++  return body.replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g, '').trim();
+ }
+ 
+ export function isValidBetaFeedbackBody(body: string): boolean {
+diff --git a/apps/web/modules/shell/components/HelpCenterClient.tsx b/apps/web/modules/shell/components/HelpCenterClient.tsx
+index 37d562a3..daa9d4e8 100644
+--- a/apps/web/modules/shell/components/HelpCenterClient.tsx
++++ b/apps/web/modules/shell/components/HelpCenterClient.tsx
+@@ -283,23 +283,19 @@ function HelpCenterInner({ docs, basePath = '/app/ajuda', publicMode = false }:
+ 
+       {!publicMode ? (
+         <>
+-          <BetaFeedbackForm pagePath={basePath} />
++          <BetaFeedbackForm pagePath={`${basePath}?sec=${section}`} />
+           <section
+             className="kuteka-detail-panel flex flex-col gap-3 p-5"
+             id="reclamacao-operacional"
+           >
+-            <h2 className="kuteka-detail-title">Reclamação operacional</h2>
+-            <p className="kuteka-detail-body">
+-              Feedback de produto e bugs usam o formulário Beta acima. Para uma reclamação
+-              operacional (serviço, conduta, incumprimento), abra uma escalação na área de
+-              administração ou contacte a Kuteka — não misture com o canal Beta.
+-            </p>
++            <h2 className="kuteka-detail-title">{shell.betaFeedback.complaintTitle}</h2>
++            <p className="kuteka-detail-body">{shell.betaFeedback.complaintBody}</p>
+             <div className="flex flex-wrap gap-3">
+               <Link
+                 href="/app/admin"
+                 className={cn(buttonVariants({ variant: 'secondary', size: 'sm' }), 'w-fit')}
+               >
+-                Área de administração
++                {shell.betaFeedback.complaintAdminCta}
+               </Link>
+               <Link
+                 href="/contacto"
+diff --git a/apps/web/modules/shell/content/en.ts b/apps/web/modules/shell/content/en.ts
+index fb45e983..03534710 100644
+--- a/apps/web/modules/shell/content/en.ts
++++ b/apps/web/modules/shell/content/en.ts
+@@ -296,6 +296,10 @@ export const shellCopyEn: ShellCopy = {
+     publicCtaBody:
+       'To report a bug or send a suggestion, sign in. Your contribution is recorded in the Beta Panel.',
+     publicCtaButton: 'Sign in and send feedback',
++    complaintTitle: 'Operational complaint',
++    complaintBody:
++      'Product feedback and bugs use the Beta form above. For an operational complaint (service, conduct, breach), open an escalation in the admin area or contact Kuteka — do not mix it with the Beta channel.',
++    complaintAdminCta: 'Administration area',
+   },
+   firstActions: {
+     title: 'Your first useful action',
+diff --git a/apps/web/modules/shell/content/es.ts b/apps/web/modules/shell/content/es.ts
+index 21ae78dd..9188a36b 100644
+--- a/apps/web/modules/shell/content/es.ts
++++ b/apps/web/modules/shell/content/es.ts
+@@ -296,6 +296,10 @@ export const shellCopyEs: ShellCopy = {
+     publicCtaBody:
+       'Para reportar un error o enviar una sugerencia, inicie sesión. Su aporte queda registrado en el Panel Beta.',
+     publicCtaButton: 'Entrar y enviar feedback',
++    complaintTitle: 'Reclamación operacional',
++    complaintBody:
++      'El feedback de producto y los errores usan el formulario Beta de arriba. Para una reclamación operacional (servicio, conducta, incumplimiento), abra una escalación en administración o contacte a Kuteka — no lo mezcle con el canal Beta.',
++    complaintAdminCta: 'Área de administración',
+   },
+   firstActions: {
+     title: 'Su primera acción útil',
+diff --git a/apps/web/modules/shell/content/fr.ts b/apps/web/modules/shell/content/fr.ts
+index 2ae74ec9..e8346a79 100644
+--- a/apps/web/modules/shell/content/fr.ts
++++ b/apps/web/modules/shell/content/fr.ts
+@@ -300,6 +300,10 @@ export const shellCopyFr: ShellCopy = {
+     publicCtaBody:
+       'Pour signaler un bug ou envoyer une suggestion, connectez-vous. Votre contribution est enregistrée dans le Panneau Beta.',
+     publicCtaButton: 'Se connecter et envoyer un retour',
++    complaintTitle: 'Réclamation opérationnelle',
++    complaintBody:
++      'Les retours produit et bugs utilisent le formulaire Beta ci-dessus. Pour une réclamation opérationnelle (service, conduite, manquement), ouvrez une escalation dans l’administration ou contactez Kuteka — ne mélangez pas avec le canal Beta.',
++    complaintAdminCta: 'Espace d’administration',
+   },
+   firstActions: {
+     title: 'Votre première action utile',
+diff --git a/apps/web/modules/shell/content/pt.ts b/apps/web/modules/shell/content/pt.ts
+index ac81b3b7..11b0c33b 100644
+--- a/apps/web/modules/shell/content/pt.ts
++++ b/apps/web/modules/shell/content/pt.ts
+@@ -296,6 +296,10 @@ export const shellCopyPt = {
+     publicCtaBody:
+       'Para reportar um bug ou enviar uma sugestão, inicie sessão. O contributo fica registado no Painel Beta.',
+     publicCtaButton: 'Entrar e enviar feedback',
++    complaintTitle: 'Reclamação operacional',
++    complaintBody:
++      'Feedback de produto e bugs usam o formulário Beta acima. Para uma reclamação operacional (serviço, conduta, incumprimento), abra uma escalação na área de administração ou contacte a Kuteka — não misture com o canal Beta.',
++    complaintAdminCta: 'Área de administração',
+   },
+   firstActions: {
+     title: 'A sua primeira acção útil',
+diff --git a/docs/engineering/SPRINT_B_FEEDBACK_CYCLE_FULL.md b/docs/engineering/SPRINT_B_FEEDBACK_CYCLE_FULL.md
+index 7a328e7a..504eacd9 100644
+--- a/docs/engineering/SPRINT_B_FEEDBACK_CYCLE_FULL.md
++++ b/docs/engineering/SPRINT_B_FEEDBACK_CYCLE_FULL.md
+@@ -45,3 +45,11 @@
+ - Uma só Inbox (KOCC), um só form (`BetaFeedbackForm`), um só submit RPC
+ - Reclamação operacional = bridge textual para admin/contacto — **não** segundo inbox
+ - Feature-tracking alargado / Product Insights → **não** expandido neste período (lista deps apenas)
++
++## Hardening adicional (bloqueio write)
++
++- Metrics empty-state gated on `!loadError` (parity with inbox).
++- Kind label aligned to **Sugestão**; Help `?sec=` allowlisted on `page_path`.
++- Body strips C0 controls; complaint bridge i18n; render.yaml header lock test.
++- Telemetry: RPC `beta.feedback` + client `beta.feedback.bug|suggestion` are **distinct codes** (not double-count of same key).
++- GOV-BF-01…05 / 0043 / 0044 unchanged — not applied.
+-- 
+2.43.0
+

@@ -1,0 +1,14 @@
+Branch source: cursor/p0-security-headers-beta-cta-f96b
+Repo target: EduardoZ121/Site_Angola (or vicentemakiese fork with PR into Eduardo)
+
+Apply:
+  cd Site_Angola
+  git checkout main && git pull
+  git checkout -b cursor/p0-security-headers-beta-cta-f96b
+  git am tmp-transfer/kuteka-p0-security.patch   # or: curl raw patch then git am
+  pnpm build:static && sync prebuilt/web-out
+  git add -A && git commit --amend --no-edit   # if prebuilt regenerated
+  git push -u origin HEAD
+  open PR to main
+
+Contents: security headers (middleware/next/render) + public Beta feedback CTA + tests.

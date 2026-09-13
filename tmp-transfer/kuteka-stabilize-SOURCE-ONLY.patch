@@ -1,0 +1,714 @@
+From 1f9ee1a3eba6b406abf51dbc498a310b1c1fec8b Mon Sep 17 00:00:00 2001
+From: Cursor Agent <cursoragent@cursor.com>
+Date: Sat, 5 Sep 2026 23:02:37 +0000
+Subject: [PATCH] fix(web): stabilize public site bugs and regenerate prebuilt
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Remove fake contact phones/chat dead links, use contacto@kutekalink.com,
+show Entrar on mobile, fix EN Property copy, Activar PT consistency,
+register privacy link, institutional markdown links, cookies vigência,
+robots/sitemap/favicon, and refresh prebuilt/web-out for Render deploy.
+---
+ .../app/(app)/app/patrimonios/novo/page.tsx   |   2 +-
+ apps/web/app/(marketing)/contacto/page.tsx    |   2 +-
+ apps/web/app/(marketing)/cookies/page.tsx     |   2 +-
+ apps/web/app/layout.tsx                       |   7 ++-
+ .../components/RegisterForm.tsx               |   4 ++
+ apps/web/modules/authentication/content/en.ts |   4 +-
+ apps/web/modules/authentication/content/es.ts |   4 +-
+ apps/web/modules/authentication/content/fr.ts |   4 +-
+ apps/web/modules/authentication/content/pt.ts |   6 +-
+ .../components/InstitutionalDocument.tsx      |  35 ++++++++++-
+ .../landing/components/LandingTopbar.tsx      |   2 +-
+ apps/web/modules/landing/content.test.ts      |   2 +-
+ apps/web/modules/landing/content/en.ts        |  12 ++--
+ apps/web/modules/patrimonios/content/pt.ts    |   4 +-
+ .../shell/components/ContactClient.tsx        |  58 ++++++++++++------
+ apps/web/modules/shell/content/en.ts          |   6 +-
+ apps/web/modules/shell/content/es.ts          |   6 +-
+ apps/web/modules/shell/content/fr.ts          |   6 +-
+ apps/web/modules/shell/content/pt.ts          |   8 +--
+ apps/web/public/docs/FAQ_v1.md                |   4 +-
+ apps/web/public/docs/MANUAL_UTILIZADOR_v1.md  |  21 ++++---
+ apps/web/public/favicon.ico                   | Bin 0 -> 349 bytes
+ apps/web/public/robots.txt                    |   9 +++
+ apps/web/public/sitemap.xml                   |  48 +++++++++++++++
+ 24 files changed, 189 insertions(+), 67 deletions(-)
+ create mode 100644 apps/web/public/favicon.ico
+ create mode 100644 apps/web/public/robots.txt
+ create mode 100644 apps/web/public/sitemap.xml
+
+diff --git a/apps/web/app/(app)/app/patrimonios/novo/page.tsx b/apps/web/app/(app)/app/patrimonios/novo/page.tsx
+index 3b16ed9..c3d52f1 100644
+--- a/apps/web/app/(app)/app/patrimonios/novo/page.tsx
++++ b/apps/web/app/(app)/app/patrimonios/novo/page.tsx
+@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
+ import { ActivatePropertyForm } from '@/modules/patrimonios/components/ActivatePropertyForm';
+ 
+ export const metadata: Metadata = {
+-  title: 'Ativar Património',
++  title: 'Activar Património',
+   robots: { index: false, follow: false },
+ };
+ 
+diff --git a/apps/web/app/(marketing)/contacto/page.tsx b/apps/web/app/(marketing)/contacto/page.tsx
+index 035dc79..2d889e5 100644
+--- a/apps/web/app/(marketing)/contacto/page.tsx
++++ b/apps/web/app/(marketing)/contacto/page.tsx
+@@ -3,7 +3,7 @@ import { ContactClient } from '@/modules/shell/components/ContactClient';
+ 
+ export const metadata: Metadata = {
+   title: 'Contacto',
+-  robots: { index: false, follow: false },
++  robots: { index: true, follow: true },
+ };
+ 
+ export default function ContactPage() {
+diff --git a/apps/web/app/(marketing)/cookies/page.tsx b/apps/web/app/(marketing)/cookies/page.tsx
+index aa002e1..798a8f6 100644
+--- a/apps/web/app/(marketing)/cookies/page.tsx
++++ b/apps/web/app/(marketing)/cookies/page.tsx
+@@ -15,7 +15,7 @@ export default function CookiesPage() {
+     <InstitutionalDocument
+       title="Política de Cookies"
+       subtitle="Como a Kuteka utiliza cookies e tecnologias similares, e como pode gerir as suas preferências."
+-      versionNote="Versão 1.0 Beta · Vigência 6 de Agosto de 2026 · privacidade@kutekalink.com"
++      versionNote="Versão 1.0 Beta · Vigência 5 de Agosto de 2026 · privacidade@kutekalink.com"
+       markdown={markdown}
+       downloads={[
+         { label: 'Descarregar PDF', href: '/docs/POLITICA_COOKIES_v1.pdf' },
+diff --git a/apps/web/app/layout.tsx b/apps/web/app/layout.tsx
+index 31c5623..c380688 100644
+--- a/apps/web/app/layout.tsx
++++ b/apps/web/app/layout.tsx
+@@ -18,7 +18,7 @@ const jetbrainsMono = JetBrains_Mono({
+ });
+ 
+ export const metadata: Metadata = {
+-  metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000'),
++  metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL ?? 'https://kutekalink.com'),
+   title: {
+     default: 'Kuteka — Património. Confiança. Habitação.',
+     template: '%s · Kuteka',
+@@ -26,7 +26,10 @@ export const metadata: Metadata = {
+   description:
+     'PropTech africana de património e confiança. Habitação com transparência em Angola.',
+   icons: {
+-    icon: '/favicon.svg',
++    icon: [
++      { url: '/favicon.svg', type: 'image/svg+xml' },
++      { url: '/favicon.ico', sizes: 'any' },
++    ],
+   },
+ };
+ 
+diff --git a/apps/web/modules/authentication/components/RegisterForm.tsx b/apps/web/modules/authentication/components/RegisterForm.tsx
+index 23d8ca8..5578c08 100644
+--- a/apps/web/modules/authentication/components/RegisterForm.tsx
++++ b/apps/web/modules/authentication/components/RegisterForm.tsx
+@@ -183,6 +183,10 @@ export function RegisterForm() {
+           {copy.register.terms.label}{' '}
+           <Link href="/termos" className="auth-link">
+             {copy.register.terms.linkLabel}
++          </Link>{' '}
++          {copy.register.terms.connector}{' '}
++          <Link href="/privacidade" className="auth-link">
++            {copy.register.terms.privacyLinkLabel}
+           </Link>
+         </span>
+       </label>
+diff --git a/apps/web/modules/authentication/content/en.ts b/apps/web/modules/authentication/content/en.ts
+index e855a18..7ba0b11 100644
+--- a/apps/web/modules/authentication/content/en.ts
++++ b/apps/web/modules/authentication/content/en.ts
+@@ -52,8 +52,10 @@ export const authCopyEn: AuthCopy = {
+       placeholder: 'Repeat the password',
+     },
+     terms: {
+-      label: 'I accept the Terms of use',
++      label: 'I accept the',
+       linkLabel: 'Terms of use',
++      connector: 'and the',
++      privacyLinkLabel: 'Privacy policy',
+     },
+     submit: 'Create account',
+     submitLoading: 'Creating account…',
+diff --git a/apps/web/modules/authentication/content/es.ts b/apps/web/modules/authentication/content/es.ts
+index 83a77de..f6616eb 100644
+--- a/apps/web/modules/authentication/content/es.ts
++++ b/apps/web/modules/authentication/content/es.ts
+@@ -53,8 +53,10 @@ export const authCopyEs: AuthCopy = {
+       placeholder: 'Repita la contraseña',
+     },
+     terms: {
+-      label: 'Acepto los Términos de uso',
++      label: 'Acepto los',
+       linkLabel: 'Términos de uso',
++      connector: 'y la',
++      privacyLinkLabel: 'Política de privacidad',
+     },
+     submit: 'Crear cuenta',
+     submitLoading: 'Creando cuenta…',
+diff --git a/apps/web/modules/authentication/content/fr.ts b/apps/web/modules/authentication/content/fr.ts
+index e0389ec..26330b7 100644
+--- a/apps/web/modules/authentication/content/fr.ts
++++ b/apps/web/modules/authentication/content/fr.ts
+@@ -53,8 +53,10 @@ export const authCopyFr: AuthCopy = {
+       placeholder: 'Répétez le mot de passe',
+     },
+     terms: {
+-      label: 'J’accepte les Conditions d’utilisation',
++      label: 'J’accepte les',
+       linkLabel: 'Conditions d’utilisation',
++      connector: 'et la',
++      privacyLinkLabel: 'Politique de confidentialité',
+     },
+     submit: 'Créer un compte',
+     submitLoading: 'Création du compte…',
+diff --git a/apps/web/modules/authentication/content/pt.ts b/apps/web/modules/authentication/content/pt.ts
+index fca52c5..27032cb 100644
+--- a/apps/web/modules/authentication/content/pt.ts
++++ b/apps/web/modules/authentication/content/pt.ts
+@@ -50,8 +50,10 @@ export const authCopyPt = {
+     },
+     confirm: { label: 'Confirmar password', placeholder: 'Repita a password' },
+     terms: {
+-      label: 'Aceito os Termos de utilização',
++      label: 'Aceito os',
+       linkLabel: 'Termos de utilização',
++      connector: 'e a',
++      privacyLinkLabel: 'Política de privacidade',
+     },
+     submit: 'Criar conta',
+     submitLoading: 'A criar conta…',
+@@ -180,7 +182,7 @@ export const authCopyPt = {
+     dashboardHint: 'A plataforma está pronta — escolha uma acção ou abra um módulo.',
+     todayTitle: 'O que pretende fazer hoje?',
+     todayHint: 'Atalhos para as acções mais usadas nos módulos activos.',
+-    quickActivateProperty: 'Ativar Património',
++    quickActivateProperty: 'Activar Património',
+     quickExploreHousing: 'Explorar Habitação',
+     quickAgent: 'Área do Agente',
+     quickAdmin: 'Administração',
+diff --git a/apps/web/modules/institutional/components/InstitutionalDocument.tsx b/apps/web/modules/institutional/components/InstitutionalDocument.tsx
+index f3883dc..f689f72 100644
+--- a/apps/web/modules/institutional/components/InstitutionalDocument.tsx
++++ b/apps/web/modules/institutional/components/InstitutionalDocument.tsx
+@@ -25,8 +25,10 @@ type Props = {
+ };
+ 
+ function renderInline(text: string): ReactNode[] {
+-  const parts = text.split(/(\*\*[^*]+\*\*|`[^`]+`)/g);
++  // Bold, code, and markdown links [label](/path) or [label](https://...)
++  const parts = text.split(/(\*\*[^*]+\*\*|`[^`]+`|\[[^\]]+\]\([^)]+\))/g);
+   return parts.map((part, i) => {
++    if (!part) return null;
+     if (part.startsWith('**') && part.endsWith('**')) {
+       return (
+         <strong key={i} className="font-semibold text-slate-900">
+@@ -44,7 +46,36 @@ function renderInline(text: string): ReactNode[] {
+         </code>
+       );
+     }
+-    return part;
++    const linkMatch = /^\[([^\]]+)\]\(([^)]+)\)$/.exec(part);
++    if (linkMatch) {
++      const label = linkMatch[1] ?? '';
++      const href = linkMatch[2] ?? '';
++      if (!label || !href) return <span key={i}>{part}</span>;
++      const external = /^https?:\/\//i.test(href);
++      if (external) {
++        return (
++          <a
++            key={i}
++            href={href}
++            target="_blank"
++            rel="noreferrer"
++            className="font-medium text-brand-700 underline underline-offset-2"
++          >
++            {label}
++          </a>
++        );
++      }
++      return (
++        <Link
++          key={i}
++          href={href}
++          className="font-medium text-brand-700 underline underline-offset-2"
++        >
++          {label}
++        </Link>
++      );
++    }
++    return <span key={i}>{part}</span>;
+   });
+ }
+ 
+diff --git a/apps/web/modules/landing/components/LandingTopbar.tsx b/apps/web/modules/landing/components/LandingTopbar.tsx
+index f0423a0..5eae0da 100644
+--- a/apps/web/modules/landing/components/LandingTopbar.tsx
++++ b/apps/web/modules/landing/components/LandingTopbar.tsx
+@@ -51,7 +51,7 @@ export function LandingTopbar() {
+           <Link
+             href={c.routes.enter}
+             className={cn(
+-              'hidden min-h-11 items-center px-3 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 sm:inline-flex',
++              'inline-flex min-h-11 items-center px-3 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500',
+               light ? 'text-slate-600 hover:text-slate-900' : 'text-slate-200 hover:text-white',
+             )}
+           >
+diff --git a/apps/web/modules/landing/content.test.ts b/apps/web/modules/landing/content.test.ts
+index 0cd0199..ff43b41 100644
+--- a/apps/web/modules/landing/content.test.ts
++++ b/apps/web/modules/landing/content.test.ts
+@@ -24,7 +24,7 @@ describe('getLandingCopy(pt)', () => {
+ describe('getLandingCopy — locale packs stay in their own language', () => {
+   it('renders English copy without Portuguese leaking in', () => {
+     const en = getLandingCopy('en');
+-    expect(en.hero.title).toBe('Legacy. Trust. Housing.');
++    expect(en.hero.title).toBe('Property. Trust. Housing.');
+     expect(en.hero.title).not.toContain('Património');
+     expect(en.topbar.enter).toBe('Sign in');
+     expect(en.difference.pillars).toHaveLength(3);
+diff --git a/apps/web/modules/landing/content/en.ts b/apps/web/modules/landing/content/en.ts
+index c8d0a2e..0e03c16 100644
+--- a/apps/web/modules/landing/content/en.ts
++++ b/apps/web/modules/landing/content/en.ts
+@@ -2,9 +2,9 @@ import type { LandingCopy } from './pt';
+ 
+ export const landingCopyEn: LandingCopy = {
+   seo: {
+-    title: 'Kuteka — Legacy. Trust. Housing.',
++    title: 'Kuteka — Property. Trust. Housing.',
+     description:
+-      'African property-tech built on legacy and trust. Protect, grow and track your real estate assets in Angola — with transparency and professionalism.',
++      'African property-tech built on property and trust. Protect, grow and track your real estate assets in Angola — with transparency and professionalism.',
+   },
+   topbar: {
+     brand: 'Kuteka',
+@@ -13,18 +13,18 @@ export const landingCopyEn: LandingCopy = {
+   },
+   hero: {
+     eyebrow: 'Kuteka · Angola',
+-    title: 'Legacy. Trust. Housing.',
++    title: 'Property. Trust. Housing.',
+     subtitle:
+       'The platform that protects, grows and tracks your real estate assets — with transparency and professionalism.',
+     primaryCta: 'Get started',
+     secondaryCta: 'Explore',
+     imageAlt:
+-      'Contemporary residential environment — an atmosphere of legacy and dignified housing',
++      'Contemporary residential environment — an atmosphere of property and dignified housing',
+   },
+   difference: {
+     id: 'diferenca',
+     title: 'Why Kuteka is different',
+-    intro: "We're not a listings site. We're a platform built on legacy and trust.",
++    intro: "We're not a listings site. We're a platform built on property and trust.",
+     pillars: [
+       {
+         id: 'trust',
+@@ -33,7 +33,7 @@ export const landingCopyEn: LandingCopy = {
+       },
+       {
+         id: 'patrimony',
+-        title: 'Legacy, not just properties',
++        title: 'Property, not just listings',
+         text: 'Every asset can be activated, tracked and grown in value over time.',
+       },
+       {
+diff --git a/apps/web/modules/patrimonios/content/pt.ts b/apps/web/modules/patrimonios/content/pt.ts
+index 4571c0e..c34296e 100644
+--- a/apps/web/modules/patrimonios/content/pt.ts
++++ b/apps/web/modules/patrimonios/content/pt.ts
+@@ -5,8 +5,8 @@ export const patrimoniosCopyPt = {
+   emptyTitle: 'Nenhum património activado',
+   empty:
+     'Active o primeiro património com fotografias ou vídeos, serviços pretendidos e nível de gestão. O inventário Beta já está disponível em Habitação.',
+-  emptyCta: 'Ativar o primeiro património',
+-  activate: 'Ativar Património',
++  emptyCta: 'Activar o primeiro património',
++  activate: 'Activar Património',
+   activating: 'A activar…',
+   activated: 'Património activado.',
+   submittedForReview:
+diff --git a/apps/web/modules/shell/components/ContactClient.tsx b/apps/web/modules/shell/components/ContactClient.tsx
+index a7f9942..5c88a13 100644
+--- a/apps/web/modules/shell/components/ContactClient.tsx
++++ b/apps/web/modules/shell/components/ContactClient.tsx
+@@ -4,26 +4,27 @@ import Link from 'next/link';
+ import { Heading, Text, buttonVariants } from '@kuteka/ui';
+ import { cn } from '@kuteka/shared';
+ import { useLocale } from '@/modules/i18n/LocaleProvider';
++import { getLandingCopy } from '@/modules/landing/content';
+ import { getShellCopy } from '../content';
+ import { LanguageSwitcher } from './LanguageSwitcher';
+ 
++/** Public contact channels — only verified production contacts (no placeholder phones). */
+ const CHANNELS = {
+-  whatsapp: 'https://wa.me/244900000000',
+-  phone: 'tel:+244900000000',
+-  email: 'mailto:contacto@kuteka.ao',
+-};
++  email: 'mailto:contacto@kutekalink.com',
++  docs: '/documentacao',
++  signIn: '/auth/entrar',
++} as const;
+ 
+ export function ContactClient() {
+   const { locale } = useLocale();
+   const shell = getShellCopy(locale);
++  const landing = getLandingCopy(locale);
+   const c = shell.contactPage;
+ 
+   const items = [
+-    { id: 'whatsapp', label: c.whatsapp, href: CHANNELS.whatsapp, external: true },
+-    { id: 'phone', label: c.phone, href: CHANNELS.phone, external: true },
+     { id: 'email', label: c.email, href: CHANNELS.email, external: true },
+-    { id: 'chat', label: c.chat, href: '#chat', external: false },
+-    { id: 'help', label: c.helpCenter, href: '/app/ajuda', external: false },
++    { id: 'help', label: c.helpCenter, href: CHANNELS.docs, external: false },
++    { id: 'signin', label: landing.topbar.enter, href: CHANNELS.signIn, external: false },
+   ];
+ 
+   return (
+@@ -33,31 +34,48 @@ export function ContactClient() {
+           <Heading level={1}>{c.title}</Heading>
+           <Text className="mt-2 text-slate-700">{c.subtitle}</Text>
+           <p className="mt-2 text-sm font-semibold text-slate-600">{c.hours}</p>
++          <p className="mt-3 text-sm text-slate-600">
++            Email:{' '}
++            <a className="font-medium text-brand-700 underline" href={CHANNELS.email}>
++              contacto@kutekalink.com
++            </a>
++          </p>
+         </div>
+         <LanguageSwitcher variant="compact" />
+       </div>
+ 
+       <ul className="grid gap-3 sm:grid-cols-2">
+         {items.map((item) => (
+-          <li key={item.id} id={item.id === 'chat' ? 'chat' : undefined}>
+-            <a
+-              href={item.href}
+-              {...(item.external ? { target: '_blank', rel: 'noreferrer' } : {})}
+-              className="block rounded-xl border border-slate-200 bg-white p-4 shadow-sm transition hover:border-amber-300 hover:bg-amber-50/40"
+-            >
+-              <p className="font-bold text-slate-900">{item.label}</p>
+-            </a>
++          <li key={item.id}>
++            {item.external ? (
++              <a
++                href={item.href}
++                {...(item.href.startsWith('mailto:')
++                  ? {}
++                  : { target: '_blank', rel: 'noreferrer' })}
++                className="block rounded-xl border border-slate-200 bg-white p-4 shadow-sm transition hover:border-amber-300 hover:bg-amber-50/40"
++              >
++                <p className="font-bold text-slate-900">{item.label}</p>
++              </a>
++            ) : (
++              <Link
++                href={item.href}
++                className="block rounded-xl border border-slate-200 bg-white p-4 shadow-sm transition hover:border-amber-300 hover:bg-amber-50/40"
++              >
++                <p className="font-bold text-slate-900">{item.label}</p>
++              </Link>
++            )}
+           </li>
+         ))}
+       </ul>
+ 
+       <div className="flex flex-wrap gap-3">
+-        <Link href="/app" className={cn(buttonVariants({ variant: 'primary' }), 'w-fit')}>
+-          {shell.items.home}
+-        </Link>
+-        <Link href="/app/ajuda" className={cn(buttonVariants({ variant: 'secondary' }), 'w-fit')}>
++        <Link href="/documentacao" className={cn(buttonVariants({ variant: 'primary' }), 'w-fit')}>
+           {c.helpCenter}
+         </Link>
++        <Link href="/auth/entrar" className={cn(buttonVariants({ variant: 'secondary' }), 'w-fit')}>
++          {landing.topbar.enter}
++        </Link>
+       </div>
+     </main>
+   );
+diff --git a/apps/web/modules/shell/content/en.ts b/apps/web/modules/shell/content/en.ts
+index 32a7461..c00371d 100644
+--- a/apps/web/modules/shell/content/en.ts
++++ b/apps/web/modules/shell/content/en.ts
+@@ -54,7 +54,7 @@ export const shellCopyEn: ShellCopy = {
+     help: 'Help Centre',
+     helpHint: 'Manual, FAQ and tutorials',
+     contact: 'Contact Kuteka',
+-    contactHint: 'WhatsApp, phone, email and chat',
++    contactHint: 'Email and public documentation',
+     logout: 'Sign out',
+   },
+   settingsPage: {
+@@ -97,12 +97,12 @@ export const shellCopyEn: ShellCopy = {
+   },
+   contactPage: {
+     title: 'Contact Kuteka',
+-    subtitle: 'Choose the most convenient channel for your team.',
++    subtitle: 'Email us or browse the public documentation.',
+     whatsapp: 'WhatsApp',
+     phone: 'Phone',
+     email: 'Email',
+     chat: 'Chat',
+-    helpCenter: 'Help Centre',
++    helpCenter: 'Documentation',
+     hours: 'Support on weekdays, 09:00–18:00 (WAT)',
+   },
+   items: {
+diff --git a/apps/web/modules/shell/content/es.ts b/apps/web/modules/shell/content/es.ts
+index 349ae4d..4ca8249 100644
+--- a/apps/web/modules/shell/content/es.ts
++++ b/apps/web/modules/shell/content/es.ts
+@@ -54,7 +54,7 @@ export const shellCopyEs: ShellCopy = {
+     help: 'Centro de Ayuda',
+     helpHint: 'Manual, FAQ y tutoriales',
+     contact: 'Contactar a Kuteka',
+-    contactHint: 'WhatsApp, teléfono, email y chat',
++    contactHint: 'Email y documentación pública',
+     logout: 'Cerrar sesión',
+   },
+   settingsPage: {
+@@ -97,12 +97,12 @@ export const shellCopyEs: ShellCopy = {
+   },
+   contactPage: {
+     title: 'Contactar a Kuteka',
+-    subtitle: 'Elija el canal más conveniente para su equipo.',
++    subtitle: 'Escríbanos por email o consulte la documentación pública.',
+     whatsapp: 'WhatsApp',
+     phone: 'Teléfono',
+     email: 'Email',
+     chat: 'Chat',
+-    helpCenter: 'Centro de Ayuda',
++    helpCenter: 'Documentación',
+     hours: 'Atención en días laborables, 09:00–18:00 (WAT)',
+   },
+   items: {
+diff --git a/apps/web/modules/shell/content/fr.ts b/apps/web/modules/shell/content/fr.ts
+index 21c7575..dd8f5fa 100644
+--- a/apps/web/modules/shell/content/fr.ts
++++ b/apps/web/modules/shell/content/fr.ts
+@@ -54,7 +54,7 @@ export const shellCopyFr: ShellCopy = {
+     help: 'Centre d’aide',
+     helpHint: 'Manuel, FAQ et tutoriels',
+     contact: 'Contacter Kuteka',
+-    contactHint: 'WhatsApp, téléphone, e-mail et chat',
++    contactHint: 'E-mail et documentation publique',
+     logout: 'Se déconnecter',
+   },
+   settingsPage: {
+@@ -97,12 +97,12 @@ export const shellCopyFr: ShellCopy = {
+   },
+   contactPage: {
+     title: 'Contacter Kuteka',
+-    subtitle: 'Choisissez le canal le plus pratique pour votre équipe.',
++    subtitle: 'Écrivez-nous par e-mail ou consultez la documentation publique.',
+     whatsapp: 'WhatsApp',
+     phone: 'Téléphone',
+     email: 'E-mail',
+     chat: 'Chat',
+-    helpCenter: 'Centre d’aide',
++    helpCenter: 'Documentation',
+     hours: 'Assistance en jours ouvrables, 09:00–18:00 (WAT)',
+   },
+   items: {
+diff --git a/apps/web/modules/shell/content/pt.ts b/apps/web/modules/shell/content/pt.ts
+index cb65bc0..64e9c0c 100644
+--- a/apps/web/modules/shell/content/pt.ts
++++ b/apps/web/modules/shell/content/pt.ts
+@@ -53,7 +53,7 @@ export const shellCopyPt = {
+     help: 'Centro de Ajuda',
+     helpHint: 'Manual, FAQ e tutoriais',
+     contact: 'Contactar a Kuteka',
+-    contactHint: 'WhatsApp, telefone, email e chat',
++    contactHint: 'Email e documentação pública',
+     logout: 'Terminar sessão',
+   },
+   settingsPage: {
+@@ -96,12 +96,12 @@ export const shellCopyPt = {
+   },
+   contactPage: {
+     title: 'Contactar a Kuteka',
+-    subtitle: 'Escolha o canal mais conveniente para a sua equipa.',
++    subtitle: 'Escreva-nos por email ou consulte a documentação pública.',
+     whatsapp: 'WhatsApp',
+     phone: 'Telefone',
+     email: 'Email',
+     chat: 'Chat',
+-    helpCenter: 'Centro de Ajuda',
++    helpCenter: 'Documentação',
+     hours: 'Atendimento em dias úteis, 09:00–18:00 (WAT)',
+   },
+   items: {
+@@ -113,7 +113,7 @@ export const shellCopyPt = {
+     futuro: 'Disponibilidade futura',
+     propostas: 'Propostas',
+     patrimonios: 'Patrimónios',
+-    ativar: 'Ativar Património',
++    ativar: 'Activar Património',
+     habitacao: 'Habitação',
+     agente: 'Agente',
+     mensagens: 'Mensagens',
+diff --git a/apps/web/public/docs/FAQ_v1.md b/apps/web/public/docs/FAQ_v1.md
+index 52e13f6..29e86d4 100644
+--- a/apps/web/public/docs/FAQ_v1.md
++++ b/apps/web/public/docs/FAQ_v1.md
+@@ -2,7 +2,7 @@
+ 
+ **FAQ · Versão 1.0 Beta · 5 de Agosto de 2026 · https://kutekalink.com**
+ 
+-Contacto de suporte: contacto@kutekalink.com · Centro de Documentação na app: `/app/ajuda`
++Contacto de suporte: contacto@kutekalink.com · Documentação pública: `/documentacao` · Na app (com sessão): `/app/ajuda`
+ 
+ ---
+ 
+@@ -53,7 +53,7 @@ No hub financeiro (`/app/financeiro`) e no serviço específico que originou a c
+ ## Suporte
+ 
+ **13. Como contacto a equipa Kuteka?**
+-Através da página de Contacto (`/contacto`), que reúne WhatsApp, telefone, email e chat, ou pelo Centro de Documentação (`/app/ajuda`).
++Através da página de Contacto (`/contacto`) — email `contacto@kutekalink.com` — ou pelo Centro de Documentação público (`/documentacao`). Com sessão iniciada, use também `/app/ajuda`.
+ 
+ **14. Onde consulto os Termos de Utilização, a Política de Privacidade e a Política de Cookies?**
+ Nas páginas `/termos`, `/privacidade` e `/cookies`, também acessíveis a partir do Centro de Documentação e do rodapé do site.
+diff --git a/apps/web/public/docs/MANUAL_UTILIZADOR_v1.md b/apps/web/public/docs/MANUAL_UTILIZADOR_v1.md
+index e7bcd4e..de22c70 100644
+--- a/apps/web/public/docs/MANUAL_UTILIZADOR_v1.md
++++ b/apps/web/public/docs/MANUAL_UTILIZADOR_v1.md
+@@ -2,7 +2,7 @@
+ 
+ **Manual do Utilizador / Centro de Ajuda · Versão 1.0 Beta · 5 de Agosto de 2026 · https://kutekalink.com**
+ 
+-Contacto de suporte: contacto@kutekalink.com · Centro de Ajuda na app: `/app/ajuda`
++Contacto de suporte: contacto@kutekalink.com · Documentação pública: `/documentacao` · Na app (com sessão): `/app/ajuda`
+ 
+ ---
+ 
+@@ -161,7 +161,7 @@ Na Beta, a cobrança destes serviços passa pelo **Kuteka Pay em sandbox** até
+ ### 5.1 Activar património
+ 
+ 1. Mude para a experiência **Parceiro Patrimonial**.
+-2. Abra `/app/patrimonios/novo` (**Ativar Património**).
++2. Abra `/app/patrimonios/novo` (**Activar Património**).
+ 3. Preencha localização, tipologia, condições, preços e media.
+ 4. Publique e acompanhe em `/app/patrimonios`.
+ 
+@@ -429,14 +429,15 @@ O utilizador vê intenções de pagamento, estado (pendente, pago, falhado, reem
+ 
+ ## 17. Contactos e suporte
+ 
+-| Canal           | Utilização                 |
+-| --------------- | -------------------------- |
+-| Centro de Ajuda | `/app/ajuda`               |
+-| Contacto        | `/contacto`                |
+-| Email geral     | contacto@kutekalink.com    |
+-| Privacidade     | privacidade@kutekalink.com |
+-| Jurídico        | juridico@kutekalink.com    |
+-| Site            | https://kutekalink.com     |
++| Canal                 | Utilização                 |
++| --------------------- | -------------------------- |
++| Centro de Ajuda (app) | `/app/ajuda`               |
++| Documentação pública  | `/documentacao`            |
++| Contacto              | `/contacto`                |
++| Email geral           | contacto@kutekalink.com    |
++| Privacidade           | privacidade@kutekalink.com |
++| Jurídico              | juridico@kutekalink.com    |
++| Site                  | https://kutekalink.com     |
+ 
+ Horário de atendimento de referência na Beta: dias úteis, 09:00–18:00 (WAT), salvo comunicação em contrário.
+ 
+diff --git a/apps/web/public/favicon.ico b/apps/web/public/favicon.ico
+new file mode 100644
+index 0000000000000000000000000000000000000000..aa395647361522b35558f8a2e25d045b3485a329
+GIT binary patch
+literal 349
+zcmZQzU}Ruo5D;Jh(h3aC3=9lvK&+qu;co%5R|0WofS)@rmlPL}$?NIi5(K1yIv4~v
+z*np(`=l_X7%FENmF{I*F@(+K-1c^Uv1uJeIHgsg3AgY{wD4ipYnWIxUm%%PvAeUj2
+zO(5F??vO4X1uKDx2ivE9D)5=Y_@beX?E#aBw8P~yEDSZT%7rG(ihTn#mBG{1&t;uc
+zLK7AzC;+7uz)mQxs`>)tR70Hb_WD820}4E>0sVImMPGlhC+|7i+r1f6-kTqsz;CH$
+z<I1$`x`ieKql5JN--6yx*|ssdEuX#iEyFS200wOiDF)XA4A%~SVW03TlcB_Y1yfY<
+z6~_OOA_q>LGGh)9pQ!2JrMoklaRGzdN8TBo`V2zF4u5+3SZflOruC?qDLw%@1MX%3
+Drip4_
+
+literal 0
+HcmV?d00001
+
+diff --git a/apps/web/public/robots.txt b/apps/web/public/robots.txt
+new file mode 100644
+index 0000000..95308a3
+--- /dev/null
++++ b/apps/web/public/robots.txt
+@@ -0,0 +1,9 @@
++User-agent: *
++Allow: /
++Disallow: /app/
++Disallow: /api/
++Disallow: /auth/onboarding/
++Disallow: /dev/
++
++Host: https://kutekalink.com
++Sitemap: https://kutekalink.com/sitemap.xml
+diff --git a/apps/web/public/sitemap.xml b/apps/web/public/sitemap.xml
+new file mode 100644
+index 0000000..f5b0d04
+--- /dev/null
++++ b/apps/web/public/sitemap.xml
+@@ -0,0 +1,48 @@
++<?xml version="1.0" encoding="UTF-8"?>
++<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
++  <url>
++    <loc>https://kutekalink.com/</loc>
++    <changefreq>weekly</changefreq>
++    <priority>1.0</priority>
++  </url>
++  <url>
++    <loc>https://kutekalink.com/contacto/</loc>
++    <changefreq>monthly</changefreq>
++    <priority>0.7</priority>
++  </url>
++  <url>
++    <loc>https://kutekalink.com/cookies/</loc>
++    <changefreq>monthly</changefreq>
++    <priority>0.5</priority>
++  </url>
++  <url>
++    <loc>https://kutekalink.com/documentacao/</loc>
++    <changefreq>monthly</changefreq>
++    <priority>0.7</priority>
++  </url>
++  <url>
++    <loc>https://kutekalink.com/privacidade/</loc>
++    <changefreq>monthly</changefreq>
++    <priority>0.6</priority>
++  </url>
++  <url>
++    <loc>https://kutekalink.com/termos/</loc>
++    <changefreq>monthly</changefreq>
++    <priority>0.6</priority>
++  </url>
++  <url>
++    <loc>https://kutekalink.com/auth/entrar/</loc>
++    <changefreq>monthly</changefreq>
++    <priority>0.8</priority>
++  </url>
++  <url>
++    <loc>https://kutekalink.com/auth/registar/</loc>
++    <changefreq>monthly</changefreq>
++    <priority>0.8</priority>
++  </url>
++  <url>
++    <loc>https://kutekalink.com/auth/recuperar/</loc>
++    <changefreq>monthly</changefreq>
++    <priority>0.4</priority>
++  </url>
++</urlset>
+-- 
+2.43.0
+

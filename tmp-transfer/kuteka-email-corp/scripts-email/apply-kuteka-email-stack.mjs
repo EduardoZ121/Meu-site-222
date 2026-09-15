@@ -2,10 +2,13 @@
 /**
  * Kuteka corporate email stack — idempotent apply.
  *
- * Requires env (never logged):
+ * Requires env (never logged / never printed):
  *   CLOUDFLARE_API_TOKEN, CLOUDFLARE_ACCOUNT_ID
- *   GODADDY_API_KEY, GODADDY_API_SECRET  (or GODADDY_PAT as "key:secret")
+ *   GODADDY_PAT  — Bearer Personal Access Token (gd_pat_...), preferred
+ *     scopes: domains.domain:read, domains.dns:update, domains.nameserver:update
  *   RESEND_API_KEY
+ *
+ * Legacy fallback (deprecated): GODADDY_API_KEY + GODADDY_API_SECRET (sso-key v1)
  *
  * Optional:
  *   EMAIL_FORWARD_TO (default vicentemakiese81@gmail.com)
@@ -44,14 +47,21 @@ function redact(s) {
 }
 
 function godaddyAuth() {
-  const pat = process.env.GODADDY_PAT?.trim();
-  if (pat && pat.includes(':')) {
-    const [key, secret] = pat.split(':', 2);
-    return { key, secret };
+  const pat = (process.env.GODADDY_PAT || process.env.GO_DADDY_PAT || '').trim();
+  if (pat) {
+    // Preferred: Domains v3 Personal Access Token
+    if (pat.startsWith('gd_pat_') || (!pat.includes(':') && pat.length > 20)) {
+      return { mode: 'pat', pat };
+    }
+    // Accidental key:secret stuffed into GODADDY_PAT
+    if (pat.includes(':')) {
+      const [key, secret] = pat.split(':', 2);
+      return { mode: 'sso', key, secret };
+    }
   }
   const key = process.env.GODADDY_API_KEY?.trim();
   const secret = process.env.GODADDY_API_SECRET?.trim();
-  if (key && secret) return { key, secret };
+  if (key && secret) return { mode: 'sso', key, secret };
   return null;
 }
 
@@ -63,7 +73,7 @@ function requireSecrets() {
   const missing = [];
   if (!cf) missing.push('CLOUDFLARE_API_TOKEN');
   if (!account) missing.push('CLOUDFLARE_ACCOUNT_ID');
-  if (!gd) missing.push('GODADDY_API_KEY+GODADDY_API_SECRET (or GODADDY_PAT key:secret)');
+  if (!gd) missing.push('GODADDY_PAT');
   if (!resend) missing.push('RESEND_API_KEY');
   return { cf, account, gd, resend, missing };
 }
@@ -85,15 +95,22 @@ async function cf(path, { method = 'GET', body, token } = {}) {
   return json.result;
 }
 
-async function gdFetch(path, { method = 'GET', body, auth } = {}) {
-  const res = await fetch(`https://api.godaddy.com/v1${path}`, {
+async function gdFetch(path, { method = 'GET', body, auth, api = 'v3' } = {}) {
+  const headers = {
+    'Content-Type': 'application/json',
+    Accept: 'application/json',
+  };
+  if (auth.mode === 'pat') {
+    headers.Authorization = `Bearer ${auth.pat}`;
+  } else {
+    headers.Authorization = `sso-key ${auth.key}:${auth.secret}`;
+    api = 'v1';
+  }
+  const base = api === 'v3' ? 'https://api.godaddy.com/v3' : 'https://api.godaddy.com/v1';
+  const res = await fetch(`${base}${path}`, {
     method,
-    headers: {
-      Authorization: `sso-key ${auth.key}:${auth.secret}`,
-      'Content-Type': 'application/json',
-      Accept: 'application/json',
-    },
-    body: body ? JSON.stringify(body) : undefined,
+    headers,
+    body: body !== undefined ? JSON.stringify(body) : undefined,
   });
   const text = await res.text();
   let json = null;
@@ -103,9 +120,33 @@ async function gdFetch(path, { method = 'GET', body, auth } = {}) {
     json = { raw: text.slice(0, 200) };
   }
   if (!res.ok) {
-    throw new Error(`GoDaddy ${method} ${path}: HTTP ${res.status} ${JSON.stringify(json).slice(0, 300)}`);
+    const code = json?.code || json?.error?.code || '';
+    throw new Error(
+      `GoDaddy ${method} ${path}: HTTP ${res.status}${code ? ` code=${code}` : ''} ${JSON.stringify(json).slice(0, 280)}`,
+    );
   }
   return json;
+}
+
+/** Inventory all DNS records via GoDaddy v3 (paginated). */
+async function inventoryGodaddyDns(auth) {
+  if (auth.mode !== 'pat') {
+    return gdFetch(`/domains/${DOMAIN}/records`, { auth, api: 'v1' });
+  }
+  const items = [];
+  let page = 1;
+  for (;;) {
+    const json = await gdFetch(
+      `/domains/zones/${DOMAIN}/dns-records?page=${page}&pageSize=100&totalRequired=true`,
+      { auth },
+    );
+    const batch = json.items || json || [];
+    if (Array.isArray(batch)) items.push(...batch);
+    const totalPages = json.totalPages || 1;
+    if (page >= totalPages || batch.length === 0) break;
+    page += 1;
+  }
+  return items;
 }
 
 async function resendApi(path, { method = 'GET', body, key } = {}) {
@@ -339,13 +380,60 @@ async function cutoverNameservers(zone, auth) {
     log('DRY GoDaddy NS →', ns);
     return ns;
   }
-  await gdFetch(`/domains/${DOMAIN}`, {
-    method: 'PATCH',
-    auth,
-    body: { nameServers: ns },
-  });
+  if (auth.mode === 'pat') {
+    // Domains v3 — requires domains.nameserver:update
+    await gdFetch(`/domains/domain-names/${DOMAIN}/nameservers`, {
+      method: 'PUT',
+      auth,
+      body: ns,
+    });
+  } else {
+    await gdFetch(`/domains/${DOMAIN}`, {
+      method: 'PATCH',
+      auth,
+      body: { nameServers: ns },
+    });
+  }
   log('GoDaddy nameservers updated to Cloudflare');
   return ns;
+}
+
+/** Copy non-NS/SOA GoDaddy records into Cloudflare so nothing is lost at cutover. */
+async function syncGodaddyRecordsToCloudflare(zoneId, token, gdRecords) {
+  if (!Array.isArray(gdRecords) || !gdRecords.length) return;
+  const skipTypes = new Set(['NS', 'SOA']);
+  for (const r of gdRecords) {
+    const type = (r.type || '').toUpperCase();
+    if (skipTypes.has(type)) continue;
+    const rawName = r.name === '@' || r.name === '' ? DOMAIN : r.name;
+    const name = rawName.includes(DOMAIN) ? rawName : `${rawName}.${DOMAIN}`;
+    const content = r.data || r.content || r.value;
+    if (!content) continue;
+    // Skip GoDaddy parking / email defaults that conflict with our plan
+    if (type === 'MX' && /secureserver|google|outlook/i.test(String(content))) {
+      log('Skip legacy MX', content);
+      continue;
+    }
+    const rec = {
+      type,
+      name,
+      content: String(content).replace(/\.$/, type === 'CNAME' || type === 'MX' ? '.' : ''),
+      proxied: false,
+      ttl: 1,
+      comment: 'Imported from GoDaddy inventory',
+    };
+    if (type === 'CNAME' && !rec.content.endsWith('.') && !rec.content.includes('.')) {
+      /* leave as-is */
+    }
+    if ((type === 'MX' || type === 'SRV') && (r.priority != null || r.prio != null)) {
+      rec.priority = Number(r.priority ?? r.prio);
+    }
+    try {
+      await upsertDns(zoneId, token, rec);
+    } catch (e) {
+      log('Import skip', type, name, e.message.slice(0, 120));
+    }
+  }
 }
 
 async function validateSite() {
@@ -374,21 +462,30 @@ async function main() {
   // Inventory GoDaddy DNS if possible
   let gdRecords = null;
   try {
-    gdRecords = await gdFetch(`/domains/${DOMAIN}/records`, { auth: gd });
-    writeFileSync(backupPath, JSON.stringify({ at: stamp, godaddyRecords: gdRecords }, null, 2));
-    log('Backup written', backupPath, 'records', Array.isArray(gdRecords) ? gdRecords.length : '?');
-  } catch (e) {
+    gdRecords = await inventoryGodaddyDns(gd);
     writeFileSync(
       backupPath,
-      JSON.stringify({ at: stamp, godaddyError: e.message, publicFallback: true }, null, 2),
+      JSON.stringify({ at: stamp, authMode: gd.mode, godaddyRecords: gdRecords }, null, 2),
     );
-    log('GoDaddy records inventory failed (will use public inventory):', e.message.slice(0, 160));
+    log('Backup written', backupPath, 'records', Array.isArray(gdRecords) ? gdRecords.length : '?');
+  } catch (e) {
+    const msg = e.message || '';
+    if (/403/.test(msg) && /nameserver|scope|dns/i.test(msg)) {
+      log('GoDaddy scope issue — need domains.domain:read (+ dns/nameserver update for write)');
+    }
+    writeFileSync(
+      backupPath,
+      JSON.stringify({ at: stamp, godaddyError: msg.slice(0, 400), publicFallback: true }, null, 2),
+    );
+    log('GoDaddy records inventory failed (will use public inventory):', msg.slice(0, 160));
   }
 
   const zone = await ensureZone(token, account);
   log('Zone', zone.id, zone.status);
   writeFileSync(join(dir, 'zone-id.txt'), String(zone.id));
 
+  // Preserve existing GD records first, then enforce site + email plan
+  await syncGodaddyRecordsToCloudflare(zone.id, token, gdRecords);
   await ensureSiteRecords(zone.id, token);
   await enableEmailRouting(zone.id, token);
 

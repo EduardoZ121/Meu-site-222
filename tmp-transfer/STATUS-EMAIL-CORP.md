@@ -1,37 +1,25 @@
-# Status — E-mail corporativo Kuteka Beta
+# Status — E-mail corporativo Kuteka (execução)
 
-## Bloqueios externos (impedem cutover em produção)
+## Produção DNS (inalterada nesta ronda)
+- NS: GoDaddy (`ns57/ns58.domaincontrol.com`)
+- Site apex/www: OK (Render)
+- MX: ainda nenhum
 
-| Secret / acesso | Estado |
-|-----------------|--------|
-| `CLOUDFLARE_API_TOKEN` + `CLOUDFLARE_ACCOUNT_ID` | **ausente** |
-| `GODADDY_API_KEY` + `GODADDY_API_SECRET` (ou `GODADDY_PAT=key:secret`) | **ausente** |
-| `RESEND_API_KEY` | **ausente** |
-| Push `EduardoZ121/Site_Angola` | **403** cursor[bot] |
-| Supabase Dashboard SMTP | requer acção humana após Resend |
+## Executado
+- Script actualizado para **GODADDY_PAT** Bearer v3 (`gd_pat_…`) + cutover `PUT .../nameservers`
+- Importação de inventário GoDaddy → zona CF antes do cutover
+- Guia token CF mínimo: `docs-email/CLOUDFLARE_TOKEN_MINIMAL.md`
+- Kit app `@kuteka/email` + hook (PR bridge)
+- Pedido de secrets/ambiente registado
 
-## Feito neste ambiente (pronto a aplicar)
+## Pendente (bloqueio de secrets)
+| Secret | Uso |
+|--------|-----|
+| `GODADDY_PAT` | inventário + cutover NS (`domain:read`, `dns:update`, `nameserver:update`) |
+| `CLOUDFLARE_API_TOKEN` | zona + DNS + Email Routing |
+| `CLOUDFLARE_ACCOUNT_ID` | criar zona / destinations |
+| `RESEND_API_KEY` | `mail.kutekalink.com` + SMTP Auth |
+| Write Site_Angola | merge código (opcional `SITE_ANGOLA_PUSH_TOKEN`) |
+| Supabase SMTP dashboard | após Resend verificado |
 
-- Inventário + backup DNS público (`dns-backup-before.txt`)
-- Pacote `@kuteka/email` (templates + Resend fetch client + testes)
-- Script idempotente `scripts/email/apply-kuteka-email-stack.mjs`
-- Hook `POST /api/internal/mail/send`
-- Doc `docs/operations/email/CORPORATE_EMAIL_BETA.md`
-- Kit bridge: `tmp-transfer/kuteka-email-corp/`
-
-## Arquitectura (decisões tomadas)
-
-- Human: CF Email Routing → `vicentemakiese81@gmail.com` (6 endereços)
-- Transacional: Resend `mail.kutekalink.com` / `noreply@mail.kutekalink.com`
-- Apex MX reservado a Routing (futuro: Workspace); envio isolado no subdomínio
-- Site A `@` → Render `216.24.57.1` DNS-only; www CNAME apex
-
-## Próximo passo (quando secrets existirem)
-
-```bash
-SKIP_NS_CUTOVER=1 node scripts/email/apply-kuteka-email-stack.mjs
-# validar zona CF
-node scripts/email/apply-kuteka-email-stack.mjs   # cutover NS
-# verificar Gmail destination + dig MX
-# Supabase SMTP → Resend
-```
+Quando os secrets estiverem no ambiente: correr `SKIP_NS_CUTOVER=1` depois apply completo — **sem** nova aprovação técnica.

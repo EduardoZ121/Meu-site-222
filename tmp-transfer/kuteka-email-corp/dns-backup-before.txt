@@ -1,0 +1,18 @@
+# DNS backup 2026-09-15T19:15:00Z for kutekalink.com
+## NS
+kutekalink.com.		1695	IN	NS	ns58.domaincontrol.com.
+kutekalink.com.		1695	IN	NS	ns57.domaincontrol.com.
+## SOA
+kutekalink.com.		2535	IN	SOA	ns57.domaincontrol.com. dns.jomax.net. 2026062202 28800 7200 604800 600
+## A
+kutekalink.com.		300	IN	A	216.24.57.1
+## AAAA
+## MX
+## TXT
+## CAA
+## www
+www.kutekalink.com.	300	IN	CNAME	kutekalink.com.
+kutekalink.com.		300	IN	A	216.24.57.1
+www.kutekalink.com.	300	IN	CNAME	kutekalink.com.
+## _dmarc
+_dmarc.kutekalink.com.	3600	IN	TXT	"v=DMARC1; p=quarantine; adkim=r; aspf=r; rua=mailto:dmarc_rua@onsecureserver.net;"

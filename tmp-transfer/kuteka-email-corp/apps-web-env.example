@@ -1,0 +1,22 @@
+# KEOS — environment template (never commit real secrets)
+NODE_ENV=development
+
+# App
+NEXT_PUBLIC_APP_URL=http://localhost:3000
+NEXT_PUBLIC_ENABLE_DEV_TOOLS=true
+
+# Supabase (public)
+NEXT_PUBLIC_SUPABASE_URL=https://YOUR_PROJECT.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
+
+# Supabase (server only — never expose to the browser)
+SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
+
+# Transactional email (Resend) — server only
+# RESEND_API_KEY=
+# RESEND_FROM=Kuteka <noreply@mail.kutekalink.com>
+# RESEND_REPLY_TO=contacto@kutekalink.com
+# KUTEKA_MAIL_HOOK_SECRET=
+
+# Feature flags (optional)
+# NEXT_PUBLIC_FF_EXAMPLE=false

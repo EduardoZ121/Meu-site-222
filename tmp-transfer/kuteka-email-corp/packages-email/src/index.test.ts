@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { HUMAN_ADDRESSES, renderTransactionalEmail, TRANSACTIONAL_FROM_DEFAULT } from './index';
+import {
+  HUMAN_ADDRESSES,
+  HUMAN_FORWARD_DESTINATION,
+  renderTransactionalEmail,
+  TRANSACTIONAL_FROM_DEFAULT,
+} from './index';
 
 describe('email templates', () => {
   it('renders confirmation with link and otp', () => {
@@ -20,8 +25,9 @@ describe('email templates', () => {
     expect(mail.html).toContain('Redefinir');
   });
 
-  it('exposes human addresses and from default', () => {
+  it('exposes human addresses and operational forward destination', () => {
     expect(HUMAN_ADDRESSES).toContain('contacto@kutekalink.com');
     expect(TRANSACTIONAL_FROM_DEFAULT).toContain('noreply@mail.kutekalink.com');
+    expect(HUMAN_FORWARD_DESTINATION).toBe('kutekalink@gmail.com');
   });
 });

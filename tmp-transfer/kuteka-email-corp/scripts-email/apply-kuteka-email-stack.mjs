@@ -11,7 +11,7 @@
  * Legacy fallback (deprecated): GODADDY_API_KEY + GODADDY_API_SECRET (sso-key v1)
  *
  * Optional:
- *   EMAIL_FORWARD_TO (default vicentemakiese81@gmail.com)
+ *   EMAIL_FORWARD_TO (default kutekalink@gmail.com)
  *   SKIP_NS_CUTOVER=1  — prepare CF zone + routing DNS only
  *   DRY_RUN=1
  *
@@ -25,7 +25,7 @@ import { join } from 'node:path';
 
 const DOMAIN = 'kutekalink.com';
 const RENDER_IP = '216.24.57.1';
-const FORWARD_TO = process.env.EMAIL_FORWARD_TO || 'vicentemakiese81@gmail.com';
+const FORWARD_TO = process.env.EMAIL_FORWARD_TO || 'kutekalink@gmail.com';
 const HUMAN = [
   'info',
   'support',

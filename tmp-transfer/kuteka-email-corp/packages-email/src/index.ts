@@ -9,7 +9,8 @@ export { renderTransactionalEmail } from './templates';
 /** Canonical Beta transactional identity */
 export const TRANSACTIONAL_FROM_DEFAULT = 'Kuteka <noreply@mail.kutekalink.com>';
 export const TRANSACTIONAL_DOMAIN = 'mail.kutekalink.com';
-export const HUMAN_FORWARD_DESTINATION = 'vicentemakiese81@gmail.com';
+/** Operational inbox for Cloudflare Email Routing (override via EMAIL_FORWARD_TO). */
+export const HUMAN_FORWARD_DESTINATION = 'kutekalink@gmail.com';
 
 export const HUMAN_ADDRESSES = [
   'info@kutekalink.com',

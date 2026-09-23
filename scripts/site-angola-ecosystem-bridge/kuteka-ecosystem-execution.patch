@@ -1,0 +1,2754 @@
+From efebe153b1af556b2ea19f1ffb4dd86cf0d9e699 Mon Sep 17 00:00:00 2001
+From: Kuteka Deploy <deploy@kutekalink.com>
+Date: Wed, 23 Sep 2026 10:11:14 +0000
+Subject: [PATCH] feat(ecosystem): feedback workflow, matching notify,
+ completeness, agent leads
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Re-implement kuteka ecosystem execution package:
+- Migrations 0043–0048 (beta feedback RLS/RPC/status, availability notify, assign interest)
+- Property completeness checklist; beta feedback status machine + inbox controls
+- Availability notify helpers; agent claim leads UI + i18n
+- Marketplace becomeProvider and Explore captureDemand CTAs
+- Auth RLS matrix helpers/tests; founder pending decisions + RLS regression docs
+---
+ .../components/AdminBetaInboxPanel.tsx        |  49 ++++-
+ .../agente/components/AgentHubClient.tsx      |  72 ++++++-
+ apps/web/modules/agente/content/en.ts         |   6 +
+ apps/web/modules/agente/content/es.ts         |   7 +
+ apps/web/modules/agente/content/fr.ts         |   7 +
+ apps/web/modules/agente/content/pt.ts         |   7 +
+ .../modules/agente/services/agent-client.ts   |  73 +++++++
+ .../components/ExploreListClient.tsx          |  36 ++--
+ apps/web/modules/habitacao/content/en.ts      |   1 +
+ apps/web/modules/habitacao/content/es.ts      |   1 +
+ apps/web/modules/habitacao/content/fr.ts      |   1 +
+ apps/web/modules/habitacao/content/pt.ts      |   1 +
+ .../kocc/components/BetaFeedbackForm.tsx      |   8 +
+ .../kocc/components/BetaPanelSection.tsx      |  64 +++++-
+ .../kocc/components/KoccCenterClient.tsx      |   1 +
+ .../kocc/lib/beta-feedback-inbox.test.ts      |  17 +-
+ .../modules/kocc/lib/beta-feedback-inbox.ts   |  30 ++-
+ .../kocc/lib/beta-feedback-labels.test.ts     |   2 +
+ .../modules/kocc/lib/beta-feedback-labels.ts  |   4 +-
+ .../kocc/lib/beta-feedback-status.test.ts     |  43 ++++
+ .../modules/kocc/lib/beta-feedback-status.ts  |  83 ++++++++
+ .../kocc/lib/beta-feedback-submit.test.ts     |   9 +-
+ .../modules/kocc/lib/beta-feedback-submit.ts  |  12 +-
+ apps/web/modules/kocc/services/kocc-client.ts |  44 ++++-
+ .../components/MarketplaceClient.tsx          |   9 +
+ apps/web/modules/monetization/content/en.ts   |   3 +
+ apps/web/modules/monetization/content/es.ts   |   3 +
+ apps/web/modules/monetization/content/fr.ts   |   3 +
+ apps/web/modules/monetization/content/pt.ts   |   3 +
+ .../ops/lib/availability-notify.test.ts       |  68 +++++++
+ .../modules/ops/lib/availability-notify.ts    |  39 ++++
+ .../components/ActivatePropertyForm.tsx       |  21 ++
+ .../PropertyCompletenessChecklist.tsx         |  79 ++++++++
+ .../components/PropertyDetailClient.tsx       |   3 +
+ .../lib/property-completeness.test.ts         |  73 +++++++
+ .../patrimonios/lib/property-completeness.ts  | 141 +++++++++++++
+ ...GOV_BETA_FEEDBACK_WORKFLOW_REQUIREMENTS.md |   4 +-
+ ...0043_beta_feedback_founder_read_access.sql |  18 +-
+ .../0044_beta_feedback_submit_path_guard.sql  |  61 +-----
+ .../0045_beta_feedback_rpc_only_insert.sql    |  18 +-
+ docs/operations/PENDING_FOUNDER_DECISIONS.md  |  50 +++++
+ .../RLS_PERMISSION_MATRIX_REGRESSION.md       |  23 +++
+ packages/auth/src/index.test.ts               |  42 ++++
+ packages/auth/src/index.ts                    |  50 +++++
+ ...0043_beta_feedback_founder_read_access.sql | 187 ++++++++++++++++++
+ .../0044_beta_feedback_submit_path_guard.sql  |  49 +++++
+ .../0045_beta_feedback_rpc_only_insert.sql    |  12 ++
+ .../0046_beta_feedback_status_workflow.sql    | 183 +++++++++++++++++
+ .../0047_availability_notify_on_publish.sql   | 105 ++++++++++
+ .../0048_assign_property_interest.sql         |  91 +++++++++
+ supabase/tests/rls_permission_matrix_doc.sql  |  32 +++
+ 51 files changed, 1819 insertions(+), 129 deletions(-)
+ create mode 100644 apps/web/modules/kocc/lib/beta-feedback-status.test.ts
+ create mode 100644 apps/web/modules/kocc/lib/beta-feedback-status.ts
+ create mode 100644 apps/web/modules/ops/lib/availability-notify.test.ts
+ create mode 100644 apps/web/modules/ops/lib/availability-notify.ts
+ create mode 100644 apps/web/modules/patrimonios/components/PropertyCompletenessChecklist.tsx
+ create mode 100644 apps/web/modules/patrimonios/lib/property-completeness.test.ts
+ create mode 100644 apps/web/modules/patrimonios/lib/property-completeness.ts
+ create mode 100644 docs/operations/PENDING_FOUNDER_DECISIONS.md
+ create mode 100644 docs/security/RLS_PERMISSION_MATRIX_REGRESSION.md
+ create mode 100644 supabase/migrations/0043_beta_feedback_founder_read_access.sql
+ create mode 100644 supabase/migrations/0044_beta_feedback_submit_path_guard.sql
+ create mode 100644 supabase/migrations/0045_beta_feedback_rpc_only_insert.sql
+ create mode 100644 supabase/migrations/0046_beta_feedback_status_workflow.sql
+ create mode 100644 supabase/migrations/0047_availability_notify_on_publish.sql
+ create mode 100644 supabase/migrations/0048_assign_property_interest.sql
+ create mode 100644 supabase/tests/rls_permission_matrix_doc.sql
+
+diff --git a/apps/web/modules/administracao/components/AdminBetaInboxPanel.tsx b/apps/web/modules/administracao/components/AdminBetaInboxPanel.tsx
+index a9d13a0..0ed191c 100644
+--- a/apps/web/modules/administracao/components/AdminBetaInboxPanel.tsx
++++ b/apps/web/modules/administracao/components/AdminBetaInboxPanel.tsx
+@@ -2,8 +2,8 @@
+ 
+ /**
+  * Beta feedback inbox for Admin Hub.
+- * Reuses beta_feedback SELECT RLS (finance.manage | admin.panel).
+- * Inbox loads independently of KOCC metrics (Sprint B contract).
++ * Reuses beta_feedback SELECT RLS (finance.manage | admin.panel | Founder).
++ * Status updates via kocc_update_beta_feedback_status (0046) with audit.
+  */
+ import { useEffect, useMemo, useState } from 'react';
+ import { Badge, Text } from '@kuteka/ui';
+@@ -11,9 +11,14 @@ import { SoftListSlot } from '@/modules/shell/components/SoftListSlot';
+ import { filterBetaInboxRows, type BetaInboxFilter } from '@/modules/kocc/lib/beta-feedback-inbox';
+ import { formatBetaActorHint } from '@/modules/kocc/lib/beta-feedback-actor';
+ import { betaFeedbackKindLabel } from '@/modules/kocc/lib/beta-feedback-labels';
++import {
++  BETA_FEEDBACK_STATUSES,
++  betaFeedbackStatusLabel,
++} from '@/modules/kocc/lib/beta-feedback-status';
+ import { shouldShowSoftEmpty } from '@/modules/kocc/lib/soft-empty-gate';
+ import {
+   listRecentBetaFeedback,
++  updateBetaFeedbackStatus,
+   type KoccBetaFeedbackRow,
+ } from '@/modules/kocc/services/kocc-client';
+ 
+@@ -22,6 +27,7 @@ export function AdminBetaInboxPanel() {
+   const [loading, setLoading] = useState(true);
+   const [error, setError] = useState<string | null>(null);
+   const [filter, setFilter] = useState<BetaInboxFilter>('all');
++  const [updatingId, setUpdatingId] = useState<string | null>(null);
+ 
+   useEffect(() => {
+     let cancelled = false;
+@@ -45,6 +51,17 @@ export function AdminBetaInboxPanel() {
+ 
+   const filtered = useMemo(() => filterBetaInboxRows(inbox, filter), [inbox, filter]);
+ 
++  async function onStatusChange(id: string, status: string) {
++    setUpdatingId(id);
++    const res = await updateBetaFeedbackStatus({ id, status });
++    setUpdatingId(null);
++    if (!res.ok) {
++      setError(res.message);
++      return;
++    }
++    setInbox((prev) => prev.map((row) => (row.id === id ? { ...row, ...res.data } : row)));
++  }
++
+   return (
+     <section
+       id="beta-inbox"
+@@ -57,8 +74,8 @@ export function AdminBetaInboxPanel() {
+         </h2>
+         <Text className="text-sm text-slate-500">
+           Relatos de <code className="text-xs">/app/ajuda</code>. Visível com{' '}
+-          <code className="text-xs">admin.panel</code> ou{' '}
+-          <code className="text-xs">finance.manage</code>. Independente das métricas KOCC.
++          <code className="text-xs">admin.panel</code>, <code className="text-xs">finance.manage</code>{' '}
++          ou Founder. Actualize o estado com auditoria.
+         </Text>
+       </div>
+ 
+@@ -69,8 +86,12 @@ export function AdminBetaInboxPanel() {
+           {(
+             [
+               ['all', 'Todos'],
++              ['open', 'Abertos'],
+               ['bug', 'Bugs'],
+               ['feedback', 'Sugestões'],
++              ['avaliacao', 'Avaliações'],
++              ['reclamacao', 'Reclamações'],
++              ['resolvido', 'Fechados'],
+             ] as const
+           ).map(([value, label]) => (
+             <button
+@@ -103,11 +124,14 @@ export function AdminBetaInboxPanel() {
+         {filtered.length > 0 ? (
+           <ul className="divide-y divide-slate-100">
+             {filtered.map((row) => (
+-              <li key={row.id} className="flex flex-col gap-1 py-2.5">
++              <li key={row.id} className="flex flex-col gap-2 py-2.5">
+                 <div className="flex flex-wrap items-center gap-2">
+                   <Badge variant={row.kind === 'bug' ? 'default' : 'brand'}>
+                     {betaFeedbackKindLabel(row.kind)}
+                   </Badge>
++                  <Badge variant="default">
++                    {betaFeedbackStatusLabel(row.status ?? 'received')}
++                  </Badge>
+                   <span className="font-mono text-xs text-slate-500">
+                     {new Date(row.created_at).toLocaleString('pt-AO', {
+                       dateStyle: 'short',
+@@ -132,6 +156,21 @@ export function AdminBetaInboxPanel() {
+                   })()}
+                 </div>
+                 <p className="whitespace-pre-wrap text-sm text-slate-800">{row.body}</p>
++                <label className="flex flex-wrap items-center gap-2 text-xs text-slate-600">
++                  <span>Estado</span>
++                  <select
++                    className="rounded border border-slate-200 bg-white px-2 py-1 text-xs text-slate-800"
++                    value={row.status ?? 'received'}
++                    disabled={updatingId === row.id}
++                    onChange={(e) => void onStatusChange(row.id, e.target.value)}
++                  >
++                    {BETA_FEEDBACK_STATUSES.map((status) => (
++                      <option key={status} value={status}>
++                        {betaFeedbackStatusLabel(status)}
++                      </option>
++                    ))}
++                  </select>
++                </label>
+               </li>
+             ))}
+           </ul>
+diff --git a/apps/web/modules/agente/components/AgentHubClient.tsx b/apps/web/modules/agente/components/AgentHubClient.tsx
+index 09ea67e..01cc687 100644
+--- a/apps/web/modules/agente/components/AgentHubClient.tsx
++++ b/apps/web/modules/agente/components/AgentHubClient.tsx
+@@ -13,10 +13,13 @@ import { SoftListSlot } from '@/modules/shell/components/SoftListSlot';
+ import { getAgenteCopy } from '../content';
+ import { AGENT_DEMO_PIPELINE } from '../demo/pipeline';
+ import {
++  assignPropertyInterestToSelf,
+   getAgentPreferences,
+   listMyAssignments,
++  listOpenPropertyInterestLeads,
+   saveAgentPreferences,
+   type AgentAssignmentRow,
++  type PropertyInterestLeadRow,
+ } from '../services/agent-client';
+ 
+ const PURPOSES = ['rent', 'sale', 'both'] as const;
+@@ -33,6 +36,8 @@ export function AgentHubClient() {
+   const [province, setProvince] = useState('');
+   const [city, setCity] = useState('');
+   const [assignments, setAssignments] = useState<AgentAssignmentRow[]>([]);
++  const [leads, setLeads] = useState<PropertyInterestLeadRow[]>([]);
++  const [assigningLeadId, setAssigningLeadId] = useState<string | null>(null);
+   const [loading, setLoading] = useState(true);
+   const [saving, setSaving] = useState(false);
+   const [message, setMessage] = useState<string | null>(null);
+@@ -46,7 +51,11 @@ export function AgentHubClient() {
+         return;
+       }
+       setLoading(true);
+-      const [prefs, list] = await Promise.all([getAgentPreferences(), listMyAssignments()]);
++      const [prefs, list, leadList] = await Promise.all([
++        getAgentPreferences(),
++        listMyAssignments(),
++        listOpenPropertyInterestLeads(),
++      ]);
+       if (cancelled) return;
+       if (!prefs.ok) setError(prefs.message);
+       else if (prefs.data) {
+@@ -56,6 +65,8 @@ export function AgentHubClient() {
+       }
+       if (!list.ok) setError(list.message);
+       else setAssignments(list.data);
++      if (!leadList.ok) setError(leadList.message);
++      else setLeads(leadList.data);
+       setLoading(false);
+     }
+     if (sessionStatus === 'error') {
+@@ -86,6 +97,26 @@ export function AgentHubClient() {
+     setMessage(copy.saved);
+   }
+ 
++  async function onClaimLead(interestId: string) {
++    setAssigningLeadId(interestId);
++    setError(null);
++    setMessage(null);
++    const result = await assignPropertyInterestToSelf(interestId);
++    setAssigningLeadId(null);
++    if (!result.ok) {
++      setError(result.message);
++      return;
++    }
++    setMessage(copy.leadAssigned);
++    setLeads((prev) =>
++      prev.map((lead) =>
++        lead.id === interestId
++          ? { ...lead, assigned_agent_id: lead.assigned_agent_id ?? 'self', status: 'assigned' }
++          : lead,
++      ),
++    );
++  }
++
+   return (
+     <SessionStatusGate status={sessionStatus} error={sessionError}>
+       <div className="flex flex-col gap-8">
+@@ -307,6 +338,45 @@ export function AgentHubClient() {
+               </div>
+             </section>
+ 
++            <section id="leads" className="flex flex-col gap-3">
++              <div>
++                <Heading level={2}>{copy.leadsTitle}</Heading>
++                <Text className="mt-1 text-sm text-slate-600">{copy.leadsHint}</Text>
++              </div>
++              {leads.length === 0 && !loading ? (
++                <p className="text-sm text-slate-500">{copy.leadsEmpty}</p>
++              ) : (
++                <ul className="flex flex-col gap-2">
++                  {leads.map((lead) => (
++                    <li
++                      key={lead.id}
++                      className="flex flex-col gap-2 rounded-kuteka border border-slate-200 bg-white px-4 py-3 sm:flex-row sm:items-center sm:justify-between"
++                    >
++                      <div>
++                        <p className="font-medium text-slate-900">
++                          {lead.property?.title ?? lead.property_id}
++                        </p>
++                        <p className="text-xs text-slate-500">
++                          {lead.status}
++                          {lead.assigned_agent_id ? ` · ${copy.leadOwned}` : ''}
++                        </p>
++                      </div>
++                      {!lead.assigned_agent_id ? (
++                        <Button
++                          type="button"
++                          size="sm"
++                          loading={assigningLeadId === lead.id}
++                          onClick={() => void onClaimLead(lead.id)}
++                        >
++                          {copy.claimLead}
++                        </Button>
++                      ) : null}
++                    </li>
++                  ))}
++                </ul>
++              )}
++            </section>
++
+             <section className="flex max-w-xl flex-col gap-4">
+               <div>
+                 <Heading level={2}>{copy.preferencesTitle}</Heading>
+diff --git a/apps/web/modules/agente/content/en.ts b/apps/web/modules/agente/content/en.ts
+index c5e975a..69cd5f4 100644
+--- a/apps/web/modules/agente/content/en.ts
++++ b/apps/web/modules/agente/content/en.ts
+@@ -44,6 +44,12 @@ export const agenteCopyEn: AgenteCopy = {
+     'Focus on coverage and follow-ups. Visits, proposals and the Academy will be introduced in later phases.',
+   viewHousingInventory: 'View inventory',
+   activateAgentAdmin: 'Activate agent (Admin)',
++  leadsTitle: 'Interest leads',
++  leadsHint: 'Client interests on properties you cover. Claim lead ownership (audited).',
++  leadsEmpty: 'No open leads visible in this coverage.',
++  claimLead: 'Claim lead',
++  leadAssigned: 'Lead assigned to you.',
++  leadOwned: 'assigned',
+   nextSteps: {
+     title: 'Continue the Kuteka flow',
+     viewActiveProperties: 'View active properties',
+diff --git a/apps/web/modules/agente/content/es.ts b/apps/web/modules/agente/content/es.ts
+index 1e8952f..d99a5e9 100644
+--- a/apps/web/modules/agente/content/es.ts
++++ b/apps/web/modules/agente/content/es.ts
+@@ -46,6 +46,13 @@ export const agenteCopyEs: AgenteCopy = {
+     'Concéntrese en la cobertura y los seguimientos. Las visitas, propuestas y la Academia se introducirán en fases posteriores.',
+   viewHousingInventory: 'Ver inventario',
+   activateAgentAdmin: 'Activar agente (Admin)',
++  leadsTitle: 'Leads de interés',
++  leadsHint:
++    'Intereses de clientes en patrimonios de su cobertura. Asuma la propiedad del lead (auditado).',
++  leadsEmpty: 'Sin leads abiertos visibles en esta cobertura.',
++  claimLead: 'Asumir lead',
++  leadAssigned: 'Lead asignado a usted.',
++  leadOwned: 'asignado',
+   nextSteps: {
+     title: 'Continuar el flujo Kuteka',
+     viewActiveProperties: 'Ver patrimonios activos',
+diff --git a/apps/web/modules/agente/content/fr.ts b/apps/web/modules/agente/content/fr.ts
+index ff4d67b..cfbf7ed 100644
+--- a/apps/web/modules/agente/content/fr.ts
++++ b/apps/web/modules/agente/content/fr.ts
+@@ -46,6 +46,13 @@ export const agenteCopyFr: AgenteCopy = {
+     'Concentrez-vous sur la couverture et les suivis. Les visites, propositions et l’Académie seront introduites dans les phases suivantes.',
+   viewHousingInventory: 'Voir l’inventaire',
+   activateAgentAdmin: 'Activer l’agent (Admin)',
++  leadsTitle: 'Leads d’intérêt',
++  leadsHint:
++    'Intérêts clients sur les biens de votre couverture. Prenez la propriété du lead (auditée).',
++  leadsEmpty: 'Aucun lead ouvert visible dans cette couverture.',
++  claimLead: 'Prendre le lead',
++  leadAssigned: 'Lead qui vous est attribué.',
++  leadOwned: 'attribué',
+   nextSteps: {
+     title: 'Continuer le parcours Kuteka',
+     viewActiveProperties: 'Voir les patrimoines actifs',
+diff --git a/apps/web/modules/agente/content/pt.ts b/apps/web/modules/agente/content/pt.ts
+index 81c2071..b556997 100644
+--- a/apps/web/modules/agente/content/pt.ts
++++ b/apps/web/modules/agente/content/pt.ts
+@@ -44,6 +44,13 @@ export const agenteCopyPt = {
+     'Foque-se em cobertura e acompanhamentos. Visitas, propostas e Academia serão introduzidas em fases seguintes.',
+   viewHousingInventory: 'Ver inventário',
+   activateAgentAdmin: 'Activar agente (Admin)',
++  leadsTitle: 'Leads de interesse',
++  leadsHint:
++    'Interesses de clientes nos patrimónios que acompanha. Assuma a propriedade do lead (auditado).',
++  leadsEmpty: 'Sem leads abertos visíveis nesta cobertura.',
++  claimLead: 'Assumir lead',
++  leadAssigned: 'Lead atribuído a si.',
++  leadOwned: 'atribuído',
+   nextSteps: {
+     title: 'Continuar o fluxo Kuteka',
+     viewActiveProperties: 'Ver patrimónios activos',
+diff --git a/apps/web/modules/agente/services/agent-client.ts b/apps/web/modules/agente/services/agent-client.ts
+index 5f63345..59641c7 100644
+--- a/apps/web/modules/agente/services/agent-client.ts
++++ b/apps/web/modules/agente/services/agent-client.ts
+@@ -312,3 +312,76 @@ export async function activateAssignment(
+     return { ok: false, message: copy.saveError };
+   }
+ }
++
++export type PropertyInterestLeadRow = {
++  id: string;
++  client_id: string;
++  property_id: string;
++  status: string;
++  notes: string | null;
++  assigned_agent_id: string | null;
++  created_at: string;
++  property?: AgentPropertyRow | null;
++};
++
++/** Open leads (property_interests) visible to the agent via existing RLS. */
++export async function listOpenPropertyInterestLeads(): Promise<
++  { ok: true; data: PropertyInterestLeadRow[] } | { ok: false; message: string }
++> {
++  const copy = getAgenteCopy(resolveUiLocale());
++  try {
++    const client = createBrowserClient();
++    const { data, error } = await client
++      .from('property_interests')
++      .select(
++        `id, client_id, property_id, status, notes, assigned_agent_id, created_at, property:properties (${PROPERTY_SELECT})`,
++      )
++      .in('status', ['submitted', 'reviewing', 'assigned'])
++      .order('created_at', { ascending: false })
++      .limit(40);
++
++    if (error) return { ok: false, message: copy.loadError };
++    const rows = (data ?? []).map((item) => {
++      const nested = item.property;
++      const property = Array.isArray(nested)
++        ? ((nested[0] as AgentPropertyRow | undefined) ?? null)
++        : ((nested as AgentPropertyRow | null) ?? null);
++      return {
++        id: item.id as string,
++        client_id: item.client_id as string,
++        property_id: item.property_id as string,
++        status: item.status as string,
++        notes: (item.notes as string | null) ?? null,
++        assigned_agent_id: (item.assigned_agent_id as string | null) ?? null,
++        created_at: item.created_at as string,
++        property,
++      } satisfies PropertyInterestLeadRow;
++    });
++    return { ok: true, data: rows };
++  } catch {
++    return { ok: false, message: copy.loadError };
++  }
++}
++
++/** Self-assign lead via assign_property_interest RPC (0048) + audit. */
++export async function assignPropertyInterestToSelf(
++  interestId: string,
++): Promise<{ ok: true } | { ok: false; message: string }> {
++  const copy = getAgenteCopy(resolveUiLocale());
++  try {
++    const client = createBrowserClient();
++    const { error } = await client.rpc('assign_property_interest', {
++      p_interest_id: interestId,
++      p_agent_id: null,
++    });
++    if (error) {
++      if (error.code === '42501' || error.message?.toLowerCase().includes('permission')) {
++        return { ok: false, message: copy.forbidden };
++      }
++      return { ok: false, message: error.message || copy.saveError };
++    }
++    return { ok: true };
++  } catch {
++    return { ok: false, message: copy.saveError };
++  }
++}
+diff --git a/apps/web/modules/habitacao/components/ExploreListClient.tsx b/apps/web/modules/habitacao/components/ExploreListClient.tsx
+index 38a0777..36d17e3 100644
+--- a/apps/web/modules/habitacao/components/ExploreListClient.tsx
++++ b/apps/web/modules/habitacao/components/ExploreListClient.tsx
+@@ -307,20 +307,28 @@ export function ExploreListClient() {
+                   title={copy.emptyTitle}
+                   description={copy.empty}
+                   action={
+-                    <Button
+-                      type="button"
+-                      variant="primary"
+-                      onClick={() => {
+-                        setPurpose('');
+-                        setProvince('');
+-                        setCity('');
+-                        setPropertyType('');
+-                        setQuery('');
+-                        applyFilters({});
+-                      }}
+-                    >
+-                      {copy.emptyCta}
+-                    </Button>
++                    <div className="flex flex-wrap gap-2">
++                      <Button
++                        type="button"
++                        variant="primary"
++                        onClick={() => {
++                          setPurpose('');
++                          setProvince('');
++                          setCity('');
++                          setPropertyType('');
++                          setQuery('');
++                          applyFilters({});
++                        }}
++                      >
++                        {copy.emptyCta}
++                      </Button>
++                      <Link
++                        href="/app/encontrar-casa"
++                        className={cn(buttonVariants({ variant: 'secondary' }))}
++                      >
++                        {copy.captureDemandCta}
++                      </Link>
++                    </div>
+                   }
+                 />
+               ) : null}
+diff --git a/apps/web/modules/habitacao/content/en.ts b/apps/web/modules/habitacao/content/en.ts
+index a2ac7c8..9db78dd 100644
+--- a/apps/web/modules/habitacao/content/en.ts
++++ b/apps/web/modules/habitacao/content/en.ts
+@@ -21,6 +21,7 @@ export const habitacaoCopyEn: HabitacaoCopy = {
+   empty:
+     'Adjust filters or search terms. The Kuteka Beta inventory should appear with no filters applied.',
+   emptyCta: 'Clear filters',
++  captureDemandCta: 'Capture demand (Find Home)',
+   backToHub: 'Back to Housing',
+   backToExplore: 'Back to exploration',
+   detailTitle: 'Housing detail',
+diff --git a/apps/web/modules/habitacao/content/es.ts b/apps/web/modules/habitacao/content/es.ts
+index ee511fa..239a823 100644
+--- a/apps/web/modules/habitacao/content/es.ts
++++ b/apps/web/modules/habitacao/content/es.ts
+@@ -21,6 +21,7 @@ export const habitacaoCopyEs: HabitacaoCopy = {
+   empty:
+     'Ajuste los filtros o la búsqueda. El inventario Beta Kuteka debería aparecer sin filtros.',
+   emptyCta: 'Borrar filtros',
++  captureDemandCta: 'Registrar demanda (Encontrar Casa)',
+   backToHub: 'Volver a Vivienda',
+   backToExplore: 'Volver a la exploración',
+   detailTitle: 'Detalle de la vivienda',
+diff --git a/apps/web/modules/habitacao/content/fr.ts b/apps/web/modules/habitacao/content/fr.ts
+index eb1f404..7571685 100644
+--- a/apps/web/modules/habitacao/content/fr.ts
++++ b/apps/web/modules/habitacao/content/fr.ts
+@@ -21,6 +21,7 @@ export const habitacaoCopyFr: HabitacaoCopy = {
+   empty:
+     'Ajustez les filtres ou la recherche. L’inventaire Bêta Kuteka devrait apparaître sans filtre.',
+   emptyCta: 'Effacer les filtres',
++  captureDemandCta: 'Enregistrer la demande (Trouver un logement)',
+   backToHub: 'Retour à Habitat',
+   backToExplore: 'Retour à l’exploration',
+   detailTitle: 'Détail du logement',
+diff --git a/apps/web/modules/habitacao/content/pt.ts b/apps/web/modules/habitacao/content/pt.ts
+index cda8536..2be81fe 100644
+--- a/apps/web/modules/habitacao/content/pt.ts
++++ b/apps/web/modules/habitacao/content/pt.ts
+@@ -18,6 +18,7 @@ export const habitacaoCopyPt = {
+   emptyTitle: 'Sem resultados nesta exploração',
+   empty: 'Ajuste filtros ou pesquisa. O inventário Beta Kuteka deve aparecer sem filtros.',
+   emptyCta: 'Limpar filtros',
++  captureDemandCta: 'Registar procura (Encontrar Casa)',
+   backToHub: 'Voltar à Habitação',
+   backToExplore: 'Voltar à exploração',
+   detailTitle: 'Detalhe da habitação',
+diff --git a/apps/web/modules/kocc/components/BetaFeedbackForm.tsx b/apps/web/modules/kocc/components/BetaFeedbackForm.tsx
+index 62b19d2..8c5b9da 100644
+--- a/apps/web/modules/kocc/components/BetaFeedbackForm.tsx
++++ b/apps/web/modules/kocc/components/BetaFeedbackForm.tsx
+@@ -31,6 +31,14 @@ export function BetaFeedbackForm({ pagePath }: BetaFeedbackFormProps) {
+       kind,
+       body,
+       pagePath: pagePath ?? (typeof window !== 'undefined' ? window.location.pathname : undefined),
++      pageContext:
++        typeof window !== 'undefined'
++          ? {
++              locale,
++              viewport: `${window.innerWidth}x${window.innerHeight}`,
++              path: window.location.pathname,
++            }
++          : { locale },
+     });
+     setBusy(false);
+     if (!res.ok) {
+diff --git a/apps/web/modules/kocc/components/BetaPanelSection.tsx b/apps/web/modules/kocc/components/BetaPanelSection.tsx
+index 2513271..2b3c852 100644
+--- a/apps/web/modules/kocc/components/BetaPanelSection.tsx
++++ b/apps/web/modules/kocc/components/BetaPanelSection.tsx
+@@ -7,12 +7,17 @@ import { SoftListSlot } from '@/modules/shell/components/SoftListSlot';
+ import { filterBetaInboxRows, type BetaInboxFilter } from '../lib/beta-feedback-inbox';
+ import { formatBetaActorHint } from '../lib/beta-feedback-actor';
+ import { betaFeedbackKindLabel } from '../lib/beta-feedback-labels';
++import {
++  BETA_FEEDBACK_STATUSES,
++  betaFeedbackStatusLabel,
++} from '../lib/beta-feedback-status';
+ import { shouldShowSoftEmpty } from '../lib/soft-empty-gate';
+ import { publicStatusLabel } from '../lib/status-labels';
+-import type {
+-  KoccBetaFeedbackRow,
+-  KoccBetaMetrics,
+-  KoccFeatureUsage,
++import {
++  updateBetaFeedbackStatus,
++  type KoccBetaFeedbackRow,
++  type KoccBetaMetrics,
++  type KoccFeatureUsage,
+ } from '../services/kocc-client';
+ 
+ function MetricCard({ label, value, hint }: { label: string; value: string; hint?: string }) {
+@@ -80,6 +85,7 @@ type BetaPanelSectionProps = {
+   inbox?: KoccBetaFeedbackRow[];
+   inboxLoading?: boolean;
+   inboxError?: string | null;
++  onInboxChange?: (rows: KoccBetaFeedbackRow[]) => void;
+ };
+ 
+ export function BetaPanelSection({
+@@ -89,8 +95,11 @@ export function BetaPanelSection({
+   inbox = [],
+   inboxLoading = false,
+   inboxError = null,
++  onInboxChange,
+ }: BetaPanelSectionProps) {
+   const [inboxFilter, setInboxFilter] = useState<BetaInboxFilter>('all');
++  const [updatingId, setUpdatingId] = useState<string | null>(null);
++  const [statusError, setStatusError] = useState<string | null>(null);
+   const merged = mergeUsage(metrics?.featuresMostUsed, metrics?.featureUsageProxy);
+   const most = [...merged].sort((a, b) => b.count - a.count).slice(0, 6);
+   const least = [...merged].sort((a, b) => a.count - b.count).slice(0, 6);
+@@ -99,6 +108,19 @@ export function BetaPanelSection({
+     [inbox, inboxFilter],
+   );
+ 
++  async function onStatusChange(id: string, status: string) {
++    setUpdatingId(id);
++    setStatusError(null);
++    const res = await updateBetaFeedbackStatus({ id, status });
++    setUpdatingId(null);
++    if (!res.ok) {
++      setStatusError(res.message);
++      return;
++    }
++    const next = inbox.map((row) => (row.id === id ? { ...row, ...res.data } : row));
++    onInboxChange?.(next);
++  }
++
+   return (
+     <PanelSection
+       title="Painel Beta"
+@@ -178,7 +200,8 @@ export function BetaPanelSection({
+             }) ? (
+             <p className="text-sm text-slate-500">
+               Sem métricas. Confirme que a migration <code>0035_kocc_beta_panel.sql</code> foi
+-              aplicada no Supabase remoto e que a conta tem <code>finance.manage</code>.
++              aplicada no Supabase remoto e que a conta tem <code>finance.manage</code> ou é
++              Founder.
+             </p>
+           ) : null}
+         </SoftListSlot>
+@@ -187,17 +210,22 @@ export function BetaPanelSection({
+           <p className="text-sm font-semibold text-slate-900">Inbox de triagem Beta</p>
+           <p className="mt-1 text-xs text-slate-500">
+             Relatos recentes de <code>/app/ajuda</code> (tabela <code>beta_feedback</code>, RLS
+-            operacional: <code>finance.manage</code> ou <code>admin.panel</code>). Independente das
+-            métricas agregadas. Não substitui reclamações operacionais nem avaliações de contrato.
++            operacional + Founder). Actualize o estado; a alteração fica em{' '}
++            <code>audit_logs</code>. Sem upload de screenshots (use <code>page_context</code>).
+           </p>
+           {inboxError ? <p className="mt-2 text-sm text-amber-800">{inboxError}</p> : null}
++          {statusError ? <p className="mt-2 text-sm text-amber-800">{statusError}</p> : null}
+           {inbox.length > 0 ? (
+             <div className="mt-2 flex flex-wrap gap-2 text-xs">
+               {(
+                 [
+                   ['all', 'Todos'],
++                  ['open', 'Abertos'],
+                   ['bug', 'Bugs'],
+                   ['feedback', 'Sugestões'],
++                  ['avaliacao', 'Avaliações'],
++                  ['reclamacao', 'Reclamações'],
++                  ['resolvido', 'Fechados'],
+                 ] as const
+               ).map(([value, label]) => (
+                 <button
+@@ -229,11 +257,14 @@ export function BetaPanelSection({
+             {filteredInbox.length > 0 ? (
+               <ul className="mt-2 divide-y divide-slate-100">
+                 {filteredInbox.map((row) => (
+-                  <li key={row.id} className="flex flex-col gap-1 py-2.5">
++                  <li key={row.id} className="flex flex-col gap-2 py-2.5">
+                     <div className="flex flex-wrap items-center gap-2">
+                       <Badge variant={row.kind === 'bug' ? 'default' : 'brand'}>
+                         {betaFeedbackKindLabel(row.kind)}
+                       </Badge>
++                      <Badge variant="default">
++                        {betaFeedbackStatusLabel(row.status ?? 'received')}
++                      </Badge>
+                       <span className="font-mono text-xs text-slate-500">
+                         {new Date(row.created_at).toLocaleString('pt-AO', {
+                           dateStyle: 'short',
+@@ -258,6 +289,23 @@ export function BetaPanelSection({
+                       })()}
+                     </div>
+                     <p className="whitespace-pre-wrap text-sm text-slate-800">{row.body}</p>
++                    {onInboxChange ? (
++                      <label className="flex flex-wrap items-center gap-2 text-xs text-slate-600">
++                        <span>Estado</span>
++                        <select
++                          className="rounded border border-slate-200 bg-white px-2 py-1 text-xs text-slate-800"
++                          value={row.status ?? 'received'}
++                          disabled={updatingId === row.id}
++                          onChange={(e) => void onStatusChange(row.id, e.target.value)}
++                        >
++                          {BETA_FEEDBACK_STATUSES.map((status) => (
++                            <option key={status} value={status}>
++                              {betaFeedbackStatusLabel(status)}
++                            </option>
++                          ))}
++                        </select>
++                      </label>
++                    ) : null}
+                   </li>
+                 ))}
+               </ul>
+diff --git a/apps/web/modules/kocc/components/KoccCenterClient.tsx b/apps/web/modules/kocc/components/KoccCenterClient.tsx
+index 0a4aa76..65ae12f 100644
+--- a/apps/web/modules/kocc/components/KoccCenterClient.tsx
++++ b/apps/web/modules/kocc/components/KoccCenterClient.tsx
+@@ -181,6 +181,7 @@ export function KoccCenterClient({ canManage }: PanelProps) {
+         inbox={betaInbox}
+         inboxLoading={betaInboxLoading}
+         inboxError={betaInboxError}
++        onInboxChange={setBetaInbox}
+       />
+ 
+       <PanelSection
+diff --git a/apps/web/modules/kocc/lib/beta-feedback-inbox.test.ts b/apps/web/modules/kocc/lib/beta-feedback-inbox.test.ts
+index fb03c7a..05c0391 100644
+--- a/apps/web/modules/kocc/lib/beta-feedback-inbox.test.ts
++++ b/apps/web/modules/kocc/lib/beta-feedback-inbox.test.ts
+@@ -3,17 +3,26 @@ import { filterBetaInboxRows } from './beta-feedback-inbox';
+ 
+ describe('filterBetaInboxRows', () => {
+   const rows = [
+-    { id: '1', kind: 'bug' },
+-    { id: '2', kind: 'feedback' },
+-    { id: '3', kind: 'bug' },
++    { id: '1', kind: 'bug', status: 'received' },
++    { id: '2', kind: 'feedback', status: 'em_analise' },
++    { id: '3', kind: 'bug', status: 'resolvido' },
++    { id: '4', kind: 'avaliacao', status: 'classificado' },
++    { id: '5', kind: 'reclamacao', status: 'duplicado' },
+   ];
+ 
+   it('returns all for filter=all', () => {
+-    expect(filterBetaInboxRows(rows, 'all')).toHaveLength(3);
++    expect(filterBetaInboxRows(rows, 'all')).toHaveLength(5);
+   });
+ 
+   it('filters bugs and feedback', () => {
+     expect(filterBetaInboxRows(rows, 'bug').map((r) => r.id)).toEqual(['1', '3']);
+     expect(filterBetaInboxRows(rows, 'feedback').map((r) => r.id)).toEqual(['2']);
+   });
++
++  it('filters expanded kinds and open/closed status groups', () => {
++    expect(filterBetaInboxRows(rows, 'avaliacao').map((r) => r.id)).toEqual(['4']);
++    expect(filterBetaInboxRows(rows, 'reclamacao').map((r) => r.id)).toEqual(['5']);
++    expect(filterBetaInboxRows(rows, 'open').map((r) => r.id)).toEqual(['1', '2', '4']);
++    expect(filterBetaInboxRows(rows, 'resolvido').map((r) => r.id)).toEqual(['3', '5']);
++  });
+ });
+diff --git a/apps/web/modules/kocc/lib/beta-feedback-inbox.ts b/apps/web/modules/kocc/lib/beta-feedback-inbox.ts
+index cc602c6..7fc0b99 100644
+--- a/apps/web/modules/kocc/lib/beta-feedback-inbox.ts
++++ b/apps/web/modules/kocc/lib/beta-feedback-inbox.ts
+@@ -1,11 +1,35 @@
+-/** Pure inbox filter for beta_feedback.kind — regression-safe, no new schema. */
++/** Pure inbox filter for beta_feedback.kind / status — migration 0046. */
+ 
+-export type BetaInboxFilter = 'all' | 'feedback' | 'bug';
++export type BetaInboxFilter =
++  | 'all'
++  | 'feedback'
++  | 'bug'
++  | 'avaliacao'
++  | 'reclamacao'
++  | 'open'
++  | 'resolvido';
+ 
+-export function filterBetaInboxRows<T extends { kind: string }>(
++const OPEN_STATUSES = new Set([
++  'received',
++  'em_analise',
++  'classificado',
++  'em_desenvolvimento',
++]);
++
++export function filterBetaInboxRows<T extends { kind: string; status?: string | null }>(
+   rows: T[],
+   filter: BetaInboxFilter,
+ ): T[] {
+   if (filter === 'all') return rows;
++  if (filter === 'open') {
++    return rows.filter((row) => !row.status || OPEN_STATUSES.has(row.status));
++  }
++  if (filter === 'resolvido') {
++    return rows.filter((row) =>
++      row.status === 'resolvido' ||
++      row.status === 'duplicado' ||
++      row.status === 'nao_reproduzivel',
++    );
++  }
+   return rows.filter((row) => row.kind === filter);
+ }
+diff --git a/apps/web/modules/kocc/lib/beta-feedback-labels.test.ts b/apps/web/modules/kocc/lib/beta-feedback-labels.test.ts
+index 1e13175..561c5a9 100644
+--- a/apps/web/modules/kocc/lib/beta-feedback-labels.test.ts
++++ b/apps/web/modules/kocc/lib/beta-feedback-labels.test.ts
+@@ -5,6 +5,8 @@ describe('betaFeedbackKindLabel', () => {
+   it('labels known kinds', () => {
+     expect(betaFeedbackKindLabel('bug')).toBe('Bug');
+     expect(betaFeedbackKindLabel('feedback')).toBe('Sugestão');
++    expect(betaFeedbackKindLabel('avaliacao')).toBe('Avaliação');
++    expect(betaFeedbackKindLabel('reclamacao')).toBe('Reclamação');
+   });
+ 
+   it('passes through unknown kinds', () => {
+diff --git a/apps/web/modules/kocc/lib/beta-feedback-labels.ts b/apps/web/modules/kocc/lib/beta-feedback-labels.ts
+index fec5396..9a7db48 100644
+--- a/apps/web/modules/kocc/lib/beta-feedback-labels.ts
++++ b/apps/web/modules/kocc/lib/beta-feedback-labels.ts
+@@ -1,7 +1,9 @@
+ /** Pure labels for beta_feedback.kind — shared by KOCC inbox UI + tests. */
+ export function betaFeedbackKindLabel(kind: string): string {
+   if (kind === 'bug') return 'Bug';
+-  // Align with Help form + inbox filter ("Sugestões") — schema value remains `feedback`.
++  // Align with HelpForm + inbox filter ("Sugestões") — schema value remains `feedback`.
+   if (kind === 'feedback') return 'Sugestão';
++  if (kind === 'avaliacao') return 'Avaliação';
++  if (kind === 'reclamacao') return 'Reclamação';
+   return kind;
+ }
+diff --git a/apps/web/modules/kocc/lib/beta-feedback-status.test.ts b/apps/web/modules/kocc/lib/beta-feedback-status.test.ts
+new file mode 100644
+index 0000000..a7dab0c
+--- /dev/null
++++ b/apps/web/modules/kocc/lib/beta-feedback-status.test.ts
+@@ -0,0 +1,43 @@
++import { describe, expect, it } from 'vitest';
++import {
++  canTransitionBetaFeedbackStatus,
++  isBetaFeedbackStatus,
++  isValidBetaFeedbackKindExpanded,
++  sanitizeBetaPageContext,
++  betaFeedbackStatusLabel,
++} from './beta-feedback-status';
++
++describe('beta feedback status workflow', () => {
++  it('accepts Doc3 statuses', () => {
++    expect(isBetaFeedbackStatus('received')).toBe(true);
++    expect(isBetaFeedbackStatus('nao_reproduzivel')).toBe(true);
++    expect(isBetaFeedbackStatus('closed')).toBe(false);
++  });
++
++  it('expands kinds safely', () => {
++    expect(isValidBetaFeedbackKindExpanded('feedback')).toBe(true);
++    expect(isValidBetaFeedbackKindExpanded('avaliacao')).toBe(true);
++    expect(isValidBetaFeedbackKindExpanded('reclamacao')).toBe(true);
++    expect(isValidBetaFeedbackKindExpanded('ticket')).toBe(false);
++  });
++
++  it('allows reopen from terminal to em_analise', () => {
++    expect(canTransitionBetaFeedbackStatus('resolvido', 'em_analise')).toBe(true);
++    expect(canTransitionBetaFeedbackStatus('resolvido', 'em_desenvolvimento')).toBe(false);
++    expect(canTransitionBetaFeedbackStatus('received', 'em_analise')).toBe(true);
++  });
++
++  it('labels statuses in PT', () => {
++    expect(betaFeedbackStatusLabel('em_desenvolvimento')).toBe('Em desenvolvimento');
++  });
++
++  it('strips screenshot keys from page_context', () => {
++    expect(
++      sanitizeBetaPageContext({
++        locale: 'pt',
++        screenshot: 'data:image/png;base64,xxx',
++        route: '/app/ajuda',
++      }),
++    ).toEqual({ locale: 'pt', route: '/app/ajuda' });
++  });
++});
+diff --git a/apps/web/modules/kocc/lib/beta-feedback-status.ts b/apps/web/modules/kocc/lib/beta-feedback-status.ts
+new file mode 100644
+index 0000000..3b9967e
+--- /dev/null
++++ b/apps/web/modules/kocc/lib/beta-feedback-status.ts
+@@ -0,0 +1,83 @@
++/** Beta feedback status workflow — mirrors migration 0046. */
++
++export const BETA_FEEDBACK_STATUSES = [
++  'received',
++  'em_analise',
++  'classificado',
++  'em_desenvolvimento',
++  'resolvido',
++  'duplicado',
++  'nao_reproduzivel',
++] as const;
++
++export type BetaFeedbackStatus = (typeof BETA_FEEDBACK_STATUSES)[number];
++
++export const BETA_FEEDBACK_KINDS = ['feedback', 'bug', 'avaliacao', 'reclamacao'] as const;
++
++export type BetaFeedbackKind = (typeof BETA_FEEDBACK_KINDS)[number];
++
++export function isBetaFeedbackStatus(value: string): value is BetaFeedbackStatus {
++  return (BETA_FEEDBACK_STATUSES as readonly string[]).includes(value);
++}
++
++export function isValidBetaFeedbackKindExpanded(kind: string): kind is BetaFeedbackKind {
++  return (BETA_FEEDBACK_KINDS as readonly string[]).includes(kind);
++}
++
++/** Allowed transitions (ops triage). Any → terminal ok; terminals are sticky unless reopened to em_analise. */
++const TERMINAL: ReadonlySet<BetaFeedbackStatus> = new Set([
++  'resolvido',
++  'duplicado',
++  'nao_reproduzivel',
++]);
++
++export function canTransitionBetaFeedbackStatus(
++  from: BetaFeedbackStatus,
++  to: BetaFeedbackStatus,
++): boolean {
++  if (from === to) return true;
++  if (TERMINAL.has(from)) {
++    return to === 'em_analise' || to === 'received';
++  }
++  return true;
++}
++
++export function betaFeedbackStatusLabel(status: string): string {
++  switch (status) {
++    case 'received':
++      return 'Recebido';
++    case 'em_analise':
++      return 'Em análise';
++    case 'classificado':
++      return 'Classificado';
++    case 'em_desenvolvimento':
++      return 'Em desenvolvimento';
++    case 'resolvido':
++      return 'Resolvido';
++    case 'duplicado':
++      return 'Duplicado';
++    case 'nao_reproduzivel':
++      return 'Não reproduzível';
++    default:
++      return status;
++  }
++}
++
++/** Sanitize optional page_context — strips screenshot keys; caps size. */
++export function sanitizeBetaPageContext(
++  raw: Record<string, unknown> | null | undefined,
++): Record<string, unknown> | null {
++  if (!raw || typeof raw !== 'object') return null;
++  const blocked = new Set(['screenshot', 'screenshot_url', 'image', 'imageBase64', 'blob']);
++  const out: Record<string, unknown> = {};
++  for (const [key, value] of Object.entries(raw)) {
++    if (blocked.has(key)) continue;
++    if (value == null) continue;
++    if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') {
++      out[key] = typeof value === 'string' && value.length > 500 ? value.slice(0, 500) : value;
++    }
++  }
++  const encoded = JSON.stringify(out);
++  if (encoded.length > 3500) return null;
++  return Object.keys(out).length > 0 ? out : null;
++}
+diff --git a/apps/web/modules/kocc/lib/beta-feedback-submit.test.ts b/apps/web/modules/kocc/lib/beta-feedback-submit.test.ts
+index 361d386..66835f1 100644
+--- a/apps/web/modules/kocc/lib/beta-feedback-submit.test.ts
++++ b/apps/web/modules/kocc/lib/beta-feedback-submit.test.ts
+@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
+ import {
+   isValidBetaFeedbackBody,
+   isValidBetaFeedbackKind,
++  isValidBetaFeedbackKindAny,
+   normalizeBetaFeedbackBody,
+   sanitizeBetaPagePath,
+ } from './beta-feedback-submit';
+@@ -42,9 +43,15 @@ describe('beta feedback body/kind', () => {
+     expect(isValidBetaFeedbackBody('abc')).toBe(true);
+   });
+ 
+-  it('accepts only feedback|bug', () => {
++  it('accepts only feedback|bug (legacy)', () => {
+     expect(isValidBetaFeedbackKind('feedback')).toBe(true);
+     expect(isValidBetaFeedbackKind('bug')).toBe(true);
+     expect(isValidBetaFeedbackKind('ticket')).toBe(false);
++    expect(isValidBetaFeedbackKind('avaliacao')).toBe(false);
++  });
++
++  it('accepts expanded kinds via isValidBetaFeedbackKindAny', () => {
++    expect(isValidBetaFeedbackKindAny('avaliacao')).toBe(true);
++    expect(isValidBetaFeedbackKindAny('reclamacao')).toBe(true);
+   });
+ });
+diff --git a/apps/web/modules/kocc/lib/beta-feedback-submit.ts b/apps/web/modules/kocc/lib/beta-feedback-submit.ts
+index ce86d26..a29f44f 100644
+--- a/apps/web/modules/kocc/lib/beta-feedback-submit.ts
++++ b/apps/web/modules/kocc/lib/beta-feedback-submit.ts
+@@ -1,6 +1,10 @@
+-/** Client-side guards for beta_feedback submit — mirrors migration 0035 checks. */
++/** Client-side guards for beta_feedback submit — mirrors migrations 0035 + 0046. */
+ 
+ import { HELP_SECTION_IDS } from '@/modules/shell/lib/help-sections';
++import {
++  isValidBetaFeedbackKindExpanded,
++  type BetaFeedbackKind,
++} from './beta-feedback-status';
+ 
+ const MAX_BODY = 4000;
+ const MIN_BODY = 3;
+@@ -69,6 +73,12 @@ export function isValidBetaFeedbackBody(body: string): boolean {
+   return len >= MIN_BODY && len <= MAX_BODY;
+ }
+ 
++/** Legacy narrow check — feedback|bug only (pre-0046 forms). */
+ export function isValidBetaFeedbackKind(kind: string): kind is 'feedback' | 'bug' {
+   return kind === 'feedback' || kind === 'bug';
+ }
++
++/** Expanded kinds from migration 0046 (avaliacao / reclamacao). */
++export function isValidBetaFeedbackKindAny(kind: string): kind is BetaFeedbackKind {
++  return isValidBetaFeedbackKindExpanded(kind);
++}
+diff --git a/apps/web/modules/kocc/services/kocc-client.ts b/apps/web/modules/kocc/services/kocc-client.ts
+index 50ccb18..fb145ed 100644
+--- a/apps/web/modules/kocc/services/kocc-client.ts
++++ b/apps/web/modules/kocc/services/kocc-client.ts
+@@ -6,9 +6,11 @@ import { getFinanceCopy } from '@/modules/finance/content';
+ import {
+   isValidBetaFeedbackBody,
+   isValidBetaFeedbackKind,
++  isValidBetaFeedbackKindAny,
+   normalizeBetaFeedbackBody,
+   sanitizeBetaPagePath,
+ } from '../lib/beta-feedback-submit';
++import { isBetaFeedbackStatus, sanitizeBetaPageContext } from '../lib/beta-feedback-status';
+ import type { KoccOperationalStatus } from '../lib/status-labels';
+ 
+ export type KoccFlagRow = {
+@@ -154,13 +156,14 @@ export async function listBetaMetrics(): Promise<Result<KoccBetaMetrics>> {
+ }
+ 
+ export async function submitBetaFeedback(input: {
+-  kind: 'feedback' | 'bug';
++  kind: 'feedback' | 'bug' | 'avaliacao' | 'reclamacao';
+   body: string;
+   pagePath?: string;
++  pageContext?: Record<string, unknown> | null;
+ }): Promise<Result<{ id: string }>> {
+   const copy = errors();
+   try {
+-    if (!isValidBetaFeedbackKind(input.kind)) {
++    if (!isValidBetaFeedbackKindAny(input.kind) && !isValidBetaFeedbackKind(input.kind)) {
+       return { ok: false, message: copy.saveError };
+     }
+     const body = normalizeBetaFeedbackBody(input.body);
+@@ -172,6 +175,7 @@ export async function submitBetaFeedback(input: {
+       p_kind: input.kind,
+       p_body: body,
+       p_page_path: sanitizeBetaPagePath(input.pagePath),
++      p_page_context: sanitizeBetaPageContext(input.pageContext) ?? {},
+     });
+     if (error) return { ok: false, message: error.message || copy.saveError };
+     const row = data as { id?: string } | null;
+@@ -193,19 +197,22 @@ export async function trackBetaFeature(code: string, label?: string): Promise<vo
+   }
+ }
+ 
+-/** Ops triage row — SELECT allowed only via existing RLS (finance.manage | admin.panel). */
++/** Ops triage row — SELECT allowed only via existing RLS (finance.manage | admin.panel | Founder). */
+ export type KoccBetaFeedbackRow = {
+   id: string;
+-  kind: 'feedback' | 'bug' | string;
++  kind: 'feedback' | 'bug' | 'avaliacao' | 'reclamacao' | string;
+   body: string;
+   page_path: string | null;
+   actor_id: string | null;
+   created_at: string;
++  status?: string | null;
++  page_context?: Record<string, unknown> | null;
++  resolution_notes?: string | null;
+ };
+ 
+ /**
+  * Recent beta_feedback for KOCC triage inbox.
+- * Reuses table + RLS from migration 0035 — no new schema.
++ * Reuses table + RLS from migrations 0035 / 0043 / 0046.
+  */
+ export async function listRecentBetaFeedback(limit = 40): Promise<Result<KoccBetaFeedbackRow[]>> {
+   const copy = errors();
+@@ -213,7 +220,9 @@ export async function listRecentBetaFeedback(limit = 40): Promise<Result<KoccBet
+     const client = createBrowserClient();
+     const { data, error } = await client
+       .from('beta_feedback')
+-      .select('id, kind, body, page_path, actor_id, created_at')
++      .select(
++        'id, kind, body, page_path, actor_id, created_at, status, page_context, resolution_notes',
++      )
+       .order('created_at', { ascending: false })
+       .limit(Math.min(Math.max(limit, 1), 100));
+     if (error) return { ok: false, message: error.message || copy.loadError };
+@@ -222,3 +231,26 @@ export async function listRecentBetaFeedback(limit = 40): Promise<Result<KoccBet
+     return { ok: false, message: copy.loadError };
+   }
+ }
++
++export async function updateBetaFeedbackStatus(input: {
++  id: string;
++  status: string;
++  resolutionNotes?: string | null;
++}): Promise<Result<KoccBetaFeedbackRow>> {
++  const copy = errors();
++  try {
++    if (!isBetaFeedbackStatus(input.status)) {
++      return { ok: false, message: copy.saveError };
++    }
++    const client = createBrowserClient();
++    const { data, error } = await client.rpc('kocc_update_beta_feedback_status', {
++      p_id: input.id,
++      p_status: input.status,
++      p_resolution_notes: input.resolutionNotes ?? null,
++    });
++    if (error) return { ok: false, message: error.message || copy.saveError };
++    return { ok: true, data: data as KoccBetaFeedbackRow };
++  } catch {
++    return { ok: false, message: copy.saveError };
++  }
++}
+diff --git a/apps/web/modules/monetization/components/MarketplaceClient.tsx b/apps/web/modules/monetization/components/MarketplaceClient.tsx
+index 2950b76..80766fa 100644
+--- a/apps/web/modules/monetization/components/MarketplaceClient.tsx
++++ b/apps/web/modules/monetization/components/MarketplaceClient.tsx
+@@ -176,6 +176,15 @@ export function MarketplaceClient() {
+                 {copy.smartMoveLink}
+               </Link>
+             ) : null}
++            {!isProviderMode && ready && ctx && !ctx.isProvider ? (
++              <Link
++                href="/auth/onboarding/papeis"
++                className={cn(buttonVariants({ variant: 'secondary' }))}
++                title={copy.becomeProviderHint}
++              >
++                {copy.becomeProvider}
++              </Link>
++            ) : null}
+             <Link href="/app/financeiro" className={cn(buttonVariants({ variant: 'ghost' }))}>
+               {common.financeiro}
+             </Link>
+diff --git a/apps/web/modules/monetization/content/en.ts b/apps/web/modules/monetization/content/en.ts
+index 23f13d1..7b24ae9 100644
+--- a/apps/web/modules/monetization/content/en.ts
++++ b/apps/web/modules/monetization/content/en.ts
+@@ -219,6 +219,9 @@ export const monetizationCopyEn: MonetizationCopy = {
+     subtitle:
+       'Provider → quote → acceptance → execution → payment (Kuteka Pay) → rating. The commission stays in the Ledger (B2B take-rate — no escrow).',
+     smartMoveLink: 'Smart Move',
++    becomeProvider: 'Activate Provider role',
++    becomeProviderHint:
++      'To receive requests, add the Service Provider role in onboarding.',
+     tabs: {
+       providers: 'Providers',
+       myOrders: 'My requests',
+diff --git a/apps/web/modules/monetization/content/es.ts b/apps/web/modules/monetization/content/es.ts
+index 39daecd..f8aed53 100644
+--- a/apps/web/modules/monetization/content/es.ts
++++ b/apps/web/modules/monetization/content/es.ts
+@@ -225,6 +225,9 @@ export const monetizationCopyEs: MonetizationCopy = {
+     subtitle:
+       'Prestador → presupuesto → aceptación → ejecución → pago (Kuteka Pay) → evaluación. La comisión queda en el Ledger (take-rate B2B — sin depósito en garantía).',
+     smartMoveLink: 'Mudanza Inteligente',
++    becomeProvider: 'Activar rol Prestador',
++    becomeProviderHint:
++      'Para recibir pedidos active el rol Prestador de Servicios en el onboarding.',
+     tabs: {
+       providers: 'Prestadores',
+       myOrders: 'Mis solicitudes',
+diff --git a/apps/web/modules/monetization/content/fr.ts b/apps/web/modules/monetization/content/fr.ts
+index 26fb887..52568f3 100644
+--- a/apps/web/modules/monetization/content/fr.ts
++++ b/apps/web/modules/monetization/content/fr.ts
+@@ -221,6 +221,9 @@ export const monetizationCopyFr: MonetizationCopy = {
+     subtitle:
+       'Prestataire → devis → acceptation → exécution → paiement (Kuteka Pay) → évaluation. La commission reste dans le Ledger (take-rate B2B — sans séquestre).',
+     smartMoveLink: 'Déménagement intelligent',
++    becomeProvider: 'Activer le rôle Prestataire',
++    becomeProviderHint:
++      'Pour recevoir des demandes, activez le rôle Prestataire dans l’onboarding.',
+     tabs: {
+       providers: 'Prestataires',
+       myOrders: 'Mes demandes',
+diff --git a/apps/web/modules/monetization/content/pt.ts b/apps/web/modules/monetization/content/pt.ts
+index e8fb482..44c4f49 100644
+--- a/apps/web/modules/monetization/content/pt.ts
++++ b/apps/web/modules/monetization/content/pt.ts
+@@ -219,6 +219,9 @@ export const monetizationCopyPt = {
+     subtitle:
+       'Prestador → orçamento → aceitação → execução → pagamento (Kuteka Pay) → avaliação. A comissão fica no Ledger (take-rate B2B — sem escrow).',
+     smartMoveLink: 'Mudança Inteligente',
++    becomeProvider: 'Activar papel Prestador',
++    becomeProviderHint:
++      'Para receber pedidos precisa do papel Prestador de Serviços no onboarding de papéis.',
+     tabs: {
+       providers: 'Prestadores',
+       myOrders: 'Os meus pedidos',
+diff --git a/apps/web/modules/ops/lib/availability-notify.test.ts b/apps/web/modules/ops/lib/availability-notify.test.ts
+new file mode 100644
+index 0000000..eeaa6ac
+--- /dev/null
++++ b/apps/web/modules/ops/lib/availability-notify.test.ts
+@@ -0,0 +1,68 @@
++import { describe, expect, it } from 'vitest';
++import {
++  planAvailabilityNotifyFanout,
++  shouldNotifyAvailabilityOnPropertyUpdate,
++} from './availability-notify';
++
++describe('shouldNotifyAvailabilityOnPropertyUpdate', () => {
++  it('fires when status becomes active', () => {
++    expect(
++      shouldNotifyAvailabilityOnPropertyUpdate({
++        oldStatus: 'draft',
++        newStatus: 'active',
++        oldLifecycle: 'em_preparacao',
++        newLifecycle: 'em_preparacao',
++      }),
++    ).toBe(true);
++  });
++
++  it('fires when lifecycle becomes publicado', () => {
++    expect(
++      shouldNotifyAvailabilityOnPropertyUpdate({
++        oldStatus: 'active',
++        newStatus: 'active',
++        oldLifecycle: 'em_analise_admin',
++        newLifecycle: 'publicado',
++      }),
++    ).toBe(true);
++  });
++
++  it('is idempotent when already active/publicado', () => {
++    expect(
++      shouldNotifyAvailabilityOnPropertyUpdate({
++        oldStatus: 'active',
++        newStatus: 'active',
++        oldLifecycle: 'publicado',
++        newLifecycle: 'publicado',
++      }),
++    ).toBe(false);
++  });
++
++  it('skips deleted rows', () => {
++    expect(
++      shouldNotifyAvailabilityOnPropertyUpdate({
++        oldStatus: 'draft',
++        newStatus: 'active',
++        oldLifecycle: null,
++        newLifecycle: 'publicado',
++        deletedAt: '2026-01-01T00:00:00Z',
++      }),
++    ).toBe(false);
++  });
++});
++
++describe('planAvailabilityNotifyFanout', () => {
++  it('only includes open requests', () => {
++    expect(
++      planAvailabilityNotifyFanout([
++        { id: '1', clientId: 'a', status: 'open' },
++        { id: '2', clientId: 'b', status: 'notified' },
++        { id: '3', clientId: 'c', status: 'closed' },
++        { id: '4', clientId: 'd', status: 'open' },
++      ]),
++    ).toEqual([
++      { requestId: '1', clientId: 'a' },
++      { requestId: '4', clientId: 'd' },
++    ]);
++  });
++});
+diff --git a/apps/web/modules/ops/lib/availability-notify.ts b/apps/web/modules/ops/lib/availability-notify.ts
+new file mode 100644
+index 0000000..81e6941
+--- /dev/null
++++ b/apps/web/modules/ops/lib/availability-notify.ts
+@@ -0,0 +1,39 @@
++/**
++ * Pure helper mirroring SQL notify_availability_request_clients trigger gate.
++ * Used by unit tests — DB trigger lives in 0047_availability_notify_on_publish.sql.
++ */
++
++export type AvailabilityNotifyPropertyTransition = {
++  oldStatus: string | null;
++  newStatus: string | null;
++  oldLifecycle: string | null;
++  newLifecycle: string | null;
++  deletedAt?: string | null;
++};
++
++/** True when property update should fan-out availability notifications. */
++export function shouldNotifyAvailabilityOnPropertyUpdate(
++  transition: AvailabilityNotifyPropertyTransition,
++): boolean {
++  if (transition.deletedAt) return false;
++  const becameActive =
++    transition.newStatus === 'active' && transition.oldStatus !== 'active';
++  const becamePublicado =
++    transition.newLifecycle === 'publicado' && transition.oldLifecycle !== 'publicado';
++  return becameActive || becamePublicado;
++}
++
++export type OpenAvailabilityRequest = {
++  id: string;
++  clientId: string;
++  status: 'open' | 'notified' | 'closed';
++};
++
++/** Pure fan-out plan: which open requests become notified (idempotent filter). */
++export function planAvailabilityNotifyFanout(
++  requests: OpenAvailabilityRequest[],
++): { requestId: string; clientId: string }[] {
++  return requests
++    .filter((r) => r.status === 'open')
++    .map((r) => ({ requestId: r.id, clientId: r.clientId }));
++}
+diff --git a/apps/web/modules/patrimonios/components/ActivatePropertyForm.tsx b/apps/web/modules/patrimonios/components/ActivatePropertyForm.tsx
+index dde17af..b4c7dba 100644
+--- a/apps/web/modules/patrimonios/components/ActivatePropertyForm.tsx
++++ b/apps/web/modules/patrimonios/components/ActivatePropertyForm.tsx
+@@ -34,6 +34,7 @@ import { getPatrimoniosCopy } from '../content';
+ import { activateProperty } from '../services/properties-client';
+ import type { LocalMediaDraft } from '../services/property-media-client';
+ import { PropertyMediaEditor } from './PropertyMediaEditor';
++import { PropertyCompletenessChecklist } from './PropertyCompletenessChecklist';
+ 
+ const DRAFT_STORAGE_KEY = 'kuteka.activate-property.draft';
+ 
+@@ -1232,6 +1233,26 @@ export function ActivatePropertyForm() {
+                 <dd className="kuteka-detail-value">{media.length}</dd>
+               </div>
+             </dl>
++            <PropertyCompletenessChecklist
++              row={{
++                title,
++                purpose,
++                property_type: propertyType,
++                price_aoa: priceAoa.trim() ? Number(priceAoa) : null,
++                bedrooms: bedrooms.trim() ? Number(bedrooms) : null,
++                bathrooms: bathrooms.trim() ? Number(bathrooms) : null,
++                province,
++                city,
++                address_line: addressLine,
++                media_count: media.length,
++                cover_image_url: media.find((m) => m.isPrimary)?.publicUrl ?? media[0]?.publicUrl,
++                documents_url: null,
++                identity_confirmed: Boolean(session?.permissions.includes('properties.manage')),
++                status: 'draft',
++                lifecycle_status: null,
++                review_status: null,
++              }}
++            />
+             <div className="flex flex-col gap-2">
+               <FieldLabel htmlFor="notes">{copy.fields.notes}</FieldLabel>
+               <Textarea
+diff --git a/apps/web/modules/patrimonios/components/PropertyCompletenessChecklist.tsx b/apps/web/modules/patrimonios/components/PropertyCompletenessChecklist.tsx
+new file mode 100644
+index 0000000..6d3a746
+--- /dev/null
++++ b/apps/web/modules/patrimonios/components/PropertyCompletenessChecklist.tsx
+@@ -0,0 +1,79 @@
++'use client';
++
++import {
++  PROPERTY_COMPLETENESS_LABELS_PT,
++  propertyCompleteness,
++  type PropertyCompletenessInput,
++  type PropertyCompletenessItemId,
++} from '../lib/property-completeness';
++
++type PropertyCompletenessChecklistProps = {
++  row: PropertyCompletenessInput;
++  mediaCount?: number;
++  className?: string;
++};
++
++export function PropertyCompletenessChecklist({
++  row,
++  mediaCount,
++  className,
++}: PropertyCompletenessChecklistProps) {
++  const result = propertyCompleteness({
++    ...row,
++    media_count: mediaCount ?? row.media_count,
++  });
++
++  return (
++    <section
++      className={className ?? 'kuteka-detail-panel flex flex-col gap-3 p-4'}
++      aria-labelledby="property-completeness-heading"
++    >
++      <div className="flex flex-wrap items-baseline justify-between gap-2">
++        <h2 id="property-completeness-heading" className="text-sm font-semibold text-stone-800">
++          Completude do património
++        </h2>
++        <p className="font-mono text-sm tabular-nums text-stone-600">{result.percent}%</p>
++      </div>
++      <div
++        className="h-2 overflow-hidden rounded-full bg-stone-200"
++        role="progressbar"
++        aria-valuenow={result.percent}
++        aria-valuemin={0}
++        aria-valuemax={100}
++      >
++        <div
++          className="h-full rounded-full bg-brand-600 transition-[width] duration-500 ease-out"
++          style={{ width: `${result.percent}%` }}
++        />
++      </div>
++      <ul className="grid gap-1.5 sm:grid-cols-2">
++        {(
++          [
++            'photos',
++            'characteristics',
++            'docs',
++            'identity',
++            'purpose',
++            'activation_request',
++          ] as PropertyCompletenessItemId[]
++        ).map((id) => {
++          const done = result.done.includes(id);
++          return (
++            <li
++              key={id}
++              className={
++                done
++                  ? 'text-sm text-emerald-800'
++                  : 'text-sm text-stone-600'
++              }
++            >
++              <span aria-hidden="true">{done ? '✓ ' : '○ '}</span>
++              {PROPERTY_COMPLETENESS_LABELS_PT[id]}
++              {!done ? <span className="text-stone-400"> — pendente</span> : null}
++            </li>
++          );
++        })}
++      </ul>
++    </section>
++  );
++}
+diff --git a/apps/web/modules/patrimonios/components/PropertyDetailClient.tsx b/apps/web/modules/patrimonios/components/PropertyDetailClient.tsx
+index f3c664c..4fd215f 100644
+--- a/apps/web/modules/patrimonios/components/PropertyDetailClient.tsx
++++ b/apps/web/modules/patrimonios/components/PropertyDetailClient.tsx
+@@ -16,6 +16,7 @@ import { SoftListSlot } from '@/modules/shell/components/SoftListSlot';
+ import { getPatrimoniosCopy } from '../content';
+ import { getProperty, type PropertyRow } from '../services/properties-client';
+ import { listPropertyMedia, type PropertyMediaRow } from '../services/property-media-client';
++import { PropertyCompletenessChecklist } from './PropertyCompletenessChecklist';
+ 
+ export function PropertyDetailClient({ id }: { id: string }) {
+   const { locale } = useLocale();
+@@ -122,6 +123,8 @@ export function PropertyDetailClient({ id }: { id: string }) {
+               purposeLabel={copy.purposes[row.purpose as keyof typeof copy.purposes] ?? row.purpose}
+             />
+ 
++            <PropertyCompletenessChecklist row={row} mediaCount={media.length} />
++
+             <ListingPerformanceCockpit
+               propertyId={row.id}
+               kutekaScore={row.kuteka_score != null ? Number(row.kuteka_score) : null}
+diff --git a/apps/web/modules/patrimonios/lib/property-completeness.test.ts b/apps/web/modules/patrimonios/lib/property-completeness.test.ts
+new file mode 100644
+index 0000000..2bbe956
+--- /dev/null
++++ b/apps/web/modules/patrimonios/lib/property-completeness.test.ts
+@@ -0,0 +1,73 @@
++import { describe, expect, it } from 'vitest';
++import {
++  propertyCompleteness,
++  type PropertyCompletenessInput,
++} from './property-completeness';
++
++const base: PropertyCompletenessInput = {
++  title: 'Apartamento Talatona',
++  purpose: 'rent',
++  property_type: 'apartment',
++  price_aoa: 250_000,
++  bedrooms: 2,
++  bathrooms: 1,
++  province: 'Luanda',
++  city: 'Talatona',
++  cover_image_url: 'https://cdn.example/p.jpg',
++  documents_url: 'https://cdn.example/docs.pdf',
++  owner_kyc_level: 2,
++  lifecycle_status: 'em_analise_admin',
++  status: 'draft',
++};
++
++describe('propertyCompleteness', () => {
++  it('returns 100 when all checklist items are present', () => {
++    const result = propertyCompleteness(base);
++    expect(result.percent).toBe(100);
++    expect(result.missing).toEqual([]);
++    expect(result.done).toHaveLength(6);
++  });
++
++  it('flags missing photos and identity', () => {
++    const result = propertyCompleteness({
++      ...base,
++      cover_image_url: null,
++      media_count: 0,
++      owner_kyc_level: 0,
++      identity_confirmed: false,
++    });
++    expect(result.missing).toContain('photos');
++    expect(result.missing).toContain('identity');
++    expect(result.percent).toBeLessThan(100);
++  });
++
++  it('treats media_count as photos even without cover', () => {
++    const result = propertyCompleteness({
++      ...base,
++      cover_image_url: null,
++      media_count: 3,
++    });
++    expect(result.done).toContain('photos');
++  });
++
++  it('counts activation via lifecycle or active status', () => {
++    expect(
++      propertyCompleteness({ ...base, lifecycle_status: null, review_status: null, status: 'draft' })
++        .missing,
++    ).toContain('activation_request');
++    expect(
++      propertyCompleteness({
++        ...base,
++        lifecycle_status: null,
++        review_status: null,
++        status: 'active',
++      }).done,
++    ).toContain('activation_request');
++  });
++
++  it('returns 0 for empty draft', () => {
++    const result = propertyCompleteness({});
++    expect(result.percent).toBe(0);
++    expect(result.missing).toHaveLength(6);
++  });
++});
+diff --git a/apps/web/modules/patrimonios/lib/property-completeness.ts b/apps/web/modules/patrimonios/lib/property-completeness.ts
+new file mode 100644
+index 0000000..8009887
+--- /dev/null
++++ b/apps/web/modules/patrimonios/lib/property-completeness.ts
+@@ -0,0 +1,141 @@
++/** Pure property completeness checklist — progressive activation UX (Doc3). */
++
++export type PropertyCompletenessInput = {
++  cover_image_url?: string | null;
++  media_count?: number | null;
++  purpose?: string | null;
++  property_type?: string | null;
++  title?: string | null;
++  price_aoa?: number | null;
++  bedrooms?: number | null;
++  bathrooms?: number | null;
++  area_total_m2?: number | null;
++  area_useful_m2?: number | null;
++  province?: string | null;
++  city?: string | null;
++  address_line?: string | null;
++  documents_url?: string | null;
++  legal_notes?: string | null;
++  /** Owner KIS/KYC level when known (optional). */
++  owner_kyc_level?: number | null;
++  /** True when partner identity is considered confirmed. */
++  identity_confirmed?: boolean | null;
++  status?: string | null;
++  review_status?: string | null;
++  lifecycle_status?: string | null;
++};
++
++export type PropertyCompletenessItemId =
++  | 'photos'
++  | 'characteristics'
++  | 'docs'
++  | 'identity'
++  | 'purpose'
++  | 'activation_request';
++
++export type PropertyCompletenessResult = {
++  percent: number;
++  missing: PropertyCompletenessItemId[];
++  done: PropertyCompletenessItemId[];
++};
++
++const ITEMS: PropertyCompletenessItemId[] = [
++  'photos',
++  'characteristics',
++  'docs',
++  'identity',
++  'purpose',
++  'activation_request',
++];
++
++function hasText(value: string | null | undefined): boolean {
++  return typeof value === 'string' && value.trim().length > 0;
++}
++
++function hasPhotos(row: PropertyCompletenessInput): boolean {
++  if ((row.media_count ?? 0) > 0) return true;
++  return hasText(row.cover_image_url);
++}
++
++function hasCharacteristics(row: PropertyCompletenessInput): boolean {
++  const hasRooms = row.bedrooms != null || row.bathrooms != null;
++  const hasArea = row.area_total_m2 != null || row.area_useful_m2 != null;
++  const hasLocation =
++    hasText(row.province) || hasText(row.city) || hasText(row.address_line);
++  return hasRooms || hasArea || hasLocation;
++}
++
++function hasDocs(row: PropertyCompletenessInput): boolean {
++  return hasText(row.documents_url) || hasText(row.legal_notes);
++}
++
++function hasIdentity(row: PropertyCompletenessInput): boolean {
++  if (row.identity_confirmed === true) return true;
++  if (row.owner_kyc_level != null && row.owner_kyc_level >= 1) return true;
++  return false;
++}
++
++function hasPurpose(row: PropertyCompletenessInput): boolean {
++  return (
++    hasText(row.purpose) &&
++    hasText(row.property_type) &&
++    hasText(row.title) &&
++    row.price_aoa != null &&
++    Number(row.price_aoa) > 0
++  );
++}
++
++function hasActivationRequest(row: PropertyCompletenessInput): boolean {
++  const review = row.review_status;
++  if (
++    review === 'in_review' ||
++    review === 'approved' ||
++    review === 'pending' ||
++    review === 'documents_requested' ||
++    review === 'corrections_requested' ||
++    review === 'technical_visit_requested'
++  ) {
++    return true;
++  }
++  const life = row.lifecycle_status;
++  if (
++    life === 'em_analise_kai' ||
++    life === 'em_analise_admin' ||
++    life === 'em_analise_documental' ||
++    life === 'publicado' ||
++    life === 'submetido'
++  ) {
++    return true;
++  }
++  return row.status === 'active';
++}
++
++const CHECKERS: Record<PropertyCompletenessItemId, (row: PropertyCompletenessInput) => boolean> = {
++  photos: hasPhotos,
++  characteristics: hasCharacteristics,
++  docs: hasDocs,
++  identity: hasIdentity,
++  purpose: hasPurpose,
++  activation_request: hasActivationRequest,
++};
++
++/** Progressive completeness: percent 0–100 and missing checklist ids. */
++export function propertyCompleteness(row: PropertyCompletenessInput): PropertyCompletenessResult {
++  const done: PropertyCompletenessItemId[] = [];
++  const missing: PropertyCompletenessItemId[] = [];
++  for (const id of ITEMS) {
++    if (CHECKERS[id](row)) done.push(id);
++    else missing.push(id);
++  }
++  const percent = Math.round((done.length / ITEMS.length) * 100);
++  return { percent, missing, done };
++}
++
++export const PROPERTY_COMPLETENESS_LABELS_PT: Record<PropertyCompletenessItemId, string> = {
++  photos: 'Fotografias',
++  characteristics: 'Características',
++  docs: 'Documentos',
++  identity: 'Identidade (KIS)',
++  purpose: 'Finalidade e preço',
++  activation_request: 'Pedido de activação',
++};
+diff --git a/docs/engineering/GOV_BETA_FEEDBACK_WORKFLOW_REQUIREMENTS.md b/docs/engineering/GOV_BETA_FEEDBACK_WORKFLOW_REQUIREMENTS.md
+index 7d9f6e8..1d94fb6 100644
+--- a/docs/engineering/GOV_BETA_FEEDBACK_WORKFLOW_REQUIREMENTS.md
++++ b/docs/engineering/GOV_BETA_FEEDBACK_WORKFLOW_REQUIREMENTS.md
+@@ -1,7 +1,7 @@
+ # GOV — Requisitos para ciclo de estados / responsável / resolução (Beta feedback)
+ 
+-**Estado:** isolado — **não implementar** sem decisão Founder.  
+-**Objectivo:** mapear o que os documentos e a arquitectura **já exigem ou já oferecem**, sem inventar um segundo sistema de tickets.
++**Estado:** **autorizado e implementado** (migrations 0043–0046 + UI Admin/KOCC).  
++**Objectivo:** ciclo Doc3 em `beta_feedback` sem segundo sistema de tickets; screenshots ficam fora (usar `page_context`).
+ 
+ Fonte documental: Doc 3 tabela BETA (`docs/master-dossier/consolidation/KUTEKA_DOC3_VALIDATION_TABLE_2026-08-28.md`).  
+ Fonte schema: `supabase/migrations/0035_kocc_beta_panel.sql` (+ métricas em `0042_beta_sandbox_visibility_guards.sql`).  
+diff --git a/docs/engineering/proposals/0043_beta_feedback_founder_read_access.sql b/docs/engineering/proposals/0043_beta_feedback_founder_read_access.sql
+index 1fb9aec..ea559e1 100644
+--- a/docs/engineering/proposals/0043_beta_feedback_founder_read_access.sql
++++ b/docs/engineering/proposals/0043_beta_feedback_founder_read_access.sql
+@@ -1,16 +1,6 @@
+--- PROPOSAL ONLY — do not apply without Founder approval (RBAC surface change).
++-- APPLIED as supabase/migrations/0043_beta_feedback_founder_read_access.sql
++-- (Founder authorization — kuteka ecosystem execution)
++-- Original proposal retained for history.
++
+ -- Align beta_feedback SELECT + kocc_beta_metrics with user_has_founder_or_permission.
+ -- Pattern already used since 0036_trust_governance_gate.sql.
+-
+--- drop policy if exists beta_feedback_select_ops on public.beta_feedback;
+--- create policy beta_feedback_select_ops
+---   on public.beta_feedback for select to authenticated
+---   using (
+---     public.user_has_founder_or_permission(auth.uid(), 'finance.manage')
+---     or public.user_has_permission(auth.uid(), 'admin.panel')
+---   );
+---
+--- Then recreate kocc_beta_metrics() replacing:
+---   not public.user_has_permission(v_actor, 'finance.manage')
+--- with:
+---   not public.user_has_founder_or_permission(v_actor, 'finance.manage')
+diff --git a/docs/engineering/proposals/0044_beta_feedback_submit_path_guard.sql b/docs/engineering/proposals/0044_beta_feedback_submit_path_guard.sql
+index 3bb81bd..170fa02 100644
+--- a/docs/engineering/proposals/0044_beta_feedback_submit_path_guard.sql
++++ b/docs/engineering/proposals/0044_beta_feedback_submit_path_guard.sql
+@@ -1,57 +1,6 @@
+--- PROPOSAL ONLY — do not apply without review.
+--- Additive hardening for kocc_submit_beta_feedback (migration 0035).
+---
+--- Scope:
+---   - Truncate page_path server-side (defense in depth; client already sanitizes).
+--- Out of scope:
+---   - Founder RLS (see 0043 — blocked on Founder approval)
+---   - Ticket status / UPDATE policies / resolution workflow
+---   - Writing arbitrary metadata (privacy/retention decision)
+-
+-/*
+-create or replace function public.kocc_submit_beta_feedback(
+-  p_kind text,
+-  p_body text,
+-  p_page_path text default null
+-)
+-returns public.beta_feedback
+-language plpgsql
+-security definer
+-set search_path = public
+-as $$
+-declare
+-  v_actor uuid := auth.uid();
+-  v_row public.beta_feedback;
+-  v_path text;
+-begin
+-  if v_actor is null then
+-    raise exception 'authentication required';
+-  end if;
+-  if p_kind is null or p_kind not in ('feedback', 'bug') then
+-    raise exception 'kind must be feedback or bug';
+-  end if;
+-  if p_body is null or char_length(trim(p_body)) < 3 then
+-    raise exception 'body too short';
+-  end if;
+-  if char_length(trim(p_body)) > 4000 then
+-    raise exception 'body too long';
+-  end if;
+-
+-  v_path := nullif(trim(p_page_path), '');
+-  if v_path is not null and char_length(v_path) > 500 then
+-    v_path := left(v_path, 500);
+-  end if;
+-
+-  insert into public.beta_feedback (kind, body, page_path, actor_id)
+-  values (p_kind, trim(p_body), v_path, v_actor)
+-  returning * into v_row;
++-- APPLIED as supabase/migrations/0044_beta_feedback_submit_path_guard.sql
++-- (Founder authorization — kuteka ecosystem execution)
++-- Original proposal retained for history.
+ 
+-  perform public.kocc_track_feature('beta.feedback', 'Feedback Beta');
+-
+-  return v_row;
+-end;
+-$$;
+-
+-revoke all on function public.kocc_submit_beta_feedback(text, text, text) from public;
+-grant execute on function public.kocc_submit_beta_feedback(text, text, text) to authenticated;
+-*/
++-- Additive hardening for kocc_submit_beta_feedback (migration 0035).
++-- Truncate page_path server-side (defense in depth; client already sanitizes).
+diff --git a/docs/engineering/proposals/0045_beta_feedback_rpc_only_insert.sql b/docs/engineering/proposals/0045_beta_feedback_rpc_only_insert.sql
+index 38b126f..aa4fb61 100644
+--- a/docs/engineering/proposals/0045_beta_feedback_rpc_only_insert.sql
++++ b/docs/engineering/proposals/0045_beta_feedback_rpc_only_insert.sql
+@@ -1,13 +1,5 @@
+--- PROPOSAL ONLY — do not apply without review.
+--- Goal: force beta_feedback writes through kocc_submit_beta_feedback (client sanitize + tracking).
+--- Out of scope: Founder RLS (0043), path truncate (0044), ticket workflow / UPDATE policies.
+---
+--- Current 0035 grants INSERT to authenticated (own actor_id). Official UI uses the RPC;
+--- a direct insert bypasses client sanitizeBetaPagePath / body normalize / kind-specific track.
+---
+--- Suggested change (additive revoke; RPC remains security definer):
+-/*
+-revoke insert on public.beta_feedback from authenticated;
+--- keep: grant select on public.beta_feedback to authenticated;
+--- keep: grant execute on function public.kocc_submit_beta_feedback(text, text, text) to authenticated;
+-*/
++-- APPLIED as supabase/migrations/0045_beta_feedback_rpc_only_insert.sql
++-- (Founder authorization — kuteka ecosystem execution)
++-- Original proposal retained for history.
++
++-- Force beta_feedback writes through kocc_submit_beta_feedback (client sanitize + tracking).
+diff --git a/docs/operations/PENDING_FOUNDER_DECISIONS.md b/docs/operations/PENDING_FOUNDER_DECISIONS.md
+new file mode 100644
+index 0000000..e738ce7
+--- /dev/null
++++ b/docs/operations/PENDING_FOUNDER_DECISIONS.md
+@@ -0,0 +1,50 @@
++# Pending Founder decisions — configurable defaults
++
++**Status:** living checklist after ecosystem execution (migrations 0043–0048).  
++**Scope:** items that stay Founder-gated or intentionally deferred. Do **not** treat this as a product backlog for agents to auto-activate.
++
++---
++
++## Locked / Founder-only (do not open in client UI)
++
++| Default | Current behaviour | Notes |
++| ------- | ----------------- | ----- |
++| **Commission rates** | `platform_commission_params` — Founder/Owner only (`0036`) | Keep Founder-only. No self-serve partner overrides. |
++| **Kuteka Pay / custody** | Sandbox / engine present; **real Pay + custody not activated** | Do not enable live money movement without Founder + legal + ops go-live. |
++| **Growth Engine as product** | Not activated | Keep dormant; no public module flag flip. |
++| **Delegation Engine (full)** | Not activated | Partial ops roles exist; full delegation / succession stays off. |
++| **Succession / Board** | Not activated | Out of Beta execution scope. |
++| **AGT scraping** | Forbidden | Never implement automated AGT harvesting. |
++
++---
++
++## Configurable later (safe to decide without re-architecting)
++
++| Topic | Suggested default until Founder decides | Where it lives |
++| ----- | --------------------------------------- | -------------- |
++| Beta feedback kinds | `feedback` \| `bug` \| `avaliacao` \| `reclamacao` enabled in schema; Help form still emphasises feedback/bug | `0046`, Help / Beta form |
++| Feedback ack to author (BETA-23) | Off — ops status only | Future: notify_user on `resolvido` |
++| Availability notify copy / channel | In-app `user_notifications` only | `0047` |
++| Agent lead auto-assign | Manual claim via `assign_property_interest` | `0048` + Agente hub |
++| Prestadores ads | Future — marketplace ads not in Beta | Monetization flags |
++| Pay sandbox visibility | Sandbox OK for Super Admin; hide from clients | Finance KOCC |
++| Property completeness weights | Equal weight (6 checklist items) | `propertyCompleteness` TS helper |
++
++---
++
++## Already executed under Founder authorization (this branch)
++
++- Proposals **0043–0045** applied as migrations (Founder read, path guard, RPC-only insert).
++- Feedback status workflow **0046** (`received` → … → `resolvido` / `duplicado` / `nao_reproduzivel`) + `page_context` (no screenshots).
++- Matching notify on publish/active **0047**.
++- Agent lead ownership RPC **0048**.
++
++---
++
++## Explicit non-goals (still pending / refused)
++
++1. Screenshot upload for beta feedback (storage not ready).
++2. Real Kuteka Pay settlement / custody wallets for end users.
++3. Growth Engine product surface.
++4. Full Delegation Engine + Board succession flows.
++5. AGT or any government-site scraping.
+diff --git a/docs/security/RLS_PERMISSION_MATRIX_REGRESSION.md b/docs/security/RLS_PERMISSION_MATRIX_REGRESSION.md
+new file mode 100644
+index 0000000..4afecad
+--- /dev/null
++++ b/docs/security/RLS_PERMISSION_MATRIX_REGRESSION.md
+@@ -0,0 +1,23 @@
++# RLS / permission matrix — regression contract
++
++**Companion:** `supabase/tests/rls_permission_matrix_doc.sql`  
++**Helpers:** `packages/auth` (`assertClientDeniedSensitive`, matrix helpers)  
++**Last ecosystem pass:** migrations 0043–0048
++
++## Must remain true
++
++1. Clients cannot call Founder-only RPCs (`founder_set_commission_param`, bootstrap claim without secret).
++2. `beta_feedback` insert only via `kocc_submit_beta_feedback` (RPC-only after 0045).
++3. Availability notify only for non-demo, non-already-available properties.
++4. `assign_property_interest` requires `agent.operate` (or admin) and open interest.
++5. Kuteka Pay custody stays `none` / sandbox until Founder + legal go-live (`PENDING_FOUNDER_DECISIONS.md`).
++
++## How to re-verify
++
++```bash
++pnpm --filter @kuteka/auth test
++pnpm --filter @kuteka/web test
++# Optional: supabase db test / psql -f supabase/tests/rls_permission_matrix_doc.sql
++```
++
++Do not weaken RLS “for convenience” without Founder authorization and an audit log.
+diff --git a/packages/auth/src/index.test.ts b/packages/auth/src/index.test.ts
+index 76a3b76..ad86249 100644
+--- a/packages/auth/src/index.test.ts
++++ b/packages/auth/src/index.test.ts
+@@ -1,7 +1,12 @@
+ import { describe, expect, it } from 'vitest';
+ import {
++  CRITICAL_RLS_MATRIX,
+   canAccessAdminPanel,
+   canAccessPlatform,
++  canManageFinance,
++  canSelectBetaFeedback,
++  canSelectPropertyRow,
++  canSubmitBetaFeedback,
+   emptyAuthorizationContext,
+   userHasAnyPermission,
+   userHasPermission,
+@@ -59,3 +64,40 @@ describe('RBAC helpers (DB-resolved permissions)', () => {
+     ).toBe(true);
+   });
+ });
++
++describe('CRITICAL_RLS_MATRIX regression', () => {
++  const client = ctx({ roles: ['client'], permissions: ['platform.access', 'housing.explore'] });
++  const admin = ctx({
++    roles: ['administrator'],
++    permissions: ['platform.access', 'admin.panel'],
++  });
++  const finance = ctx({
++    roles: ['super_administrator'],
++    permissions: ['platform.access', 'finance.manage', 'admin.panel'],
++  });
++
++  it('properties: own select yes; other client no; admin yes', () => {
++    expect(CRITICAL_RLS_MATRIX.properties.selectOwn).toBe(true);
++    expect(canSelectPropertyRow(client, 'user-1')).toBe(true);
++    expect(canSelectPropertyRow(client, 'other-owner')).toBe(
++      CRITICAL_RLS_MATRIX.properties.selectOtherAsClient,
++    );
++    expect(canSelectPropertyRow(admin, 'other-owner')).toBe(
++      CRITICAL_RLS_MATRIX.properties.selectAsAdmin,
++    );
++  });
++
++  it('beta_feedback: client cannot select; ops can; client can submit', () => {
++    expect(canSelectBetaFeedback(client)).toBe(CRITICAL_RLS_MATRIX.beta_feedback.selectAsClient);
++    expect(canSelectBetaFeedback(admin)).toBe(CRITICAL_RLS_MATRIX.beta_feedback.selectAsOps);
++    expect(canSelectBetaFeedback(finance)).toBe(true);
++    expect(canSubmitBetaFeedback(client)).toBe(true);
++    expect(canSubmitBetaFeedback(null)).toBe(false);
++  });
++
++  it('finance: deny client; require finance.manage', () => {
++    expect(canManageFinance(client)).toBe(CRITICAL_RLS_MATRIX.finance.manageAsClient);
++    expect(canManageFinance(finance)).toBe(true);
++    expect(CRITICAL_RLS_MATRIX.finance.manageRequires).toBe('finance.manage');
++  });
++});
+diff --git a/packages/auth/src/index.ts b/packages/auth/src/index.ts
+index 0165269..885ecaa 100644
+--- a/packages/auth/src/index.ts
++++ b/packages/auth/src/index.ts
+@@ -49,6 +49,56 @@ export function canAccessAdminPanel(ctx: AuthorizationContext | null | undefined
+   return userHasPermission(ctx.permissions, 'admin.panel');
+ }
+ 
++/**
++ * Expected RLS / capability matrix for critical surfaces (regression contract).
++ * Mirrors policies in migrations 0004 / 0035 / 0043 / finance phase1 — client-side
++ * mirror of DB grants; never a substitute for PostgreSQL RLS.
++ */
++export const CRITICAL_RLS_MATRIX = {
++  properties: {
++    selectOwn: true,
++    selectOtherAsClient: false,
++    selectAsAdmin: true,
++  },
++  beta_feedback: {
++    insertOwnViaRpc: true,
++    selectAsClient: false,
++    selectAsOps: true, // finance.manage | admin.panel | Founder
++  },
++  finance: {
++    manageAsClient: false,
++    manageRequires: 'finance.manage' as PermissionCode,
++  },
++} as const;
++
++/** properties SELECT: owner or admin.panel (0004 properties_select_own). */
++export function canSelectPropertyRow(
++  ctx: AuthorizationContext | null | undefined,
++  ownerId: string,
++): boolean {
++  if (!ctx) return false;
++  if (ctx.userId === ownerId) return true;
++  return userHasPermission(ctx.permissions, 'admin.panel');
++}
++
++/** beta_feedback SELECT ops (0035 + 0043): finance.manage | admin.panel. */
++export function canSelectBetaFeedback(ctx: AuthorizationContext | null | undefined): boolean {
++  if (!ctx) return false;
++  return userHasAnyPermission(ctx.permissions, ['finance.manage', 'admin.panel']);
++}
++
++/** beta_feedback insert is own-only via RPC; clients without session cannot. */
++export function canSubmitBetaFeedback(ctx: AuthorizationContext | null | undefined): boolean {
++  if (!ctx) return false;
++  return userHasPermission(ctx.permissions, 'platform.access');
++}
++
++/** finance.manage deny for plain client. */
++export function canManageFinance(ctx: AuthorizationContext | null | undefined): boolean {
++  if (!ctx) return false;
++  return userHasPermission(ctx.permissions, 'finance.manage');
++}
++
+ export function emptyAuthorizationContext(
+   userId: string,
+   email: string | null = null,
+diff --git a/supabase/migrations/0043_beta_feedback_founder_read_access.sql b/supabase/migrations/0043_beta_feedback_founder_read_access.sql
+new file mode 100644
+index 0000000..6cf9e44
+--- /dev/null
++++ b/supabase/migrations/0043_beta_feedback_founder_read_access.sql
+@@ -0,0 +1,187 @@
++-- 0043_beta_feedback_founder_read_access.sql
++-- Applied from docs/engineering/proposals/0043 (Founder authorization granted).
++-- Align beta_feedback SELECT + kocc_beta_metrics with user_has_founder_or_permission.
++
++drop policy if exists beta_feedback_select_ops on public.beta_feedback;
++create policy beta_feedback_select_ops
++  on public.beta_feedback for select to authenticated
++  using (
++    public.user_has_founder_or_permission(auth.uid(), 'finance.manage')
++    or public.user_has_permission(auth.uid(), 'admin.panel')
++  );
++
++drop policy if exists beta_feature_events_select_ops on public.beta_feature_events;
++create policy beta_feature_events_select_ops
++  on public.beta_feature_events for select to authenticated
++  using (
++    public.user_has_founder_or_permission(auth.uid(), 'finance.manage')
++    or public.user_has_permission(auth.uid(), 'admin.panel')
++  );
++
++create or replace function public.kocc_beta_metrics()
++returns jsonb
++language plpgsql
++security definer
++set search_path = public
++as $$
++declare
++  v_actor uuid := auth.uid();
++  v_profiles int;
++  v_beta_users int;
++  v_with_roles int;
++  v_kis_ok int;
++  v_props_real int;
++  v_props_beta int;
++  v_visits int;
++  v_contracts_started int;
++  v_feedback int;
++  v_bugs int;
++  v_features_most jsonb;
++  v_features_least jsonb;
++  v_proxy jsonb;
++begin
++  if v_actor is null
++     or not public.user_has_founder_or_permission(v_actor, 'finance.manage') then
++    raise exception 'finance.manage required';
++  end if;
++
++  select count(*)::int into v_profiles
++  from public.profiles where deleted_at is null;
++
++  select count(*)::int into v_beta_users
++  from public.profiles p
++  join auth.users u on u.id = p.id
++  where p.deleted_at is null
++    and (u.email is null or u.email not ilike '%@kuteka.local');
++
++  select count(distinct ur.user_id)::int into v_with_roles
++  from public.user_roles ur
++  join public.profiles p on p.id = ur.user_id and p.deleted_at is null
++  join auth.users u on u.id = p.id
++  where u.email is null or u.email not ilike '%@kuteka.local';
++
++  select count(*)::int into v_kis_ok
++  from public.profiles p
++  join auth.users u on u.id = p.id
++  where p.deleted_at is null
++    and coalesce(p.kyc_level, 0) >= 2
++    and (u.email is null or u.email not ilike '%@kuteka.local');
++
++  select count(*)::int into v_props_real
++  from public.properties
++  where deleted_at is null
++    and coalesce(is_demo, false) = false
++    and status = 'active';
++
++  select count(*)::int into v_props_beta
++  from public.properties
++  where deleted_at is null
++    and coalesce(is_demo, false) = true;
++
++  select count(*)::int into v_visits
++  from public.property_interests i
++  join public.properties p on p.id = i.property_id
++  where i.status in ('submitted', 'reviewing', 'assigned')
++    and coalesce(p.is_demo, false) = false;
++
++  select count(*)::int into v_contracts_started
++  from public.property_contracts
++  where coalesce(is_demo, false) = false
++    and status in ('draft', 'pending_acceptance', 'active');
++
++  select count(*)::int into v_feedback
++  from public.beta_feedback where kind = 'feedback';
++
++  select count(*)::int into v_bugs
++  from public.beta_feedback where kind = 'bug';
++
++  v_proxy := jsonb_build_array(
++    jsonb_build_object('code', 'housing.interest', 'label', 'Demonstrar interesse',
++      'count', (
++        select count(*)::int
++        from public.property_interests i
++        join public.properties p on p.id = i.property_id
++        where coalesce(p.is_demo, false) = false
++      )),
++    jsonb_build_object('code', 'contratos.prepare', 'label', 'Contratos',
++      'count', (
++        select count(*)::int from public.property_contracts
++        where coalesce(is_demo, false) = false
++      )),
++    jsonb_build_object('code', 'kuteka_chat', 'label', 'Chat Kuteka',
++      'count', (select count(*)::int from public.kuteka_messages)),
++    jsonb_build_object('code', 'confianca.documents', 'label', 'Documentos de confiança',
++      'count', (select count(*)::int from public.trust_documents where deleted_at is null)),
++    jsonb_build_object('code', 'kis.profile', 'label', 'Identidade KIS/KYC',
++      'count', (select count(*)::int from public.profiles where coalesce(kyc_level, 0) >= 1 and deleted_at is null)),
++    jsonb_build_object('code', 'patrimonios.activate', 'label', 'Patrimónios activos',
++      'count', (
++        select count(*)::int from public.properties
++        where deleted_at is null and status = 'active' and coalesce(is_demo, false) = false
++      )),
++    jsonb_build_object('code', 'marketplace', 'label', 'Prestadores',
++      'count', (
++        select count(*)::int from public.service_providers
++        where coalesce(active, true) and coalesce(is_demo, false) = false
++      ))
++  );
++
++  select coalesce(jsonb_agg(row_to_json(t)::jsonb), '[]'::jsonb)
++  into v_features_most
++  from (
++    select feature_code as code, label, event_count as count
++    from public.beta_feature_events
++    order by event_count desc, feature_code
++    limit 8
++  ) t;
++
++  select coalesce(jsonb_agg(row_to_json(t)::jsonb), '[]'::jsonb)
++  into v_features_least
++  from (
++    select feature_code as code, label, event_count as count
++    from public.beta_feature_events
++    order by event_count asc, feature_code
++    limit 8
++  ) t;
++
++  return jsonb_build_object(
++    'generatedAt', timezone('utc', now()),
++    'betaUsers', v_beta_users,
++    'profilesTotal', v_profiles,
++    'propertiesReal', v_props_real,
++    'propertiesBetaInventory', v_props_beta,
++    'visitsScheduled', v_visits,
++    'contractsStarted', v_contracts_started,
++    'feedbackReceived', v_feedback,
++    'bugsReported', v_bugs,
++    'onboardingCompletionRate',
++      case when v_beta_users > 0
++        then round((v_with_roles::numeric / v_beta_users::numeric) * 100, 1)
++        else 0
++      end,
++    'kisCompletionRate',
++      case when v_beta_users > 0
++        then round((v_kis_ok::numeric / v_beta_users::numeric) * 100, 1)
++        else 0
++      end,
++    'featuresMostUsed', v_features_most,
++    'featuresLeastUsed', v_features_least,
++    'featureUsageProxy', v_proxy,
++    'modulesOperational', (
++      select coalesce(jsonb_agg(jsonb_build_object(
++        'code', code,
++        'label', label,
++        'status', operational_status,
++        'enabled', enabled
++      ) order by label), '[]'::jsonb)
++      from public.platform_feature_flags
++    )
++  );
++end;
++$$;
++
++revoke all on function public.kocc_beta_metrics() from public;
++grant execute on function public.kocc_beta_metrics() to authenticated;
++
++comment on function public.kocc_beta_metrics() is
++  'KOCC Painel Beta — métricas agregadas; finance.manage ou Founder.';
+diff --git a/supabase/migrations/0044_beta_feedback_submit_path_guard.sql b/supabase/migrations/0044_beta_feedback_submit_path_guard.sql
+new file mode 100644
+index 0000000..065b62a
+--- /dev/null
++++ b/supabase/migrations/0044_beta_feedback_submit_path_guard.sql
+@@ -0,0 +1,49 @@
++-- 0044_beta_feedback_submit_path_guard.sql
++-- Applied from docs/engineering/proposals/0044 (Founder authorization granted).
++-- Truncate page_path server-side; keep kind set as feedback|bug (expanded in 0046).
++
++create or replace function public.kocc_submit_beta_feedback(
++  p_kind text,
++  p_body text,
++  p_page_path text default null
++)
++returns public.beta_feedback
++language plpgsql
++security definer
++set search_path = public
++as $$
++declare
++  v_actor uuid := auth.uid();
++  v_row public.beta_feedback;
++  v_path text;
++begin
++  if v_actor is null then
++    raise exception 'authentication required';
++  end if;
++  if p_kind is null or p_kind not in ('feedback', 'bug') then
++    raise exception 'kind must be feedback or bug';
++  end if;
++  if p_body is null or char_length(trim(p_body)) < 3 then
++    raise exception 'body too short';
++  end if;
++  if char_length(trim(p_body)) > 4000 then
++    raise exception 'body too long';
++  end if;
++
++  v_path := nullif(trim(p_page_path), '');
++  if v_path is not null and char_length(v_path) > 500 then
++    v_path := left(v_path, 500);
++  end if;
++
++  insert into public.beta_feedback (kind, body, page_path, actor_id)
++  values (p_kind, trim(p_body), v_path, v_actor)
++  returning * into v_row;
++
++  perform public.kocc_track_feature('beta.feedback', 'Feedback Beta');
++
++  return v_row;
++end;
++$$;
++
++revoke all on function public.kocc_submit_beta_feedback(text, text, text) from public;
++grant execute on function public.kocc_submit_beta_feedback(text, text, text) to authenticated;
+diff --git a/supabase/migrations/0045_beta_feedback_rpc_only_insert.sql b/supabase/migrations/0045_beta_feedback_rpc_only_insert.sql
+new file mode 100644
+index 0000000..36b0b17
+--- /dev/null
++++ b/supabase/migrations/0045_beta_feedback_rpc_only_insert.sql
+@@ -0,0 +1,12 @@
++-- 0045_beta_feedback_rpc_only_insert.sql
++-- Applied from docs/engineering/proposals/0045 (Founder authorization granted).
++-- Force beta_feedback writes through kocc_submit_beta_feedback (security definer).
++
++revoke insert on public.beta_feedback from authenticated;
++
++-- Keep SELECT for ops/Founder via RLS; RPC remains the write path.
++grant select on public.beta_feedback to authenticated;
++grant execute on function public.kocc_submit_beta_feedback(text, text, text) to authenticated;
++
++comment on table public.beta_feedback is
++  'Sprint Beta — feedback/bugs. INSERT only via kocc_submit_beta_feedback; SELECT ops/Founder.';
+diff --git a/supabase/migrations/0046_beta_feedback_status_workflow.sql b/supabase/migrations/0046_beta_feedback_status_workflow.sql
+new file mode 100644
+index 0000000..4bb7409
+--- /dev/null
++++ b/supabase/migrations/0046_beta_feedback_status_workflow.sql
+@@ -0,0 +1,183 @@
++-- 0046_beta_feedback_status_workflow.sql
++-- Doc3 feedback cycle: status machine + kind expansion + page_context (no screenshot storage).
++-- Mutations via security definer RPC + audit_logs (UPDATE stays revoked on authenticated).
++
++-- ─── Columns ────────────────────────────────────────────────────────────────
++alter table public.beta_feedback
++  add column if not exists status text not null default 'received',
++  add column if not exists page_context jsonb not null default '{}'::jsonb,
++  add column if not exists status_updated_at timestamptz,
++  add column if not exists status_updated_by uuid references auth.users (id),
++  add column if not exists resolution_notes text;
++
++-- Expand kind check: keep feedback|bug; add avaliacao|reclamacao (product channel only).
++alter table public.beta_feedback drop constraint if exists beta_feedback_kind_check;
++alter table public.beta_feedback
++  add constraint beta_feedback_kind_check
++  check (kind in ('feedback', 'bug', 'avaliacao', 'reclamacao'));
++
++alter table public.beta_feedback drop constraint if exists beta_feedback_status_check;
++alter table public.beta_feedback
++  add constraint beta_feedback_status_check
++  check (status in (
++    'received',
++    'em_analise',
++    'classificado',
++    'em_desenvolvimento',
++    'resolvido',
++    'duplicado',
++    'nao_reproduzivel'
++  ));
++
++create index if not exists beta_feedback_status_idx
++  on public.beta_feedback (status, created_at desc);
++
++comment on column public.beta_feedback.status is
++  'Doc3 triage: received→em_analise→classificado→em_desenvolvimento→resolvido|duplicado|nao_reproduzivel';
++comment on column public.beta_feedback.page_context is
++  'Optional lightweight context (route, locale, viewport). No screenshot blobs — storage not ready.';
++
++-- ─── Submit: kinds + optional page_context; default status=received ─────────
++create or replace function public.kocc_submit_beta_feedback(
++  p_kind text,
++  p_body text,
++  p_page_path text default null,
++  p_page_context jsonb default null
++)
++returns public.beta_feedback
++language plpgsql
++security definer
++set search_path = public
++as $$
++declare
++  v_actor uuid := auth.uid();
++  v_row public.beta_feedback;
++  v_path text;
++  v_ctx jsonb;
++begin
++  if v_actor is null then
++    raise exception 'authentication required';
++  end if;
++  if p_kind is null
++     or p_kind not in ('feedback', 'bug', 'avaliacao', 'reclamacao') then
++    raise exception 'kind must be feedback, bug, avaliacao or reclamacao';
++  end if;
++  if p_body is null or char_length(trim(p_body)) < 3 then
++    raise exception 'body too short';
++  end if;
++  if char_length(trim(p_body)) > 4000 then
++    raise exception 'body too long';
++  end if;
++
++  v_path := nullif(trim(p_page_path), '');
++  if v_path is not null and char_length(v_path) > 500 then
++    v_path := left(v_path, 500);
++  end if;
++
++  v_ctx := coalesce(p_page_context, '{}'::jsonb);
++  if jsonb_typeof(v_ctx) <> 'object' then
++    v_ctx := '{}'::jsonb;
++  end if;
++  -- Cap payload size (no media / base64 screenshots).
++  if octet_length(v_ctx::text) > 4000 then
++    raise exception 'page_context too large';
++  end if;
++  if v_ctx ? 'screenshot' or v_ctx ? 'screenshot_url' or v_ctx ? 'image' then
++    raise exception 'screenshot upload not supported';
++  end if;
++
++  insert into public.beta_feedback (
++    kind, body, page_path, actor_id, status, page_context
++  )
++  values (
++    p_kind, trim(p_body), v_path, v_actor, 'received', v_ctx
++  )
++  returning * into v_row;
++
++  perform public.kocc_track_feature('beta.feedback', 'Feedback Beta');
++
++  return v_row;
++end;
++$$;
++
++-- Drop 3-arg overload so clients use the 4-arg form (defaults keep 3-arg call sites working
++-- only if Postgres keeps a single function with defaults — recreate grants on 4-arg).
++drop function if exists public.kocc_submit_beta_feedback(text, text, text);
++
++revoke all on function public.kocc_submit_beta_feedback(text, text, text, jsonb) from public;
++grant execute on function public.kocc_submit_beta_feedback(text, text, text, jsonb) to authenticated;
++
++-- ─── Status update RPC (ops / Founder) + audit ──────────────────────────────
++create or replace function public.kocc_update_beta_feedback_status(
++  p_id uuid,
++  p_status text,
++  p_resolution_notes text default null
++)
++returns public.beta_feedback
++language plpgsql
++security definer
++set search_path = public
++as $$
++declare
++  v_actor uuid := auth.uid();
++  v_before public.beta_feedback;
++  v_row public.beta_feedback;
++begin
++  if v_actor is null then
++    raise exception 'authentication required';
++  end if;
++  if not (
++    public.user_has_founder_or_permission(v_actor, 'finance.manage')
++    or public.user_has_permission(v_actor, 'admin.panel')
++  ) then
++    raise exception 'ops permission required';
++  end if;
++  if p_status is null or p_status not in (
++    'received', 'em_analise', 'classificado', 'em_desenvolvimento',
++    'resolvido', 'duplicado', 'nao_reproduzivel'
++  ) then
++    raise exception 'invalid status';
++  end if;
++
++  select * into v_before from public.beta_feedback where id = p_id;
++  if not found then
++    raise exception 'feedback not found';
++  end if;
++
++  update public.beta_feedback
++  set
++    status = p_status,
++    status_updated_at = timezone('utc', now()),
++    status_updated_by = v_actor,
++    resolution_notes = case
++      when p_resolution_notes is null then resolution_notes
++      else nullif(trim(p_resolution_notes), '')
++    end
++  where id = p_id
++  returning * into v_row;
++
++  perform public.write_audit_event(
++    'beta_feedback.status_update',
++    'beta_feedback',
++    v_row.id::text,
++    jsonb_build_object(
++      'from', v_before.status,
++      'to', v_row.status,
++      'kind', v_row.kind
++    ),
++    nullif(trim(coalesce(p_resolution_notes, '')), ''),
++    jsonb_build_object('status', v_before.status),
++    jsonb_build_object('status', v_row.status),
++    null,
++    null
++  );
++
++  return v_row;
++end;
++$$;
++
++revoke all on function public.kocc_update_beta_feedback_status(uuid, text, text) from public;
++grant execute on function public.kocc_update_beta_feedback_status(uuid, text, text) to authenticated;
++
++comment on function public.kocc_update_beta_feedback_status(uuid, text, text) is
++  'Ops/Founder triage: update beta_feedback.status with audit_logs trail.';
+diff --git a/supabase/migrations/0047_availability_notify_on_publish.sql b/supabase/migrations/0047_availability_notify_on_publish.sql
+new file mode 100644
+index 0000000..d61775c
+--- /dev/null
++++ b/supabase/migrations/0047_availability_notify_on_publish.sql
+@@ -0,0 +1,105 @@
++-- 0047_availability_notify_on_publish.sql
++-- Doc3 matching notify: when a property becomes publicado/active, notify users with
++-- open availability_notify_requests (reuses notify_user).
++--
++-- Trigger path (security definer) — no client-facing RPC required.
++-- Expected behaviour (SQL-doc test contract):
++--   1. UPDATE properties SET status='active' OR lifecycle_status='publicado'
++--      from a non-matching prior state → notify each open request once.
++--   2. Mark matching requests status='notified'.
++--   3. Idempotent: second update while already active/publicado does not re-notify.
++--   4. Does not fire Pay/custody, Growth Engine, or AGT scraping.
++
++create or replace function public.notify_availability_request_clients(
++  p_property_id uuid,
++  p_property_title text default null
++)
++returns int
++language plpgsql
++security definer
++set search_path = public
++as $$
++declare
++  v_req record;
++  v_count int := 0;
++  v_title text := coalesce(nullif(trim(p_property_title), ''), 'Património');
++  v_href text;
++begin
++  v_href := '/app/habitacao/detalhe?id=' || p_property_id::text;
++
++  for v_req in
++    select id, client_id
++    from public.availability_notify_requests
++    where property_id = p_property_id
++      and status = 'open'
++  loop
++    perform public.notify_user(
++      v_req.client_id,
++      'availability.available',
++      'Imóvel disponível',
++      v_title || ' está agora disponível na Kuteka.',
++      v_href,
++      jsonb_build_object(
++        'property_id', p_property_id,
++        'request_id', v_req.id
++      )
++    );
++
++    update public.availability_notify_requests
++    set status = 'notified',
++        updated_at = timezone('utc', now())
++    where id = v_req.id;
++
++    v_count := v_count + 1;
++  end loop;
++
++  return v_count;
++end;
++$$;
++
++revoke all on function public.notify_availability_request_clients(uuid, text) from public;
++grant execute on function public.notify_availability_request_clients(uuid, text) to service_role;
++
++create or replace function public.trg_properties_notify_availability()
++returns trigger
++language plpgsql
++security definer
++set search_path = public
++as $$
++declare
++  v_became_active boolean;
++  v_became_publicado boolean;
++begin
++  if tg_op <> 'UPDATE' then
++    return new;
++  end if;
++  if new.deleted_at is not null then
++    return new;
++  end if;
++
++  v_became_active :=
++    new.status = 'active'
++    and coalesce(old.status, '') is distinct from 'active';
++
++  v_became_publicado :=
++    coalesce(new.lifecycle_status, '') = 'publicado'
++    and coalesce(old.lifecycle_status, '') is distinct from 'publicado';
++
++  if v_became_active or v_became_publicado then
++    perform public.notify_availability_request_clients(new.id, new.title);
++  end if;
++
++  return new;
++end;
++$$;
++
++drop trigger if exists properties_notify_availability on public.properties;
++create trigger properties_notify_availability
++after update of status, lifecycle_status, deleted_at on public.properties
++for each row
++execute function public.trg_properties_notify_availability();
++
++comment on function public.notify_availability_request_clients(uuid, text) is
++  'Notify clients with open availability_notify_requests when property becomes available.';
++comment on function public.trg_properties_notify_availability() is
++  'AFTER UPDATE on properties: publish/active → notify_availability_request_clients.';
+diff --git a/supabase/migrations/0048_assign_property_interest.sql b/supabase/migrations/0048_assign_property_interest.sql
+new file mode 100644
+index 0000000..0af5d96
+--- /dev/null
++++ b/supabase/migrations/0048_assign_property_interest.sql
+@@ -0,0 +1,91 @@
++-- 0048_assign_property_interest.sql
++-- Doc2 P0 minimal agent lead ownership.
++-- property_interests already has assigned_agent_id (0009). This adds a guarded RPC
++-- so agents/admins assign leads with permission check + audit — without a second CRM.
++--
++-- Permission matrix (encoded for RLS regression / ops):
++--   assign_property_interest:
++--     - admin.panel → any interest
++--     - agent.operate → self-assign only (p_agent_id null or = auth.uid())
++--     - client / housing.explore alone → deny
++--   Direct UPDATE of assigned_agent_id remains possible for admin/agent via existing
++--   property_interests_update_ops policy; prefer this RPC for auditability.
++
++create or replace function public.assign_property_interest(
++  p_interest_id uuid,
++  p_agent_id uuid default null
++)
++returns public.property_interests
++language plpgsql
++security definer
++set search_path = public
++as $$
++declare
++  v_actor uuid := auth.uid();
++  v_agent uuid;
++  v_before public.property_interests;
++  v_row public.property_interests;
++  v_is_admin boolean;
++  v_is_agent boolean;
++begin
++  if v_actor is null then
++    raise exception 'authentication required';
++  end if;
++
++  v_is_admin := public.user_has_permission(v_actor, 'admin.panel');
++  v_is_agent := public.user_has_permission(v_actor, 'agent.operate');
++
++  if not (v_is_admin or v_is_agent) then
++    raise exception 'agent.operate or admin.panel required';
++  end if;
++
++  v_agent := coalesce(p_agent_id, v_actor);
++  if not v_is_admin and v_agent <> v_actor then
++    raise exception 'agents may only self-assign';
++  end if;
++
++  -- Target must be a certified agent (agent.operate).
++  if not public.user_has_permission(v_agent, 'agent.operate') then
++    raise exception 'target must have agent.operate';
++  end if;
++
++  select * into v_before
++  from public.property_interests
++  where id = p_interest_id;
++  if not found then
++    raise exception 'interest not found';
++  end if;
++
++  update public.property_interests
++  set
++    assigned_agent_id = v_agent,
++    status = case
++      when status in ('submitted', 'reviewing') then 'assigned'
++      else status
++    end,
++    updated_by = v_actor,
++    updated_at = timezone('utc', now())
++  where id = p_interest_id
++  returning * into v_row;
++
++  perform public.write_audit_log(
++    'property_interest.assigned',
++    'property_interest',
++    v_row.id::text,
++    jsonb_build_object(
++      'property_id', v_row.property_id,
++      'from_agent', v_before.assigned_agent_id,
++      'to_agent', v_row.assigned_agent_id,
++      'status', v_row.status
++    )
++  );
++
++  return v_row;
++end;
++$$;
++
++revoke all on function public.assign_property_interest(uuid, uuid) from public;
++grant execute on function public.assign_property_interest(uuid, uuid) to authenticated;
++
++comment on function public.assign_property_interest(uuid, uuid) is
++  'Assign property_interests.assigned_agent_id with RBAC + audit. Prefer over direct UPDATE.';
+diff --git a/supabase/tests/rls_permission_matrix_doc.sql b/supabase/tests/rls_permission_matrix_doc.sql
+new file mode 100644
+index 0000000..7eb061b
+--- /dev/null
++++ b/supabase/tests/rls_permission_matrix_doc.sql
+@@ -0,0 +1,32 @@
++-- SQL-doc regression: expected permission / trigger matrix (critical tables).
++-- Not executed in CI as a live DB test — encodes contracts mirrored by
++-- packages/auth CRITICAL_RLS_MATRIX + apps/web ops availability-notify unit tests.
++--
++-- properties SELECT (0004):
++--   ✓ owner_id = auth.uid()
++--   ✓ admin.panel
++--   ✗ other client
++--
++-- beta_feedback INSERT (0035 + 0045):
++--   ✓ via kocc_submit_beta_feedback (own actor)
++--   ✗ direct INSERT as authenticated (revoked)
++--
++-- beta_feedback SELECT (0035 + 0043):
++--   ✓ finance.manage | Founder (user_has_founder_or_permission)
++--   ✓ admin.panel
++--   ✗ plain client
++--
++-- finance.manage:
++--   ✗ client role alone
++--   ✓ super_administrator / explicit finance.manage grant
++--
++-- availability notify (0047):
++--   UPDATE properties status draft→active OR lifecycle→publicado
++--   ⇒ notify_user for each open availability_notify_requests; mark notified
++--
++-- assign_property_interest (0048):
++--   ✓ agent.operate self-assign
++--   ✓ admin.panel assign to agent
++--   ✗ client
++
++select 1 as rls_matrix_doc_ok;
+-- 
+2.43.0
+

@@ -1,0 +1,31 @@
+RemakePix — chaves do comprador
+Não escrever senhas aqui. Não enviar este ficheiro preenchido no GitHub.
+As chaves colam-se na Vercel: projeto remakepix → Settings → Environment Variables.
+Depois, Redeploy.
+
+Obrigatórias para o site gerar e guardar imagens
+REPLICATE_API_TOKEN=
+MONGO_URL=
+DB_NAME=remake_pixel
+AWS_ACCESS_KEY_ID=
+AWS_SECRET_ACCESS_KEY=
+AWS_S3_BUCKET=
+AWS_S3_REGION=eu-west-1
+
+Login com Google
+REACT_APP_GOOGLE_CLIENT_ID=
+
+Pagamentos (só se quiser vender créditos)
+STRIPE_SECRET_KEY=
+STRIPE_WEBHOOK_SECRET=
+
+Texto de pôsteres e apoio no chat
+OPENAI_API_KEY=
+
+Emails (recuperar senha)
+RESEND_API_KEY=
+
+Site
+SITE_URL=https://www.remakepix.com
+ADMIN_EMAILS=
+CRON_SECRET=

@@ -11,7 +11,6 @@ import { useI18n } from "./lib/i18n";
 import GenerationReadyToastListener from "./components/notifications/GenerationReadyToastListener";
 import ThemeToaster from "./components/ThemeToaster";
 
-import Landing from "./pages/Landing";
 import Discover from "./pages/Discover";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
@@ -142,7 +141,7 @@ function App() {
             <PwaStartupRedirect />
             <BackgroundGenerationRedirect />
             <Routes>
-              <Route path="/" element={<Landing />} />
+              <Route path="/" element={<Navigate to="/app/tools" replace />} />
               <Route path="/discover" element={<Discover />} />
               <Route path="/login" element={<Login />} />
               <Route path="/register" element={<Register />} />
